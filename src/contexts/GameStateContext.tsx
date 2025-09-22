@@ -1,18 +1,27 @@
+'use client';
+
 // contexts/GameStateContext.tsx
 import { createContext, useContext } from 'react';
-import type { useGameState } from '../hooks/useGameState';
+import type { useGameState } from '@/hooks/useGameState';
 
-// The context will hold the return value of our useGameState hook
-type GameStateContextType = ReturnType<typeof useGameState> | null;
+// O contexto agora é um Client Component
+export type GameStateContextType = ReturnType<typeof useGameState> | null;
 
 const GameStateContext = createContext<GameStateContextType>(null);
 
-export const GameStateProvider = GameStateContext.Provider;
+export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const gameState = useGameState();
+    return (
+        <GameStateContext.Provider value={gameState}>
+            {children}
+        </GameStateContext.Provider>
+    );
+};
 
 export const useGameStateContext = () => {
     const context = useContext(GameStateContext);
     if (!context) {
-        throw new Error('useGameStateContext must be used within a GameStateProvider');
+        throw new Error('useGameStateContext deve ser usado dentro de um GameStateProvider');
     }
     return context;
 };
