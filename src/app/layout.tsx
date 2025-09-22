@@ -1,21 +1,12 @@
 import type { Metadata } from "next";
-import { Inter, Source_Code_Pro } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
-// Carregando as fontes do projeto
-const inter = Inter({ 
-  subsets: ["latin"],
-  variable: '--font-inter',
-});
-
-const sourceCodePro = Source_Code_Pro({
-  subsets: ["latin"],
-  variable: '--font-source-code-pro',
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "RPG de Cria",
-  description: "Uma aventura de RPG guiada por IA.",
+  title: "App em branco",
+  description: "Um app Next.js em branco.",
 };
 
 export default function RootLayout({
@@ -24,10 +15,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className={`${inter.variable} ${sourceCodePro.variable}`}>
-      <body className="font-sans bg-stone-900/90 bg-cover bg-center bg-fixed" style={{ backgroundImage: "url('/background.png')" }}>
-        {children}
-      </body>
+    <html lang="pt-BR">
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }
