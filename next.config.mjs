@@ -4,9 +4,10 @@ const nextConfig = {
     if (!isServer) {
       // Don't resolve server-side modules on the client
       config.resolve.fallback = {
-        ...config.resolve.fallback,
-        'async_hooks': false,
-        'fs': false,
+        ...(config.resolve.fallback || {}),
+        fs: false,
+        async_hooks: false,
+        tls: false,
       };
     }
 
