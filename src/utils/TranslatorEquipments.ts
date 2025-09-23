@@ -142,7 +142,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Barril"
   },
   "basket": {
-    "name": "Basquete"
+    "name": "Cesta"
   },
   "battleaxe": {
     "name": "Machado de batalha",
@@ -224,7 +224,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "caltrops": {
-    "name": "Caltrops",
+    "name": "Abrolhos",
     "desc": [
       "Como uma ação, você pode espalhar um saco de caltrops para cobrir uma área quadrada de 1,5 metro de lado.",
       "Qualquer criatura que entrar na área deve ser bem-sucedida em um lance de salvamento de Destreza DC 15 ou parar de se mover nesse turno e sofrer 1 de dano penetrante.",
@@ -272,7 +272,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "censer": {
-    "name": "Censor",
+    "name": "Incensário",
     "desc": [
       "Um incensário, normalmente encontrado na mochila de um sacerdote."
     ]
@@ -317,7 +317,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Roupas de viagem"
   },
   "club": {
-    "name": "Clube",
+    "name": "Porrete",
     "weapon_category": "Simples",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo simples",
@@ -452,7 +452,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "dungeoneers-pack": {
-    "name": "Pacote do Dungeon"
+    "name": "Pacote do Explorador de Masmorras"
   },
   "elephant": {
     "name": "Elefante"
@@ -465,10 +465,10 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "entertainers-pack": {
-    "name": "Pacote de entretenimento"
+    "name": "Pacote do Artista"
   },
   "explorers-pack": {
-    "name": "Pacote do explorador"
+    "name": "Pacote do Explorador"
   },
   "fishing-tackle": {
     "name": "Equipamento de pesca",
@@ -499,7 +499,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "galley": {
-    "name": "Cozinha"
+    "name": "Galera"
   },
   "glaive": {
     "name": "Glaive",
@@ -534,7 +534,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "greatclub": {
-    "name": "Clube fantástico",
+    "name": "Grande Porrete",
     "weapon_category": "Simples",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo simples",
@@ -573,7 +573,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Martelo"
   },
   "hammer-sledge": {
-    "name": "Martelo, marreta"
+    "name": "Marreta"
   },
   "handaxe": {
     "name": "Machado de mão",
@@ -588,7 +588,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "healers-kit": {
-    "name": "Kit do curandeiro",
+    "name": "Kit de curandeiro",
     "desc": [
       "Este kit é uma bolsa de couro que contém bandagens, pomadas e talas. O kit tem dez usos. Como uma ação, você pode usar um uso do kit para estabilizar uma criatura com 0 pontos de vida, sem precisar fazer um teste de Sabedoria (Medicina)."
     ]
@@ -596,11 +596,11 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
   "herbalism-kit": {
     "name": "Kit de Herbalismo",
     "desc": [
-      "Esse kit contém uma variedade de instrumentos, como tesouras, almofariz e pilão, além de bolsas e frascos usados pelos herboristas para criar remédios e poções. A proficiência com esse kit permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer para identificar ou aplicar ervas. Além disso, a proficiência com esse kit é necessária para criar antitoxina e poções de cura."
+      "Esse kit contém uma variedade de instrumentos, como tesouras, almofariz e pilão, além de bolsas e frascos usados pelos herboristas para criar remédios e poções. A proficiência com esse kit permite que você adicione seu bônus de proficiência a qualquer verificação de habilidade que fizer para identificar ou aplicar ervas. Além disso, a proficiência com esse kit é necessária para criar antitoxina e poções de cura."
     ]
   },
   "hide-armor": {
-    "name": "Armadura de couro"
+    "name": "Armadura de pele"
   },
   "holy-water-flask": {
     "name": "Água benta (frasco)",
@@ -621,7 +621,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Cavalo de tração"
   },
   "horse-riding": {
-    "name": "Cavalo, equitação"
+    "name": "Cavalo de Montaria"
   },
   "hourglass": {
     "name": "Ampulheta"
@@ -661,13 +661,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Jarro ou jarra"
   },
   "keelboat": {
-    "name": "Barco com quilha",
+    "name": "Barco de quilha",
     "desc": [
       "Barcos com quilha e barcos a remo são usados em lagos e rios. Se estiver indo rio abaixo, adicione a velocidade da correnteza (normalmente 3 milhas por hora) à velocidade do veículo. Esses veículos não podem ser remados contra nenhuma corrente significativa, mas podem ser puxados rio acima por animais de tração nas margens. Um barco a remo pesa 100 libras, caso os aventureiros o carreguem por terra."
     ]
   },
   "ladder-10-foot": {
-    "name": "Escada (10 pés)"
+    "name": "Escada (3 metros)"
   },
   "lamp": {
     "name": "Lâmpada",
@@ -676,7 +676,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "lance": {
-    "name": "Lance",
+    "name": "Lança",
     "weapon_category": "Marcial",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo marcial",
@@ -687,13 +687,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "lantern-bullseye": {
-    "name": "Lanterna, bullseye",
+    "name": "Lanterna Olho-de-boi",
     "desc": [
       "Uma lanterna bullseye lança uma luz brilhante em um cone de 60 pés e uma luz fraca por mais 60 pés. Uma vez acesa, ela queima por 6 horas em um frasco (1 litro) de óleo."
     ]
   },
   "lantern-hooded": {
-    "name": "Lanterna, com capuz",
+    "name": "Lanterna com capuz",
     "desc": [
       "Uma lanterna com capuz emite luz brilhante em um raio de 30 pés e luz fraca por mais 30 pés. Uma vez acesa, ela queima por 6 horas em um frasco (1 litro) de óleo. Como uma ação, você pode abaixar o capuz, reduzindo a luz para uma luz fraca em um raio de 5 pés."
     ]
@@ -726,7 +726,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "lock": {
-    "name": "Trava",
+    "name": "Cadeado",
     "desc": [
       "Uma chave é fornecida com a fechadura. Sem a chave, uma criatura proficiente em ferramentas de ladrão pode arrombar essa fechadura com um teste bem-sucedido de Destreza DC 15. Seu GM pode decidir que fechaduras melhores estão disponíveis por preços mais altos."
     ]
@@ -744,7 +744,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "longship": {
-    "name": "Longship"
+    "name": "Navio Longo"
   },
   "longsword": {
     "name": "Espada longa",
@@ -758,7 +758,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "lute": {
-    "name": "Lute",
+    "name": "Alaúde",
     "desc": [
       "Vários dos tipos mais comuns de instrumentos musicais são mostrados na tabela como exemplos. Se você tiver proficiência em um determinado instrumento musical, poderá adicionar seu bônus de proficiência a quaisquer verificações de habilidade que fizer para tocar música com esse instrumento. Um bardo pode usar um instrumento musical como foco de lançamento de feitiço. Cada tipo de instrumento musical requer uma proficiência separada."
     ]
@@ -770,7 +770,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "mace": {
-    "name": "Mace",
+    "name": "Maça",
     "weapon_category": "Simples",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo simples",
@@ -787,14 +787,14 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "manacles": {
-    "name": "Manáculas",
+    "name": "Manoplas",
     "desc": [
       "Essas amarras de metal podem prender uma criatura pequena ou média. Para escapar das algemas, é necessário um teste bem-sucedido de Destreza DC 20. Para rompê-las, é necessário um teste bem-sucedido de Strength (Força) DC 20.",
       "Cada conjunto de manilhas vem com uma chave. Sem a chave, uma criatura proficiente em ferramentas de ladrão pode arrombar a fechadura das algemas com um teste bem-sucedido de Destreza DC 15. As algemas têm 15 pontos de vida."
     ]
   },
   "masons-tools": {
-    "name": "Ferramentas do pedreiro",
+    "name": "Ferramentas de pedreiro",
     "desc": [
       "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
     ]
@@ -803,7 +803,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Mastim"
   },
   "maul": {
-    "name": "Boca",
+    "name": "Malho",
     "weapon_category": "Marcial",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo marcial",
@@ -814,16 +814,16 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "mess-kit": {
-    "name": "Kit de bagunça",
+    "name": "Kit de Refeição",
     "desc": [
       "Esta caixa de lata contém uma xícara e talheres simples. A caixa é presa com grampos e um lado pode ser usado como panela e o outro como prato ou tigela rasa."
     ]
   },
   "mirror-steel": {
-    "name": "Espelho, aço"
+    "name": "Espelho de aço"
   },
   "morningstar": {
-    "name": "Morningstar",
+    "name": "Estrela da Manhã",
     "weapon_category": "Marcial",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo marcial",
@@ -839,7 +839,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "net": {
-    "name": "Líquido",
+    "name": "Rede",
     "weapon_category": "Marcial",
     "weapon_range": "De longo alcance",
     "category_range": "Marcial à distância",
@@ -928,16 +928,16 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "pole-10-foot": {
-    "name": "Poste (10 pés)"
+    "name": "Poste (3 metros)"
   },
   "pony": {
     "name": "Pônei"
   },
   "pot-iron": {
-    "name": "Panela, ferro"
+    "name": "Pote de ferro"
   },
   "potters-tools": {
-    "name": "Ferramentas do ceramista",
+    "name": "Ferramentas de oleiro",
     "desc": [
       "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
     ]
@@ -949,10 +949,10 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "priests-pack": {
-    "name": "Pacote do sacerdote"
+    "name": "Pacote do Sacerdote"
   },
   "quarterstaff": {
-    "name": "Bastão de quartel",
+    "name": "Cajado",
     "weapon_category": "Simples",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo simples",
@@ -970,13 +970,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "ram-portable": {
-    "name": "Ram, portátil",
+    "name": "Aríete portátil",
     "desc": [
       "Você pode usar um aríete portátil para arrombar portas. Ao fazer isso, você ganha um bônus de +4 na verificação de Força. Um outro personagem pode ajudá-lo a usar o aríete, o que lhe dá vantagem nessa verificação."
     ]
   },
   "rapier": {
-    "name": "Arpão",
+    "name": "Rapieira",
     "weapon_category": "Marcial",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo marcial",
@@ -999,7 +999,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "ring-mail": {
-    "name": "Correio circular"
+    "name": "Armadura de Anéis"
   },
   "robes": {
     "name": "Roupas"
@@ -1011,13 +1011,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "rope-hempen-50-feet": {
-    "name": "Corda de cânhamo (50 pés)",
+    "name": "Corda de cânhamo (15 metros)",
     "desc": [
       "A corda, seja ela feita de cânhamo ou de seda, tem 2 pontos de vida e pode ser rompida com um teste de força DC 17."
     ]
   },
   "rope-silk-50-feet": {
-    "name": "Corda de seda (50 pés)",
+    "name": "Corda de seda (15 metros)",
     "desc": [
       "A corda, seja ela feita de cânhamo ou de seda, tem 2 pontos de vida e pode ser rompida com um teste de força DC 17."
     ]
@@ -1032,22 +1032,22 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Saco"
   },
   "saddle-exotic": {
-    "name": "Sela, exótica",
+    "name": "Sela exótica",
     "desc": [
       "Uma sela exótica é necessária para montar qualquer montaria aquática ou voadora."
     ]
   },
   "saddle-military": {
-    "name": "Sela, militar",
+    "name": "Sela militar",
     "desc": [
       "Uma sela militar sustenta o cavaleiro, ajudando-o a manter seu assento em uma montaria ativa na batalha. Ela lhe dá vantagem em qualquer verificação que você faça para permanecer montado."
     ]
   },
   "saddle-pack": {
-    "name": "Sela, pacote"
+    "name": "Sela de carga"
   },
   "saddle-riding": {
-    "name": "Sela, Equitação"
+    "name": "Sela de Montaria"
   },
   "saddlebags": {
     "name": "Alforjes"
@@ -1056,16 +1056,16 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Navio à vela"
   },
   "scale-mail": {
-    "name": "Correio em escala"
+    "name": "Armadura de Escamas"
   },
   "scale-merchants": {
-    "name": "Escada do comerciante",
+    "name": "Balança de mercador",
     "desc": [
       "Uma balança inclui uma pequena balança, panelas e uma variedade adequada de pesos de até 2 libras. Com ela, você pode medir o peso exato de pequenos objetos, como metais preciosos brutos ou mercadorias comerciais, para ajudar a determinar seu valor."
     ]
   },
   "scholars-pack": {
-    "name": "Pacote do acadêmico"
+    "name": "Pacote do Erudito"
   },
   "scimitar": {
     "name": "Cimitarra",
@@ -1082,7 +1082,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Cera de vedação"
   },
   "shawm": {
-    "name": "Shawm",
+    "name": "Charamela",
     "desc": [
       "Vários dos tipos mais comuns de instrumentos musicais são mostrados na tabela como exemplos. Se você tiver proficiência em um determinado instrumento musical, poderá adicionar seu bônus de proficiência a quaisquer verificações de habilidade que fizer para tocar música com esse instrumento. Um bardo pode usar um instrumento musical como foco de lançamento de feitiço. Cada tipo de instrumento musical requer uma proficiência separada."
     ]
@@ -1134,7 +1134,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Anel de sinete"
   },
   "sled": {
-    "name": "Seguir"
+    "name": "Trenó"
   },
   "sling": {
     "name": "Funda",
@@ -1156,7 +1156,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "smiths-tools": {
-    "name": "Ferramentas do Smith",
+    "name": "Ferramentas de Ferreiro",
     "desc": [
       "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
     ]
@@ -1184,10 +1184,10 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "spike-iron": {
-    "name": "Espigão, ferro"
+    "name": "Espigão de ferro"
   },
   "splint-armor": {
-    "name": "Armadura de tala"
+    "name": "Armadura de Tala"
   },
   "sprig-of-mistletoe": {
     "name": "Raminho de visco",
@@ -1196,7 +1196,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "spyglass": {
-    "name": "Vidro espião",
+    "name": "Luneta",
     "desc": [
       "Os objetos vistos por meio de uma luneta são ampliados para o dobro de seu tamanho."
     ]
@@ -1205,7 +1205,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Estábulo (1 dia)"
   },
   "staff": {
-    "name": "Equipe",
+    "name": "Cajado",
     "desc": [
       "Um foco arcano é um item especial - uma esfera, um cristal, uma haste, um cajado especialmente construído, um pedaço de madeira semelhante a uma varinha ou algum item semelhante - projetado para canalizar o poder dos feitiços arcanos. Um feiticeiro, mago ou bruxo pode usar esse item como foco de lançamento de feitiços."
     ]
@@ -1217,29 +1217,29 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "studded-leather-armor": {
-    "name": "Armadura de couro com pregos"
+    "name": "Armadura de couro cravejado"
   },
   "tent-two-person": {
-    "name": "Barraca, para duas pessoas",
+    "name": "Barraca para duas pessoas",
     "desc": [
       "Um abrigo de lona simples e portátil, uma barraca acomoda duas pessoas."
     ]
   },
   "thieves-tools": {
-    "name": "Ferramentas para ladrões",
+    "name": "Ferramentas de ladrão",
     "desc": [
       "Esse conjunto de ferramentas inclui uma pequena lima, um conjunto de chaves de fechadura, um pequeno espelho montado em um cabo de metal, um conjunto de tesouras de lâmina estreita e um alicate. A proficiência com essas ferramentas permite que você adicione seu bônus de proficiência a qualquer verificação de habilidade que fizer para desarmar armadilhas ou abrir fechaduras."
     ]
   },
   "tinderbox": {
-    "name": "Tinderbox",
+    "name": "Caixa de Fósforos",
     "desc": [
       "Esse pequeno contêiner contém pederneira, aço para fogo e pavio (geralmente tecido seco embebido em óleo leve) usados para acender um fogo. Usá-lo para acender uma tocha - ou qualquer outra coisa com combustível abundante e exposto - requer uma ação.",
       "Acender qualquer outro fogo leva 1 minuto."
     ]
   },
   "tinkers-tools": {
-    "name": "Ferramentas para funileiros",
+    "name": "Ferramentas de funileiro",
     "desc": [
       "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
     ]
@@ -1278,7 +1278,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Frasco"
   },
   "viol": {
-    "name": "Estupro",
+    "name": "Viola",
     "desc": [
       "Vários dos tipos mais comuns de instrumentos musicais são mostrados na tabela como exemplos. Se você tiver proficiência em um determinado instrumento musical, poderá adicionar seu bônus de proficiência a quaisquer verificações de habilidade que fizer para tocar música com esse instrumento. Um bardo pode usar um instrumento musical como foco de lançamento de feitiço. Cada tipo de instrumento musical requer uma proficiência separada."
     ]
@@ -1287,13 +1287,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Vagão"
   },
   "wand": {
-    "name": "Parede",
+    "name": "Varinha",
     "desc": [
       "Um foco arcano é um item especial - uma esfera, um cristal, uma haste, um cajado especialmente construído, um pedaço de madeira semelhante a uma varinha ou algum item semelhante - projetado para canalizar o poder dos feitiços arcanos. Um feiticeiro, mago ou bruxo pode usar esse item como foco de lançamento de feitiços."
     ]
   },
   "war-pick": {
-    "name": "Escolha de guerra",
+    "name": "Picareta de Guerra",
     "weapon_category": "Marcial",
     "weapon_range": "Corpo a corpo",
     "category_range": "Corpo a corpo marcial",
@@ -1320,13 +1320,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "name": "Pele de água"
   },
   "weavers-tools": {
-    "name": "Ferramentas do tecelão",
+    "name": "Ferramentas de tecelão",
     "desc": [
       "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
     ]
   },
   "whetstone": {
-    "name": "Whetstone"
+    "name": "Pedra de amolar"
   },
   "whip": {
     "name": "Chicote",
@@ -1346,13 +1346,13 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     ]
   },
   "wooden-staff": {
-    "name": "Bastão de madeira",
+    "name": "Cajado de madeira",
     "desc": [
       "Um foco druídico pode ser um raminho de visco ou azevinho, uma varinha ou cetro feito de teixo ou outra madeira especial, um cajado todo retirado de uma árvore viva ou um objeto totem que incorpore penas, peles, ossos e dentes de animais sagrados. Um druida pode usar esse objeto como foco de lançamento de feitiços."
     ]
   },
   "yew-wand": {
-    "name": "Parede de teixo",
+    "name": "Varinha de teixo",
     "desc": [
       "Um foco druídico pode ser um raminho de visco ou azevinho, uma varinha ou cetro feito de teixo ou outra madeira especial, um cajado todo retirado de uma árvore viva ou um objeto totem que incorpore penas, peles, ossos e dentes de animais sagrados. Um druida pode usar esse objeto como foco de lançamento de feitiços."
     ]
@@ -1360,6 +1360,11 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
 };
 
 export const translateEquipment = (equipment: any): any => {
+    if (!equipment) return equipment;
+    if (typeof equipment === 'string') {
+        const translation = TRANSLATIONS_EQUIPMENT[equipment];
+        return translation ? translation.name || equipment : equipment;
+    }
     const translatedEquipment = TRANSLATIONS_EQUIPMENT[equipment.index];
     if (translatedEquipment) {
         const newEquipment = JSON.parse(JSON.stringify(equipment));
@@ -1377,7 +1382,7 @@ export const translateEquipment = (equipment: any): any => {
             newEquipment.two_handed_damage.damage_type.name = translatedEquipment.two_handed_damage_type_name;
         }
         if(translatedEquipment.properties && newEquipment.properties && newEquipment.properties.length === translatedEquipment.properties.length){
-             newEquipment.properties.forEach((p, i) => {
+             newEquipment.properties.forEach((p: any, i: number) => {
                 p.name = translatedEquipment.properties[i];
              });
         }
