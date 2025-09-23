@@ -1,15 +1,10 @@
 // src/components/NewCreationCharacter/NewStep1_RaceClass.tsx
-// Esta é a primeira etapa do novo "wizard", focada na seleção de Raça e Classe.
-// Ela consome as funções `handleRaceChange` e `handleClassChange` do hook `useCharacterCreation`
-// para atualizar o estado global da criação.
-
 import React from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
 import { Icons } from '../Icons';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 
-// As props são todas as propriedades e funções do hook `useCharacterCreation`, além dos dados
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
     races: ApiListItem[];
@@ -31,14 +26,27 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         handleSubraceChange,
         handleClassChange,
         raceDetails,
-        isSpellsLoading
+        isSpellsLoading,
+        handleRandomizeRaceAndClass,
     } = hook;
     const canProceed = race && characterClass && (!raceDetails?.subraces.length || subrace);
 
     return (
         <div className="space-y-8 animate-fadeIn">
+            <div className="flex justify-between items-center">
+                 <h3 className="text-xl font-semibold text-stone-300">Escolha sua Raça e Classe</h3>
+                <button
+                    type="button"
+                    onClick={() => handleRandomizeRaceAndClass(races, classes)}
+                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                >
+                    <Icons.Dice className="h-4 w-4" />
+                    Aleatório
+                </button>
+            </div>
+            
             <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-4">Escolha sua Raça</h3>
+                <h4 className="text-lg font-semibold text-stone-300 mb-4">Raça</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {races.map(r => (
                         <button
@@ -55,7 +63,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
 
             {raceDetails?.subraces?.length > 0 && (
                 <div className="animate-fadeIn">
-                    <h3 className="text-xl font-semibold text-stone-300 mb-4">Escolha sua Sub-raça</h3>
+                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {raceDetails.subraces.map((sr: ApiListItem) => (
                             <button
@@ -72,7 +80,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
             )}
             
             <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-4">Escolha sua Classe</h3>
+                <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {classes.map(c => (
                         <button

@@ -18,15 +18,25 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         finalizedEquipment,
         isEquipmentLoading,
         areAllEquipmentChoicesMade,
-        startingGold
+        startingGold,
+        handleRandomizeEquipment,
     } = hook;
 
     return (
         <div className="space-y-8 animate-fadeIn">
-            <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-2">Equipamento Inicial</h3>
-                <p className="text-sm text-stone-400 mb-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-stone-300">Equipamento Inicial</h3>
+                 <button
+                    type="button"
+                    onClick={handleRandomizeEquipment}
+                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                >
+                    <Icons.Dice className="h-4 w-4" />
+                    Aleatório
+                </button>
             </div>
+             <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
+
 
             {isEquipmentLoading ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">

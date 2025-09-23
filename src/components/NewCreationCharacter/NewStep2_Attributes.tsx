@@ -1,6 +1,4 @@
 // src/components/NewCreationCharacter/NewStep2_Attributes.tsx
-// Esta é a segunda etapa do "wizard", focada na distribuição de pontos de atributo.
-// Ela consome a lógica do hook useCharacterCreation para exibir e modificar os atributos.
 import React from 'react';
 import type { Attributes } from '@/types';
 import { translateAttribute } from '@/utils/translator';
@@ -42,7 +40,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                         title={!characterClass ? "Selecione uma classe primeiro" : "Sugerir atributos para a classe selecionada"}
                         className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Icons.Sparkles className="h-4 w-4" />
+                        <Icons.Dice className="h-4 w-4" />
                         Sugerir
                     </button>
                 </div>

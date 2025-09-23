@@ -29,6 +29,7 @@ const NewStep6_Spells: React.FC<Props> = ({
         racialSpellOptions,
         chosenRacialSpells,
         handleRacialSpellChange,
+        handleRandomizeSpells,
     } = hook;
     
     const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
@@ -80,10 +81,19 @@ const NewStep6_Spells: React.FC<Props> = ({
 
     return (
         <div className="space-y-8 animate-fadeIn">
-            <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-2">Seleção de Magias</h3>
-                <p className="text-sm text-stone-400 mb-6">Escolha os truques e magias que seu personagem conhece no início de sua jornada.</p>
+            <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold text-stone-300">Seleção de Magias</h3>
+                <button
+                    type="button"
+                    onClick={handleRandomizeSpells}
+                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                >
+                    <Icons.Dice className="h-4 w-4" />
+                    Aleatório
+                </button>
             </div>
+             <p className="text-sm text-stone-400 -mt-6">Escolha os truques e magias que seu personagem conhece no início de sua jornada.</p>
+
 
             {hasRacialSpells && (
                 <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">

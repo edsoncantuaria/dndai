@@ -28,16 +28,18 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
         chosenLanguages,
         handleLanguageChange,
         allLanguages,
+        handleRandomizeProficiencies,
+        handleRandomizeLanguages,
     } = hook;
 
     const allKnownLanguages = new Set([...baseLanguages, ...chosenLanguages.filter(Boolean)]);
 
     return (
         <div className="space-y-8 animate-fadeIn">
-            <div>
+            <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-stone-300 mb-2">Proficiências e Idiomas</h3>
-                <p className="text-sm text-stone-400 mb-6">Sua raça, classe e antecedente concedem várias perícias, ferramentas e idiomas. Faça suas escolhas abaixo.</p>
             </div>
+            <p className="text-sm text-stone-400 mb-6">Sua raça, classe e antecedente concedem várias perícias, ferramentas e idiomas. Faça suas escolhas abaixo.</p>
 
             {/* Granted Proficiencies */}
             <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
@@ -73,6 +75,17 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
             {/* Proficiency Choices */}
             {allProficiencyChoices.length > 0 && (
                 <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                        <h4 className="font-semibold text-amber-300 text-lg">Escolhas de Proficiência</h4>
+                        <button
+                            type="button"
+                            onClick={handleRandomizeProficiencies}
+                            className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                        >
+                            <Icons.Dice className="h-4 w-4" />
+                            Aleatório
+                        </button>
+                    </div>
                     {allProficiencyChoices.map((choice) => {
                         const selectedCountInGroup = proficiencySelections[choice.id]?.length || 0;
                         const availableOptions = choice.options.filter(option => !allFixedProficiencies.has(option.index));
@@ -81,7 +94,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
 
                         return (
                             <div key={choice.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                                <h4 className="font-semibold text-amber-300 mb-1">{normalizeProficiencyName(choice.desc)}</h4>
+                                <h5 className="font-semibold text-amber-300 mb-1">{normalizeProficiencyName(choice.desc)}</h5>
                                 <p className="text-sm text-stone-400 mb-4">Fonte: {choice.source} <span className="font-semibold">({selectedCountInGroup}/{choice.choose})</span></p>
                                 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -135,7 +148,17 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
             {/* Language Choices */}
             {languageChoicesCount > 0 && (
                  <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                     <h4 className="font-semibold text-amber-300 mb-4">Escolhas de Idioma ({chosenLanguages.filter(Boolean).length}/{languageChoicesCount})</h4>
+                     <div className="flex justify-between items-center mb-4">
+                        <h4 className="font-semibold text-amber-300 text-lg">Escolhas de Idioma ({chosenLanguages.filter(Boolean).length}/{languageChoicesCount})</h4>
+                        <button
+                            type="button"
+                            onClick={handleRandomizeLanguages}
+                            className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                        >
+                            <Icons.Dice className="h-4 w-4" />
+                            Aleatório
+                        </button>
+                    </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {Array.from({ length: languageChoicesCount }).map((_, index) => {
                             const unavailableOptions = new Set([...baseLanguages, ...chosenLanguages.filter((_, i) => i !== index)]);

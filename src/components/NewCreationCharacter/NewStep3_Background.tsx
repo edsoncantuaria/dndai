@@ -37,6 +37,7 @@ const NewStep3_Background: React.FC<Props> = ({
         setBond,
         flaw,
         setFlaw,
+        handleRandomizeBackground,
     } = hook;
 
     const canProceed = background && alignment;
@@ -45,8 +46,19 @@ const NewStep3_Background: React.FC<Props> = ({
     return (
         <div className="space-y-8 animate-fadeIn">
             {/* Seção de Antecedente */}
+            <div className="flex justify-between items-center">
+                 <h3 className="text-xl font-semibold text-stone-300">Escolha seu Antecedente e Personalidade</h3>
+                <button
+                    type="button"
+                    onClick={() => handleRandomizeBackground(backgrounds)}
+                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
+                >
+                    <Icons.Dice className="h-4 w-4" />
+                    Aleatório
+                </button>
+            </div>
             <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-2">Escolha seu Antecedente</h3>
+                <label htmlFor="background" className="block text-stone-300 font-semibold mb-2">Antecedente</label>
                 <p className="text-sm text-stone-400 mb-4">Seu passado moldou quem você é. De onde você veio?</p>
                 <select
                     id="background"
