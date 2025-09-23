@@ -13,7 +13,7 @@ import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_Proficiencies from './NewStep4_Proficiencies';
-import NewEquipment from './NewEquipment';
+import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
 import NewStep7_Finalize from './NewStep7_Finalize';
 
@@ -70,7 +70,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 4:
                 return <NewStep4_Proficiencies {...commonProps} />;
             case 5:
-                return <NewEquipment {...commonProps} onEquipmentFinalized={hook.setFinalizedEquipment} />;
+                return <NewStep5_Equipment {...commonProps} />;
             case 6:
                 return <NewStep6_Spells {...commonProps} />;
             case 7:

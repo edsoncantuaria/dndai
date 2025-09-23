@@ -1,22 +1,15 @@
 // src/components/NewCreationCharacter/NewEquipment.tsx
 import React from 'react';
-import { ApiEquipmentOption } from '../../types';
 import { useNewEquipment } from '../../hooks/newUseEquipment';
-import { ApiClass, ApiBackground } from '../../types';
 import NewSubEquipment from './NewSubEquipment';
 import { translateEquipment } from '../../utils/TranslatorEquipments';
 import { Icons } from '../Icons';
 
 interface Props {
-    classDetails: ApiClass | null;
-    backgroundDetails: ApiBackground | null;
-    prevStep: () => void;
-    nextStep: () => void;
-    // Adicione a prop para passar o inventário final para o hook principal
-    onEquipmentFinalized: (inventory: any[]) => void;
+    hook: ReturnType<typeof useNewEquipment>;
 }
 
-const NewEquipment: React.FC<Props> = ({ classDetails, backgroundDetails, prevStep, nextStep, onEquipmentFinalized }) => {
+const NewEquipment: React.FC<Props> = ({ hook }) => {
     const {
         fixedEquipment,
         equipmentChoiceGroups,
@@ -26,17 +19,11 @@ const NewEquipment: React.FC<Props> = ({ classDetails, backgroundDetails, prevSt
         selectedEquipmentDetails,
         handleEquipmentChange,
         handleSubEquipmentChange,
-        isEquipmentComplete,
-        finalInventory
-    } = useNewEquipment(classDetails, backgroundDetails);
-
-    const handleNext = () => {
-        onEquipmentFinalized(finalInventory);
-        nextStep();
-    }
+        isEquipmentLoading,
+    } = hook;
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-8">
             <div>
                 <h3 className="text-xl font-semibold text-stone-300 mb-2">Equipamento Inicial</h3>
                 <p className="text-sm text-stone-400 mb-6">Sua classe e antecedente fornecem seu equipamento inicial. Faça suas escolhas abaixo.</p>
@@ -54,18 +41,20 @@ const NewEquipment: React.FC<Props> = ({ classDetails, backgroundDetails, prevSt
                 </div>
             )}
 
-            {/* Grupos de Escolha de Equipamento */}
-            <div className="space-y-6">
-                {equipmentChoiceGroups.map((group) => (
-                    <div key={group.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                        <h4 className="font-semibold text-amber-300 mb-4">{group.desc}</h4>
-                        <div className="space-y-4">
-                            {group.choices.map((choice, index) => (
+            {isEquipmentLoading ? (
+                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
+                    <Icons.Spinner className="h-12 w-12" />
+                    <p className="mt-4">Carregando opções de equipamento...</p>
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {equipmentChoiceGroups.map((group) => (
+                        <div key={group.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
+                            <h4 className="font-semibold text-amber-300 mb-4">{group.desc}</h4>
+                            <div className="space-y-4">
                                 <NewSubEquipment
-                                    key={`${group.id}-${index}`}
                                     groupId={group.id}
-                                    choiceIndex={index}
-                                    choice={choice}
+                                    choice={group.choice}
                                     onEquipmentChange={handleEquipmentChange}
                                     onSubEquipmentChange={handleSubEquipmentChange}
                                     equipmentChoices={equipmentChoices}
@@ -73,23 +62,11 @@ const NewEquipment: React.FC<Props> = ({ classDetails, backgroundDetails, prevSt
                                     subChoiceSelection={subChoiceSelection}
                                     selectedEquipmentDetails={selectedEquipmentDetails}
                                 />
-                            ))}
+                            </div>
                         </div>
-                    </div>
-                ))}
-            </div>
-            
-            {/* Navegação */}
-             <div className="flex justify-between pt-8">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
-                    Voltar
-                </button>
-                <button type="button" onClick={handleNext} disabled={!isEquipmentComplete} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isEquipmentComplete ? 'Avançar' : 'Faça suas escolhas'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
-                </button>
-            </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 };

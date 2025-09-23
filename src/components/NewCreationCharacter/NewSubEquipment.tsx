@@ -2,24 +2,21 @@
 import React from 'react';
 import { ApiEquipmentOption, InventoryItem, ApiListItem } from '../../types';
 import ItemCard from '../ItemCard';
-import { translateEquipment } from '../../utils/TranslatorEquipments';
 import { getOptionLabel } from '../../utils/creationHelpers';
 
 interface Props {
     groupId: string;
-    choiceIndex: number;
     choice: ApiEquipmentOption;
-    equipmentChoices: Record<string, ApiEquipmentOption>;
-    subChoiceOptions: Record<string, ApiListItem[]>;
+    equipmentChoices: Record<string, ApiEquipmentOption | null>;
+    subChoiceOptions: Record<string, { isLoading: boolean, options: ApiListItem[] }>;
     subChoiceSelection: Record<string, string>;
     selectedEquipmentDetails: Record<string, Partial<InventoryItem> | null>;
-    onEquipmentChange: (groupId: string, choiceIndex: number, optionIdxString: string) => void;
-    onSubEquipmentChange: (groupId: string, choiceIndex: number, itemIndex: string) => void;
+    onEquipmentChange: (groupId: string, optionIdxString: string) => void;
+    onSubEquipmentChange: (groupId: string, itemIndex: string) => void;
 }
 
 const NewSubEquipment: React.FC<Props> = ({
     groupId,
-    choiceIndex,
     choice,
     equipmentChoices,
     subChoiceOptions,
@@ -28,23 +25,27 @@ const NewSubEquipment: React.FC<Props> = ({
     onEquipmentChange,
     onSubEquipmentChange
 }) => {
-    const choiceKey = `${groupId}-${choiceIndex}`;
-    const selectedOption = equipmentChoices[choiceKey];
+    const selectedOption = equipmentChoices[groupId];
+    const subChoiceData = subChoiceOptions[groupId];
     
     // Determina qual detalhe de item exibir: o da sub-escolha ou o da escolha principal.
-    const detailKey = subChoiceSelection[choiceKey]
-        ? `subchoice-${choiceKey}`
-        : (selectedOption?.of?.index ? `choice-${choiceKey}` : null);
+    const detailKey = subChoiceSelection[groupId]
+        ? `subchoice-${groupId}`
+        : (selectedOption?.of?.index ? `choice-${groupId}` : null);
     const itemDetails = detailKey ? selectedEquipmentDetails[detailKey] : null;
+
+    const selectedTopLevelIndex = selectedOption && choice.from.options 
+        ? choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(selectedOption)) 
+        : -1;
 
     return (
         <div className="pl-4 border-l-2 border-stone-700/50">
             {/* Menu Suspenso Principal */}
-            <label htmlFor={`equip-choice-${choiceKey}`} className="block text-stone-300 font-semibold mb-2 text-sm">{choice.desc}</label>
+            <label htmlFor={`equip-choice-${groupId}`} className="block text-stone-300 font-semibold mb-2 text-sm">{choice.desc}</label>
             <select
-                id={`equip-choice-${choiceKey}`}
-                value={selectedOption && choice.from.options ? choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(selectedOption)) : ""}
-                onChange={e => onEquipmentChange(groupId, choiceIndex, e.target.value)}
+                id={`equip-choice-${groupId}`}
+                value={selectedTopLevelIndex > -1 ? selectedTopLevelIndex : ""}
+                onChange={e => onEquipmentChange(groupId, e.target.value)}
                 required
                 className="w-full bg-stone-800/70 border border-stone-600 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
@@ -57,23 +58,23 @@ const NewSubEquipment: React.FC<Props> = ({
             {/* Menu Suspenso para Sub-escolhas (Categorias) */}
             {selectedOption?.type === 'choice' && (
                 <div className="mt-3">
-                    {subChoiceOptions[choiceKey] ? (
+                    {subChoiceData?.isLoading ? (
+                         <div className="w-full bg-stone-800/70 border border-stone-600 rounded-md p-2 text-stone-400 italic">
+                            Carregando opções...
+                        </div>
+                    ) : (
                         <select
-                            id={`sub-equip-choice-${choiceKey}`}
-                            value={subChoiceSelection[choiceKey] || ''}
-                            onChange={e => onSubEquipmentChange(groupId, choiceIndex, e.target.value)}
+                            id={`sub-equip-choice-${groupId}`}
+                            value={subChoiceSelection[groupId] || ''}
+                            onChange={e => onSubEquipmentChange(groupId, e.target.value)}
                             required
                             className="w-full bg-stone-800/70 border border-stone-600 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         >
                             <option value="" disabled>Selecione um item específico...</option>
-                            {subChoiceOptions[choiceKey]?.map(item => (
-                                <option key={item.index} value={item.index}>{translateEquipment(item.name)}</option>
+                            {subChoiceData?.options.map(item => (
+                                <option key={item.index} value={item.index}>{item.name}</option>
                             ))}
                         </select>
-                    ) : (
-                        <div className="w-full bg-stone-800/70 border border-stone-600 rounded-md p-2 text-stone-400 italic">
-                            Carregando opções...
-                        </div>
                     )}
                 </div>
             )}

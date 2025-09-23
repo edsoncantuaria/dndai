@@ -25,7 +25,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const fetchSpells = async () => {
   try {
     console.log('Buscando a lista de magias...');
-    const response = await fetch(`${API_BASE_URL}/equipament`);
+    const response = await fetch(`${API_BASE_URL}/spells`);
     if (!response.ok) {
       throw new Error(`Erro HTTP! status: ${response.status}`);
     }

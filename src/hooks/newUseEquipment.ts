@@ -1,5 +1,5 @@
 // src/hooks/newUseEquipment.ts
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiClass, ApiBackground, ApiEquipmentOption, InventoryItem, ApiEquipment, ApiListItem
@@ -8,170 +8,176 @@ import { translateEquipment } from '../utils/TranslatorEquipments';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Este hook gerencia o estado e a lógica para a seleção de equipamentos iniciais.
- * Ele busca e processa as opções da classe e do antecedente, trata de sub-escolhas
- * dinâmicas (como categorias de armas) e garante que as regras sejam seguidas.
+ * Este hook gerencia o estado e a lógica para a seleção de equipamentos iniciais de um personagem.
+ * Ele busca e processa as opções da classe e do antecedente diretamente da API,
+ * trata de sub-escolhas dinâmicas (como categorias de armas) e garante que as regras sejam seguidas.
  */
 export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails: ApiBackground | null) => {
-    // Estado para as escolhas principais do jogador (ex: 'a' ou 'b' de um grupo)
-    const [equipmentChoices, setEquipmentChoices] = useState<Record<string, ApiEquipmentOption>>({});
-    // Estado para as opções de sub-escolha carregadas dinamicamente (ex: lista de armas simples)
-    const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, ApiListItem[]>>({});
-    // Estado para a seleção final do jogador dentro de uma sub-escolha
+    // Estado para as escolhas principais do jogador (ex: a opção 'a' ou 'b' de um grupo).
+    // A chave é um ID único para o grupo de escolha, e o valor é a opção da API selecionada.
+    const [equipmentChoices, setEquipmentChoices] = useState<Record<string, ApiEquipmentOption | null>>({});
+
+    // Estado para as opções de sub-escolha carregadas dinamicamente (ex: a lista de 'Armas Simples').
+    const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, { isLoading: boolean, options: ApiListItem[] }>>({});
+
+    // Estado para a seleção final do jogador dentro de uma sub-escolha de categoria.
     const [subChoiceSelection, setSubChoiceSelection] = useState<Record<string, string>>({});
-    // Estado para armazenar os detalhes dos itens selecionados para exibição
+    
+    // Estado para armazenar os detalhes completos dos itens selecionados para exibição no ItemCard.
     const [selectedEquipmentDetails, setSelectedEquipmentDetails] = useState<Record<string, Partial<InventoryItem> | null>>({});
 
+    // Estado para indicar o carregamento inicial dos dados de equipamento.
+    const [isEquipmentLoading, setIsEquipmentLoading] = useState(true);
+
     /**
-     * `equipmentChoiceGroups` e `fixedEquipment` são calculados com `useMemo`.
-     * Eles processam os dados da API da classe e do antecedente para separar
-     * os itens que são concedidos automaticamente (fixos) daqueles que exigem
-     * uma escolha do jogador (grupos de escolha).
+     * Processa os dados da API da classe e do antecedente para separar os itens
+     * que são concedidos automaticamente (fixos) daqueles que exigem uma escolha do jogador.
      */
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
-        const choiceGroups: { id: string, desc: string, choices: ApiEquipmentOption[] }[] = [];
+        const choiceGroups: { id: string, desc: string, choice: ApiEquipmentOption }[] = [];
         const fixed: { item: ApiEquipment, quantity: number }[] = [];
 
-        // Adiciona equipamentos e opções da CLASSE
-        if (classDetails) {
-            (classDetails.starting_equipment || []).forEach(eq => {
+        const processEquipmentSource = (source: ApiClass | ApiBackground | null, prefix: string) => {
+            if (!source) return;
+
+            (source.starting_equipment || []).forEach(eq => {
                 if (eq.equipment) {
                     fixed.push({ item: eq.equipment, quantity: eq.quantity });
                 }
             });
-            (classDetails.starting_equipment_options || []).forEach((choice, i) => {
+            (source.starting_equipment_options || []).forEach((choice, i) => {
                 choiceGroups.push({
-                    id: `class-${i}`,
-                    desc: `Escolha de Equipamento da Classe (${i + 1})`,
-                    choices: [choice]
+                    id: `${prefix}-${i}`,
+                    desc: choice.desc || `Escolha de Equipamento (${prefix.toUpperCase()} ${i + 1})`,
+                    choice: choice,
                 });
             });
-        }
+        };
         
-        // Adiciona equipamentos e opções do ANTECEDENTE
-        if (backgroundDetails) {
-            (backgroundDetails.starting_equipment || []).forEach(eq => {
-                if (eq.equipment) {
-                    fixed.push({ item: eq.equipment, quantity: eq.quantity });
-                }
-            });
-            (backgroundDetails.starting_equipment_options || []).forEach((choice, i) => {
-                 choiceGroups.push({
-                    id: `bg-${i}`,
-                    desc: `Escolha de Equipamento do Antecedente (${i + 1})`,
-                    choices: [choice]
-                });
-            });
-        }
+        processEquipmentSource(classDetails, 'class');
+        processEquipmentSource(backgroundDetails, 'bg');
         
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
+    useEffect(() => {
+        setIsEquipmentLoading(!classDetails || !backgroundDetails);
+    }, [classDetails, backgroundDetails]);
+
+
     /**
-     * Gerencia a seleção de alto nível do jogador dentro de um grupo de escolha.
-     * Se a opção selecionada for uma categoria, dispara a busca pelos itens dessa categoria.
+     * Gerencia a seleção de alto nível do jogador. Se a opção for uma categoria,
+     * dispara a busca pelos itens dessa categoria na API.
      */
-    const handleEquipmentChange = useCallback(async (groupId: string, choiceIndex: number, optionIdxString: string) => {
+    const handleEquipmentChange = useCallback(async (groupId: string, optionIdxString: string) => {
+        if (optionIdxString === "") return;
+
         const optionIndex = parseInt(optionIdxString, 10);
         const group = equipmentChoiceGroups.find(g => g.id === groupId);
-        const choice = group?.choices[choiceIndex];
-        const optionWrapper = choice?.from.options?.[optionIndex];
+        const optionWrapper = group?.choice.from.options?.[optionIndex];
         
         if (!optionWrapper) return;
-        
+
         const option = optionWrapper.item || optionWrapper;
-        const choiceKey = `${groupId}-${choiceIndex}`;
 
-        // Atualiza a escolha principal
-        setEquipmentChoices(prev => ({ ...prev, [choiceKey]: option }));
-
-        // Limpa seleções de sub-escolha e detalhes antigos para este grupo
-        setSubChoiceSelection(prev => { const next = {...prev}; delete next[choiceKey]; return next; });
+        // Limpa seleções de sub-escolha e detalhes antigos para este grupo.
+        setEquipmentChoices(prev => ({ ...prev, [groupId]: option }));
+        setSubChoiceSelection(prev => { const next = {...prev}; delete next[groupId]; return next; });
         setSelectedEquipmentDetails(prev => {
             const next = {...prev};
-            delete next[`choice-${choiceKey}`];
-            delete next[`subchoice-${choiceKey}`];
+            delete next[`choice-${groupId}`];
+            delete next[`subchoice-${groupId}`];
             return next;
         });
-        setSubChoiceOptions(prev => { const next = {...prev}; delete next[choiceKey]; return next; });
-        
-        // Se a opção for uma categoria, busca os itens correspondentes na API
+
+        // Se a opção for uma categoria, busca os itens correspondentes.
         if (option.type === 'choice' && option.from.option_set_type === 'equipment_category' && option.from.equipment_category?.index) {
+            setSubChoiceOptions(prev => ({ ...prev, [groupId]: { isLoading: true, options: [] } }));
             const data = await DndApiService.getEquipmentForCategory(option.from.equipment_category.index);
-            setSubChoiceOptions(prev => ({ ...prev, [choiceKey]: data?.equipment || [] }));
-        } else if (option.of) {
-            // Se for um item direto, busca seus detalhes para exibição
+            const translatedOptions = (data?.equipment || []).map(e => ({...e, name: translateEquipment(e.name)}));
+            setSubChoiceOptions(prev => ({ ...prev, [groupId]: { isLoading: false, options: translatedOptions } }));
+        } else if (option.of?.index) {
+            // Se for um item direto, busca seus detalhes para exibição.
             const details = await DndApiService.getEquipmentDetails(option.of.index);
-            setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${choiceKey}`]: translateEquipment(details) }));
+            setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${groupId}`]: details ? translateEquipment(details) : null }));
         }
     }, [equipmentChoiceGroups]);
 
     /**
-     * Gerencia a seleção final do jogador dentro de uma sub-escolha (categoria).
-     * Busca os detalhes do item selecionado para exibição.
+     * Gerencia a seleção final do jogador dentro de uma sub-escolha de categoria.
+     * Busca os detalhes do item para exibição.
      */
-    const handleSubEquipmentChange = useCallback(async (groupId: string, choiceIndex: number, itemIndex: string) => {
-        const choiceKey = `${groupId}-${choiceIndex}`;
+    const handleSubEquipmentChange = useCallback(async (groupId: string, itemIndex: string) => {
         if (!itemIndex) return;
 
-        setSubChoiceSelection(prev => ({ ...prev, [choiceKey]: itemIndex }));
+        setSubChoiceSelection(prev => ({ ...prev, [groupId]: itemIndex }));
 
         const details = await DndApiService.getEquipmentDetails(itemIndex);
-        setSelectedEquipmentDetails(prev => ({ ...prev, [`subchoice-${choiceKey}`]: translateEquipment(details) }));
+        setSelectedEquipmentDetails(prev => ({ ...prev, [`subchoice-${groupId}`]: details ? translateEquipment(details) : null }));
     }, []);
 
-    // Constrói o inventário final com base em todas as seleções.
+    // Constrói o inventário final com base em todas as seleções feitas.
     const finalInventory = useMemo<InventoryItem[]>(() => {
         const inventory: InventoryItem[] = [];
 
-        // Adiciona itens fixos
         fixedEquipment.forEach(eq => {
             if (eq.item) {
-                inventory.push({ ...eq.item, id: uuidv4(), quantity: eq.quantity, equipped: false });
+                inventory.push({ ...translateEquipment(eq.item), id: uuidv4(), quantity: eq.quantity, equipped: false });
             }
         });
 
-        // Adiciona itens das escolhas
-        Object.keys(equipmentChoices).forEach(key => {
-            const choice = equipmentChoices[key];
-            const subSelection = subChoiceSelection[key];
+        Object.keys(equipmentChoices).forEach(groupId => {
+            const choice = equipmentChoices[groupId];
+            const subSelectionIndex = subChoiceSelection[groupId];
 
-            if (subSelection) { // Item de uma sub-escolha de categoria
-                const details = selectedEquipmentDetails[`subchoice-${key}`];
+            if (subSelectionIndex) { // Item de uma sub-escolha de categoria.
+                const details = selectedEquipmentDetails[`subchoice-${groupId}`];
                 if (details) {
                     inventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
                 }
-            } else if (choice.of) { // Item direto de uma escolha
-                const details = selectedEquipmentDetails[`choice-${key}`];
+            } else if (choice?.of?.index) { // Item direto de uma escolha.
+                const details = selectedEquipmentDetails[`choice-${groupId}`];
                  if (details) {
                     inventory.push({ ...details, id: uuidv4(), quantity: choice.count || 1, equipped: false } as InventoryItem);
                  }
-            } else if (choice.type === 'multiple') { // Múltiplos itens de uma única escolha
-                choice.from.options.forEach(opt => {
-                     inventory.push({ ...opt.of, id: uuidv4(), quantity: opt.count, equipped: false });
+            } else if (choice?.type === 'multiple' && choice?.from?.options) { // Múltiplos itens de uma única escolha.
+                choice.from.options.forEach(optWrapper => {
+                     const opt = optWrapper.of ? optWrapper : optWrapper.item;
+                     if(opt?.of) {
+                       inventory.push({ ...translateEquipment(opt.of), id: uuidv4(), quantity: opt.count, equipped: false });
+                     }
                 });
             }
         });
+        
+        // Adiciona ouro inicial do antecedente.
+        const gold = backgroundDetails?.starting_gold ?? 0;
+        if(gold > 0){
+            inventory.push({
+                id: uuidv4(),
+                name: `Bolsa contendo ${gold} moedas de ouro`,
+                quantity: 1,
+                equipped: false,
+                cost: { quantity: gold, unit: 'gp' }
+            } as InventoryItem);
+        }
 
         return inventory;
-    }, [fixedEquipment, equipmentChoices, subChoiceSelection, selectedEquipmentDetails]);
+    }, [fixedEquipment, equipmentChoices, subChoiceSelection, selectedEquipmentDetails, backgroundDetails]);
     
-    // Verifica se todas as escolhas de equipamento foram feitas
+    // Verifica se todas as escolhas de equipamento obrigatórias foram feitas.
     const isEquipmentComplete = useMemo(() => {
-        return equipmentChoiceGroups.every(group =>
-            group.choices.every((choice, index) => {
-                const choiceKey = `${group.id}-${index}`;
-                const selection = equipmentChoices[choiceKey];
-                if (!selection) return false;
-                // Se a escolha requer uma sub-seleção, verifica se ela foi feita
-                if (selection.type === 'choice' && selection.from.option_set_type === 'equipment_category') {
-                    return !!subChoiceSelection[choiceKey];
-                }
-                return true;
-            })
-        );
+        return equipmentChoiceGroups.every(group => {
+            const selection = equipmentChoices[group.id];
+            if (!selection) return false;
+            
+            // Se a escolha requer uma sub-seleção, verifica se ela foi feita.
+            if (selection.type === 'choice' && selection.from.option_set_type === 'equipment_category') {
+                return !!subChoiceSelection[group.id];
+            }
+            return true;
+        });
     }, [equipmentChoiceGroups, equipmentChoices, subChoiceSelection]);
-
 
     return {
         fixedEquipment,
@@ -184,5 +190,6 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
         handleSubEquipmentChange,
         finalInventory,
         isEquipmentComplete,
+        isEquipmentLoading,
     };
 };

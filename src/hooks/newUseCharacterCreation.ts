@@ -10,8 +10,6 @@ import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelp
 import { translateSpell } from '../utils/TranslatorSpells';
 import { translateEquipment } from '../utils/TranslatorEquipments';
 import { v4 as uuidv4 } from 'uuid';
-import { useNewEquipment } from './newUseEquipment';
-
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     id: string;
@@ -76,7 +74,6 @@ export const useNewCharacterCreation = () => {
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
     
-    const equipmentHook = useNewEquipment(classDetails, backgroundDetails);
 
     // --- MEMOIZED DERIVED STATE ---
 
@@ -177,8 +174,10 @@ export const useNewCharacterCreation = () => {
         const racialSpellsDone = racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose);
         if (!racialSpellsDone) return false;
 
-        return equipmentHook.isEquipmentComplete;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, equipmentHook.isEquipmentComplete]);
+        // A verificação final do equipamento será feita na própria etapa 5.
+        // O `finalizedEquipment` é a fonte da verdade aqui.
+        return finalizedEquipment.length > 0 || (classDetails && backgroundDetails && classDetails.starting_equipment.length === 0 && classDetails.starting_equipment_options.length === 0 && backgroundDetails.starting_equipment.length === 0 && backgroundDetails.starting_equipment_options.length === 0);
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, finalizedEquipment, backgroundDetails]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -442,7 +441,9 @@ export const useNewCharacterCreation = () => {
         
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
         const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
-        const startingGold = backgroundDetails.starting_equipment.find(i => i.equipment.index === 'gold-pieces')?.quantity || 15;
+        
+        const startingGold = finalizedEquipment.find(i => i.name?.includes("moedas de ouro"))?.cost?.quantity || 0;
+        const finalInventory = finalizedEquipment.filter(i => !i.name?.includes("moedas de ouro"));
 
         return {
             name,
@@ -456,7 +457,7 @@ export const useNewCharacterCreation = () => {
             attributes: finalAttributes,
             proficiencies: allProficiencies,
             languages: finalLanguages,
-            inventory: finalizedEquipment,
+            inventory: finalInventory,
             spells: allSpells,
             backstory,
             personalityTraits,
@@ -498,7 +499,6 @@ export const useNewCharacterCreation = () => {
         allFixedProficiencies,
         allProficiencyChoices,
         unavailableProficiencies,
-        equipmentHook,
         classSpellOptions,
         racialSpellOptions,
         racialSpellTraits,
