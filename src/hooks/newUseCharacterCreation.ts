@@ -10,6 +10,8 @@ import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelp
 import { translateSpell } from '../utils/TranslatorSpells';
 import { translateEquipment } from '../utils/TranslatorEquipments';
 import { v4 as uuidv4 } from 'uuid';
+import { useNewEquipment } from './newUseEquipment';
+
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     id: string;
@@ -56,9 +58,7 @@ export const useNewCharacterCreation = () => {
 
     // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
-    const [equipmentChoices, setEquipmentChoices] = useState<Record<string, ApiEquipmentOption>>({});
-    const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, ApiListItem[]>>({});
-    const [subChoiceSelection, setSubChoiceSelection] = useState<Record<string, string>>({});
+    const [finalizedEquipment, setFinalizedEquipment] = useState<InventoryItem[]>([]);
     const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
     const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
@@ -70,12 +70,13 @@ export const useNewCharacterCreation = () => {
     const [flaw, setFlaw] = useState('');
 
     // Loading & Temp Data
-    const [selectedEquipmentDetails, setSelectedEquipmentDetails] = useState<Record<string, Partial<InventoryItem> | null>>({});
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
+    
+    const equipmentHook = useNewEquipment(classDetails, backgroundDetails);
 
     // --- MEMOIZED DERIVED STATE ---
 
@@ -149,37 +150,6 @@ export const useNewCharacterCreation = () => {
         return choices;
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails]);
     
-    const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
-        const choiceGroups: { desc: string, choices: ApiEquipmentOption[] }[] = [];
-        const fixed: { item: ApiEquipment, quantity: number }[] = [];
-        
-        const classEq = classDetails?.starting_equipment || [];
-        const backgroundEq = backgroundDetails?.starting_equipment || [];
-
-        classEq.forEach(eq => {
-            if (eq.equipment) {
-                fixed.push({ item: eq.equipment, quantity: eq.quantity });
-            }
-        });
-        backgroundEq.forEach(eq => {
-            if (eq.equipment) {
-                fixed.push({ item: eq.equipment, quantity: eq.quantity });
-            }
-        });
-        
-        const classChoices = classDetails?.starting_equipment_options || [];
-        if (classChoices.length > 0) {
-            choiceGroups.push({ desc: "Equipamento da Classe", choices: classChoices });
-        }
-
-        const backgroundChoices = backgroundDetails?.starting_equipment_options || [];
-        if (backgroundChoices.length > 0) {
-            choiceGroups.push({ desc: "Equipamento do Antecedente", choices: backgroundChoices });
-        }
-        
-        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
-    }, [classDetails, backgroundDetails]);
-
     const unavailableProficiencies = useMemo(() => {
         return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
     }, [allFixedProficiencies, proficiencySelections]);
@@ -196,17 +166,6 @@ export const useNewCharacterCreation = () => {
         );
         if (!allProficienciesDone) return false;
 
-        const allEquipmentDone = equipmentChoiceGroups.every(group =>
-            group.choices.every((choice, index) => {
-                const choiceKey = `${group.desc}-${index}`;
-                const selection = equipmentChoices[choiceKey];
-                if (!selection) return false;
-                if (selection.type === 'choice' && !subChoiceSelection[choiceKey]) return false;
-                return true;
-            })
-        );
-        if (!allEquipmentDone) return false;
-
         const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
         const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;
         const selectedCantripsCount = chosenClassSpells.filter(sIndex => classSpellOptions.some(c => c.index === sIndex && c.level === 0)).length;
@@ -218,21 +177,18 @@ export const useNewCharacterCreation = () => {
         const racialSpellsDone = racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose);
         if (!racialSpellsDone) return false;
 
-        return true;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, equipmentChoiceGroups, equipmentChoices, subChoiceSelection, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells]);
+        return equipmentHook.isEquipmentComplete;
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, equipmentHook.isEquipmentComplete]);
 
     // --- CALLBACKS & EFFECTS ---
 
     const resetSelections = useCallback(() => {
         setProficiencySelections({});
-        setEquipmentChoices({});
-        setSubChoiceOptions({});
-        setSubChoiceSelection({});
+        setFinalizedEquipment([]);
         setChosenClassSpells([]);
         setChosenRacialSpells({});
         setRacialSpellOptions([]);
         setRacialSpellTraits([]);
-        setSelectedEquipmentDetails({});
         setPersonalityTraits([]);
         setIdeal('');
         setBond('');
@@ -361,44 +317,7 @@ export const useNewCharacterCreation = () => {
             return prev.length < limit ? [...prev, trait] : prev;
         });
     }, [backgroundDetails]);
-
-    const handleEquipmentChange = useCallback(async (groupDesc: string, choiceIndex: number, optionIdxString: string) => {
-        const optionIndex = parseInt(optionIdxString, 10);
-        const group = equipmentChoiceGroups.find(g => g.desc === groupDesc);
-        const choice = group?.choices[choiceIndex];
-        const option = choice?.from.options?.[optionIndex];
-
-        if (!option) return;
-
-        const choiceKey = `${groupDesc}-${choiceIndex}`;
-        setEquipmentChoices(prev => ({ ...prev, [choiceKey]: option.item || option }));
-
-        setSubChoiceSelection(prev => { const next = {...prev}; delete next[choiceKey]; return next; });
-        setSelectedEquipmentDetails(prev => {
-            const next = {...prev};
-            delete next[`choice-${choiceKey}`];
-            delete next[`subchoice-${choiceKey}`];
-            return next;
-        });
-
-        const effectiveOption = option.item || option;
-        if (effectiveOption.type === 'choice' && effectiveOption.from.option_set_type === 'equipment_category' && effectiveOption.from.equipment_category?.index) {
-            const data = await DndApiService.getEquipmentForCategory(effectiveOption.from.equipment_category.index);
-            setSubChoiceOptions(prev => ({ ...prev, [choiceKey]: data?.equipment || [] }));
-        } else if (effectiveOption.of) {
-            const details = await DndApiService.getEquipmentDetails(effectiveOption.of.index);
-            setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${choiceKey}`]: translateEquipment(details) }));
-        }
-    }, [equipmentChoiceGroups]);
-
-    const handleSubEquipmentChange = useCallback(async (groupDesc: string, choiceIndex: number, itemIndex: string) => {
-        const choiceKey = `${groupDesc}-${choiceIndex}`;
-        if (!itemIndex) return;
-        setSubChoiceSelection(prev => ({ ...prev, [choiceKey]: itemIndex }));
-        const details = await DndApiService.getEquipmentDetails(itemIndex);
-        setSelectedEquipmentDetails(prev => ({ ...prev, [`subchoice-${choiceKey}`]: translateEquipment(details) }));
-    }, []);
-
+    
     const handleClassSpellChange = useCallback((spellIndex: string) => {
         setChosenClassSpells(prev => {
             const spell = classSpellOptions.find(s => s.index === spellIndex);
@@ -523,28 +442,6 @@ export const useNewCharacterCreation = () => {
         
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
         const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
-        const finalInventory: InventoryItem[] = [];
-
-        // Add fixed equipment
-        fixedEquipment.forEach(eq => {
-            if (eq.item) {
-                finalInventory.push({ ...eq.item, id: uuidv4(), quantity: eq.quantity, equipped: false });
-            }
-        });
-
-        // Add chosen equipment
-        Object.values(equipmentChoices).forEach(choice => {
-            if (choice.of) {
-                finalInventory.push({ ...choice.of, id: uuidv4(), quantity: choice.count, equipped: false });
-            }
-        });
-        Object.values(subChoiceSelection).forEach(itemIndex => {
-            const details = Object.values(selectedEquipmentDetails).find(d => d?.index === itemIndex);
-            if (details) {
-                finalInventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
-            }
-        });
-        
         const startingGold = backgroundDetails.starting_equipment.find(i => i.equipment.index === 'gold-pieces')?.quantity || 15;
 
         return {
@@ -559,7 +456,7 @@ export const useNewCharacterCreation = () => {
             attributes: finalAttributes,
             proficiencies: allProficiencies,
             languages: finalLanguages,
-            inventory: finalInventory,
+            inventory: finalizedEquipment,
             spells: allSpells,
             backstory,
             personalityTraits,
@@ -581,9 +478,7 @@ export const useNewCharacterCreation = () => {
         points,
         baseAttributes,
         proficiencySelections, handleProficiencyChange,
-        equipmentChoices, handleEquipmentChange,
-        subChoiceOptions,
-        subChoiceSelection, handleSubEquipmentChange,
+        finalizedEquipment, setFinalizedEquipment,
         chosenClassSpells, handleClassSpellChange,
         chosenRacialSpells, handleRacialSpellChange,
         chosenLanguages, handleLanguageChange,
@@ -591,7 +486,6 @@ export const useNewCharacterCreation = () => {
         ideal, setIdeal,
         bond, setBond,
         flaw, setFlaw,
-        selectedEquipmentDetails,
         raceDetails,
         subraceDetails,
         classDetails,
@@ -604,8 +498,7 @@ export const useNewCharacterCreation = () => {
         allFixedProficiencies,
         allProficiencyChoices,
         unavailableProficiencies,
-        equipmentChoiceGroups,
-        fixedEquipment,
+        equipmentHook,
         classSpellOptions,
         racialSpellOptions,
         racialSpellTraits,

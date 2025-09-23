@@ -1,7 +1,6 @@
 import React from 'react';
 import { useCharacterCreation } from '../../hooks/useCharacterCreation';
 import { ApiEquipmentOption, InventoryItem } from '../../types';
-import { translateApiString } from '../../utils/translator';
 import ItemCard from '../ItemCard';
 import { translateEquipment } from '@/utils/TranslatorEquipments';
 
@@ -12,24 +11,25 @@ interface EquipmentChoicesProps {
 const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
     
-    // Specific check for generic category choices
+    // Para escolhas de categoria, ex: "Qualquer Arma Simples"
     if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
          const categoryName = option.from.equipment_category?.name || 'Equipamento';
-         const choose = option.choose && option.choose > 1 ? `(Escolha ${option.choose})` : '';
-         // Translate "Any" and the category name
-         return `Qualquer ${translateApiString(categoryName)}${choose}`;
+         return `Qualquer ${translateEquipment(categoryName)}`;
     }
-
-    if (option.desc) return translateApiString(option.desc);
     
+    // Para itens diretos
     if (option.of) {
         const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
         return `${translateEquipment(option.of.name)}${count}`;
     }
     
+    // Para escolhas múltiplas
     if (option.type === 'multiple' && option.from.options) {
-        return option.from.options.map(o => getOptionLabel(o)).join(' + ');
+        return option.from.options.map(o => getOptionLabel(o.item || o)).join(' + ');
     }
+
+    // Fallback para descrições
+    if (option.desc) return translateEquipment(option.desc);
 
     return 'Opção de Equipamento';
 };
@@ -81,7 +81,7 @@ const EquipmentChoices: React.FC<EquipmentChoicesProps> = ({ hook }) => {
                                 <label htmlFor={`equip-choice-${choiceKey}`} className="block text-stone-300 font-semibold mb-2">{choice.desc}</label>
                                 <select 
                                     id={`equip-choice-${choiceKey}`} 
-                                    value={selectedOption && choice.from.options ? choice.from.options.indexOf(selectedOption) : ""}
+                                    value={selectedOption && choice.from.options ? choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(selectedOption)) : ""}
                                     onChange={e => handleEquipmentChange(group.desc, index, e.target.value)} 
                                     required 
                                     className="w-full bg-stone-700 border border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
