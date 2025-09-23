@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import type { ApiListItem } from '@/types';
+import type { ApiListItem, Feat } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
@@ -10,7 +10,6 @@ import NewStep3_Background from './NewStep3_Background';
 import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
-import NewStep7_Feats from './NewStep7_Feats';
 import NewStep8_Finalize from './NewStep8_Finalize';
 
 interface NewCharacterCreationProps {
@@ -18,7 +17,7 @@ interface NewCharacterCreationProps {
     classes: ApiListItem[];
     backgrounds: ApiListItem[];
     alignments: ApiListItem[];
-    feats: ApiListItem[];
+    feats: Feat[];
     onBackToMenu: () => void;
 }
 
@@ -33,7 +32,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const { createCharacter } = useGameStateContext();
     const hook = useNewCharacterCreation({ feats });
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 8;
+    const totalSteps = 7; // Reduzido de 8 para 7
     const wizardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -70,9 +69,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 7:
-                 return <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 8:
+            case 7: // A Etapa 7 agora é a finalização
                 return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa Inválida.</div>;

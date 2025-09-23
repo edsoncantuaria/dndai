@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
-    Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo
+    Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo, Feat
 } from '../types';
 import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
@@ -38,7 +38,7 @@ const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'wizard': ['intelligence', 'constitution', 'dexterity', 'wisdom', 'charisma', 'strength'],
 };
 
-export const useNewCharacterCreation = () => {
+export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
     // --- STATE MANAGEMENT ---
     // Basic character info
     const [name, setName] = useState('');
@@ -59,7 +59,10 @@ export const useNewCharacterCreation = () => {
     const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
     const [backgroundDetails, setBackgroundDetails] = useState<ApiBackground | null>(null);
     const [classLevels, setClassLevels] = useState<ApiClassLevel[] | null>(null);
-
+    
+    // Feats - Keep state for future level ups, but logic is disabled for level 1
+    const [chosenFeats, setChosenFeats] = useState<string[]>([]);
+    
     // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
     const [equipmentSelections, setEquipmentSelections] = useState<Record<string, { main: number, sub?: number }>>({});
@@ -191,16 +194,15 @@ export const useNewCharacterCreation = () => {
         return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
     }, [allFixedProficiencies, proficiencySelections]);
 
-    const canProceedToNextStep = useMemo(() => {
-        return allProficiencyChoices.every(choice => {
+    const canProceedFromProficiencies = useMemo(() => {
+        const languageChoicesMet = chosenLanguages.length >= languageChoicesCount;
+        const proficiencyChoicesMet = allProficiencyChoices.every(choice => {
             const selectedCount = proficiencySelections[choice.id]?.length || 0;
-            // The choice is complete if the user has selected the required number,
-            // OR if the number of available, unselected options is less than what's needed,
-            // which means they can't possibly fulfill the choice.
             const availableOptions = choice.options.filter(opt => !allFixedProficiencies.has(opt.index));
-            return selectedCount >= choice.choose || availableOptions.length < choice.choose;
+            return selectedCount >= choice.choose || availableOptions.length === 0;
         });
-    }, [allProficiencyChoices, proficiencySelections, allFixedProficiencies]);
+        return languageChoicesMet && proficiencyChoicesMet;
+    }, [allProficiencyChoices, proficiencySelections, allFixedProficiencies, chosenLanguages, languageChoicesCount]);
 
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
         const choiceGroups: EquipmentChoiceGroup[] = [];
@@ -298,6 +300,7 @@ export const useNewCharacterCreation = () => {
         setIdeal('');
         setBond('');
         setFlaw('');
+        setChosenFeats([]);
     }, []);
 
     useEffect(() => {
@@ -666,6 +669,7 @@ export const useNewCharacterCreation = () => {
             bond,
             flaw,
             startingGold,
+            feats: [], // Feats are not selected at level 1 by this house rule
         };
     };
 
@@ -701,7 +705,7 @@ export const useNewCharacterCreation = () => {
         allFixedProficiencies,
         allProficiencyChoices,
         unavailableProficiencies,
-        canProceedToNextStep,
+        canProceedFromProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
         startingGold,
