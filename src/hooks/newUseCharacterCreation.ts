@@ -616,6 +616,89 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }
     }, [resetSelections]);
     
+    // --- RANDOMIZATION FUNCTIONS ---
+    const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
+        const randomRace = races[Math.floor(Math.random() * races.length)];
+        const randomClass = classes[Math.floor(Math.random() * classes.length)];
+        
+        await handleRaceChange(randomRace.index);
+        
+        // This is a bit tricky due to async state updates. We'll wait a bit.
+        // A more robust solution might use a state machine or pass the details directly.
+        setTimeout(async () => {
+            if (raceDetails?.subraces && raceDetails.subraces.length > 0) {
+                const randomSubrace = raceDetails.subraces[Math.floor(Math.random() * raceDetails.subraces.length)];
+                await handleSubraceChange(randomSubrace.index);
+            }
+        }, 300);
+
+        await handleClassChange(randomClass.index);
+    }, [handleRaceChange, handleClassChange, raceDetails]);
+
+    const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
+        const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+        handleBackgroundChange(randomBg.index);
+    }, [handleBackgroundChange]);
+
+    const handleRandomizeProficiencies = useCallback(() => {
+        const newSelections: Record<string, string[]> = {};
+        const currentlySelected = new Set(Object.values(proficiencySelections).flat());
+
+        allProficiencyChoices.forEach(choice => {
+            const availableOptions = choice.options.filter(opt => !allFixedProficiencies.has(opt.index) && !currentlySelected.has(opt.index));
+            const shuffled = availableOptions.sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, choice.choose).map(opt => opt.index);
+            newSelections[choice.id] = selected;
+            selected.forEach(s => currentlySelected.add(s));
+        });
+        setProficiencySelections(newSelections);
+    }, [allProficiencyChoices, allFixedProficiencies, proficiencySelections]);
+
+    const handleRandomizeLanguages = useCallback(() => {
+        if (languageChoicesCount <= 0) return;
+        const available = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
+        const shuffled = available.sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
+        setChosenLanguages(selected);
+    }, [languageChoicesCount, allLanguages, baseLanguages]);
+
+    const handleRandomizeEquipment = useCallback(() => {
+        const newSelections: Record<string, { main: number, sub?: number }> = {};
+        equipmentChoiceGroups.forEach(group => {
+            const mainOptionsCount = group.choice.from.options?.length || 0;
+            if (mainOptionsCount > 0) {
+                const randomMainIndex = Math.floor(Math.random() * mainOptionsCount);
+                newSelections[group.id] = { main: randomMainIndex };
+                // Note: This doesn't handle sub-choices randomization due to async loading.
+                // A more complex implementation would be needed. For now, it just picks the main option.
+            }
+        });
+        setEquipmentSelections(newSelections);
+    }, [equipmentChoiceGroups]);
+
+    const handleRandomizeSpells = useCallback(() => {
+        if (!classDetails || !classLevels) return;
+
+        const cantrips = classSpellOptions.filter(s => s.level === 0);
+        const level1Spells = classSpellOptions.filter(s => s.level === 1);
+
+        const cantripsToChoose = getCantripsKnown(classLevels, 1);
+        const spellsToChoose = getSpellsKnown(1, classLevels, classDetails, finalAttributes);
+
+        const randomCantrips = cantrips.sort(() => 0.5 - Math.random()).slice(0, cantripsToChoose).map(s => s.index);
+        const randomLevel1s = level1Spells.sort(() => 0.5 - Math.random()).slice(0, spellsToChoose).map(s => s.index);
+        
+        setChosenClassSpells([...randomCantrips, ...randomLevel1s]);
+
+        const newRacialSpells: Record<string, string[]> = {};
+        racialSpellTraits.forEach(trait => {
+            const shuffled = trait.options.sort(() => 0.5 - Math.random());
+            newRacialSpells[trait.traitName] = shuffled.slice(0, trait.choose).map(opt => opt.index);
+        });
+        setChosenRacialSpells(newRacialSpells);
+
+    }, [classDetails, classLevels, classSpellOptions, finalAttributes, racialSpellTraits]);
+
     const buildCharacter = (): NewCharacterInfo | null => {
         if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
 
@@ -709,6 +792,15 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleAttributeChange,
         handleSuggestAttributes,
         isComplete,
-        buildCharacter
+        buildCharacter,
+        // Randomizers
+        handleRandomizeRaceAndClass,
+        handleRandomizeBackground,
+        handleRandomizeProficiencies,
+        handleRandomizeLanguages,
+        handleRandomizeEquipment,
+        handleRandomizeSpells,
     };
 };
+
+    
