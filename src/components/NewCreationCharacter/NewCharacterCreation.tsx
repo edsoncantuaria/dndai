@@ -11,6 +11,7 @@ import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
+import NewStep4_Proficiencies from './NewStep4_Proficiencies';
 
 
 interface NewCharacterCreationProps {
@@ -52,9 +53,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep2_Attributes {...commonProps} />;
             case 3:
                 return <NewStep3_Background {...commonProps} backgrounds={backgrounds} alignments={alignments} />;
+            case 4:
+                return <NewStep4_Proficiencies {...commonProps} />;
             // Outros steps virão aqui no futuro
-            // case 4:
-            //     return <NewStep4_Proficiencies {...commonProps} />;
+            // case 5:
+            //     return <NewStep5_Equipment {...commonProps} />;
             default:
                 return <div>Etapa {currentStep} em construção.</div>;
         }
