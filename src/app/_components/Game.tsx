@@ -5,7 +5,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import CharacterCreation from '@/components/CharacterCreation';
 import GameScreen from '@/components/GameScreen';
 
-export default function Game() {
+export default function Game({ startNewGame }: { startNewGame: () => void }) {
     const gameStateHook = useGameStateContext();
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -19,6 +19,12 @@ export default function Game() {
             gameStateHook.loadGameFromFile(file);
         }
     };
+    
+    const handleNewGameClick = () => {
+        if (window.confirm('Tem certeza que deseja iniciar um novo jogo? O progresso atual será perdido.')) {
+            startNewGame();
+        }
+    }
 
     return (
         <div className="relative min-h-screen w-full text-stone-200 font-sans p-4 sm:p-6 lg:p-8 flex flex-col animate-fadeIn">
@@ -27,7 +33,7 @@ export default function Game() {
                     <h1 className="text-4xl font-bold font-serif text-amber-400" style={{ textShadow: '0 0 8px #f59e0b' }}>RPG de Cria</h1>
                     {gameStateHook.character && (
                         <div className="flex items-center gap-2">
-                            <button onClick={gameStateHook.startNewGame} className="bg-red-800 hover:bg-red-700 text-stone-200 font-semibold py-1 px-3 rounded-md text-sm transition-colors">
+                            <button onClick={handleNewGameClick} className="bg-red-800 hover:bg-red-700 text-stone-200 font-semibold py-1 px-3 rounded-md text-sm transition-colors">
                                 Novo Jogo
                             </button>
                             <button onClick={gameStateHook.saveGameToFile} className="bg-stone-700 hover:bg-stone-600 text-stone-200 font-semibold py-1 px-3 rounded-md text-sm transition-colors">

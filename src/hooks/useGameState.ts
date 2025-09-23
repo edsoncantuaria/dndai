@@ -78,17 +78,6 @@ export const useGameState = () => {
          return localStorage.getItem(LOCAL_STORAGE_KEY) !== null;
     }, []);
 
-    const startNewGame = useCallback(() => {
-        if (window.confirm('Tem certeza que deseja iniciar um novo jogo? O progresso atual será perdido.')) {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-            setCharacter(null);
-            setLog([]);
-            setActionOptions([]);
-            setCombatState({ isActive: false, round: 0, turn: 0, combatants: [] });
-            setLevelUpState(null);
-        }
-    }, []);
-
     const handleGeminiResponse = useCallback((response: geminiService.GeminiResponse | null) => {
         if (!response) {
             // Handle API error gracefully
@@ -316,7 +305,6 @@ export const useGameState = () => {
         takeLoot,
         buyItem,
         sellItem,
-        startNewGame,
         saveGameToFile,
         loadGameFromFile,
         checkForSavedGame,
