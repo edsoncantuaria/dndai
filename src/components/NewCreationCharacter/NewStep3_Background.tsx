@@ -87,6 +87,7 @@ const NewStep3_Background: React.FC<Props> = ({
                                             type="checkbox"
                                             checked={personalityTraits.includes(opt.string)}
                                             onChange={() => handlePersonalityTraitChange(opt.string)}
+                                            disabled={!personalityTraits.includes(opt.string) && personalityTraits.length >= personalityTraitLimit}
                                             className="form-checkbox h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 rounded focus:ring-amber-500 mt-0.5"
                                         />
                                         <span className="ml-3 text-stone-300">{opt.string}</span>
@@ -96,11 +97,11 @@ const NewStep3_Background: React.FC<Props> = ({
                         </div>
                     )}
                     {/* Campos para Ideal, Vínculo e Defeito */}
-                    {['ideal', 'bond', 'flaw'].map(type => {
-                        const options = backgroundDetails[`${type}s` as const]?.from.options;
-                        const stateValue = { ideal, bond, flaw }[type];
-                        const setState = { ideal: setIdeal, bond: setBond, flaw: setFlaw }[type];
-                        const label = { ideal: "Ideal", bond: "Vínculo", flaw: "Defeito" }[type];
+                    {['ideals', 'bonds', 'flaws'].map(type => {
+                        const options = backgroundDetails[type]?.from.options;
+                        const stateValue = { ideals: ideal, bonds: bond, flaws: flaw }[type as 'ideals'|'bonds'|'flaws'];
+                        const setState = { ideals: setIdeal, bonds: setBond, flaws: setFlaw }[type as 'ideals'|'bonds'|'flaws'];
+                        const label = { ideals: "Ideal", bonds: "Vínculo", flaws: "Defeito" }[type as 'ideals'|'bonds'|'flaws'];
                         
                         if (!options) return null;
 

@@ -161,10 +161,14 @@ export const useNewCharacterCreation = () => {
         const backgroundEq = backgroundDetails?.starting_equipment || [];
 
         classEq.forEach(eq => {
-            fixed.push({ item: eq.equipment, quantity: eq.quantity });
+            if (eq.equipment) {
+                fixed.push({ item: eq.equipment, quantity: eq.quantity });
+            }
         });
         backgroundEq.forEach(eq => {
-            fixed.push({ item: eq.equipment, quantity: eq.quantity });
+            if (eq.equipment) {
+                fixed.push({ item: eq.equipment, quantity: eq.quantity });
+            }
         });
         
         const classChoices = classDetails?.starting_equipment_options || [];
@@ -176,7 +180,7 @@ export const useNewCharacterCreation = () => {
         if (backgroundChoices.length > 0) {
             choiceGroups.push({ desc: "Equipamento do Antecedente", choices: backgroundChoices });
         }
-
+        
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
@@ -346,7 +350,7 @@ export const useNewCharacterCreation = () => {
         if (!option) return;
 
         const choiceKey = `${groupDesc}-${choiceIndex}`;
-        setEquipmentChoices(prev => ({ ...prev, [choiceKey]: option }));
+        setEquipmentChoices(prev => ({ ...prev, [choiceKey]: option.item || option }));
 
         setSubChoiceSelection(prev => { const next = {...prev}; delete next[choiceKey]; return next; });
         setSelectedEquipmentDetails(prev => {
@@ -356,11 +360,12 @@ export const useNewCharacterCreation = () => {
             return next;
         });
 
-        if (option.type === 'choice' && option.from.option_set_type === 'equipment_category' && option.from.equipment_category?.index) {
-            const data = await DndApiService.getEquipmentForCategory(option.from.equipment_category.index);
+        const effectiveOption = option.item || option;
+        if (effectiveOption.type === 'choice' && effectiveOption.from.option_set_type === 'equipment_category' && effectiveOption.from.equipment_category?.index) {
+            const data = await DndApiService.getEquipmentForCategory(effectiveOption.from.equipment_category.index);
             setSubChoiceOptions(prev => ({ ...prev, [choiceKey]: data?.equipment || [] }));
-        } else if (option.of) {
-            const details = await DndApiService.getEquipmentDetails(option.of.index);
+        } else if (effectiveOption.of) {
+            const details = await DndApiService.getEquipmentDetails(effectiveOption.of.index);
             setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${choiceKey}`]: translateEquipment(details) }));
         }
     }, [equipmentChoiceGroups]);
@@ -518,6 +523,7 @@ export const useNewCharacterCreation = () => {
                 finalInventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
             }
         });
+        const startingGold = finalInventory.find(i => i.name.toLowerCase().includes("bolsa contendo"))?.cost?.quantity || 15;
 
         return {
             name,
@@ -537,7 +543,8 @@ export const useNewCharacterCreation = () => {
             personalityTraits,
             ideal,
             bond,
-            flaw
+            flaw,
+            startingGold,
         };
     };
 

@@ -7,10 +7,12 @@
 import React from 'react';
 import { normalizeProficiencyName } from '@/utils/translator';
 import { Icons } from '../Icons';
-import { ProficiencyChoiceWithSource } from '@/hooks/useCharacterCreation';
+import { ProficiencyChoiceWithSource } from '@/hooks/newUseCharacterCreation';
+import type { Proficiency } from '@/types';
 
 interface Props {
     allProficiencyChoices: ProficiencyChoiceWithSource[];
+    allFixedProficiencies: Map<string, Proficiency>;
     proficiencySelections: Record<string, string[]>;
     unavailableProficiencies: Set<string>;
     handleProficiencyChange: (profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => void;
@@ -20,6 +22,7 @@ interface Props {
 
 const NewStep4_Proficiencies: React.FC<Props> = ({
     allProficiencyChoices,
+    allFixedProficiencies,
     proficiencySelections,
     unavailableProficiencies,
     handleProficiencyChange,
@@ -37,6 +40,18 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                 <h3 className="text-xl font-semibold text-stone-300 mb-2">Escolha suas Proficiências</h3>
                 <p className="text-sm text-stone-400 mb-6">Seu antecedente, raça e classe lhe concedem várias perícias. Escolha as opções disponíveis abaixo.</p>
             </div>
+
+            {/* Proficiências Concedidas */}
+            {allFixedProficiencies.size > 0 && (
+                <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
+                    <h4 className="font-semibold text-amber-300 mb-3">Proficiências Concedidas</h4>
+                    <ul className="list-disc list-inside text-stone-400 space-y-1 text-sm columns-2 md:columns-3">
+                        {Array.from(allFixedProficiencies.values()).map(prof => (
+                            <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {allProficiencyChoices.length === 0 ? (
                  <div className="text-center text-stone-400 italic p-8 bg-stone-900/50 rounded-lg">
@@ -82,7 +97,7 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                                                 </label>
                                                 {isDisabled && (
                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-stone-950 text-stone-300 text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-700">
-                                                        {isUnavailable ? "Já proficiente" : "Limite de escolhas atingido"}
+                                                        {isUnavailable ? "Já proficiente de outra fonte" : "Limite de escolhas atingido"}
                                                     </div>
                                                 )}
                                             </div>

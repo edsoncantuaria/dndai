@@ -1,4 +1,5 @@
 
+
 export const TRANSLATIONS: Record<string, string> = {
     // Attributes
     'strength': 'Força',
@@ -47,6 +48,24 @@ export const TRANSLATIONS: Record<string, string> = {
     'Chaotic Evil': 'Caótico e Mau',
     
     // Skills & Proficiencies
+    'Acrobatics': 'Acrobacia',
+    'Animal Handling': 'Trato com Animais',
+    'Arcana': 'Arcanismo',
+    'Athletics': 'Atletismo',
+    'Deception': 'Enganação',
+    'History': 'História',
+    'Insight': 'Intuição',
+    'Intimidation': 'Intimidação',
+    'Investigation': 'Investigação',
+    'Medicine': 'Medicina',
+    'Nature': 'Natureza',
+    'Perception': 'Percepção',
+    'Performance': 'Atuação',
+    'Persuasion': 'Persuasão',
+    'Religion': 'Religião',
+    'Sleight of Hand': 'Prestidigitação',
+    'Stealth': 'Furtividade',
+    'Survival': 'Sobrevivência',
     'Skill: Acrobatics': 'Acrobacia',
     'Skill: Animal Handling': 'Trato com Animais',
     'Skill: Arcana': 'Arcanismo',
@@ -139,14 +158,70 @@ export const translateApiString = (s?: string): string => {
     return TRANSLATIONS[s] || s;
 };
 
+const PROFICIENCY_TRANSLATION_MAP: Record<string, string> = {
+    // Skills
+    'Acrobatics': 'Acrobacia',
+    'Animal Handling': 'Trato com Animais',
+    'Arcana': 'Arcanismo',
+    'Athletics': 'Atletismo',
+    'Deception': 'Enganação',
+    'History': 'História',
+    'Insight': 'Intuição',
+    'Intimidation': 'Intimidação',
+    'Investigation': 'Investigação',
+    'Medicine': 'Medicina',
+    'Nature': 'Natureza',
+    'Perception': 'Percepção',
+    'Performance': 'Atuação',
+    'Persuasion': 'Persuasão',
+    'Religion': 'Religião',
+    'Sleight of Hand': 'Prestidigitação',
+    'Stealth': 'Furtividade',
+    'Survival': 'Sobrevivência',
+    // Weapons
+    'Longswords': 'Espadas Longas',
+    'Shortswords': 'Espadas Curtas',
+    'Shortbows': 'Arcos Curtos',
+    'Longbows': 'Arcos Longos',
+    // Armor
+    'Light Armor': 'Armadura Leve',
+    'Medium Armor': 'Armadura Média',
+    'Shields': 'Escudos',
+    // Tools
+    'Thieves\' Tools': 'Ferramentas de Ladrão',
+    // General
+    'Simple Weapons': 'Armas Simples',
+    'Martial Weapons': 'Armas Marciais',
+};
+
 
 export const normalizeProficiencyName = (name: string): string => {
-    // The dictionary keys are the full proficiency names (e.g., "Skill: Acrobatics").
-    // The values are the clean, translated names (e.g., "Acrobacia").
-    // The previous implementation incorrectly stripped the prefix before translation,
-    // causing the dictionary lookup to fail.
-    // The fix is to simply translate the full name directly.
-    return translateApiString(name);
+    // Remove "Skill:" prefix and translate
+    if (name.startsWith('Skill: ')) {
+        const skillName = name.substring(7);
+        return PROFICIENCY_TRANSLATION_MAP[skillName] || skillName;
+    }
+     if (name.startsWith('Saving Throw: ')) {
+        const attr = name.substring(14);
+        return `Resistência: ${attr}`;
+    }
+     // Dynamic translation for "Choose X from..."
+    const chooseMatch = name.match(/Choose (\w+) from (.+)/);
+    if (chooseMatch) {
+        const numberWord = chooseMatch[1];
+        let number;
+        switch(numberWord.toLowerCase()) {
+            case 'one': number = 'uma'; break;
+            case 'two': number = 'duas'; break;
+            case 'three': number = 'três'; break;
+            default: number = numberWord;
+        }
+
+        const options = chooseMatch[2].split(', ').map(opt => PROFICIENCY_TRANSLATION_MAP[opt.trim()] || opt.trim());
+        return `Escolha ${number} entre: ${options.join(', ')}`;
+    }
+
+    return TRANSLATIONS[name] || name;
 };
 
 export const translateAttribute = (s: keyof typeof TRANSLATIONS): string => translateApiString(s);

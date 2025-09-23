@@ -1,6 +1,5 @@
 // services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass } from '../types';
-import { localBackgrounds } from '../data/backgrounds';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
@@ -31,27 +30,13 @@ export const getClasses = () => fetchFromApi<{ results: ApiListItem[] }>('/class
 export const getAlignments = () => fetchFromApi<{ results: ApiListItem[] }>('/alignments');
 export const getSkills = () => fetchFromApi<{ results: ApiListItem[] }>('/skills');
 export const getLanguages = () => fetchFromApi<{ results: ApiListItem[] }>('/languages');
-
-// Backgrounds are fetched locally to provide custom/translated content
-export const getBackgrounds = async (): Promise<{ results: ApiListItem[] }> => {
-    return Promise.resolve({
-        results: localBackgrounds.map(bg => ({
-            index: bg.index,
-            name: bg.name,
-            url: `/api/backgrounds/${bg.index}` // This is a mock URL
-        }))
-    });
-};
-export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
-    const background = localBackgrounds.find(bg => bg.index === index || bg.name === index);
-    return Promise.resolve(background || null);
-};
-
+export const getBackgrounds = () => fetchFromApi<{ results: ApiListItem[] }>('/backgrounds');
 
 export const getRaceDetails = (index: string) => fetchFromApi<ApiRace>(`/races/${index}`);
 export const getSubraceDetails = (index: string) => fetchFromApi<ApiSubrace>(`/subraces/${index}`);
 export const getClassDetails = (index: string) => fetchFromApi<ApiClass>(`/classes/${index}`);
 export const getSubclassDetails = (index: string) => fetchFromApi<ApiSubclass>(`/subclasses/${index}`);
+export const getBackgroundDetails = (index: string) => fetchFromApi<ApiBackground>(`/backgrounds/${index}`);
 export const getClassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/classes/${index}/levels`);
 export const getSubclassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/subclasses/${index}/levels`);
 export const getSpellsForClass = (index: string) => fetchFromApi<{ results: ApiListItem[] }>(`/classes/${index}/spells`);
