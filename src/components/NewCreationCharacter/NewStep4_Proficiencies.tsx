@@ -70,10 +70,11 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                                 <p className="text-sm text-stone-400 mb-4">Fonte: {choice.source} <span className="font-semibold">({selectedCountInGroup}/{choice.choose})</span></p>
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {choice.options.map(option => {
+                                    {availableOptions.map(option => {
                                         if(!option.name) return null;
                                         const isSelected = !!proficiencySelections[choice.id]?.includes(option.index);
-                                        const isUnavailable = !isSelected && unavailableProficiencies.has(option.index);
+                                        // An option is unavailable if it's already fixed from another source OR selected in a different choice group.
+                                        const isUnavailable = !isSelected && unavailableProficiencies.has(option.index) && !allFixedProficiencies.has(option.index);
                                         const isLimitReached = !isSelected && selectedCountInGroup >= choice.choose;
                                         const isDisabled = isUnavailable || isLimitReached;
                                         
@@ -100,7 +101,7 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                                                 </label>
                                                 {isDisabled && (
                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-stone-950 text-stone-300 text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-700">
-                                                        {isUnavailable ? "Já proficiente de outra fonte" : "Limite de escolhas atingido"}
+                                                        {isUnavailable ? "Já selecionado em outro grupo" : "Limite de escolhas atingido"}
                                                     </div>
                                                 )}
                                             </div>

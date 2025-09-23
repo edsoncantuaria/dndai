@@ -8,7 +8,7 @@ import {
 import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostOfNextLevel, getRefundForPrevLevel, getOptionLabel } from '../utils/creationHelpers';
-import { translateSpell } from '../utils/TranslatorSpells';
+import { translateEquipment, translateSpell } from '../utils/translator';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
@@ -138,22 +138,53 @@ export const useNewCharacterCreation = () => {
 
     const allProficiencyChoices = useMemo<ProficiencyChoiceWithSource[]>(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
-        const addChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
+        
+        // This function will recursively flatten nested choices.
+        const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
-            choices.push({
-                ...choice,
-                id: `${idPrefix}-${choices.length}`,
-                source,
-                options: choice.from.options.map((o: any) => o.item || o) 
+
+            choice.from.options.forEach((option, index) => {
+                const newId = `${idPrefix}-${index}`;
+                if (option.option_type === 'choice') {
+                    // This is a nested choice, process it.
+                    processChoice(option.choice, source, newId);
+                } else if (option.option_type === 'reference') {
+                    // This is a direct proficiency option.
+                    // We group it with others from the same source `desc`.
+                    const parentId = `${idPrefix}-group`;
+                    const existingGroup = choices.find(c => c.id === parentId);
+                    if (existingGroup) {
+                        existingGroup.options.push(option.item);
+                    } else {
+                        choices.push({
+                            ...choice,
+                            id: parentId,
+                            source,
+                            options: [option.item]
+                        });
+                    }
+                }
             });
         };
+        
+        (classDetails?.proficiency_choices || []).forEach((c, i) => processChoice(c, 'Classe', `class-${i}`));
+        processChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race');
+        processChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
+        processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
+        
+        // Final pass to ensure options are correctly grouped under a single choice ID if they share a description
+        const groupedChoices: Record<string, ProficiencyChoiceWithSource> = {};
+        choices.forEach(choice => {
+            const key = `${choice.desc}-${choice.choose}`;
+            if (groupedChoices[key]) {
+                groupedChoices[key].options.push(...choice.options);
+            } else {
+                groupedChoices[key] = { ...choice };
+            }
+        });
 
-        addChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race');
-        addChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
-        (classDetails?.proficiency_choices || []).forEach((c, i) => addChoice(c, 'Classe', `class-${i}`));
-        addChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
+        return Object.values(groupedChoices);
 
-        return choices;
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails]);
     
     const unavailableProficiencies = useMemo(() => {
@@ -163,8 +194,11 @@ export const useNewCharacterCreation = () => {
     const canProceedToNextStep = useMemo(() => {
         return allProficiencyChoices.every(choice => {
             const selectedCount = proficiencySelections[choice.id]?.length || 0;
-            const availableOptionsCount = choice.options.filter(opt => !allFixedProficiencies.has(opt.index)).length;
-            return selectedCount === choice.choose || availableOptionsCount < choice.choose;
+            // The choice is complete if the user has selected the required number,
+            // OR if the number of available, unselected options is less than what's needed,
+            // which means they can't possibly fulfill the choice.
+            const availableOptions = choice.options.filter(opt => !allFixedProficiencies.has(opt.index));
+            return selectedCount >= choice.choose || availableOptions.length < choice.choose;
         });
     }, [allProficiencyChoices, proficiencySelections, allFixedProficiencies]);
 
@@ -308,7 +342,7 @@ export const useNewCharacterCreation = () => {
             
             if (allSpellOptionsList.length > 0) {
                 const spellDetails = await fetchDetailsInChunks<ApiSpell>(allSpellOptionsList, DndApiService.getSpellDetails, () => {});
-                setRacialSpellOptions(spellDetails.map(translateSpell));
+                setRacialSpellOptions(spellDetails.map(spell => translateSpell(spell) as ApiSpell));
             }
 
             setRacialSpellTraits(spellChoiceTraits.map(t => ({
@@ -570,7 +604,7 @@ export const useNewCharacterCreation = () => {
                         DndApiService.getSpellDetails,
                         (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
                     );
-                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(translateSpell));
+                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
                 }
             }
             setIsSpellsLoading(false);
