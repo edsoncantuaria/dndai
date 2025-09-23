@@ -6,38 +6,30 @@ import { Icons } from '../Icons';
 import SpellCard from '../SpellCard';
 
 interface Props {
-    classDetails: ReturnType<typeof useNewCharacterCreation>['classDetails'];
-    classLevels: ReturnType<typeof useNewCharacterCreation>['classLevels'];
-    finalAttributes: ReturnType<typeof useNewCharacterCreation>['finalAttributes'];
-    isSpellsLoading: ReturnType<typeof useNewCharacterCreation>['isSpellsLoading'];
-    spellsLoadingProgress: ReturnType<typeof useNewCharacterCreation>['spellsLoadingProgress'];
-    classSpellOptions: ReturnType<typeof useNewCharacterCreation>['classSpellOptions'];
-    chosenClassSpells: ReturnType<typeof useNewCharacterCreation>['chosenClassSpells'];
-    handleClassSpellChange: ReturnType<typeof useNewCharacterCreation>['handleClassSpellChange'];
-    racialSpellTraits: ReturnType<typeof useNewCharacterCreation>['racialSpellTraits'];
-    racialSpellOptions: ReturnType<typeof useNewCharacterCreation>['racialSpellOptions'];
-    chosenRacialSpells: ReturnType<typeof useNewCharacterCreation>['chosenRacialSpells'];
-    handleRacialSpellChange: ReturnType<typeof useNewCharacterCreation>['handleRacialSpellChange'];
+    hook: ReturnType<typeof useNewCharacterCreation>;
     prevStep: () => void;
     nextStep: () => void;
 }
 
 const NewStep6_Spells: React.FC<Props> = ({
-    classDetails,
-    classLevels,
-    finalAttributes,
-    isSpellsLoading,
-    spellsLoadingProgress,
-    classSpellOptions,
-    chosenClassSpells,
-    handleClassSpellChange,
-    racialSpellTraits,
-    racialSpellOptions,
-    chosenRacialSpells,
-    handleRacialSpellChange,
+    hook,
     prevStep,
     nextStep
 }) => {
+    const {
+        classDetails,
+        classLevels,
+        finalAttributes,
+        isSpellsLoading,
+        spellsLoadingProgress,
+        classSpellOptions,
+        chosenClassSpells,
+        handleClassSpellChange,
+        racialSpellTraits,
+        racialSpellOptions,
+        chosenRacialSpells,
+        handleRacialSpellChange,
+    } = hook;
     
     const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
     const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;

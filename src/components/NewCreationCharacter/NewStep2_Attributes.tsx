@@ -6,15 +6,10 @@ import type { Attributes } from '@/types';
 import { translateAttribute } from '@/utils/translator';
 import { getCostOfNextLevel } from '@/utils/creationHelpers';
 import { Icons } from '../Icons';
+import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 
 interface Props {
-    baseAttributes: Attributes;
-    points: number;
-    racialBonuses: Partial<Attributes>;
-    finalAttributes: Attributes;
-    handleAttributeChange: (attr: keyof Attributes, delta: 1 | -1) => void;
-    handleSuggestAttributes: () => void;
-    characterClass: string;
+    hook: ReturnType<typeof useNewCharacterCreation>;
     prevStep: () => void;
     nextStep: () => void;
 }
@@ -22,16 +17,19 @@ interface Props {
 const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
 const NewStep2_Attributes: React.FC<Props> = ({
-    baseAttributes,
-    points,
-    racialBonuses,
-    finalAttributes,
-    handleAttributeChange,
-    handleSuggestAttributes,
-    characterClass,
+    hook,
     prevStep,
     nextStep,
 }) => {
+    const {
+        baseAttributes,
+        points,
+        racialBonuses,
+        finalAttributes,
+        handleAttributeChange,
+        handleSuggestAttributes,
+        characterClass,
+    } = hook;
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="flex justify-between items-center flex-wrap gap-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">

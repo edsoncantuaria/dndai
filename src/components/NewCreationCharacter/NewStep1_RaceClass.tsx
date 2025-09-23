@@ -7,35 +7,32 @@ import React from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
 import { Icons } from '../Icons';
+import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 
 // As props são todas as propriedades e funções do hook `useCharacterCreation`, além dos dados
 interface Props {
-    race: string;
-    subrace: string;
-    characterClass: string;
-    handleRaceChange: (index: string) => void;
-    handleSubraceChange: (index: string) => void;
-    handleClassChange: (index: string) => void;
-    raceDetails: any; // Simplificado para o exemplo
+    hook: ReturnType<typeof useNewCharacterCreation>;
     races: ApiListItem[];
     classes: ApiListItem[];
     nextStep: () => void;
-    isSpellsLoading: boolean;
 }
 
 const NewStep1_RaceClass: React.FC<Props> = ({
-    race,
-    subrace,
-    characterClass,
-    handleRaceChange,
-    handleSubraceChange,
-    handleClassChange,
-    raceDetails,
+    hook,
     races,
     classes,
     nextStep,
-    isSpellsLoading
 }) => {
+    const {
+        race,
+        subrace,
+        characterClass,
+        handleRaceChange,
+        handleSubraceChange,
+        handleClassChange,
+        raceDetails,
+        isSpellsLoading
+    } = hook;
     const canProceed = race && characterClass && (!raceDetails?.subraces.length || subrace);
 
     return (

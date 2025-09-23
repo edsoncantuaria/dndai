@@ -3,51 +3,42 @@ import React from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
 import { Icons } from '../Icons';
+import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 
 // Usamos as props do hook e os dados passados pelo orquestrador
 interface Props {
-    background: string;
-    handleBackgroundChange: (index: string) => void;
+    hook: ReturnType<typeof useNewCharacterCreation>;
     backgrounds: ApiListItem[];
-    backgroundDetails: any;
-    alignment: string;
-    setAlignment: (value: string) => void;
     alignments: ApiListItem[];
-    backstory: string;
-    setBackstory: (value: string) => void;
-    personalityTraits: string[];
-    handlePersonalityTraitChange: (trait: string) => void;
-    ideal: string;
-    setIdeal: (value: string) => void;
-    bond: string;
-    setBond: (value: string) => void;
-    flaw: string;
-    setFlaw: (value: string) => void;
     prevStep: () => void;
     nextStep: () => void;
 }
 
 const NewStep3_Background: React.FC<Props> = ({
-    background,
-    handleBackgroundChange,
+    hook,
     backgrounds,
-    backgroundDetails,
-    alignment,
-    setAlignment,
     alignments,
-    backstory,
-    setBackstory,
-    personalityTraits,
-    handlePersonalityTraitChange,
-    ideal,
-    setIdeal,
-    bond,
-    setBond,
-    flaw,
-    setFlaw,
     prevStep,
     nextStep,
 }) => {
+    const {
+        background,
+        handleBackgroundChange,
+        backgroundDetails,
+        alignment,
+        setAlignment,
+        backstory,
+        setBackstory,
+        personalityTraits,
+        handlePersonalityTraitChange,
+        ideal,
+        setIdeal,
+        bond,
+        setBond,
+        flaw,
+        setFlaw,
+    } = hook;
+
     const canProceed = background && alignment;
     const personalityTraitLimit = backgroundDetails?.personality_traits?.choose || 0;
 
@@ -98,7 +89,7 @@ const NewStep3_Background: React.FC<Props> = ({
                     )}
                     {/* Campos para Ideal, Vínculo e Defeito */}
                     {['ideals', 'bonds', 'flaws'].map(type => {
-                        const options = backgroundDetails[type]?.from.options;
+                        const options = backgroundDetails[type as keyof typeof backgroundDetails]?.from.options;
                         const stateValue = { ideals: ideal, bonds: bond, flaws: flaw }[type as 'ideals'|'bonds'|'flaws'];
                         const setState = { ideals: setIdeal, bonds: setBond, flaws: setFlaw }[type as 'ideals'|'bonds'|'flaws'];
                         const label = { ideals: "Ideal", bonds: "Vínculo", flaws: "Defeito" }[type as 'ideals'|'bonds'|'flaws'];

@@ -7,28 +7,28 @@
 import React from 'react';
 import { normalizeProficiencyName } from '@/utils/translator';
 import { Icons } from '../Icons';
-import { ProficiencyChoiceWithSource } from '@/hooks/newUseCharacterCreation';
+import { ProficiencyChoiceWithSource, useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import type { Proficiency } from '@/types';
 
 interface Props {
-    allProficiencyChoices: ProficiencyChoiceWithSource[];
-    allFixedProficiencies: Map<string, Proficiency>;
-    proficiencySelections: Record<string, string[]>;
-    unavailableProficiencies: Set<string>;
-    handleProficiencyChange: (profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => void;
+    hook: ReturnType<typeof useNewCharacterCreation>;
     prevStep: () => void;
     nextStep: () => void;
 }
 
 const NewStep4_Proficiencies: React.FC<Props> = ({
-    allProficiencyChoices,
-    allFixedProficiencies,
-    proficiencySelections,
-    unavailableProficiencies,
-    handleProficiencyChange,
+    hook,
     prevStep,
     nextStep,
 }) => {
+    const {
+        allProficiencyChoices,
+        allFixedProficiencies,
+        proficiencySelections,
+        unavailableProficiencies,
+        handleProficiencyChange,
+    } = hook;
+
     // Validação para saber se todas as escolhas obrigatórias foram feitas
     const canProceed = allProficiencyChoices.every(choice =>
         (proficiencySelections[choice.id]?.length || 0) === choice.choose
