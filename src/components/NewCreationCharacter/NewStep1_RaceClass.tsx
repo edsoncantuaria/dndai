@@ -29,7 +29,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         isSpellsLoading,
         handleRandomizeRaceAndClass,
     } = hook;
-    const canProceed = race && characterClass && (!raceDetails?.subraces.length || subrace);
+    const canProceed = race && characterClass;
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -63,7 +63,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
 
             {raceDetails?.subraces?.length > 0 && (
                 <div className="animate-fadeIn">
-                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça</h4>
+                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça (Opcional)</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                         {raceDetails.subraces.map((sr: ApiListItem) => (
                             <button
