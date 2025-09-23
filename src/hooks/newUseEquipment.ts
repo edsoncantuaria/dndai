@@ -64,7 +64,7 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
             });
         }
         
-        return { equipmentChoiceGroups, fixedEquipment: fixed };
+        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
     /**
