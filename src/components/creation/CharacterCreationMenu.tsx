@@ -23,23 +23,22 @@ const CharacterCreationMenu: React.FC<CharacterCreationMenuProps> = ({ hasSavedG
     };
 
     return (
-        <div className="flex flex-col items-center justify-center p-8 text-center bg-stone-800/50 rounded-lg border border-stone-700 animate-fadeIn">
-            <h2 className="text-3xl font-bold font-garamond text-amber-300 mb-8 text-shadow-amber">Boas-vindas, aventureiro!</h2>
+        <div className="flex flex-col items-center justify-center p-4 md:p-8 text-center">
             <div className="space-y-4 w-full max-w-sm">
                 {hasSavedGame && (
                     <button 
                         onClick={onLoadGame}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-stone-100 font-bold py-3 px-6 rounded-md transition-colors text-lg sm:text-xl flex items-center justify-center gap-3"
+                        className="menu-button btn-continue"
                     >
-                        <Icons.Play className="h-6 w-6"/>
-                        Continuar Última Aventura
+                        <Icons.Play className="h-6 w-6 mr-3"/>
+                        Continuar Aventura
                     </button>
                 )}
                 <button 
                     onClick={handleImportClick}
-                    className="w-full bg-stone-700 hover:bg-stone-600 text-stone-200 font-bold py-3 px-6 rounded-md transition-colors text-lg sm:text-xl flex items-center justify-center gap-3"
+                    className="menu-button btn-import"
                 >
-                    <Icons.Upload className="h-6 w-6"/>
+                    <Icons.Upload className="h-6 w-6 mr-3"/>
                     Importar Aventura
                 </button>
                 <input
@@ -51,9 +50,9 @@ const CharacterCreationMenu: React.FC<CharacterCreationMenuProps> = ({ hasSavedG
                 />
                 <button 
                     onClick={onNewGame}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-3 px-6 rounded-md transition-colors text-lg sm:text-xl flex items-center justify-center gap-3"
+                    className="menu-button btn-new"
                 >
-                    <Icons.PlusCircle className="h-6 w-6"/>
+                     <Icons.PlusCircle className="h-6 w-6 mr-3"/>
                     Criar Novo Personagem
                 </button>
             </div>

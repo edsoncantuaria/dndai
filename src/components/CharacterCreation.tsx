@@ -8,7 +8,7 @@ import { Icons } from './Icons';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import CharacterCreationForm from './creation/CharacterCreationForm';
 
-const CharacterCreation: React.FC = () => {
+const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
     const { createCharacter, isLoading, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
     const [view, setView] = useState<'menu' | 'form'>('menu');
     const [hasSavedGame, setHasSavedGame] = useState(false);
@@ -27,6 +27,8 @@ const CharacterCreation: React.FC = () => {
     }, [checkForSavedGame, isLoading]);
 
     useEffect(() => {
+        if (view === 'form' && !isDataLoading) return;
+
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
@@ -50,11 +52,22 @@ const CharacterCreation: React.FC = () => {
             }
         };
         loadInitialData();
-    }, []);
+    }, [view]);
 
     // --- Main Hook ---
     const hook = useCharacterCreation();
 
+    const handleNewGame = () => {
+        if (hasSavedGame) {
+             if (window.confirm('Tem certeza que deseja iniciar um novo jogo? O progresso atual será perdido.')) {
+                startNewGame();
+                // We don't switch view here, the whole component will reset via page.tsx
+            }
+        } else {
+            setView('form');
+        }
+    };
+    
     // --- Form Submission Logic ---
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -169,32 +182,33 @@ const CharacterCreation: React.FC = () => {
     };
 
     // --- Render Logic ---
-    if (isLoading) {
+    if (isLoading && !hasSavedGame) { // Show loading only when creating character, not on initial load check
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400 text-center">
                 <Icons.Spinner className="h-12 w-12" />
-                <p className="mt-4 text-lg">Criando seu personagem e forjando seu destino...</p>
+                <p className="mt-4 text-lg">Forjando seu destino nas chamas da criação...</p>
             </div>
         );
     }
+    
+    if (view === 'menu') {
+        return (
+            <CharacterCreationMenu
+                hasSavedGame={hasSavedGame}
+                onNewGame={handleNewGame}
+                onLoadGame={loadGameFromLocalStorage}
+                onImportFile={loadGameFromFile}
+            />
+        );
+    }
 
-    if (isDataLoading) {
+    // --- Form View ---
+     if (isDataLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                 <Icons.Spinner className="h-12 w-12" />
                 <p className="mt-4">Carregando tomos antigos...</p>
             </div>
-        );
-    }
-
-    if (view === 'menu') {
-        return (
-            <CharacterCreationMenu
-                hasSavedGame={hasSavedGame}
-                onNewGame={() => setView('form')}
-                onLoadGame={loadGameFromLocalStorage}
-                onImportFile={loadGameFromFile}
-            />
         );
     }
 
