@@ -4,7 +4,7 @@ import * as DndApiService from '../services/dndApiService';
 import {
     ApiClass, ApiBackground, ApiEquipmentOption, InventoryItem, ApiEquipment, ApiListItem
 } from '../types';
-import { translateEquipment } from '../utils/TranslatorEquipments';
+import { translateEquipment } from '../utils/translator';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -57,12 +57,11 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
         processEquipmentSource(classDetails, 'class');
         processEquipmentSource(backgroundDetails, 'bg');
         
-        // Corrigido: Retornar as variáveis corretas que foram declaradas dentro do escopo do useMemo.
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
     useEffect(() => {
-        setIsEquipmentLoading(!classDetails || !backgroundDetails);
+        setIsEquipmentLoading(!classDetails && !backgroundDetails);
     }, [classDetails, backgroundDetails]);
 
 
@@ -95,9 +94,10 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
         });
 
         // Se a opção for uma escolha de categoria, busca os itens correspondentes.
-        if (option.type === 'choice' && option.from.option_set_type === 'equipment_category' && option.from.equipment_category?.index) {
+        const choiceFrom = (option as any).choice?.from || option.from;
+        if (option.type === 'choice' && choiceFrom?.option_set_type === 'equipment_category' && choiceFrom?.equipment_category?.index) {
             setSubChoiceOptions(prev => ({ ...prev, [groupId]: { isLoading: true, options: [] } }));
-            const data = await DndApiService.getEquipmentForCategory(option.from.equipment_category.index);
+            const data = await DndApiService.getEquipmentForCategory(choiceFrom.equipment_category.index);
             const translatedOptions = (data?.equipment || []).map(e => ({...e, name: translateEquipment(e.name)}));
             setSubChoiceOptions(prev => ({ ...prev, [groupId]: { isLoading: false, options: translatedOptions } }));
         } else if (option.of?.index) {
@@ -135,7 +135,6 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
         fixedEquipment.forEach(eq => {
             if (eq.item && !processedIds.has(eq.item.index)) {
                 inventory.push({ ...translateEquipment(eq.item), id: uuidv4(), quantity: eq.quantity, equipped: false } as InventoryItem);
-                processedIds.add(eq.item.index);
             }
         });
 
@@ -145,22 +144,19 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
 
             if (subSelectionIndex) { // Item de uma sub-escolha de categoria.
                 const details = selectedEquipmentDetails[`subchoice-${groupId}`];
-                if (details && !processedIds.has(details.index!)) {
+                if (details?.index && !processedIds.has(details.index)) {
                     inventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
-                    processedIds.add(details.index!);
                 }
             } else if (choice?.of?.index) { // Item direto de uma escolha.
                 const details = selectedEquipmentDetails[`choice-${groupId}`];
-                 if (details && !processedIds.has(details.index!)) {
+                 if (details?.index && !processedIds.has(details.index)) {
                     inventory.push({ ...details, id: uuidv4(), quantity: choice.count || 1, equipped: false } as InventoryItem);
-                    processedIds.add(details.index!);
                  }
             } else if (choice?.type === 'multiple' && choice?.from?.options) { // Múltiplos itens de uma única escolha.
                 choice.from.options.forEach(optWrapper => {
                      const opt = optWrapper.of ? optWrapper : (optWrapper as any).item; // Ajuste para diferentes estruturas da API
                      if(opt?.of && !processedIds.has(opt.of.index)) {
                        inventory.push({ ...translateEquipment(opt.of), id: uuidv4(), quantity: opt.count, equipped: false } as InventoryItem);
-                       processedIds.add(opt.of.index);
                      }
                 });
             }
@@ -190,7 +186,8 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
             if (!selection) return false;
             
             // Se a escolha requer uma sub-seleção (é uma categoria), verifica se a sub-seleção foi feita.
-            if (selection.type === 'choice' && selection.from.option_set_type === 'equipment_category') {
+            const choiceFrom = (selection as any).choice?.from || selection.from;
+            if (selection.type === 'choice' && choiceFrom?.option_set_type === 'equipment_category') {
                 return !!subChoiceSelection[group.id];
             }
             return true; // Se não for uma categoria, a seleção principal é suficiente.

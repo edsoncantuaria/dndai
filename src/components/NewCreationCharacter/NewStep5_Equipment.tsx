@@ -100,7 +100,7 @@ const NewStep5_Equipment: React.FC<Props> = ({ classDetails, backgroundDetails, 
                                 {/* Select Principal */}
                                 {group.choice.from.options && (
                                     <select
-                                        value={group.choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(mainSelection))}
+                                        value={mainSelection ? group.choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(mainSelection)) : -1}
                                         onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
                                         className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                                     >

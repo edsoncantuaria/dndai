@@ -1,6 +1,5 @@
 import { ApiEquipmentOption } from "../types";
-import { translateEquipment } from "./TranslatorEquipments";
-import { translateApiString } from "./translator";
+import { translateEquipment } from "./translator";
 
 /**
  * Calculates the point-buy cost to increase an attribute score to the next level.
@@ -33,12 +32,9 @@ export const getOptionLabel = (option: ApiEquipmentOption): string => {
     }
     
     // Caso 2: É uma escolha de categoria de equipamento (ex: "Qualquer Arma Simples")
-    // A estrutura pode ser `option.from` ou `option.choice.from`.
     const choiceDetails = (option as any).choice || option;
     if (choiceDetails.from?.option_set_type === 'equipment_category') {
-        const categoryName = choiceDetails.from.equipment_category?.name || 'Equipamento';
-        // A descrição "desc" (ex: "any simple weapon") costuma ser mais legível aqui.
-        return translateApiString(choiceDetails.desc || `Qualquer ${categoryName}`);
+        return translateEquipment(choiceDetails.desc || choiceDetails.from.equipment_category?.name || 'Categoria de Equipamento');
     }
     
     // Caso 3: É uma escolha de múltiplos itens (ex: "(a) a mace or (b) a warhammer")
@@ -49,7 +45,7 @@ export const getOptionLabel = (option: ApiEquipmentOption): string => {
 
     // Caso 4: Fallback para uma descrição genérica
     if (option.desc) {
-        return translateApiString(option.desc);
+        return translateEquipment(option.desc);
     }
     
     // Caso 5: Fallback para itens aninhados dentro de 'item'
