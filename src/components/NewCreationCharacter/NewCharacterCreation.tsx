@@ -4,7 +4,7 @@
 // A lógica principal (o "cérebro") é consumida diretamente do hook `useNewCharacterCreation`.
 
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { ApiListItem } from '@/types';
@@ -37,7 +37,14 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const { createCharacter } = useGameStateContext();
     const hook = useNewCharacterCreation();
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 7; 
+    const totalSteps = 7;
+    const wizardRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (wizardRef.current) {
+            wizardRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [currentStep]);
 
     const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
     const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -81,7 +88,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     };
 
     return (
-        <div className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn">
+        <div ref={wizardRef} className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn">
             <header className="flex justify-between items-center border-b border-stone-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold font-garamond text-amber-300 text-shadow-amber">Criação de Personagem</h2>
                 <button type="button" onClick={onBackToMenu} className="text-sm text-stone-400 hover:text-amber-400 transition-colors">
