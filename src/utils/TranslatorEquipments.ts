@@ -1,4 +1,3 @@
-
 export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
   "abacus": {
     "name": "Ábaco"
@@ -256,7 +255,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
   "cartographers-tools": {
     "name": "Ferramentas do cartógrafo",
     "desc": [
-      "Essas ferramentas especiais incluem os itens necessários para exercer um ofício ou profissão. A tabela mostra exemplos dos tipos mais comuns de ferramentas, cada uma fornecendo itens relacionados a um único ofício. A proficiência em um conjunto de ferramentas de artesão permite que você adicione seu bônus de proficiência a quaisquer verificações de habilidade que fizer usando as ferramentas em seu ofício. Cada tipo de ferramenta de artesão requer uma proficiência separada."
+      "Esse conjunto de ferramentas é usado para fazer mapas. A proficiência com essas ferramentas permite que você adicione seu bônus de proficiência a qualquer verificação de habilidade que você fizer para fazer ou ler um mapa. Além disso, essas ferramentas permitem que você adicione seu bônus de proficiência às verificações de habilidade para evitar se perder."
     ]
   },
   "case-crossbow-bolt": {
@@ -648,6 +647,7 @@ export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
     "damage_type_name": "Piercing",
     "properties": [
       "Atirado",
+      "Versátil",
       "Monge"
     ]
   },

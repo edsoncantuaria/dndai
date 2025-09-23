@@ -8,7 +8,6 @@ import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown, calculateMaxHpAt
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelpers';
 import { translateSpell } from '../utils/TranslatorSpells';
-import { translateEquipment } from '../utils/TranslatorEquipments';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
