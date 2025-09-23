@@ -1,7 +1,7 @@
 // services/geminiService.ts
 'use server';
 
-import { generate } from 'genkit/ai';
+import { ai } from '@/ai/genkit';
 import { geminiPro } from '@genkit-ai/googleai';
 import {
   Character,
@@ -77,7 +77,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 async function generateWithGenkit(prompt: string): Promise<GeminiResponse | null> {
   try {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: geminiPro,
       prompt: prompt,
       output: {
