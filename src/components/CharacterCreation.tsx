@@ -7,12 +7,14 @@ import type { ApiListItem } from '@/types';
 import { Icons } from './Icons';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
+import ConfirmationModal from './ui/ConfirmationModal';
 
 const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
     const { isLoading, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
     const [view, setView] = useState<'menu' | 'form'>('menu');
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
 
     // --- Data Fetching ---
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -56,14 +58,17 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
 
     const handleNewGame = () => {
         if (hasSavedGame) {
-             if (window.confirm('Tem certeza que deseja iniciar um novo jogo? O progresso atual será perdido.')) {
-                startNewGame();
-                setView('form');
-            }
+             setShowConfirmationModal(true);
         } else {
             setView('form');
         }
     };
+
+    const confirmNewGame = () => {
+        startNewGame();
+        setShowConfirmationModal(false);
+        setView('form');
+    }
     
     // --- Render Logic ---
     if (isLoading && !hasSavedGame) { // Mostra loading ao criar personagem
@@ -77,12 +82,23 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     
     if (view === 'menu') {
         return (
-            <CharacterCreationMenu
-                hasSavedGame={hasSavedGame}
-                onNewGame={handleNewGame}
-                onLoadGame={loadGameFromLocalStorage}
-                onImportFile={loadGameFromFile}
-            />
+            <>
+                <CharacterCreationMenu
+                    hasSavedGame={hasSavedGame}
+                    onNewGame={handleNewGame}
+                    onLoadGame={loadGameFromLocalStorage}
+                    onImportFile={loadGameFromFile}
+                />
+                 <ConfirmationModal
+                    isOpen={showConfirmationModal}
+                    title="Iniciar Novo Jogo?"
+                    message="Tem certeza que deseja iniciar um novo jogo? Todo o progresso salvo será perdido permanentemente."
+                    onConfirm={confirmNewGame}
+                    onCancel={() => setShowConfirmationModal(false)}
+                    confirmText="Sim, começar de novo"
+                    cancelText="Não, voltar"
+                />
+            </>
         );
     }
 
@@ -100,8 +116,8 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
             races={races}
             classes={classes}
             backgrounds={backgrounds}
-            alignments={alignments}
             allLanguages={allLanguages}
+            alignments={alignments}
             onBackToMenu={() => setView('menu')}
         />
     );
