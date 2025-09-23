@@ -34,7 +34,8 @@ const NewStep7_Finalize: React.FC<Props> = ({
         chosenClassSpells,
         classSpellOptions,
         chosenRacialSpells,
-        racialSpellOptions
+        racialSpellOptions,
+        raceDetails
     } = hook;
 
     const finalSkills = Array.from(allFixedProficiencies.values())
@@ -89,7 +90,7 @@ const NewStep7_Finalize: React.FC<Props> = ({
                     <div className="md:col-span-1 space-y-2">
                         <div className="bg-stone-800/50 p-3 rounded-md">
                             <strong className="text-stone-400 block text-xs uppercase tracking-wider">Raça</strong> 
-                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(race)} {subrace && `(${translateApiString(subrace)})`}</span>
+                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(raceDetails?.name)} {subrace && `(${translateApiString(subrace)})`}</span>
                         </div>
                         <div className="bg-stone-800/50 p-3 rounded-md">
                             <strong className="text-stone-400 block text-xs uppercase tracking-wider">Classe</strong> 
@@ -101,7 +102,7 @@ const NewStep7_Finalize: React.FC<Props> = ({
                         </div>
                          <div className="bg-stone-800/50 p-3 rounded-md">
                             <strong className="text-stone-400 block text-xs uppercase tracking-wider">Alinhamento</strong> 
-                            <span className="text-stone-100 text-lg font-semibold">{alignment}</span>
+                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(alignment)}</span>
                         </div>
                     </div>
 
