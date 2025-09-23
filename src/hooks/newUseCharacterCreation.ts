@@ -188,8 +188,9 @@ export const useNewCharacterCreation = () => {
             const selection = equipmentSelections[group.id];
             if (!selection) return false;
             
-            const mainOption = group.choice.from.options[selection.main];
-            if (mainOption?.option_type === 'choice') {
+            const mainOption = (group.choice.from.options || [group.choice.from])[selection.main];
+
+            if (mainOption?.option_type === 'choice' || group.choice.from.option_set_type === 'equipment_category') {
                 return selection.sub !== undefined;
             }
             return true;
@@ -301,12 +302,14 @@ export const useNewCharacterCreation = () => {
             const finalItems: InventoryItem[] = [];
             for (const group of equipmentChoiceGroups) {
                 const selection = equipmentSelections[group.id];
-                // Only process fully made selections
-                if (!selection || (group.choice.from.options[selection.main]?.option_type === 'choice' && selection.sub === undefined)) {
-                    continue;
-                }
-    
-                const mainOption = group.choice.from.options[selection.main];
+                if (!selection) continue;
+
+                const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
+                const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
+                
+                if (selection.main === undefined || selection.main < 0 || selection.main >= options.length) continue;
+
+                const mainOption = options[selection.main];
     
                 if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                     const details = await DndApiService.getEquipmentDetails(mainOption.of.index);
@@ -318,7 +321,7 @@ export const useNewCharacterCreation = () => {
                             finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
                         }
                     }
-                } else if (mainOption.option_type === 'choice' && selection.sub !== undefined) {
+                } else if ((mainOption.option_type === 'choice' || isCategoryChoice) && selection.sub !== undefined) {
                     const subOptions = subChoiceOptions[group.id];
                     if (subOptions && subOptions[selection.sub]) {
                         const chosenSubItem = subOptions[selection.sub];
@@ -393,14 +396,20 @@ export const useNewCharacterCreation = () => {
         }));
     
         const group = equipmentChoiceGroups.find(g => g.id === groupId);
-        if (!group || !group.choice.from.options) return;
+        if (!group) return;
+        
+        const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
+        const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
+        const selectedOption = options[mainIndex];
     
-        const selectedOption = group.choice.from.options[mainIndex];
-    
-        if (selectedOption?.option_type === 'choice') {
+        const needsSubChoice = selectedOption?.option_type === 'choice' || isCategoryChoice;
+
+        if (needsSubChoice) {
             setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: true }));
-            const categoryUrl = selectedOption.choice.from.equipment_category.url;
-            const categoryIndex = categoryUrl.split('/').pop(); // Extract index from URL
+            const categoryUrl = isCategoryChoice 
+                ? group.choice.from.equipment_category.url 
+                : selectedOption.choice.from.equipment_category.url;
+            const categoryIndex = categoryUrl.split('/').pop();
             
             if(categoryIndex){
                 const categoryData = await DndApiService.getEquipmentForCategory(categoryIndex);
