@@ -25,30 +25,30 @@ export const getRefundForPrevLevel = (currentScore: number): number => (currentS
 export const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
 
-    // Caso 1: Item direto (ex: `of: { index: 'club', name: 'Club' }`)
+    // Caso 1: É uma escolha de categoria de equipamento (ex: "Qualquer Arma Simples")
+    const choiceDetails = (option as any).choice || option;
+    if (choiceDetails.from?.option_set_type === 'equipment_category') {
+        return translateEquipment(choiceDetails.desc || choiceDetails.from.equipment_category?.name || 'Categoria de Equipamento');
+    }
+
+    // Caso 2: É uma escolha de múltiplos itens (ex: uma besta e 20 virotes)
+    if(option.type === 'multiple' && option.from?.options) {
+        const optionStrings = option.from.options.map(subOpt => getOptionLabel(subOpt.item || subOpt));
+        return optionStrings.join(' e ');
+    }
+
+    // Caso 3: Item direto (ex: `of: { index: 'club', name: 'Club' }`)
     if (option.of) {
         const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
         return `${translateEquipment(option.of.name)}${count}`;
     }
     
-    // Caso 2: É uma escolha de categoria de equipamento (ex: "Qualquer Arma Simples")
-    const choiceDetails = (option as any).choice || option;
-    if (choiceDetails.from?.option_set_type === 'equipment_category') {
-        return translateEquipment(choiceDetails.desc || choiceDetails.from.equipment_category?.name || 'Categoria de Equipamento');
-    }
-    
-    // Caso 3: É uma escolha de múltiplos itens (ex: "(a) a mace or (b) a warhammer")
-    if(option.type === 'multiple' && option.from?.options) {
-        const optionStrings = option.from.options.map(subOpt => getOptionLabel(subOpt.item || subOpt));
-        return `(${option.from.options.length}) ${optionStrings.join(' e ')}`;
-    }
-
-    // Caso 4: Fallback para uma descrição genérica
+    // Caso 4: Fallback para uma descrição genérica se existir
     if (option.desc) {
         return translateEquipment(option.desc);
     }
     
-    // Caso 5: Fallback para itens aninhados dentro de 'item'
+    // Caso 5: Fallback para itens aninhados dentro de 'item' (outra variação da API)
     if((option as any).item?.of) {
         return getOptionLabel((option as any).item);
     }
