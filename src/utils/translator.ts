@@ -1,5 +1,6 @@
 
 
+
 export const TRANSLATIONS: Record<string, string> = {
     // Attributes
     'strength': 'Força',
@@ -196,6 +197,9 @@ const PROFICIENCY_TRANSLATION_MAP: Record<string, string> = {
 
 
 export const normalizeProficiencyName = (name: string): string => {
+    if (!name) {
+        return '';
+    }
     // Remove "Skill:" prefix and translate
     if (name.startsWith('Skill: ')) {
         const skillName = name.substring(7);
@@ -230,3 +234,4 @@ export const translateSpell = (s?: string): string => translateApiString(s);
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
+

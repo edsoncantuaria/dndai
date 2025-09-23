@@ -47,7 +47,7 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                     <h4 className="font-semibold text-amber-300 mb-3">Proficiências Concedidas</h4>
                     <ul className="list-disc list-inside text-stone-400 space-y-1 text-sm columns-2 md:columns-3">
                         {Array.from(allFixedProficiencies.values()).map(prof => (
-                            <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                           prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
                         ))}
                     </ul>
                 </div>
@@ -69,6 +69,7 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                                     {choice.options.map(option => {
+                                        if(!option.name) return null;
                                         const isSelected = !!proficiencySelections[choice.id]?.includes(option.index);
                                         const isUnavailable = !isSelected && unavailableProficiencies.has(option.index);
                                         const isLimitReached = !isSelected && selectedCountInGroup >= choice.choose;
@@ -125,3 +126,4 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
 };
 
 export default NewStep4_Proficiencies;
+
