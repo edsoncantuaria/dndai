@@ -1,10 +1,11 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment.tsx
 import React from 'react';
 import { ApiEquipmentOption, InventoryItem } from '@/types';
-import { translateApiString, translateEquipment } from '@/utils/translator';
+import { translateApiString } from '@/utils/translator';
 import { Icons } from '../Icons';
 import ItemCard from '../ItemCard';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { translateEquipment } from '@/utils/TranslatorEquipments';
 
 
 // Helper para gerar um rótulo legível para as opções de equipamento

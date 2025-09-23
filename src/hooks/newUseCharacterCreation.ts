@@ -31,7 +31,9 @@ const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'wizard': ['intelligence', 'constitution', 'dexterity', 'wisdom', 'charisma', 'strength'],
 };
 
-export const useCharacterCreation = () => {
+export const useNewCharacterCreation = () => {
+    // --- STATE MANAGEMENT ---
+    // Basic character info
     const [name, setName] = useState('');
     const [race, setRace] = useState('');
     const [subrace, setSubrace] = useState('');
@@ -39,13 +41,19 @@ export const useCharacterCreation = () => {
     const [background, setBackground] = useState('');
     const [alignment, setAlignment] = useState('');
     const [backstory, setBackstory] = useState('');
+
+    // Attributes
     const [points, setPoints] = useState(27);
     const [baseAttributes, setBaseAttributes] = useState<Attributes>({ strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 });
+
+    // Fetched API Details
     const [raceDetails, setRaceDetails] = useState<ApiRace | null>(null);
     const [subraceDetails, setSubraceDetails] = useState<ApiSubrace | null>(null);
     const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
     const [backgroundDetails, setBackgroundDetails] = useState<ApiBackground | null>(null);
     const [classLevels, setClassLevels] = useState<ApiClassLevel[] | null>(null);
+
+    // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
     const [equipmentChoices, setEquipmentChoices] = useState<Record<string, ApiEquipmentOption>>({});
     const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, ApiListItem[]>>({});
@@ -53,16 +61,22 @@ export const useCharacterCreation = () => {
     const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
     const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
+    
+    // Personality
     const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
     const [ideal, setIdeal] = useState('');
     const [bond, setBond] = useState('');
     const [flaw, setFlaw] = useState('');
+
+    // Loading & Temp Data
     const [selectedEquipmentDetails, setSelectedEquipmentDetails] = useState<Record<string, Partial<InventoryItem> | null>>({});
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
+
+    // --- MEMOIZED DERIVED STATE ---
 
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
@@ -117,23 +131,23 @@ export const useCharacterCreation = () => {
     const allProficiencyChoices = useMemo<ProficiencyChoiceWithSource[]>(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
         const addChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
-            if (!choice) return;
+            if (!choice || !choice.from?.options) return;
             choices.push({
                 ...choice,
                 id: `${idPrefix}-${choices.length}`,
                 source,
-                options: choice.from?.options?.map(o => o.item).filter(item => !allFixedProficiencies.has(item.index)) || []
+                options: choice.from.options.map(o => o.item) 
             });
         };
 
         addChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race');
         addChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
         (classDetails?.proficiency_choices || []).forEach((c, i) => addChoice(c, 'Classe', `class-${i}`));
-        addChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
+        (backgroundDetails?.starting_proficiency_options || []).forEach((c, i) => addChoice(c, 'Antecedente', `bg-${i}`));
 
         return choices;
-    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, allFixedProficiencies]);
-
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails]);
+    
     const unavailableProficiencies = useMemo(() => {
         return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
     }, [allFixedProficiencies, proficiencySelections]);
@@ -145,10 +159,13 @@ export const useCharacterCreation = () => {
         const classEq = classDetails?.starting_equipment || [];
         const backgroundEq = backgroundDetails?.starting_equipment || [];
 
-        [...classEq, ...backgroundEq].forEach(eq => {
+        classEq.forEach(eq => {
             fixed.push({ item: eq.equipment, quantity: eq.quantity });
         });
-
+        backgroundEq.forEach(eq => {
+            fixed.push({ item: eq.equipment, quantity: eq.quantity });
+        });
+        
         const classChoices = classDetails?.starting_equipment_options || [];
         if (classChoices.length > 0) {
             choiceGroups.push({ desc: "Equipamento da Classe", choices: classChoices });
@@ -161,6 +178,8 @@ export const useCharacterCreation = () => {
 
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
+
+    // --- CALLBACKS & EFFECTS ---
 
     const resetSelections = useCallback(() => {
         setProficiencySelections({});
@@ -233,24 +252,27 @@ export const useCharacterCreation = () => {
         fetchRacialTraitsAndSpells();
     }, [raceDetails, subraceDetails]);
 
-    const handleAttributeChange = (attr: keyof Attributes, delta: 1 | -1) => {
-        const currentBase = baseAttributes[attr];
-        if (delta === 1) {
-            if (currentBase >= 15) return;
-            const cost = getCostOfNextLevel(currentBase);
-            if (points >= cost) {
-                setPoints(p => p - cost);
-                setBaseAttributes(attrs => ({ ...attrs, [attr]: currentBase + 1 }));
+    const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
+        setBaseAttributes(attrs => {
+            const currentBase = attrs[attr];
+            if (delta === 1) {
+                if (currentBase >= 15) return attrs;
+                const cost = getCostOfNextLevel(currentBase);
+                if (points >= cost) {
+                    setPoints(p => p - cost);
+                    return { ...attrs, [attr]: currentBase + 1 };
+                }
+            } else {
+                if (currentBase <= 8) return attrs;
+                const refund = getRefundForPrevLevel(currentBase);
+                setPoints(p => p + refund);
+                return { ...attrs, [attr]: currentBase - 1 };
             }
-        } else {
-            if (currentBase <= 8) return;
-            const refund = getRefundForPrevLevel(currentBase);
-            setPoints(p => p + refund);
-            setBaseAttributes(attrs => ({ ...attrs, [attr]: currentBase - 1 }));
-        }
-    };
+            return attrs;
+        });
+    }, [points]);
 
-    const handleSuggestAttributes = () => {
+    const handleSuggestAttributes = useCallback(() => {
         if (!characterClass) return;
         const suggestedOrder = attributeSuggestions[characterClass];
         if (!suggestedOrder) return;
@@ -263,9 +285,9 @@ export const useCharacterCreation = () => {
 
         setBaseAttributes(newAttributes as Attributes);
         setPoints(0);
-    };
+    }, [characterClass]);
 
-    const handleProficiencyChange = (profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
+    const handleProficiencyChange = useCallback((profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
         setProficiencySelections(prev => {
             const newSelections = { ...prev };
             const currentGroup = newSelections[choiceGroup.id] || [];
@@ -278,17 +300,17 @@ export const useCharacterCreation = () => {
             }
             return newSelections;
         });
-    };
+    }, []);
 
-    const handleLanguageChange = (index: number, value: string) => {
+    const handleLanguageChange = useCallback((index: number, value: string) => {
         setChosenLanguages(prev => {
             const newLangs = [...prev];
             newLangs[index] = value;
             return newLangs;
         });
-    };
+    }, []);
 
-    const handlePersonalityTraitChange = (trait: string) => {
+    const handlePersonalityTraitChange = useCallback((trait: string) => {
         const limit = backgroundDetails?.personality_traits?.choose || 0;
         setPersonalityTraits(prev => {
             if (prev.includes(trait)) {
@@ -296,9 +318,9 @@ export const useCharacterCreation = () => {
             }
             return prev.length < limit ? [...prev, trait] : prev;
         });
-    };
+    }, [backgroundDetails]);
 
-    const handleEquipmentChange = async (groupDesc: string, choiceIndex: number, optionIdxString: string) => {
+    const handleEquipmentChange = useCallback(async (groupDesc: string, choiceIndex: number, optionIdxString: string) => {
         const optionIndex = parseInt(optionIdxString, 10);
         const group = equipmentChoiceGroups.find(g => g.desc === groupDesc);
         const choice = group?.choices[choiceIndex];
@@ -324,17 +346,17 @@ export const useCharacterCreation = () => {
             const details = await DndApiService.getEquipmentDetails(option.of.index);
             setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${choiceKey}`]: translateEquipment(details) }));
         }
-    };
+    }, [equipmentChoiceGroups]);
 
-    const handleSubEquipmentChange = async (groupDesc: string, choiceIndex: number, itemIndex: string) => {
+    const handleSubEquipmentChange = useCallback(async (groupDesc: string, choiceIndex: number, itemIndex: string) => {
         const choiceKey = `${groupDesc}-${choiceIndex}`;
         if (!itemIndex) return;
         setSubChoiceSelection(prev => ({ ...prev, [choiceKey]: itemIndex }));
         const details = await DndApiService.getEquipmentDetails(itemIndex);
         setSelectedEquipmentDetails(prev => ({ ...prev, [`subchoice-${choiceKey}`]: translateEquipment(details) }));
-    };
+    }, []);
 
-    const handleClassSpellChange = (spellIndex: string) => {
+    const handleClassSpellChange = useCallback((spellIndex: string) => {
         setChosenClassSpells(prev => {
             const spell = classSpellOptions.find(s => s.index === spellIndex);
             if (!spell || !classDetails || !classLevels) return prev;
@@ -351,9 +373,9 @@ export const useCharacterCreation = () => {
             }
             return prev;
         });
-    };
+    }, [classSpellOptions, classDetails, classLevels, finalAttributes]);
 
-    const handleRacialSpellChange = (traitName: string, spellIndex: string, limit: number) => {
+    const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
         setChosenRacialSpells(prev => {
             const currentSelected = prev[traitName] || [];
             if (currentSelected.includes(spellIndex)) {
@@ -364,9 +386,9 @@ export const useCharacterCreation = () => {
             }
             return prev;
         });
-    };
+    }, []);
 
-    const handleRaceChange = async (newRaceIndex: string) => {
+    const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setRace(newRaceIndex);
         setSubrace('');
         setRaceDetails(null);
@@ -377,16 +399,14 @@ export const useCharacterCreation = () => {
             const details = await DndApiService.getRaceDetails(newRaceIndex);
             setRaceDetails(details);
         } 
-    };
+    }, [resetSelections]);
     
-    const handleSubraceChange = async (newSubraceIndex: string) => {
+    const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setSubrace(newSubraceIndex);
         setSubraceDetails(null);
-        // Reset racial-specific selections when subrace changes
         setRacialSpellOptions([]);
         setRacialSpellTraits([]);
         setChosenRacialSpells({});
-        // Also reset proficiency selections that might depend on subrace
         setProficiencySelections(prev => {
             const next = {...prev};
             Object.keys(next).forEach(key => {
@@ -401,9 +421,9 @@ export const useCharacterCreation = () => {
             const details = await DndApiService.getSubraceDetails(newSubraceIndex);
             setSubraceDetails(details);
         } 
-    };
+    }, []);
 
-    const handleClassChange = async (newClassIndex: string) => {
+    const handleClassChange = useCallback(async (newClassIndex: string) => {
         setCharacterClass(newClassIndex);
         setClassDetails(null);
         setClassLevels(null);
@@ -432,9 +452,9 @@ export const useCharacterCreation = () => {
             setIsSpellsLoading(false);
             setSpellsLoadingProgress(null);
         }
-    };
+    }, [resetSelections]);
 
-    const handleBackgroundChange = async (newBackgroundIndex: string) => {
+    const handleBackgroundChange = useCallback(async (newBackgroundIndex: string) => {
         setBackground(newBackgroundIndex);
         setBackgroundDetails(null);
         resetSelections();
@@ -442,7 +462,7 @@ export const useCharacterCreation = () => {
             const details = await DndApiService.getBackgroundDetails(newBackgroundIndex);
             setBackgroundDetails(details);
         }
-    };
+    }, [resetSelections]);
 
     return {
         name, setName,
