@@ -15,7 +15,9 @@ import NewStep3_Background from './NewStep3_Background';
 import NewStep4_Proficiencies from './NewStep4_Proficiencies';
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
-import NewStep7_Finalize from './NewStep7_Finalize';
+import NewStep7_Feats from './NewFeats/NewStep7_Feats';
+import NewStep8_Finalize from './NewStep8_Finalize';
+
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -37,12 +39,12 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const { createCharacter } = useGameStateContext();
     const hook = useNewCharacterCreation();
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 7;
+    const totalSteps = 8;
     const wizardRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
+     useEffect(() => {
         if (wizardRef.current) {
-            wizardRef.current.scrollIntoView({ behavior: 'smooth' });
+            wizardRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
     }, [currentStep]);
 
@@ -75,7 +77,9 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep7_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
+                return <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+            case 8:
+                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa Inválida.</div>;
         }

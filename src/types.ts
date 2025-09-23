@@ -151,6 +151,7 @@ export interface CharacterCreationInfo {
     ideal: string;
     bond: string;
     flaw: string;
+    feats: string[];
 }
 export interface NewCharacterInfo extends Omit<CharacterCreationInfo, 'inventory'> {
     hitDie: number;
@@ -259,6 +260,7 @@ export interface Character {
     };
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
+    feats: ApiFeat[];
 }
 
 export interface LogEntry {
@@ -445,4 +447,15 @@ export interface ApiSubclass {
         prerequisites: ApiListItem[];
         spell: ApiListItem;
     }[];
+}
+
+export interface ApiFeat {
+    index: string;
+    name: string;
+    prerequisites: {
+        ability_score: ApiListItem;
+        minimum_score: number;
+    }[];
+    desc: string[];
+    url: string;
 }

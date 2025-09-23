@@ -1,7 +1,7 @@
 
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem, ApiFeat } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -154,9 +154,10 @@ export const useGameState = () => {
         const proficiencyBonus = characterUtils.getProficiencyBonus(1);
         const maxHp = characterUtils.calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
 
-        const [classLevelsData, subclassLevelsData] = await Promise.all([
+        const [classLevelsData, subclassLevelsData, featDetails] = await Promise.all([
             DndApiService.getClassLevels(info.characterClass.toLowerCase()),
             info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
+            Promise.all(info.feats.map(f => DndApiService.getFeatDetails(f)))
         ]);
 
         const startingGold = info.inventory.find(i => i.name.includes("Bolsa contendo"))?.cost?.quantity || 15;
@@ -182,6 +183,7 @@ export const useGameState = () => {
             hitDice: { current: 1, total: 1 },
             classLevelsData: classLevelsData || [],
             subclassLevelsData: subclassLevelsData || [],
+            feats: featDetails.filter((f): f is ApiFeat => f !== null),
         };
         
         // Populate initial spell slots if any

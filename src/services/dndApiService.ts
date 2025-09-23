@@ -1,5 +1,5 @@
 // services/dndApiService.ts
-import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass } from '../types';
+import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, ApiFeat } from '../types';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
@@ -31,6 +31,7 @@ export const getAlignments = () => fetchFromApi<{ results: ApiListItem[] }>('/al
 export const getSkills = () => fetchFromApi<{ results: ApiListItem[] }>('/skills');
 export const getLanguages = () => fetchFromApi<{ results: ApiListItem[] }>('/languages');
 export const getBackgrounds = () => fetchFromApi<{ results: ApiListItem[] }>('/backgrounds');
+export const getFeats = () => fetchFromApi<{ results: ApiListItem[] }>('/feats');
 
 export const getRaceDetails = (index: string) => fetchFromApi<ApiRace>(`/races/${index}`);
 export const getSubraceDetails = (index: string) => fetchFromApi<ApiSubrace>(`/subraces/${index}`);
@@ -48,6 +49,8 @@ export const getEquipmentDetails = (index: string) => fetchFromApi<Partial<Inven
 export const getConditionDetails = (index: string) => fetchFromApi<ApiCondition>(`/conditions/${index}`);
 export const getFeatureDetails = (index: string) => fetchFromApi<ApiFeature>(`/features/${index}`);
 export const getClassLevelDetails = (classIndex: string, level: number) => fetchFromApi<ApiClassLevel>(`/classes/${classIndex}/levels/${level}`);
+export const getFeatDetails = (index: string) => fetchFromApi<ApiFeat>(`/feats/${index}`);
+
 
 // Constants for game logic
 export const XP_THRESHOLDS: Record<number, number> = {
