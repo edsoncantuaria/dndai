@@ -9,6 +9,8 @@ import { useCharacterCreation } from '@/hooks/useCharacterCreation';
 import { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
+import NewStep2_Attributes from './NewStep2_Attributes';
+
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -45,9 +47,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         switch (currentStep) {
             case 1:
                 return <NewStep1_RaceClass {...commonProps} races={races} classes={classes} />;
+            case 2:
+                return <NewStep2_Attributes {...commonProps} />;
             // Outros steps virão aqui no futuro
-            // case 2:
-            //     return <NewStep2_Attributes {...commonProps} />;
+            // case 3:
+            //     return <NewStep3_Background {...commonProps} />;
             default:
                 return <div>Etapa {currentStep} em construção.</div>;
         }
