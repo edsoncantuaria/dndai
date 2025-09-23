@@ -10,6 +10,7 @@ import { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
+import NewStep3_Background from './NewStep3_Background';
 
 
 interface NewCharacterCreationProps {
@@ -49,9 +50,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep1_RaceClass {...commonProps} races={races} classes={classes} />;
             case 2:
                 return <NewStep2_Attributes {...commonProps} />;
+            case 3:
+                return <NewStep3_Background {...commonProps} backgrounds={backgrounds} alignments={alignments} />;
             // Outros steps virão aqui no futuro
-            // case 3:
-            //     return <NewStep3_Background {...commonProps} />;
+            // case 4:
+            //     return <NewStep4_Proficiencies {...commonProps} />;
             default:
                 return <div>Etapa {currentStep} em construção.</div>;
         }

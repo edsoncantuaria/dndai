@@ -1,0 +1,176 @@
+// src/components/NewCreationCharacter/NewStep3_Background.tsx
+import React from 'react';
+import type { ApiListItem } from '@/types';
+import { translateApiString } from '@/utils/translator';
+import { Icons } from '../Icons';
+
+// Usamos as props do hook e os dados passados pelo orquestrador
+interface Props {
+    background: string;
+    handleBackgroundChange: (index: string) => void;
+    backgrounds: ApiListItem[];
+    backgroundDetails: any;
+    alignment: string;
+    setAlignment: (value: string) => void;
+    alignments: ApiListItem[];
+    backstory: string;
+    setBackstory: (value: string) => void;
+    personalityTraits: string[];
+    handlePersonalityTraitChange: (trait: string) => void;
+    ideal: string;
+    setIdeal: (value: string) => void;
+    bond: string;
+    setBond: (value: string) => void;
+    flaw: string;
+    setFlaw: (value: string) => void;
+    prevStep: () => void;
+    nextStep: () => void;
+}
+
+const NewStep3_Background: React.FC<Props> = ({
+    background,
+    handleBackgroundChange,
+    backgrounds,
+    backgroundDetails,
+    alignment,
+    setAlignment,
+    alignments,
+    backstory,
+    setBackstory,
+    personalityTraits,
+    handlePersonalityTraitChange,
+    ideal,
+    setIdeal,
+    bond,
+    setBond,
+    flaw,
+    setFlaw,
+    prevStep,
+    nextStep,
+}) => {
+    const canProceed = background && alignment;
+    const personalityTraitLimit = backgroundDetails?.personality_traits?.choose || 0;
+
+    return (
+        <div className="space-y-8 animate-fadeIn">
+            {/* Seção de Antecedente */}
+            <div>
+                <h3 className="text-xl font-semibold text-stone-300 mb-2">Escolha seu Antecedente</h3>
+                <p className="text-sm text-stone-400 mb-4">Seu passado moldou quem você é. De onde você veio?</p>
+                <select
+                    id="background"
+                    value={background}
+                    onChange={(e) => handleBackgroundChange(e.target.value)}
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                    <option value="" disabled>Selecione um antecedente...</option>
+                    {backgrounds.map(b => <option key={b.index} value={b.index}>{translateApiString(b.name)}</option>)}
+                </select>
+                {backgroundDetails && (
+                    <div className="mt-4 p-4 bg-stone-900/50 border border-stone-700/50 rounded-lg">
+                        <h4 className="font-bold text-amber-300">{backgroundDetails.feature.name}</h4>
+                        <p className="text-sm text-stone-300 mt-1">{backgroundDetails.feature.desc.join(' ')}</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Seção de Personalidade - só aparece se um antecedente for escolhido */}
+            {backgroundDetails && (
+                <div className="space-y-6 animate-fadeIn">
+                    {backgroundDetails.personality_traits && (
+                        <div>
+                            <h4 className="font-semibold text-stone-300 mb-2">Traços de Personalidade <span className="text-stone-400 font-normal text-sm">({personalityTraits.length}/{personalityTraitLimit})</span></h4>
+                            <div className="space-y-2">
+                                {backgroundDetails.personality_traits.from.options.map((opt: any, i: number) => (
+                                    <label key={i} className={`flex items-start p-3 rounded-md border text-sm transition-colors cursor-pointer ${personalityTraits.includes(opt.string) ? 'bg-amber-900/40 border-amber-600' : 'bg-stone-800/60 border-stone-700 hover:bg-stone-700/60'}`}>
+                                        <input
+                                            type="checkbox"
+                                            checked={personalityTraits.includes(opt.string)}
+                                            onChange={() => handlePersonalityTraitChange(opt.string)}
+                                            className="form-checkbox h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 rounded focus:ring-amber-500 mt-0.5"
+                                        />
+                                        <span className="ml-3 text-stone-300">{opt.string}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {/* Campos para Ideal, Vínculo e Defeito */}
+                    {['ideal', 'bond', 'flaw'].map(type => {
+                        const options = backgroundDetails[`${type}s` as const]?.from.options;
+                        const stateValue = { ideal, bond, flaw }[type];
+                        const setState = { ideal: setIdeal, bond: setBond, flaw: setFlaw }[type];
+                        const label = { ideal: "Ideal", bond: "Vínculo", flaw: "Defeito" }[type];
+                        
+                        if (!options) return null;
+
+                        return (
+                            <div key={type}>
+                                <h4 className="font-semibold text-stone-300 mb-2">{label} <span className="text-stone-400 font-normal text-sm">(Escolha 1)</span></h4>
+                                <div className="space-y-2">
+                                    {options.map((opt: any, i: number) => (
+                                        <label key={i} className={`flex items-start p-3 rounded-md border text-sm transition-colors cursor-pointer ${stateValue === (opt.string || opt.desc) ? 'bg-amber-900/40 border-amber-600' : 'bg-stone-800/60 border-stone-700 hover:bg-stone-700/60'}`}>
+                                            <input
+                                                type="radio"
+                                                name={type}
+                                                checked={stateValue === (opt.string || opt.desc)}
+                                                onChange={() => setState(opt.string || opt.desc)}
+                                                className="form-radio h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 focus:ring-amber-500 mt-0.5"
+                                            />
+                                            <span className="ml-3 text-stone-300">{opt.string || opt.desc}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* Seção de Alinhamento */}
+            <div>
+                <h3 className="text-xl font-semibold text-stone-300 mb-2">Alinhamento</h3>
+                <p className="text-sm text-stone-400 mb-4">Como seu personagem vê o mundo e age nele?</p>
+                 <select
+                    id="alignment"
+                    value={alignment}
+                    onChange={e => setAlignment(e.target.value)}
+                    required
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                    <option value="">Selecione um alinhamento...</option>
+                    {alignments.map(a => <option key={a.index} value={a.name}>{translateApiString(a.name)}</option>)}
+                </select>
+            </div>
+            
+            {/* Seção de História de Fundo */}
+            <div>
+                 <h3 className="text-xl font-semibold text-stone-300 mb-2">História (Opcional)</h3>
+                 <p className="text-sm text-stone-400 mb-4">Quem é você, além de seus feitos? Conte-nos um pouco sobre seu passado.</p>
+                 <textarea
+                    id="backstory"
+                    value={backstory}
+                    onChange={e => setBackstory(e.target.value)}
+                    rows={5}
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="Escreva sobre suas origens, motivações, medos ou o que o trouxe até o caminho da aventura..."
+                />
+            </div>
+
+
+            {/* Navegação */}
+            <div className="flex justify-between pt-8">
+                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
+                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    Voltar
+                </button>
+                <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                    Avançar
+                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                </button>
+            </div>
+        </div>
+    );
+};
+
+export default NewStep3_Background;
