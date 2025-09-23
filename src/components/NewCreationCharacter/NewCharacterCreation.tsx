@@ -6,6 +6,7 @@
 'use client';
 import React, { useState } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useGameStateContext } from '@/contexts/GameStateContext';
 import { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
@@ -14,7 +15,7 @@ import NewStep3_Background from './NewStep3_Background';
 import NewStep4_Proficiencies from './NewStep4_Proficiencies';
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
-
+import NewStep7_Finalize from './NewStep7_Finalize';
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -33,14 +34,25 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     allLanguages,
     onBackToMenu
 }) => {
+    const { createCharacter } = useGameStateContext();
     const hook = useNewCharacterCreation();
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 7; // Definindo o número total de etapas
+    const totalSteps = 7; 
 
     const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
     const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
     
-    // Simplesmente para evitar passar a prop `hook` para todos os componentes
+    const handleFinalizeAndSubmit = async () => {
+        const finalCharacterData = hook.buildCharacter();
+        if (finalCharacterData) {
+            await createCharacter(finalCharacterData);
+            // A transição para a tela do jogo será gerenciada pelo GameStateContext
+        } else {
+            console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
+            // O ideal seria mostrar um erro para o usuário aqui.
+        }
+    };
+
     const commonProps = {
         ...hook,
         nextStep,
@@ -61,9 +73,8 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep5_Equipment {...commonProps} />;
             case 6:
                 return <NewStep6_Spells {...commonProps} />;
-            // Outros steps virão aqui no futuro
-            // case 7:
-            //     return <NewStep7_Finalize {...commonProps} />;
+            case 7:
+                 return <NewStep7_Finalize {...commonProps} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa {currentStep} em construção.</div>;
         }

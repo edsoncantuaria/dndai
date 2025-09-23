@@ -2,13 +2,14 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
-    Attributes, Proficiency, ProficiencyChoice, ApiEquipmentOption, InventoryItem, ApiEquipment, ApiSubrace
+    Attributes, Proficiency, ProficiencyChoice, ApiEquipmentOption, InventoryItem, ApiEquipment, ApiSubrace, NewCharacterInfo
 } from '../types';
-import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
+import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown, calculateMaxHpAtLevel1 } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelpers';
 import { translateSpell } from '../utils/TranslatorSpells';
 import { translateEquipment } from '../utils/TranslatorEquipments';
+import { v4 as uuidv4 } from 'uuid';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     id: string;
@@ -178,6 +179,22 @@ export const useNewCharacterCreation = () => {
 
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
+
+    const isComplete = useMemo(() => {
+        if (!name || !race || !characterClass || !background || !alignment || points > 0) {
+            return false;
+        }
+        if (raceDetails?.subraces?.length > 0 && !subrace) {
+            return false;
+        }
+        const allProficienciesDone = allProficiencyChoices.every(
+            choice => (proficiencySelections[choice.id]?.length || 0) === choice.choose
+        );
+        if (!allProficienciesDone) return false;
+        
+        // Final validation logic will go here
+        return true;
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -463,6 +480,66 @@ export const useNewCharacterCreation = () => {
             setBackgroundDetails(details);
         }
     }, [resetSelections]);
+    
+    const buildCharacter = (): NewCharacterInfo | null => {
+        if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
+
+        const allProficiencies: Proficiency[] = [
+            ...Array.from(allFixedProficiencies.values()),
+            ...Object.values(proficiencySelections).flat().map(profIndex => {
+                for (const choiceGroup of allProficiencyChoices) {
+                    const option = choiceGroup.options.find(opt => opt.index === profIndex);
+                    if (option) return { index: option.index, name: option.name, url: option.url };
+                }
+                return null;
+            }).filter((p): p is Proficiency => p !== null)
+        ];
+        
+        const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
+        const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
+        const finalInventory: InventoryItem[] = [];
+
+        // Add fixed equipment
+        fixedEquipment.forEach(eq => {
+            if (eq.item) {
+                finalInventory.push({ ...eq.item, id: uuidv4(), quantity: eq.quantity, equipped: false });
+            }
+        });
+
+        // Add chosen equipment
+        Object.values(equipmentChoices).forEach(choice => {
+            if (choice.of) {
+                finalInventory.push({ ...choice.of, id: uuidv4(), quantity: choice.count, equipped: false });
+            }
+        });
+        Object.values(subChoiceSelection).forEach(itemIndex => {
+            const details = Object.values(selectedEquipmentDetails).find(d => d?.index === itemIndex);
+            if (details) {
+                finalInventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
+            }
+        });
+
+        return {
+            name,
+            race: raceDetails.name,
+            subrace: subraceDetails?.name || null,
+            characterClass: classDetails.name,
+            subclass: null, 
+            hitDie: classDetails.hit_die,
+            background: backgroundDetails.name,
+            alignment: alignment,
+            attributes: finalAttributes,
+            proficiencies: allProficiencies,
+            languages: finalLanguages,
+            inventory: finalInventory,
+            spells: allSpells,
+            backstory,
+            personalityTraits,
+            ideal,
+            bond,
+            flaw
+        };
+    };
 
     return {
         name, setName,
@@ -507,5 +584,7 @@ export const useNewCharacterCreation = () => {
         spellsLoadingProgress,
         handleAttributeChange,
         handleSuggestAttributes,
+        isComplete,
+        buildCharacter
     };
 };
