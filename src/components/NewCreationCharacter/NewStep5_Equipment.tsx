@@ -2,9 +2,8 @@
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Icons } from '../Icons';
-import ItemCard from '../ItemCard';
-import { InventoryItem } from '@/types';
 import NewSubEquipment from './NewSubEquipment';
+import { translateEquipment } from '@/utils/TranslatorEquipments';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -18,7 +17,8 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         fixedEquipment,
         finalizedEquipment,
         isEquipmentLoading,
-        areAllEquipmentChoicesMade 
+        areAllEquipmentChoicesMade,
+        startingGold
     } = hook;
 
     return (
@@ -51,10 +51,13 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     <div className="space-y-4">
                         <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Inventário Final</h4>
                         <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-96 overflow-y-auto">
+                           <div className="text-amber-400 font-semibold text-lg mb-2">
+                                Ouro Inicial: {startingGold} gp
+                           </div>
                             {[...fixedEquipment, ...finalizedEquipment].length > 0 ? (
                                 [...fixedEquipment, ...finalizedEquipment].map((item, index) => (
                                    <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-2 rounded-md">
-                                       {item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                                       {translateEquipment(item.name)} {item.quantity > 1 ? `(x${item.quantity})` : ''}
                                    </div>
                                 ))
                             ) : (

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
-    Attributes, Proficiency, ProficiencyChoice, ApiEquipmentOption, InventoryItem, ApiSubrace, NewCharacterInfo
+    Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo
 } from '../types';
 import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
@@ -175,7 +175,7 @@ export const useNewCharacterCreation = () => {
         }
         if (backgroundDetails) {
             addEquipment(backgroundDetails.starting_equipment);
-             backgroundDetails.starting_equipment_options.forEach((choice, i) => {
+             backgroundDetails.starting_equipment_options?.forEach((choice, i) => {
                 choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice });
             });
         }
@@ -183,6 +183,19 @@ export const useNewCharacterCreation = () => {
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
     
+    const startingGold = useMemo(() => {
+        const goldPouch = fixedEquipment.find(item => item.name.toLowerCase().includes('pouch') && item.desc?.[0]?.toLowerCase().includes('gold'));
+        if (goldPouch && goldPouch.desc) {
+            const match = goldPouch.desc[0].match(/(\d+)\s*gp/);
+            if (match) {
+                return parseInt(match[1], 10);
+            }
+        }
+        // Fallback for backgrounds like Acolyte that give gold but don't list a pouch in starting_equipment
+        if (background === 'acolyte') return 15;
+        return 0;
+    }, [fixedEquipment, background]);
+
     const areAllEquipmentChoicesMade = useMemo(() => {
         return equipmentChoiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
@@ -302,12 +315,12 @@ export const useNewCharacterCreation = () => {
             const finalItems: InventoryItem[] = [];
             for (const group of equipmentChoiceGroups) {
                 const selection = equipmentSelections[group.id];
-                if (!selection) continue;
+                if (!selection || selection.main === undefined || selection.main < 0) continue;
 
                 const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
                 const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
                 
-                if (selection.main === undefined || selection.main < 0 || selection.main >= options.length) continue;
+                if (selection.main >= options.length) continue;
 
                 const mainOption = options[selection.main];
     
@@ -389,7 +402,7 @@ export const useNewCharacterCreation = () => {
     const handleEquipmentChange = useCallback(async (groupId: string, mainIndexStr: string, subIndexStr?: string) => {
         const mainIndex = parseInt(mainIndexStr, 10);
         const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : undefined;
-    
+
         setEquipmentSelections(prev => ({
             ...prev,
             [groupId]: { main: mainIndex, sub: subIndex }
@@ -409,6 +422,7 @@ export const useNewCharacterCreation = () => {
             const categoryUrl = isCategoryChoice 
                 ? group.choice.from.equipment_category.url 
                 : selectedOption.choice.from.equipment_category.url;
+            
             const categoryIndex = categoryUrl.split('/').pop();
             
             if(categoryIndex){
@@ -583,9 +597,6 @@ export const useNewCharacterCreation = () => {
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
-        const goldPouch = finalInventory.find(i => i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold"));
-        const startingGold = goldPouch?.desc?.[0].match(/(\d+)\s*gp/)?.[1] ? parseInt(goldPouch.desc[0].match(/(\d+)\s*gp/)?.[1] || '0') : 15;
-        
         const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold")));
 
         return {
@@ -645,6 +656,7 @@ export const useNewCharacterCreation = () => {
         unavailableProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
+        startingGold,
         isEquipmentLoading,
         isSubchoiceLoading,
         subChoiceOptions,

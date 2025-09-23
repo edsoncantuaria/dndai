@@ -23,23 +23,27 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
     const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
     const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
 
+    const selectedOption = (mainSelectionIndex !== undefined && options) ? options[mainSelectionIndex] : null;
+
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
             <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
             
             {/* Select Principal */}
-            <select
-                value={mainSelectionIndex ?? -1}
-                onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
-                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-            >
-                <option value={-1} disabled>Selecione 1 de {options.length}...</option>
-                {options.map((opt, index) => (
-                    <option key={index} value={index}>
-                        {getOptionLabel(opt)}
-                    </option>
-                ))}
-            </select>
+            {options && (
+                <select
+                    value={mainSelectionIndex ?? -1}
+                    onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                    <option value={-1} disabled>Selecione uma opção...</option>
+                    {options.map((opt, index) => (
+                        <option key={index} value={index}>
+                            {getOptionLabel(opt)}
+                        </option>
+                    ))}
+                </select>
+            )}
 
             {/* Select de Sub-escolha (condicional) */}
             {isSubchoiceLoading[group.id] ? (
@@ -47,11 +51,11 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
                     <Icons.Spinner />
                     <span className="ml-2 text-sm">Carregando...</span>
                 </div>
-            ) : subChoiceOptions[group.id] && (
+            ) : subChoiceOptions[group.id] && selectedOption && (selectedOption.option_type === 'choice' || isCategoryChoice) && (
                 <select
                     value={subSelectionIndex ?? -1}
                     onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex!.toString(), e.target.value)}
-                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn"
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn"
                 >
                     <option value={-1} disabled>Selecione um item específico...</option>
                     {subChoiceOptions[group.id]!.map((item, index) => (
