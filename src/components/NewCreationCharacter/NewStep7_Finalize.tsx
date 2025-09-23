@@ -62,85 +62,105 @@ const NewStep7_Finalize: React.FC<Props> = ({
     }).filter(Boolean);
 
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-6 animate-fadeIn">
             <div className="text-center">
-                <h3 className="text-2xl font-semibold text-stone-300 mb-2 font-garamond">O Toque Final</h3>
-                <p className="text-sm text-stone-400 mb-6">Seu herói está quase pronto. Revise suas escolhas e dê a ele um nome digno de lendas.</p>
+                <h3 className="text-2xl font-semibold text-stone-200 mb-2 font-garamond">O Toque Final</h3>
+                <p className="text-sm text-stone-400">Revise as escolhas do seu herói e dê a ele um nome digno de lendas.</p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                {/* Coluna do Resumo */}
-                <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-4">
-                    <h4 className="text-xl font-bold font-garamond text-amber-300 text-shadow-amber border-b border-stone-700 pb-2">Resumo do Personagem</h4>
-                    
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div><strong className="text-stone-400 block">Raça:</strong> <span className="text-stone-200">{translateApiString(race)} {subrace && `(${translateApiString(subrace)})`}</span></div>
-                        <div><strong className="text-stone-400 block">Classe:</strong> <span className="text-stone-200">{translateApiString(characterClass)}</span></div>
-                        <div><strong className="text-stone-400 block">Antecedente:</strong> <span className="text-stone-200">{translateApiString(background)}</span></div>
-                        <div><strong className="text-stone-400 block">Alinhamento:</strong> <span className="text-stone-200">{alignment}</span></div>
+             {/* Character Sheet Summary */}
+            <div className="bg-stone-900/50 p-4 sm:p-6 rounded-lg border-2 border-stone-700 space-y-6 shadow-lg">
+                
+                {/* Name Input */}
+                <div className="w-full mb-6">
+                    <label htmlFor="character-name" className="sr-only">Nome do Personagem</label>
+                    <input
+                        type="text"
+                        id="character-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Nome do Personagem..."
+                        className="w-full bg-transparent border-b-2 border-stone-600 focus:border-amber-500 pb-2 text-stone-100 text-3xl text-center font-bold font-garamond focus:ring-0 transition-colors"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                    {/* Basic Info */}
+                    <div className="md:col-span-1 space-y-2">
+                        <div className="bg-stone-800/50 p-3 rounded-md">
+                            <strong className="text-stone-400 block text-xs uppercase tracking-wider">Raça</strong> 
+                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(race)} {subrace && `(${translateApiString(subrace)})`}</span>
+                        </div>
+                        <div className="bg-stone-800/50 p-3 rounded-md">
+                            <strong className="text-stone-400 block text-xs uppercase tracking-wider">Classe</strong> 
+                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(characterClass)}</span>
+                        </div>
+                         <div className="bg-stone-800/50 p-3 rounded-md">
+                            <strong className="text-stone-400 block text-xs uppercase tracking-wider">Antecedente</strong> 
+                            <span className="text-stone-100 text-lg font-semibold">{translateApiString(background)}</span>
+                        </div>
+                         <div className="bg-stone-800/50 p-3 rounded-md">
+                            <strong className="text-stone-400 block text-xs uppercase tracking-wider">Alinhamento</strong> 
+                            <span className="text-stone-100 text-lg font-semibold">{alignment}</span>
+                        </div>
                     </div>
 
-                    <div>
-                        <strong className="text-stone-400 block mb-2">Atributos Finais:</strong>
-                        <div className="grid grid-cols-3 gap-2 text-center">
+                    {/* Attributes */}
+                    <div className="md:col-span-2">
+                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-center">
                             {attributeOrder.map(attr => (
-                                <div key={attr} className="bg-stone-800/60 p-2 rounded-md">
-                                    <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0,3).toUpperCase()}</div>
-                                    <div className="font-bold text-lg text-stone-100">{finalAttributes[attr]}</div>
-                                    <div className="text-sm text-amber-400">{Math.floor((finalAttributes[attr] - 10) / 2) >= 0 ? `+${Math.floor((finalAttributes[attr] - 10) / 2)}` : Math.floor((finalAttributes[attr] - 10) / 2)}</div>
+                                <div key={attr} className="bg-stone-800/50 p-3 rounded-md border border-stone-700/70">
+                                    <div className="text-sm font-bold text-stone-300">{translateAttribute(attr).substring(0,3).toUpperCase()}</div>
+                                    <div className="font-bold text-4xl text-amber-300 my-1">{finalAttributes[attr]}</div>
+                                    <div className="text-lg text-amber-400/80 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{Math.floor((finalAttributes[attr] - 10) / 2) >= 0 ? `+${Math.floor((finalAttributes[attr] - 10) / 2)}` : Math.floor((finalAttributes[attr] - 10) / 2)}</div>
                                 </div>
                             ))}
                         </div>
                     </div>
-                    
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Skills */}
                     {finalSkills.length > 0 && (
-                        <div>
-                            <strong className="text-stone-400 block mb-2">Perícias:</strong>
-                            <p className="text-sm text-stone-300 columns-2">{finalSkills.sort().join(', ')}</p>
+                        <div className="bg-stone-800/50 p-4 rounded-md">
+                            <h4 className="font-semibold text-amber-300 border-b border-stone-700 pb-2 mb-2">Perícias</h4>
+                            <ul className="columns-2 text-sm text-stone-300 space-y-1 list-disc list-inside">
+                                {finalSkills.sort().map(skill => <li key={skill}>{skill}</li>)}
+                            </ul>
                         </div>
                     )}
 
+                    {/* Spells */}
                     {finalSpells.length > 0 && (
-                         <div>
-                            <strong className="text-stone-400 block mb-2">Magias Conhecidas (Nível 1):</strong>
-                            <p className="text-sm text-stone-300 columns-2">{finalSpells.sort().join(', ')}</p>
+                         <div className="bg-stone-800/50 p-4 rounded-md">
+                            <h4 className="font-semibold text-amber-300 border-b border-stone-700 pb-2 mb-2">Magias Conhecidas (Nível 1)</h4>
+                             <ul className="columns-2 text-sm text-stone-300 space-y-1 list-disc list-inside">
+                                {finalSpells.sort().map(spell => <li key={spell}>{spell}</li>)}
+                            </ul>
                         </div>
                     )}
                 </div>
+            </div>
 
-                {/* Coluna do Nome e Ações */}
-                <div className="space-y-8 flex flex-col items-center text-center">
-                     <div className="w-full">
-                        <label htmlFor="character-name" className="block text-stone-300 font-semibold mb-3">Nome do Personagem</label>
-                        <input
-                            type="text"
-                            id="character-name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="Digite o nome aqui..."
-                            className="w-full bg-stone-900/70 border-2 border-stone-600 rounded-lg p-4 text-stone-100 text-2xl text-center font-bold font-garamond focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-colors"
-                        />
-                    </div>
-                     <div className="flex justify-center gap-4 pt-4 w-full">
-                        <button
-                            type="button"
-                            onClick={prevStep}
-                            className="menu-button btn-import max-w-xs"
-                        >
-                            <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
-                            Voltar
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleFinalize}
-                            disabled={!isComplete}
-                            className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isComplete ? 'Iniciar Aventura' : 'Preencha os campos'}
-                            <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
-                        </button>
-                    </div>
-                </div>
+            {/* Actions */}
+            <div className="flex justify-between items-center pt-6">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="menu-button btn-import max-w-xs"
+                >
+                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    Voltar
+                </button>
+                <button
+                    type="button"
+                    onClick={handleFinalize}
+                    disabled={!isComplete}
+                    className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isComplete ? 'Iniciar Aventura' : 'Preencha os campos'}
+                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                </button>
             </div>
         </div>
     );
