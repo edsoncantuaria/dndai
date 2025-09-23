@@ -50,7 +50,7 @@ const ProficiencyChoices: React.FC<ProficiencyChoicesProps> = ({ hook }) => {
                         </label>
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                             {choice.options.map(option => {
-                                const isChecked = proficiencySelections[choice.id]?.includes(option.index);
+                                const isChecked = !!proficiencySelections[choice.id]?.includes(option.index);
                                 const isUnavailable = !isChecked && unavailableProficiencies.has(option.index);
                                 const isLimitReached = !isChecked && selectedCountInGroup >= choice.choose;
                                 const isDisabled = isUnavailable || isLimitReached;
