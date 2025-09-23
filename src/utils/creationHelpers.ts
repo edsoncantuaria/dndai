@@ -1,5 +1,5 @@
 import { ApiEquipmentOption } from "../types";
-import { translateEquipment } from "./translator";
+import { translateEquipment } from "./TranslatorEquipments";
 
 /**
  * Calculates the point-buy cost to increase an attribute score to the next level.
@@ -25,34 +25,28 @@ export const getRefundForPrevLevel = (currentScore: number): number => (currentS
 export const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
 
-    // Caso 1: É uma escolha de categoria de equipamento (ex: "Qualquer Arma Simples")
-    const choiceDetails = (option as any).choice || option;
-    if (choiceDetails.from?.option_set_type === 'equipment_category') {
-        return translateEquipment(choiceDetails.desc || choiceDetails.from.equipment_category?.name || 'Categoria de Equipamento');
+    // Caso 1: Múltiplos itens em uma única escolha (ex: (a) a light crossbow and 20 bolts)
+    if (option.option_type === 'multiple' && option.items) {
+        return option.items.map(getOptionLabel).join(' e ');
     }
 
-    // Caso 2: É uma escolha de múltiplos itens (ex: uma besta e 20 virotes)
-    if(option.type === 'multiple' && option.from?.options) {
-        const optionStrings = option.from.options.map(subOpt => getOptionLabel(subOpt.item || subOpt));
-        return optionStrings.join(' e ');
-    }
-
-    // Caso 3: Item direto (ex: `of: { index: 'club', name: 'Club' }`)
-    if (option.of) {
-        const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
+    // Caso 2: Referência a um item com quantidade (ex: 2 handaxes)
+    if (option.option_type === 'counted_reference' && option.of) {
+        const count = (option.count || 1) > 1 ? `(x${option.count})` : '';
         return `${translateEquipment(option.of.name)}${count}`;
     }
-    
-    // Caso 4: Fallback para uma descrição genérica se existir
-    if (option.desc) {
-        return translateEquipment(option.desc);
+
+    // Caso 3: É uma escolha de categoria de equipamento (ex: (b) any simple weapon)
+    if (option.option_type === 'choice' && option.choice?.from?.option_set_type === 'equipment_category') {
+        const categoryName = option.choice.desc || option.choice.from.equipment_category.name;
+        return `Qualquer ${translateEquipment(categoryName)}`;
     }
     
-    // Caso 5: Fallback para itens aninhados dentro de 'item' (outra variação da API)
-    if((option as any).item?.of) {
+    // Caso 4: Itens aninhados em 'item', que é comum em algumas estruturas da API
+    if ((option as any).item) {
         return getOptionLabel((option as any).item);
     }
-
+    
     console.warn("Opção de equipamento não reconhecida:", option);
     return 'Opção de Equipamento';
 };

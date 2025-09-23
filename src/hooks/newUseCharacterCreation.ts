@@ -16,6 +16,12 @@ export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     options: ApiListItem[];
 };
 
+export type EquipmentChoiceGroup = {
+    id: string;
+    source: 'Classe' | 'Antecedente';
+    choice: ProficiencyChoice;
+}
+
 const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'barbarian': ['strength', 'constitution', 'dexterity', 'wisdom', 'charisma', 'intelligence'],
     'bard': ['charisma', 'dexterity', 'constitution', 'wisdom', 'intelligence', 'strength'],
@@ -55,6 +61,7 @@ export const useNewCharacterCreation = () => {
 
     // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
+    const [equipmentSelections, setEquipmentSelections] = useState<Record<string, { main: number, sub?: number }>>({});
     const [finalizedEquipment, setFinalizedEquipment] = useState<InventoryItem[]>([]);
     const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
@@ -69,11 +76,13 @@ export const useNewCharacterCreation = () => {
     // Loading & Temp Data
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
+    const [isEquipmentLoading, setIsEquipmentLoading] = useState(false);
+    const [isSubchoiceLoading, setIsSubchoiceLoading] = useState<Record<string, boolean>>({});
+    const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, ApiListItem[]>>({});
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
     
-
     // --- MEMOIZED DERIVED STATE ---
 
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
@@ -134,7 +143,7 @@ export const useNewCharacterCreation = () => {
                 ...choice,
                 id: `${idPrefix}-${choices.length}`,
                 source,
-                options: choice.from.options.map(o => o.item) 
+                options: choice.from.options.map((o: any) => o.item || o) 
             });
         };
 
@@ -149,6 +158,35 @@ export const useNewCharacterCreation = () => {
     const unavailableProficiencies = useMemo(() => {
         return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
     }, [allFixedProficiencies, proficiencySelections]);
+
+    const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
+        const groups: EquipmentChoiceGroup[] = [];
+        const fixed: InventoryItem[] = [];
+
+        const addEquipment = (list: { equipment: ApiListItem, quantity: number }[] = []) => {
+            list.forEach(item => fixed.push({ ...item.equipment, id: uuidv4(), quantity: item.quantity }));
+        };
+
+        if (classDetails) {
+            addEquipment(classDetails.starting_equipment);
+            classDetails.starting_equipment_options.forEach((choice, i) => {
+                groups.push({ id: `class-${i}`, source: 'Classe', choice });
+            });
+        }
+        if (backgroundDetails) {
+            addEquipment(backgroundDetails.starting_equipment);
+             backgroundDetails.starting_equipment_options.forEach((choice, i) => {
+                groups.push({ id: `bg-${i}`, source: 'Antecedente', choice });
+            });
+        }
+        
+        return { equipmentChoiceGroups: groups, fixedEquipment: fixed };
+    }, [classDetails, backgroundDetails]);
+    
+    const areAllEquipmentChoicesMade = useMemo(() => {
+        return equipmentChoiceGroups.every(group => equipmentSelections[group.id] !== undefined);
+    }, [equipmentChoiceGroups, equipmentSelections]);
+
 
     const isComplete = useMemo(() => {
         if (!name || !race || !characterClass || !background || !alignment || points > 0) {
@@ -173,16 +211,15 @@ export const useNewCharacterCreation = () => {
         const racialSpellsDone = racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose);
         if (!racialSpellsDone) return false;
 
-        // A verificação final do equipamento será feita na própria etapa 5.
-        // O `finalizedEquipment` é a fonte da verdade aqui.
-        return finalizedEquipment.length > 0 || (classDetails && backgroundDetails && classDetails.starting_equipment.length === 0 && classDetails.starting_equipment_options.length === 0 && backgroundDetails.starting_equipment.length === 0 && backgroundDetails.starting_equipment_options.length === 0);
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, finalizedEquipment, backgroundDetails]);
+        return areAllEquipmentChoicesMade;
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
 
     // --- CALLBACKS & EFFECTS ---
 
     const resetSelections = useCallback(() => {
         setProficiencySelections({});
         setFinalizedEquipment([]);
+        setEquipmentSelections({});
         setChosenClassSpells([]);
         setChosenRacialSpells({});
         setRacialSpellOptions([]);
@@ -241,12 +278,44 @@ export const useNewCharacterCreation = () => {
             setRacialSpellTraits(spellChoiceTraits.map(t => ({
                 traitName: t.name,
                 choose: t.trait_specific!.spell_options!.choose,
-                options: t.trait_specific!.spell_options!.from.options.map(opt => opt.item),
+                options: t.trait_specific!.spell_options!.from.options.map((opt: any) => opt.item),
             })));
         };
 
         fetchRacialTraitsAndSpells();
     }, [raceDetails, subraceDetails]);
+
+    useEffect(() => {
+        const finalizeEquipmentSelections = async () => {
+            if (isEquipmentLoading || !areAllEquipmentChoicesMade) return;
+    
+            const finalItems: InventoryItem[] = [];
+            for (const group of equipmentChoiceGroups) {
+                const selection = equipmentSelections[group.id];
+                if (!selection) continue;
+    
+                const selectedOption = group.choice.from.options[selection.main];
+    
+                if (selectedOption.option_type === 'counted_reference' && selectedOption.of) {
+                    finalItems.push({ ...selectedOption.of, id: uuidv4(), quantity: selectedOption.count });
+                } else if (selectedOption.option_type === 'multiple' && selectedOption.items) {
+                    selectedOption.items.forEach(subItem => {
+                        if(subItem.option_type === 'counted_reference' && subItem.of) {
+                             finalItems.push({ ...subItem.of, id: uuidv4(), quantity: subItem.count });
+                        }
+                    });
+                } else if (selectedOption.option_type === 'choice' && selection.sub !== undefined) {
+                    const subOptions = subChoiceOptions[group.id];
+                    if (subOptions && subOptions[selection.sub]) {
+                        finalItems.push({ ...subOptions[selection.sub], id: uuidv4(), quantity: 1 });
+                    }
+                }
+            }
+            setFinalizedEquipment(finalItems);
+        };
+    
+        finalizeEquipmentSelections();
+    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions, areAllEquipmentChoicesMade, isEquipmentLoading]);
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
         setBaseAttributes(attrs => {
@@ -297,6 +366,44 @@ export const useNewCharacterCreation = () => {
             return newSelections;
         });
     }, []);
+
+    const handleEquipmentChange = useCallback(async (groupId: string, mainIndexStr: string, subIndexStr?: string) => {
+        const mainIndex = parseInt(mainIndexStr, 10);
+        const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : undefined;
+        
+        setEquipmentSelections(prev => ({
+            ...prev,
+            [groupId]: { main: mainIndex, sub: subIndex }
+        }));
+
+        const group = equipmentChoiceGroups.find(g => g.id === groupId);
+        if (!group) return;
+
+        const selectedOption = group.choice.from.options[mainIndex];
+
+        if (selectedOption?.option_type === 'choice') {
+            setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: true }));
+            const categoryUrl = selectedOption.choice.from.equipment_category.url;
+            const categoryData = await DndApiService.getEquipmentForCategory(categoryUrl.split('/api/2014')[1]);
+            setSubChoiceOptions(prev => ({ ...prev, [groupId]: categoryData?.equipment || [] }));
+            setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: false }));
+            
+            if (subIndex === undefined) {
+                 setEquipmentSelections(prev => ({
+                    ...prev,
+                    [groupId]: { main: mainIndex, sub: undefined }
+                }));
+            }
+        } else {
+             // Se não for uma escolha de categoria, limpa as sub-opções
+             setSubChoiceOptions(prev => {
+                const next = {...prev};
+                delete next[groupId];
+                return next;
+             });
+        }
+    }, [equipmentChoiceGroups]);
+
 
     const handleLanguageChange = useCallback((index: number, value: string) => {
         setChosenLanguages(prev => {
@@ -391,6 +498,7 @@ export const useNewCharacterCreation = () => {
         resetSelections();
 
         if (newClassIndex) {
+            setIsEquipmentLoading(true);
             setIsSpellsLoading(true);
             setSpellsLoadingProgress('Carregando detalhes da classe...');
             const details = await DndApiService.getClassDetails(newClassIndex);
@@ -406,11 +514,12 @@ export const useNewCharacterCreation = () => {
                         DndApiService.getSpellDetails,
                         (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
                     );
-                    setClassSpellOptions(spellDetails.filter(s => s.level <= 1).map(translateSpell));
+                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(translateSpell));
                 }
             }
             setIsSpellsLoading(false);
             setSpellsLoadingProgress(null);
+            setIsEquipmentLoading(false);
         }
     }, [resetSelections]);
 
@@ -419,8 +528,10 @@ export const useNewCharacterCreation = () => {
         setBackgroundDetails(null);
         resetSelections();
         if (newBackgroundIndex) {
+            setIsEquipmentLoading(true);
             const details = await DndApiService.getBackgroundDetails(newBackgroundIndex);
             setBackgroundDetails(details);
+            setIsEquipmentLoading(false);
         }
     }, [resetSelections]);
     
@@ -441,8 +552,9 @@ export const useNewCharacterCreation = () => {
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
         const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
         
-        const startingGold = finalizedEquipment.find(i => i.name?.includes("moedas de ouro"))?.cost?.quantity || 0;
-        const finalInventory = finalizedEquipment.filter(i => !i.name?.includes("moedas de ouro"));
+        const finalInventory = [...fixedEquipment, ...finalizedEquipment];
+        const startingGold = finalInventory.find(i => i.name?.toLowerCase().includes("ouro"))?.quantity || 0;
+        const inventoryWithoutGold = finalInventory.filter(i => !i.name?.toLowerCase().includes("ouro"));
 
         return {
             name,
@@ -456,7 +568,7 @@ export const useNewCharacterCreation = () => {
             attributes: finalAttributes,
             proficiencies: allProficiencies,
             languages: finalLanguages,
-            inventory: finalInventory,
+            inventory: inventoryWithoutGold,
             spells: allSpells,
             backstory,
             personalityTraits,
@@ -478,6 +590,7 @@ export const useNewCharacterCreation = () => {
         points,
         baseAttributes,
         proficiencySelections, handleProficiencyChange,
+        equipmentSelections, handleEquipmentChange,
         finalizedEquipment, setFinalizedEquipment,
         chosenClassSpells, handleClassSpellChange,
         chosenRacialSpells, handleRacialSpellChange,
@@ -498,6 +611,12 @@ export const useNewCharacterCreation = () => {
         allFixedProficiencies,
         allProficiencyChoices,
         unavailableProficiencies,
+        equipmentChoiceGroups,
+        fixedEquipment,
+        isEquipmentLoading,
+        isSubchoiceLoading,
+        subChoiceOptions,
+        areAllEquipmentChoicesMade,
         classSpellOptions,
         racialSpellOptions,
         racialSpellTraits,

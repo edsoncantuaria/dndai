@@ -54,7 +54,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     };
 
     const commonProps = {
-        ...hook,
+        hook: hook,
         nextStep,
         prevStep,
     };
@@ -62,19 +62,19 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const renderStep = () => {
         switch (currentStep) {
             case 1:
-                return <NewStep1_RaceClass {...commonProps} races={races} classes={classes} />;
+                return <NewStep1_RaceClass {...hook} nextStep={nextStep} races={races} classes={classes} />;
             case 2:
-                return <NewStep2_Attributes {...commonProps} />;
+                return <NewStep2_Attributes {...hook} prevStep={prevStep} nextStep={nextStep} />;
             case 3:
-                return <NewStep3_Background {...commonProps} backgrounds={backgrounds} alignments={alignments} />;
+                return <NewStep3_Background {...hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />;
             case 4:
-                return <NewStep4_Proficiencies {...commonProps} />;
+                return <NewStep4_Proficiencies {...hook} prevStep={prevStep} nextStep={nextStep} />;
             case 5:
-                return <NewStep5_Equipment {...commonProps} />;
+                return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
-                return <NewStep6_Spells {...commonProps} />;
+                return <NewStep6_Spells {...hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep7_Finalize {...commonProps} handleFinalize={handleFinalizeAndSubmit} />;
+                return <NewStep7_Finalize {...hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa Inválida.</div>;
         }
