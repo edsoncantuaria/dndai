@@ -317,7 +317,7 @@ export const useCharacterCreation = () => {
             return next;
         });
 
-        if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
+        if (option.type === 'choice' && option.from.option_set_type === 'equipment_category' && option.from.equipment_category?.index) {
             const data = await DndApiService.getEquipmentForCategory(option.from.equipment_category.index);
             setSubChoiceOptions(prev => ({ ...prev, [choiceKey]: data?.equipment || [] }));
         } else if (option.of) {

@@ -1,8 +1,9 @@
 import React from 'react';
 import { useCharacterCreation } from '../../hooks/useCharacterCreation';
 import { ApiEquipmentOption, InventoryItem } from '../../types';
-import { translateApiString, translateEquipment } from '../../utils/translator';
+import { translateApiString } from '../../utils/translator';
 import ItemCard from '../ItemCard';
+import { translateEquipment } from '@/utils/TranslatorEquipments';
 
 interface EquipmentChoicesProps {
     hook: ReturnType<typeof useCharacterCreation>;
@@ -10,18 +11,26 @@ interface EquipmentChoicesProps {
 
 const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
+    
+    // Specific check for generic category choices
+    if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
+         const categoryName = option.from.equipment_category?.name || 'Equipamento';
+         const choose = option.choose && option.choose > 1 ? `(Escolha ${option.choose})` : '';
+         // Translate "Any" and the category name
+         return `Qualquer ${translateApiString(categoryName)}${choose}`;
+    }
+
     if (option.desc) return translateApiString(option.desc);
+    
     if (option.of) {
         const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
         return `${translateEquipment(option.of.name)}${count}`;
     }
+    
     if (option.type === 'multiple' && option.from.options) {
         return option.from.options.map(o => getOptionLabel(o)).join(' + ');
     }
-    if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
-         const choose = option.choose && option.choose > 1 ? ` (Escolha ${option.choose})` : '';
-         return `Qualquer ${translateEquipment(option.from.equipment_category.name)}${choose}`;
-    }
+
     return 'Opção de Equipamento';
 };
 
