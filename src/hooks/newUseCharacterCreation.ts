@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
-    Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo
+    Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo, ApiFeat
 } from '../types';
 import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
@@ -84,6 +84,11 @@ export const useNewCharacterCreation = () => {
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
     
+    // Feats
+    const [feats, setFeats] = useState<ApiFeat[]>([]);
+    const [isFeatsLoading, setIsFeatsLoading] = useState(false);
+    const [chosenFeats, setChosenFeats] = useState<string[]>([]);
+
     // --- MEMOIZED DERIVED STATE ---
 
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
@@ -139,32 +144,23 @@ export const useNewCharacterCreation = () => {
     const allProficiencyChoices = useMemo<ProficiencyChoiceWithSource[]>(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
         
-        // This function will recursively flatten nested choices.
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
 
-            choice.from.options.forEach((option, index) => {
-                const newId = `${idPrefix}-${index}`;
-                if (option.option_type === 'choice') {
-                    // This is a nested choice, process it.
-                    processChoice(option.choice, source, newId);
-                } else if (option.option_type === 'reference') {
-                    // This is a direct proficiency option.
-                    // We group it with others from the same source `desc`.
-                    const parentId = `${idPrefix}-group`;
-                    const existingGroup = choices.find(c => c.id === parentId);
-                    if (existingGroup) {
-                        existingGroup.options.push(option.item);
-                    } else {
-                        choices.push({
-                            ...choice,
-                            id: parentId,
-                            source,
-                            options: [option.item]
-                        });
-                    }
-                }
-            });
+            if (choice.from.option_set_type === "options_array") {
+                const choiceId = `${idPrefix}-${choice.type}`;
+                 const existingChoice = choices.find(c => c.id === choiceId);
+                 if(existingChoice) {
+                    existingChoice.options.push(...choice.from.options.map(o => o.item));
+                 } else {
+                     choices.push({
+                        ...choice,
+                        id: choiceId,
+                        source,
+                        options: choice.from.options.map(o => o.item)
+                    });
+                 }
+            }
         };
         
         (classDetails?.proficiency_choices || []).forEach((c, i) => processChoice(c, 'Classe', `class-${i}`));
@@ -172,18 +168,7 @@ export const useNewCharacterCreation = () => {
         processChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
         processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
         
-        // Final pass to ensure options are correctly grouped under a single choice ID if they share a description
-        const groupedChoices: Record<string, ProficiencyChoiceWithSource> = {};
-        choices.forEach(choice => {
-            const key = `${choice.desc}-${choice.choose}`;
-            if (groupedChoices[key]) {
-                groupedChoices[key].options.push(...choice.options);
-            } else {
-                groupedChoices[key] = { ...choice };
-            }
-        });
-
-        return Object.values(groupedChoices);
+        return choices;
 
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails]);
     
@@ -194,10 +179,7 @@ export const useNewCharacterCreation = () => {
     const canProceedToNextStep = useMemo(() => {
         return allProficiencyChoices.every(choice => {
             const selectedCount = proficiencySelections[choice.id]?.length || 0;
-            // The choice is complete if the user has selected the required number,
-            // OR if the number of available, unselected options is less than what's needed,
-            // which means they can't possibly fulfill the choice.
-            const availableOptions = choice.options.filter(opt => !allFixedProficiencies.has(opt.index));
+            const availableOptions = choice.options.filter(opt => opt && !allFixedProficiencies.has(opt.index));
             return selectedCount >= choice.choose || availableOptions.length < choice.choose;
         });
     }, [allProficiencyChoices, proficiencySelections, allFixedProficiencies]);
@@ -257,6 +239,24 @@ export const useNewCharacterCreation = () => {
         });
     }, [equipmentChoiceGroups, equipmentSelections]);
 
+    const racialFeats = useMemo<ApiFeat[]>(() => {
+        const racialTraitFeats = (raceDetails?.traits || [])
+            .concat(subraceDetails?.racial_traits || [])
+            .filter(trait => feats.some(feat => feat.name.toLowerCase() === trait.name.toLowerCase()));
+
+        return racialTraitFeats.map(trait => feats.find(feat => feat.name.toLowerCase() === trait.name.toLowerCase())!).filter(Boolean);
+    }, [raceDetails, subraceDetails, feats]);
+
+    useEffect(() => {
+        setChosenFeats(prev => {
+            const currentRacialIds = racialFeats.map(rf => rf.index);
+            // Remove old racial feats but keep general ones
+            const generalFeats = prev.filter(p => !racialFeats.some(rf => rf.index === p) && !currentRacialIds.includes(p));
+            // Add new racial feats
+            return [...new Set([...generalFeats, ...currentRacialIds])];
+        });
+    }, [racialFeats]);
+
 
     const isComplete = useMemo(() => {
         if (!name || !race || !characterClass || !background || !alignment || points > 0) {
@@ -298,6 +298,7 @@ export const useNewCharacterCreation = () => {
         setIdeal('');
         setBond('');
         setFlaw('');
+        setChosenFeats([]);
     }, []);
 
     useEffect(() => {
@@ -395,6 +396,19 @@ export const useNewCharacterCreation = () => {
     
         finalizeEquipmentSelections();
     }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions, isEquipmentLoading]);
+
+    useEffect(() => {
+        const fetchAllFeats = async () => {
+            setIsFeatsLoading(true);
+            const featList = await DndApiService.getFeats();
+            if(featList?.results) {
+                const featDetails = await fetchDetailsInChunks(featList.results, DndApiService.getFeatDetails, ()=>{});
+                setFeats(featDetails.filter((f): f is ApiFeat => !!f));
+            }
+            setIsFeatsLoading(false);
+        };
+        fetchAllFeats();
+    }, []);
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
         setBaseAttributes(attrs => {
@@ -545,6 +559,24 @@ export const useNewCharacterCreation = () => {
         });
     }, []);
 
+    const handleFeatChange = useCallback((featIndex: string) => {
+        setChosenFeats(prev => {
+            if (prev.includes(featIndex)) {
+                return prev.filter(f => f !== featIndex);
+            }
+            
+            const generalFeatSlots = 1;
+            const currentGeneralFeats = prev.filter(f => !racialFeats.some(rf => rf.index === f));
+            
+            if (currentGeneralFeats.length < generalFeatSlots) {
+                return [...prev, featIndex];
+            }
+            
+            return prev;
+        });
+    }, [racialFeats]);
+
+
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setRace(newRaceIndex);
         setSubrace('');
@@ -666,6 +698,7 @@ export const useNewCharacterCreation = () => {
             bond,
             flaw,
             startingGold,
+            feats: chosenFeats
         };
     };
 
@@ -716,6 +749,7 @@ export const useNewCharacterCreation = () => {
         spellsLoadingProgress,
         handleAttributeChange,
         handleSuggestAttributes,
+        feats, isFeatsLoading, racialFeats, chosenFeats, handleFeatChange,
         isComplete,
         buildCharacter
     };
