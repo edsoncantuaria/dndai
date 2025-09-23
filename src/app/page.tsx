@@ -1,13 +1,16 @@
-import Header from '@/components/Header';
+import { GameStateProvider } from '@/contexts/GameStateContext';
+import Game from './_components/Game';
 
 export default function HomePage() {
   return (
-    <>
-      <Header />
-      <main className="flex min-h-screen flex-col items-center justify-center">
-        <h1 className="text-4xl font-bold">Página em Branco</h1>
-        <p className="mt-2 text-lg text-gray-600">Seu app Next.js está pronto!</p>
+    <GameStateProvider>
+      <main
+        className="flex min-h-screen flex-col items-center justify-center bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/background.jpg')" }}
+      >
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+        <Game />
       </main>
-    </>
+    </GameStateProvider>
   );
 }

@@ -1,10 +1,10 @@
 'use client';
 
 // contexts/GameStateContext.tsx
-import { createContext, useContext } from 'react';
-import type { useGameState } from '@/hooks/useGameState';
+import React, { createContext, useContext } from 'react';
+import { useGameState } from '@/hooks/useGameState';
 
-// O contexto agora é um Client Component
+// The context is now a Client Component
 export type GameStateContextType = ReturnType<typeof useGameState> | null;
 
 const GameStateContext = createContext<GameStateContextType>(null);

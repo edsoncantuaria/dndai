@@ -1,6 +1,7 @@
+'use client';
 // components/ActionOptions.tsx
 import React, { useState } from 'react';
-import { useGameStateContext } from '../contexts/GameStateContext';
+import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Icons } from './Icons';
 
 const HitDiceRoller: React.FC = () => {
@@ -100,8 +101,8 @@ const ActionOptions: React.FC = () => {
                     key={index}
                     onClick={() => processPlayerAction(action)}
                     disabled={isLoading}
-                    className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 animate-staggerIn"
-                    style={{ animationDelay: `${index * 80}ms` }}
+                    className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                    style={{ animationDelay: `${index * 80}ms`, animation: 'staggerIn 300ms ease-out forwards' }}
                 >
                     {action}
                 </button>

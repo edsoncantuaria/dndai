@@ -1,12 +1,42 @@
 'use client';
 import React from 'react';
+import { useGameStateContext } from '@/contexts/GameStateContext';
+import { Icons } from './Icons';
 
-const Header = () => {
-  return (
-    <header className="bg-gray-800 text-white p-4">
-      <h1 className="text-xl font-bold">Meu App</h1>
-    </header>
-  );
+const Header: React.FC = () => {
+    const { character } = useGameStateContext();
+
+    if (!character) {
+        return null; // Or a placeholder header
+    }
+
+    const { name, level, characterClass, hp } = character;
+
+    return (
+        <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-2 rounded-lg border border-stone-700 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-stone-700 rounded-full flex items-center justify-center border-2 border-stone-600">
+                    <Icons.User className="h-8 w-8 text-stone-400" />
+                </div>
+                <div>
+                    <h2 className="font-bold text-lg text-stone-100">{name}</h2>
+                    <p className="text-sm text-stone-400">
+                        {characterClass} de Nível {level}
+                    </p>
+                </div>
+            </div>
+            <div className="flex items-center gap-4">
+                 <div className="text-center">
+                    <div className="text-xs text-red-400 font-semibold">VIDA</div>
+                    <div className="font-mono font-bold text-xl text-stone-200">{hp.current} / {hp.max}</div>
+                </div>
+                 <div className="text-center">
+                    <div className="text-xs text-blue-400 font-semibold">CA</div>
+                    <div className="font-mono font-bold text-xl text-stone-200">{character.ac.value}</div>
+                </div>
+            </div>
+        </div>
+    );
 };
 
 export default Header;

@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useGameStateContext } from '../contexts/GameStateContext';
-import { useCharacterCreation } from '../hooks/useCharacterCreation';
-import * as DndApiService from '../services/dndApiService';
-import { ApiListItem, Proficiency, InventoryItem } from '../types';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { useGameStateContext } from '@/contexts/GameStateContext';
+import { useCharacterCreation } from '@/hooks/useCharacterCreation';
+import * as DndApiService from '@/services/dndApiService';
+import { ApiListItem, Proficiency, InventoryItem } from '@/types';
 import { Icons } from './Icons';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import CharacterCreationForm from './creation/CharacterCreationForm';
@@ -52,7 +53,7 @@ const CharacterCreation: React.FC = () => {
     }, []);
 
     // --- Main Hook ---
-    const hook = useCharacterCreation(races, classes, backgrounds, alignments, allLanguages);
+    const hook = useCharacterCreation();
 
     // --- Form Submission Logic ---
     const handleSubmit = async (e: React.FormEvent) => {
@@ -61,11 +62,14 @@ const CharacterCreation: React.FC = () => {
 
         // --- Validation ---
         const personalityTraitsNeeded = hook.backgroundDetails?.personality_traits?.choose || 0;
-        const allEquipmentChoicesMade = (hook.allEquipmentOptions || []).every((choice, index) => {
-            const mainSelection = hook.equipmentChoices[index];
+        const allEquipmentChoicesMade = (hook.equipmentChoiceGroups.flatMap(g => g.choices) || []).every((choice, index) => {
+            const group = hook.equipmentChoiceGroups.find(g => g.choices.includes(choice));
+            if (!group) return false;
+            const choiceKey = `${group.desc}-${index}`;
+            const mainSelection = hook.equipmentChoices[choiceKey];
             if (!mainSelection) return false;
             if (mainSelection.from?.option_set_type === 'equipment_category' || mainSelection.type === 'choice') {
-                return !!hook.subChoiceSelection[index];
+                return !!hook.subChoiceSelection[choiceKey];
             }
             return true;
         });
@@ -112,7 +116,7 @@ const CharacterCreation: React.FC = () => {
             if (choiceInfo) {
                 selections.forEach(name => {
                     if (!finalProficiencies.some(p => p.name === name)) {
-                        finalProficiencies.push({ name: name, type: choiceInfo.type });
+                        finalProficiencies.push({ name: name, type: choiceInfo.type || 'outros', index: name, url: '' });
                     }
                 });
             }
@@ -125,12 +129,14 @@ const CharacterCreation: React.FC = () => {
         const finalInventory: InventoryItem[] = [];
         const currency = { gp: 0, sp: 0, cp: 0 };
         
-        const backgroundGold = hook.backgroundDetails?.starting_equipment_options?.find(opt => opt.from.equipment_category?.index === 'adventuring-gear');
-        if (backgroundGold) {
-            const goldString = backgroundGold.desc?.match(/(\d+) po/);
+        const backgroundGold = hook.backgroundDetails?.starting_equipment_options?.find(opt => opt.from.option_set_type === 'equipment_category' && opt.from.equipment_category?.index === 'adventuring-gear');
+        if (backgroundGold && backgroundGold.desc) {
+            const goldString = backgroundGold.desc.match(/(\d+) po/);
             if (goldString && goldString[1]) {
                 currency.gp += parseInt(goldString[1], 10);
             }
+        } else if (hook.backgroundDetails?.starting_equipment_options?.some(o => o.desc?.includes('15 po'))) {
+           currency.gp += 15;
         }
 
         Object.values(hook.selectedEquipmentDetails).forEach(item => {
@@ -142,7 +148,7 @@ const CharacterCreation: React.FC = () => {
         createCharacter({
             name: hook.name,
             race: hook.raceDetails?.name || '',
-            subrace: hook.raceDetails?.subraces?.find(sr => sr.index === hook.subrace)?.name,
+            subrace: hook.subraceDetails?.name,
             characterClass: hook.classDetails?.name || '',
             attributes: hook.finalAttributes,
             proficiencies: finalProficiencies,

@@ -31,9 +31,8 @@ export const fetchDetailsInChunks = async <T extends { index: string }, U>(
         
         try {
             const chunkResults = await Promise.all(chunkPromises);
-            // FIX: Replaced filter with a loop to avoid type predicate error.
             for (const result of chunkResults) {
-                if (result !== null) {
+                if (result) {
                     results.push(result);
                 }
             }

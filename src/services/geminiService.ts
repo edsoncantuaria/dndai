@@ -1,6 +1,8 @@
 // services/geminiService.ts
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+'use server';
+
+import { generate } from 'genkit/ai';
+import { geminiPro } from '@genkit-ai/googleai';
 import {
   Character,
   LogEntry,
@@ -9,25 +11,57 @@ import {
   ShopState,
   LootOffer,
   UseHitDiceRequest,
-} from '../types';
+} from '@/types';
+import { z } from 'zod';
 
-// Inicialize o Genkit com o plugin da Google AI.
-// A chave da API será lida a partir de process.env.NEXT_PUBLIC_GEMINI_API_KEY
-genkit({
-  plugins: [googleAI()],
+// Zod schemas for Gemini response validation
+const LogEntrySchema = z.object({
+  type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll']),
+  content: z.string(),
+  rollResult: z.optional(z.object({
+    description: z.string(),
+    dice: z.string(),
+    modifier: z.number(),
+    total: z.number(),
+    rolls: z.array(z.number()),
+    success: z.optional(z.boolean()),
+    dc: z.optional(z.number()),
+    rollType: z.enum(['check', 'save', 'attack', 'damage']),
+    advantage: z.optional(z.boolean()),
+    disadvantage: z.optional(z.boolean()),
+  })),
 });
 
-// A interface de resposta da API do Gemini
-export interface GeminiResponse {
-  logEntries: Omit<LogEntry, 'id'>[];
-  actionOptions: string[];
-  updatedCharacter?: Partial<Character>;
-  combatState?: CombatState;
-  levelUpState?: Partial<LevelUpState>;
-  shopState?: ShopState;
-  lootOffer?: LootOffer;
-  useHitDiceRequest?: UseHitDiceRequest;
-}
+const CombatantSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    hp: z.optional(z.number()),
+    maxHp: z.optional(z.number()),
+    initiative: z.number(),
+});
+
+const CombatStateSchema = z.object({
+    isActive: z.boolean(),
+    round: z.number(),
+    turn: z.number(),
+    combatants: z.array(CombatantSchema),
+});
+
+
+const GeminiResponseSchema = z.object({
+  logEntries: z.array(LogEntrySchema),
+  actionOptions: z.array(z.string()),
+  updatedCharacter: z.optional(z.any()), // Using `any` for flexibility in partial updates
+  combatState: z.optional(CombatStateSchema),
+  levelUpState: z.optional(z.any()),
+  shopState: z.optional(z.any()),
+  lootOffer: z.optional(z.any()),
+  useHitDiceRequest: z.optional(z.any()),
+});
+
+
+export type GeminiResponse = z.infer<typeof GeminiResponseSchema>;
+
 
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
 - **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida.
@@ -40,42 +74,24 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Economia:** Quando o jogador entrar em uma loja, abra o 'shopState'. Forneça o inventário da loja e defina os 'sellPrices' para os itens do jogador. Se o jogador pechinchar, atualize os preços e defina 'isHaggling' como verdadeiro até que um acordo seja feito.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
-// Esta função agora usa o Genkit para gerar o conteúdo
+
 async function generateWithGenkit(prompt: string): Promise<GeminiResponse | null> {
   try {
-    const llmResponse = await genkit.generate({
-      model: 'gemini-1.5-flash',
+    const llmResponse = await generate({
+      model: geminiPro,
       prompt: prompt,
-      config: {
-        // A API Genkit não possui um mapeamento direto para `systemInstruction`
-        // mas a instrução é geralmente passada no início do prompt.
-      },
       output: {
         format: 'json',
-        schema: {
-          logEntries: [
-            {
-              type: 'string',
-              content: 'string',
-              rollResult: {
-                description: 'string',
-                dice: 'string',
-                modifier: 'number',
-                total: 'number',
-                rolls: ['number'],
-                success: 'boolean',
-                dc: 'number',
-                rollType: 'string',
-              },
-            },
-          ],
-          actionOptions: ['string'],
-        },
+        schema: GeminiResponseSchema,
       },
     });
 
-    const responseText = llmResponse.output as string;
-    return JSON.parse(responseText) as GeminiResponse;
+    const responseData = llmResponse.output();
+    if (!responseData) {
+      console.error('API Genkit retornou uma saída vazia.');
+      return null;
+    }
+    return responseData;
   } catch (error) {
     console.error('Erro ao chamar a API Genkit:', error);
     return null;
@@ -95,7 +111,8 @@ export const getGameUpdate = async (
       quantity,
       equipped,
     })),
-    classLevelsData: undefined,
+    // Remove data that is too large or complex for the prompt
+    classLevelsData: undefined, 
     subclassLevelsData: undefined,
   };
 
