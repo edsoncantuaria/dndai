@@ -38,7 +38,7 @@ const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'wizard': ['intelligence', 'constitution', 'dexterity', 'wisdom', 'charisma', 'strength'],
 };
 
-export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
+export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiListItem[] }) => {
     // --- STATE MANAGEMENT ---
     // Basic character info
     const [name, setName] = useState('');
@@ -59,9 +59,6 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
     const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
     const [backgroundDetails, setBackgroundDetails] = useState<ApiBackground | null>(null);
     const [classLevels, setClassLevels] = useState<ApiClassLevel[] | null>(null);
-    
-    // Feats - Keep state for future level ups, but logic is disabled for level 1
-    const [chosenFeats, setChosenFeats] = useState<string[]>([]);
     
     // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
@@ -142,28 +139,24 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
     const allProficiencyChoices = useMemo<ProficiencyChoiceWithSource[]>(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
         
-        // This function will recursively flatten nested choices.
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
 
             choice.from.options.forEach((option, index) => {
                 const newId = `${idPrefix}-${index}`;
                 if (option.option_type === 'choice') {
-                    // This is a nested choice, process it.
                     processChoice(option.choice, source, newId);
                 } else if (option.option_type === 'reference') {
-                    // This is a direct proficiency option.
-                    // We group it with others from the same source `desc`.
                     const parentId = `${idPrefix}-group`;
                     const existingGroup = choices.find(c => c.id === parentId);
                     if (existingGroup) {
-                        existingGroup.options.push(option.item);
+                        existingGroup.options.push(option.item!);
                     } else {
                         choices.push({
                             ...choice,
                             id: parentId,
                             source,
-                            options: [option.item]
+                            options: [option.item!]
                         });
                     }
                 }
@@ -175,7 +168,6 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
         processChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
         processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
         
-        // Final pass to ensure options are correctly grouped under a single choice ID if they share a description
         const groupedChoices: Record<string, ProficiencyChoiceWithSource> = {};
         choices.forEach(choice => {
             const key = `${choice.desc}-${choice.choose}`;
@@ -195,10 +187,10 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
     }, [allFixedProficiencies, proficiencySelections]);
 
     const canProceedFromProficiencies = useMemo(() => {
-        const languageChoicesMet = chosenLanguages.length >= languageChoicesCount;
+        const languageChoicesMet = chosenLanguages.filter(Boolean).length >= languageChoicesCount;
         const proficiencyChoicesMet = allProficiencyChoices.every(choice => {
             const selectedCount = proficiencySelections[choice.id]?.length || 0;
-            const availableOptions = choice.options.filter(opt => !allFixedProficiencies.has(opt.index));
+            const availableOptions = choice.options.filter(opt => opt && !allFixedProficiencies.has(opt.index));
             return selectedCount >= choice.choose || availableOptions.length === 0;
         });
         return languageChoicesMet && proficiencyChoicesMet;
@@ -267,10 +259,7 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
         if (raceDetails?.subraces?.length > 0 && !subrace) {
             return false;
         }
-        const allProficienciesDone = allProficiencyChoices.every(
-            choice => (proficiencySelections[choice.id]?.length || 0) === choice.choose
-        );
-        if (!allProficienciesDone) return false;
+        if(!canProceedFromProficiencies) return false;
 
         const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
         const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;
@@ -284,7 +273,7 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
         if (!racialSpellsDone) return false;
 
         return areAllEquipmentChoicesMade;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, canProceedFromProficiencies, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -300,7 +289,6 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
         setIdeal('');
         setBond('');
         setFlaw('');
-        setChosenFeats([]);
     }, []);
 
     useEffect(() => {
@@ -668,8 +656,7 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
             ideal,
             bond,
             flaw,
-            startingGold,
-            feats: [], // Feats are not selected at level 1 by this house rule
+            feats: [],
         };
     };
 
@@ -689,6 +676,7 @@ export const useNewCharacterCreation = ({ feats }: { feats: Feat[] }) => {
         chosenClassSpells, handleClassSpellChange,
         chosenRacialSpells, handleRacialSpellChange,
         chosenLanguages, handleLanguageChange,
+        allLanguages,
         personalityTraits, handlePersonalityTraitChange,
         ideal, setIdeal,
         bond, setBond,

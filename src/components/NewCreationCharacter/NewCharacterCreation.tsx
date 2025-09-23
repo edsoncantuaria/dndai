@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import type { ApiListItem, Feat } from '@/types';
+import type { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
@@ -17,7 +17,7 @@ interface NewCharacterCreationProps {
     classes: ApiListItem[];
     backgrounds: ApiListItem[];
     alignments: ApiListItem[];
-    feats: Feat[];
+    allLanguages: ApiListItem[];
     onBackToMenu: () => void;
 }
 
@@ -26,13 +26,13 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     classes,
     backgrounds,
     alignments,
-    feats,
+    allLanguages,
     onBackToMenu
 }) => {
     const { createCharacter } = useGameStateContext();
-    const hook = useNewCharacterCreation({ feats });
+    const hook = useNewCharacterCreation({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 7; // Reduzido de 8 para 7
+    const totalSteps = 7; 
     const wizardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -69,7 +69,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 7: // A Etapa 7 agora é a finalização
+            case 7:
                 return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa Inválida.</div>;

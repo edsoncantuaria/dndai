@@ -20,7 +20,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
     const [alignments, setAlignments] = useState<ApiListItem[]>([]);
-    const [feats, setFeats] = useState<ApiListItem[]>([]);
+    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
 
 
     useEffect(() => {
@@ -32,18 +32,18 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
-                const [racesData, classesData, backgroundsData, alignmentsData, featsData] = await Promise.all([
+                const [racesData, classesData, backgroundsData, alignmentsData, languagesData] = await Promise.all([
                     DndApiService.getRaces(),
                     DndApiService.getClasses(),
                     DndApiService.getBackgrounds(),
                     DndApiService.getAlignments(),
-                    DndApiService.getFeats(),
+                    DndApiService.getLanguages(),
                 ]);
                 setRaces(racesData?.results || []);
                 setClasses(classesData?.results || []);
                 setBackgrounds(backgroundsData?.results || []);
                 setAlignments(alignmentsData?.results || []);
-                setFeats(featsData?.results || []);
+                setAllLanguages(languagesData?.results || []);
             } catch (error) {
                 console.error("Failed to load initial creation data:", error);
                 setFormError("Falha ao carregar dados essenciais. Por favor, tente recarregar a página.");
@@ -101,7 +101,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
             classes={classes}
             backgrounds={backgrounds}
             alignments={alignments}
-            feats={feats}
+            allLanguages={allLanguages}
             onBackToMenu={() => setView('menu')}
         />
     );
