@@ -25,26 +25,35 @@ export const getRefundForPrevLevel = (currentScore: number): number => (currentS
  */
 export const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
-
-    // Para itens diretos
+    
+    // Para itens diretos (ex: `of: { index: 'club', name: 'Club' }`)
     if (option.of) {
         const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
         return `${translateEquipment(option.of.name)}${count}`;
     }
-
+    
     // Para escolhas de categoria, ex: "Qualquer Arma Simples"
     if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
          const categoryName = option.from.equipment_category?.name || 'Equipamento';
          return `Qualquer ${translateApiString(categoryName)}`;
     }
     
-    // Para escolhas múltiplas, ex: "(a) um alaúde ou (b) qualquer outro instrumento musical"
-    if (option.type === 'multiple' && option.from.options) {
-        return option.from.options.map(o => getOptionLabel(o.item || o)).join(' + ');
+    // Para escolhas múltiplas aninhadas, ex: "(a) a mace or (b) a warhammer"
+    if(option.type === 'multiple' && option.from?.options) {
+        const optionStrings = option.from.options.map(subOpt => getOptionLabel(subOpt.item || subOpt));
+        return `(${option.from.options.length}) ${optionStrings.join(' e ')}`;
     }
 
-    // Fallback para descrições genéricas
-    if (option.desc) return translateApiString(option.desc);
+    // Fallback para descrições diretas
+    if (option.desc) {
+        return translateApiString(option.desc);
+    }
+    
+    // Fallback para itens aninhados dentro de 'item'
+    if((option as any).item?.of) {
+        return getOptionLabel((option as any).item);
+    }
 
+    console.warn("Opção de equipamento não reconhecida:", option);
     return 'Opção de Equipamento';
 };

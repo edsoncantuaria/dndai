@@ -9,6 +9,7 @@ import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Icons } from '../Icons';
 import ItemCard from '../ItemCard';
 import { translateEquipment } from '@/utils/translator';
+import { getOptionLabel } from '@/utils/creationHelpers';
 import type { InventoryItem } from '@/types';
 
 
@@ -106,7 +107,7 @@ const NewStep5_Equipment: React.FC<Props> = ({ classDetails, backgroundDetails, 
                                         <option value={-1}>Selecione uma opção...</option>
                                         {group.choice.from.options.map((opt, index) => (
                                             <option key={index} value={index}>
-                                                {translateEquipment(opt.desc || opt.of?.name || "Opção de Equipamento")}
+                                                {getOptionLabel(opt)}
                                             </option>
                                         ))}
                                     </select>
