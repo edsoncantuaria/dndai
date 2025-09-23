@@ -1,4 +1,5 @@
 
+
 import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem } from '../types';
 import * as geminiService from '../services/geminiService';
@@ -158,6 +159,8 @@ export const useGameState = () => {
             info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
         ]);
 
+        const startingGold = info.inventory.find(i => i.name.includes("Bolsa contendo"))?.cost?.quantity || 15;
+
         const newCharacter: Character = {
             ...info,
             level: 1,
@@ -167,6 +170,7 @@ export const useGameState = () => {
             hp: { current: maxHp, max: maxHp, temp: 0 },
             ac: characterUtils.calculateAC(info.inventory, modifiers),
             proficiencyBonus,
+            currency: { gp: startingGold, sp: 0, cp: 0 },
             currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
             carryingCapacity: characterUtils.calculateCarryingCapacity(info.attributes.strength),
             spellSlots: {},
