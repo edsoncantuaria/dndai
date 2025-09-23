@@ -1,3 +1,4 @@
+// hooks/newUseCharacterCreation.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
@@ -191,7 +192,6 @@ export const useNewCharacterCreation = () => {
                 return parseInt(match[1], 10);
             }
         }
-        // Fallback for backgrounds like Acolyte that give gold but don't list a pouch in starting_equipment
         if (background === 'acolyte') return 15;
         return 0;
     }, [fixedEquipment, background]);
@@ -201,9 +201,14 @@ export const useNewCharacterCreation = () => {
             const selection = equipmentSelections[group.id];
             if (!selection) return false;
             
-            const mainOption = (group.choice.from.options || [group.choice.from])[selection.main];
+            const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
+            const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
+            
+            if (selection.main === undefined || selection.main < 0 || selection.main >= options.length) return false;
+            
+            const mainOption = options[selection.main];
 
-            if (mainOption?.option_type === 'choice' || group.choice.from.option_set_type === 'equipment_category') {
+            if (mainOption?.option_type === 'choice' || isCategoryChoice) {
                 return selection.sub !== undefined;
             }
             return true;
@@ -420,8 +425,8 @@ export const useNewCharacterCreation = () => {
         if (needsSubChoice) {
             setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: true }));
             const categoryUrl = isCategoryChoice 
-                ? group.choice.from.equipment_category.url 
-                : selectedOption.choice.from.equipment_category.url;
+                ? (group.choice.from.equipment_category as ApiListItem).url 
+                : (selectedOption as any).choice.from.equipment_category.url;
             
             const categoryIndex = categoryUrl.split('/').pop();
             
