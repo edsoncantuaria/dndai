@@ -2,11 +2,11 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
 import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
-    Attributes, Proficiency, ProficiencyChoice, ApiEquipmentOption, InventoryItem, ApiEquipment, ApiSubrace, NewCharacterInfo
+    Attributes, Proficiency, ProficiencyChoice, ApiEquipmentOption, InventoryItem, ApiSubrace, NewCharacterInfo
 } from '../types';
-import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown, calculateMaxHpAtLevel1 } from '../utils/characterUtils';
+import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelpers';
+import { getCostOfNextLevel, getRefundForPrevLevel, getOptionLabel } from '../utils/creationHelpers';
 import { translateSpell } from '../utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -160,31 +160,40 @@ export const useNewCharacterCreation = () => {
     }, [allFixedProficiencies, proficiencySelections]);
 
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
-        const groups: EquipmentChoiceGroup[] = [];
+        const choiceGroups: EquipmentChoiceGroup[] = [];
         const fixed: InventoryItem[] = [];
-
+    
         const addEquipment = (list: { equipment: ApiListItem, quantity: number }[] = []) => {
-            list.forEach(item => fixed.push({ ...item.equipment, id: uuidv4(), quantity: item.quantity }));
+            list.forEach(item => fixed.push({ ...item.equipment, id: uuidv4(), quantity: item.quantity, equipped: false }));
         };
-
+    
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
             classDetails.starting_equipment_options.forEach((choice, i) => {
-                groups.push({ id: `class-${i}`, source: 'Classe', choice });
+                choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice });
             });
         }
         if (backgroundDetails) {
             addEquipment(backgroundDetails.starting_equipment);
              backgroundDetails.starting_equipment_options.forEach((choice, i) => {
-                groups.push({ id: `bg-${i}`, source: 'Antecedente', choice });
+                choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice });
             });
         }
         
-        return { equipmentChoiceGroups: groups, fixedEquipment: fixed };
+        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
     
     const areAllEquipmentChoicesMade = useMemo(() => {
-        return equipmentChoiceGroups.every(group => equipmentSelections[group.id] !== undefined);
+        return equipmentChoiceGroups.every(group => {
+            const selection = equipmentSelections[group.id];
+            if (!selection) return false;
+            
+            const mainOption = group.choice.from.options[selection.main];
+            if (mainOption?.option_type === 'choice') {
+                return selection.sub !== undefined;
+            }
+            return true;
+        });
     }, [equipmentChoiceGroups, equipmentSelections]);
 
 
@@ -267,7 +276,7 @@ export const useNewCharacterCreation = () => {
             if (spellChoiceTraits.length === 0) return;
 
             const allSpellOptionsList = spellChoiceTraits.flatMap(t => 
-                t.trait_specific?.spell_options?.from?.options?.map(opt => opt.item) || []
+                t.trait_specific?.spell_options?.from?.options?.map((opt: any) => opt.item) || []
             ).filter((item): item is ApiListItem => !!item);
             
             if (allSpellOptionsList.length > 0) {
@@ -287,27 +296,34 @@ export const useNewCharacterCreation = () => {
 
     useEffect(() => {
         const finalizeEquipmentSelections = async () => {
-            if (isEquipmentLoading || !areAllEquipmentChoicesMade) return;
+            if (isEquipmentLoading) return;
     
             const finalItems: InventoryItem[] = [];
             for (const group of equipmentChoiceGroups) {
                 const selection = equipmentSelections[group.id];
-                if (!selection) continue;
+                // Only process fully made selections
+                if (!selection || (group.choice.from.options[selection.main]?.option_type === 'choice' && selection.sub === undefined)) {
+                    continue;
+                }
     
-                const selectedOption = group.choice.from.options[selection.main];
+                const mainOption = group.choice.from.options[selection.main];
     
-                if (selectedOption.option_type === 'counted_reference' && selectedOption.of) {
-                    finalItems.push({ ...selectedOption.of, id: uuidv4(), quantity: selectedOption.count });
-                } else if (selectedOption.option_type === 'multiple' && selectedOption.items) {
-                    selectedOption.items.forEach(subItem => {
+                if (mainOption.option_type === 'counted_reference' && mainOption.of) {
+                    const details = await DndApiService.getEquipmentDetails(mainOption.of.index);
+                    finalItems.push({ ...details, ...mainOption.of, id: uuidv4(), quantity: mainOption.count || 1, equipped: false });
+                } else if (mainOption.option_type === 'multiple' && mainOption.items) {
+                    for(const subItem of mainOption.items){
                         if(subItem.option_type === 'counted_reference' && subItem.of) {
-                             finalItems.push({ ...subItem.of, id: uuidv4(), quantity: subItem.count });
+                            const details = await DndApiService.getEquipmentDetails(subItem.of.index);
+                            finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
                         }
-                    });
-                } else if (selectedOption.option_type === 'choice' && selection.sub !== undefined) {
+                    }
+                } else if (mainOption.option_type === 'choice' && selection.sub !== undefined) {
                     const subOptions = subChoiceOptions[group.id];
                     if (subOptions && subOptions[selection.sub]) {
-                        finalItems.push({ ...subOptions[selection.sub], id: uuidv4(), quantity: 1 });
+                        const chosenSubItem = subOptions[selection.sub];
+                        const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
+                        finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
                     }
                 }
             }
@@ -315,7 +331,7 @@ export const useNewCharacterCreation = () => {
         };
     
         finalizeEquipmentSelections();
-    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions, areAllEquipmentChoicesMade, isEquipmentLoading]);
+    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions, isEquipmentLoading]);
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
         setBaseAttributes(attrs => {
@@ -370,22 +386,27 @@ export const useNewCharacterCreation = () => {
     const handleEquipmentChange = useCallback(async (groupId: string, mainIndexStr: string, subIndexStr?: string) => {
         const mainIndex = parseInt(mainIndexStr, 10);
         const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : undefined;
-        
+    
         setEquipmentSelections(prev => ({
             ...prev,
             [groupId]: { main: mainIndex, sub: subIndex }
         }));
-
+    
         const group = equipmentChoiceGroups.find(g => g.id === groupId);
-        if (!group) return;
-
+        if (!group || !group.choice.from.options) return;
+    
         const selectedOption = group.choice.from.options[mainIndex];
-
+    
         if (selectedOption?.option_type === 'choice') {
             setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: true }));
             const categoryUrl = selectedOption.choice.from.equipment_category.url;
-            const categoryData = await DndApiService.getEquipmentForCategory(categoryUrl.split('/api/2014')[1]);
-            setSubChoiceOptions(prev => ({ ...prev, [groupId]: categoryData?.equipment || [] }));
+            const categoryIndex = categoryUrl.split('/').pop(); // Extract index from URL
+            
+            if(categoryIndex){
+                const categoryData = await DndApiService.getEquipmentForCategory(categoryIndex);
+                setSubChoiceOptions(prev => ({ ...prev, [groupId]: categoryData?.equipment || [] }));
+            }
+            
             setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: false }));
             
             if (subIndex === undefined) {
@@ -395,7 +416,6 @@ export const useNewCharacterCreation = () => {
                 }));
             }
         } else {
-             // Se não for uma escolha de categoria, limpa as sub-opções
              setSubChoiceOptions(prev => {
                 const next = {...prev};
                 delete next[groupId];
@@ -553,8 +573,11 @@ export const useNewCharacterCreation = () => {
         const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
-        const startingGold = finalInventory.find(i => i.name?.toLowerCase().includes("ouro"))?.quantity || 0;
-        const inventoryWithoutGold = finalInventory.filter(i => !i.name?.toLowerCase().includes("ouro"));
+        
+        const goldPouch = finalInventory.find(i => i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold"));
+        const startingGold = goldPouch?.desc?.[0].match(/(\d+)\s*gp/)?.[1] ? parseInt(goldPouch.desc[0].match(/(\d+)\s*gp/)?.[1] || '0') : 15;
+        
+        const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold")));
 
         return {
             name,
