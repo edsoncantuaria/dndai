@@ -5,13 +5,14 @@
 
 'use client';
 import React, { useState } from 'react';
-import { useCharacterCreation } from '@/hooks/useCharacterCreation';
+import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_Proficiencies from './NewStep4_Proficiencies';
+import NewStep5_Equipment from './NewStep5_Equipment';
 
 
 interface NewCharacterCreationProps {
@@ -31,7 +32,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     allLanguages,
     onBackToMenu
 }) => {
-    const hook = useCharacterCreation();
+    const hook = useNewCharacterCreation();
     const [currentStep, setCurrentStep] = useState(1);
     const totalSteps = 7; // Definindo o número total de etapas
 
@@ -55,6 +56,8 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep3_Background {...commonProps} backgrounds={backgrounds} alignments={alignments} />;
             case 4:
                 return <NewStep4_Proficiencies {...commonProps} />;
+            case 5:
+                return <NewStep5_Equipment {...commonProps} />;
             // Outros steps virão aqui no futuro
             // case 5:
             //     return <NewStep5_Equipment {...commonProps} />;
