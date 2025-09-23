@@ -57,6 +57,7 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
         processEquipmentSource(classDetails, 'class');
         processEquipmentSource(backgroundDetails, 'bg');
         
+        // Corrigido: Retornar as variáveis corretas que foram declaradas dentro do escopo do useMemo.
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
@@ -70,15 +71,18 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
      * dispara a busca pelos itens dessa categoria na API.
      */
     const handleEquipmentChange = useCallback(async (groupId: string, optionIdxString: string) => {
-        if (optionIdxString === "") return;
-
         const optionIndex = parseInt(optionIdxString, 10);
+        if (isNaN(optionIndex) || optionIndex < 0) {
+            setEquipmentChoices(prev => ({ ...prev, [groupId]: null }));
+            return;
+        }
+
         const group = equipmentChoiceGroups.find(g => g.id === groupId);
         const optionWrapper = group?.choice.from.options?.[optionIndex];
         
         if (!optionWrapper) return;
-
-        const option = optionWrapper.item || optionWrapper;
+        
+        const option = optionWrapper; // Use o wrapper completo
 
         // Limpa seleções de sub-escolha e detalhes antigos para este grupo.
         setEquipmentChoices(prev => ({ ...prev, [groupId]: option }));
@@ -90,7 +94,7 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
             return next;
         });
 
-        // Se a opção for uma categoria, busca os itens correspondentes.
+        // Se a opção for uma escolha de categoria, busca os itens correspondentes.
         if (option.type === 'choice' && option.from.option_set_type === 'equipment_category' && option.from.equipment_category?.index) {
             setSubChoiceOptions(prev => ({ ...prev, [groupId]: { isLoading: true, options: [] } }));
             const data = await DndApiService.getEquipmentForCategory(option.from.equipment_category.index);
@@ -100,6 +104,13 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
             // Se for um item direto, busca seus detalhes para exibição.
             const details = await DndApiService.getEquipmentDetails(option.of.index);
             setSelectedEquipmentDetails(prev => ({ ...prev, [`choice-${groupId}`]: details ? translateEquipment(details) : null }));
+        } else {
+            // Limpa as sub-opções se a escolha não for uma categoria
+            setSubChoiceOptions(prev => {
+                const next = {...prev};
+                delete next[groupId];
+                return next;
+            });
         }
     }, [equipmentChoiceGroups]);
 
@@ -119,10 +130,12 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
     // Constrói o inventário final com base em todas as seleções feitas.
     const finalInventory = useMemo<InventoryItem[]>(() => {
         const inventory: InventoryItem[] = [];
+        const processedIds = new Set<string>();
 
         fixedEquipment.forEach(eq => {
-            if (eq.item) {
-                inventory.push({ ...translateEquipment(eq.item), id: uuidv4(), quantity: eq.quantity, equipped: false });
+            if (eq.item && !processedIds.has(eq.item.index)) {
+                inventory.push({ ...translateEquipment(eq.item), id: uuidv4(), quantity: eq.quantity, equipped: false } as InventoryItem);
+                processedIds.add(eq.item.index);
             }
         });
 
@@ -132,29 +145,33 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
 
             if (subSelectionIndex) { // Item de uma sub-escolha de categoria.
                 const details = selectedEquipmentDetails[`subchoice-${groupId}`];
-                if (details) {
+                if (details && !processedIds.has(details.index!)) {
                     inventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
+                    processedIds.add(details.index!);
                 }
             } else if (choice?.of?.index) { // Item direto de uma escolha.
                 const details = selectedEquipmentDetails[`choice-${groupId}`];
-                 if (details) {
+                 if (details && !processedIds.has(details.index!)) {
                     inventory.push({ ...details, id: uuidv4(), quantity: choice.count || 1, equipped: false } as InventoryItem);
+                    processedIds.add(details.index!);
                  }
             } else if (choice?.type === 'multiple' && choice?.from?.options) { // Múltiplos itens de uma única escolha.
                 choice.from.options.forEach(optWrapper => {
-                     const opt = optWrapper.of ? optWrapper : optWrapper.item;
-                     if(opt?.of) {
-                       inventory.push({ ...translateEquipment(opt.of), id: uuidv4(), quantity: opt.count, equipped: false });
+                     const opt = optWrapper.of ? optWrapper : (optWrapper as any).item; // Ajuste para diferentes estruturas da API
+                     if(opt?.of && !processedIds.has(opt.of.index)) {
+                       inventory.push({ ...translateEquipment(opt.of), id: uuidv4(), quantity: opt.count, equipped: false } as InventoryItem);
+                       processedIds.add(opt.of.index);
                      }
                 });
             }
         });
         
-        // Adiciona ouro inicial do antecedente.
+        // Adiciona ouro inicial do antecedente, se houver.
         const gold = backgroundDetails?.starting_gold ?? 0;
         if(gold > 0){
             inventory.push({
                 id: uuidv4(),
+                index: 'gold-pouch',
                 name: `Bolsa contendo ${gold} moedas de ouro`,
                 quantity: 1,
                 equipped: false,
@@ -167,15 +184,16 @@ export const useNewEquipment = (classDetails: ApiClass | null, backgroundDetails
     
     // Verifica se todas as escolhas de equipamento obrigatórias foram feitas.
     const isEquipmentComplete = useMemo(() => {
+        if(equipmentChoiceGroups.length === 0) return true;
         return equipmentChoiceGroups.every(group => {
             const selection = equipmentChoices[group.id];
             if (!selection) return false;
             
-            // Se a escolha requer uma sub-seleção, verifica se ela foi feita.
+            // Se a escolha requer uma sub-seleção (é uma categoria), verifica se a sub-seleção foi feita.
             if (selection.type === 'choice' && selection.from.option_set_type === 'equipment_category') {
                 return !!subChoiceSelection[group.id];
             }
-            return true;
+            return true; // Se não for uma categoria, a seleção principal é suficiente.
         });
     }, [equipmentChoiceGroups, equipmentChoices, subChoiceSelection]);
 
