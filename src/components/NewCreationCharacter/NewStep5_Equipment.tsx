@@ -51,15 +51,26 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     <div className="space-y-4">
                         <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Inventário Final</h4>
                         <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-96 overflow-y-auto">
-                           <div className="text-amber-400 font-semibold text-lg mb-2">
-                                Ouro Inicial: {startingGold} gp
-                           </div>
+                           {startingGold > 0 && (
+                               <div className="text-amber-400 font-semibold text-lg mb-2">
+                                    Ouro Inicial: {startingGold} gp
+                               </div>
+                           )}
                             {[...fixedEquipment, ...finalizedEquipment].length > 0 ? (
-                                [...fixedEquipment, ...finalizedEquipment].map((item, index) => (
-                                   <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-2 rounded-md">
-                                       {translateEquipment(item.name)} {item.quantity > 1 ? `(x${item.quantity})` : ''}
-                                   </div>
-                                ))
+                                [...fixedEquipment, ...finalizedEquipment].map((item, index) => {
+                                    const translatedItem = translateEquipment(item);
+                                    return (
+                                        <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-3 rounded-md border border-stone-700/50">
+                                            <p className="font-bold text-stone-200">{translatedItem.name} {translatedItem.quantity > 1 ? `(x${translatedItem.quantity})` : ''}</p>
+                                            {translatedItem.damage && (
+                                                <p className="text-xs text-amber-300 font-mono">{translatedItem.damage.damage_dice} {translatedItem.damage.damage_type.name}</p>
+                                            )}
+                                            {translatedItem.desc && translatedItem.desc.length > 0 && (
+                                                <p className="text-xs text-stone-400 italic mt-1">{translatedItem.desc[0]}</p>
+                                            )}
+                                        </div>
+                                    )
+                                })
                             ) : (
                                 <p className="text-stone-500 italic text-center py-4">Seu inventário está vazio.</p>
                             )}
