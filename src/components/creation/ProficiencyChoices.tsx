@@ -32,7 +32,7 @@ const ProficiencyChoices: React.FC<ProficiencyChoicesProps> = ({ hook }) => {
                     <h4 className="font-semibold text-stone-300 mb-2">Proficiências Concedidas:</h4>
                     <ul className="list-disc list-inside text-stone-400 space-y-1 text-sm columns-2 md:columns-3">
                         {Array.from(allFixedProficiencies.values()).map(prof => 
-                            <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                            <li key={prof.name}>{normalizeProficiencyName(prof.name)}</li>
                         )}
                     </ul>
                 </div>
