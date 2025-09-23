@@ -1,7 +1,7 @@
 // src/components/NewCreationCharacter/NewCharacterCreation.tsx
 // Este é o componente orquestrador do novo "Wizard" de criação de personagem.
 // Ele gerencia o estado da etapa atual e passa os dados e funções necessárias para cada etapa.
-// A lógica principal (o "cérebro") é consumida diretamente do hook `useCharacterCreation`.
+// A lógica principal (o "cérebro") é consumida diretamente do hook `useNewCharacterCreation`.
 
 'use client';
 import React, { useState } from 'react';
@@ -13,6 +13,7 @@ import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_Proficiencies from './NewStep4_Proficiencies';
 import NewStep5_Equipment from './NewStep5_Equipment';
+import NewStep6_Spells from './NewStep6_Spells';
 
 
 interface NewCharacterCreationProps {
@@ -58,9 +59,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <NewStep4_Proficiencies {...commonProps} />;
             case 5:
                 return <NewStep5_Equipment {...commonProps} />;
+            case 6:
+                return <NewStep6_Spells {...commonProps} />;
             // Outros steps virão aqui no futuro
-            // case 5:
-            //     return <NewStep5_Equipment {...commonProps} />;
+            // case 7:
+            //     return <NewStep7_Finalize {...commonProps} />;
             default:
                 return <div>Etapa {currentStep} em construção.</div>;
         }
