@@ -1,14 +1,16 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment.tsx
 // Esta é a quinta etapa do "wizard", focada na seleção de equipamentos.
 // Ela foi completamente recriada para ser mais robusta, intuitiva e 100% dependente da API.
-// A lógica complexa é abstraída pelo hook `useNewEquipment`.
+// A lógica complexa é abstraída pelo hook `newUseEquipment`.
 
 import React from 'react';
 import { useNewEquipment } from '@/hooks/newUseEquipment';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Icons } from '../Icons';
 import ItemCard from '../ItemCard';
-import { translateEquipment } from '@/utils/TranslatorEquipments';
+import { translateEquipment } from '@/utils/translator';
+import type { InventoryItem } from '@/types';
+
 
 // As props vêm do hook de criação principal para acessar os detalhes da classe/antecedente
 // e para atualizar o inventário finalizado.
@@ -95,18 +97,20 @@ const NewStep5_Equipment: React.FC<Props> = ({ classDetails, backgroundDetails, 
                                 <h3 className="font-semibold text-amber-300 text-lg">{group.desc}</h3>
                                 
                                 {/* Select Principal */}
-                                <select
-                                    value={group.choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(mainSelection))}
-                                    onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
-                                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                                >
-                                    <option value={-1}>Selecione uma opção...</option>
-                                    {group.choice.from.options.map((opt, index) => (
-                                        <option key={index} value={index}>
-                                            {translateEquipment(opt.desc || opt.of?.name || "Opção de Equipamento")}
-                                        </option>
-                                    ))}
-                                </select>
+                                {group.choice.from.options && (
+                                    <select
+                                        value={group.choice.from.options.findIndex(o => JSON.stringify(o) === JSON.stringify(mainSelection))}
+                                        onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
+                                        className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                    >
+                                        <option value={-1}>Selecione uma opção...</option>
+                                        {group.choice.from.options.map((opt, index) => (
+                                            <option key={index} value={index}>
+                                                {translateEquipment(opt.desc || opt.of?.name || "Opção de Equipamento")}
+                                            </option>
+                                        ))}
+                                    </select>
+                                )}
                                 
                                 {/* Select de Sub-escolha (dinâmico) */}
                                 {subOptions && (
