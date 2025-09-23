@@ -144,15 +144,11 @@ export const useNewCharacterCreation = () => {
         addChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race');
         addChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
         (classDetails?.proficiency_choices || []).forEach((c, i) => addChoice(c, 'Classe', `class-${i}`));
-        (backgroundDetails?.starting_proficiency_options || []).forEach((c, i) => addChoice(c, 'Antecedente', `bg-${i}`));
+        addChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
 
         return choices;
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails]);
     
-    const unavailableProficiencies = useMemo(() => {
-        return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
-    }, [allFixedProficiencies, proficiencySelections]);
-
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
         const choiceGroups: { desc: string, choices: ApiEquipmentOption[] }[] = [];
         const fixed: { item: ApiEquipment, quantity: number }[] = [];
@@ -184,6 +180,10 @@ export const useNewCharacterCreation = () => {
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
+    const unavailableProficiencies = useMemo(() => {
+        return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
+    }, [allFixedProficiencies, proficiencySelections]);
+
     const isComplete = useMemo(() => {
         if (!name || !race || !characterClass || !background || !alignment || points > 0) {
             return false;
@@ -195,10 +195,31 @@ export const useNewCharacterCreation = () => {
             choice => (proficiencySelections[choice.id]?.length || 0) === choice.choose
         );
         if (!allProficienciesDone) return false;
-        
-        // Final validation logic will go here
+
+        const allEquipmentDone = equipmentChoiceGroups.every(group =>
+            group.choices.every((choice, index) => {
+                const choiceKey = `${group.desc}-${index}`;
+                const selection = equipmentChoices[choiceKey];
+                if (!selection) return false;
+                if (selection.type === 'choice' && !subChoiceSelection[choiceKey]) return false;
+                return true;
+            })
+        );
+        if (!allEquipmentDone) return false;
+
+        const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
+        const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;
+        const selectedCantripsCount = chosenClassSpells.filter(sIndex => classSpellOptions.some(c => c.index === sIndex && c.level === 0)).length;
+        const selectedSpellsCount = chosenClassSpells.filter(sIndex => classSpellOptions.some(c => c.index === sIndex && c.level > 0)).length;
+        if (selectedCantripsCount !== cantripsKnown || selectedSpellsCount !== spellsKnown) {
+            return false;
+        }
+
+        const racialSpellsDone = racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose);
+        if (!racialSpellsDone) return false;
+
         return true;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections]);
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, allProficiencyChoices, proficiencySelections, equipmentChoiceGroups, equipmentChoices, subChoiceSelection, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -523,7 +544,8 @@ export const useNewCharacterCreation = () => {
                 finalInventory.push({ ...details, id: uuidv4(), quantity: 1, equipped: false } as InventoryItem);
             }
         });
-        const startingGold = finalInventory.find(i => i.name.toLowerCase().includes("bolsa contendo"))?.cost?.quantity || 15;
+        
+        const startingGold = backgroundDetails.starting_equipment.find(i => i.equipment.index === 'gold-pieces')?.quantity || 15;
 
         return {
             name,

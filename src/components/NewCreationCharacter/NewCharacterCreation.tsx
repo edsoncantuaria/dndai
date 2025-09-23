@@ -72,11 +72,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 5:
                 return <NewStep5_Equipment {...commonProps} />;
             case 6:
-                return <div>Etapa {currentStep} em construção.</div>;
+                return <NewStep6_Spells {...commonProps} />;
             case 7:
-                return <div>Etapa {currentStep} em construção.</div>;
+                return <NewStep7_Finalize {...commonProps} handleFinalize={handleFinalizeAndSubmit} />;
             default:
-                return <div>Etapa {currentStep} em construção.</div>;
+                return <div>Etapa Inválida.</div>;
         }
     };
 
