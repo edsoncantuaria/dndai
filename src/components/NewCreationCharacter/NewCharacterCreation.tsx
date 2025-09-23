@@ -1,28 +1,24 @@
-// src/components/NewCreationCharacter/NewCharacterCreation.tsx
-// Este é o componente orquestrador do novo "Wizard" de criação de personagem.
-// Ele gerencia o estado da etapa atual e passa os dados e funções necessárias para cada etapa.
-// A lógica principal (o "cérebro") é consumida diretamente do hook `useNewCharacterCreation`.
-
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { ApiListItem } from '@/types';
+import type { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
 import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
-import NewStep4_Proficiencies from './NewStep4_Proficiencies';
+import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
-import NewStep7_Finalize from './NewStep7_Finalize';
+import NewStep7_Feats from './NewStep7_Feats';
+import NewStep8_Finalize from './NewStep8_Finalize';
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
     classes: ApiListItem[];
     backgrounds: ApiListItem[];
     alignments: ApiListItem[];
-    allLanguages: ApiListItem[];
+    feats: ApiListItem[];
     onBackToMenu: () => void;
 }
 
@@ -31,13 +27,13 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     classes,
     backgrounds,
     alignments,
-    allLanguages,
+    feats,
     onBackToMenu
 }) => {
     const { createCharacter } = useGameStateContext();
-    const hook = useNewCharacterCreation();
+    const hook = useNewCharacterCreation({ feats });
     const [currentStep, setCurrentStep] = useState(1);
-    const totalSteps = 7;
+    const totalSteps = 8;
     const wizardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -56,7 +52,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             // A transição para a tela do jogo será gerenciada pelo GameStateContext
         } else {
             console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
-            // O ideal seria mostrar um erro para o usuário aqui.
+            // Idealmente, mostrar um erro para o usuário aqui.
         }
     };
 
@@ -69,13 +65,15 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 3:
                 return <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />;
             case 4:
-                return <NewStep4_Proficiencies hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 5:
                 return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep7_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
+                 return <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+            case 8:
+                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
             default:
                 return <div>Etapa Inválida.</div>;
         }

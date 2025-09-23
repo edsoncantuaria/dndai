@@ -1,6 +1,18 @@
 // utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass } from "../types";
 
+export const XP_THRESHOLDS: Record<number, number> = {
+    1: 300, 2: 900, 3: 2700, 4: 6500, 5: 14000, 6: 23000, 7: 34000, 8: 48000, 9: 64000,
+    10: 85000, 11: 100000, 12: 120000, 13: 140000, 14: 165000, 15: 195000, 16: 225000,
+    17: 265000, 18: 305000, 19: 355000, 20: Infinity
+};
+
+export const PROFICIENCY_BONUS: Record<number, number> = {
+    1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3, 8: 3, 9: 4, 10: 4, 11: 4, 12: 4,
+    13: 5, 14: 5, 15: 5, 16: 5, 17: 6, 18: 6, 19: 6, 20: 6
+};
+
+
 // NEW: Centralized single modifier calculation
 export const calculateModifier = (score: number): number => {
     return Math.floor((score - 10) / 2);
@@ -17,12 +29,11 @@ export const calculateModifiers = (attributes: Attributes): Attributes => {
 };
 
 export const getProficiencyBonus = (level: number): number => {
-    return Math.ceil(1 + level / 4);
+    return PROFICIENCY_BONUS[level] || 6;
 };
 
 export const getXpThreshold = (level: number): number => {
-    const thresholds = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
-    return thresholds[level] || Infinity;
+    return XP_THRESHOLDS[level] || Infinity;
 };
 
 // NEW: Centralized carrying capacity calculation

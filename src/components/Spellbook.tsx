@@ -1,4 +1,4 @@
-// components/Spellbook.tsx
+'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import * as DndApiService from '../services/dndApiService';
@@ -6,7 +6,7 @@ import type { ApiSpell } from '../types';
 import { Icons } from './Icons';
 import SpellCard from './SpellCard';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { translateSpell } from '../utils/TranslatorSpells';
+import { translateSpell } from '../utils/translator';
 
 const Spellbook: React.FC = () => {
     const { character, castSpell, isLoading: isActionLoading } = useGameStateContext();
@@ -32,7 +32,7 @@ const Spellbook: React.FC = () => {
                 }
             );
             
-            setSpellDetails(results.map(translateSpell));
+            setSpellDetails(results.map(spell => translateSpell(spell) as ApiSpell));
             setIsSpellsLoading(false);
             setLoadingProgress(null);
         };
@@ -77,7 +77,7 @@ const Spellbook: React.FC = () => {
                     <h4 className="font-semibold text-stone-300 text-sm mb-2">Espaços de Magia</h4>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {spellSlotLevels.map(level => {
-                            const slotKey = `level${level}`;
+                            const slotKey = `level${level}` as keyof typeof character.spellSlots;
                             const slots = character.spellSlots[slotKey];
                             return (
                                 <div key={level} className="text-center">
@@ -112,7 +112,7 @@ const Spellbook: React.FC = () => {
                                         key={spell.index} 
                                         spell={spell}
                                         onCast={castSpell}
-                                        canCast={spell.level === 0 || (character.spellSlots[`level${spell.level}`]?.current || 0) > 0}
+                                        canCast={spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0}
                                         isActionLoading={isActionLoading}
                                     />
                                 ))}

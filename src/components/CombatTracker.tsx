@@ -1,13 +1,12 @@
-// components/CombatTracker.tsx
+'use client';
 import React from 'react';
-// FIX: Corrected import path for local module.
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { Icons } from './Icons';
 
 const CombatTracker: React.FC = () => {
     const { combatState } = useGameStateContext();
 
-    if (!combatState.isActive) return null;
+    if (!combatState.isActive || combatState.combatants.length === 0) return null;
 
     const { round, combatants, turn } = combatState;
     const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);

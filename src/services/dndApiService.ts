@@ -1,5 +1,5 @@
 // services/dndApiService.ts
-import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass } from '../types';
+import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
@@ -31,6 +31,7 @@ export const getAlignments = () => fetchFromApi<{ results: ApiListItem[] }>('/al
 export const getSkills = () => fetchFromApi<{ results: ApiListItem[] }>('/skills');
 export const getLanguages = () => fetchFromApi<{ results: ApiListItem[] }>('/languages');
 export const getBackgrounds = () => fetchFromApi<{ results: ApiListItem[] }>('/backgrounds');
+export const getFeats = () => fetchFromApi<{ results: ApiListItem[] }>('/feats');
 
 export const getRaceDetails = (index: string) => fetchFromApi<ApiRace>(`/races/${index}`);
 export const getSubraceDetails = (index: string) => fetchFromApi<ApiSubrace>(`/subraces/${index}`);
@@ -48,15 +49,4 @@ export const getEquipmentDetails = (index: string) => fetchFromApi<Partial<Inven
 export const getConditionDetails = (index: string) => fetchFromApi<ApiCondition>(`/conditions/${index}`);
 export const getFeatureDetails = (index: string) => fetchFromApi<ApiFeature>(`/features/${index}`);
 export const getClassLevelDetails = (classIndex: string, level: number) => fetchFromApi<ApiClassLevel>(`/classes/${classIndex}/levels/${level}`);
-
-// Constants for game logic
-export const XP_THRESHOLDS: Record<number, number> = {
-    1: 300, 2: 900, 3: 2700, 4: 6500, 5: 14000, 6: 23000, 7: 34000, 8: 48000, 9: 64000,
-    10: 85000, 11: 100000, 12: 120000, 13: 140000, 14: 165000, 15: 195000, 16: 225000,
-    17: 265000, 18: 305000, 19: 355000, 20: Infinity
-};
-
-export const PROFICIENCY_BONUS: Record<number, number> = {
-    1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3, 8: 3, 9: 4, 10: 4, 11: 4, 12: 4,
-    13: 5, 14: 5, 15: 5, 16: 5, 17: 6, 18: 6, 19: 6, 20: 6
-};
+export const getFeatDetails = (index: string) => fetchFromApi<Feat>(`/feats/${index}`);

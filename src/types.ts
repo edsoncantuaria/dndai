@@ -80,6 +80,10 @@ export interface ApiBackground {
     starting_proficiencies: Proficiency[];
     language_options: {
         choose: number;
+        from: {
+             option_set_type: string;
+             options: any[];
+        }
     };
     starting_equipment: {
         equipment: ApiListItem;
@@ -109,7 +113,7 @@ export interface ProficiencyChoice {
     from: {
         option_set_type: string;
         options: ApiEquipmentOption[];
-        equipment_category: ApiListItem;
+        equipment_category?: ApiListItem;
     };
 }
 
@@ -122,6 +126,7 @@ export interface ApiEquipmentOption {
     from?: any;
     choice?: any;
     items?: ApiEquipmentOption[];
+    item?: ApiListItem;
 }
 
 
@@ -151,6 +156,7 @@ export interface CharacterCreationInfo {
     ideal: string;
     bond: string;
     flaw: string;
+    feats: string[];
 }
 export interface NewCharacterInfo extends Omit<CharacterCreationInfo, 'inventory'> {
     hitDie: number;
@@ -237,8 +243,11 @@ export interface Character {
     };
     currentWeight: number;
     carryingCapacity: number;
-    spellSlots: Record<string, { current: number; max: number }>;
+    spellSlots: {
+        [key: string]: { current: number; max: number };
+    };
     spells: string[];
+    feats: Feat[];
     backstory: string;
     personalityTraits: string[];
     ideal: string;
@@ -445,4 +454,15 @@ export interface ApiSubclass {
         prerequisites: ApiListItem[];
         spell: ApiListItem;
     }[];
+}
+
+export interface Feat {
+    index: string;
+    name: string;
+    prerequisites: {
+        ability_score: ApiListItem;
+        minimum_score: number;
+    }[];
+    desc: string[];
+    url: string;
 }

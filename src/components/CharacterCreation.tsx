@@ -1,18 +1,15 @@
-// Este componente agora atua como um roteador para a nova UI de criação,
-// mantendo a lógica de busca de dados centralizada.
-
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { useCharacterCreation } from '@/hooks/useCharacterCreation';
 import * as DndApiService from '@/services/dndApiService';
-import { ApiListItem } from '@/types';
+import type { ApiListItem } from '@/types';
 import { Icons } from './Icons';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 
 const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
-    const { createCharacter, isLoading, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
+    const { isLoading, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
     const [view, setView] = useState<'menu' | 'form'>('menu');
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -23,7 +20,8 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
     const [alignments, setAlignments] = useState<ApiListItem[]>([]);
-    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
+    const [feats, setFeats] = useState<ApiListItem[]>([]);
+
 
     useEffect(() => {
         setHasSavedGame(checkForSavedGame());
@@ -34,18 +32,18 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
-                const [racesData, classesData, backgroundsData, alignmentsData, languagesData] = await Promise.all([
+                const [racesData, classesData, backgroundsData, alignmentsData, featsData] = await Promise.all([
                     DndApiService.getRaces(),
                     DndApiService.getClasses(),
                     DndApiService.getBackgrounds(),
                     DndApiService.getAlignments(),
-                    DndApiService.getLanguages(),
+                    DndApiService.getFeats(),
                 ]);
                 setRaces(racesData?.results || []);
                 setClasses(classesData?.results || []);
                 setBackgrounds(backgroundsData?.results || []);
                 setAlignments(alignmentsData?.results || []);
-                setAllLanguages(languagesData?.results || []);
+                setFeats(featsData?.results || []);
             } catch (error) {
                 console.error("Failed to load initial creation data:", error);
                 setFormError("Falha ao carregar dados essenciais. Por favor, tente recarregar a página.");
@@ -60,7 +58,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         if (hasSavedGame) {
              if (window.confirm('Tem certeza que deseja iniciar um novo jogo? O progresso atual será perdido.')) {
                 startNewGame();
-                // O componente será resetado via page.tsx
+                setView('form');
             }
         } else {
             setView('form');
@@ -97,14 +95,13 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         );
     }
 
-    // Renderiza a nova UI de criação de personagem
     return (
         <NewCharacterCreation
             races={races}
             classes={classes}
             backgrounds={backgrounds}
             alignments={alignments}
-            allLanguages={allLanguages}
+            feats={feats}
             onBackToMenu={() => setView('menu')}
         />
     );
