@@ -18,7 +18,7 @@ const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (option.type === 'multiple' && option.from.options) {
         return option.from.options.map(o => getOptionLabel(o)).join(' + ');
     }
-    if (option.type === 'choice' && option.from.equipment_category) {
+    if (option.type === 'choice' && option.from.option_set_type === 'equipment_category') {
          const choose = option.choose && option.choose > 1 ? ` (Escolha ${option.choose})` : '';
          return `Qualquer ${translateEquipment(option.from.equipment_category.name)}${choose}`;
     }
