@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=IM+Fell+English&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -56,5 +58,44 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
+    font-family: 'IM Fell English', serif;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cinzel Decorative', serif;
+  }
+}
+
+@layer components {
+  .menu-button {
+    @apply w-full max-w-sm px-6 py-3 text-lg font-bold text-amber-100 transition-all duration-300 ease-in-out;
+    @apply border-2 border-solid rounded-lg shadow-lg;
+    background-size: 200% 100%;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .menu-button:hover {
+    @apply shadow-2xl;
+    transform: translateY(-3px) scale(1.02);
+  }
+
+  .btn-continue {
+    @apply bg-gradient-to-r from-red-800 via-red-700 to-red-800 border-red-500;
+  }
+  .btn-continue:hover {
+    @apply bg-right-center border-red-400 text-white;
+  }
+
+  .btn-import {
+    @apply bg-gradient-to-r from-stone-700 via-stone-600 to-stone-700 border-stone-500;
+  }
+  .btn-import:hover {
+    @apply bg-right-center border-stone-400 text-white;
+  }
+
+  .btn-new {
+    @apply bg-gradient-to-r from-amber-600 via-amber-500 to-amber-600 border-amber-400 text-black;
+  }
+  .btn-new:hover {
+    @apply bg-right-center border-amber-300 text-black;
   }
 }

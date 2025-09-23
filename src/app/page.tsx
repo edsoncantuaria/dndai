@@ -4,8 +4,6 @@ import Game from './_components/Game';
 import { useState, useCallback } from 'react';
 
 export default function HomePage() {
-  // A key is used to force re-mounting of the GameStateProvider and all its children,
-  // effectively resetting the entire game state.
   const [gameKey, setGameKey] = useState(0);
 
   const startNewGame = useCallback(() => {
@@ -15,10 +13,10 @@ export default function HomePage() {
 
   return (
     <main
-      className="flex min-h-screen flex-col items-center justify-center bg-cover bg-center bg-no-repeat"
+      className="flex min-h-screen flex-col items-center justify-center bg-cover bg-center bg-no-repeat p-4"
       style={{ backgroundImage: "url('/background.jpg')" }}
     >
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <GameStateProvider key={gameKey}>
         <Game startNewGame={startNewGame} />
       </GameStateProvider>
