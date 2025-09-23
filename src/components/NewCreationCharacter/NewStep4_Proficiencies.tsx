@@ -27,12 +27,11 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
         proficiencySelections,
         unavailableProficiencies,
         handleProficiencyChange,
+        canProceedToNextStep,
     } = hook;
 
     // Validação para saber se todas as escolhas obrigatórias foram feitas
-    const canProceed = allProficiencyChoices.every(choice =>
-        (proficiencySelections[choice.id]?.length || 0) === choice.choose
-    );
+    const canProceed = canProceedToNextStep;
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -61,7 +60,10 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
                 <div className="space-y-6">
                     {allProficiencyChoices.map((choice) => {
                         const selectedCountInGroup = proficiencySelections[choice.id]?.length || 0;
+                        const availableOptions = choice.options.filter(option => !allFixedProficiencies.has(option.index));
                         
+                        if(availableOptions.length === 0) return null;
+
                         return (
                             <div key={choice.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
                                 <h4 className="font-semibold text-amber-300 mb-1">{normalizeProficiencyName(choice.desc)}</h4>
@@ -126,4 +128,3 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
 };
 
 export default NewStep4_Proficiencies;
-

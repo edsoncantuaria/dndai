@@ -160,6 +160,14 @@ export const useNewCharacterCreation = () => {
         return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
     }, [allFixedProficiencies, proficiencySelections]);
 
+    const canProceedToNextStep = useMemo(() => {
+        return allProficiencyChoices.every(choice => {
+            const selectedCount = proficiencySelections[choice.id]?.length || 0;
+            const availableOptionsCount = choice.options.filter(opt => !allFixedProficiencies.has(opt.index)).length;
+            return selectedCount === choice.choose || availableOptionsCount < choice.choose;
+        });
+    }, [allProficiencyChoices, proficiencySelections, allFixedProficiencies]);
+
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
         const choiceGroups: EquipmentChoiceGroup[] = [];
         const fixed: InventoryItem[] = [];
@@ -659,6 +667,7 @@ export const useNewCharacterCreation = () => {
         allFixedProficiencies,
         allProficiencyChoices,
         unavailableProficiencies,
+        canProceedToNextStep,
         equipmentChoiceGroups,
         fixedEquipment,
         startingGold,
