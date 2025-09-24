@@ -42,6 +42,12 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     const canProceed = areRacialSpellsSelected && areClassSpellsSelected;
 
+    // --- NEW: Create a set of all unique chosen spell indices ---
+    const allChosenSpellIndices = new Set([
+        ...chosenClassSpells,
+        ...Object.values(chosenRacialSpells).flat(),
+    ]);
+
     if (isSpellsLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
@@ -104,6 +110,8 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
                                         const isSelected = !!chosenRacialSpells[trait.traitName]?.includes(spell.index);
                                         const isLimitReached = !isSelected && selectedCount >= trait.choose;
+                                        // --- NEW: Disable if already selected in another group (e.g., class spells) ---
+                                        const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
 
                                         return (
                                             <NewSpellCard
@@ -111,7 +119,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                                 spell={spell}
                                                 isSelectable={true}
                                                 isSelected={isSelected}
-                                                isDisabled={isLimitReached}
+                                                isDisabled={isLimitReached || isAlreadyChosen}
                                                 onToggleSelect={() => handleRacialSpellChange(trait.traitName, spell.index, trait.choose)}
                                             />
                                         );
@@ -133,13 +141,16 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                 {allCantrips.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isLimitReached = !isSelected && selectedCantripsCount >= cantripsKnown;
+                                    // --- NEW: Disable if already selected in another group (e.g., racial spells) ---
+                                    const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
+
                                     return (
                                         <NewSpellCard
                                             key={spell.index}
                                             spell={spell}
                                             isSelectable={true}
                                             isSelected={isSelected}
-                                            isDisabled={isLimitReached}
+                                            isDisabled={isLimitReached || isAlreadyChosen}
                                             onToggleSelect={() => handleClassSpellChange(spell.index)}
                                         />
                                     )
@@ -154,13 +165,16 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                 {allLevel1Spells.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isLimitReached = !isSelected && selectedSpellsCount >= spellsKnown;
+                                    // --- NEW: Disable if already selected in another group (e.g., racial spells) ---
+                                    const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
+
                                     return (
                                         <NewSpellCard
                                             key={spell.index}
                                             spell={spell}
                                             isSelectable={true}
                                             isSelected={isSelected}
-                                            isDisabled={isLimitReached}
+                                            isDisabled={isLimitReached || isAlreadyChosen}
                                             onToggleSelect={() => handleClassSpellChange(spell.index)}
                                         />
                                     )
