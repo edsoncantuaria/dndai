@@ -33,6 +33,28 @@ function isObject(item: any): boolean {
     return (item && typeof item === 'object' && !Array.isArray(item));
 }
 
+// Function to create a lean summary of the character for the AI prompt
+const createCharacterSummary = (character: Character) => {
+    const { 
+        classLevelsData, 
+        subclassLevelsData, 
+        inventory,
+        proficiencies,
+        ...summary 
+    } = character;
+    
+    return {
+        ...summary,
+        inventory: inventory.map(({ id, name, quantity, equipped }) => ({
+            id,
+            name,
+            quantity,
+            equipped,
+        })),
+        proficiencies: proficiencies.map(p => p.name),
+    };
+};
+
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
@@ -46,21 +68,17 @@ export const useNewGameState = () => {
 
     // --- Core State Management ---
     
-    // NEW: Use useEffect to save game state whenever character or log changes.
-    // This is more reliable than calling saveGame manually from multiple places.
     useEffect(() => {
-        if (character && !isLoading) { // Only save if a game is loaded and not during initial load
+        if (character && !isLoading) {
             try {
                 const gameState = { character, log };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
-                console.log("[useNewGameState] Jogo salvo no localStorage.");
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
     }, [character, log, isLoading]);
     
-    // Auto-load on initial mount
     useEffect(() => {
         try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -68,16 +86,14 @@ export const useNewGameState = () => {
                 const { character: savedCharacter, log: savedLog } = JSON.parse(savedGame);
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
-                // Clear transient states that shouldn't persist
                 setActionOptions([]);
                 setIsLoading(false);
-                 console.log("[useNewGameState] Jogo carregado do localStorage.");
             } else {
-                setIsLoading(false); // No saved game found
+                setIsLoading(false);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
             setIsLoading(false);
         }
     }, []);
@@ -89,13 +105,11 @@ export const useNewGameState = () => {
             return;
         }
 
-        // 1. Update character state first
         if (response.updatedCharacter) {
              setCharacter(prev => {
                 if (!prev) return null;
                 const updated = mergeDeep(prev, response.updatedCharacter);
                 
-                // Recalculate derived stats
                 const newModifiers = characterUtils.calculateModifiers(updated.attributes);
                 updated.modifiers = newModifiers;
                 updated.ac = characterUtils.calculateAC(updated.inventory, newModifiers);
@@ -106,13 +120,11 @@ export const useNewGameState = () => {
             });
         }
         
-        // 2. Update log
         if (response.logEntries) {
             const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
         
-        // 3. Update other game states
         if (response.actionOptions) {
             setActionOptions(response.actionOptions);
         }
@@ -134,10 +146,11 @@ export const useNewGameState = () => {
         setLog(currentLog);
         setActionOptions([]);
         
+        const characterSummary = createCharacterSummary(character);
         const gameUpdateInput = {
-          character,
+          character: characterSummary,
           playerAction: action,
-          gameLog: log.slice(-10) // Send only the last 10 log entries for brevity
+          gameLog: currentLog.slice(-10) 
         };
         console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
 
@@ -155,9 +168,10 @@ export const useNewGameState = () => {
         setIsLoading(true);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
-
+        
+        const characterSummary = createCharacterSummary(newCharacter);
         const initialStoryInput = {
-            character: newCharacter,
+            character: characterSummary,
             playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
             gameLog: [],
         };
@@ -165,7 +179,6 @@ export const useNewGameState = () => {
         console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
         const response = await newGeminiService.getInitialStory(initialStoryInput);
         
-        // Set the character state, which will trigger the useEffect to save the game
         setCharacter(newCharacter); 
         setLog([]); 
 
@@ -174,12 +187,11 @@ export const useNewGameState = () => {
     }, [handleApiResponse]);
 
     const startNewGame = useCallback(() => {
-        setIsLoading(true); // Prevent saving while resetting
+        setIsLoading(true);
         setCharacter(null);
         setLog([]);
         setActionOptions([]);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
-        console.log("[useNewGameState] Novo jogo iniciado, localStorage limpo.");
         setIsLoading(false);
     }, []);
 
@@ -196,12 +208,10 @@ export const useNewGameState = () => {
             if (!prev) return null;
             const newInventory = prev.inventory.map(item => {
                 if (item.id === itemId) return { ...item, equipped: !item.equipped };
-                // Handle weapon/shield un-equipping logic if needed
                 return item;
             });
             const newCharacter = { ...prev, inventory: newInventory };
             newCharacter.ac = characterUtils.calculateAC(newInventory, newCharacter.modifiers);
-            // The change to 'character' state will trigger the saveGame useEffect
             return newCharacter;
         });
     }, []);
