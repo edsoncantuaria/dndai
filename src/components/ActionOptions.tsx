@@ -26,7 +26,7 @@ const HitDiceRoller: React.FC = () => {
                 <input 
                     type="range" 
                     min="0" 
-                    max={maxDice} 
+                    max={maxDice || 0}
                     value={diceToSpend} 
                     onChange={(e) => setDiceToSpend(parseInt(e.target.value, 10))}
                     className="w-full"
@@ -96,17 +96,21 @@ const ActionOptions: React.FC = () => {
 
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {actionOptions.map((action, index) => (
-                <button
-                    key={index}
-                    onClick={() => processPlayerAction(action)}
-                    disabled={isLoading}
-                    className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                    style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
-                >
-                    {action}
-                </button>
-            ))}
+            {actionOptions.map((action, index) => {
+                const actionText = typeof action === 'object' && action !== null && 'text' in action ? (action as any).text : action;
+                const actionValue = typeof action === 'object' && action !== null && 'action' in action ? (action as any).action : action;
+                return (
+                    <button
+                        key={index}
+                        onClick={() => processPlayerAction(actionValue)}
+                        disabled={isLoading}
+                        className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                        style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
+                    >
+                        {actionText}
+                    </button>
+                )
+            })}
         </div>
     );
 };
