@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 // --- Zod Schemas for Input and Output Validation ---
 
-const GameMasterFlowInputSchema = z.object({
+export const GameMasterFlowInputSchema = z.object({
   character: z.custom<Character>(),
   playerAction: z.string(),
   gameLog: z.array(z.custom<LogEntry>()),
@@ -86,8 +86,26 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
 
-// --- Genkit Flow Definition ---
+// --- NEW Genkit Prompt Definition ---
+const gameMasterPrompt = ai.definePrompt(
+  {
+    name: 'gameMasterPrompt',
+    input: { schema: GameMasterFlowInputSchema },
+    output: { schema: GameMasterResponseSchema },
+    prompt: `
+        ${systemInstruction}
 
+        O estado atual do personagem é: {{{character}}}
+        As últimas 10 entradas do log da aventura são: {{{gameLog}}}
+        A ação do jogador é: "{{{playerAction}}}"
+
+        Com base nisso, continue a aventura.
+    `,
+  }
+);
+
+
+// --- Genkit Flow Definition ---
 const gameMasterFlow = ai.defineFlow(
   {
     name: 'gameMasterFlow',
@@ -95,11 +113,12 @@ const gameMasterFlow = ai.defineFlow(
     outputSchema: GameMasterResponseSchema,
   },
   async (input) => {
+    console.log("[GeminiService] Flow invocado com a ação:", input.playerAction);
     
     // Create a summarized character object to keep the prompt concise
     const characterSummary = {
         ...input.character,
-        // Avoid sending overly large or redundant data
+        // Avoid sending overly large or redundant data to the AI
         classLevelsData: undefined, 
         subclassLevelsData: undefined,
         inventory: input.character.inventory.map(({ id, name, quantity, equipped }) => ({
@@ -107,35 +126,18 @@ const gameMasterFlow = ai.defineFlow(
         })),
     };
 
-    const prompt = `
-        ${systemInstruction}
-
-        O estado atual do personagem é: ${JSON.stringify(characterSummary)}
-        As últimas 10 entradas do log da aventura são: ${JSON.stringify(input.gameLog)}
-        A ação do jogador é: "${input.playerAction}"
-
-        Com base nisso, continue a aventura.
-    `;
-
-    console.log("[GeminiService] Prompt enviado para o modelo Genkit.");
-
-    const llmResponse = await ai.generate({
-      prompt: prompt,
-      output: {
-        format: 'json',
-        schema: GameMasterResponseSchema,
-      },
+    const { output } = await gameMasterPrompt({
+      ...input,
+      character: characterSummary as any,
     });
-
-    const responseData = llmResponse.output();
     
-    if (!responseData) {
+    if (!output) {
         console.error("[GeminiService] Erro: A resposta da IA foi nula ou vazia.");
         throw new Error("A resposta da IA foi nula.");
     }
     
     console.log("[GeminiService] Resposta da IA recebida e validada com sucesso.");
-    return responseData;
+    return output;
   }
 );
 
