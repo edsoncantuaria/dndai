@@ -19,7 +19,7 @@ const HitDiceRoller: React.FC = () => {
     };
     
     return (
-        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center">
+        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn">
             <h4 className="font-semibold text-amber-300">Gastar Dados de Vida</h4>
             <p className="text-sm text-stone-300 my-2">Você tem {character.hitDice.current} de {character.hitDice.total} Dados de Vida (d{pendingHitDiceRequest.hitDieValue}). Quantos você quer gastar para se curar?</p>
             <div className="flex items-center justify-center gap-4 my-3">
@@ -51,7 +51,7 @@ const LootOfferDisplay: React.FC = () => {
     if (!pendingLootOffer) return null;
 
     return (
-        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center">
+        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn">
             <h4 className="font-semibold text-amber-300">Tesouro Encontrado!</h4>
             <ul className="text-sm text-stone-300 my-2 list-disc list-inside">
                 {pendingLootOffer.items.map(item => (
@@ -102,7 +102,7 @@ const ActionOptions: React.FC = () => {
                     onClick={() => processPlayerAction(action)}
                     disabled={isLoading}
                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                    style={{ animationDelay: `${index * 80}ms`, animation: 'staggerIn 300ms ease-out forwards' }}
+                    style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                 >
                     {action}
                 </button>

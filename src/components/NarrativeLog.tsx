@@ -1,22 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
-// FIX: Corrected import path for local module.
+import React, { useRef, useEffect } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-// FIX: Corrected import path for local module.
 import type { LogEntry as LogEntryType } from '../types';
 import { Icons } from './Icons';
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
     const { description, dice, total, modifier, success, advantage, disadvantage, rolls, rollType, dc } = entry.rollResult;
-    const [showResult, setShowResult] = useState(false);
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowResult(true);
-        }, 1200);
-        return () => clearTimeout(timer);
-    }, []);
-
+    
     const isDamageRoll = rollType === 'damage';
 
     let outcomeText = '';
@@ -51,18 +41,11 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     return (
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
             <p className={`${themeColor} font-mono`}>{icon} {description}{advantageText}</p>
-            {!showResult ? (
-                <div className={`flex items-center gap-2 ${resultColor} font-mono h-5`}>
-                    <Icons.Spinner className="h-4 w-4" />
-                    <span>Rolando...</span>
-                </div>
-            ) : (
-                <div className={`font-mono ${resultColor} h-5`}>
-                    <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier)}`} = <span className="font-bold text-lg">{total}</span>. </span>
-                    {dc && <span className="text-stone-400 text-xs">(DC: {dc}) </span>}
-                    <span className={`font-bold`}>{outcomeText}</span>
-                </div>
-            )}
+            <div className={`font-mono ${resultColor}`}>
+                <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier)}`} = <span className="font-bold text-lg">{total}</span>. </span>
+                {dc && <span className="text-stone-400 text-xs">(DC: {dc}) </span>}
+                <span className={`font-bold`}>{outcomeText}</span>
+            </div>
         </div>
     );
 }
@@ -86,7 +69,6 @@ const getActionIcon = (content: string) => {
         return <Icons.Target className="h-4 w-4 text-cyan-400" title="Ação de Perícia" />;
     }
 
-    // Default icon
     return <span className="text-amber-400 font-bold" aria-hidden="true">&gt;</span>;
 };
 

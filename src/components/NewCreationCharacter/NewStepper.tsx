@@ -14,7 +14,7 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
             <div className="flex items-center">
                 {Array.from({ length: totalSteps }).map((_, index) => {
                     const step = index + 1;
-                    const isCompleted = step < currentStep;
+                    const isCompleted = step < highestStep;
                     const isActive = step === currentStep;
                     const isReachable = step <= highestStep;
 
@@ -26,11 +26,11 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
                                     disabled={!isReachable || isActive}
                                     className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all duration-300 ${
                                         isActive
-                                            ? 'bg-amber-500 text-stone-900 scale-110'
-                                            : isCompleted
-                                            ? 'bg-green-700 text-white cursor-pointer hover:bg-green-600'
-                                            : 'bg-stone-700 text-stone-400 opacity-50'
-                                    } ${isReachable && !isActive ? 'cursor-pointer' : 'cursor-default'}`}
+                                            ? 'bg-amber-500 text-stone-900 scale-110 shadow-lg shadow-amber-500/30'
+                                            : isReachable
+                                            ? 'bg-stone-600 text-stone-200 cursor-pointer hover:bg-amber-700'
+                                            : 'bg-stone-800 text-stone-500'
+                                    } ${!isReachable || isActive ? 'cursor-default' : ''}`}
                                 >
                                     {isCompleted ? '✔' : step}
                                 </button>
@@ -38,7 +38,7 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
                             {step < totalSteps && (
                                 <div
                                     className={`flex-auto border-t-2 transition-all duration-300 mx-2 w-8 sm:w-12 ${
-                                        isCompleted || isActive ? 'border-amber-500' : 'border-stone-600'
+                                        step < currentStep ? 'border-amber-500' : 'border-stone-700'
                                     }`}
                                 ></div>
                             )}
