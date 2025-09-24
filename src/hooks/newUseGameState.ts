@@ -53,6 +53,7 @@ export const useNewGameState = () => {
             if (response.updatedCharacter) {
                 newCharacterState = mergeDeep(newCharacterState, response.updatedCharacter);
 
+                // Garante que o inventário seja sempre um array
                 if (!Array.isArray(newCharacterState.inventory)) {
                     newCharacterState.inventory = [];
                 }
@@ -84,17 +85,20 @@ export const useNewGameState = () => {
         if (!character) return;
         
         setIsLoading(true);
+        // Limpa estados pendentes antes de uma nova ação
+        setPendingHitDiceRequest(null);
+        setPendingLootOffer(null);
+        
         const newActionLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
         
-        setLog(prevLog => [...prevLog, newActionLogEntry]);
+        const currentLog = [...log, newActionLogEntry];
+        setLog(currentLog);
         setActionOptions([]);
-        setPendingLootOffer(null);
-        setPendingHitDiceRequest(null);
         
         const gameUpdateInput = {
             character,
             playerAction: action,
-            gameLog: [...log, newActionLogEntry]
+            gameLog: currentLog
         };
         
         console.log("[useGameState] Enviando para a IA:", gameUpdateInput);
@@ -113,20 +117,28 @@ export const useNewGameState = () => {
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
+        // A chamada para a IA foi movida para um useEffect em Game.tsx
+        // para garantir que o estado do personagem seja definido primeiro.
+        setIsLoading(false);
+    }, []);
 
+    const startGame = useCallback(async () => {
+        if (!character) return;
+        setIsLoading(true);
+        
         const gameUpdateInput = {
-            character: newCharacter,
+            character,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
             gameLog: []
         };
         
         console.log('[useGameState] Enviando para a IA (história inicial):', gameUpdateInput);
-        const response = await geminiService.getInitialStory(gameUpdateInput);
+        const response = await geminiService.getGameUpdate(gameUpdateInput);
         
         handleApiResponse(response);
         
         setIsLoading(false);
-    }, [handleApiResponse]);
+    }, [character, handleApiResponse]);
     
     const checkForSavedGame = useCallback(() => {
         try {
@@ -178,7 +190,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { character, log };
+            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -192,7 +204,7 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
 
     const loadGameFromFile = (file: File) => {
         const reader = new FileReader();
@@ -282,6 +294,7 @@ export const useNewGameState = () => {
         pendingHitDiceRequest,
         isLoading,
         createCharacter,
+        startGame,
         processPlayerAction,
         applyLevelUp,
         toggleEquipped,
