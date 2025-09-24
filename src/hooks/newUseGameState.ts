@@ -19,7 +19,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
     const saveGame = useCallback(() => {
         if (character) {
@@ -33,8 +33,7 @@ export const useNewGameState = () => {
     }, [character, log]);
 
     useEffect(() => {
-        // This effect now automatically saves the game whenever character or log changes.
-         if (character && log.length > 0) { // Only save if there's a game in progress
+         if (character && log.length > 0) { 
             saveGame();
         }
     }, [character, log, saveGame]);
@@ -54,7 +53,6 @@ export const useNewGameState = () => {
             if (response.updatedCharacter) {
                 newCharacterState = mergeDeep(newCharacterState, response.updatedCharacter);
 
-                // Safety check: ensure inventory is always an array
                 if (!Array.isArray(newCharacterState.inventory)) {
                     newCharacterState.inventory = [];
                 }
@@ -87,8 +85,8 @@ export const useNewGameState = () => {
         
         setIsLoading(true);
         const newActionLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        const currentLog = [...log, newActionLogEntry];
-        setLog(currentLog);
+        
+        setLog(prevLog => [...prevLog, newActionLogEntry]);
         setActionOptions([]);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
@@ -96,7 +94,7 @@ export const useNewGameState = () => {
         const gameUpdateInput = {
             character: character,
             playerAction: action,
-            gameLog: currentLog
+            gameLog: [...log, newActionLogEntry]
         };
         console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
         
@@ -150,7 +148,7 @@ export const useNewGameState = () => {
                 const { character: savedCharacter, log: savedLog } = JSON.parse(savedGame);
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
-                setActionOptions([]); // Clear old options
+                setActionOptions([]);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -213,30 +211,25 @@ export const useNewGameState = () => {
     const applyLevelUp = useCallback(async (selections: LevelUpSelections) => {
         if (!character || !levelUpState || !levelUpState.isPending) return;
         console.log('Aplicando level up com as seleções:', selections);
-        // This is a placeholder for the full logic
-        // In a real scenario, you'd fetch class/subclass level data and apply features
+        
         setCharacter(prev => {
             if (!prev) return null;
             const newChar = { ...prev };
             newChar.level = levelUpState.newLevel;
             newChar.xpToNextLevel = characterUtils.getXpThreshold(newChar.level);
 
-            // Apply HP increase
             if (selections.hpIncrease) {
                 newChar.hp.max += selections.hpIncrease;
                 newChar.hp.current += selections.hpIncrease;
             }
-
-            // TODO: Add logic for feature choices, spells, etc.
 
             return newChar;
         });
 
         setLevelUpState(prev => prev ? { ...prev, isPending: false } : null);
         setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` }]);
-        setActionOptions([]); // Clear level up options
+        setActionOptions([]);
     }, [character, levelUpState]);
-
 
     const toggleEquipped = useCallback((itemId: string) => {
         if (!character) return;
@@ -272,7 +265,6 @@ export const useNewGameState = () => {
          if (!character) return;
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
-
 
     return {
         character,

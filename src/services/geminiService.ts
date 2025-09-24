@@ -41,35 +41,23 @@ const generationConfig = {
     responseMimeType: "application/json",
 };
 
-
 const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
     
     // Constrói uma versão mais limpa e legível do personagem para o prompt
-    const characterContext = `
-### Estado do Personagem
-- **Nome:** ${character.name} (Nível ${character.level} ${character.characterClass})
-- **HP:** ${character.hp.current}/${character.hp.max} | **AC:** ${character.ac.value}
-- **Atributos:** For ${character.attributes.strength}(${character.modifiers.strength}), Des ${character.attributes.dexterity}(${character.modifiers.dexterity}), Con ${character.attributes.constitution}(${character.modifiers.constitution}), Int ${character.attributes.intelligence}(${character.modifiers.intelligence}), Sab ${character.attributes.wisdom}(${character.modifiers.wisdom}), Car ${character.attributes.charisma}(${character.modifiers.charisma})
-- **Perícias:** ${character.proficiencies.map(p => p.name).join(', ')}
-- **Inventário:** ${character.inventory.map(i => `${i.name} (x${i.quantity})`).join(', ') || 'Vazio'}
-- **Região Atual:** ${character.currentRegion}
-- **Personalidade:** ${character.personalityTraits.join(' ')}
-- **Resumo da História:** ${character.storySoFar || 'Ainda não há história.'}
-    `;
-
-    const logContext = `
-### Últimos Eventos
-${gameLog.slice(-10).map(l => `${l.type === 'action' ? 'Jogador' : 'Mestre'}: ${l.content}`).join('\n')}
-    `;
+    const characterContext = JSON.stringify(character, null, 2);
+    const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
 
     return `
+### Estado do Personagem (JSON)
 ${characterContext}
+
+### Últimos Eventos (JSON)
 ${logContext}
 ---
 A ação do jogador é: "${playerAction}"
 
-Com base nisso, continue a aventura.
+Com base no estado atual do personagem e no histórico, continue a aventura.
     `;
 }
 
@@ -83,7 +71,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
     }
     try {
         const prompt = createPrompt(input);
-        console.log("[geminiService] Prompt enviado para a IA:", prompt); // Log do prompt
+        console.log("[geminiService] Prompt enviado para a IA:", prompt); 
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -92,7 +80,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 
         const response = result.response;
         const jsonText = response.text();
-        console.log("[geminiService] Resposta bruta da IA:", jsonText); // Log da resposta bruta
+        console.log("[geminiService] Resposta bruta da IA:", jsonText); 
 
         const responseData = JSON.parse(jsonText) as GameMasterResponse;
         
@@ -101,7 +89,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 
     } catch (error) {
         console.error("Erro ao chamar ou processar a resposta da API do Gemini:", error);
-        return null;
+        return {
+            logEntries: [{ type: 'system', content: `O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}` }],
+            actionOptions: ['Tentar uma ação diferente.'],
+        };
     }
 };
 
