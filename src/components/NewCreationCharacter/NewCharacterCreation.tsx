@@ -38,7 +38,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
 
     useEffect(() => {
         if (wizardRef.current) {
-            wizardRef.current.scrollIntoView({ behavior: 'smooth' });
+            wizardRef.current.scrollTo(0, 0);
         }
     }, [currentStep]);
 
@@ -87,7 +87,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     };
 
     return (
-        <div ref={wizardRef} className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn">
+        <div ref={wizardRef} className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn max-h-[90vh] overflow-y-auto">
             <header className="flex justify-between items-center border-b border-stone-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold font-garamond text-amber-300 text-shadow-amber">Criação de Personagem</h2>
                 <button type="button" onClick={onBackToMenu} className="text-sm text-stone-400 hover:text-amber-400 transition-colors">

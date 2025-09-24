@@ -13,7 +13,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="h-full w-full"
+      className="min-h-screen w-full"
     >
       <GameStateProvider key={gameKey}>
         <Game startNewGame={startNewGame} />
