@@ -7,7 +7,7 @@ import {
 } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { getCostOfNextLevel, getRefundForPrevLevel, getOptionLabel } from '../utils/creationHelpers';
+import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelpers';
 import { translateSpell } from '@/utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -157,17 +157,17 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const newId = `${idPrefix}-${index}`;
                 if (option.option_type === 'choice') {
                     processChoice(option.choice, source, newId);
-                } else if (option.option_type === 'reference') {
-                    const parentId = `${idPrefix}-group`;
+                } else if (option.option_type === 'reference' && option.item) {
+                     const parentId = `${idPrefix}-group-${choice.desc.substring(0, 10)}`;
                     const existingGroup = choices.find(c => c.id === parentId);
                     if (existingGroup) {
-                        existingGroup.options.push(option.item!);
+                        existingGroup.options.push(option.item);
                     } else {
                         choices.push({
                             ...choice,
                             id: parentId,
                             source,
-                            options: [option.item!]
+                            options: [option.item]
                         });
                     }
                 }
@@ -184,8 +184,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const key = `${choice.desc}-${choice.choose}`;
             if (groupedChoices[key]) {
                 groupedChoices[key].options.push(...choice.options);
+                // Ensure unique options
+                groupedChoices[key].options = Array.from(new Set(groupedChoices[key].options.map(o => o.index))).map(index => groupedChoices[key].options.find(o => o.index === index)!);
             } else {
-                groupedChoices[key] = { ...choice };
+                groupedChoices[key] = { ...choice, id: key };
             }
         });
 
@@ -239,9 +241,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 return parseInt(match[1], 10);
             }
         }
-        if (background === 'acolyte') return 15;
         return 0;
-    }, [fixedEquipment, background]);
+    }, [fixedEquipment]);
 
     const areAllEquipmentChoicesMade = useMemo(() => {
         return equipmentChoiceGroups.every(group => {
@@ -292,16 +293,21 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setProficiencySelections({});
         setFinalizedEquipment([]);
         setEquipmentSelections({});
-        setChosenClassSpells([]);
-        setPersonalityTraits([]);
-        setIdeal('');
-        setBond('');
-        setFlaw('');
-
+        
         if (type === 'full') {
             setChosenRacialSpells({});
-            setRacialSpellOptions([]);
-            setRacialSpellTraits([]);
+            setChosenClassSpells([]);
+            setPersonalityTraits([]);
+            setIdeal('');
+            setBond('');
+            setFlaw('');
+        } else if (type === 'class') {
+            setChosenClassSpells([]);
+        } else if (type === 'background') {
+            setPersonalityTraits([]);
+            setIdeal('');
+            setBond('');
+            setFlaw('');
         }
     }, []);
 
@@ -342,20 +348,22 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const spellOptionsToFetch = new Set<string>();
     
             // Special Case: High Elf Cantrip
-            if (traitDetails.some(t => t?.index === 'high-elf-cantrip')) {
+            const highElfTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
+            if (highElfTrait) {
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
                 if (wizardSpellsResponse?.results) {
-                    const cantripDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, ()=>{});
-                    const level0WizardCantrips = cantripDetails.filter((s): s is ApiSpell => !!s && s.level === 0);
+                    const cantrips = wizardSpellsResponse.results.filter(spell => {
+                         const level = (spell as any).level || 0;
+                         return level === 0;
+                    });
     
-                    if (level0WizardCantrips.length > 0) {
-                        const cantripOptions = level0WizardCantrips.map(c => ({ index: c.index, name: c.name, url: c.url }));
+                    if (cantrips.length > 0) {
                         newRacialSpellTraits.push({
                             traitName: 'Truque de Alto Elfo',
                             choose: 1, 
-                            options: cantripOptions
+                            options: cantrips
                         });
-                        level0WizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+                        cantrips.forEach(c => spellOptionsToFetch.add(c.index));
                     }
                 }
             }
@@ -610,21 +618,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setSubrace(newSubraceIndex);
         setSubraceDetails(null);
-        // Clear only subrace-specific selections, not all racial ones
-        setChosenRacialSpells(prev => {
-            const next = {...prev};
-            // This needs a more robust way to identify subrace traits if they clash
-            return next;
-        });
-        setProficiencySelections(prev => {
-            const next = {...prev};
-            Object.keys(next).forEach(key => {
-                if (key.startsWith('subrace')) {
-                    delete next[key];
-                }
-            });
-            return next;
-        });
+        
+        // Don't reset all racial selections, just subrace specific ones if needed.
+        // For simplicity, we currently don't have sub-race-only resets,
+        // as the main fetch effect will re-evaluate traits.
 
         if (newSubraceIndex) {
             const details = await DndApiService.getSubraceDetails(newSubraceIndex);
@@ -698,7 +695,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             }
         }, 500); // Delay to allow raceDetails to be set
 
-    }, [handleRaceChange, handleClassChange, handleSubraceChange]);
+    }, [handleRaceChange, handleClassChange]);
 
     const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
         const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];

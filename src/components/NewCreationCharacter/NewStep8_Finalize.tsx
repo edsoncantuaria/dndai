@@ -35,7 +35,6 @@ const NewStep8_Finalize: React.FC<Props> = ({
         classSpellOptions,
         chosenRacialSpells,
         racialSpellOptions,
-        raceDetails
     } = hook;
 
     const finalSkills = Array.from(allFixedProficiencies.values())

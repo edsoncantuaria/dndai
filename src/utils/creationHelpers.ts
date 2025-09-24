@@ -19,35 +19,41 @@ export const getCostOfNextLevel = (currentScore: number): number => (currentScor
 export const getRefundForPrevLevel = (currentScore: number): number => (currentScore > 13 ? 2 : 1);
 
 /**
- * Gera um rótulo legível para uma opção de equipamento da API.
- * Trata casos de itens diretos, categorias e múltiplas escolhas.
+ * Generates a human-readable label for an equipment option from the API.
+ * Handles cases for direct items, categories, and multiple-item choices.
  */
-export const getOptionLabel = (option: any): string => {
+export const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
 
-    if (option.option_type === 'multiple' && option.items) {
-        return option.items.map(getOptionLabel).join(' e ');
-    }
+    switch (option.option_type) {
+        case 'counted_reference':
+            if (option.of) {
+                const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
+                return `${translateEquipment(option.of.name)}${count}`;
+            }
+            return 'Item de Referência';
+        
+        case 'choice':
+            if (option.choice?.from?.equipment_category) {
+                const categoryName = option.choice.desc || option.choice.from.equipment_category.name;
+                return `Qualquer ${translateEquipment(categoryName)}`;
+            }
+            return 'Outra Escolha';
 
-    if (option.option_type === 'counted_reference' && option.of) {
-        const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
-        return `${translateEquipment(option.of.name)}${count}`;
-    }
+        case 'multiple':
+            if (option.items) {
+                return option.items.map(getOptionLabel).join(' e ');
+            }
+            return 'Múltiplos Itens';
 
-    if (option.option_type === 'choice' && option.choice?.from?.option_set_type === 'equipment_category') {
-        const categoryName = option.choice.desc || option.choice.from.equipment_category.name;
-        return `Qualquer ${translateEquipment(categoryName)}`;
+        default:
+            // This can handle cases where the option is a direct equipment category reference
+            // as seen in some background equipment choices.
+            if ((option as any).equipment_category) {
+                 const categoryName = (option as any).equipment_category.name;
+                 return `Qualquer ${translateEquipment(categoryName)}`;
+            }
+            console.warn("Opção de equipamento não reconhecida:", option);
+            return 'Opção de Equipamento Desconhecida';
     }
-
-    if (option.option_set_type === 'equipment_category' && option.equipment_category) {
-        const categoryName = option.equipment_category.name;
-        return `Qualquer ${translateEquipment(categoryName)}`;
-    }
-    
-    if ((option as any).item) {
-        return getOptionLabel((option as any).item);
-    }
-    
-    console.warn("Opção de equipamento não reconhecida:", option);
-    return 'Opção de Equipamento';
 };

@@ -20,10 +20,7 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
 
-    const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
-    const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
-
-    const selectedOption = (mainSelectionIndex !== undefined && options) ? options[mainSelectionIndex] : null;
+    const options = group.choice.from.options || [];
 
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
@@ -51,10 +48,10 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
                     <Icons.Spinner />
                     <span className="ml-2 text-sm">Carregando...</span>
                 </div>
-            ) : subChoiceOptions[group.id] && selectedOption && (selectedOption.option_type === 'choice' || isCategoryChoice) && (
+            ) : subChoiceOptions[group.id] && mainSelectionIndex !== undefined && (
                 <select
                     value={subSelectionIndex ?? -1}
-                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex!.toString(), e.target.value)}
+                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex.toString(), e.target.value)}
                     className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn"
                 >
                     <option value={-1} disabled>Selecione um item específico...</option>
