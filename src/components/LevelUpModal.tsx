@@ -8,7 +8,7 @@ import type { LevelUpSelections, Attributes, ApiSpell } from '../types';
 import * as DndApiService from '../services/dndApiService';
 import { Icons } from './Icons';
 import { translateAttribute, translateApiString } from '../utils/translator';
-import SpellCard from './SpellCard';
+import NewSpellCard from '../components/Spells/NewSpellCard';
 import { rollDice } from '../utils/dice';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 
@@ -209,7 +209,7 @@ const LevelUpModal: React.FC = () => {
                         const isSelected = selections.spells?.includes(spell.index);
                         const isDisabled = !isSelected && selectedCount >= (choices.spellsToChoose || 0);
                         return (
-                            <SpellCard
+                            <NewSpellCard
                                 key={spell.index}
                                 spell={spell}
                                 isSelectable={true}
@@ -317,3 +317,5 @@ const LevelUpModal: React.FC = () => {
 };
 
 export default LevelUpModal;
+
+    

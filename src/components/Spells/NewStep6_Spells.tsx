@@ -1,9 +1,8 @@
-// src/components/NewCreationCharacter/NewStep6_Spells.tsx
+'use client';
 import React from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { getCantripsKnown, getSpellsKnown } from '@/utils/characterUtils';
+import type { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Icons } from '../Icons';
-import SpellCard from '../SpellCard';
+import NewSpellCard from './NewSpellCard';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -11,39 +10,31 @@ interface Props {
     nextStep: () => void;
 }
 
-const NewStep6_Spells: React.FC<Props> = ({
-    hook,
-    prevStep,
-    nextStep
-}) => {
+const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const {
-        classDetails,
-        classLevels,
-        finalAttributes,
         isSpellsLoading,
         spellsLoadingProgress,
-        classSpellOptions,
-        chosenClassSpells,
+        classSpellChoices,
+        racialSpellChoices,
         handleClassSpellChange,
-        racialSpellTraits,
-        racialSpellOptions,
-        chosenRacialSpells,
         handleRacialSpellChange,
+        chosenClassSpells,
+        chosenRacialSpells,
+        cantripsKnown,
+        spellsKnown,
         handleRandomizeSpells,
     } = hook;
     
-    const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
-    const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;
     const hasClassSpells = cantripsKnown > 0 || spellsKnown > 0;
-    const hasRacialSpells = racialSpellTraits.length > 0;
+    const hasRacialSpells = racialSpellChoices.length > 0;
 
-    const allCantrips = classSpellOptions.filter(s => s.level === 0);
-    const allLevel1Spells = classSpellOptions.filter(s => s.level === 1);
+    const allCantrips = classSpellChoices.filter(s => s.level === 0);
+    const allLevel1Spells = classSpellChoices.filter(s => s.level === 1);
 
     const selectedCantripsCount = chosenClassSpells.filter(sIndex => allCantrips.some(c => c.index === sIndex)).length;
     const selectedSpellsCount = chosenClassSpells.filter(sIndex => allLevel1Spells.some(c => c.index === sIndex)).length;
     
-    const areRacialSpellsSelected = racialSpellTraits.every(trait =>
+    const areRacialSpellsSelected = racialSpellChoices.every(trait =>
         (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose
     );
     const areClassSpellsSelected = selectedCantripsCount === cantripsKnown && selectedSpellsCount === spellsKnown;
@@ -98,7 +89,7 @@ const NewStep6_Spells: React.FC<Props> = ({
             {hasRacialSpells && (
                 <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
                     <h4 className="font-semibold text-amber-300 mb-2">Magias Raciais</h4>
-                    {racialSpellTraits.map((trait) => {
+                    {racialSpellChoices.map((trait) => {
                         const selectedCount = chosenRacialSpells[trait.traitName]?.length || 0;
                         return (
                              <div key={trait.traitName}>
@@ -106,21 +97,20 @@ const NewStep6_Spells: React.FC<Props> = ({
                                     {trait.traitName} <span className="text-stone-400 font-normal">({selectedCount}/{trait.choose})</span>
                                 </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {trait.options.map(spellOption => {
-                                        const spellDetails = racialSpellOptions.find(s => s.index === spellOption.index);
-                                        if (!spellDetails) return null;
+                                    {trait.spellOptions.map(spell => {
+                                        if (!spell) return null;
 
-                                        const isSelected = !!chosenRacialSpells[trait.traitName]?.includes(spellOption.index);
+                                        const isSelected = !!chosenRacialSpells[trait.traitName]?.includes(spell.index);
                                         const isLimitReached = !isSelected && selectedCount >= trait.choose;
 
                                         return (
-                                            <SpellCard
-                                                key={spellOption.index}
-                                                spell={spellDetails}
+                                            <NewSpellCard
+                                                key={spell.index}
+                                                spell={spell}
                                                 isSelectable={true}
                                                 isSelected={isSelected}
                                                 isDisabled={isLimitReached}
-                                                onToggleSelect={() => handleRacialSpellChange(trait.traitName, spellOption.index, trait.choose)}
+                                                onToggleSelect={() => handleRacialSpellChange(trait.traitName, spell.index, trait.choose)}
                                             />
                                         );
                                     })}
@@ -142,7 +132,7 @@ const NewStep6_Spells: React.FC<Props> = ({
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isLimitReached = !isSelected && selectedCantripsCount >= cantripsKnown;
                                     return (
-                                        <SpellCard
+                                        <NewSpellCard
                                             key={spell.index}
                                             spell={spell}
                                             isSelectable={true}
@@ -163,7 +153,7 @@ const NewStep6_Spells: React.FC<Props> = ({
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isLimitReached = !isSelected && selectedSpellsCount >= spellsKnown;
                                     return (
-                                        <SpellCard
+                                        <NewSpellCard
                                             key={spell.index}
                                             spell={spell}
                                             isSelectable={true}
@@ -194,5 +184,3 @@ const NewStep6_Spells: React.FC<Props> = ({
 };
 
 export default NewStep6_Spells;
-
-    

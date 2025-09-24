@@ -4,9 +4,8 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import * as DndApiService from '../services/dndApiService';
 import type { ApiSpell } from '../types';
 import { Icons } from './Icons';
-import SpellCard from './SpellCard';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { translateSpell } from '../utils/translator';
+import NewSpellCard from './Spells/NewSpellCard';
 
 const Spellbook: React.FC = () => {
     const { character, castSpell, isLoading: isActionLoading } = useGameStateContext();
@@ -32,7 +31,7 @@ const Spellbook: React.FC = () => {
                 }
             );
             
-            setSpellDetails(results.map(spell => translateSpell(spell) as ApiSpell));
+            setSpellDetails(results as ApiSpell[]);
             setIsSpellsLoading(false);
             setLoadingProgress(null);
         };
@@ -108,7 +107,7 @@ const Spellbook: React.FC = () => {
                             </h4>
                             <div className="space-y-2">
                                 {groupedSpells[levelKey].map(spell => (
-                                    <SpellCard 
+                                    <NewSpellCard 
                                         key={spell.index} 
                                         spell={spell}
                                         onCast={castSpell}
