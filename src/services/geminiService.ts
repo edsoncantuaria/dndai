@@ -79,17 +79,13 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 
 async function generateWithGenkit(
-  prompt: string,
-  model: string = 'googleai/gemini-pro'
+  prompt: string
 ): Promise<GeminiResponse | null> {
   try {
-    console.log("[GeminiService] Chamando modelo:", model);
-
     console.log("[GeminiService] Usando API Key padrão do sistema (via genkit.ts).");
     console.log("[GeminiService] Prompt enviado:", prompt.substring(0, 500), "...");
 
     const llmResponse = await ai.generate({
-      model: model,
       prompt: prompt,
       output: {
         format: 'json',
@@ -120,8 +116,7 @@ async function generateWithGenkit(
 export const getGameUpdate = async (
   character: Character,
   playerAction: string,
-  fullLog: LogEntry[],
-  model: string
+  fullLog: LogEntry[]
 ): Promise<GeminiResponse | null> => {
   const characterSummary = {
     ...character,
@@ -140,14 +135,13 @@ export const getGameUpdate = async (
     fullLog.slice(-10)
   )}\nA ação do jogador é: "${playerAction}"\n\nCom base nisso, continue a aventura.`;
   
-  return generateWithGenkit(prompt, model);
+  return generateWithGenkit(prompt);
 };
 
 export const getInitialStory = async (
-  character: Character,
-  model: string,
+  character: Character
 ): Promise<GeminiResponse | null> => {
   const action =
     'A aventura começa. Onde eu estou e o que está acontecendo?';
-  return getGameUpdate(character, action, [], model);
+  return getGameUpdate(character, action, []);
 };
