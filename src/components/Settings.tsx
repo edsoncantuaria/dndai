@@ -7,19 +7,19 @@ import { Sparkles } from 'lucide-react';
 
 const AI_MODELS: Record<AiProvider, { name: string, value: string }[]> = {
     google: [
-        { name: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' },
-        { name: 'Gemini 1.5 Flash', value: 'gemini-1.5-flash' },
-        { name: 'Gemini 1.0 Pro', value: 'gemini-pro' },
+        { name: 'Gemini 1.5 Pro', value: 'googleai/gemini-1.5-pro' },
+        { name: 'Gemini 1.5 Flash', value: 'googleai/gemini-1.5-flash' },
+        { name: 'Gemini 1.0 Pro', value: 'googleai/gemini-pro' },
     ],
     openai: [
-        { name: 'GPT-4o', value: 'gpt-4o' },
-        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
-        { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+        { name: 'GPT-4o', value: 'openai/gpt-4o' },
+        { name: 'GPT-4 Turbo', value: 'openai/gpt-4-turbo' },
+        { name: 'GPT-3.5 Turbo', value: 'openai/gpt-3.5-turbo' },
     ],
     anthropic: [
-        { name: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20240620' },
-        { name: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
-        { name: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+        { name: 'Claude 3.5 Sonnet', value: 'anthropic/claude-3-5-sonnet-20240620' },
+        { name: 'Claude 3 Opus', value: 'anthropic/claude-3-opus-20240229' },
+        { name: 'Claude 3 Haiku', value: 'anthropic/claude-3-haiku-20240307' },
     ],
 };
 
@@ -152,7 +152,7 @@ const Settings: React.FC = () => {
         <>
             <button 
                 onClick={openSettingsModal}
-                className="fixed top-1 left-1 z-50 h-14 w-14 bg-stone-900/80 backdrop-blur-md border-2 border-amber-500/50 rounded-full flex items-center justify-center text-amber-400 hover:bg-stone-800 hover:border-amber-500 transition-all shadow-lg"
+                className="fixed top-4 left-4 z-50 h-14 w-14 bg-stone-900/80 backdrop-blur-md border-2 border-amber-500/50 rounded-full flex items-center justify-center text-amber-400 hover:bg-stone-800 hover:border-amber-500 transition-all shadow-lg"
                 title="Configurações da IA"
             >
                 <Sparkles className="h-7 w-7" />

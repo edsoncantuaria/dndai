@@ -2,7 +2,6 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { geminiPro, gemini15Flash, gemini15Pro } from '@genkit-ai/googleai';
 import {
   Character,
   LogEntry,
@@ -78,37 +77,24 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido que siga estritamente o esquema fornecido. Não inclua nenhum texto ou formatação fora do objeto JSON.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
-const modelMap = {
-    'gemini-1.5-pro': gemini15Pro,
-    'gemini-1.5-flash': gemini15Flash,
-    'gemini-pro': geminiPro,
-};
 
 async function generateWithGenkit(
   prompt: string,
-  model: string = 'gemini-pro',
-  userApiKey?: string
+  model: string = 'googleai/gemini-pro'
 ): Promise<GeminiResponse | null> {
   try {
     console.log("[GeminiService] Chamando modelo:", model);
-    if (userApiKey) {
-      console.log("[GeminiService] Usando API Key customizada (não exibida por segurança).");
-    } else {
-      console.log("[GeminiService] Usando API Key padrão do sistema.");
-    }
 
-    const selectedModel = (modelMap as any)[model] || geminiPro;
-
+    console.log("[GeminiService] Usando API Key padrão do sistema (via genkit.ts).");
     console.log("[GeminiService] Prompt enviado:", prompt.substring(0, 500), "...");
 
     const llmResponse = await ai.generate({
-      model: selectedModel,
+      model: model,
       prompt: prompt,
       output: {
         format: 'json',
         schema: GeminiResponseSchema,
       },
-      config: userApiKey ? { apiKey: userApiKey } : undefined,
     });
 
     console.log("[GeminiService] Resposta bruta recebida:", llmResponse);
@@ -135,8 +121,7 @@ export const getGameUpdate = async (
   character: Character,
   playerAction: string,
   fullLog: LogEntry[],
-  model: string,
-  userApiKey?: string,
+  model: string
 ): Promise<GeminiResponse | null> => {
   const characterSummary = {
     ...character,
@@ -154,16 +139,15 @@ export const getGameUpdate = async (
   )}\nAs últimas 10 entradas do log da aventura são: ${JSON.stringify(
     fullLog.slice(-10)
   )}\nA ação do jogador é: "${playerAction}"\n\nCom base nisso, continue a aventura.`;
-  console.log(prompt)
-  return generateWithGenkit(prompt, model, userApiKey);
+  
+  return generateWithGenkit(prompt, model);
 };
 
 export const getInitialStory = async (
   character: Character,
   model: string,
-  userApiKey?: string
 ): Promise<GeminiResponse | null> => {
   const action =
     'A aventura começa. Onde eu estou e o que está acontecendo?';
-  return getGameUpdate(character, action, [], model, userApiKey);
+  return getGameUpdate(character, action, [], model);
 };

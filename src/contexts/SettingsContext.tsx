@@ -22,7 +22,7 @@ export interface SettingsContextType {
 
 const defaultSettings: AiSettings = {
   provider: 'google',
-  model: 'gemini-1.5-pro',
+  model: 'googleai/gemini-pro',
   apiKey: '',
 };
 
