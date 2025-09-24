@@ -38,20 +38,21 @@ const createCharacterSummary = (character: Character) => {
     const { 
         classLevelsData, 
         subclassLevelsData, 
-        inventory,
         proficiencies,
+        conditions,
+        inventory,
         ...summary 
     } = character;
     
     return {
         ...summary,
-        inventory: inventory.map(({ id, name, quantity, equipped }) => ({
-            id,
+        inventory: inventory.map(({ name, quantity, equipped }) => ({
             name,
             quantity,
             equipped,
         })),
         proficiencies: proficiencies.map(p => p.name),
+        conditions: conditions.map(c => c.name),
     };
 };
 
@@ -66,18 +67,23 @@ export const useNewGameState = () => {
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(true); // Start as true to check for saved game
 
-    // --- Core State Management ---
-    
-    useEffect(() => {
-        if (character && !isLoading) {
+    const saveGame = useCallback((char: Character | null, gameLog: LogEntry[]) => {
+        if (char && !isLoading) {
             try {
-                const gameState = { character, log };
+                const gameState = { character: char, log: gameLog };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+                 console.log("[useGameState] Jogo salvo no localStorage.");
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, isLoading]);
+    }, [isLoading]);
+
+    // --- Core State Management ---
+    
+    useEffect(() => {
+        saveGame(character, log);
+    }, [character, log, saveGame]);
     
     useEffect(() => {
         try {
@@ -87,13 +93,12 @@ export const useNewGameState = () => {
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
                 setActionOptions([]);
-                setIsLoading(false);
-            } else {
-                setIsLoading(false);
+                 console.log("[useGameState] Jogo carregado do localStorage.");
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
             localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } finally {
             setIsLoading(false);
         }
     }, []);
@@ -105,19 +110,18 @@ export const useNewGameState = () => {
             return;
         }
 
-        if (response.updatedCharacter) {
-             setCharacter(prev => {
-                if (!prev) return null;
-                const updated = mergeDeep(prev, response.updatedCharacter);
-                
-                const newModifiers = characterUtils.calculateModifiers(updated.attributes);
-                updated.modifiers = newModifiers;
-                updated.ac = characterUtils.calculateAC(updated.inventory, newModifiers);
-                updated.carryingCapacity = characterUtils.calculateCarryingCapacity(updated.attributes.strength);
-                updated.currentWeight = updated.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+        let newCharacterState = character;
+        if (response.updatedCharacter && character) {
+             const updated = mergeDeep(character, response.updatedCharacter);
+            
+            const newModifiers = characterUtils.calculateModifiers(updated.attributes);
+            updated.modifiers = newModifiers;
+            updated.ac = characterUtils.calculateAC(updated.inventory, newModifiers);
+            updated.carryingCapacity = characterUtils.calculateCarryingCapacity(updated.attributes.strength);
+            updated.currentWeight = updated.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
 
-                return updated;
-            });
+            newCharacterState = updated;
+            setCharacter(updated);
         }
         
         if (response.logEntries) {
@@ -134,7 +138,7 @@ export const useNewGameState = () => {
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
-    }, []);
+    }, [character]);
 
 
     const processPlayerAction = useCallback(async (action: string) => {
@@ -166,8 +170,11 @@ export const useNewGameState = () => {
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
+        setLog([]); 
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
+        
+        setCharacter(newCharacter);
         
         const characterSummary = createCharacterSummary(newCharacter);
         const initialStoryInput = {
@@ -179,9 +186,6 @@ export const useNewGameState = () => {
         console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
         const response = await newGeminiService.getInitialStory(initialStoryInput);
         
-        setCharacter(newCharacter); 
-        setLog([]); 
-
         handleApiResponse(response);
         setIsLoading(false);
     }, [handleApiResponse]);

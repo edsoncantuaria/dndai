@@ -1,13 +1,78 @@
 // src/services/gameSchemas.ts
 import { z } from "zod";
-import type { Character, LogEntry } from "@/types";
 
-export const GameMasterFlowInputSchema = z.object({
-  character: z.custom<Character>(),
-  playerAction: z.string(),
-  gameLog: z.array(z.custom<LogEntry>()),
+// Schemas Zod explícitos para o personagem e suas propriedades
+const AttributesSchema = z.object({
+    strength: z.number(),
+    dexterity: z.number(),
+    constitution: z.number(),
+    intelligence: z.number(),
+    wisdom: z.number(),
+    charisma: z.number(),
 });
-export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
+
+const HPSchema = z.object({
+    current: z.number(),
+    max: z.number(),
+    temp: z.number(),
+});
+
+const ACSchema = z.object({
+    value: z.number(),
+    source: z.string(),
+});
+
+const CurrencySchema = z.object({
+    gp: z.number(),
+    sp: z.number(),
+    cp: z.number(),
+});
+
+const InventoryItemSummarySchema = z.object({
+    name: z.string(),
+    quantity: z.number(),
+    equipped: z.boolean(),
+});
+
+const DeathSavesSchema = z.object({
+    successes: z.number(),
+    failures: z.number(),
+});
+
+const HitDiceSchema = z.object({
+    current: z.number(),
+    total: z.number(),
+});
+
+const CharacterSummarySchema = z.object({
+    name: z.string(),
+    level: z.number(),
+    xp: z.number(),
+    xpToNextLevel: z.number(),
+    race: z.string(),
+    subrace: z.string().nullable(),
+    characterClass: z.string(),
+    subclass: z.string().nullable(),
+    hitDie: z.number(),
+    background: z.string(),
+    alignment: z.string(),
+    attributes: AttributesSchema,
+    modifiers: AttributesSchema,
+    proficiencyBonus: z.number(),
+    proficiencies: z.array(z.string()),
+    languages: z.array(z.string()),
+    hp: HPSchema,
+    ac: ACSchema,
+    inventory: z.array(InventoryItemSummarySchema),
+    currency: CurrencySchema,
+    spells: z.array(z.string()),
+    deathSaves: DeathSavesSchema,
+    conditions: z.array(z.string()),
+    speed: z.number(),
+    hitDice: HitDiceSchema,
+    backstory: z.string().optional(),
+    storySoFar: z.string().optional(),
+});
 
 
 const LogEntrySchema = z.object({
@@ -26,6 +91,14 @@ const LogEntrySchema = z.object({
     disadvantage: z.optional(z.boolean()),
   })),
 });
+
+export const GameMasterFlowInputSchema = z.object({
+  character: CharacterSummarySchema,
+  playerAction: z.string(),
+  gameLog: z.array(LogEntrySchema),
+});
+export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
+
 
 const CombatantSchema = z.object({
     id: z.string(),
