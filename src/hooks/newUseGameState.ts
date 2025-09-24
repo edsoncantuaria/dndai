@@ -53,6 +53,12 @@ export const useNewGameState = () => {
 
             if (response.updatedCharacter) {
                 newCharacterState = mergeDeep(newCharacterState, response.updatedCharacter);
+
+                // Safety check: ensure inventory is always an array
+                if (!Array.isArray(newCharacterState.inventory)) {
+                    newCharacterState.inventory = [];
+                }
+                
                 const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
                 newCharacterState.modifiers = newModifiers;
                 newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
@@ -88,7 +94,7 @@ export const useNewGameState = () => {
         setPendingLootOffer(null);
         
         const gameUpdateInput = {
-            character: character as Character,
+            character: character,
             playerAction: action,
             gameLog: currentLog
         };
@@ -108,12 +114,10 @@ export const useNewGameState = () => {
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
-        // Set the character state immediately so the UI transitions to the game screen
         setCharacter(newCharacter);
 
-        // Now, fetch the initial story using the newly created character state
         const gameUpdateInput = {
-            character: newCharacter as Character,
+            character: newCharacter,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
             gameLog: []
         };
@@ -121,7 +125,6 @@ export const useNewGameState = () => {
         console.log('[useGameState] Enviando para a IA (história inicial):', gameUpdateInput);
         const response = await geminiService.getInitialStory(gameUpdateInput);
         
-        // The character state is already set, handleApiResponse will now *update* it with any initial changes from the AI
         handleApiResponse(response);
         
         setIsLoading(false);
@@ -136,8 +139,6 @@ export const useNewGameState = () => {
     }, []);
 
     useEffect(() => {
-        // This useEffect will no longer auto-load.
-        // It's kept for potential future use or to simply ensure isLoading is handled on mount.
         setIsLoading(false);
     }, []);
 
