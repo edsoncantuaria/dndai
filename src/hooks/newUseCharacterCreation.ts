@@ -1,3 +1,4 @@
+
 // hooks/newUseCharacterCreation.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
@@ -247,18 +248,19 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const areAllEquipmentChoicesMade = useMemo(() => {
         return equipmentChoiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            if (!selection || selection.main === undefined) return false;
-            
-            const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
-            const options = group.choice.from.options || [];
-            
-            if(isCategoryChoice) {
-                 return selection.sub !== undefined;
+            // If it's a direct category choice, only `sub` needs to be defined.
+            if (group.choice.from.option_set_type === 'equipment_category') {
+                return selection?.sub !== undefined;
             }
 
-            if (selection.main >= options.length) return false;
+            // For other choices, `main` must be defined.
+            if (!selection || selection.main === undefined) return false;
+            
+            const options = group.choice.from.options || [];
+            if (selection.main >= options.length) return false; // Should not happen
             const mainOption = options[selection.main];
 
+            // If the main option itself requires a sub-choice, `sub` must be defined.
             if (mainOption?.option_type === 'choice') {
                 return selection.sub !== undefined;
             }
@@ -297,6 +299,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setProficiencySelections({});
         setFinalizedEquipment([]);
         setEquipmentSelections({});
+        setChosenLanguages([]);
         
         if (type === 'full') { // Reset everything related to race
             setChosenRacialSpells({});
@@ -342,7 +345,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 ...(subraceDetails?.racial_traits || [])
             ].filter(t => t);
     
-            if (allTraitList.length === 0) return;
+            if (allTraitList.length === 0) {
+                setRacialSpellTraits([]);
+                return;
+            }
     
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
@@ -355,8 +361,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 setIsSpellsLoading(true);
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
                 if (wizardSpellsResponse?.results) {
-                    const cantrips = wizardSpellsResponse.results.filter(spell => spell.url.includes('/api/2014/spells/')); // Basic filter
-                    const cantripDetails = await fetchDetailsInChunks(cantrips, DndApiService.getSpellDetails, () => {});
+                    const cantripDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, () => {});
                     const level0Cantrips = cantripDetails.filter(s => s && s.level === 0).map(s => ({ index: s!.index, name: s!.name, url: s!.url }));
 
                     if (level0Cantrips.length > 0) {
@@ -409,43 +414,42 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     useEffect(() => {
         const finalizeEquipmentSelections = async () => {
-            if (isEquipmentLoading) return;
-    
             const finalItems: InventoryItem[] = [];
             for (const group of equipmentChoiceGroups) {
                 const selection = equipmentSelections[group.id];
-                if (!selection || selection.main === undefined) continue;
-
-                const mainOption = group.choice.from.options?.[selection.main];
-                
-                if(!mainOption) { // This handles direct category choices
-                     if (group.choice.from.option_set_type === 'equipment_category' && selection.sub !== undefined) {
-                        const subOptions = subChoiceOptions[group.id];
-                         if (subOptions && subOptions[selection.sub]) {
-                            const chosenSubItem = subOptions[selection.sub];
-                            const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
-                            finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
-                        }
-                     }
-                     continue;
-                }
+                if (!selection) continue;
     
-                if (mainOption.option_type === 'counted_reference' && mainOption.of) {
-                    const details = await DndApiService.getEquipmentDetails(mainOption.of.index);
-                    finalItems.push({ ...details, ...mainOption.of, id: uuidv4(), quantity: mainOption.count || 1, equipped: false });
-                } else if (mainOption.option_type === 'multiple' && mainOption.items) {
-                    for(const subItem of mainOption.items){
-                        if(subItem.option_type === 'counted_reference' && subItem.of) {
-                            const details = await DndApiService.getEquipmentDetails(subItem.of.index);
-                            finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
-                        }
-                    }
-                } else if (mainOption.option_type === 'choice' && selection.sub !== undefined) {
+                // Case 1: Direct category choice (e.g., Acolyte's Holy Symbol)
+                if (group.choice.from.option_set_type === 'equipment_category' && selection.sub !== undefined) {
                     const subOptions = subChoiceOptions[group.id];
                     if (subOptions && subOptions[selection.sub]) {
                         const chosenSubItem = subOptions[selection.sub];
                         const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
                         finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                    }
+                } 
+                // Case 2: Nested choice (e.g., weapon choices)
+                else if (selection.main !== undefined) {
+                    const mainOption = group.choice.from.options?.[selection.main];
+                    if (!mainOption) continue;
+    
+                    if (mainOption.option_type === 'counted_reference' && mainOption.of) {
+                        const details = await DndApiService.getEquipmentDetails(mainOption.of.index);
+                        finalItems.push({ ...details, ...mainOption.of, id: uuidv4(), quantity: mainOption.count || 1, equipped: false });
+                    } else if (mainOption.option_type === 'multiple' && mainOption.items) {
+                        for (const subItem of mainOption.items) {
+                            if (subItem.option_type === 'counted_reference' && subItem.of) {
+                                const details = await DndApiService.getEquipmentDetails(subItem.of.index);
+                                finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
+                            }
+                        }
+                    } else if (mainOption.option_type === 'choice' && selection.sub !== undefined) {
+                        const subOptions = subChoiceOptions[group.id];
+                        if (subOptions && subOptions[selection.sub]) {
+                            const chosenSubItem = subOptions[selection.sub];
+                            const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
+                            finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                        }
                     }
                 }
             }
@@ -453,7 +457,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         };
     
         finalizeEquipmentSelections();
-    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions, isEquipmentLoading]);
+    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions]);
+    
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
         setBaseAttributes(attrs => {
@@ -510,16 +515,14 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const newSelections = { ...prev };
             const currentSelection = newSelections[groupId] || {};
 
-            if (mainIndexStr !== undefined) {
-                 const mainIndex = parseInt(mainIndexStr, 10);
-                if (currentSelection.main !== mainIndex) {
-                    // Main selection changed, reset sub-selection
-                    newSelections[groupId] = { main: mainIndex, sub: undefined };
-                }
-            }
-            
-            if (subIndexStr !== undefined) {
-                newSelections[groupId] = { ...newSelections[groupId], sub: parseInt(subIndexStr, 10) };
+            const mainIndex = mainIndexStr !== undefined ? parseInt(mainIndexStr, 10) : currentSelection.main;
+            const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : currentSelection.sub;
+
+            // If main selection changes, reset sub selection
+            if (mainIndexStr !== undefined && mainIndex !== currentSelection.main) {
+                newSelections[groupId] = { main: mainIndex, sub: undefined };
+            } else {
+                newSelections[groupId] = { main: mainIndex, sub: subIndex };
             }
             
             return newSelections;
@@ -601,10 +604,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setSubrace(newSubraceIndex);
         setSubraceDetails(null);
-        
-        // Don't reset all racial selections, just subrace specific ones if needed.
-        // For simplicity, we currently don't have sub-race-only resets,
-        // as the main fetch effect will re-evaluate traits.
+        setChosenRacialSpells({});
 
         if (newSubraceIndex) {
             const details = await DndApiService.getSubraceDetails(newSubraceIndex);
@@ -678,7 +678,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             }
         }, 500); // Delay to allow raceDetails to be set
 
-    }, [handleRaceChange, handleClassChange]);
+    }, [handleRaceChange, handleClassChange, handleSubraceChange]);
 
     const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
         const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
@@ -850,3 +850,5 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeSpells,
     };
 };
+
+    
