@@ -46,21 +46,21 @@ export const useNewGameState = () => {
 
         setCharacter(prevCharacter => {
             if (!prevCharacter) return null;
-            
+
             let newCharacterState = { ...prevCharacter };
 
             if (response.updatedCharacter) {
-                newCharacterState = { ...newCharacterState, ...response.updatedCharacter };
-                 if (!Array.isArray(newCharacterState.inventory)) {
-                    newCharacterState.inventory = [];
-                }
+                // Aplica as atualizações da IA de forma segura
+                Object.assign(newCharacterState, response.updatedCharacter);
             }
 
+            // Recalcula propriedades derivadas para garantir consistência
             const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
             newCharacterState.modifiers = newModifiers;
             newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
             newCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState.attributes.strength);
             newCharacterState.currentWeight = (newCharacterState.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+
 
             return newCharacterState;
         });
@@ -77,21 +77,23 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
     }, []);
-
+    
     const processPlayerAction = useCallback(async (action: string) => {
         if (!character) return;
         
         setIsLoading(true);
+        // Limpa estados pendentes para evitar renderizações incorretas
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
-        
-        setLog(prev => [...prev, { id: uuidv4(), type: 'action', content: action }]);
+
+        const currentLog = [...log, { id: uuidv4(), type: 'action', content: action }];
+        setLog(currentLog);
         setActionOptions([]);
         
         const gameUpdateInput = {
             character,
             playerAction: action,
-            gameLog: [...log, { id: 'temp', type: 'action', content: action }]
+            gameLog: currentLog,
         };
         
         const response = await geminiService.getGameUpdate(gameUpdateInput);
@@ -108,6 +110,7 @@ export const useNewGameState = () => {
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
+        // A chamada da IA foi movida para o useEffect em Game.tsx
         setIsLoading(false);
     }, []);
 
@@ -116,6 +119,7 @@ export const useNewGameState = () => {
         setIsLoading(true);
         setActionOptions([]); 
         
+        console.log('[useGameState] Enviando para a IA (história inicial):', character);
         const gameUpdateInput = {
             character,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
@@ -138,6 +142,7 @@ export const useNewGameState = () => {
     }, []);
 
     const loadGameFromLocalStorage = useCallback(() => {
+         setIsLoading(true);
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
@@ -153,6 +158,7 @@ export const useNewGameState = () => {
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpa o save corrompido
         } finally {
             setIsLoading(false);
         }

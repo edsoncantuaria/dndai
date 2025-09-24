@@ -94,11 +94,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
     }
 };
 
-export const getInitialStory = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
-    const initialInput = { ...input, playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?" };
-    return getGameUpdate(initialInput);
-};
-
 export const testAiConnection = async (): Promise<string | null> => {
      if (!apiKey) {
         return "Erro: A chave da API do Google não está configurada no servidor.";
