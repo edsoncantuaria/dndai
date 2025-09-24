@@ -71,7 +71,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
     }
     try {
         const prompt = createPrompt(input);
-        console.log("[geminiService] Prompt enviado para a IA:", prompt); 
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -80,11 +79,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 
         const response = result.response;
         const jsonText = response.text();
-        console.log("[geminiService] Resposta bruta da IA:", jsonText); 
+        console.log("[geminiService] Resposta da IA recebida:", jsonText); 
 
         const responseData = JSON.parse(jsonText) as GameMasterResponse;
         
-        console.log("[geminiService] Resposta da IA recebida e validada:", responseData);
         return responseData;
 
     } catch (error) {
