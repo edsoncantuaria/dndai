@@ -24,13 +24,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character) {
             try {
-                const gameState = { character, log };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
 
     useEffect(() => {
          if (character && log.length > 0) { 
@@ -88,16 +88,16 @@ export const useNewGameState = () => {
         
         setLog(prevLog => [...prevLog, newActionLogEntry]);
         setActionOptions([]);
-        setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
         
         const gameUpdateInput = {
-            character: character,
+            character,
             playerAction: action,
             gameLog: [...log, newActionLogEntry]
         };
-        console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
         
+        console.log("[useGameState] Enviando para a IA:", gameUpdateInput);
         const response = await geminiService.getGameUpdate(gameUpdateInput);
         
         console.log("[useGameState] Resposta recebida do Gemini:", response);
@@ -145,10 +145,15 @@ export const useNewGameState = () => {
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
-                const { character: savedCharacter, log: savedLog } = JSON.parse(savedGame);
+                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest } = JSON.parse(savedGame);
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
-                setActionOptions([]);
+                setActionOptions(savedActionOptions || []);
+                setCombatState(savedCombatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                setLevelUpState(savedLevelUpState || null);
+                setShopState(savedShopState || null);
+                setPendingLootOffer(savedPendingLootOffer || null);
+                setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);

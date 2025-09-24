@@ -10,7 +10,7 @@ const HitDiceRoller: React.FC = () => {
     
     if (!pendingHitDiceRequest || !character) return null;
 
-    const maxDice = Math.min(pendingHitDiceRequest.maxDice, character.hitDice.current);
+    const maxDice = Math.min(pendingHitDiceRequest.maxDice || 0, character.hitDice.current || 0);
 
     const handleConfirm = () => {
         if (diceToSpend > 0) {
