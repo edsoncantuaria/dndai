@@ -322,48 +322,54 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     useEffect(() => {
         const fetchRacialTraitsAndSpells = async () => {
+            // Reset all racial spell related state
             setRacialSpellOptions([]);
             setRacialSpellTraits([]);
             setChosenRacialSpells({});
     
-            const allTraitList = [
+            const allTraitList: ApiListItem[] = [
                 ...(raceDetails?.traits || []),
                 ...(subraceDetails?.racial_traits || [])
             ].filter(t => t);
     
             if (allTraitList.length === 0) return;
     
+            // Fetch details for all racial traits
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
+            
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<string>();
 
-            const wizardCantripTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
-
-            if (wizardCantripTrait) {
+            // Special Case: High Elf Cantrip
+            const highElfCantripTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
+            if (highElfCantripTrait) {
+                // Fetch the wizard spell list
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
-                const wizardCantrips = wizardSpellsResponse?.results.filter(s => {
-                    const levelMatch = s.url.match(/\/api\/spells\/[a-z-]+/); // Simple check for spell url pattern
-                    return levelMatch; // Assuming level 0 for cantrips, but API doesn't provide level here
-                }) || [];
-                
-                const cantripDetails = await fetchDetailsInChunks(wizardCantrips, DndApiService.getSpellDetails, ()=>{});
-                const level0WizardCantrips = cantripDetails.filter((s): s is ApiSpell => s !== null && s.level === 0);
+                if (wizardSpellsResponse?.results) {
+                    // Fetch details for all wizard spells to filter by level
+                    const wizardSpellDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, () => {});
+                    const wizardCantrips = wizardSpellDetails.filter((s): s is ApiSpell => !!s && s.level === 0);
 
-                if (level0WizardCantrips.length > 0) {
-                    newRacialSpellTraits.push({
-                        traitName: wizardCantripTrait.name,
-                        choose: 1, // High Elves choose 1 cantrip
-                        options: level0WizardCantrips.map(s => ({ index: s.index, name: s.name, url: s.classes[0].url })) // Mock ApiListItem
-                    });
-                    level0WizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+                    if (wizardCantrips.length > 0) {
+                        const cantripOptions = wizardCantrips.map(c => ({ index: c.index, name: c.name, url: c.url }));
+                        newRacialSpellTraits.push({
+                            traitName: highElfCantripTrait.name,
+                            choose: 1, // High Elves choose 1 cantrip
+                            options: cantripOptions
+                        });
+                        wizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+                    }
                 }
             }
-            
-            for (const t of traitDetails) {
-                 const choice = t?.trait_specific?.spell_options || t?.trait_specific?.subfeature_options;
-                 if (choice && choice.from.options) {
+
+            // General case for other racial spell traits
+            for (const trait of traitDetails) {
+                if (!trait || trait.index === 'high-elf-cantrip') continue; // Skip already processed trait
+                
+                const choice = trait.trait_specific?.spell_options || trait.trait_specific?.subfeature_options;
+                if (choice && choice.from.options) {
                     newRacialSpellTraits.push({
-                        traitName: t.name,
+                        traitName: trait.name,
                         choose: choice.choose,
                         options: choice.from.options.map((opt: any) => opt.item),
                     });
@@ -373,9 +379,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 }
             }
             
+            // Fetch details for all unique spell options identified
             if (spellOptionsToFetch.size > 0) {
                 const spellList = Array.from(spellOptionsToFetch).map(index => ({ index, name: index, url: ''}));
                 const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
+                
                 setRacialSpellOptions(prev => {
                     const existing = new Map(prev.map(s => [s.index, s]));
                     spellDetails.forEach(s => s && existing.set(s.index, translateSpell(s) as ApiSpell));
@@ -603,9 +611,12 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setSubrace(newSubraceIndex);
         setSubraceDetails(null);
-        setRacialSpellOptions([]);
-        setRacialSpellTraits([]);
-        setChosenRacialSpells({});
+        // Clear only subrace-specific selections, not all racial ones
+        setChosenRacialSpells(prev => {
+            const next = {...prev};
+            // This needs a more robust way to identify subrace traits if they clash
+            return next;
+        });
         setProficiencySelections(prev => {
             const next = {...prev};
             Object.keys(next).forEach(key => {
@@ -671,22 +682,24 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     
     // --- RANDOMIZATION FUNCTIONS ---
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
-        const randomRace = races[Math.floor(Math.random() * races.length)];
+        const randomRaceItem = races[Math.floor(Math.random() * races.length)];
         const randomClass = classes[Math.floor(Math.random() * classes.length)];
         
-        await handleRaceChange(randomRace.index);
+        await handleRaceChange(randomRaceItem.index);
+        await handleClassChange(randomClass.index);
         
-        // This is a bit tricky due to async state updates. We'll wait a bit.
-        // A more robust solution might use a state machine or pass the details directly.
+        // After fetching race details, check for subraces
+        // This relies on the state update from handleRaceChange to be processed.
+        // A more robust way might involve awaiting the state change or chaining promises.
         setTimeout(async () => {
-            if (raceDetails?.subraces && raceDetails.subraces.length > 0) {
-                const randomSubrace = raceDetails.subraces[Math.floor(Math.random() * raceDetails.subraces.length)];
+            const raceData = await DndApiService.getRaceDetails(randomRaceItem.index);
+            if (raceData && raceData.subraces && raceData.subraces.length > 0) {
+                const randomSubrace = raceData.subraces[Math.floor(Math.random() * raceData.subraces.length)];
                 await handleSubraceChange(randomSubrace.index);
             }
-        }, 300);
+        }, 500); // Delay to allow raceDetails to be set
 
-        await handleClassChange(randomClass.index);
-    }, [handleRaceChange, handleSubraceChange, handleClassChange, raceDetails]);
+    }, [handleRaceChange, handleClassChange, handleSubraceChange]);
 
     const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
         const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
