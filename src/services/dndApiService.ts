@@ -1,20 +1,34 @@
 // services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
+import { customFeats } from '../data/feats';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
 // Simple in-memory cache
 const cache = new Map<string, any>();
 
+// Map to hold custom/hard-coded content
+const localContent = new Map<string, any>();
+
+// Load custom content into the map
+customFeats.forEach(feat => localContent.set(`/feats/${feat.index}`, feat));
+
+
 // Simple delay function to avoid hitting rate limits
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
+    // 1. Check local custom content first
+    if (localContent.has(endpoint)) {
+        return localContent.get(endpoint) as T;
+    }
+
+    // 2. Check in-memory cache
     if (cache.has(endpoint)) {
         return cache.get(endpoint) as T;
     }
 
-    // Add a small delay for non-cached requests to avoid hitting API rate limits.
+    // 3. Fetch from the official API
     await delay(50); 
     
     try {
