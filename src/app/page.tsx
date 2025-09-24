@@ -1,6 +1,6 @@
 'use client';
 import { GameStateProvider } from '@/contexts/GameStateContext';
-import Game from './_components/Game';
+import Game from '@/components/Game';
 import { useState, useCallback } from 'react';
 
 export default function HomePage() {
