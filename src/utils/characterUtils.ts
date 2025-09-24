@@ -94,44 +94,39 @@ export const calculateAC = (inventory: InventoryItem[], modifiers: Attributes): 
     };
 };
 
-export const getCantripsKnown = (level1Data: ApiClassLevel): number => {
+export const getCantripsKnown = (level1Data?: ApiClassLevel): number => {
+    if (!level1Data) return 0;
     return level1Data?.spellcasting?.cantrips_known || 0;
 };
 
 // NEW: Centralized logic for spells known calculation
 export const getSpellsKnown = (
     level: number,
-    level1Data: ApiClassLevel,
-    classDetails: ApiClass,
-    attributes: Attributes
+    level1Data?: ApiClassLevel,
+    classDetails?: ApiClass | null,
+    attributes?: Attributes,
 ): number => {
+    if (!level1Data || !classDetails || !attributes) return 0;
+    
     const spellcasting = level1Data.spellcasting;
+    if (!spellcasting || !classDetails.spellcasting) return 0;
 
-    // "Spells Known" casters (Bard, Sorcerer, Ranger, Warlock) often have a fixed value in the API data.
-    if (spellcasting?.spells_known) {
+    // "Spells Known" casters (Bard, Ranger, Sorcerer, Warlock)
+    if (spellcasting.spells_known) {
         return spellcasting.spells_known;
     }
 
-    if (!classDetails.spellcasting) return 0; // Not a spellcaster at this level.
-
-    // For "Prepared" casters, we calculate based on their ability modifier.
+    // "Prepared" casters (Cleric, Druid, Paladin, Wizard)
     const abilityShort = classDetails.spellcasting.spellcasting_ability.index;
     const ability = ATTRIBUTE_SHORT_MAP[abilityShort] as keyof Attributes;
     const modifier = calculateModifier(attributes[ability]);
 
-    // Specific class rules
+    // Wizard at level 1 adds 6 spells to their spellbook.
     if (classDetails.index === 'wizard' && level === 1) {
-        // At level 1, Wizards add 6 spells to their spellbook.
         return 6;
     }
-    
-    if (classDetails.index === 'paladin') {
-        if (level < 2) return 0;
-        // They prepare `modifier + half level (rounded down)`.
-        return Math.max(1, modifier + Math.floor(level / 2));
-    }
 
-    // Default for other prepared casters (Cleric, Druid, and Wizard after level 1)
+    // Cleric, Druid, Paladin (at level 2+), Wizard (after level 1) prepare `modifier + level`
     return Math.max(1, modifier + level);
 };
 

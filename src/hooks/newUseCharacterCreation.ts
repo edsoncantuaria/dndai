@@ -329,34 +329,50 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const allTraitList = [
                 ...(raceDetails?.traits || []),
                 ...(subraceDetails?.racial_traits || [])
-            ].filter(t => t); // Filter out any undefined/null traits
+            ].filter(t => t);
     
             if (allTraitList.length === 0) return;
     
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
-            const spellOptionsToFetch: ApiListItem[] = [];
+            const spellOptionsToFetch = new Set<string>();
+            const wizardCantripTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
 
-            traitDetails.forEach(t => {
-                const choice = t?.trait_specific?.spell_options || t?.trait_specific?.subfeature_options;
-                if (choice && choice.from.options) {
+            if (wizardCantripTrait) {
+                 const wizardSpells = await DndApiService.getSpellsForClass('wizard');
+                 const wizardCantrips = wizardSpells?.results.filter(s => s.url.includes('/api/spells/') && s.level === 0) || [];
+                 
+                 newRacialSpellTraits.push({
+                     traitName: wizardCantripTrait.name,
+                     choose: 1, // From the trait description
+                     options: wizardCantrips
+                 });
+                 wizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+            }
+
+            for (const t of traitDetails) {
+                 const choice = t?.trait_specific?.spell_options || t?.trait_specific?.subfeature_options;
+                 if (choice && choice.from.options) {
                     newRacialSpellTraits.push({
                         traitName: t.name,
                         choose: choice.choose,
                         options: choice.from.options.map((opt: any) => opt.item),
                     });
                     choice.from.options.forEach((opt: any) => {
-                        if (opt.item && !spellOptionsToFetch.some(i => i.index === opt.item.index)) {
-                            spellOptionsToFetch.push(opt.item);
-                        }
+                        if (opt.item) spellOptionsToFetch.add(opt.item.index);
                     });
                 }
-            });
+            }
             
-            if (spellOptionsToFetch.length > 0) {
-                const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellOptionsToFetch, DndApiService.getSpellDetails, () => {});
-                setRacialSpellOptions(spellDetails.map(spell => translateSpell(spell) as ApiSpell));
+            if (spellOptionsToFetch.size > 0) {
+                const spellList = Array.from(spellOptionsToFetch).map(index => ({ index, name: index, url: ''}));
+                const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
+                setRacialSpellOptions(prev => {
+                    const existing = new Map(prev.map(s => [s.index, s]));
+                    spellDetails.forEach(s => s && existing.set(s.index, translateSpell(s) as ApiSpell));
+                    return Array.from(existing.values());
+                });
             }
     
             setRacialSpellTraits(newRacialSpellTraits);
@@ -609,21 +625,23 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setIsEquipmentLoading(true);
             setIsSpellsLoading(true);
             setSpellsLoadingProgress('Carregando detalhes da classe...');
-            const details = await DndApiService.getClassDetails(newClassIndex);
+            
+            const [details, levels, spellsResponse] = await Promise.all([
+                DndApiService.getClassDetails(newClassIndex),
+                DndApiService.getClassLevels(newClassIndex),
+                DndApiService.getSpellsForClass(newClassIndex)
+            ]);
+
             setClassDetails(details);
-            const levels = await DndApiService.getClassLevels(newClassIndex);
             setClassLevels(levels);
 
-            if (details?.spellcasting) {
-                const spellsResponse = await DndApiService.getSpellsForClass(newClassIndex);
-                if (spellsResponse?.results) {
-                    const spellDetails = await fetchDetailsInChunks(
-                        spellsResponse.results,
-                        DndApiService.getSpellDetails,
-                        (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
-                    );
-                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
-                }
+            if (details?.spellcasting && spellsResponse?.results) {
+                 const spellDetails = await fetchDetailsInChunks(
+                    spellsResponse.results,
+                    DndApiService.getSpellDetails,
+                    (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
+                );
+                setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
             }
             setIsSpellsLoading(false);
             setSpellsLoadingProgress(null);
