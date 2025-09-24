@@ -37,12 +37,6 @@ const safetySettings = [
   },
 ];
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  generationConfig,
-  safetySettings,
-});
-
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
 - **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida.
 - **Regras:** Siga as regras de D&D 5e para combate, testes de perícia e habilidades, mas priorize a história e a diversão. Você é responsável por todas as rolagens de dados.
@@ -56,6 +50,14 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Economia:** Quando o jogador entrar em uma loja, abra o 'shopState'. Forneça o inventário e os 'sellPrices' para os itens do jogador.
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido. Não inclua nenhum texto ou formatação fora do objeto JSON.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
+
+
+const model = genAI.getGenerativeModel({
+  model: "gemini-1.5-flash",
+  generationConfig,
+  safetySettings,
+  systemInstruction: systemInstruction,
+});
 
 
 export interface GeminiResponse {
@@ -78,20 +80,9 @@ const createCharacterSummary = (character: Character) => {
     } = character;
     
     return {
-        name: summary.name,
-        level: summary.level,
-        xp: summary.xp,
-        xpToNextLevel: summary.xpToNextLevel,
-        characterClass: summary.characterClass,
-        race: summary.race,
-        background: summary.background,
-        alignment: summary.alignment,
-        hp: summary.hp,
-        attributes: summary.attributes,
-        modifiers: summary.modifiers,
+        ...summary,
         inventory: summary.inventory.map(item => `${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`),
         proficiencies: summary.proficiencies.map(p => p.name),
-        spells: summary.spells,
     };
 };
 
@@ -116,17 +107,13 @@ export const getGameUpdate = async (
             As últimas 10 entradas do log da aventura são: ${JSON.stringify(fullLog.slice(-10).map(l => ({type: l.type, content: l.content})))}
             A ação do jogador é: "${playerAction}"
 
-            Com base nisso, continue a aventura. Sua resposta DEVE ser um objeto JSON.
+            Com base nisso, continue a aventura. Sua resposta DEVE ser um objeto JSON válido.
         `;
 
-        const contents = [{
-            role: "user",
-            parts: [{ text: prompt }]
-        }];
-
-        const result = await model.generateContent({ contents, system: { parts: [{ text: systemInstruction }] } });
-        const responseText = result.response.text();
-        const responseData = JSON.parse(responseText) as GeminiResponse;
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const jsonText = response.text();
+        const responseData = JSON.parse(jsonText) as GeminiResponse;
         
         console.log("[geminiService] Resposta da IA recebida e validada:", responseData);
         return responseData;
@@ -140,4 +127,4 @@ export const getGameUpdate = async (
 export const getInitialStory = async (character: Character): Promise<GeminiResponse | null> => {
     const action = "A aventura começa. Onde eu estou e o que está acontecendo?";
     return getGameUpdate(character, action, []);
-}
+};
