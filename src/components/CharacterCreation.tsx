@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
 import * as GeminiService from '@/services/geminiService';
@@ -8,7 +8,7 @@ import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ConfirmationModal from './ui/ConfirmationModal';
-import { Loader2 } from 'lucide-react';
+import { BrainCircuit, Loader2 } from 'lucide-react';
 
 const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
@@ -16,10 +16,11 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [showAiTestModal, setShowAiTestModal] = useState(false);
     
     // State for AI Test
     const [isTestingAi, setIsTestingAi] = useState(false);
-    const [aiTestResult, setAiTestResult] = useState<string | null>(null);
+    const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string } | null>(null);
 
     // --- Data Fetching ---
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -31,10 +32,8 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
 
 
     useEffect(() => {
-        // This effect runs once on mount to check if a saved game exists in localStorage.
-        // It does NOT load the game, just checks for its presence.
         setHasSavedGame(checkForSavedGame());
-    }, [checkForSavedGame]);
+    }, [checkForSavedGame, isLoading]);
 
 
     useEffect(() => {
@@ -82,22 +81,24 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         setView('form');
     }
 
-    const handleTestAi = async () => {
+    const handleTestAi = useCallback(async () => {
         setIsTestingAi(true);
         setAiTestResult(null);
         try {
             const response = await GeminiService.testAiConnection();
-            setAiTestResult(response || "A IA não respondeu como esperado.");
-            alert(`Resposta da IA: ${response}`);
-        } catch (error) {
-            const errorMessage = "Erro ao testar a conexão com a IA.";
-            setAiTestResult(errorMessage);
-            alert(errorMessage);
+            if (!response) {
+                 throw new Error("A IA não retornou uma resposta.");
+            }
+            setAiTestResult({ title: 'Resposta da IA', message: response });
+        } catch (error: any) {
+            const errorMessage = error.message || "Ocorreu um erro desconhecido ao testar a conexão com a IA.";
+            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage });
             console.error(error);
         } finally {
             setIsTestingAi(false);
+            setShowAiTestModal(true);
         }
-    };
+    }, []);
     
     // --- Render Logic ---
     if (isLoading && !character) { 
@@ -134,7 +135,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
                             disabled={isTestingAi}
                             className="menu-button btn-import text-sm max-w-xs mx-auto"
                         >
-                            {isTestingAi ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : null}
+                            {isTestingAi ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2"/>}
                             {isTestingAi ? 'Testando...' : 'Testar IA'}
                         </button>
                     </div>
@@ -147,6 +148,15 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
                         confirmText="Sim, começar de novo"
                         cancelText="Não, voltar"
                     />
+                     {aiTestResult && (
+                        <ConfirmationModal
+                            isOpen={showAiTestModal}
+                            title={aiTestResult.title}
+                            message={aiTestResult.message}
+                            onConfirm={() => setShowAiTestModal(false)}
+                            confirmText="OK"
+                        />
+                     )}
                 </main>
             </div>
         );

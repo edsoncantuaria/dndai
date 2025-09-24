@@ -7,7 +7,7 @@ interface ConfirmationModalProps {
     title: string;
     message: string;
     onConfirm: () => void;
-    onCancel: () => void;
+    onCancel?: () => void;
     confirmText?: string;
     cancelText?: string;
 }
@@ -33,18 +33,20 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
                     <h2 className="text-xl font-bold font-garamond text-amber-300">{title}</h2>
                 </header>
                 <main className="p-6">
-                    <p className="text-stone-300">{message}</p>
+                    <p className="text-stone-300 whitespace-pre-wrap">{message}</p>
                 </main>
                 <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 rounded-md text-stone-200 bg-stone-700 hover:bg-stone-600 transition-colors"
-                    >
-                        {cancelText}
-                    </button>
+                    {onCancel && (
+                        <button
+                            onClick={onCancel}
+                            className="px-4 py-2 rounded-md text-stone-200 bg-stone-700 hover:bg-stone-600 transition-colors"
+                        >
+                            {cancelText}
+                        </button>
+                    )}
                     <button
                         onClick={onConfirm}
-                        className="px-4 py-2 rounded-md text-stone-900 bg-red-700 hover:bg-red-600 transition-colors font-semibold"
+                        className={`px-4 py-2 rounded-md transition-colors font-semibold ${onCancel ? 'text-stone-900 bg-red-700 hover:bg-red-600' : 'text-stone-900 bg-amber-600 hover:bg-amber-700'}`}
                     >
                         {confirmText}
                     </button>
