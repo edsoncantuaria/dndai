@@ -152,7 +152,7 @@ const Settings: React.FC = () => {
         <>
             <button 
                 onClick={openSettingsModal}
-                className="fixed top-4 right-4 z-50 h-14 w-14 bg-stone-900/80 backdrop-blur-md border-2 border-amber-500/50 rounded-full flex items-center justify-center text-amber-400 hover:bg-stone-800 hover:border-amber-500 transition-all shadow-lg"
+                className="fixed top-1 left-1 z-50 h-14 w-14 bg-stone-900/80 backdrop-blur-md border-2 border-amber-500/50 rounded-full flex items-center justify-center text-amber-400 hover:bg-stone-800 hover:border-amber-500 transition-all shadow-lg"
                 title="Configurações da IA"
             >
                 <Sparkles className="h-7 w-7" />
