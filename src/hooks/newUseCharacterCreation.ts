@@ -79,8 +79,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
     const [isEquipmentLoading, setIsEquipmentLoading] = useState(false);
-    const [isSubchoiceLoading, setIsSubchoiceLoading] = useState<Record<string, boolean>>({});
-    const [subChoiceOptions, setSubChoiceOptions] = useState<Record<string, ApiListItem[]>>({});
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
@@ -248,7 +246,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const areAllEquipmentChoicesMade = useMemo(() => {
         return equipmentChoiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            // If it's a direct category choice, only `sub` needs to be defined.
+            
+            // Direct category choice
             if (group.choice.from.option_set_type === 'equipment_category') {
                 return selection?.sub !== undefined;
             }
@@ -257,7 +256,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (!selection || selection.main === undefined) return false;
             
             const options = group.choice.from.options || [];
-            if (selection.main >= options.length) return false; // Should not happen
+            if (selection.main >= options.length) return false;
             const mainOption = options[selection.main];
 
             // If the main option itself requires a sub-choice, `sub` must be defined.
@@ -295,28 +294,27 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     // --- CALLBACKS & EFFECTS ---
 
     const resetSelections = useCallback((type: 'full' | 'class' | 'background') => {
-        // Always reset these
         setProficiencySelections({});
         setFinalizedEquipment([]);
         setEquipmentSelections({});
-        setChosenLanguages([]);
         
-        if (type === 'full') { // Reset everything related to race
+        if (type === 'full') {
             setChosenRacialSpells({});
-            setRacialSpellOptions([]);
-            setRacialSpellTraits([]);
+            // racialSpellOptions and racialSpellTraits are reset by race change effect
             setPersonalityTraits([]);
             setIdeal('');
             setBond('');
             setFlaw('');
+            setChosenClassSpells([]); // Also reset class spells if race changes
+            setChosenLanguages([]);
+        } else if (type === 'class') {
             setChosenClassSpells([]);
-        } else if (type === 'class') { // Reset only class-specific things
-            setChosenClassSpells([]);
-        } else if (type === 'background') { // Reset only background-specific things
+        } else if (type === 'background') {
             setPersonalityTraits([]);
             setIdeal('');
             setBond('');
             setFlaw('');
+            // Reset only background-related language choices if needed
         }
     }, []);
 
@@ -347,31 +345,32 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     
             if (allTraitList.length === 0) {
                 setRacialSpellTraits([]);
+                setRacialSpellOptions([]);
                 return;
             }
     
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
-            const spellOptionsToFetch = new Set<string>();
+            const spellOptionsToFetch = new Set<ApiListItem>();
     
             // Special Case: High Elf Cantrip
             const highElfTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
             if (highElfTrait) {
                 setIsSpellsLoading(true);
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
-                if (wizardSpellsResponse?.results) {
-                    const cantripDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, () => {});
-                    const level0Cantrips = cantripDetails.filter(s => s && s.level === 0).map(s => ({ index: s!.index, name: s!.name, url: s!.url }));
-
-                    if (level0Cantrips.length > 0) {
-                         newRacialSpellTraits.push({
-                            traitName: 'Truque de Alto Elfo',
-                            choose: 1, 
-                            options: level0Cantrips
-                        });
-                        level0Cantrips.forEach(c => spellOptionsToFetch.add(c.index));
-                    }
+                const wizardCantrips = (wizardSpellsResponse?.results || []).filter((spell: any) => spell.level === 0 || spell.url.includes('level-0'));
+                
+                const cantripDetails = await fetchDetailsInChunks(wizardCantrips, DndApiService.getSpellDetails, () => {});
+                const level0Cantrips = cantripDetails.filter(s => s && s.level === 0).map(s => ({ index: s!.index, name: s!.name, url: s!.url }));
+                
+                if (level0Cantrips.length > 0) {
+                     newRacialSpellTraits.push({
+                        traitName: 'Truque de Alto Elfo',
+                        choose: 1, 
+                        options: level0Cantrips
+                    });
+                    level0Cantrips.forEach(c => spellOptionsToFetch.add(c));
                 }
                 setIsSpellsLoading(false);
             }
@@ -382,26 +381,21 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 
                 const choice = trait.trait_specific?.spell_options || trait.trait_specific?.subfeature_options;
                 if (choice && choice.from?.options) {
-                    newRacialSpellTraits.push({
-                        traitName: trait.name,
-                        choose: choice.choose,
-                        options: choice.from.options.map((opt: any) => opt.item),
-                    });
-                    choice.from.options.forEach((opt: any) => {
-                        if (opt.item) spellOptionsToFetch.add(opt.item.index);
-                    });
+                    const options = choice.from.options.map((opt: any) => opt.item).filter(Boolean);
+                    if (options.length > 0) {
+                        newRacialSpellTraits.push({
+                            traitName: trait.name,
+                            choose: choice.choose,
+                            options: options,
+                        });
+                        options.forEach((opt: ApiListItem) => spellOptionsToFetch.add(opt));
+                    }
                 }
             }
             
             if (spellOptionsToFetch.size > 0) {
-                const spellList = Array.from(spellOptionsToFetch).map(index => ({ index, name: index, url: ''}));
-                const fetchedSpellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
-                
-                setRacialSpellOptions(prev => {
-                    const existing = new Map(prev.map(s => [s.index, s]));
-                    fetchedSpellDetails.forEach(s => s && existing.set(s.index, translateSpell(s) as ApiSpell));
-                    return Array.from(existing.values());
-                });
+                const fetchedSpellDetails = await fetchDetailsInChunks(Array.from(spellOptionsToFetch), DndApiService.getSpellDetails, () => {});
+                setRacialSpellOptions(fetchedSpellDetails.filter((s): s is ApiSpell => s !== null).map(spell => translateSpell(spell) as ApiSpell));
             }
     
             setRacialSpellTraits(newRacialSpellTraits);
@@ -415,17 +409,26 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     useEffect(() => {
         const finalizeEquipmentSelections = async () => {
             const finalItems: InventoryItem[] = [];
+            const processedItems = new Set<string>();
+
             for (const group of equipmentChoiceGroups) {
                 const selection = equipmentSelections[group.id];
                 if (!selection) continue;
-    
+
                 // Case 1: Direct category choice (e.g., Acolyte's Holy Symbol)
                 if (group.choice.from.option_set_type === 'equipment_category' && selection.sub !== undefined) {
-                    const subOptions = subChoiceOptions[group.id];
+                    const categoryUrl = group.choice.from.equipment_category?.url;
+                    if (!categoryUrl) continue;
+                    const subOptionsData = await DndApiService.getEquipmentForCategory(group.choice.from.equipment_category!.index);
+                    const subOptions = subOptionsData?.equipment || [];
+
                     if (subOptions && subOptions[selection.sub]) {
                         const chosenSubItem = subOptions[selection.sub];
                         const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
-                        finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                        if(details && !processedItems.has(chosenSubItem.index)) {
+                            finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                            processedItems.add(chosenSubItem.index);
+                        }
                     }
                 } 
                 // Case 2: Nested choice (e.g., weapon choices)
@@ -435,20 +438,33 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     
                     if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                         const details = await DndApiService.getEquipmentDetails(mainOption.of.index);
-                        finalItems.push({ ...details, ...mainOption.of, id: uuidv4(), quantity: mainOption.count || 1, equipped: false });
+                         if(details && !processedItems.has(mainOption.of.index)){
+                            finalItems.push({ ...details, ...mainOption.of, id: uuidv4(), quantity: mainOption.count || 1, equipped: false });
+                            processedItems.add(mainOption.of.index);
+                         }
                     } else if (mainOption.option_type === 'multiple' && mainOption.items) {
                         for (const subItem of mainOption.items) {
                             if (subItem.option_type === 'counted_reference' && subItem.of) {
                                 const details = await DndApiService.getEquipmentDetails(subItem.of.index);
-                                finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
+                                if(details && !processedItems.has(subItem.of.index)){
+                                    finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
+                                    processedItems.add(subItem.of.index);
+                                }
                             }
                         }
                     } else if (mainOption.option_type === 'choice' && selection.sub !== undefined) {
-                        const subOptions = subChoiceOptions[group.id];
+                        const categoryUrl = mainOption.choice?.from?.equipment_category?.url;
+                        if (!categoryUrl) continue;
+
+                        const subOptionsData = await DndApiService.getEquipmentForCategory(mainOption.choice.from.equipment_category.index);
+                        const subOptions = subOptionsData?.equipment || [];
                         if (subOptions && subOptions[selection.sub]) {
                             const chosenSubItem = subOptions[selection.sub];
                             const details = await DndApiService.getEquipmentDetails(chosenSubItem.index);
-                            finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                            if(details && !processedItems.has(chosenSubItem.index)){
+                                finalItems.push({ ...details, ...chosenSubItem, id: uuidv4(), quantity: 1, equipped: false });
+                                processedItems.add(chosenSubItem.index);
+                            }
                         }
                     }
                 }
@@ -456,8 +472,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setFinalizedEquipment(finalItems);
         };
     
-        finalizeEquipmentSelections();
-    }, [equipmentSelections, equipmentChoiceGroups, subChoiceOptions]);
+        if(areAllEquipmentChoicesMade) {
+            finalizeEquipmentSelections();
+        }
+    }, [equipmentSelections, equipmentChoiceGroups, areAllEquipmentChoicesMade]);
     
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
@@ -715,8 +733,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const randomMainIndex = Math.floor(Math.random() * mainOptionsCount);
                 newSelections[group.id] = { main: randomMainIndex, sub: undefined };
             } else if (group.choice.from.option_set_type === 'equipment_category') {
-                // If it's a direct category, we can't pre-randomize the sub-choice here
-                // as it requires an async fetch. We just leave it for the component to handle.
+                // For direct categories, we still set a main index to trigger the sub-option load
+                newSelections[group.id] = { main: 0, sub: undefined };
             }
         });
         setEquipmentSelections(newSelections);
@@ -827,8 +845,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         fixedEquipment,
         startingGold,
         isEquipmentLoading,
-        isSubchoiceLoading,
-        subChoiceOptions, setSubChoiceOptions,
         areAllEquipmentChoicesMade,
         classSpellOptions,
         racialSpellOptions,
@@ -850,5 +866,3 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeSpells,
     };
 };
-
-    

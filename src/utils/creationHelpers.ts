@@ -22,8 +22,12 @@ export const getRefundForPrevLevel = (currentScore: number): number => (currentS
  * Generates a human-readable label for an equipment option from the API.
  * Handles cases for direct items, categories, and multiple-item choices.
  */
-export const getOptionLabel = (option: ApiEquipmentOption): string => {
+export const getOptionLabel = (option: ApiEquipmentOption, isCategoryDirect: boolean = false): string => {
     if (!option) return 'Opção Inválida';
+
+    if (isCategoryDirect) {
+        return `Qualquer ${translateEquipment((option as any).name)}`;
+    }
 
     switch (option.option_type) {
         case 'counted_reference':
@@ -47,13 +51,6 @@ export const getOptionLabel = (option: ApiEquipmentOption): string => {
             return 'Múltiplos Itens';
 
         default:
-            // This can handle cases where the option is a direct equipment category reference
-            // as seen in some background equipment choices.
-            if ((option as any).equipment_category) {
-                 const categoryName = (option as any).equipment_category.name;
-                 return `Qualquer ${translateEquipment(categoryName)}`;
-            }
-            console.warn("Opção de equipamento não reconhecida:", option);
-            return 'Opção de Equipamento Desconhecida';
+            return `Opção Desconhecida: ${option.option_type}`;
     }
 };
