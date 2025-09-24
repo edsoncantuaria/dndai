@@ -45,17 +45,20 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(true); // Start as true to check for saved game
 
     // --- Core State Management ---
-
-    const saveGame = useCallback((char: Character | null, gameLog: LogEntry[]) => {
-        if (char) {
+    
+    // NEW: Use useEffect to save game state whenever character or log changes.
+    // This is more reliable than calling saveGame manually from multiple places.
+    useEffect(() => {
+        if (character && !isLoading) { // Only save if a game is loaded and not during initial load
             try {
-                const gameState = { character: char, log: gameLog };
+                const gameState = { character, log };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+                console.log("[useNewGameState] Jogo salvo no localStorage.");
             } catch (error) {
-                console.error("Failed to save game to local storage:", error);
+                console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, []);
+    }, [character, log, isLoading]);
     
     // Auto-load on initial mount
     useEffect(() => {
@@ -68,11 +71,12 @@ export const useNewGameState = () => {
                 // Clear transient states that shouldn't persist
                 setActionOptions([]);
                 setIsLoading(false);
+                 console.log("[useNewGameState] Jogo carregado do localStorage.");
             } else {
                 setIsLoading(false); // No saved game found
             }
         } catch (error) {
-            console.error("Failed to load game:", error);
+            console.error("Falha ao carregar o jogo:", error);
             localStorage.removeItem(LOCAL_STORAGE_KEY); // Clear corrupted data
             setIsLoading(false);
         }
@@ -85,8 +89,7 @@ export const useNewGameState = () => {
             return;
         }
 
-        let newCharacterState = character;
-
+        // 1. Update character state first
         if (response.updatedCharacter) {
              setCharacter(prev => {
                 if (!prev) return null;
@@ -99,31 +102,27 @@ export const useNewGameState = () => {
                 updated.carryingCapacity = characterUtils.calculateCarryingCapacity(updated.attributes.strength);
                 updated.currentWeight = updated.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
 
-                newCharacterState = updated;
                 return updated;
             });
         }
         
-        const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
-        const fullNewLog = [...log, ...newLogEntries];
-
-        setLog(fullNewLog);
+        // 2. Update log
+        if (response.logEntries) {
+            const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
+            setLog(prev => [...prev, ...newLogEntries]);
+        }
         
+        // 3. Update other game states
         if (response.actionOptions) {
             setActionOptions(response.actionOptions);
         }
-
-        // Handle state updates
         if (response.combatState) setCombatState(response.combatState);
         if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
         if (response.shopState) setShopState(response.shopState);
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
-        // Save game after processing all updates
-        saveGame(newCharacterState, fullNewLog);
-
-    }, [character, log, saveGame]);
+    }, []);
 
 
     const processPlayerAction = useCallback(async (action: string) => {
@@ -144,6 +143,7 @@ export const useNewGameState = () => {
 
         const response = await newGeminiService.getGameUpdate(gameUpdateInput);
         
+        console.log("[useGameState] Resposta recebida do Gemini:", response);
         handleApiResponse(response);
         setIsLoading(false);
 
@@ -161,22 +161,26 @@ export const useNewGameState = () => {
             playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
             gameLog: [],
         };
+        
         console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
         const response = await newGeminiService.getInitialStory(initialStoryInput);
         
-        setCharacter(newCharacter);
-        setLog([]); // Start with a fresh log
+        // Set the character state, which will trigger the useEffect to save the game
+        setCharacter(newCharacter); 
+        setLog([]); 
 
         handleApiResponse(response);
         setIsLoading(false);
     }, [handleApiResponse]);
 
     const startNewGame = useCallback(() => {
+        setIsLoading(true); // Prevent saving while resetting
         setCharacter(null);
         setLog([]);
         setActionOptions([]);
-        setIsLoading(false);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
+        console.log("[useNewGameState] Novo jogo iniciado, localStorage limpo.");
+        setIsLoading(false);
     }, []);
 
     // --- Specific Game Actions ---
@@ -197,7 +201,7 @@ export const useNewGameState = () => {
             });
             const newCharacter = { ...prev, inventory: newInventory };
             newCharacter.ac = characterUtils.calculateAC(newInventory, newCharacter.modifiers);
-            // No need to save here, will be saved on next API response
+            // The change to 'character' state will trigger the saveGame useEffect
             return newCharacter;
         });
     }, []);
@@ -244,6 +248,5 @@ export const useNewGameState = () => {
         buyItem,
         sellItem,
         startNewGame,
-        // No need to expose load/save functions directly if they are handled internally
     };
 };
