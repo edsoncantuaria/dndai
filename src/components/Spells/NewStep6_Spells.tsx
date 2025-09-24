@@ -14,8 +14,8 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const {
         isSpellsLoading,
         spellsLoadingProgress,
-        classSpellChoices,
-        racialSpellChoices,
+        classSpellOptions,
+        racialSpellTraits,
         handleClassSpellChange,
         handleRacialSpellChange,
         chosenClassSpells,
@@ -26,15 +26,15 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     } = hook;
     
     const hasClassSpells = cantripsKnown > 0 || spellsKnown > 0;
-    const hasRacialSpells = racialSpellChoices.length > 0;
+    const hasRacialSpells = (racialSpellTraits || []).length > 0;
 
-    const allCantrips = classSpellChoices.filter(s => s.level === 0);
-    const allLevel1Spells = classSpellChoices.filter(s => s.level === 1);
+    const allCantrips = classSpellOptions.filter(s => s.level === 0);
+    const allLevel1Spells = classSpellOptions.filter(s => s.level === 1);
 
     const selectedCantripsCount = chosenClassSpells.filter(sIndex => allCantrips.some(c => c.index === sIndex)).length;
     const selectedSpellsCount = chosenClassSpells.filter(sIndex => allLevel1Spells.some(c => c.index === sIndex)).length;
     
-    const areRacialSpellsSelected = racialSpellChoices.every(trait =>
+    const areRacialSpellsSelected = (racialSpellTraits || []).every(trait =>
         (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose
     );
     const areClassSpellsSelected = selectedCantripsCount === cantripsKnown && selectedSpellsCount === spellsKnown;
@@ -89,7 +89,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             {hasRacialSpells && (
                 <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
                     <h4 className="font-semibold text-amber-300 mb-2">Magias Raciais</h4>
-                    {racialSpellChoices.map((trait) => {
+                    {(racialSpellTraits || []).map((trait) => {
                         const selectedCount = chosenRacialSpells[trait.traitName]?.length || 0;
                         return (
                              <div key={trait.traitName}>
