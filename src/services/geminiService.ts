@@ -2,7 +2,7 @@
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem } from '../types';
-import { GameMasterResponse, GameMasterFlowInput, CharacterSummarySchema } from "./gameSchemas";
+import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
@@ -44,6 +44,8 @@ const generationConfig = {
 
 const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
+    
+    // Constrói uma versão mais limpa e legível do personagem para o prompt
     const characterContext = `
         ### Estado do Personagem
         - **Nome:** ${character.name} (Nível ${character.level} ${character.characterClass})
@@ -80,19 +82,24 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
     }
     try {
         const prompt = createPrompt(input);
+        console.log("[geminiService] Prompt enviado para a IA:", prompt); // Log do prompt
+        
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: generationConfig
         });
+
         const response = result.response;
         const jsonText = response.text();
+        console.log("[geminiService] Resposta bruta da IA:", jsonText); // Log da resposta bruta
+
         const responseData = JSON.parse(jsonText) as GameMasterResponse;
         
         console.log("[geminiService] Resposta da IA recebida e validada:", responseData);
         return responseData;
 
     } catch (error) {
-        console.error("Erro ao chamar a API do Gemini:", error);
+        console.error("Erro ao chamar ou processar a resposta da API do Gemini:", error);
         return null;
     }
 };
@@ -109,11 +116,14 @@ export const testAiConnection = async (): Promise<string | null> => {
     try {
         const testModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
+        console.log("[geminiService] Testando conexão com a IA com o prompt:", prompt);
         const result = await testModel.generateContent(prompt);
         const response = result.response;
-        return response.text();
-    } catch (error) {
+        const textResponse = response.text();
+        console.log("[geminiService] Resposta do teste de conexão:", textResponse);
+        return textResponse;
+    } catch (error: any) {
         console.error("Erro no teste de conexão com a IA:", error);
-        return "Falha ao conectar com a IA. Verifique o console para mais detalhes.";
+        return `Falha ao conectar com a IA. Detalhes: ${error.message}`;
     }
 };
