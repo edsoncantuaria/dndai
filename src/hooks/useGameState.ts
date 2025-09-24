@@ -6,7 +6,6 @@ import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
-import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame';
 
@@ -42,7 +41,6 @@ export const useGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const { settings } = useSettingsContext();
 
     const saveGameToLocalStorage = useCallback(() => {
         if (character) {
@@ -148,7 +146,6 @@ export const useGameState = () => {
           action,
           log
         );
-
         console.log("[useGameState] Resposta recebida do Gemini:", response);
         
         handleGeminiResponse(response);

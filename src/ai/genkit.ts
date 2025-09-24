@@ -1,7 +1,8 @@
+import './dev';
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
-// Retrieve API key from environment variables, which can be set by the user's settings.
+// Retrieve API key from environment variables.
 const apiKey = process.env.GENKIT_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
 
 export const ai = genkit({

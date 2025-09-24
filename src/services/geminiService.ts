@@ -82,7 +82,8 @@ async function generateWithGenkit(
   prompt: string
 ): Promise<GeminiResponse | null> {
   try {
-    console.log("[GeminiService] Usando API Key padrão do sistema (via genkit.ts).");
+    console.log("[GeminiService] Usando API Key padrão do sistema.");
+
     console.log("[GeminiService] Prompt enviado:", prompt.substring(0, 500), "...");
 
     const llmResponse = await ai.generate({
