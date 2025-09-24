@@ -29,7 +29,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
 }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-    if (!spell) {
+    if (!spell || !spell.school) {
         return null;
     }
     
