@@ -76,22 +76,6 @@ export const useNewGameState = () => {
 
     }, []);
 
-    const createCharacterSummary = (char: Character | null): Omit<Character, 'classLevelsData' | 'subclassLevelsData'> | null => {
-        if (!char) return null;
-        
-        const { 
-            classLevelsData, 
-            subclassLevelsData,
-            ...summary 
-        } = char;
-        
-        return {
-            ...summary,
-            inventory: (summary.inventory || []).map(item => ({ id: item.id, name: item.name, quantity: item.quantity, equipped: item.equipped })),
-            proficiencies: (summary.proficiencies || []).map(p => ({ index: p.index, name: p.name, url: p.url })),
-        };
-    };
-
     const processPlayerAction = useCallback(async (action: string) => {
         if (!character) return;
         
@@ -103,9 +87,8 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        const characterSummary = createCharacterSummary(character);
         const gameUpdateInput = {
-            character: characterSummary as Character, // Cast because summary is slightly different but compatible for the prompt
+            character: character as Character,
             playerAction: action,
             gameLog: currentLog
         };
@@ -129,10 +112,8 @@ export const useNewGameState = () => {
         setCharacter(newCharacter);
 
         // Now, fetch the initial story using the newly created character state
-        const characterSummary = createCharacterSummary(newCharacter);
-        
         const gameUpdateInput = {
-            character: characterSummary as Character,
+            character: newCharacter as Character,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
             gameLog: []
         };
@@ -140,7 +121,7 @@ export const useNewGameState = () => {
         console.log('[useGameState] Enviando para a IA (história inicial):', gameUpdateInput);
         const response = await geminiService.getInitialStory(gameUpdateInput);
         
-        // The character state is already set, so handleApiResponse will now *update* it with any initial changes from the AI
+        // The character state is already set, handleApiResponse will now *update* it with any initial changes from the AI
         handleApiResponse(response);
         
         setIsLoading(false);
