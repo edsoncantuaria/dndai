@@ -37,18 +37,22 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
-                const [racesData, classesData, backgroundsData, alignmentsData, languagesData] = await Promise.all([
-                    DndApiService.getRaces(),
-                    DndApiService.getClasses(),
-                    DndApiService.getBackgrounds(),
-                    DndApiService.getAlignments(),
-                    DndApiService.getLanguages(),
-                ]);
+                // Fetch data sequentially to avoid rate limiting
+                const racesData = await DndApiService.getRaces();
                 setRaces(racesData?.results || []);
+                
+                const classesData = await DndApiService.getClasses();
                 setClasses(classesData?.results || []);
+
+                const backgroundsData = await DndApiService.getBackgrounds();
                 setBackgrounds(backgroundsData?.results || []);
+
+                const alignmentsData = await DndApiService.getAlignments();
                 setAlignments(alignmentsData?.results || []);
+
+                const languagesData = await DndApiService.getLanguages();
                 setAllLanguages(languagesData?.results || []);
+
             } catch (error) {
                 console.error("Failed to load initial creation data:", error);
                 setFormError("Falha ao carregar dados essenciais. Por favor, tente recarregar a página.");

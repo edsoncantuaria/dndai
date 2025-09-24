@@ -29,7 +29,7 @@ async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
     }
 
     // 3. Fetch from the official API
-    await delay(50); 
+    await delay(100); 
     
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
