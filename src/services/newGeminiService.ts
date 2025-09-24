@@ -3,65 +3,12 @@
 
 import { ai } from '@/ai/genkit';
 import {
-  Character,
-  LogEntry,
-} from '@/types';
-import { z } from 'zod';
+    GameMasterFlowInputSchema,
+    GameMasterResponseSchema,
+    type GameMasterFlowInput,
+    type GameMasterResponse
+} from './gameSchemas';
 
-// --- Zod Schemas for Input and Output Validation ---
-
-export const GameMasterFlowInputSchema = z.object({
-  character: z.custom<Character>(),
-  playerAction: z.string(),
-  gameLog: z.array(z.custom<LogEntry>()),
-});
-export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
-
-
-const LogEntrySchema = z.object({
-  type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll']),
-  content: z.string(),
-  rollResult: z.optional(z.object({
-    description: z.string(),
-    dice: z.string(),
-    modifier: z.number(),
-    total: z.number(),
-    rolls: z.array(z.number()),
-    success: z.optional(z.boolean()),
-    dc: z.optional(z.number()),
-    rollType: z.enum(['check', 'save', 'attack', 'damage']),
-    advantage: z.optional(z.boolean()),
-    disadvantage: z.optional(z.boolean()),
-  })),
-});
-
-const CombatantSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    hp: z.optional(z.number()),
-    maxHp: z.optional(z.number()),
-    initiative: z.number(),
-});
-
-const CombatStateSchema = z.object({
-    isActive: z.boolean(),
-    round: z.number(),
-    turn: z.number(),
-    combatants: z.array(CombatantSchema),
-});
-
-// This is the schema for the *output* from the Gemini model
-const GameMasterResponseSchema = z.object({
-  logEntries: z.array(LogEntrySchema).describe("Novas entradas para o log da história, descrevendo o que acontece."),
-  actionOptions: z.array(z.string()).describe("Novas opções de escolha para o jogador, que conduzem a história."),
-  updatedCharacter: z.any().optional().describe("Um objeto contendo SOMENTE os campos do personagem que foram alterados (ex: hp, xp, inventário)."),
-  combatState: z.optional(CombatStateSchema).describe("O estado atualizado do combate, se estiver ativo."),
-  levelUpState: z.optional(z.any()).describe("Estado para o processo de level up, se ativado."),
-  shopState: z.optional(z.any()).describe("Estado da loja, se o jogador estiver em uma."),
-  lootOffer: z.optional(z.any()).describe("Itens oferecidos ao jogador para saquear."),
-  useHitDiceRequest: z.optional(z.any()).describe("Requisição para o jogador usar dados de vida durante um descanso."),
-});
-export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
 // --- System Instruction Prompt for the AI ---
 
@@ -109,28 +56,11 @@ const gameMasterFlow = ai.defineFlow(
   },
   async (input) => {
     console.log("[newGeminiService] Fluxo 'gameMasterFlow' invocado com a ação:", input.playerAction);
-    
-    // Create a summarized character object to keep the prompt concise
-    const characterSummary = {
-        ...input.character,
-        // Avoid sending overly large or redundant data to the AI
-        classLevelsData: undefined, 
-        subclassLevelsData: undefined,
-        inventory: input.character.inventory.map(({ id, name, quantity, equipped }) => ({
-            id, name, quantity, equipped,
-        })),
-    };
-
-    const { output } = await gameMasterPrompt({
-      ...input,
-      character: characterSummary as any,
-    });
-    
+    const { output } = await gameMasterPrompt(input);
     if (!output) {
-        console.error("[newGeminiService] Erro: A resposta da IA foi nula ou vazia.");
-        throw new Error("A resposta da IA foi nula.");
+      console.error("[newGeminiService] Erro: A resposta da IA foi nula ou vazia.");
+      throw new Error("A resposta da IA foi nula.");
     }
-    
     console.log("[newGeminiService] Resposta da IA recebida e validada com sucesso.");
     return output;
   }
@@ -142,11 +72,12 @@ const gameMasterFlow = ai.defineFlow(
 /**
  * Gets the next state of the game from the AI based on player action.
  */
-export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
+export async function getGameUpdate(input: GameMasterFlowInput): Promise<GameMasterResponse | null> {
   try {
+    console.log("[getGameUpdate] Chamando o fluxo do mestre com a ação:", input.playerAction);
     return await gameMasterFlow(input);
   } catch (error: any) {
-    console.error("[newGeminiService - getGameUpdate] Erro ao executar o fluxo do mestre:", error.message || error, error);
+    console.error("[getGameUpdate] Erro ao executar o fluxo do mestre:", error.message || error, error);
     return null;
   }
 };
@@ -154,11 +85,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 /**
  * Gets the initial story introduction for a newly created character.
  */
-export const getInitialStory = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
+export async function getInitialStory(input: GameMasterFlowInput): Promise<GameMasterResponse | null> {
   try {
+    console.log("[getInitialStory] Chamando o fluxo do mestre para a história inicial.");
     return await gameMasterFlow(input);
   } catch (error: any) {
-    console.error("[newGeminiService - getInitialStory] Erro ao buscar a história inicial:", error.message || error, error);
+    console.error("[getInitialStory] Erro ao buscar a história inicial:", error.message || error, error);
     return null;
   }
 };
