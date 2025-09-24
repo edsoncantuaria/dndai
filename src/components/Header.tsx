@@ -42,7 +42,24 @@ const Header: React.FC = () => {
             <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-2 rounded-lg border border-stone-700 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-stone-700 rounded-full flex items-center justify-center border-2 border-stone-600">
-                        <User className="h-8 w-8 text-stone-400" />
+                        <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-8 w-8 text-stone-400"
+            >
+              <path d="M12 2L2 8.5V15.5L12 22L22 15.5V8.5L12 2Z" />
+              <path d="M2 8.5L12 12L22 8.5" />
+              <path d="M12 2V12" />
+              <path d="M17 5.5L7 10.5" />
+              <path d="M17 18.5L7 13.5" />
+            </svg>
                     </div>
                     <div>
                         <h2 className="font-bold text-lg text-stone-100">{name}</h2>
