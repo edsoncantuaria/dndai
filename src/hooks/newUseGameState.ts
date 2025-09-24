@@ -3,7 +3,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem, Feat } from '../types';
-import * as newGeminiService from '../services/newGeminiService';
+import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,35 +34,6 @@ function isObject(item: any): boolean {
     return (item && typeof item === 'object' && !Array.isArray(item));
 }
 
-// Function to create a lean summary of the character for the AI prompt
-const createCharacterSummary = (character: Character) => {
-    const { 
-        classLevelsData, 
-        subclassLevelsData,
-        ...summary 
-    } = character;
-    
-    return {
-        // Flatten the character object for the AI prompt
-        name: summary.name,
-        level: summary.level,
-        xp: summary.xp,
-        xpToNextLevel: summary.xpToNextLevel,
-        characterClass: summary.characterClass,
-        race: summary.race,
-        background: summary.background,
-        alignment: summary.alignment,
-        hp: summary.hp,
-        attributes: summary.attributes,
-        modifiers: summary.modifiers,
-
-        // Convert complex objects to simple string arrays for the AI
-        inventory: summary.inventory.map(item => `${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`),
-        proficiencies: summary.proficiencies.map(p => p.name),
-        spells: summary.spells,
-    };
-};
-
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
@@ -85,8 +56,6 @@ export const useNewGameState = () => {
         }
     }, []);
 
-    // --- Core State Management ---
-    
     useEffect(() => {
         if (!isLoading) {
             saveGame(character, log);
@@ -110,7 +79,7 @@ export const useNewGameState = () => {
         }
     }, []);
 
-    const handleApiResponse = useCallback((response: newGeminiService.GameMasterResponse | null) => {
+    const handleApiResponse = useCallback((response: geminiService.GeminiResponse | null) => {
         if (!response) {
             setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: 'O Mestre parece distraído. Tente novamente.' }]);
             setActionOptions(prev => prev.length > 0 ? prev : ['Tentar novamente.']);
@@ -160,15 +129,9 @@ export const useNewGameState = () => {
         setLog(currentLog);
         setActionOptions([]);
         
-        const characterSummary = createCharacterSummary(character);
-        const gameUpdateInput = {
-          ...characterSummary, // Spread the flattened character summary
-          playerAction: action,
-          gameLog: currentLog.slice(-10).map(l => ({ type: l.type, content: l.content })) // Simplify log for AI
-        };
-        console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
-
-        const response = await newGeminiService.getGameUpdate(gameUpdateInput);
+        console.log('[useGameState] Enviando para a IA:', {character, playerAction: action, gameLog: currentLog});
+        
+        const response = await geminiService.getGameUpdate(character, action, currentLog);
         
         console.log("[useGameState] Resposta recebida do Gemini:", response);
         handleApiResponse(response);
@@ -184,26 +147,17 @@ export const useNewGameState = () => {
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
-        const characterSummary = createCharacterSummary(newCharacter);
-        const initialStoryInput = {
-            ...characterSummary,
-            playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
-            gameLog: [],
-        };
-        
-        console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
-        const response = await newGeminiService.getInitialStory(initialStoryInput);
+        console.log('[useGameState] Enviando para a IA (história inicial):', {character: newCharacter});
+        const response = await geminiService.getInitialStory(newCharacter);
 
-        // Set character state AFTER the initial story is generated to include AI's initial updates
         let finalCharacter = newCharacter;
         if (response?.updatedCharacter) {
             finalCharacter = mergeDeep(newCharacter, response.updatedCharacter);
         }
-        setCharacter(finalCharacter); // This is the first time we set the character
+        setCharacter(finalCharacter);
         
-        // This will now only handle the log entries and actions from the initial response
         handleApiResponse(response);
-        setIsLoading(false); // Set loading to false only after everything is done
+        setIsLoading(false);
     }, [handleApiResponse]);
 
     const startNewGame = useCallback(() => {
@@ -258,6 +212,43 @@ export const useNewGameState = () => {
         processPlayerAction(`Eu vendo ${item.name} por ${price} moedas de ouro.`);
     }, [processPlayerAction]);
 
+    const loadGameFromLocalStorage = () => {
+         try {
+            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedGame) {
+                const { character: savedCharacter, log: savedLog } = JSON.parse(savedGame);
+                setCharacter(savedCharacter);
+                setLog(savedLog || []);
+                setActionOptions([]);
+            }
+        } catch (error) {
+            console.error("Falha ao carregar o jogo:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const loadGameFromFile = (file: File) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const text = event.target?.result as string;
+                if(text) {
+                    const { character: savedCharacter, log: savedLog } = JSON.parse(text);
+                    setCharacter(savedCharacter);
+                    setLog(savedLog || []);
+                    setActionOptions([]);
+                    saveGame(savedCharacter, savedLog);
+                }
+            } catch (e) {
+                console.error("Erro ao ler o arquivo de save:", e);
+                alert("Arquivo de save inválido.");
+            }
+        };
+        reader.readAsText(file);
+    };
+
+
     return {
         character,
         log,
@@ -278,5 +269,7 @@ export const useNewGameState = () => {
         buyItem,
         sellItem,
         startNewGame,
+        loadGameFromLocalStorage,
+        loadGameFromFile
     };
 };

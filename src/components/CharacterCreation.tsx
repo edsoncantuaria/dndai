@@ -71,7 +71,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     }
     
     // --- Render Logic ---
-    if (isLoading && !hasSavedGame) { // Mostra loading ao criar personagem
+    if (isLoading && !character) { 
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400 text-center">
                 <Loader2 className="h-12 w-12 animate-spin" />
