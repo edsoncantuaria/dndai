@@ -2,6 +2,7 @@
 
 import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem } from '../types';
+import { GameMasterResponse, GameMasterFlowInput, CharacterSummarySchema } from "./gameSchemas";
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
@@ -9,33 +10,6 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey || "");
-
-const generationConfig = {
-  temperature: 1,
-  topP: 0.95,
-  topK: 64,
-  maxOutputTokens: 8192,
-  responseMimeType: "application/json",
-};
-
-const safetySettings = [
-  {
-    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-  {
-    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-  },
-];
 
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
 - **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida.
@@ -51,47 +25,52 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido. Não inclua nenhum texto ou formatação fora do objeto JSON.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
-
 const model = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
-  generationConfig,
-  safetySettings,
-  systemInstruction: systemInstruction,
+  systemInstruction: {
+    role: "model",
+    parts: [{ text: systemInstruction }],
+  },
 });
 
-
-export interface GeminiResponse {
-    narration?: string;
-    updatedCharacter?: Partial<Character>;
-    logEntries: Omit<LogEntry, 'id'>[];
-    actionOptions: string[];
-    combatState?: CombatState;
-    levelUpState?: Partial<LevelUpState>;
-    shopState?: ShopState;
-    lootOffer?: LootOffer;
-    useHitDiceRequest?: UseHitDiceRequest;
-}
-
-const createCharacterSummary = (character: Character) => {
-    const { 
-        classLevelsData, 
-        subclassLevelsData,
-        ...summary 
-    } = character;
-    
-    return {
-        ...summary,
-        inventory: summary.inventory.map(item => `${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`),
-        proficiencies: summary.proficiencies.map(p => p.name),
-    };
+const generationConfig = {
+    temperature: 1,
+    topP: 0.95,
+    topK: 64,
+    maxOutputTokens: 8192,
+    responseMimeType: "application/json",
 };
 
 
-export const getGameUpdate = async (
-    character: Character,
-    playerAction: string,
-    fullLog: LogEntry[]
-): Promise<GeminiResponse | null> => {
+const createPrompt = (input: GameMasterFlowInput) => {
+    const { character, playerAction, gameLog } = input;
+    const characterContext = `
+        ### Estado do Personagem
+        - **Nome:** ${character.name} (Nível ${character.level} ${character.characterClass})
+        - **HP:** ${character.hp.current}/${character.hp.max}
+        - **Atributos:** For ${character.attributes.strength}, Des ${character.attributes.dexterity}, Con ${character.attributes.constitution}, Int ${character.attributes.intelligence}, Sab ${character.attributes.wisdom}, Car ${character.attributes.charisma}
+        - **Perícias:** ${character.proficiencies.join(', ')}
+        - **Inventário:** ${character.inventory.join(', ')}
+        - **Região Atual:** ${character.currentRegion}
+        - **Resumo da História:** ${character.storySoFar}
+    `;
+
+    const logContext = `
+        ### Últimos Eventos
+        ${gameLog.slice(-10).map(l => `${l.type === 'action' ? 'Jogador' : 'Mestre'}: ${l.content}`).join('\n')}
+    `;
+
+    return `
+        ${characterContext}
+        ${logContext}
+        ---
+        A ação do jogador é: "${playerAction}"
+
+        Com base nisso, continue a aventura.
+    `;
+}
+
+export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
       console.error("GOOGLE_API_KEY não está definida. O serviço de IA não funcionará.");
       return {
@@ -100,20 +79,14 @@ export const getGameUpdate = async (
       };
     }
     try {
-        const characterSummary = createCharacterSummary(character);
-
-        const prompt = `
-            O estado atual do personagem é: ${JSON.stringify(characterSummary)}
-            As últimas 10 entradas do log da aventura são: ${JSON.stringify(fullLog.slice(-10).map(l => ({type: l.type, content: l.content})))}
-            A ação do jogador é: "${playerAction}"
-
-            Com base nisso, continue a aventura. Sua resposta DEVE ser um objeto JSON válido.
-        `;
-
-        const result = await model.generateContent(prompt);
+        const prompt = createPrompt(input);
+        const result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: generationConfig
+        });
         const response = result.response;
         const jsonText = response.text();
-        const responseData = JSON.parse(jsonText) as GeminiResponse;
+        const responseData = JSON.parse(jsonText) as GameMasterResponse;
         
         console.log("[geminiService] Resposta da IA recebida e validada:", responseData);
         return responseData;
@@ -124,7 +97,23 @@ export const getGameUpdate = async (
     }
 };
 
-export const getInitialStory = async (character: Character): Promise<GeminiResponse | null> => {
-    const action = "A aventura começa. Onde eu estou e o que está acontecendo?";
-    return getGameUpdate(character, action, []);
+export const getInitialStory = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
+    const initialInput = { ...input, playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?" };
+    return getGameUpdate(initialInput);
+};
+
+export const testAiConnection = async (): Promise<string | null> => {
+     if (!apiKey) {
+        return "Erro: A chave da API do Google não está configurada no servidor.";
+    }
+    try {
+        const testModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
+        const result = await testModel.generateContent(prompt);
+        const response = result.response;
+        return response.text();
+    } catch (error) {
+        console.error("Erro no teste de conexão com a IA:", error);
+        return "Falha ao conectar com a IA. Verifique o console para mais detalhes.";
+    }
 };

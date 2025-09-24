@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
+import * as GeminiService from '@/services/geminiService';
 import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
@@ -15,6 +16,10 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    
+    // State for AI Test
+    const [isTestingAi, setIsTestingAi] = useState(false);
+    const [aiTestResult, setAiTestResult] = useState<string | null>(null);
 
     // --- Data Fetching ---
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -76,6 +81,23 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         setShowConfirmationModal(false);
         setView('form');
     }
+
+    const handleTestAi = async () => {
+        setIsTestingAi(true);
+        setAiTestResult(null);
+        try {
+            const response = await GeminiService.testAiConnection();
+            setAiTestResult(response || "A IA não respondeu como esperado.");
+            alert(`Resposta da IA: ${response}`);
+        } catch (error) {
+            const errorMessage = "Erro ao testar a conexão com a IA.";
+            setAiTestResult(errorMessage);
+            alert(errorMessage);
+            console.error(error);
+        } finally {
+            setIsTestingAi(false);
+        }
+    };
     
     // --- Render Logic ---
     if (isLoading && !character) { 
@@ -106,6 +128,16 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
                         onLoadGame={loadGameFromLocalStorage}
                         onImportFile={loadGameFromFile}
                     />
+                    <div className="mt-4">
+                         <button
+                            onClick={handleTestAi}
+                            disabled={isTestingAi}
+                            className="menu-button btn-import text-sm max-w-xs mx-auto"
+                        >
+                            {isTestingAi ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : null}
+                            {isTestingAi ? 'Testando...' : 'Testar IA'}
+                        </button>
+                    </div>
                      <ConfirmationModal
                         isOpen={showConfirmationModal}
                         title="Iniciar Novo Jogo?"
