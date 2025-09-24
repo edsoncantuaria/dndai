@@ -17,56 +17,34 @@ const HPSchema = z.object({
     temp: z.number(),
 });
 
-const ACSchema = z.object({
-    value: z.number(),
-    source: z.string(),
+// Este é o schema de entrada para o fluxo da IA, agora "achatado"
+export const GameMasterFlowInputSchema = z.object({
+  // Atributos principais do personagem
+  name: z.string(),
+  level: z.number(),
+  xp: z.number(),
+  xpToNextLevel: z.number(),
+  characterClass: z.string(),
+  race: z.string(),
+  background: z.string(),
+  alignment: z.string(),
+  hp: HPSchema,
+  attributes: AttributesSchema,
+  modifiers: AttributesSchema,
+  
+  // Listas simplificadas para contexto
+  inventory: z.array(z.string()).describe("Uma lista dos nomes dos itens que o personagem está carregando."),
+  proficiencies: z.array(z.string()).describe("Nomes das perícias e proficiências, como 'Stealth' ou 'Light Armor'."),
+  spells: z.array(z.string()).describe("Nomes das magias que o personagem conhece."),
+  
+  // Contexto da Ação e do Jogo
+  playerAction: z.string(),
+  gameLog: z.array(z.object({
+    type: z.string(),
+    content: z.string(),
+  })).describe("As últimas entradas do log do jogo para dar contexto."),
 });
-
-const CurrencySchema = z.object({
-    gp: z.number(),
-    sp: z.number(),
-    cp: z.number(),
-});
-
-const DeathSavesSchema = z.object({
-    successes: z.number(),
-    failures: z.number(),
-});
-
-const HitDiceSchema = z.object({
-    current: z.number(),
-    total: z.number(),
-});
-
-const CharacterSummarySchema = z.object({
-    name: z.string(),
-    level: z.number(),
-    xp: z.number(),
-    xpToNextLevel: z.number(),
-    race: z.string(),
-    subrace: z.string().nullable(),
-    characterClass: z.string(),
-    subclass: z.string().nullable(),
-    hitDie: z.number(),
-    background: z.string(),
-    alignment: z.string(),
-    attributes: AttributesSchema,
-    modifiers: AttributesSchema,
-    proficiencyBonus: z.number(),
-    proficiencies: z.array(z.string()).describe("Nomes das perícias e proficiências, como 'Stealth' ou 'Light Armor'."),
-    languages: z.array(z.string()),
-    hp: HPSchema,
-    ac: ACSchema,
-    inventory: z.array(z.string()).describe("Uma lista dos nomes dos itens que o personagem está carregando."),
-    currency: CurrencySchema,
-    spells: z.array(z.string()),
-    deathSaves: DeathSavesSchema,
-    conditions: z.array(z.string()),
-    speed: z.number(),
-    hitDice: HitDiceSchema,
-    backstory: z.string().optional(),
-    storySoFar: z.string().optional(),
-});
+export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
 
 
 const LogEntrySchema = z.object({
@@ -85,14 +63,6 @@ const LogEntrySchema = z.object({
     disadvantage: z.optional(z.boolean()),
   })),
 });
-
-export const GameMasterFlowInputSchema = z.object({
-  character: CharacterSummarySchema,
-  playerAction: z.string(),
-  gameLog: z.array(LogEntrySchema),
-});
-export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
-
 
 const CombatantSchema = z.object({
     id: z.string(),
@@ -114,7 +84,7 @@ const UpdatedCharacterSchema = z.object({
     hp: HPSchema.optional().describe("O estado atualizado de HP do personagem (current, max, temp)."),
     conditions: z.array(z.any()).optional().describe("A lista completa de condições que afetam o personagem."),
     inventory: z.array(z.any()).optional().describe("A lista completa e atualizada de todos os itens no inventário do personagem."),
-    currency: CurrencySchema.optional().describe("A nova quantidade de moedas (gp, sp, cp) do personagem."),
+    currency: z.object({ gp: z.number(), sp: z.number(), cp: z.number() }).optional().describe("A nova quantidade de moedas (gp, sp, cp) do personagem."),
     storySoFar: z.string().optional().describe("Um resumo atualizado da história do personagem até agora, em primeira pessoa.")
 }).describe("Um objeto contendo SOMENTE os campos do personagem que foram alterados.");
 

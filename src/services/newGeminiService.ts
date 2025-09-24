@@ -37,7 +37,18 @@ const gameMasterPrompt = ai.definePrompt(
     prompt: `
         ${systemInstruction}
 
-        O estado atual do personagem é: {{{character}}}
+        O estado atual do personagem é:
+        - Nome: {{{name}}}
+        - Raça: {{{race}}}
+        - Classe: {{{characterClass}}}
+        - Nível: {{{level}}}
+        - Pontos de Vida (HP): {{{hp.current}}}/{{{hp.max}}}
+        - XP: {{{xp}}}/{{{xpToNextLevel}}}
+        - Atributos (Modificadores): Força {{{attributes.strength}}} ({{{modifiers.strength}}}), Destreza {{{attributes.dexterity}}} ({{{modifiers.dexterity}}}), Constituição {{{attributes.constitution}}} ({{{modifiers.constitution}}}), Inteligência {{{attributes.intelligence}}} ({{{modifiers.intelligence}}}), Sabedoria {{{attributes.wisdom}}} ({{{modifiers.wisdom}}}), Carisma {{{attributes.charisma}}} ({{{modifiers.charisma}}})
+        - Inventário: {{{inventory}}}
+        - Proficiências: {{{proficiencies}}}
+        - Magias: {{{spells}}}
+
         As últimas 10 entradas do log da aventura são: {{{gameLog}}}
         A ação do jogador é: "{{{playerAction}}}"
 

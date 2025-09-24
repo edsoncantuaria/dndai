@@ -43,11 +43,23 @@ const createCharacterSummary = (character: Character) => {
     } = character;
     
     return {
-        ...summary,
+        // Flatten the character object for the AI prompt
+        name: summary.name,
+        level: summary.level,
+        xp: summary.xp,
+        xpToNextLevel: summary.xpToNextLevel,
+        characterClass: summary.characterClass,
+        race: summary.race,
+        background: summary.background,
+        alignment: summary.alignment,
+        hp: summary.hp,
+        attributes: summary.attributes,
+        modifiers: summary.modifiers,
+
         // Convert complex objects to simple string arrays for the AI
         inventory: summary.inventory.map(item => `${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`),
         proficiencies: summary.proficiencies.map(p => p.name),
-        conditions: summary.conditions.map(c => c.name),
+        spells: summary.spells,
     };
 };
 
@@ -105,21 +117,22 @@ export const useNewGameState = () => {
             return;
         }
         
-        if (response.updatedCharacter && character) {
-             const updatedCharacterState = mergeDeep(character, response.updatedCharacter);
-            
-            // Recalculate derived stats after merging
-            const newModifiers = characterUtils.calculateModifiers(updatedCharacterState.attributes);
-            updatedCharacterState.modifiers = newModifiers;
-            updatedCharacterState.ac = characterUtils.calculateAC(updatedCharacterState.inventory, newModifiers);
-            updatedCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(updatedCharacterState.attributes.strength);
-            updatedCharacterState.currentWeight = updatedCharacterState.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+        setCharacter(prevCharacter => {
+            if (!prevCharacter) return null;
 
-            setCharacter(updatedCharacterState);
-        } else {
-             // If only log/actions change, we still need to trigger a save by updating the character object reference
-            setCharacter(prev => prev ? {...prev} : null);
-        }
+            let updatedCharacterState = prevCharacter;
+            if (response.updatedCharacter) {
+                updatedCharacterState = mergeDeep(prevCharacter, response.updatedCharacter);
+            
+                // Recalculate derived stats after merging
+                const newModifiers = characterUtils.calculateModifiers(updatedCharacterState.attributes);
+                updatedCharacterState.modifiers = newModifiers;
+                updatedCharacterState.ac = characterUtils.calculateAC(updatedCharacterState.inventory, newModifiers);
+                updatedCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(updatedCharacterState.attributes.strength);
+                updatedCharacterState.currentWeight = updatedCharacterState.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+            }
+            return updatedCharacterState;
+        });
         
         if (response.logEntries) {
             const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
@@ -135,7 +148,7 @@ export const useNewGameState = () => {
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
-    }, [character]);
+    }, []);
 
 
     const processPlayerAction = useCallback(async (action: string) => {
@@ -149,9 +162,9 @@ export const useNewGameState = () => {
         
         const characterSummary = createCharacterSummary(character);
         const gameUpdateInput = {
-          character: characterSummary as any, // Cast to any to match the simplified schema
+          ...characterSummary, // Spread the flattened character summary
           playerAction: action,
-          gameLog: currentLog.slice(-10) 
+          gameLog: currentLog.slice(-10).map(l => ({ type: l.type, content: l.content })) // Simplify log for AI
         };
         console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
 
@@ -173,7 +186,7 @@ export const useNewGameState = () => {
         
         const characterSummary = createCharacterSummary(newCharacter);
         const initialStoryInput = {
-            character: characterSummary as any,
+            ...characterSummary,
             playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
             gameLog: [],
         };
