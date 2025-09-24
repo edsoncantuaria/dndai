@@ -106,10 +106,11 @@ async function generateWithGenkit(
     console.log("[GeminiService] Resposta validada:", responseData);
     return responseData;
   } catch (error: any) {
-    console.error("[GeminiService] Erro ao chamar a API Genkit:", error.message || error);
-    if (error.response) {
-      console.error("[GeminiService] Detalhes do erro da API:", error.response);
-    }
+    console.error("================================================================");
+    console.error("[GeminiService] ERRO DETALHADO AO CHAMAR A API GENKIT:");
+    console.error("Mensagem:", error.message);
+    console.error("Objeto do Erro:", error);
+    console.error("================================================================");
     return null;
   }
 }
