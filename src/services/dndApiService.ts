@@ -6,10 +6,17 @@ const API_BASE = 'https://www.dnd5eapi.co/api';
 // Simple in-memory cache
 const cache = new Map<string, any>();
 
+// Simple delay function to avoid hitting rate limits
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
     if (cache.has(endpoint)) {
         return cache.get(endpoint) as T;
     }
+
+    // Add a small delay for non-cached requests to avoid hitting API rate limits.
+    await delay(50); 
+    
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
