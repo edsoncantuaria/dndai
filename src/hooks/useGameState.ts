@@ -1,7 +1,7 @@
 
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, LevelUpSelections, ApiSpell, InventoryItem, ShopItem, Feat } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -159,21 +159,40 @@ export const useGameState = () => {
             info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
         ]);
 
-        const startingGold = info.inventory.find(i => i.name.includes("Bolsa contendo"))?.cost?.quantity || 15;
+        const startingGold = 15; // Standard starting gold for simplicity now. Can be derived from background later.
 
         const newCharacter: Character = {
-            ...info,
+            name: info.name,
             level: 1,
             xp: 0,
             xpToNextLevel: characterUtils.getXpThreshold(1),
+            race: info.race,
+            subrace: info.subrace,
+            characterClass: info.characterClass,
+            subclass: info.subclass,
+            hitDie: info.hitDie,
+            background: info.background,
+            alignment: info.alignment,
+            attributes: info.attributes,
             modifiers,
+            proficiencyBonus,
+            proficiencies: info.proficiencies,
+            languages: info.languages,
             hp: { current: maxHp, max: maxHp, temp: 0 },
             ac: characterUtils.calculateAC(info.inventory, modifiers),
-            proficiencyBonus,
+            inventory: info.inventory.map(item => ({...item, id: uuidv4(), equipped: false })),
             currency: { gp: startingGold, sp: 0, cp: 0 },
             currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
             carryingCapacity: characterUtils.calculateCarryingCapacity(info.attributes.strength),
             spellSlots: {},
+            spells: info.spells,
+            feats: info.feats as Feat[],
+            backstory: info.backstory,
+            personalityTraits: info.personalityTraits,
+            ideal: info.ideal,
+            bond: info.bond,
+            flaw: info.flaw,
+            speed: 30, // Default, can be adjusted by race later
             deathSaves: { successes: 0, failures: 0 },
             conditions: [],
             relationships: [],
@@ -195,6 +214,10 @@ export const useGameState = () => {
                 }
             });
         }
+        
+        const raceDetails = await DndApiService.getRaceDetails(info.race.toLowerCase());
+        if(raceDetails) newCharacter.speed = raceDetails.speed;
+
 
         setCharacter(newCharacter);
         setLog([]);

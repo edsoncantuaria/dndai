@@ -139,7 +139,7 @@ export interface Attributes {
     charisma: number;
 }
 
-export interface CharacterCreationInfo {
+export interface NewCharacterInfo {
     name: string;
     race: string;
     subrace: string | null;
@@ -156,13 +156,9 @@ export interface CharacterCreationInfo {
     ideal: string;
     bond: string;
     flaw: string;
-    feats: string[];
-}
-export interface NewCharacterInfo extends Omit<CharacterCreationInfo, 'inventory'> {
+    feats: Feat[];
     hitDie: number;
     subclass: string | null;
-    startingGold: number;
-    inventory: Omit<InventoryItem, 'id' | 'equipped'>[];
 }
 
 
@@ -266,6 +262,7 @@ export interface Character {
         current: number;
         total: number;
     };
+    speed: number;
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
 }
@@ -351,6 +348,7 @@ export interface ApiTrait {
     proficiency_choices?: ProficiencyChoice;
     trait_specific?: {
         spell_options?: ProficiencyChoice;
+        subfeature_options?: ProficiencyChoice;
         [key: string]: any;
     }
 }

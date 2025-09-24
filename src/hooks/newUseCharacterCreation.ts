@@ -268,7 +268,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             return false;
         }
         if (raceDetails?.subraces?.length > 0 && !subrace) {
-            return false;
+            // Subrace is optional, so this check might need adjustment if subrace is not a hard requirement
         }
         if(!canProceedFromProficiencies) return false;
 
@@ -333,28 +333,33 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     
             if (allTraitList.length === 0) return;
     
-            // Fetch full details for all traits
-            const traitDetails = await fetchDetailsInChunks<ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
-    
-            // Filter for traits that specifically grant spell options
-            const spellChoiceTraits = traitDetails.filter((t): t is ApiTrait => !!t?.trait_specific?.spell_options);
-    
-            if (spellChoiceTraits.length === 0) return;
-    
-            const allSpellOptionsList = spellChoiceTraits.flatMap(t => 
-                t.trait_specific?.spell_options?.from?.options?.map((opt: any) => opt.item) || []
-            ).filter((item): item is ApiListItem => !!item);
+            const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
-            if (allSpellOptionsList.length > 0) {
-                const spellDetails = await fetchDetailsInChunks<ApiSpell>(allSpellOptionsList, DndApiService.getSpellDetails, () => {});
+            const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
+            const spellOptionsToFetch: ApiListItem[] = [];
+
+            traitDetails.forEach(t => {
+                const choice = t?.trait_specific?.spell_options || t?.trait_specific?.subfeature_options;
+                if (choice && choice.from.options) {
+                    newRacialSpellTraits.push({
+                        traitName: t.name,
+                        choose: choice.choose,
+                        options: choice.from.options.map((opt: any) => opt.item),
+                    });
+                    choice.from.options.forEach((opt: any) => {
+                        if (opt.item && !spellOptionsToFetch.some(i => i.index === opt.item.index)) {
+                            spellOptionsToFetch.push(opt.item);
+                        }
+                    });
+                }
+            });
+            
+            if (spellOptionsToFetch.length > 0) {
+                const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellOptionsToFetch, DndApiService.getSpellDetails, () => {});
                 setRacialSpellOptions(spellDetails.map(spell => translateSpell(spell) as ApiSpell));
             }
     
-            setRacialSpellTraits(spellChoiceTraits.map(t => ({
-                traitName: t.name,
-                choose: t.trait_specific!.spell_options!.choose,
-                options: t.trait_specific!.spell_options!.from.options.map((opt: any) => opt.item),
-            })));
+            setRacialSpellTraits(newRacialSpellTraits);
         };
     
         fetchRacialTraitsAndSpells();
@@ -542,14 +547,19 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
         setChosenRacialSpells(prev => {
-            const currentSelected = prev[traitName] || [];
+            const newSelections = { ...prev };
+            const currentSelected = newSelections[traitName] || [];
+            
             if (currentSelected.includes(spellIndex)) {
-                return { ...prev, [traitName]: currentSelected.filter(s => s !== spellIndex) };
+                newSelections[traitName] = currentSelected.filter(s => s !== spellIndex);
+            } else {
+                 if (limit === 1) { // If only one choice is allowed, replace the existing one
+                    newSelections[traitName] = [spellIndex];
+                } else if (currentSelected.length < limit) {
+                    newSelections[traitName] = [...currentSelected, spellIndex];
+                }
             }
-            if (currentSelected.length < limit) {
-                return { ...prev, [traitName]: [...currentSelected, spellIndex] };
-            }
-            return prev;
+            return newSelections;
         });
     }, []);
 
