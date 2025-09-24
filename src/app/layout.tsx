@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { SettingsProvider } from "@/contexts/SettingsContext";
+import Settings from "@/components/Settings";
 
 export const metadata: Metadata = {
   title: "Crônicas de Aventuras",
@@ -13,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className="h-full bg-background">
-      <body className="h-full">{children}</body>
+      <body className="h-full">
+        <SettingsProvider>
+          {children}
+          <Settings />
+        </SettingsProvider>
+      </body>
     </html>
   );
 }

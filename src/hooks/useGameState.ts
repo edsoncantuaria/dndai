@@ -6,6 +6,7 @@ import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame';
 
@@ -41,6 +42,7 @@ export const useGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const { settings } = useSettingsContext();
 
     const saveGameToLocalStorage = useCallback(() => {
         if (character) {
@@ -141,11 +143,11 @@ export const useGameState = () => {
         setActionOptions([]); // Clear old options
         setLog(prev => [...prev, { id: uuidv4(), type: 'action', content: action }]);
 
-        const response = await geminiService.getGameUpdate(character, action, log);
+        const response = await geminiService.getGameUpdate(character, action, log, settings.apiKey);
         handleGeminiResponse(response);
         setIsLoading(false);
 
-    }, [character, log, handleGeminiResponse]);
+    }, [character, log, handleGeminiResponse, settings.apiKey]);
     
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -222,10 +224,10 @@ export const useGameState = () => {
         setCharacter(newCharacter);
         setLog([]);
 
-        const response = await geminiService.getInitialStory(newCharacter);
+        const response = await geminiService.getInitialStory(newCharacter, settings.apiKey);
         handleGeminiResponse(response);
         setIsLoading(false);
-    }, [handleGeminiResponse]);
+    }, [handleGeminiResponse, settings.apiKey]);
     
     const applyLevelUp = useCallback((selections: LevelUpSelections) => {
         const action = `Eu subo de nível! Minhas escolhas são: ${JSON.stringify(selections)}`;

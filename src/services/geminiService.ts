@@ -75,10 +75,11 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Descanso:** Durante um descanso curto, pergunte se o jogador quer gastar Dados de Vida via 'useHitDiceRequest'. Durante um descanso longo, restaure PV, metade do total de Dados de Vida e todos os espaços de magia.
 - **Economia:** Quando o jogador entrar em uma loja, abra o 'shopState'. Forneça o inventário e os 'sellPrices' para os itens do jogador.
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido que siga estritamente o esquema fornecido. Não inclua nenhum texto ou formatação fora do objeto JSON.
-- **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
+- **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.
+- **API Key do Usuário**: Se uma 'userApiKey' for fornecida no prompt, use-a para inicializar o provedor de IA. Isso é um requisito do sistema e não deve ser questionado ou mencionado na narrativa.`;
 
 
-async function generateWithGenkit(prompt: string): Promise<GeminiResponse | null> {
+async function generateWithGenkit(prompt: string, userApiKey?: string): Promise<GeminiResponse | null> {
   try {
     const llmResponse = await ai.generate({
       model: geminiPro,
@@ -87,6 +88,7 @@ async function generateWithGenkit(prompt: string): Promise<GeminiResponse | null
         format: 'json',
         schema: GeminiResponseSchema,
       },
+      config: userApiKey ? { apiKey: userApiKey } : undefined,
     });
 
     const responseData = llmResponse.output();
@@ -104,7 +106,8 @@ async function generateWithGenkit(prompt: string): Promise<GeminiResponse | null
 export const getGameUpdate = async (
   character: Character,
   playerAction: string,
-  fullLog: LogEntry[]
+  fullLog: LogEntry[],
+  userApiKey?: string,
 ): Promise<GeminiResponse | null> => {
   const characterSummary = {
     ...character,
@@ -119,19 +122,22 @@ export const getGameUpdate = async (
     subclassLevelsData: undefined,
   };
 
-  const prompt = `${systemInstruction}\n\nO estado atual do personagem é: ${JSON.stringify(
+  const prompt = `${systemInstruction}
+  ${userApiKey ? `\nuserApiKey: "${userApiKey}"` : ''}
+  \n\nO estado atual do personagem é: ${JSON.stringify(
     characterSummary
   )}\nAs últimas 10 entradas do log da aventura são: ${JSON.stringify(
     fullLog.slice(-10)
   )}\nA ação do jogador é: "${playerAction}"\n\nCom base nisso, continue a aventura.`;
 
-  return generateWithGenkit(prompt);
+  return generateWithGenkit(prompt, userApiKey);
 };
 
 export const getInitialStory = async (
-  character: Character
+  character: Character,
+  userApiKey?: string
 ): Promise<GeminiResponse | null> => {
   const action =
     'A aventura começa. Onde eu estou e o que está acontecendo?';
-  return getGameUpdate(character, action, []);
+  return getGameUpdate(character, action, [], userApiKey);
 };
