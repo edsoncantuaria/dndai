@@ -13,7 +13,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="h-full w-full bg-gradient-to-br from-black via-stone-900 to-red-950"
+      className="h-full w-full"
     >
       <GameStateProvider key={gameKey}>
         <Game startNewGame={startNewGame} />
