@@ -36,7 +36,11 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const savedSettings = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
+        const parsedSettings = JSON.parse(savedSettings);
+        // Ensure provider and model fields exist to avoid breaking old saves
+        if (parsedSettings.provider && parsedSettings.model) {
+            setSettings(parsedSettings);
+        }
       }
     } catch (error) {
       console.error("Failed to load AI settings from local storage:", error);
@@ -47,9 +51,7 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(newSettings));
       setSettings(newSettings);
-      // Optional: Show a confirmation toast
-      console.log("Settings saved!");
-      // Reload to apply settings. A more elegant solution might involve re-initializing AI services.
+      console.log("Settings saved! Reloading to apply...");
       window.location.reload();
     } catch (error) {
       console.error("Failed to save AI settings to local storage:", error);
@@ -57,10 +59,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
   
   const openSettingsModal = () => setIsSettingsModalOpen(true);
-  const closeModal = () => setIsSettingsModalOpen(false);
+  const closeSettingsModal = () => setIsSettingsModalOpen(false);
 
   return (
-    <SettingsContext.Provider value={{ settings, isSettingsModalOpen, saveSettings, openSettingsModal, closeModal }}>
+    <SettingsContext.Provider value={{ settings, isSettingsModalOpen, saveSettings, openSettingsModal, closeSettingsModal }}>
       {children}
     </SettingsContext.Provider>
   );

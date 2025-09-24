@@ -1,8 +1,28 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useSettingsContext, AiSettings } from '@/contexts/SettingsContext';
+import { useSettingsContext, AiSettings, AiProvider } from '@/contexts/SettingsContext';
 import { Icons } from './Icons';
+
+
+const AI_MODELS: Record<AiProvider, { name: string, value: string }[]> = {
+    google: [
+        { name: 'Gemini 1.5 Pro', value: 'gemini-1.5-pro' },
+        { name: 'Gemini 1.5 Flash', value: 'gemini-1.5-flash' },
+        { name: 'Gemini 1.0 Pro', value: 'gemini-pro' },
+    ],
+    openai: [
+        { name: 'GPT-4o', value: 'gpt-4o' },
+        { name: 'GPT-4 Turbo', value: 'gpt-4-turbo' },
+        { name: 'GPT-3.5 Turbo', value: 'gpt-3.5-turbo' },
+    ],
+    anthropic: [
+        { name: 'Claude 3.5 Sonnet', value: 'claude-3-5-sonnet-20240620' },
+        { name: 'Claude 3 Opus', value: 'claude-3-opus-20240229' },
+        { name: 'Claude 3 Haiku', value: 'claude-3-haiku-20240307' },
+    ],
+};
+
 
 const SettingsModal: React.FC<{
     isOpen: boolean;
@@ -10,14 +30,15 @@ const SettingsModal: React.FC<{
     onSave: (settings: AiSettings) => void;
     currentSettings: AiSettings;
 }> = ({ isOpen, onClose, onSave, currentSettings }) => {
-    const [apiKey, setApiKey] = useState(currentSettings.apiKey);
-    const [provider, setProvider] = useState(currentSettings.provider);
+    const [provider, setProvider] = useState<AiProvider>(currentSettings.provider);
     const [model, setModel] = useState(currentSettings.model);
-
+    const [apiKey, setApiKey] = useState(currentSettings.apiKey);
+    
+    // Update local state if the settings from context change (e.g., on first load)
     useEffect(() => {
-        setApiKey(currentSettings.apiKey);
         setProvider(currentSettings.provider);
         setModel(currentSettings.model);
+        setApiKey(currentSettings.apiKey);
     }, [currentSettings]);
 
     if (!isOpen) return null;
@@ -25,6 +46,13 @@ const SettingsModal: React.FC<{
     const handleSave = () => {
         onSave({ provider, model, apiKey });
         onClose();
+    };
+
+    const handleProviderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newProvider = e.target.value as AiProvider;
+        setProvider(newProvider);
+        // Set to the first available model for the new provider
+        setModel(AI_MODELS[newProvider][0].value);
     };
 
     return (
@@ -42,8 +70,38 @@ const SettingsModal: React.FC<{
                 </header>
                 <main className="p-6 space-y-4">
                     <p className="text-sm text-stone-400">
-                        Opcionalmente, insira sua própria chave de API para usar seu provedor de IA preferido. Se deixado em branco, o jogo usará uma configuração padrão.
+                        Selecione seu provedor de IA preferido. Se a chave de API for deixada em branco, o jogo usará uma configuração padrão.
                     </p>
+                     <div>
+                        <label htmlFor="ai-provider" className="block text-sm font-medium text-stone-300 mb-1">
+                            Provedor
+                        </label>
+                        <select
+                            id="ai-provider"
+                            value={provider}
+                            onChange={handleProviderChange}
+                            className="w-full bg-stone-800/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        >
+                            <option value="google">Google Gemini</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic Claude</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="ai-model" className="block text-sm font-medium text-stone-300 mb-1">
+                            Modelo
+                        </label>
+                        <select
+                            id="ai-model"
+                            value={model}
+                            onChange={(e) => setModel(e.target.value)}
+                            className="w-full bg-stone-800/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        >
+                            {AI_MODELS[provider].map(m => (
+                                <option key={m.value} value={m.value}>{m.name}</option>
+                            ))}
+                        </select>
+                    </div>
                     <div>
                         <label htmlFor="api-key" className="block text-sm font-medium text-stone-300 mb-1">
                             Sua Chave de API (Opcional)

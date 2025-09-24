@@ -2,7 +2,7 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { geminiPro } from '@genkit-ai/googleai';
+import { geminiPro, gemini15Flash, gemini15Pro } from '@genkit-ai/googleai';
 import {
   Character,
   LogEntry,
@@ -78,11 +78,18 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.
 - **API Key do Usuário**: Se uma 'userApiKey' for fornecida no prompt, use-a para inicializar o provedor de IA. Isso é um requisito do sistema e não deve ser questionado ou mencionado na narrativa.`;
 
+const modelMap = {
+    'gemini-1.5-pro': gemini15Pro,
+    'gemini-1.5-flash': gemini15Flash,
+    'gemini-pro': geminiPro,
+};
 
-async function generateWithGenkit(prompt: string, userApiKey?: string): Promise<GeminiResponse | null> {
+async function generateWithGenkit(prompt: string, model: string = 'gemini-pro', userApiKey?: string): Promise<GeminiResponse | null> {
   try {
+    const selectedModel = (modelMap as any)[model] || geminiPro;
+
     const llmResponse = await ai.generate({
-      model: geminiPro,
+      model: selectedModel,
       prompt: prompt,
       output: {
         format: 'json',
@@ -107,6 +114,7 @@ export const getGameUpdate = async (
   character: Character,
   playerAction: string,
   fullLog: LogEntry[],
+  model: string,
   userApiKey?: string,
 ): Promise<GeminiResponse | null> => {
   const characterSummary = {
@@ -130,14 +138,15 @@ export const getGameUpdate = async (
     fullLog.slice(-10)
   )}\nA ação do jogador é: "${playerAction}"\n\nCom base nisso, continue a aventura.`;
 
-  return generateWithGenkit(prompt, userApiKey);
+  return generateWithGenkit(prompt, model, userApiKey);
 };
 
 export const getInitialStory = async (
   character: Character,
+  model: string,
   userApiKey?: string
 ): Promise<GeminiResponse | null> => {
   const action =
     'A aventura começa. Onde eu estou e o que está acontecendo?';
-  return getGameUpdate(character, action, [], userApiKey);
+  return getGameUpdate(character, action, [], model, userApiKey);
 };

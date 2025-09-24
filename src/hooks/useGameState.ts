@@ -143,11 +143,11 @@ export const useGameState = () => {
         setActionOptions([]); // Clear old options
         setLog(prev => [...prev, { id: uuidv4(), type: 'action', content: action }]);
 
-        const response = await geminiService.getGameUpdate(character, action, log, settings.apiKey);
+        const response = await geminiService.getGameUpdate(character, action, log, settings.model, settings.apiKey);
         handleGeminiResponse(response);
         setIsLoading(false);
 
-    }, [character, log, handleGeminiResponse, settings.apiKey]);
+    }, [character, log, handleGeminiResponse, settings.apiKey, settings.model]);
     
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -224,10 +224,10 @@ export const useGameState = () => {
         setCharacter(newCharacter);
         setLog([]);
 
-        const response = await geminiService.getInitialStory(newCharacter, settings.apiKey);
+        const response = await geminiService.getInitialStory(newCharacter, settings.model, settings.apiKey);
         handleGeminiResponse(response);
         setIsLoading(false);
-    }, [handleGeminiResponse, settings.apiKey]);
+    }, [handleGeminiResponse, settings.apiKey, settings.model]);
     
     const applyLevelUp = useCallback((selections: LevelUpSelections) => {
         const action = `Eu subo de nível! Minhas escolhas são: ${JSON.stringify(selections)}`;
