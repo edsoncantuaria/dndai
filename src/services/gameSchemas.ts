@@ -28,12 +28,6 @@ const CurrencySchema = z.object({
     cp: z.number(),
 });
 
-const InventoryItemSummarySchema = z.object({
-    name: z.string(),
-    quantity: z.number(),
-    equipped: z.boolean(),
-});
-
 const DeathSavesSchema = z.object({
     successes: z.number(),
     failures: z.number(),
@@ -59,11 +53,11 @@ const CharacterSummarySchema = z.object({
     attributes: AttributesSchema,
     modifiers: AttributesSchema,
     proficiencyBonus: z.number(),
-    proficiencies: z.array(z.string()),
+    proficiencies: z.array(z.string()).describe("Nomes das perícias e proficiências, como 'Stealth' ou 'Light Armor'."),
     languages: z.array(z.string()),
     hp: HPSchema,
     ac: ACSchema,
-    inventory: z.array(InventoryItemSummarySchema),
+    inventory: z.array(z.string()).describe("Uma lista dos nomes dos itens que o personagem está carregando."),
     currency: CurrencySchema,
     spells: z.array(z.string()),
     deathSaves: DeathSavesSchema,
@@ -115,11 +109,20 @@ const CombatStateSchema = z.object({
     combatants: z.array(CombatantSchema),
 });
 
+const UpdatedCharacterSchema = z.object({
+    xp: z.number().optional().describe("A nova quantidade total de XP do personagem."),
+    hp: HPSchema.optional().describe("O estado atualizado de HP do personagem (current, max, temp)."),
+    conditions: z.array(z.any()).optional().describe("A lista completa de condições que afetam o personagem."),
+    inventory: z.array(z.any()).optional().describe("A lista completa e atualizada de todos os itens no inventário do personagem."),
+    currency: CurrencySchema.optional().describe("A nova quantidade de moedas (gp, sp, cp) do personagem."),
+    storySoFar: z.string().optional().describe("Um resumo atualizado da história do personagem até agora, em primeira pessoa.")
+}).describe("Um objeto contendo SOMENTE os campos do personagem que foram alterados.");
+
 // This is the schema for the *output* from the Gemini model
 export const GameMasterResponseSchema = z.object({
   logEntries: z.array(LogEntrySchema).describe("Novas entradas para o log da história, descrevendo o que acontece."),
   actionOptions: z.array(z.string()).describe("Novas opções de escolha para o jogador, que conduzem a história."),
-  updatedCharacter: z.any().optional().describe("Um objeto contendo SOMENTE os campos do personagem que foram alterados (ex: hp, xp, inventário)."),
+  updatedCharacter: UpdatedCharacterSchema.optional(),
   combatState: z.optional(CombatStateSchema).describe("O estado atualizado do combate, se estiver ativo."),
   levelUpState: z.optional(z.any()).describe("Estado para o processo de level up, se ativado."),
   shopState: z.optional(z.any()).describe("Estado da loja, se o jogador estiver em uma."),

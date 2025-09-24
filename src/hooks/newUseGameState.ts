@@ -15,9 +15,10 @@ function mergeDeep(target: any, source: any): any {
     const output = { ...target };
     if (isObject(target) && isObject(source)) {
         Object.keys(source).forEach(key => {
-            if (isObject(source[key])) {
-                if (!(key in target)) {
-                    Object.assign(output, { [key]: source[key] });
+            if (isObject(source[key]) && key in target && isObject(target[key])) {
+                 // For arrays, we replace the entire array instead of merging
+                if (Array.isArray(source[key])) {
+                     output[key] = source[key];
                 } else {
                     output[key] = mergeDeep(target[key], source[key]);
                 }
@@ -37,22 +38,16 @@ function isObject(item: any): boolean {
 const createCharacterSummary = (character: Character) => {
     const { 
         classLevelsData, 
-        subclassLevelsData, 
-        proficiencies,
-        conditions,
-        inventory,
+        subclassLevelsData,
         ...summary 
     } = character;
     
     return {
         ...summary,
-        inventory: inventory.map(({ name, quantity, equipped }) => ({
-            name,
-            quantity,
-            equipped,
-        })),
-        proficiencies: proficiencies.map(p => p.name),
-        conditions: conditions.map(c => c.name),
+        // Convert complex objects to simple string arrays for the AI
+        inventory: summary.inventory.map(item => `${item.name}${item.quantity > 1 ? ` (x${item.quantity})` : ''}`),
+        proficiencies: summary.proficiencies.map(p => p.name),
+        conditions: summary.conditions.map(c => c.name),
     };
 };
 
@@ -68,22 +63,23 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(true); // Start as true to check for saved game
 
     const saveGame = useCallback((char: Character | null, gameLog: LogEntry[]) => {
-        if (char && !isLoading) {
+        if (char) {
             try {
                 const gameState = { character: char, log: gameLog };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
-                 console.log("[useGameState] Jogo salvo no localStorage.");
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [isLoading]);
+    }, []);
 
     // --- Core State Management ---
     
     useEffect(() => {
-        saveGame(character, log);
-    }, [character, log, saveGame]);
+        if (!isLoading) {
+            saveGame(character, log);
+        }
+    }, [character, log, isLoading, saveGame]);
     
     useEffect(() => {
         try {
@@ -93,7 +89,6 @@ export const useNewGameState = () => {
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
                 setActionOptions([]);
-                 console.log("[useGameState] Jogo carregado do localStorage.");
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -109,19 +104,21 @@ export const useNewGameState = () => {
             setActionOptions(prev => prev.length > 0 ? prev : ['Tentar novamente.']);
             return;
         }
-
-        let newCharacterState = character;
+        
         if (response.updatedCharacter && character) {
-             const updated = mergeDeep(character, response.updatedCharacter);
+             const updatedCharacterState = mergeDeep(character, response.updatedCharacter);
             
-            const newModifiers = characterUtils.calculateModifiers(updated.attributes);
-            updated.modifiers = newModifiers;
-            updated.ac = characterUtils.calculateAC(updated.inventory, newModifiers);
-            updated.carryingCapacity = characterUtils.calculateCarryingCapacity(updated.attributes.strength);
-            updated.currentWeight = updated.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+            // Recalculate derived stats after merging
+            const newModifiers = characterUtils.calculateModifiers(updatedCharacterState.attributes);
+            updatedCharacterState.modifiers = newModifiers;
+            updatedCharacterState.ac = characterUtils.calculateAC(updatedCharacterState.inventory, newModifiers);
+            updatedCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(updatedCharacterState.attributes.strength);
+            updatedCharacterState.currentWeight = updatedCharacterState.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
 
-            newCharacterState = updated;
-            setCharacter(updated);
+            setCharacter(updatedCharacterState);
+        } else {
+             // If only log/actions change, we still need to trigger a save by updating the character object reference
+            setCharacter(prev => prev ? {...prev} : null);
         }
         
         if (response.logEntries) {
@@ -152,7 +149,7 @@ export const useNewGameState = () => {
         
         const characterSummary = createCharacterSummary(character);
         const gameUpdateInput = {
-          character: characterSummary,
+          character: characterSummary as any, // Cast to any to match the simplified schema
           playerAction: action,
           gameLog: currentLog.slice(-10) 
         };
@@ -174,20 +171,26 @@ export const useNewGameState = () => {
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
-        setCharacter(newCharacter);
-        
         const characterSummary = createCharacterSummary(newCharacter);
         const initialStoryInput = {
-            character: characterSummary,
+            character: characterSummary as any,
             playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
             gameLog: [],
         };
         
         console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
         const response = await newGeminiService.getInitialStory(initialStoryInput);
+
+        // Set character state AFTER the initial story is generated to include AI's initial updates
+        let finalCharacter = newCharacter;
+        if (response?.updatedCharacter) {
+            finalCharacter = mergeDeep(newCharacter, response.updatedCharacter);
+        }
+        setCharacter(finalCharacter); // This is the first time we set the character
         
+        // This will now only handle the log entries and actions from the initial response
         handleApiResponse(response);
-        setIsLoading(false);
+        setIsLoading(false); // Set loading to false only after everything is done
     }, [handleApiResponse]);
 
     const startNewGame = useCallback(() => {
