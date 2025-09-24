@@ -5,10 +5,9 @@ import {
     ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiTrait, ApiSpell,
     Attributes, Proficiency, ProficiencyChoice, InventoryItem, ApiSubrace, NewCharacterInfo, Feat
 } from '../types';
-import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
+import * as characterUtils from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostOfNextLevel, getRefundForPrevLevel, getOptionLabel } from '../utils/creationHelpers';
-import { translateEquipment } from '@/utils/TranslatorEquipments';
 import { translateSpell } from '@/utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -90,11 +89,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
         (raceDetails?.ability_bonuses || []).forEach(b => {
-            const attrKey = ATTRIBUTE_SHORT_MAP[b.ability_score.index];
+            const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
             if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
         });
         (subraceDetails?.ability_bonuses || []).forEach(b => {
-            const attrKey = ATTRIBUTE_SHORT_MAP[b.ability_score.index];
+            const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
             if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
         });
         return bonuses;
@@ -113,8 +112,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (!level1Data) return { cantripsKnown: 0, spellsKnown: 0 };
 
         return {
-            cantripsKnown: getCantripsKnown(level1Data),
-            spellsKnown: getSpellsKnown(1, level1Data, classDetails, finalAttributes)
+            cantripsKnown: characterUtils.getCantripsKnown(level1Data),
+            spellsKnown: characterUtils.getSpellsKnown(1, level1Data, classDetails, finalAttributes)
         }
     }, [classDetails, classLevels, finalAttributes]);
 
@@ -289,18 +288,21 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     // --- CALLBACKS & EFFECTS ---
 
-    const resetSelections = useCallback(() => {
+    const resetSelections = useCallback((type: 'full' | 'class' | 'background') => {
         setProficiencySelections({});
         setFinalizedEquipment([]);
         setEquipmentSelections({});
         setChosenClassSpells([]);
-        setChosenRacialSpells({});
-        setRacialSpellOptions([]);
-        setRacialSpellTraits([]);
         setPersonalityTraits([]);
         setIdeal('');
         setBond('');
         setFlaw('');
+
+        if (type === 'full') {
+            setChosenRacialSpells({});
+            setRacialSpellOptions([]);
+            setRacialSpellTraits([]);
+        }
     }, []);
 
     useEffect(() => {
@@ -326,31 +328,30 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setRacialSpellOptions([]);
             setRacialSpellTraits([]);
             setChosenRacialSpells({});
-
+    
             const allTraitList: ApiListItem[] = [
                 ...(raceDetails?.traits || []),
                 ...(subraceDetails?.racial_traits || [])
             ].filter(t => t);
-
+    
             if (allTraitList.length === 0) return;
-
+    
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<string>();
-
+    
             // Special Case: High Elf Cantrip
             if (traitDetails.some(t => t?.index === 'high-elf-cantrip')) {
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
                 if (wizardSpellsResponse?.results) {
-                    const wizardCantrips = wizardSpellsResponse.results.filter((s: any) => s.url.includes('/spells/')); // Basic filter
-                    const cantripDetails = await fetchDetailsInChunks(wizardCantrips, DndApiService.getSpellDetails, ()=>{});
+                    const cantripDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, ()=>{});
                     const level0WizardCantrips = cantripDetails.filter((s): s is ApiSpell => !!s && s.level === 0);
-
+    
                     if (level0WizardCantrips.length > 0) {
                         const cantripOptions = level0WizardCantrips.map(c => ({ index: c.index, name: c.name, url: c.url }));
                         newRacialSpellTraits.push({
-                            traitName: 'High Elf Cantrip',
+                            traitName: 'Truque de Alto Elfo',
                             choose: 1, 
                             options: cantripOptions
                         });
@@ -358,7 +359,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                     }
                 }
             }
-
+    
             // General case for other racial spell traits
             for (const trait of traitDetails) {
                 if (!trait || trait.index === 'high-elf-cantrip') continue;
@@ -378,11 +379,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             
             if (spellOptionsToFetch.size > 0) {
                 const spellList = Array.from(spellOptionsToFetch).map(index => ({ index, name: index, url: ''}));
-                const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
+                const fetchedSpellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
                 
                 setRacialSpellOptions(prev => {
                     const existing = new Map(prev.map(s => [s.index, s]));
-                    spellDetails.forEach(s => s && existing.set(s.index, translateSpell(s) as ApiSpell));
+                    fetchedSpellDetails.forEach(s => s && existing.set(s.index, translateSpell(s) as ApiSpell));
                     return Array.from(existing.values());
                 });
             }
@@ -390,7 +391,9 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setRacialSpellTraits(newRacialSpellTraits);
         };
     
-        fetchRacialTraitsAndSpells();
+        if (raceDetails) {
+           fetchRacialTraitsAndSpells();
+        }
     }, [raceDetails, subraceDetails]);
 
     useEffect(() => {
@@ -596,7 +599,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setSubrace('');
         setRaceDetails(null);
         setSubraceDetails(null);
-        resetSelections();
+        resetSelections('full');
 
         if (newRaceIndex) {
             const details = await DndApiService.getRaceDetails(newRaceIndex);
@@ -634,7 +637,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setClassDetails(null);
         setClassLevels(null);
         setClassSpellOptions([]);
-        resetSelections();
+        resetSelections('class');
 
         if (newClassIndex) {
             setIsEquipmentLoading(true);
@@ -667,7 +670,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleBackgroundChange = useCallback(async (newBackgroundIndex: string) => {
         setBackground(newBackgroundIndex);
         setBackgroundDetails(null);
-        resetSelections();
+        resetSelections('background');
         if (newBackgroundIndex) {
             setIsEquipmentLoading(true);
             const details = await DndApiService.getBackgroundDetails(newBackgroundIndex);
