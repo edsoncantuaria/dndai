@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { normalizeProficiencyName } from '@/utils/translator';
-import { Icons } from '../Icons';
 import { ProficiencyChoiceWithSource, useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import type { Proficiency } from '@/types';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -116,12 +116,12 @@ const NewStep4_Proficiencies: React.FC<Props> = ({
 
             <div className="flex justify-between pt-8">
                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
                 <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {canProceed ? 'Avançar' : 'Selecione as proficiências'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                    <ArrowRight className="h-6 w-6 ml-3" />
                 </button>
             </div>
         </div>

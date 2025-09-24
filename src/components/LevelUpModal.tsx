@@ -1,9 +1,6 @@
-
 // components/LevelUpModal.tsx
 import React, { useState, useEffect, useMemo } from 'react';
-// FIX: Corrected import path for local module.
 import { useGameStateContext } from '../contexts/GameStateContext';
-// FIX: Corrected import path for local module.
 import type { LevelUpSelections, Attributes, ApiSpell } from '../types';
 import * as DndApiService from '../services/dndApiService';
 import { translateAttribute, translateApiString } from '../utils/translator';
@@ -166,7 +163,6 @@ const LevelUpModal: React.FC = () => {
                 <h4 className="font-semibold text-stone-300 mb-2">Aumento no Valor de Atributo ({asiPoints} pontos restantes)</h4>
                 <p className="text-sm text-stone-400 mb-3">Aumente um atributo em +2 ou dois atributos em +1.</p>
                 <div className="grid grid-cols-3 gap-2">
-                    {/* FIX: Cast Object.keys to Array<keyof Attributes> to ensure type safety for translateAttribute. */}
                     {(Object.keys(character.attributes) as Array<keyof Attributes>).map(attr => (
                         <div key={attr} className="bg-stone-800 p-2 rounded-md text-center">
                             <label className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</label>

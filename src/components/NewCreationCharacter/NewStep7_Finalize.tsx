@@ -1,9 +1,9 @@
 // src/components/NewCreationCharacter/NewStep7_Finalize.tsx
 import React from 'react';
-import { Icons } from '../Icons';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';
 import { Attributes } from '@/types';
+import { ArrowLeft, Play } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -150,7 +150,7 @@ const NewStep7_Finalize: React.FC<Props> = ({
                     onClick={prevStep}
                     className="menu-button btn-import max-w-xs"
                 >
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
                 <button
@@ -160,7 +160,7 @@ const NewStep7_Finalize: React.FC<Props> = ({
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isComplete ? 'Iniciar Aventura' : 'Preencha os campos'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                    <Play className="h-6 w-6 ml-3" />
                 </button>
             </div>
         </div>

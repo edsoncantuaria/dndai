@@ -1,6 +1,5 @@
 // components/ProgressionTab.tsx
 import React from 'react';
-// FIX: Corrected import path for local module.
 import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelCard from './LevelCard';
 import { TrendingUp } from 'lucide-react';

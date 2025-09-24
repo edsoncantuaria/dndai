@@ -1,6 +1,5 @@
 // components/LevelCard.tsx
 import React, { useState, useEffect } from 'react';
-// FIX: Corrected import paths for local modules.
 import type { ApiClassLevel } from '../types';
 import * as DndApiService from '../services/dndApiService';
 import { translateApiString } from '../utils/translator';
@@ -52,9 +51,7 @@ const LevelCard: React.FC<LevelCardProps> = ({ level, classLevelData, subclassLe
     ];
     
     const classSpecificEntries = Object.entries(classLevelData.class_specific || {}).map(([key, value]) => {
-        // FIX: Cast key to string to prevent errors on .replace if it's a number.
         const readableKey = String(key).replace(/_/g, ' ');
-        // FIX: Explicitly cast value to string to resolve 'unknown' to 'ReactNode' type error.
         return `${readableKey.charAt(0).toUpperCase() + readableKey.slice(1)}: ${String(value)}`;
     });
 
