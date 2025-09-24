@@ -10,7 +10,7 @@ const CombatTracker: React.FC = () => {
 
     const { round, combatants, turn } = combatState;
     const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);
-    const currentTurnIndex = turn % sortedCombatants.length;
+    const currentTurnIndex = turn % combatants.length;
     
     return (
         <div className="flex-shrink-0 bg-red-900/40 p-3 rounded-lg border border-red-700/60 mt-4 animate-pulse-slow">
