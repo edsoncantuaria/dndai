@@ -2,8 +2,8 @@
 import React from 'react';
 // FIX: Corrected import path for local module.
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { Icons } from './Icons';
 import LevelCard from './LevelCard';
+import { TrendingUp } from 'lucide-react';
 
 const ProgressionTab: React.FC = () => {
     const { character } = useGameStateContext();
@@ -17,7 +17,7 @@ const ProgressionTab: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
-                <Icons.TrendingUp />
+                <TrendingUp />
                 Progresso
             </h3>
 

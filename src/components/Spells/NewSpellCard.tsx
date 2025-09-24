@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
 import { translateMagicSchool, translateApiString } from '@/utils/translator';
-import { Icons } from '../Icons';
+import { ChevronDown, Sparkles } from 'lucide-react';
 
 interface NewSpellCardProps {
     spell: ApiSpell;
@@ -56,11 +56,11 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             disabled={!canCast || isActionLoading}
                             className="mr-2 p-1.5 rounded-md bg-amber-700/80 hover:bg-amber-600/80 text-stone-100 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            <Icons.Sparkles className="h-4 w-4" />
+                            <Sparkles className="h-4 w-4" />
                         </button>
                     )}
                     <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300 flex-shrink-0">
-                        <Icons.ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                 </div>
             </div>

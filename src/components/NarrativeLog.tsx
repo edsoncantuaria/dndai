@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Icons } from './Icons';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit } from 'lucide-react';
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
@@ -40,7 +40,7 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
 
     return (
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
-            <p className={`${themeColor} font-mono`}>{icon} {description}{advantageText}</p>
+            <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
             <div className={`font-mono ${resultColor}`}>
                 <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier)}`} = <span className="font-bold text-lg">{total}</span>. </span>
                 {dc && <span className="text-stone-400 text-xs">(DC: {dc}) </span>}
@@ -54,22 +54,22 @@ const getActionIcon = (content: string) => {
     const lowerContent = content.toLowerCase();
 
     if (lowerContent.includes('conjuro') || lowerContent.includes('magia')) {
-        return <Icons.Magic className="h-4 w-4 text-purple-400" title="Ação de Magia" />;
+        return <Wand className="h-4 w-4 text-purple-400" title="Ação de Magia" />;
     }
     if (lowerContent.includes('ataco') || lowerContent.includes('ataque') || lowerContent.includes('lutar')) {
-        return <Icons.Sword className="h-4 w-4 text-red-400" title="Ação de Combate" />;
+        return <Swords className="h-4 w-4 text-red-400" title="Ação de Combate" />;
     }
     if (lowerContent.includes('descanso')) {
-        return <Icons.Moon className="h-4 w-4 text-blue-400" title="Ação de Descanso" />;
+        return <HeartPulse className="h-4 w-4 text-blue-400" title="Ação de Descanso" />;
     }
     if (lowerContent.includes('pego') || lowerContent.includes('saio') || lowerContent.includes('converso') || lowerContent.includes('examinar') || lowerContent.includes('abro')) {
-        return <Icons.Hand className="h-4 w-4 text-green-400" title="Ação de Interação" />;
+        return <Hand className="h-4 w-4 text-green-400" title="Ação de Interação" />;
     }
     if (lowerContent.includes('tento usar') || lowerContent.includes('uso') || lowerContent.includes('perícia')) {
-        return <Icons.Target className="h-4 w-4 text-cyan-400" title="Ação de Perícia" />;
+        return <Dice5 className="h-4 w-4 text-cyan-400" title="Ação de Perícia" />;
     }
 
-    return <span className="text-amber-400 font-bold" aria-hidden="true">&gt;</span>;
+    return <ChevronsRight className="text-amber-400 font-bold h-4 w-4" aria-hidden="true" />;
 };
 
 
@@ -91,13 +91,13 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             content = <RollEntry entry={entry} />;
             break;
         case 'system':
-             content = <p className="text-yellow-500/80 text-sm font-semibold italic text-center py-2">-- {entry.content} --</p>;
+             content = <p className="text-yellow-500/80 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><Sparkles className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'combat':
              content = <p className="text-red-400 text-sm font-semibold">{entry.content}</p>;
              break;
         case 'insight':
-             content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><Icons.Thought /> {entry.content} </p>;
+             content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
         default:
             content = null;

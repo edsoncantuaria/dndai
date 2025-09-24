@@ -1,7 +1,7 @@
 // components/ItemCard.tsx
 import React, { useState } from 'react';
 import type { InventoryItem } from '../types';
-import { Icons } from './Icons';
+import { Shield, ChevronDown } from 'lucide-react';
 
 interface ItemCardProps {
     item: InventoryItem;
@@ -35,11 +35,11 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, defaultExpande
                             className="p-1 text-stone-400 hover:text-amber-300"
                             title={item.equipped ? 'Desequipar' : 'Equipar'}
                         >
-                            <Icons.Shield />
+                            <Shield />
                         </button>
                     )}
                     <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
-                        <Icons.ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                 </div>
             </div>

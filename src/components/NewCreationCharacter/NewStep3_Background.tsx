@@ -2,8 +2,8 @@
 import React from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
-import { Icons } from '../Icons';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
 
 // Usamos as props do hook e os dados passados pelo orquestrador
 interface Props {
@@ -53,7 +53,7 @@ const NewStep3_Background: React.FC<Props> = ({
                     onClick={() => handleRandomizeBackground(backgrounds)}
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                 >
-                    <Icons.Dice className="h-4 w-4" />
+                    <Dice5 className="h-4 w-4" />
                     Aleatório
                 </button>
             </div>
@@ -165,12 +165,12 @@ const NewStep3_Background: React.FC<Props> = ({
             {/* Navegação */}
             <div className="flex justify-between pt-8">
                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
                 <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     Avançar
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                    <ArrowRight className="h-6 w-6 ml-3" />
                 </button>
             </div>
         </div>
@@ -178,5 +178,3 @@ const NewStep3_Background: React.FC<Props> = ({
 };
 
 export default NewStep3_Background;
-
-    

@@ -3,9 +3,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import * as DndApiService from '../services/dndApiService';
 import type { ApiSpell } from '../types';
-import { Icons } from './Icons';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import NewSpellCard from './Spells/NewSpellCard';
+import { Book, Loader2 } from 'lucide-react';
 
 const Spellbook: React.FC = () => {
     const { character, castSpell, isLoading: isActionLoading } = useGameStateContext();
@@ -67,7 +67,7 @@ const Spellbook: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
-                <Icons.Book />
+                <Book />
                 Grimório
             </h3>
 
@@ -93,7 +93,7 @@ const Spellbook: React.FC = () => {
 
             {isSpellsLoading ? (
                 <div className="flex items-center justify-center p-4 text-stone-400">
-                    <Icons.Spinner />
+                    <Loader2 className="animate-spin" />
                     <span className="ml-2">{loadingProgress || 'Consultando grimório...'}</span>
                 </div>
             ) : character.spells.length === 0 ? (

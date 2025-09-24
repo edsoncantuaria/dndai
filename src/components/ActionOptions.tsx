@@ -2,7 +2,7 @@
 // components/ActionOptions.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Icons } from './Icons';
+import { Loader2 } from 'lucide-react';
 
 const HitDiceRoller: React.FC = () => {
     const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
@@ -39,7 +39,7 @@ const HitDiceRoller: React.FC = () => {
                 disabled={isLoading || diceToSpend === 0}
                 className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
             >
-                {isLoading ? <Icons.Spinner className="mx-auto" /> : `Gastar ${diceToSpend} Dado(s) de Vida`}
+                {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Gastar ${diceToSpend} Dado(s) de Vida`}
             </button>
         </div>
     );
@@ -64,7 +64,7 @@ const LootOfferDisplay: React.FC = () => {
                 disabled={isLoading}
                 className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
             >
-                {isLoading ? <Icons.Spinner className="mx-auto" /> : 'Pegar Tudo'}
+                {isLoading ? <Loader2 className="mx-auto animate-spin" /> : 'Pegar Tudo'}
             </button>
         </div>
     )
@@ -76,7 +76,7 @@ const ActionOptions: React.FC = () => {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center p-4 text-stone-400">
-                <Icons.Spinner />
+                <Loader2 className="animate-spin" />
                 <span className="ml-2">Aguardando o mestre...</span>
             </div>
         );

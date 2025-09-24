@@ -1,8 +1,8 @@
 // components/JournalTab.tsx
 import React, { useState } from 'react';
-import { Icons } from './Icons';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { JournalEntryLocation } from '../types';
+import { ChevronDown, Map } from 'lucide-react';
 
 interface LocationProps {
     location: JournalEntryLocation;
@@ -19,7 +19,7 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
             <div className={`flex items-center justify-between p-2 rounded-md ${hasSubLocations ? 'cursor-pointer hover:bg-stone-800' : ''}`} onClick={() => hasSubLocations && setIsExpanded(!isExpanded)}>
                 <div className="flex items-center gap-2">
                     {hasSubLocations ? (
-                        <Icons.ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-0' : '-rotate-90'}`} />
                     ) : (
                         <div className="w-4 h-4" /> // Placeholder for alignment
                     )}
@@ -63,7 +63,7 @@ const JournalTab: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
-                <Icons.Map />
+                <Map />
                 Diário de Aventura
             </h3>
             

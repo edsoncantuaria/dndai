@@ -13,7 +13,7 @@ import ProgressionTab from './ProgressionTab';
 import RelationshipsTab from './RelationshipsTab';
 import JournalTab from './JournalTab';
 import ShopModal from './ShopModal';
-import { Icons } from './Icons';
+import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -41,12 +41,12 @@ const GameScreen: React.FC = () => {
     };
 
     const tabConfig: Record<Tab, { label: string, icon: React.ReactNode }> = {
-        character: { label: 'Personagem', icon: <Icons.User className="h-5 w-5"/> },
-        inventory: { label: 'Inventário', icon: <Icons.Backpack className="h-5 w-5"/> },
-        spells: { label: 'Magias', icon: <Icons.BookOpen className="h-5 w-5"/> },
-        journal: { label: 'Diário', icon: <Icons.Map className="h-5 w-5"/> },
-        relationships: { label: 'Relações', icon: <Icons.Users className="h-5 w-5"/> },
-        progression: { label: 'Progresso', icon: <Icons.TrendingUp className="h-5 w-5"/> },
+        character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
+        inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
+        spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
+        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
+        relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
+        progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
 
     return (

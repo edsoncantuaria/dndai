@@ -6,11 +6,11 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 // FIX: Corrected import path for local module.
 import type { LevelUpSelections, Attributes, ApiSpell } from '../types';
 import * as DndApiService from '../services/dndApiService';
-import { Icons } from './Icons';
 import { translateAttribute, translateApiString } from '../utils/translator';
 import NewSpellCard from '../components/Spells/NewSpellCard';
 import { rollDice } from '../utils/dice';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
+import { Loader2 } from 'lucide-react';
 
 const LevelUpModal: React.FC = () => {
     const { levelUpState, applyLevelUp, isLoading, character } = useGameStateContext();
@@ -193,7 +193,7 @@ const LevelUpModal: React.FC = () => {
         if (isSpellsLoading || spellsLoadingProgress) {
             return (
                 <div className="flex items-center justify-center p-4 text-stone-400">
-                    <Icons.Spinner />
+                    <Loader2 className="animate-spin" />
                     <span className="ml-2">{spellsLoadingProgress || 'Consultando grimório...'}</span>
                 </div>
             );
@@ -308,7 +308,7 @@ const LevelUpModal: React.FC = () => {
                         disabled={!isReadyToConfirm}
                         className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-3 px-6 rounded-md transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {isLoading ? <Icons.Spinner className="mx-auto" /> : `Confirmar Nível ${newLevel}`}
+                        {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Confirmar Nível ${newLevel}`}
                     </button>
                 </footer>
             </div>
@@ -317,5 +317,3 @@ const LevelUpModal: React.FC = () => {
 };
 
 export default LevelUpModal;
-
-    

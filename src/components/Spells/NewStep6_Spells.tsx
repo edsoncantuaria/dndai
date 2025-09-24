@@ -1,8 +1,8 @@
 'use client';
 import React from 'react';
 import type { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Icons } from '../Icons';
 import NewSpellCard from './NewSpellCard';
+import { Loader2, Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -51,7 +51,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     if (isSpellsLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
-                <Icons.Spinner className="h-12 w-12" />
+                <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="mt-4">{spellsLoadingProgress || 'Consultando tomos arcanos...'}</p>
             </div>
         );
@@ -65,12 +65,12 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 </div>
                  <div className="flex justify-between pt-8">
                     <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                        <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                        <ArrowLeft className="h-6 w-6 mr-3" />
                         Voltar
                     </button>
                     <button type="button" onClick={nextStep} className="menu-button btn-new max-w-xs">
                         Avançar
-                        <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                        <ArrowRight className="h-6 w-6 ml-3" />
                     </button>
                 </div>
             </div>
@@ -86,7 +86,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     onClick={handleRandomizeSpells}
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                 >
-                    <Icons.Dice className="h-4 w-4" />
+                    <Dice5 className="h-4 w-4" />
                     Aleatório
                 </button>
             </div>
@@ -187,12 +187,12 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
              <div className="flex justify-between pt-8">
                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
                 <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {canProceed ? 'Avançar' : 'Selecione suas magias'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                    <ArrowRight className="h-6 w-6 ml-3" />
                 </button>
             </div>
         </div>

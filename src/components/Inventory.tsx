@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { Icons } from './Icons';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
 import { translateEquipment } from '../utils/TranslatorEquipments';
+import { Backpack, ChevronDown } from 'lucide-react';
 
 const CATEGORY_ORDER: Record<string, number> = {
     'Armas': 1,
@@ -63,7 +63,7 @@ const Inventory: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 mb-3 text-shadow-amber">
-                <Icons.Backpack />
+                <Backpack />
                 Inventário
             </h3>
             
@@ -94,7 +94,7 @@ const Inventory: React.FC = () => {
                                     aria-expanded={isExpanded}
                                 >
                                     <h4 className="font-semibold text-amber-200">{category} ({items.length})</h4>
-                                    <Icons.ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                    <ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                                 </button>
                                 <div className={`transition-all ease-in-out duration-500 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                                     <div className="space-y-2 pl-2 border-l-2 border-stone-700 pt-px">

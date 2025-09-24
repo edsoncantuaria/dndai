@@ -3,8 +3,8 @@ import React from 'react';
 import type { Attributes } from '@/types';
 import { translateAttribute } from '@/utils/translator';
 import { getCostOfNextLevel } from '@/utils/creationHelpers';
-import { Icons } from '../Icons';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { Dice5, Minus, Plus, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -40,7 +40,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                         title={!characterClass ? "Selecione uma classe primeiro" : "Sugerir atributos para a classe selecionada"}
                         className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <Icons.Dice className="h-4 w-4" />
+                        <Dice5 className="h-4 w-4" />
                         Sugerir
                     </button>
                 </div>
@@ -67,7 +67,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                                     disabled={baseAttributes[attr] <= 8}
                                     className="p-2 rounded-full bg-stone-700 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    <Icons.Minus className="h-5 w-5" />
+                                    <Minus className="h-5 w-5" />
                                 </button>
                                 <div className="flex-grow">
                                     <p className="text-4xl font-bold text-amber-300">
@@ -80,7 +80,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                                     disabled={baseAttributes[attr] >= 15 || points < getCostOfNextLevel(baseAttributes[attr])}
                                     className="p-2 rounded-full bg-stone-700 hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    <Icons.Plus className="h-5 w-5" />
+                                    <Plus className="h-5 w-5" />
                                 </button>
                             </div>
                             <div className="text-xs text-stone-400">
@@ -100,7 +100,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                     onClick={prevStep}
                     className="menu-button btn-import max-w-xs"
                 >
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150"/>
+                    <ArrowLeft className="h-6 w-6 mr-3"/>
                     Voltar
                 </button>
                 <button
@@ -110,7 +110,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {points > 0 ? `${points} pontos restantes` : 'Avançar'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150"/>
+                    <ArrowRight className="h-6 w-6 ml-3"/>
                 </button>
             </div>
         </div>

@@ -9,13 +9,11 @@ export default function Game({ startNewGame }: { startNewGame: () => void }) {
     const gameStateHook = useGameStateContext();
 
     return (
-      <div className="h-full w-full bg-gradient-to-br from-black via-stone-900 to-red-950 p-2 md:p-4">
+      <div className="h-full w-full bg-gradient-to-br from-black via-stone-900 to-red-950 p-2 md:p-4 flex items-center justify-center">
         {gameStateHook.character ? (
           <GameScreen />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center">
-              <CharacterCreation startNewGame={startNewGame} />
-          </div>
+            <CharacterCreation startNewGame={startNewGame} />
         )}
       </div>
     );

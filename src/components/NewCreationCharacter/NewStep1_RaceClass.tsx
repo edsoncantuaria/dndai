@@ -2,8 +2,8 @@
 import React from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
-import { Icons } from '../Icons';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { Dice5, ArrowRight, Loader2 } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -40,7 +40,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     onClick={() => handleRandomizeRaceAndClass(races, classes)}
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                 >
-                    <Icons.Dice className="h-4 w-4" />
+                    <Dice5 className="h-4 w-4" />
                     Aleatório
                 </button>
             </div>
@@ -102,7 +102,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     disabled={!canProceed || isSpellsLoading}
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSpellsLoading ? <Icons.Spinner className="mr-3" /> : <Icons.Play className="h-6 w-6 mr-3 transform -rotate-90 scale-y-150"/>}
+                    {isSpellsLoading ? <Loader2 className="mr-3 animate-spin" /> : <ArrowRight className="h-6 w-6 mr-3"/>}
                     {isSpellsLoading ? 'Carregando...' : 'Avançar'}
                 </button>
             </div>
@@ -111,5 +111,3 @@ const NewStep1_RaceClass: React.FC<Props> = ({
 };
 
 export default NewStep1_RaceClass;
-
-    

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Icons } from '../Icons';
+import { Upload, PlusCircle, Play } from 'lucide-react';
 
 interface CharacterCreationMenuProps {
     hasSavedGame: boolean;
@@ -30,7 +30,7 @@ const CharacterCreationMenu: React.FC<CharacterCreationMenuProps> = ({ hasSavedG
                         onClick={onLoadGame}
                         className="menu-button btn-continue"
                     >
-                        <Icons.Play className="h-6 w-6 mr-3"/>
+                        <Play className="h-6 w-6 mr-3"/>
                         Continuar Aventura
                     </button>
                 )}
@@ -38,7 +38,7 @@ const CharacterCreationMenu: React.FC<CharacterCreationMenuProps> = ({ hasSavedG
                     onClick={handleImportClick}
                     className="menu-button btn-import"
                 >
-                    <Icons.Upload className="h-6 w-6 mr-3"/>
+                    <Upload className="h-6 w-6 mr-3"/>
                     Importar Aventura
                 </button>
                 <input
@@ -52,7 +52,7 @@ const CharacterCreationMenu: React.FC<CharacterCreationMenuProps> = ({ hasSavedG
                     onClick={onNewGame}
                     className="menu-button btn-new"
                 >
-                     <Icons.PlusCircle className="h-6 w-6 mr-3"/>
+                     <PlusCircle className="h-6 w-6 mr-3"/>
                     Criar Novo Personagem
                 </button>
             </div>

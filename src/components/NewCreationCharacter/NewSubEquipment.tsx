@@ -2,9 +2,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNewCharacterCreation, EquipmentChoiceGroup } from '@/hooks/newUseCharacterCreation';
 import { getOptionLabel } from '@/utils/creationHelpers';
-import { Icons } from '../Icons';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
+import { Loader2 } from 'lucide-react';
 
 interface NewSubEquipmentProps {
     group: EquipmentChoiceGroup;
@@ -76,7 +76,7 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
 
                 {isLoading ? (
                      <div className="flex items-center justify-center p-2 text-stone-400">
-                        <Icons.Spinner />
+                        <Loader2 className="animate-spin" />
                         <span className="ml-2 text-sm">Carregando...</span>
                     </div>
                 ) : subOptions.length > 0 && (
@@ -117,7 +117,7 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
 
             {isLoading ? (
                 <div className="flex items-center justify-center p-2 text-stone-400">
-                    <Icons.Spinner />
+                    <Loader2 className="animate-spin" />
                     <span className="ml-2 text-sm">Carregando...</span>
                 </div>
             ) : subOptions.length > 0 && (

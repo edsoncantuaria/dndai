@@ -1,11 +1,10 @@
-
 // components/LevelCard.tsx
 import React, { useState, useEffect } from 'react';
 // FIX: Corrected import paths for local modules.
 import type { ApiClassLevel } from '../types';
 import * as DndApiService from '../services/dndApiService';
 import { translateApiString } from '../utils/translator';
-import { Icons } from './Icons';
+import { Minus, Plus } from 'lucide-react';
 
 interface LevelCardProps {
     level: number;
@@ -72,7 +71,7 @@ const LevelCard: React.FC<LevelCardProps> = ({ level, classLevelData, subclassLe
                 </div>
                 <div className="flex items-center gap-4 text-xs font-mono text-stone-400">
                     <span>Bônus Prof: +{classLevelData.prof_bonus}</span>
-                    {isExpanded ? <Icons.Minus className="h-4 w-4" /> : <Icons.Plus className="h-4 w-4" />}
+                    {isExpanded ? <Minus className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
                 </div>
             </button>
             {isExpanded && (

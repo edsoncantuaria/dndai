@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSettingsContext, AiSettings, AiProvider } from '@/contexts/SettingsContext';
-import { Icons } from './Icons';
+import { Sparkles } from 'lucide-react';
 
 
 const AI_MODELS: Record<AiProvider, { name: string, value: string }[]> = {
@@ -63,7 +63,7 @@ const SettingsModal: React.FC<{
             <div className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-md">
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
                     <h2 className="text-xl font-bold font-garamond text-amber-300 flex items-center gap-2">
-                        <Icons.Sparkles className="h-5 w-5" />
+                        <Sparkles className="h-5 w-5" />
                         Configurações da IA
                     </h2>
                     <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
@@ -155,7 +155,7 @@ const Settings: React.FC = () => {
                 className="fixed bottom-4 right-4 z-50 h-14 w-14 bg-stone-900/80 backdrop-blur-md border-2 border-amber-500/50 rounded-full flex items-center justify-center text-amber-400 hover:bg-stone-800 hover:border-amber-500 transition-all shadow-lg"
                 title="Configurações da IA"
             >
-                <Icons.Sparkles className="h-7 w-7" />
+                <Sparkles className="h-7 w-7" />
             </button>
             <SettingsModal 
                 isOpen={isSettingsModalOpen}

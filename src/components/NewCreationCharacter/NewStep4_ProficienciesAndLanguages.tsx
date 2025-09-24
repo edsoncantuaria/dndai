@@ -1,9 +1,8 @@
 'use client';
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Icons } from '../Icons';
 import { normalizeProficiencyName, translateLanguage } from '@/utils/translator';
-import type { ProficiencyChoiceWithSource } from '@/hooks/newUseCharacterCreation';
+import { ArrowLeft, ArrowRight, Dice5 } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -32,14 +31,12 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
         handleRandomizeLanguages,
     } = hook;
 
-    const allKnownLanguages = new Set([...baseLanguages, ...chosenLanguages.filter(Boolean)]);
-
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-stone-300 mb-2">Proficiências e Idiomas</h3>
             </div>
-            <p className="text-sm text-stone-400 mb-6">Sua raça, classe e antecedente concedem várias perícias, ferramentas e idiomas. Faça suas escolhas abaixo.</p>
+            <p className="text-sm text-stone-400 mb-6 -mt-6">Sua raça, classe e antecedente concedem várias perícias, ferramentas e idiomas. Faça suas escolhas abaixo.</p>
 
             {/* Granted Proficiencies */}
             <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
@@ -82,7 +79,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
                             onClick={handleRandomizeProficiencies}
                             className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                         >
-                            <Icons.Dice className="h-4 w-4" />
+                            <Dice5 className="h-4 w-4" />
                             Aleatório
                         </button>
                     </div>
@@ -155,7 +152,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
                             onClick={handleRandomizeLanguages}
                             className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                         >
-                            <Icons.Dice className="h-4 w-4" />
+                            <Dice5 className="h-4 w-4" />
                             Aleatório
                         </button>
                     </div>
@@ -189,12 +186,12 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({
 
             <div className="flex justify-between pt-8">
                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <Icons.Play className="h-6 w-6 mr-3 transform rotate-90 scale-y-150" />
+                    <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
                 <button type="button" onClick={nextStep} disabled={!canProceedFromProficiencies} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {canProceedFromProficiencies ? 'Avançar' : 'Faça suas escolhas'}
-                    <Icons.Play className="h-6 w-6 ml-3 transform -rotate-90 scale-y-150" />
+                    <ArrowRight className="h-6 w-6 ml-3" />
                 </button>
             </div>
         </div>

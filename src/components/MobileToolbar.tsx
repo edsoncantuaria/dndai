@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Icons } from './Icons';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 

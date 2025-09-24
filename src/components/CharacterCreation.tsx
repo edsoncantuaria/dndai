@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
-import { Icons } from './Icons';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ConfirmationModal from './ui/ConfirmationModal';
+import { Loader2 } from 'lucide-react';
 
 const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
     const { isLoading, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
@@ -74,7 +74,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     if (isLoading && !hasSavedGame) { // Mostra loading ao criar personagem
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400 text-center">
-                <Icons.Spinner className="h-12 w-12" />
+                <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="mt-4 text-lg">Forjando seu destino nas chamas da criação...</p>
             </div>
         );
@@ -116,7 +116,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
      if (isDataLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
-                <Icons.Spinner className="h-12 w-12" />
+                <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="mt-4">Carregando tomos antigos...</p>
             </div>
         );

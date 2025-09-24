@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition, translateEquipment } from '../utils/translator';
-import { Icons } from './Icons';
 import { Attributes, Proficiency } from '../types';
 import { ALL_SKILLS, SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -79,7 +79,9 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={handleSkillClick} disabled={isLoading} className="px-2 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50">Usar</button>
+                <button onClick={handleSkillClick} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                    <Dice5 className="h-3 w-3"/> Usar
+                </button>
             </div>
         </div>
     )
@@ -95,7 +97,7 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
                 aria-expanded={isExpanded}
             >
                 <h3 className="text-lg font-bold font-garamond text-amber-300 text-shadow-amber">{title}</h3>
-                <Icons.ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
             <div className={`transition-all ease-in-out duration-300 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
                 {children}
@@ -148,7 +150,7 @@ const CharacterSheet: React.FC = () => {
                         {conditions.map(condition => (
                             <div key={condition.index} className="relative group">
                                 <span className="flex items-center gap-1 bg-red-900/70 text-red-300 text-xs font-semibold px-2 py-1 rounded-full border border-red-700/80">
-                                    <Icons.AlertTriangle className="h-3 w-3" />
+                                    <AlertTriangle className="h-3 w-3" />
                                     {translateCondition(condition.name)}
                                 </span>
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
@@ -213,15 +215,17 @@ const CharacterSheet: React.FC = () => {
                     <button
                         onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
                         disabled={isLoading || combatState.isActive}
-                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
+                        <Coffee className="h-4 w-4" />
                         Descanso Curto
                     </button>
                     <button
                         onClick={() => processPlayerAction("Tentar fazer um descanso longo.")}
                         disabled={isLoading || combatState.isActive}
-                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
+                        <BedDouble className="h-4 w-4" />
                         Descanso Longo
                     </button>
                 </div>

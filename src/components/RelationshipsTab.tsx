@@ -1,8 +1,8 @@
 // components/RelationshipsTab.tsx
 import React, { useState } from 'react';
-import { Icons } from './Icons';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { Relationship, Quest } from '../types';
+import { Users } from 'lucide-react';
 
 const statusMap: Record<Relationship['status'], { label: string, color: string }> = {
     'hostile': { label: 'Hostil', color: 'bg-red-600' },
@@ -62,7 +62,7 @@ const RelationshipsTab: React.FC = () => {
     return (
         <div className="p-4 space-y-4">
             <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
-                <Icons.Users />
+                <Users />
                 Relacionamentos
             </h3>
             {character.relationships.length === 0 ? (

@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { Icons } from './Icons';
+import { Heart } from 'lucide-react';
 
 const CombatTracker: React.FC = () => {
     const { combatState } = useGameStateContext();
@@ -25,7 +25,7 @@ const CombatTracker: React.FC = () => {
                         <div key={combatant.id} className={`p-2 rounded-md flex-shrink-0 w-32 transition-all duration-300 ${isCurrentTurn ? 'bg-amber-600/50 border-2 border-amber-400 transform scale-105' : 'bg-stone-800/60 border border-stone-700'}`}>
                             <p className={`font-bold truncate ${isCurrentTurn ? 'text-white' : 'text-stone-200'}`}>{combatant.name}</p>
                             <div className="flex items-center gap-1 text-xs text-stone-400">
-                                <Icons.Heart className="h-3 w-3" />
+                                <Heart className="h-3 w-3" />
                                 <span>{combatant.hp ?? '?'} / {combatant.maxHp ?? '?'}</span>
                             </div>
                         </div>
