@@ -1,8 +1,10 @@
 // src/components/NewCreationCharacter/NewSubEquipment.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNewCharacterCreation, EquipmentChoiceGroup } from '@/hooks/newUseCharacterCreation';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Icons } from '../Icons';
+import * as DndApiService from '@/services/dndApiService';
+import type { ApiListItem } from '@/types';
 
 interface NewSubEquipmentProps {
     group: EquipmentChoiceGroup;
@@ -13,49 +15,106 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
     const {
         equipmentSelections,
         handleEquipmentChange,
-        subChoiceOptions,
-        isSubchoiceLoading,
     } = hook;
+    
+    const [subOptions, setSubOptions] = useState<ApiListItem[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
+    const mainOptions = group.choice.from.options || [];
 
-    const options = group.choice.from.options || [];
+    useEffect(() => {
+        const fetchSubOptions = async () => {
+            const selection = equipmentSelections[group.id];
+            // Case 1: The entire group is an equipment category choice.
+            if (group.choice.from.option_set_type === 'equipment_category' && group.choice.from.equipment_category?.index) {
+                setIsLoading(true);
+                const categoryData = await DndApiService.getEquipmentForCategory(group.choice.from.equipment_category.index);
+                setSubOptions(categoryData?.equipment || []);
+                setIsLoading(false);
+                return;
+            }
+            
+            // Case 2: The selected main option is a choice of a category.
+            if (selection?.main !== undefined) {
+                const mainOption = mainOptions[selection.main];
+                if (mainOption?.option_type === 'choice' && mainOption.choice?.from.equipment_category?.index) {
+                    setIsLoading(true);
+                    const categoryData = await DndApiService.getEquipmentForCategory(mainOption.choice.from.equipment_category.index);
+                    setSubOptions(categoryData?.equipment || []);
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
+            // If no category is selected, clear sub-options.
+            setSubOptions([]);
+        };
 
+        fetchSubOptions();
+    }, [group.id, mainSelectionIndex, group.choice.from]);
+
+
+    // A direct category choice (like Acolyte's Holy Symbol) won't have `mainOptions`.
+    if (group.choice.from.option_set_type === 'equipment_category') {
+        return (
+             <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
+                <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
+                {isLoading ? (
+                     <div className="flex items-center justify-center p-2 text-stone-400">
+                        <Icons.Spinner />
+                        <span className="ml-2 text-sm">Carregando...</span>
+                    </div>
+                ) : (
+                    <select
+                        value={subSelectionIndex ?? -1}
+                        onChange={(e) => handleEquipmentChange(group.id, undefined, e.target.value)}
+                        className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    >
+                         <option value={-1} disabled>Selecione um item...</option>
+                         {subOptions.map((item, index) => (
+                            <option key={item.index} value={index}>
+                                {item.name}
+                            </option>
+                        ))}
+                    </select>
+                )}
+            </div>
+        );
+    }
+    
+    // A choice between specific items or other categories
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
             <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
             
-            {/* Select Principal */}
-            {options && (
-                <select
-                    value={mainSelectionIndex ?? -1}
-                    onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
-                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                >
-                    <option value={-1} disabled>Selecione uma opção...</option>
-                    {options.map((opt, index) => (
-                        <option key={index} value={index}>
-                            {getOptionLabel(opt)}
-                        </option>
-                    ))}
-                </select>
-            )}
+            <select
+                value={mainSelectionIndex ?? -1}
+                onChange={(e) => handleEquipmentChange(group.id, e.target.value)}
+                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            >
+                <option value={-1} disabled>Selecione uma opção...</option>
+                {mainOptions.map((opt, index) => (
+                    <option key={index} value={index}>
+                        {getOptionLabel(opt)}
+                    </option>
+                ))}
+            </select>
 
-            {/* Select de Sub-escolha (condicional) */}
-            {isSubchoiceLoading[group.id] ? (
+            {isLoading ? (
                 <div className="flex items-center justify-center p-2 text-stone-400">
                     <Icons.Spinner />
                     <span className="ml-2 text-sm">Carregando...</span>
                 </div>
-            ) : subChoiceOptions[group.id] && mainSelectionIndex !== undefined && mainSelectionIndex !== -1 && (
+            ) : subOptions.length > 0 && (
                 <select
                     value={subSelectionIndex ?? -1}
-                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex!.toString(), e.target.value)}
+                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex?.toString(), e.target.value)}
                     className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn"
                 >
                     <option value={-1} disabled>Selecione um item específico...</option>
-                    {subChoiceOptions[group.id]!.map((item, index) => (
+                    {subOptions.map((item, index) => (
                         <option key={item.index} value={index}>
                             {item.name}
                         </option>
