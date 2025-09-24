@@ -134,12 +134,15 @@ export const useNewGameState = () => {
         const currentLog = [...log, newActionLogEntry];
         setLog(currentLog);
         setActionOptions([]);
-
-        const response = await newGeminiService.getGameUpdate({
+        
+        const gameUpdateInput = {
           character,
           playerAction: action,
           gameLog: log.slice(-10) // Send only the last 10 log entries for brevity
-        });
+        };
+        console.log('[useGameState] Enviando para a IA:', gameUpdateInput);
+
+        const response = await newGeminiService.getGameUpdate(gameUpdateInput);
         
         handleApiResponse(response);
         setIsLoading(false);
@@ -153,7 +156,13 @@ export const useNewGameState = () => {
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
 
-        const response = await newGeminiService.getInitialStory(newCharacter);
+        const initialStoryInput = {
+            character: newCharacter,
+            playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
+            gameLog: [],
+        };
+        console.log('[useGameState] Enviando para a IA (história inicial):', initialStoryInput);
+        const response = await newGeminiService.getInitialStory(initialStoryInput);
         
         setCharacter(newCharacter);
         setLog([]); // Start with a fresh log

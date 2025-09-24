@@ -5,11 +5,6 @@ import { ai } from '@/ai/genkit';
 import {
   Character,
   LogEntry,
-  CombatState,
-  LevelUpState,
-  ShopState,
-  LootOffer,
-  UseHitDiceRequest,
 } from '@/types';
 import { z } from 'zod';
 
@@ -113,7 +108,7 @@ const gameMasterFlow = ai.defineFlow(
     outputSchema: GameMasterResponseSchema,
   },
   async (input) => {
-    console.log("[GeminiService] Flow invocado com a ação:", input.playerAction);
+    console.log("[newGeminiService] Fluxo 'gameMasterFlow' invocado com a ação:", input.playerAction);
     
     // Create a summarized character object to keep the prompt concise
     const characterSummary = {
@@ -132,11 +127,11 @@ const gameMasterFlow = ai.defineFlow(
     });
     
     if (!output) {
-        console.error("[GeminiService] Erro: A resposta da IA foi nula ou vazia.");
+        console.error("[newGeminiService] Erro: A resposta da IA foi nula ou vazia.");
         throw new Error("A resposta da IA foi nula.");
     }
     
-    console.log("[GeminiService] Resposta da IA recebida e validada com sucesso.");
+    console.log("[newGeminiService] Resposta da IA recebida e validada com sucesso.");
     return output;
   }
 );
@@ -151,7 +146,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
   try {
     return await gameMasterFlow(input);
   } catch (error: any) {
-    console.error("[GeminiService - getGameUpdate] Erro ao executar o fluxo do mestre:", error.message || error, error);
+    console.error("[newGeminiService - getGameUpdate] Erro ao executar o fluxo do mestre:", error.message || error, error);
     return null;
   }
 };
@@ -159,16 +154,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 /**
  * Gets the initial story introduction for a newly created character.
  */
-export const getInitialStory = async (character: Character): Promise<GameMasterResponse | null> => {
-  const input: GameMasterFlowInput = {
-    character,
-    playerAction: 'A aventura começa. Onde eu estou e o que está acontecendo?',
-    gameLog: [],
-  };
+export const getInitialStory = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
   try {
     return await gameMasterFlow(input);
   } catch (error: any) {
-    console.error("[GeminiService - getInitialStory] Erro ao buscar a história inicial:", error.message || error, error);
+    console.error("[newGeminiService - getInitialStory] Erro ao buscar a história inicial:", error.message || error, error);
     return null;
   }
 };
