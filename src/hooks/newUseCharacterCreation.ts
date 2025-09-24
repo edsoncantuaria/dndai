@@ -250,14 +250,14 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (!selection) return false;
             
             const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
-            const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
+            const options = group.choice.from.options || [];
             
             if (selection.main === undefined || selection.main < 0 || selection.main >= options.length) return false;
             
             const mainOption = options[selection.main];
 
             if (mainOption?.option_type === 'choice' || isCategoryChoice) {
-                return selection.sub !== undefined;
+                return selection.sub !== undefined && selection.sub !== -1;
             }
             return true;
         });
@@ -353,8 +353,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
                 if (wizardSpellsResponse?.results) {
                     const cantrips = wizardSpellsResponse.results.filter(spell => {
-                         const level = (spell as any).level || 0;
-                         return level === 0;
+                         const level1Data = classLevels?.find(l => l.level === 1);
+                         return level1Data?.spellcasting?.cantrips_known ? true : false;
                     });
     
                     if (cantrips.length > 0) {
@@ -402,7 +402,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (raceDetails) {
            fetchRacialTraitsAndSpells();
         }
-    }, [raceDetails, subraceDetails]);
+    }, [raceDetails, subraceDetails, classLevels]);
 
     useEffect(() => {
         const finalizeEquipmentSelections = async () => {
@@ -414,7 +414,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 if (!selection || selection.main === undefined || selection.main < 0) continue;
 
                 const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
-                const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
+                const options = group.choice.from.options || [];
                 
                 if (selection.main >= options.length) continue;
 
@@ -430,7 +430,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                             finalItems.push({ ...details, ...subItem.of, id: uuidv4(), quantity: subItem.count || 1, equipped: false });
                         }
                     }
-                } else if ((mainOption.option_type === 'choice' || isCategoryChoice) && selection.sub !== undefined) {
+                } else if ((mainOption.option_type === 'choice' || isCategoryChoice) && selection.sub !== undefined && selection.sub !== -1) {
                     const subOptions = subChoiceOptions[group.id];
                     if (subOptions && subOptions[selection.sub]) {
                         const chosenSubItem = subOptions[selection.sub];
@@ -495,53 +495,50 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         });
     }, []);
 
-    const handleEquipmentChange = useCallback(async (groupId: string, mainIndexStr: string, subIndexStr?: string) => {
-        const mainIndex = parseInt(mainIndexStr, 10);
-        const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : undefined;
+    const fetchSubOptionsForGroup = useCallback(async (group: EquipmentChoiceGroup, mainIndex: number) => {
+        const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
+        const mainOption = group.choice.from.options?.[mainIndex];
 
+        let categoryUrl = '';
+        if (isCategoryChoice) {
+            categoryUrl = (group.choice.from.equipment_category as ApiListItem)?.url;
+        } else if (mainOption?.option_type === 'choice') {
+            categoryUrl = mainOption.choice.from.equipment_category.url;
+        }
+
+        if (categoryUrl) {
+            setIsSubchoiceLoading(prev => ({ ...prev, [group.id]: true }));
+            const categoryIndex = categoryUrl.split('/').pop();
+            if (categoryIndex) {
+                const categoryData = await DndApiService.getEquipmentForCategory(categoryIndex);
+                setSubChoiceOptions(prev => ({ ...prev, [group.id]: categoryData?.equipment || [] }));
+            }
+            setIsSubchoiceLoading(prev => ({ ...prev, [group.id]: false }));
+        } else {
+             setSubChoiceOptions(prev => {
+                const next = {...prev};
+                delete next[group.id];
+                return next;
+             });
+        }
+    }, []);
+
+    const handleEquipmentChange = useCallback((groupId: string, mainIndexStr: string, subIndexStr?: string) => {
+        const mainIndex = parseInt(mainIndexStr, 10);
+        const subIndex = subIndexStr !== undefined ? parseInt(subIndexStr, 10) : -1; // Use -1 for "not selected"
+
+        // Update the selection state
         setEquipmentSelections(prev => ({
             ...prev,
             [groupId]: { main: mainIndex, sub: subIndex }
         }));
-    
-        const group = equipmentChoiceGroups.find(g => g.id === groupId);
-        if (!group) return;
         
-        const isCategoryChoice = group.choice.from.option_set_type === 'equipment_category';
-        const options = group.choice.from.options || (isCategoryChoice ? [group.choice.from] : []);
-        const selectedOption = options[mainIndex];
-    
-        const needsSubChoice = selectedOption?.option_type === 'choice' || isCategoryChoice;
-
-        if (needsSubChoice) {
-            setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: true }));
-            const categoryUrl = isCategoryChoice 
-                ? (group.choice.from.equipment_category as ApiListItem).url 
-                : (selectedOption as any).choice.from.equipment_category.url;
-            
-            const categoryIndex = categoryUrl.split('/').pop();
-            
-            if(categoryIndex){
-                const categoryData = await DndApiService.getEquipmentForCategory(categoryIndex);
-                setSubChoiceOptions(prev => ({ ...prev, [groupId]: categoryData?.equipment || [] }));
-            }
-            
-            setIsSubchoiceLoading(prev => ({ ...prev, [groupId]: false }));
-            
-            if (subIndex === undefined) {
-                 setEquipmentSelections(prev => ({
-                    ...prev,
-                    [groupId]: { main: mainIndex, sub: undefined }
-                }));
-            }
-        } else {
-             setSubChoiceOptions(prev => {
-                const next = {...prev};
-                delete next[groupId];
-                return next;
-             });
+        // Fetch sub-options if needed
+        const group = equipmentChoiceGroups.find(g => g.id === groupId);
+        if (group) {
+            fetchSubOptionsForGroup(group, mainIndex);
         }
-    }, [equipmentChoiceGroups]);
+    }, [equipmentChoiceGroups, fetchSubOptionsForGroup]);
 
 
     const handleLanguageChange = useCallback((index: number, value: string) => {
@@ -730,13 +727,23 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const mainOptionsCount = group.choice.from.options?.length || 0;
             if (mainOptionsCount > 0) {
                 const randomMainIndex = Math.floor(Math.random() * mainOptionsCount);
-                newSelections[group.id] = { main: randomMainIndex };
-                // Note: This doesn't handle sub-choices randomization due to async loading.
-                // A more complex implementation would be needed. For now, it just picks the main option.
+                
+                // Immediately try to fetch sub-options for the randomized main choice
+                const groupForSubFetch = equipmentChoiceGroups.find(g => g.id === group.id);
+                if (groupForSubFetch) {
+                    fetchSubOptionsForGroup(groupForSubFetch, randomMainIndex).then(() => {
+                        // After fetching, we'd ideally set a sub-choice here,
+                        // but that requires another state update cycle.
+                        // For a simple "randomize", this might be complex.
+                        // For now, we'll just set the main choice.
+                    });
+                }
+                
+                newSelections[group.id] = { main: randomMainIndex, sub: -1 };
             }
         });
         setEquipmentSelections(newSelections);
-    }, [equipmentChoiceGroups]);
+    }, [equipmentChoiceGroups, fetchSubOptionsForGroup]);
 
     const handleRandomizeSpells = useCallback(() => {
         if (!classDetails || !classLevels) return;

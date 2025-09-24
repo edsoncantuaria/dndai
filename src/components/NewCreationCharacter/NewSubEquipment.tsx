@@ -48,10 +48,10 @@ const NewSubEquipment: React.FC<NewSubEquipmentProps> = ({ group, hook }) => {
                     <Icons.Spinner />
                     <span className="ml-2 text-sm">Carregando...</span>
                 </div>
-            ) : subChoiceOptions[group.id] && mainSelectionIndex !== undefined && (
+            ) : subChoiceOptions[group.id] && mainSelectionIndex !== undefined && mainSelectionIndex !== -1 && (
                 <select
                     value={subSelectionIndex ?? -1}
-                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex.toString(), e.target.value)}
+                    onChange={(e) => handleEquipmentChange(group.id, mainSelectionIndex!.toString(), e.target.value)}
                     className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn"
                 >
                     <option value={-1} disabled>Selecione um item específico...</option>
