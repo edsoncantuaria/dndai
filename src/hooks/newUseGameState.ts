@@ -6,32 +6,9 @@ import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
+import { mergeDeep } from '@/utils/merge';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
-
-function isObject(item: any): boolean {
-    return (item && typeof item === 'object' && !Array.isArray(item));
-}
-
-// A simple deep merge utility for updating character state
-function mergeDeep(target: any, source: any): any {
-    const output = { ...target };
-    if (isObject(target) && isObject(source)) {
-        Object.keys(source).forEach(key => {
-            if (isObject(source[key]) && key in target && isObject(target[key])) {
-                 // For arrays, we replace the entire array instead of merging
-                if (Array.isArray(source[key])) {
-                     output[key] = source[key];
-                } else {
-                    output[key] = mergeDeep(target[key], source[key]);
-                }
-            } else {
-                Object.assign(output, { [key]: source[key] });
-            }
-        });
-    }
-    return output;
-}
 
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
@@ -42,7 +19,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
     const saveGame = useCallback(() => {
         if (character) {
@@ -69,20 +46,23 @@ export const useNewGameState = () => {
             return;
         }
 
-        // Use a temporary state variable to batch updates
-        let newCharacterState = character;
+        setCharacter(prevCharacter => {
+            if (!prevCharacter) return null;
 
-        if (response.updatedCharacter) {
-            newCharacterState = mergeDeep(newCharacterState, response.updatedCharacter);
-            const newModifiers = characterUtils.calculateModifiers(newCharacterState!.attributes);
-            newCharacterState!.modifiers = newModifiers;
-            newCharacterState!.ac = characterUtils.calculateAC(newCharacterState!.inventory, newModifiers);
-            newCharacterState!.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState!.attributes.strength);
-            newCharacterState!.currentWeight = newCharacterState!.inventory.reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
-        }
-        
-        // Set all state updates at once
-        setCharacter(newCharacterState);
+            let newCharacterState = { ...prevCharacter };
+
+            if (response.updatedCharacter) {
+                newCharacterState = mergeDeep(newCharacterState, response.updatedCharacter);
+                const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
+                newCharacterState.modifiers = newModifiers;
+                newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
+                newCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState.attributes.strength);
+                newCharacterState.currentWeight = (newCharacterState.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+            }
+            
+            return newCharacterState;
+        });
+
         if (response.logEntries) {
             const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
@@ -94,7 +74,7 @@ export const useNewGameState = () => {
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
-    }, [character]);
+    }, []);
 
     const createCharacterSummary = (char: Character | null): Omit<Character, 'classLevelsData' | 'subclassLevelsData'> | null => {
         if (!char) return null;
@@ -107,8 +87,8 @@ export const useNewGameState = () => {
         
         return {
             ...summary,
-            inventory: summary.inventory.map(item => ({ id: item.id, name: item.name, quantity: item.quantity, equipped: item.equipped })),
-            proficiencies: summary.proficiencies.map(p => ({ index: p.index, name: p.name, url: p.url })),
+            inventory: (summary.inventory || []).map(item => ({ id: item.id, name: item.name, quantity: item.quantity, equipped: item.equipped })),
+            proficiencies: (summary.proficiencies || []).map(p => ({ index: p.index, name: p.name, url: p.url })),
         };
     };
 
@@ -175,7 +155,8 @@ export const useNewGameState = () => {
     }, []);
 
     useEffect(() => {
-        setIsLoading(true);
+        // This useEffect will no longer auto-load.
+        // It's kept for potential future use or to simply ensure isLoading is handled on mount.
         setIsLoading(false);
     }, []);
 
@@ -337,5 +318,3 @@ export const useNewGameState = () => {
         saveGameToFile
     };
 };
-
-    
