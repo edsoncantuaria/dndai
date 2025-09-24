@@ -5,10 +5,10 @@ import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOff
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
-  throw new Error("A variável de ambiente GOOGLE_API_KEY não está definida.");
+  console.warn("A variável de ambiente GOOGLE_API_KEY não está definida.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey);
+const genAI = new GoogleGenerativeAI(apiKey || "");
 
 const generationConfig = {
   temperature: 1,
@@ -101,6 +101,13 @@ export const getGameUpdate = async (
     playerAction: string,
     fullLog: LogEntry[]
 ): Promise<GeminiResponse | null> => {
+    if (!apiKey) {
+      console.error("GOOGLE_API_KEY não está definida. O serviço de IA não funcionará.");
+      return {
+        logEntries: [{ type: 'system', content: 'Erro: A chave da API do Google não foi configurada no servidor.' }],
+        actionOptions: ['Tentar novamente mais tarde.'],
+      };
+    }
     try {
         const characterSummary = createCharacterSummary(character);
 
@@ -117,7 +124,7 @@ export const getGameUpdate = async (
             parts: [{ text: prompt }]
         }];
 
-        const result = await model.generateContent({ contents, system: systemInstruction });
+        const result = await model.generateContent({ contents, system: { parts: [{ text: systemInstruction }] } });
         const responseText = result.response.text();
         const responseData = JSON.parse(responseText) as GeminiResponse;
         
