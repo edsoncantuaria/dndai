@@ -103,7 +103,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
     // --- Render Logic ---
     if (isLoading && !character) { 
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-stone-400 text-center">
+            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                 <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="mt-4 text-lg">Forjando seu destino nas chamas da criação...</p>
             </div>
@@ -164,7 +164,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
 
      if (isDataLoading) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-stone-400">
+            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
                 <p className="mt-4">Carregando tomos antigos...</p>
             </div>

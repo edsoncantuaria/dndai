@@ -12,7 +12,7 @@ const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
-    const [actionOptions, setActionOptions] = useState<string[]>([]);
+    const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string})[]>([]);
     const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 0, turn: 0, combatants: [] });
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
@@ -47,25 +47,18 @@ export const useNewGameState = () => {
         setCharacter(prevCharacter => {
             if (!prevCharacter) return null;
             
-            // Start with a copy of the previous character state
             let newCharacterState = { ...prevCharacter };
 
-            // If the AI returned updates, apply them.
             if (response.updatedCharacter) {
-                 // Create a new object by spreading the existing character and the updates.
-                // This is a shallow merge. For deep merges, a utility is needed, but for now, this handles top-level properties.
                 newCharacterState = { ...newCharacterState, ...response.updatedCharacter };
-
-                // Ensure inventory is always an array to prevent crashes.
-                if (!Array.isArray(newCharacterState.inventory)) {
+                 if (!Array.isArray(newCharacterState.inventory)) {
                     newCharacterState.inventory = [];
                 }
             }
 
-            // Always recalculate derived stats after any potential update.
             const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
             newCharacterState.modifiers = newModifiers;
-            newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory || [], newModifiers);
+            newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
             newCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState.attributes.strength);
             newCharacterState.currentWeight = (newCharacterState.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
 
@@ -89,24 +82,20 @@ export const useNewGameState = () => {
         if (!character) return;
         
         setIsLoading(true);
-        // Limpa estados pendentes antes de uma nova ação
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
         setLog(prev => [...prev, { id: uuidv4(), type: 'action', content: action }]);
         setActionOptions([]);
         
-        // Pass the updated log directly to the service
         const gameUpdateInput = {
             character,
             playerAction: action,
             gameLog: [...log, { id: 'temp', type: 'action', content: action }]
         };
         
-        console.log("[useGameState] Enviando para a IA:", gameUpdateInput);
         const response = await geminiService.getGameUpdate(gameUpdateInput);
         
-        console.log("[useGameState] Resposta recebida do Gemini:", response);
         handleApiResponse(response);
         setIsLoading(false);
 
@@ -119,15 +108,13 @@ export const useNewGameState = () => {
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
-        // The call to the AI has been moved to a useEffect in Game.tsx
-        // to ensure the character state is set first.
         setIsLoading(false);
     }, []);
 
     const startGame = useCallback(async () => {
         if (!character) return;
         setIsLoading(true);
-        setActionOptions([]); // Clear options while waiting
+        setActionOptions([]); 
         
         const gameUpdateInput = {
             character,
@@ -135,7 +122,6 @@ export const useNewGameState = () => {
             gameLog: []
         };
         
-        console.log('[useGameState] Enviando para a IA (história inicial):', gameUpdateInput);
         const response = await geminiService.getGameUpdate(gameUpdateInput);
         
         handleApiResponse(response);
@@ -151,14 +137,7 @@ export const useNewGameState = () => {
         }
     }, []);
 
-    useEffect(() => {
-        // This hook now only runs once on initial load to check for a saved game.
-        // It should NOT set isLoading to false, as other processes depend on it.
-        // Let the other useEffects or functions manage their own loading state.
-    }, []);
-
     const loadGameFromLocalStorage = useCallback(() => {
-        setIsLoading(true);
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
@@ -178,6 +157,10 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
     }, []);
+
+    useEffect(() => {
+        loadGameFromLocalStorage();
+    }, [loadGameFromLocalStorage]);
     
     const startNewGame = useCallback(() => {
         setIsLoading(true);
