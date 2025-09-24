@@ -8,7 +8,8 @@ import {
 import { ATTRIBUTE_SHORT_MAP, getCantripsKnown, getSpellsKnown } from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostOfNextLevel, getRefundForPrevLevel, getOptionLabel } from '../utils/creationHelpers';
-import { translateEquipment, translateSpell } from '../utils/translator';
+import { translateEquipment } from '@/utils/TranslatorEquipments';
+import { translateSpell } from '@/utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
@@ -322,52 +323,48 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     useEffect(() => {
         const fetchRacialTraitsAndSpells = async () => {
-            // Reset all racial spell related state
             setRacialSpellOptions([]);
             setRacialSpellTraits([]);
             setChosenRacialSpells({});
-    
+
             const allTraitList: ApiListItem[] = [
                 ...(raceDetails?.traits || []),
                 ...(subraceDetails?.racial_traits || [])
             ].filter(t => t);
-    
+
             if (allTraitList.length === 0) return;
-    
-            // Fetch details for all racial traits
+
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<string>();
 
             // Special Case: High Elf Cantrip
-            const highElfCantripTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
-            if (highElfCantripTrait) {
-                // Fetch the wizard spell list
+            if (traitDetails.some(t => t?.index === 'high-elf-cantrip')) {
                 const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
                 if (wizardSpellsResponse?.results) {
-                    // Fetch details for all wizard spells to filter by level
-                    const wizardSpellDetails = await fetchDetailsInChunks(wizardSpellsResponse.results, DndApiService.getSpellDetails, () => {});
-                    const wizardCantrips = wizardSpellDetails.filter((s): s is ApiSpell => !!s && s.level === 0);
+                    const wizardCantrips = wizardSpellsResponse.results.filter((s: any) => s.url.includes('/spells/')); // Basic filter
+                    const cantripDetails = await fetchDetailsInChunks(wizardCantrips, DndApiService.getSpellDetails, ()=>{});
+                    const level0WizardCantrips = cantripDetails.filter((s): s is ApiSpell => !!s && s.level === 0);
 
-                    if (wizardCantrips.length > 0) {
-                        const cantripOptions = wizardCantrips.map(c => ({ index: c.index, name: c.name, url: c.url }));
+                    if (level0WizardCantrips.length > 0) {
+                        const cantripOptions = level0WizardCantrips.map(c => ({ index: c.index, name: c.name, url: c.url }));
                         newRacialSpellTraits.push({
-                            traitName: highElfCantripTrait.name,
-                            choose: 1, // High Elves choose 1 cantrip
+                            traitName: 'High Elf Cantrip',
+                            choose: 1, 
                             options: cantripOptions
                         });
-                        wizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+                        level0WizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
                     }
                 }
             }
 
             // General case for other racial spell traits
             for (const trait of traitDetails) {
-                if (!trait || trait.index === 'high-elf-cantrip') continue; // Skip already processed trait
+                if (!trait || trait.index === 'high-elf-cantrip') continue;
                 
                 const choice = trait.trait_specific?.spell_options || trait.trait_specific?.subfeature_options;
-                if (choice && choice.from.options) {
+                if (choice && choice.from?.options) {
                     newRacialSpellTraits.push({
                         traitName: trait.name,
                         choose: choice.choose,
@@ -379,7 +376,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 }
             }
             
-            // Fetch details for all unique spell options identified
             if (spellOptionsToFetch.size > 0) {
                 const spellList = Array.from(spellOptionsToFetch).map(index => ({ index, name: index, url: ''}));
                 const spellDetails = await fetchDetailsInChunks<ApiListItem, ApiSpell>(spellList, DndApiService.getSpellDetails, () => {});
