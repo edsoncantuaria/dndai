@@ -53,7 +53,7 @@ const GameScreen: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col flex-grow overflow-hidden animate-fadeIn">
+        <div className="flex flex-col flex-grow overflow-hidden animate-fadeIn h-full w-full">
             {levelUpState?.isPending && <LevelUpModal />}
             {shopState?.isOpen && <ShopModal />}
             <Header />
@@ -61,7 +61,7 @@ const GameScreen: React.FC = () => {
             <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                 {/* Main Content: Narrative and Actions */}
                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                    <div className="flex-grow p-4 overflow-y-auto md:pb-4 pb-40">
+                    <div className="flex-grow p-4 overflow-y-auto md:pb-4 pb-48">
                         <NarrativeLog />
                     </div>
                     <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 hidden md:block">
@@ -71,7 +71,7 @@ const GameScreen: React.FC = () => {
                 
                 {/* Sidebar: Inventory, Character Sheet etc. (Desktop on Right) */}
                 <aside className="hidden md:flex flex-col col-span-12 md:col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                     <div className="flex flex-wrap border-b border-stone-700 flex-shrink-0">
+                     <div className="flex-none flex-wrap border-b border-stone-700 flex">
                         {Object.entries(tabConfig).map(([key, {label, icon}]) => (
                              <button key={key} onClick={() => setActiveTab(key as any)} className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 text-sm font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}>
                                 {icon}

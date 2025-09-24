@@ -427,11 +427,20 @@ export interface ApiFeature {
     desc: string[];
 }
 
+export interface Quest {
+    id: string;
+    title: string;
+    status: 'active' | 'completed';
+    objectives: string[];
+}
+
 export interface Relationship {
     npcId: string;
     name: string;
     description: string;
     status: 'hostile' | 'unfriendly' | 'neutral' | 'friendly' | 'ally';
+    affinity: number; // Value from -100 to 100
+    quests: Quest[];
 }
 
 export interface JournalEntryLocation {
@@ -439,6 +448,8 @@ export interface JournalEntryLocation {
     name: string;
     region: string;
     summary: string;
+    looted: boolean;
+    subLocations?: JournalEntryLocation[];
 }
 
 export interface ApiSubclass {
