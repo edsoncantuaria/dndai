@@ -13,7 +13,7 @@ export default function Game({ startNewGame }: { startNewGame: () => void }) {
     }
 
     return (
-        <div className="flex h-full w-full flex-col items-center justify-center">
+        <div className="flex h-full w-full flex-col items-center justify-center p-2 md:p-4">
             <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
                  <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
                     <h1 
