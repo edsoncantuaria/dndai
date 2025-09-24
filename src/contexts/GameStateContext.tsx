@@ -6,9 +6,9 @@ import React, { createContext, useContext } from 'react';
 import { useNewGameState } from '@/hooks/newUseGameState'; 
 
 // The context type is now derived from the new hook's return type
-export type GameStateContextType = ReturnType<typeof useNewGameState> | null;
+export type GameStateContextType = ReturnType<typeof useNewGameState>;
 
-const GameStateContext = createContext<GameStateContextType>(null);
+const GameStateContext = createContext<GameStateContextType | null>(null);
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Use the new hook to provide state

@@ -1,10 +1,10 @@
 'use client';
 import React from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { User, Heart, Shield } from 'lucide-react';
+import { User, Heart, Shield, Save } from 'lucide-react';
 
 const Header: React.FC = () => {
-    const { character } = useGameStateContext();
+    const { character, saveGameToFile } = useGameStateContext();
 
     if (!character) {
         return null; // Or a placeholder header
@@ -40,6 +40,13 @@ const Header: React.FC = () => {
                         <div className="font-mono font-bold text-xl text-stone-200">{character.ac.value}</div>
                     </div>
                 </div>
+                <button 
+                    onClick={saveGameToFile}
+                    className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                    title="Salvar Jogo (Download)"
+                >
+                    <Save className="h-6 w-6 text-amber-300" />
+                </button>
             </div>
         </div>
     );

@@ -10,7 +10,7 @@ import ConfirmationModal from './ui/ConfirmationModal';
 import { Loader2 } from 'lucide-react';
 
 const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
-    const { isLoading, character, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
+    const { isLoading, character, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
     const [view, setView] = useState<'menu' | 'form'>('menu');
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -26,8 +26,11 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
 
 
     useEffect(() => {
-        setHasSavedGame(!!character);
-    }, [character, isLoading]);
+        // This effect runs once on mount to check if a saved game exists in localStorage.
+        // It does NOT load the game, just checks for its presence.
+        setHasSavedGame(checkForSavedGame());
+    }, [checkForSavedGame]);
+
 
     useEffect(() => {
         // Always load data for the creation form
