@@ -7,7 +7,7 @@ export default function HomePage() {
   const [gameKey, setGameKey] = useState(0);
 
   const startNewGame = useCallback(() => {
-    localStorage.removeItem('rpg-de-cria-savegame');
+    localStorage.removeItem('rpg-de-cria-savegame-v2');
     setGameKey(prevKey => prevKey + 1);
   }, []);
 
