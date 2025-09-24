@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -120,6 +120,8 @@ export const useNewGameState = () => {
         const currentLog = [...log, newActionLogEntry];
         setLog(currentLog);
         setActionOptions([]);
+        setPendingHitDiceRequest(null);
+        setPendingLootOffer(null);
         
         const characterSummary = createCharacterSummary(character);
         const gameUpdateInput = {
@@ -173,12 +175,9 @@ export const useNewGameState = () => {
     }, []);
 
     useEffect(() => {
-        // Only check for saved game on initial load, don't load it automatically
         setIsLoading(true);
-        // The existence check is now synchronous and relies on the return of checkForSavedGame
-        // The actual loading is deferred to a user action (onLoadGame).
         setIsLoading(false);
-    }, [checkForSavedGame]);
+    }, []);
 
     const loadGameFromLocalStorage = useCallback(() => {
         setIsLoading(true);
@@ -192,8 +191,6 @@ export const useNewGameState = () => {
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
-            // Optionally, clear the broken save file
-            // localStorage.removeItem(LOCAL_STORAGE_KEY);
         } finally {
             setIsLoading(false);
         }
@@ -279,23 +276,39 @@ export const useNewGameState = () => {
 
 
     const toggleEquipped = useCallback((itemId: string) => {
-        // Implement logic
-    }, []);
-    const castSpell = useCallback((spell: any) => {
-         // Implement logic
-    }, []);
+        if (!character) return;
+        const item = character.inventory.find(i => i.id === itemId);
+        if (!item) return;
+        const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
+        processPlayerAction(actionText);
+    }, [character, processPlayerAction]);
+
+    const castSpell = useCallback((spell: ApiSpell) => {
+        if (!character) return;
+        processPlayerAction(`Eu conjuro a magia ${spell.name}.`);
+    }, [character, processPlayerAction]);
+    
     const spendHitDice = useCallback((diceCount: number) => {
-         // Implement logic
-    }, []);
+        if (!character) return;
+        processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
+    }, [character, processPlayerAction]);
+
     const takeLoot = useCallback((takeAll: boolean) => {
-         // Implement logic
-    }, []);
+         if (!character || !pendingLootOffer) return;
+         if (takeAll) {
+             processPlayerAction('Eu pego todo o tesouro.');
+         }
+    }, [character, pendingLootOffer, processPlayerAction]);
+
     const buyItem = useCallback((item: ShopItem, price: number) => {
-         // Implement logic
-    }, []);
+        if (!character) return;
+        processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
+    }, [character, processPlayerAction]);
+    
     const sellItem = useCallback((item: InventoryItem, price: number) => {
-         // Implement logic
-    }, []);
+         if (!character) return;
+         processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
+    }, [character, processPlayerAction]);
 
 
     return {
@@ -324,3 +337,5 @@ export const useNewGameState = () => {
         saveGameToFile
     };
 };
+
+    
