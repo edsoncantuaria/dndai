@@ -47,28 +47,29 @@ const createPrompt = (input: GameMasterFlowInput) => {
     
     // Constrói uma versão mais limpa e legível do personagem para o prompt
     const characterContext = `
-        ### Estado do Personagem
-        - **Nome:** ${character.name} (Nível ${character.level} ${character.characterClass})
-        - **HP:** ${character.hp.current}/${character.hp.max}
-        - **Atributos:** For ${character.attributes.strength}, Des ${character.attributes.dexterity}, Con ${character.attributes.constitution}, Int ${character.attributes.intelligence}, Sab ${character.attributes.wisdom}, Car ${character.attributes.charisma}
-        - **Perícias:** ${character.proficiencies.join(', ')}
-        - **Inventário:** ${character.inventory.join(', ')}
-        - **Região Atual:** ${character.currentRegion}
-        - **Resumo da História:** ${character.storySoFar}
+### Estado do Personagem
+- **Nome:** ${character.name} (Nível ${character.level} ${character.characterClass})
+- **HP:** ${character.hp.current}/${character.hp.max} | **AC:** ${character.ac.value}
+- **Atributos:** For ${character.attributes.strength}(${character.modifiers.strength}), Des ${character.attributes.dexterity}(${character.modifiers.dexterity}), Con ${character.attributes.constitution}(${character.modifiers.constitution}), Int ${character.attributes.intelligence}(${character.modifiers.intelligence}), Sab ${character.attributes.wisdom}(${character.modifiers.wisdom}), Car ${character.attributes.charisma}(${character.modifiers.charisma})
+- **Perícias:** ${character.proficiencies.map(p => p.name).join(', ')}
+- **Inventário:** ${character.inventory.map(i => `${i.name} (x${i.quantity})`).join(', ') || 'Vazio'}
+- **Região Atual:** ${character.currentRegion}
+- **Personalidade:** ${character.personalityTraits.join(' ')}
+- **Resumo da História:** ${character.storySoFar || 'Ainda não há história.'}
     `;
 
     const logContext = `
-        ### Últimos Eventos
-        ${gameLog.slice(-10).map(l => `${l.type === 'action' ? 'Jogador' : 'Mestre'}: ${l.content}`).join('\n')}
+### Últimos Eventos
+${gameLog.slice(-10).map(l => `${l.type === 'action' ? 'Jogador' : 'Mestre'}: ${l.content}`).join('\n')}
     `;
 
     return `
-        ${characterContext}
-        ${logContext}
-        ---
-        A ação do jogador é: "${playerAction}"
+${characterContext}
+${logContext}
+---
+A ação do jogador é: "${playerAction}"
 
-        Com base nisso, continue a aventura.
+Com base nisso, continue a aventura.
     `;
 }
 
