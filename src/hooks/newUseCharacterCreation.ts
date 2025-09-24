@@ -334,23 +334,31 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (allTraitList.length === 0) return;
     
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
-            
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<string>();
+
             const wizardCantripTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
 
             if (wizardCantripTrait) {
-                 const wizardSpells = await DndApiService.getSpellsForClass('wizard');
-                 const wizardCantrips = wizardSpells?.results.filter(s => s.url.includes('/api/spells/') && s.level === 0) || [];
-                 
-                 newRacialSpellTraits.push({
-                     traitName: wizardCantripTrait.name,
-                     choose: 1, // From the trait description
-                     options: wizardCantrips
-                 });
-                 wizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
-            }
+                const wizardSpellsResponse = await DndApiService.getSpellsForClass('wizard');
+                const wizardCantrips = wizardSpellsResponse?.results.filter(s => {
+                    const levelMatch = s.url.match(/\/api\/spells\/[a-z-]+/); // Simple check for spell url pattern
+                    return levelMatch; // Assuming level 0 for cantrips, but API doesn't provide level here
+                }) || [];
+                
+                const cantripDetails = await fetchDetailsInChunks(wizardCantrips, DndApiService.getSpellDetails, ()=>{});
+                const level0WizardCantrips = cantripDetails.filter((s): s is ApiSpell => s !== null && s.level === 0);
 
+                if (level0WizardCantrips.length > 0) {
+                    newRacialSpellTraits.push({
+                        traitName: wizardCantripTrait.name,
+                        choose: 1, // High Elves choose 1 cantrip
+                        options: level0WizardCantrips.map(s => ({ index: s.index, name: s.name, url: s.classes[0].url })) // Mock ApiListItem
+                    });
+                    level0WizardCantrips.forEach(c => spellOptionsToFetch.add(c.index));
+                }
+            }
+            
             for (const t of traitDetails) {
                  const choice = t?.trait_specific?.spell_options || t?.trait_specific?.subfeature_options;
                  if (choice && choice.from.options) {
