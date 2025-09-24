@@ -94,26 +94,18 @@ export const calculateAC = (inventory: InventoryItem[], modifiers: Attributes): 
     };
 };
 
-const getSpellcastingInfoForLevel = (classLevelsData: ApiClassLevel[], level: number): ApiClassLevel['spellcasting'] | undefined => {
-    const levelData = classLevelsData.find(l => l.level === level);
-    return levelData?.spellcasting;
-}
-
-export const getCantripsKnown = (classLevelsData: ApiClassLevel[], level: number): number => {
-    const spellcasting = getSpellcastingInfoForLevel(classLevelsData, level);
-    return spellcasting?.cantrips_known || 0;
+export const getCantripsKnown = (level1Data: ApiClassLevel): number => {
+    return level1Data?.spellcasting?.cantrips_known || 0;
 };
 
 // NEW: Centralized logic for spells known calculation
 export const getSpellsKnown = (
     level: number,
-    classLevelsData: ApiClassLevel[],
-    classDetails: ApiClass | null,
+    level1Data: ApiClassLevel,
+    classDetails: ApiClass,
     attributes: Attributes
 ): number => {
-    const spellcasting = getSpellcastingInfoForLevel(classLevelsData, level);
-
-    if (!classDetails) return 0;
+    const spellcasting = level1Data.spellcasting;
 
     // "Spells Known" casters (Bard, Sorcerer, Ranger, Warlock) often have a fixed value in the API data.
     if (spellcasting?.spells_known) {

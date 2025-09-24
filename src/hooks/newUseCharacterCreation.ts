@@ -106,6 +106,17 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }, {} as Attributes)
     , [baseAttributes, racialBonuses]);
 
+    const { cantripsKnown, spellsKnown } = useMemo(() => {
+        if (!classDetails || !classLevels) return { cantripsKnown: 0, spellsKnown: 0 };
+        const level1Data = classLevels.find(l => l.level === 1);
+        if (!level1Data) return { cantripsKnown: 0, spellsKnown: 0 };
+
+        return {
+            cantripsKnown: getCantripsKnown(level1Data),
+            spellsKnown: getSpellsKnown(1, level1Data, classDetails, finalAttributes)
+        }
+    }, [classDetails, classLevels, finalAttributes]);
+
     const { baseLanguages, languageChoicesCount } = useMemo(() => {
         let choices = 0;
         const base = new Set<string>();
@@ -261,11 +272,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }
         if(!canProceedFromProficiencies) return false;
 
-        const cantripsKnown = classDetails && classLevels ? getCantripsKnown(classLevels, 1) : 0;
-        const spellsKnown = classDetails && classLevels ? getSpellsKnown(1, classLevels, classDetails, finalAttributes) : 0;
+        const cantripsKnownVal = cantripsKnown;
+        const spellsKnownVal = spellsKnown;
         const selectedCantripsCount = chosenClassSpells.filter(sIndex => classSpellOptions.some(c => c.index === sIndex && c.level === 0)).length;
         const selectedSpellsCount = chosenClassSpells.filter(sIndex => classSpellOptions.some(c => c.index === sIndex && c.level > 0)).length;
-        if (selectedCantripsCount !== cantripsKnown || selectedSpellsCount !== spellsKnown) {
+        if (selectedCantripsCount !== cantripsKnownVal || selectedSpellsCount !== spellsKnownVal) {
             return false;
         }
 
@@ -273,7 +284,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (!racialSpellsDone) return false;
 
         return areAllEquipmentChoicesMade;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, canProceedFromProficiencies, classDetails, classLevels, finalAttributes, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
+    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -314,19 +325,22 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setRacialSpellOptions([]);
             setRacialSpellTraits([]);
             setChosenRacialSpells({});
-
+    
             const allTraitList = [
                 ...(raceDetails?.traits || []),
                 ...(subraceDetails?.racial_traits || [])
-            ];
-
+            ].filter(t => t); // Filter out any undefined/null traits
+    
             if (allTraitList.length === 0) return;
-
+    
+            // Fetch full details for all traits
             const traitDetails = await fetchDetailsInChunks<ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
+    
+            // Filter for traits that specifically grant spell options
             const spellChoiceTraits = traitDetails.filter((t): t is ApiTrait => !!t?.trait_specific?.spell_options);
-
+    
             if (spellChoiceTraits.length === 0) return;
-
+    
             const allSpellOptionsList = spellChoiceTraits.flatMap(t => 
                 t.trait_specific?.spell_options?.from?.options?.map((opt: any) => opt.item) || []
             ).filter((item): item is ApiListItem => !!item);
@@ -335,14 +349,14 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const spellDetails = await fetchDetailsInChunks<ApiSpell>(allSpellOptionsList, DndApiService.getSpellDetails, () => {});
                 setRacialSpellOptions(spellDetails.map(spell => translateSpell(spell) as ApiSpell));
             }
-
+    
             setRacialSpellTraits(spellChoiceTraits.map(t => ({
                 traitName: t.name,
                 choose: t.trait_specific!.spell_options!.choose,
                 options: t.trait_specific!.spell_options!.from.options.map((opt: any) => opt.item),
             })));
         };
-
+    
         fetchRacialTraitsAndSpells();
     }, [raceDetails, subraceDetails]);
 
@@ -507,12 +521,15 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleClassSpellChange = useCallback((spellIndex: string) => {
         setChosenClassSpells(prev => {
             const spell = classSpellOptions.find(s => s.index === spellIndex);
-            if (!spell || !classDetails || !classLevels) return prev;
-
+            if (!spell) return prev;
+    
             const isCantrip = spell.level === 0;
-            const limit = isCantrip ? getCantripsKnown(classLevels, 1) : getSpellsKnown(1, classLevels, classDetails, finalAttributes);
-            const currentSelected = prev.filter(sIdx => classSpellOptions.some(s => s.index === sIdx && s.level === spell.level));
-
+            const limit = isCantrip ? cantripsKnown : spellsKnown;
+            const currentSelected = prev.filter(sIdx => {
+                const s = classSpellOptions.find(opt => opt.index === sIdx);
+                return s && s.level === spell.level;
+            });
+    
             if (prev.includes(spellIndex)) {
                 return prev.filter(s => s !== spellIndex);
             }
@@ -521,7 +538,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             }
             return prev;
         });
-    }, [classSpellOptions, classDetails, classLevels, finalAttributes]);
+    }, [classSpellOptions, cantripsKnown, spellsKnown]);
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
         setChosenRacialSpells(prev => {
@@ -633,7 +650,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }, 300);
 
         await handleClassChange(randomClass.index);
-    }, [handleRaceChange, handleClassChange, raceDetails]);
+    }, [handleRaceChange, handleSubraceChange, handleClassChange, raceDetails]);
 
     const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
         const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
@@ -682,8 +699,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         const cantrips = classSpellOptions.filter(s => s.level === 0);
         const level1Spells = classSpellOptions.filter(s => s.level === 1);
 
-        const cantripsToChoose = getCantripsKnown(classLevels, 1);
-        const spellsToChoose = getSpellsKnown(1, classLevels, classDetails, finalAttributes);
+        const cantripsToChoose = cantripsKnown;
+        const spellsToChoose = spellsKnown;
 
         const randomCantrips = cantrips.sort(() => 0.5 - Math.random()).slice(0, cantripsToChoose).map(s => s.index);
         const randomLevel1s = level1Spells.sort(() => 0.5 - Math.random()).slice(0, spellsToChoose).map(s => s.index);
@@ -697,7 +714,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         });
         setChosenRacialSpells(newRacialSpells);
 
-    }, [classDetails, classLevels, classSpellOptions, finalAttributes, racialSpellTraits]);
+    }, [classDetails, classLevels, classSpellOptions, cantripsKnown, spellsKnown, racialSpellTraits]);
 
     const buildCharacter = (): NewCharacterInfo | null => {
         if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
@@ -793,6 +810,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleSuggestAttributes,
         isComplete,
         buildCharacter,
+        cantripsKnown,
+        spellsKnown,
         // Randomizers
         handleRandomizeRaceAndClass,
         handleRandomizeBackground,
@@ -802,5 +821,3 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeSpells,
     };
 };
-
-    
