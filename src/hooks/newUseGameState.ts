@@ -142,6 +142,11 @@ export const useNewGameState = () => {
         setLog([]); 
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
+        
+        // Set the character state immediately so the UI transitions to the game screen
+        setCharacter(newCharacter);
+
+        // Now, fetch the initial story using the newly created character state
         const characterSummary = createCharacterSummary(newCharacter);
         
         const gameUpdateInput = {
@@ -151,13 +156,9 @@ export const useNewGameState = () => {
         };
         
         console.log('[useGameState] Enviando para a IA (história inicial):', gameUpdateInput);
-        
         const response = await geminiService.getInitialStory(gameUpdateInput);
-
-        // Set character first
-        setCharacter(newCharacter);
         
-        // Then handle the rest of the API response, which might update the character again
+        // The character state is already set, so handleApiResponse will now *update* it with any initial changes from the AI
         handleApiResponse(response);
         
         setIsLoading(false);
