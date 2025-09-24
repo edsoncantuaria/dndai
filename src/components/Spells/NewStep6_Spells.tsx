@@ -20,6 +20,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         handleRacialSpellChange,
         chosenClassSpells,
         chosenRacialSpells,
+        racialSpellOptions,
         cantripsKnown,
         spellsKnown,
         handleRandomizeSpells,
@@ -97,7 +98,8 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                     {trait.traitName} <span className="text-stone-400 font-normal">({selectedCount}/{trait.choose})</span>
                                 </h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                    {(trait.options || []).map(spell => {
+                                    {(trait.options || []).map(spellOption => {
+                                        const spell = racialSpellOptions.find(s => s.index === spellOption.index);
                                         if (!spell) return null;
 
                                         const isSelected = !!chosenRacialSpells[trait.traitName]?.includes(spell.index);
