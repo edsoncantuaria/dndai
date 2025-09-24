@@ -1,5 +1,7 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat } from "../types";
+import * as DndApiService from '../services/dndApiService';
+import { v4 as uuidv4 } from 'uuid';
 
 export const XP_THRESHOLDS: Record<number, number> = {
     1: 300, 2: 900, 3: 2700, 4: 6500, 5: 14000, 6: 23000, 7: 34000, 8: 48000, 9: 64000,
@@ -129,6 +131,78 @@ export const getSpellsKnown = (
     // Cleric, Druid, Paladin (at level 2+), Wizard (after level 1) prepare `modifier + level`
     return Math.max(1, modifier + level);
 };
+
+
+export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Character> => {
+    const modifiers = calculateModifiers(info.attributes);
+    const proficiencyBonus = getProficiencyBonus(1);
+    const maxHp = calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
+
+    const [classLevelsData, subclassLevelsData, raceDetails] = await Promise.all([
+        DndApiService.getClassLevels(info.characterClass.toLowerCase()),
+        info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
+        DndApiService.getRaceDetails(info.race.toLowerCase()),
+    ]);
+    
+    const startingGold = 15; // TODO: Derive from background
+
+    const newCharacter: Character = {
+        name: info.name,
+        level: 1,
+        xp: 0,
+        xpToNextLevel: getXpThreshold(1),
+        race: info.race,
+        subrace: info.subrace,
+        characterClass: info.characterClass,
+        subclass: info.subclass,
+        hitDie: info.hitDie,
+        background: info.background,
+        alignment: info.alignment,
+        attributes: info.attributes,
+        modifiers,
+        proficiencyBonus,
+        proficiencies: info.proficiencies,
+        languages: info.languages,
+        hp: { current: maxHp, max: maxHp, temp: 0 },
+        ac: calculateAC(info.inventory, modifiers),
+        inventory: info.inventory.map(item => ({...item, id: uuidv4(), equipped: false })),
+        currency: { gp: startingGold, sp: 0, cp: 0 },
+        currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
+        carryingCapacity: calculateCarryingCapacity(info.attributes.strength),
+        spellSlots: {},
+        spells: info.spells,
+        feats: info.feats as Feat[],
+        backstory: info.backstory,
+        personalityTraits: info.personalityTraits,
+        ideal: info.ideal,
+        bond: info.bond,
+        flaw: info.flaw,
+        speed: raceDetails?.speed || 30,
+        deathSaves: { successes: 0, failures: 0 },
+        conditions: [],
+        relationships: [],
+        journal: [],
+        currentRegion: 'Desconhecida',
+        hitDice: { current: 1, total: 1 },
+        classLevelsData: classLevelsData || [],
+        subclassLevelsData: subclassLevelsData || [],
+    };
+    
+    // Populate initial spell slots if any
+    const level1Data = newCharacter.classLevelsData.find(l => l.level === 1);
+    if (level1Data?.spellcasting) {
+        Object.keys(level1Data.spellcasting).forEach(key => {
+            if (key.startsWith('spell_slots_level_')) {
+                const level = key.replace('spell_slots_level_', '');
+                const max = level1Data.spellcasting![key as keyof typeof level1Data.spellcasting] as number;
+                newCharacter.spellSlots[`level${level}`] = { current: max, max: max };
+            }
+        });
+    }
+
+    return newCharacter;
+};
+
 
 export const ATTRIBUTE_SHORT_MAP: Record<string, keyof Attributes> = {
     'str': 'strength', 'dex': 'dexterity', 'con': 'constitution',

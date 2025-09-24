@@ -2,15 +2,17 @@
 
 // contexts/GameStateContext.tsx
 import React, { createContext, useContext } from 'react';
-import { useGameState } from '@/hooks/useGameState';
+// Corrected import path to the new hook
+import { useNewGameState } from '@/hooks/newUseGameState'; 
 
-// The context is now a Client Component
-export type GameStateContextType = ReturnType<typeof useGameState> | null;
+// The context type is now derived from the new hook's return type
+export type GameStateContextType = ReturnType<typeof useNewGameState> | null;
 
 const GameStateContext = createContext<GameStateContextType>(null);
 
 export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const gameState = useGameState();
+    // Use the new hook to provide state
+    const gameState = useNewGameState(); 
     return (
         <GameStateContext.Provider value={gameState}>
             {children}
