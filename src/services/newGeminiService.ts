@@ -121,7 +121,6 @@ const gameMasterFlow = ai.defineFlow(
 
     const llmResponse = await ai.generate({
       prompt: prompt,
-      model: ai.model('googleai/gemini-1.5-pro'),
       output: {
         format: 'json',
         schema: GameMasterResponseSchema,
@@ -149,8 +148,8 @@ const gameMasterFlow = ai.defineFlow(
 export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
   try {
     return await gameMasterFlow(input);
-  } catch (error) {
-    console.error("[GeminiService - getGameUpdate] Erro ao executar o fluxo do mestre:", error);
+  } catch (error: any) {
+    console.error("[GeminiService - getGameUpdate] Erro ao executar o fluxo do mestre:", error.message || error, error);
     return null;
   }
 };
@@ -166,8 +165,8 @@ export const getInitialStory = async (character: Character): Promise<GameMasterR
   };
   try {
     return await gameMasterFlow(input);
-  } catch (error) {
-    console.error("[GeminiService - getInitialStory] Erro ao buscar a história inicial:", error);
+  } catch (error: any) {
+    console.error("[GeminiService - getInitialStory] Erro ao buscar a história inicial:", error.message || error, error);
     return null;
   }
 };
