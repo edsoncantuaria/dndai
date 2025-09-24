@@ -143,7 +143,16 @@ export const useGameState = () => {
         setActionOptions([]); // Clear old options
         setLog(prev => [...prev, { id: uuidv4(), type: 'action', content: action }]);
 
-        const response = await geminiService.getGameUpdate(character, action, log, settings.model, settings.apiKey);
+        const response = await geminiService.getGameUpdate(
+          character,
+          action,
+          log,
+          settings.model,
+          settings.apiKey
+        );
+
+        console.log("[useGameState] Resposta recebida do Gemini:", response);
+        
         handleGeminiResponse(response);
         setIsLoading(false);
 

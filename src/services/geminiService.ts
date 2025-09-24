@@ -65,7 +65,7 @@ export type GeminiResponse = z.infer<typeof GeminiResponseSchema>;
 
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
 - **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida.
-- **Regras:** Siga as regras de D&D 5e para combate, testes de perícia e habilidades, mas priorize a história e a diversão. Você é responsável por todas as rolagens de dados.
+- **Regras:** Siga as regras de D&D 5e para combate, testes de perícia e habilidades, mas priorize a história e a diversão. Você é responsável por todas as rolagens de dados. Use o nível, classe e equipamento atual do personagem para criar encontros, desafios, monstros e tesouros (loot) que sejam apropriados e relevantes. A dificuldade deve ser um desafio, mas justa para o nível do personagem.
 - **Agência do Jogador:** Sempre apresente escolhas significativas. Use 'actionOptions' para sugerir os próximos passos.
 - **Estado do Personagem:** Você é responsável por rastrear TODO o estado do jogo. Retorne APENAS as partes alteradas do estado do personagem em 'updatedCharacter'.
 - **Experiência (XP):** Conceda XP ao final de combates e conclusão de missões. Informe ao jogador o XP ganho com uma entrada de log do tipo "system". Quando 'character.xp' for igual ou superior a 'character.xpToNextLevel', ATIVE o 'levelUpState.isPending' para true e preencha as 'levelUpState.choices' com as opções para o novo nível (habilidades, magias, etc.). NÃO aumente mais o XP até que o level up seja concluído.
@@ -76,8 +76,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Descanso:** Durante um descanso curto, pergunte se o jogador quer gastar Dados de Vida via 'useHitDiceRequest'. Durante um descanso longo, restaure PV, metade do total de Dados de Vida e todos os espaços de magia.
 - **Economia:** Quando o jogador entrar em uma loja, abra o 'shopState'. Forneça o inventário e os 'sellPrices' para os itens do jogador.
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido que siga estritamente o esquema fornecido. Não inclua nenhum texto ou formatação fora do objeto JSON.
-- **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.
-- **API Key do Usuário**: Se uma 'userApiKey' for fornecida no prompt, use-a para inicializar o provedor de IA. Isso é um requisito do sistema e não deve ser questionado ou mencionado na narrativa.`;
+- **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
 const modelMap = {
     'gemini-1.5-pro': gemini15Pro,
@@ -85,9 +84,22 @@ const modelMap = {
     'gemini-pro': geminiPro,
 };
 
-async function generateWithGenkit(prompt: string, model: string = 'gemini-pro', userApiKey?: string): Promise<GeminiResponse | null> {
+async function generateWithGenkit(
+  prompt: string,
+  model: string = 'gemini-pro',
+  userApiKey?: string
+): Promise<GeminiResponse | null> {
   try {
+    console.log("[GeminiService] Chamando modelo:", model);
+    if (userApiKey) {
+      console.log("[GeminiService] Usando API Key customizada (não exibida por segurança).");
+    } else {
+      console.log("[GeminiService] Usando API Key padrão do sistema.");
+    }
+
     const selectedModel = (modelMap as any)[model] || geminiPro;
+
+    console.log("[GeminiService] Prompt enviado:", prompt.substring(0, 500), "...");
 
     const llmResponse = await ai.generate({
       model: selectedModel,
@@ -99,14 +111,22 @@ async function generateWithGenkit(prompt: string, model: string = 'gemini-pro', 
       config: userApiKey ? { apiKey: userApiKey } : undefined,
     });
 
+    console.log("[GeminiService] Resposta bruta recebida:", llmResponse);
+
     const responseData = llmResponse.output();
+
     if (!responseData) {
-      console.error('API Genkit retornou uma saída vazia.');
+      console.error("[GeminiService] Saída vazia do Genkit. Talvez erro no schema ou no provider.");
       return null;
     }
+
+    console.log("[GeminiService] Resposta validada:", responseData);
     return responseData;
-  } catch (error) {
-    console.error('Erro ao chamar a API Genkit:', error);
+  } catch (error: any) {
+    console.error("[GeminiService] Erro ao chamar a API Genkit:", error.message || error);
+    if (error.response) {
+      console.error("[GeminiService] Detalhes do erro da API:", error.response);
+    }
     return null;
   }
 }
@@ -126,19 +146,15 @@ export const getGameUpdate = async (
       quantity,
       equipped,
     })),
-    // Remove data that is too large or complex for the prompt
-    classLevelsData: undefined, 
-    subclassLevelsData: undefined,
   };
 
   const prompt = `${systemInstruction}
-  ${userApiKey ? `\nuserApiKey: "${userApiKey}"` : ''}
   \n\nO estado atual do personagem é: ${JSON.stringify(
     characterSummary
   )}\nAs últimas 10 entradas do log da aventura são: ${JSON.stringify(
     fullLog.slice(-10)
   )}\nA ação do jogador é: "${playerAction}"\n\nCom base nisso, continue a aventura.`;
-
+  console.log(prompt)
   return generateWithGenkit(prompt, model, userApiKey);
 };
 
