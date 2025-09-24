@@ -32,6 +32,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const { createCharacter } = useGameStateContext();
     const hook = useNewCharacterCreation({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
+    const [highestStep, setHighestStep] = useState(1);
     const totalSteps = 7; 
     const wizardRef = useRef<HTMLDivElement>(null);
 
@@ -41,8 +42,17 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         }
     }, [currentStep]);
 
-    const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    const nextStep = () => {
+        const next = Math.min(currentStep + 1, totalSteps);
+        setCurrentStep(next);
+        setHighestStep(Math.max(highestStep, next));
+    }
     const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+    const goToStep = (step: number) => {
+        if (step <= highestStep && step >= 1) {
+            setCurrentStep(step);
+        }
+    };
     
     const handleFinalizeAndSubmit = async () => {
         const finalCharacterData = hook.buildCharacter();
@@ -85,7 +95,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 </button>
             </header>
 
-            <NewStepper currentStep={currentStep} totalSteps={totalSteps} />
+            <NewStepper currentStep={currentStep} totalSteps={totalSteps} highestStep={highestStep} goToStep={goToStep} />
             
             <main className="mt-6 flex-grow">
                 {renderStep()}
