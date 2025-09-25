@@ -6,7 +6,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 import wav from 'wav';
 
 async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 2): Promise<string> {
@@ -31,15 +31,20 @@ async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 
     });
 }
 
+const flowInputSchema = z.object({
+  text: z.string(),
+  model: z.string(),
+});
+
 const textToSpeechFlow = ai.defineFlow(
     {
         name: 'textToSpeechFlow',
-        inputSchema: z.string(),
+        inputSchema: flowInputSchema,
         outputSchema: z.object({ media: z.string() }),
     },
-    async (text) => {
+    async ({text, model}) => {
         const { media } = await ai.generate({
-            model: 'googleai/gemini-2.5-flash-preview-tts',
+            model: `googleai/${model}`,
             config: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {
@@ -68,9 +73,9 @@ const textToSpeechFlow = ai.defineFlow(
     }
 );
 
-export async function textToSpeech(text: string): Promise<{ media: string } | null> {
+export async function textToSpeech(text: string, model: string): Promise<{ media: string } | null> {
     try {
-        return await textToSpeechFlow(text);
+        return await textToSpeechFlow({text, model});
     } catch (error) {
         console.error("Error in textToSpeech flow:", error);
         return null;

@@ -6,10 +6,15 @@ export const AVAILABLE_MODELS = [
     "gemini-1.5-flash",
     "gemini-1.5-pro",
     "gemini-1.0-pro",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-8b"
+];
+
+export const AVAILABLE_TTS_MODELS = [
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.5-flash-native-audio-preview-09-2025",
+    "gemini-2.5-flash-preview-native-audio-dialog",
+    "gemini-2.5-flash-exp-native-audio-thinking-dialog",
+    "gemini-live-2.5-flash-preview",
+    "gemini-2.0-flash-live-001"
 ];
 
 export interface GenerationConfig {
@@ -25,6 +30,8 @@ const LOCAL_STORAGE_KEY = 'rpg-settings';
 interface SettingsContextType {
     model: string;
     setModel: (model: string) => void;
+    ttsModel: string;
+    setTtsModel: (model: string) => void;
     apiKey: string;
     setApiKey: (key: string) => void;
     generationConfig: GenerationConfig;
@@ -43,6 +50,7 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [model, setModel] = useState<string>(AVAILABLE_MODELS[0]);
+    const [ttsModel, setTtsModel] = useState<string>(AVAILABLE_TTS_MODELS[0]);
     const [apiKey, setApiKey] = useState<string>('');
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultGenerationConfig);
 
@@ -53,6 +61,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 const parsed = JSON.parse(savedSettings);
                 if (parsed.model && AVAILABLE_MODELS.includes(parsed.model)) {
                     setModel(parsed.model);
+                }
+                 if (parsed.ttsModel && AVAILABLE_TTS_MODELS.includes(parsed.ttsModel)) {
+                    setTtsModel(parsed.ttsModel);
                 }
                 if(parsed.apiKey) {
                     setApiKey(parsed.apiKey);
@@ -70,15 +81,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         if(isLoaded) {
             try {
-                const settings = { model, apiKey, generationConfig };
+                const settings = { model, ttsModel, apiKey, generationConfig };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
             } catch (error) {
                 console.error("Failed to save settings to localStorage:", error);
             }
         }
-    }, [model, apiKey, generationConfig, isLoaded]);
+    }, [model, ttsModel, apiKey, generationConfig, isLoaded]);
 
-    const value = { model, setModel, apiKey, setApiKey, generationConfig, setGenerationConfig };
+    const value = { model, setModel, ttsModel, setTtsModel, apiKey, setApiKey, generationConfig, setGenerationConfig };
 
     return (
         <SettingsContext.Provider value={value}>

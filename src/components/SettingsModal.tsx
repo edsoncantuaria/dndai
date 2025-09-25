@@ -1,7 +1,7 @@
 'use client';
 
 import React, { ChangeEvent, useState } from 'react';
-import { useSettingsContext, AVAILABLE_MODELS, GenerationConfig } from '../contexts/SettingsContext';
+import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig } from '../contexts/SettingsContext';
 import { Info, KeyRound } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -49,7 +49,7 @@ const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, toolti
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { model, setModel, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
+    const { model, setModel, ttsModel, setTtsModel, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
     const [localApiKey, setLocalApiKey] = useState(apiKey);
 
     if (!isOpen) return null;
@@ -117,6 +117,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         </select>
                         <p className="text-xs text-stone-500 mt-2">
                             A mudança de modelo será aplicada na próxima ação enviada ao mestre.
+                        </p>
+                    </div>
+                    
+                    <div>
+                        <label htmlFor="tts-model-select" className="block text-stone-300 font-semibold mb-2">
+                            Modelo de Voz do Narrador (TTS)
+                        </label>
+                        <select
+                            id="tts-model-select"
+                            value={ttsModel}
+                            onChange={(e) => setTtsModel(e.target.value)}
+                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        >
+                            {AVAILABLE_TTS_MODELS.map(modelName => (
+                                <option key={modelName} value={modelName}>
+                                    {modelName}
+                                </option>
+                            ))}
+                        </select>
+                         <p className="text-xs text-stone-500 mt-2">
+                           A mudança do modelo de voz será aplicada na próxima narração gerada.
                         </p>
                     </div>
 

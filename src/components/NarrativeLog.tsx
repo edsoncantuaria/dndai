@@ -3,12 +3,14 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
+import { useSettingsContext } from '../contexts/SettingsContext';
 
 const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const [audioData, setAudioData] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
+    const { ttsModel } = useSettingsContext();
 
     const handlePlay = async () => {
         if (audioData) {
@@ -18,7 +20,7 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
         }
         setIsLoading(true);
         try {
-            const response = await textToSpeech(text);
+            const response = await textToSpeech(text, ttsModel);
             if (response?.media) {
                 setAudioData(response.media);
             }
