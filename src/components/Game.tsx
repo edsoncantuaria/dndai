@@ -5,7 +5,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import CharacterCreation from '@/components/CharacterCreation';
 import GameScreen from '@/components/GameScreen';
 
-type GameStage = 'menu' | 'creating' | 'playing';
+type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 
 interface GameProps {
   startNewGameFlow: () => void;

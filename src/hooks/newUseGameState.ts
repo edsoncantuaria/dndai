@@ -18,7 +18,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [isLoading, setIsLoading] = useState(false); // Inicia como false
+    const [isLoading, setIsLoading] = useState(false);
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
