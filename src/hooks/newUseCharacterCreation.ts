@@ -698,9 +698,39 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     }, [handleRaceChange, handleClassChange, handleSubraceChange]);
 
-    const handleRandomizeBackground = useCallback((backgrounds: ApiListItem[]) => {
-        const randomBg = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-        handleBackgroundChange(randomBg.index);
+    const handleRandomizeBackground = useCallback(async (backgrounds: ApiListItem[]) => {
+        const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+        await handleBackgroundChange(randomBgItem.index);
+
+        // Fetch details again to ensure we have them for randomization
+        const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
+        if (!details) return;
+        
+        // Randomize Personality
+        if (details.personality_traits) {
+            const options = details.personality_traits.from.options;
+            const shuffled = [...options].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, details.personality_traits.choose).map((opt: any) => opt.string);
+            setPersonalityTraits(selected);
+        }
+        // Randomize Ideal
+        if (details.ideals) {
+            const options = details.ideals.from.options;
+            const randomIdeal = options[Math.floor(Math.random() * options.length)];
+            setIdeal(randomIdeal.string || randomIdeal.desc);
+        }
+        // Randomize Bond
+        if (details.bonds) {
+            const options = details.bonds.from.options;
+            const randomBond = options[Math.floor(Math.random() * options.length)];
+            setBond(randomBond.string);
+        }
+        // Randomize Flaw
+        if (details.flaws) {
+            const options = details.flaws.from.options;
+            const randomFlaw = options[Math.floor(Math.random() * options.length)];
+            setFlaw(randomFlaw.string);
+        }
     }, [handleBackgroundChange]);
 
     const handleRandomizeProficiencies = useCallback(() => {
@@ -866,3 +896,5 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeSpells,
     };
 };
+
+    
