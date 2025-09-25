@@ -3,32 +3,50 @@ import { ApiEquipmentOption } from "../types";
 import { translateEquipment } from "./TranslatorEquipments";
 
 /**
- * Calculates the point-buy cost to increase an attribute score to the next level.
- * In D&D 5e: scores from 8-13 cost 1 point per level.
- * Scores from 14-15 cost 2 points per level.
- * @param currentScore The current base score of the attribute (before purchasing the next level).
- * @returns The cost (1 or 2) to increase the score by one.
+ * Point-buy costs for each attribute score in D&D 5e.
  */
-export const getCostOfNextLevel = (currentScore: number): number => {
-    if (currentScore >= 13) {
-        return 2;
-    }
-    return 1;
+const POINT_BUY_COST: Record<number, number> = {
+    8: 0,
+    9: 1,
+    10: 2,
+    11: 3,
+    12: 4,
+    13: 5,
+    14: 7,
+    15: 9,
 };
 
 /**
- * Calculates the point refund for decreasing an attribute score.
- * This is the inverse of `getCostOfNextLevel`.
- * @param currentScore The current base score of the attribute (before decreasing).
- * @returns The amount of points to refund (1 or 2).
+ * Gets the total point cost for a given attribute score.
+ * @param score The attribute score.
+ * @returns The total cost in points for that score.
  */
-export const getRefundForPrevLevel = (currentScore: number): number => {
-    if (currentScore > 13) {
-        return 2;
-    }
-    return 1;
+export const getPointsForScore = (score: number): number => {
+    return POINT_BUY_COST[score] ?? 0;
 };
 
+/**
+ * Gets the marginal cost to upgrade to a specific score.
+ * @param score The target score you want to buy.
+ * @returns The cost to go from score-1 to score.
+ */
+export const getCostForScore = (score: number): number => {
+    if (score <= 8) return 1; // Should not happen, but for safety
+    if (score <= 13) return 1;
+    if (score <= 15) return 2;
+    return 99; // Can't buy past 15
+};
+
+/**
+ * Rolls 4 six-sided dice, drops the lowest, and returns the sum.
+ * @returns A number between 3 and 18.
+ */
+export const rollAttribute = (): number => {
+    const rolls = Array.from({ length: 4 }, () => Math.floor(Math.random() * 6) + 1);
+    rolls.sort((a, b) => a - b);
+    rolls.shift(); // Drop the lowest
+    return rolls.reduce((sum, value) => sum + value, 0);
+};
 
 /**
  * Generates a human-readable label for an equipment option from the API.

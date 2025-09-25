@@ -8,7 +8,7 @@ import {
 } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { getCostOfNextLevel, getRefundForPrevLevel } from '../utils/creationHelpers';
+import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
 import { translateSpell } from '@/utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -51,6 +51,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [backstory, setBackstory] = useState('');
 
     // Attributes
+    const [attributeMethod, setAttributeMethod] = useState<'point-buy' | 'roll' | null>(null);
     const [points, setPoints] = useState(27);
     const [baseAttributes, setBaseAttributes] = useState<Attributes>({ strength: 8, dexterity: 8, constitution: 8, intelligence: 8, wisdom: 8, charisma: 8 });
 
@@ -269,9 +270,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
 
     const isComplete = useMemo(() => {
-        if (!name || !race || !characterClass || !background || !alignment || points > 0) {
-            return false;
-        }
+        if (!name || !race || !characterClass || !background || !alignment) return false;
+        
+        if (attributeMethod === 'point-buy' && points > 0) return false;
+        if (!attributeMethod) return false;
+
         if (raceDetails?.subraces?.length > 0 && !subrace) {
             // Subrace is optional, so this check might need adjustment if subrace is not a hard requirement
         }
@@ -289,7 +292,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (!racialSpellsDone) return false;
 
         return areAllEquipmentChoicesMade;
-    }, [name, race, subrace, characterClass, background, alignment, points, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
+    }, [name, race, subrace, characterClass, background, alignment, points, attributeMethod, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -477,26 +480,34 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }
     }, [equipmentSelections, equipmentChoiceGroups, areAllEquipmentChoicesMade]);
     
-
+    // --- ATTRIBUTE METHODS ---
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
-        setBaseAttributes(attrs => {
-            const currentBase = attrs[attr];
-            if (delta === 1) {
-                if (currentBase >= 15) return attrs;
-                const cost = getCostOfNextLevel(currentBase);
-                if (points >= cost) {
-                    setPoints(p => p - cost);
-                    return { ...attrs, [attr]: currentBase + 1 };
-                }
-            } else {
-                if (currentBase <= 8) return attrs;
-                const refund = getRefundForPrevLevel(currentBase);
-                setPoints(p => p + refund);
-                return { ...attrs, [attr]: currentBase - 1 };
-            }
-            return attrs;
-        });
-    }, [points]);
+        const currentScore = baseAttributes[attr];
+        let newScore = currentScore + delta;
+        
+        if (newScore > 15 || newScore < 8) return;
+
+        const oldPoints = getPointsForScore(currentScore);
+        const newPoints = getPointsForScore(newScore);
+        const cost = newPoints - oldPoints;
+        
+        if (points - cost >= 0) {
+            setPoints(points - cost);
+            setBaseAttributes(prev => ({ ...prev, [attr]: newScore }));
+        }
+    }, [baseAttributes, points]);
+
+    const handleRollAttributes = useCallback(() => {
+        const newAttributes = {
+            strength: rollAttribute(),
+            dexterity: rollAttribute(),
+            constitution: rollAttribute(),
+            intelligence: rollAttribute(),
+            wisdom: rollAttribute(),
+            charisma: rollAttribute(),
+        };
+        setBaseAttributes(newAttributes);
+    }, []);
 
     const handleSuggestAttributes = useCallback(() => {
         if (!characterClass) return;
@@ -508,11 +519,14 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         suggestedOrder.forEach((attr, index) => {
             newAttributes[attr] = standardArray[index];
         });
+        
+        const totalCost = Object.values(newAttributes).reduce((sum, score) => sum + getPointsForScore(score as number), 0);
 
         setBaseAttributes(newAttributes as Attributes);
-        setPoints(0);
+        setPoints(27 - totalCost);
     }, [characterClass]);
 
+    // --- OTHER HANDLERS ---
     const handleProficiencyChange = useCallback((profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
         setProficiencySelections(prev => {
             const newSelections = { ...prev };
@@ -881,8 +895,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         racialSpellTraits,
         isSpellsLoading,
         spellsLoadingProgress,
+        attributeMethod, setAttributeMethod,
         handleAttributeChange,
         handleSuggestAttributes,
+        handleRollAttributes,
         isComplete,
         buildCharacter,
         cantripsKnown,
@@ -896,5 +912,3 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeSpells,
     };
 };
-
-    
