@@ -61,11 +61,10 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         if (finalCharacterData) {
             setShowConfirmationModal(false);
             await createCharacter(finalCharacterData);
-            // A transição para a tela do jogo será gerenciada pelo GameStateContext
+            // The transition to the game screen is now handled by Game.tsx's useEffect
         } else {
             console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
             setShowConfirmationModal(false);
-            // Idealmente, mostrar um erro para o usuário aqui.
         }
     };
 

@@ -91,16 +91,23 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
 
-        // Se action for um objeto, extraia a string de ação ou use uma representação
-        const actionString = typeof action === 'string' ? action : (action as any).description || (action as any).text || JSON.stringify(action);
+        const actionText = (typeof action === 'object' && action !== null) 
+            ? (action as any).text || (action as any).description 
+            : action;
+        
+        if (!actionText || typeof actionText !== 'string') {
+            console.error("Ação inválida recebida:", action);
+            setIsLoading(false);
+            return;
+        }
 
-        const currentLog = [...log, { id: uuidv4(), type: 'action', content: actionString }];
+        const currentLog = [...log, { id: uuidv4(), type: 'action', content: actionText }];
         setLog(currentLog);
         setActionOptions([]);
         
         const gameUpdateInput = {
             character,
-            playerAction: actionString,
+            playerAction: actionText,
             gameLog: currentLog,
         };
         
@@ -119,7 +126,8 @@ export const useNewGameState = () => {
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
-        // O início do jogo agora é acionado pelo useEffect no Game.tsx
+        // The game start is now handled by the useEffect in Game.tsx
+        // This ensures the character state is set before the first AI call.
         setIsLoading(false);
     }, []);
 
