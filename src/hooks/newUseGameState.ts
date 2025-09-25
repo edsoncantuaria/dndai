@@ -20,7 +20,7 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const { model: selectedModel } = useSettingsContext(); // Obter o modelo de IA selecionado
+    const { model: selectedModel, generationConfig } = useSettingsContext(); // Obter o modelo de IA e a configuração
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -140,13 +140,13 @@ export const useNewGameState = () => {
             gameLog: currentLog,
         };
         
-        // Passar o modelo selecionado para o serviço Gemini
-        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel);
+        // Passar o modelo e a configuração para o serviço Gemini
+        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
         
         handleApiResponse(response);
         setIsLoading(false); 
 
-    }, [character, log, handleApiResponse, selectedModel]);
+    }, [character, log, handleApiResponse, selectedModel, generationConfig]);
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -172,12 +172,12 @@ export const useNewGameState = () => {
             gameLog: []
         };
         
-        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel);
+        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
         
         handleApiResponse(response);
         setIsLoading(false);
         
-    }, [character, log.length, isLoading, handleApiResponse, selectedModel]);
+    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig]);
     
     const checkForSavedGame = useCallback(() => {
         try {

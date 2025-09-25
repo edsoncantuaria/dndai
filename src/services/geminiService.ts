@@ -1,8 +1,9 @@
 'use server';
 
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem } from '../types';
 import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
+import { GenerationConfig } from "@/contexts/SettingsContext";
 
 const apiKey = process.env.GOOGLE_API_KEY;
 if (!apiKey) {
@@ -25,13 +26,6 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido. Não inclua nenhum texto ou formatação fora do objeto JSON.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
-const generationConfig = {
-    temperature: 1,
-    topP: 0.95,
-    topK: 64,
-    maxOutputTokens: 8192,
-    responseMimeType: "application/json",
-};
 
 const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
@@ -52,7 +46,7 @@ Com base no estado atual do personagem e no histórico, continue a aventura.
     `;
 }
 
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string): Promise<GameMasterResponse | null> => {
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
       console.error("GOOGLE_API_KEY não está definida. O serviço de IA não funcionará.");
       return {
@@ -62,7 +56,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     }
 
     const model = genAI.getGenerativeModel({
-        model: modelName, // Usa o modelo dinâmico passado como parâmetro
+        model: modelName,
         systemInstruction: {
             role: "model",
             parts: [{ text: systemInstruction }],
@@ -74,7 +68,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: generationConfig
+            generationConfig: {
+                ...generationConfig,
+                responseMimeType: "application/json",
+            }
         });
 
         const response = result.response;
@@ -94,7 +91,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     }
 };
 
-export const testAiConnection = async (modelName: string): Promise<string | null> => {
+export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig): Promise<string | null> => {
      if (!apiKey) {
         return "Erro: A chave da API do Google não está configurada no servidor.";
     }
@@ -102,7 +99,15 @@ export const testAiConnection = async (modelName: string): Promise<string | null
         const testModel = genAI.getGenerativeModel({ model: modelName });
         const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
         console.log(`[geminiService (${modelName})] Testando conexão com a IA com o prompt:`, prompt);
-        const result = await testModel.generateContent(prompt);
+        
+        const result = await testModel.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                ...generationConfig,
+                responseMimeType: "text/plain",
+            }
+        });
+
         const response = result.response;
         const textResponse = response.text();
         console.log(`[geminiService (${modelName})] Resposta do teste de conexão:`, textResponse);

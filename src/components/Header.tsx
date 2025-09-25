@@ -9,7 +9,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const Header: React.FC = () => {
     const { character, saveGameToFile } = useGameStateContext();
-    const { model: selectedModel } = useSettingsContext();
+    const { model: selectedModel, generationConfig } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -20,7 +20,7 @@ const Header: React.FC = () => {
         setIsTestingAi(true);
         setAiTestResult(null);
         try {
-            const response = await GeminiService.testAiConnection(selectedModel);
+            const response = await GeminiService.testAiConnection(selectedModel, generationConfig);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta.");
             }
@@ -33,7 +33,7 @@ const Header: React.FC = () => {
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel]);
+    }, [selectedModel, generationConfig]);
 
     if (!character) {
         return null; // Or a placeholder header

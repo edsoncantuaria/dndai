@@ -21,7 +21,7 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
-    const { model: selectedModel } = useSettingsContext(); // Pega o modelo selecionado
+    const { model: selectedModel, generationConfig } = useSettingsContext(); // Pega o modelo e a config
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -95,7 +95,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setAiTestResult(null);
         try {
             // Passa o modelo selecionado para a função de teste
-            const response = await GeminiService.testAiConnection(selectedModel);
+            const response = await GeminiService.testAiConnection(selectedModel, generationConfig);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta.");
             }
@@ -108,7 +108,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel]); // Adiciona o modelo como dependência
+    }, [selectedModel, generationConfig]); // Adiciona a config como dependência
     
     // --- Render Logic ---
     if (isLoading && !character) { 
