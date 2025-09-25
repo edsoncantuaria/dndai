@@ -56,6 +56,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                     const total = finalAttributes[attr];
                     const modifier = Math.floor((total - 10) / 2);
                     const modifierString = modifier >= 0 ? `+${modifier}` : modifier.toString();
+                    const cost = getCostOfNextLevel(baseAttributes[attr]);
 
                     return (
                         <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center flex flex-col justify-between">
@@ -77,7 +78,7 @@ const NewStep2_Attributes: React.FC<Props> = ({
                                 <button
                                     type="button"
                                     onClick={() => handleAttributeChange(attr, 1)}
-                                    disabled={baseAttributes[attr] >= 15 || points < getCostOfNextLevel(baseAttributes[attr])}
+                                    disabled={baseAttributes[attr] >= 15 || points < cost}
                                     className="p-2 rounded-full bg-stone-700 hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
                                     <Plus className="h-5 w-5" />
