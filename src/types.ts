@@ -260,7 +260,7 @@ export interface Character {
 
 export interface LogEntry {
     id: string;
-    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
+    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
     content: string;
     rollResult?: {
         description: string;

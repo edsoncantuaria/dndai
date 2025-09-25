@@ -7,6 +7,7 @@ import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { generateImage } from '@/ai/flows/generateImage';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -188,6 +189,27 @@ export const useNewGameState = () => {
         if (response.shopState) setShopState(response.shopState);
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
+
+        // Handle image generation
+        if (response.imagePrompt) {
+            const imageLogId = uuidv4();
+            // Add a placeholder entry immediately
+            setLog(prev => [...prev, { id: imageLogId, type: 'image', content: 'generating' }]);
+
+            generateImage(response.imagePrompt).then(imageResult => {
+                if (imageResult?.imageUrl) {
+                    // Update the placeholder with the actual image
+                    setLog(prev => prev.map(entry => 
+                        entry.id === imageLogId 
+                            ? { ...entry, content: imageResult.imageUrl } 
+                            : entry
+                    ));
+                } else {
+                     // Remove placeholder if generation fails
+                     setLog(prev => prev.filter(entry => entry.id !== imageLogId));
+                }
+            });
+        }
 
     }, []);
     
