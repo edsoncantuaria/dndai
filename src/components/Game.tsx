@@ -10,10 +10,11 @@ type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 interface GameProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
+  onContinueGame: () => void;
   gameStage: GameStage;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, gameStage }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, gameStage }: GameProps) {
     const gameStateHook = useGameStateContext();
 
     // Este useEffect agora SÓ inicia o jogo quando o estágio 'playing' é ativado.
@@ -45,6 +46,7 @@ export default function Game({ startNewGameFlow, onCharacterCreated, gameStage }
         <CharacterCreation 
             startNewGameFlow={startNewGameFlow} 
             onCharacterCreated={onCharacterCreated} 
+            onContinueGame={onContinueGame}
             isCreating={gameStage === 'creating'}
         />
     );

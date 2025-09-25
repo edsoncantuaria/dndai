@@ -13,11 +13,12 @@ import { BrainCircuit, Loader2 } from 'lucide-react';
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
+  onContinueGame: () => void;
   isCreating: boolean;
 }
 
-const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, isCreating }) => {
-    const { isLoading, character, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
+const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
+    const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -38,7 +39,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
 
     useEffect(() => {
         setHasSavedGame(checkForSavedGame());
-    }, [checkForSavedGame, isLoading]);
+    }, [checkForSavedGame]);
 
 
     useEffect(() => {
@@ -130,7 +131,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                     <CharacterCreationMenu
                         hasSavedGame={hasSavedGame}
                         onNewGame={handleNewGame}
-                        onLoadGame={loadGameFromLocalStorage}
+                        onLoadGame={onContinueGame}
                         onImportFile={loadGameFromFile}
                     />
                     <div className="mt-4">
