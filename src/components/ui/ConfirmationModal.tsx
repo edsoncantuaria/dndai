@@ -28,14 +28,14 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
             style={{ animationDuration: '200ms' }}
         >
-            <div className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-md">
-                <header className="p-4 border-b border-stone-700">
+            <div className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+                <header className="p-4 border-b border-stone-700 flex-shrink-0">
                     <h2 className="text-xl font-bold font-garamond text-amber-300">{title}</h2>
                 </header>
-                <main className="p-6">
+                <main className="p-6 overflow-y-auto">
                     <p className="text-stone-300 whitespace-pre-wrap">{message}</p>
                 </main>
-                <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
+                <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg flex-shrink-0">
                     {onCancel && (
                         <button
                             onClick={onCancel}
