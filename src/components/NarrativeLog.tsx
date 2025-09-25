@@ -13,14 +13,12 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let themeColor = 'text-cyan-300';
     let bgColor = 'bg-stone-900/50 border-stone-700';
     let resultColor = 'text-cyan-400';
-    let icon = '🎲';
 
     if (isDamageRoll) {
         outcomeText = `${total} de Dano`;
         themeColor = 'text-rose-300';
         bgColor = 'bg-rose-900/30 border-rose-700/50';
         resultColor = 'text-rose-400';
-        icon = '💥';
     } else if (success !== undefined) {
         if (success) {
             outcomeText = rollType === 'attack' ? 'Acerto!' : 'Sucesso!';
@@ -36,14 +34,14 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     }
 
     const advantageText = advantage ? " (Vantagem)" : disadvantage ? " (Desvantagem)" : "";
-    const rollsText = rolls.length > 1 ? `[${rolls.join(', ')}]` : `(${total - modifier})`;
+    const rollsText = rolls.length > 1 ? `[${rolls.join(', ')}]` : `(${total - (modifier || 0)})`;
 
     return (
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
             <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
             <div className={`font-mono ${resultColor}`}>
-                <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier)}`} = <span className="font-bold text-lg">{total}</span>. </span>
-                {dc && <span className="text-stone-400 text-xs">(DC: {dc}) </span>}
+                <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier || 0)}`} = <span className="font-bold text-lg">{total}</span>. </span>
+                {dc && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
                 <span className={`font-bold`}>{outcomeText}</span>
             </div>
         </div>
@@ -81,7 +79,7 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             break;
         case 'action':
             content = (
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
                     <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content)}</div>
                     <p className="text-amber-400 font-semibold">{entry.content}</p>
                 </div>
@@ -114,6 +112,14 @@ const NarrativeLog: React.FC = () => {
         logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [log]);
 
+    if (!log || log.length === 0) {
+        return (
+            <div className="text-center text-stone-500 italic p-8">
+                A aventura ainda não começou.
+            </div>
+        );
+    }
+    
     return (
         <div className="space-y-4">
             {log.map((entry) => (

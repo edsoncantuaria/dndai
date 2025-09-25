@@ -1,8 +1,7 @@
 'use client';
-// components/ActionOptions.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Send } from 'lucide-react';
 
 const HitDiceRoller: React.FC = () => {
     const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
@@ -45,7 +44,6 @@ const HitDiceRoller: React.FC = () => {
     );
 };
 
-
 const LootOfferDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
     if (!pendingLootOffer) return null;
@@ -70,6 +68,39 @@ const LootOfferDisplay: React.FC = () => {
     )
 }
 
+const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean }> = ({ onActionSubmit, disabled }) => {
+    const [inputValue, setInputValue] = useState('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (inputValue.trim() && !disabled) {
+            onActionSubmit(inputValue.trim());
+            setInputValue('');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-4">
+            <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="O que você faz?"
+                disabled={disabled}
+                className="flex-grow bg-stone-800 border border-stone-600 rounded-md py-2 px-3 text-stone-200 focus:ring-amber-500 focus:border-amber-500 disabled:opacity-50"
+            />
+            <button
+                type="submit"
+                disabled={disabled || !inputValue.trim()}
+                className="bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold p-2 rounded-md transition-colors disabled:opacity-50"
+                aria-label="Enviar Ação"
+            >
+                <Send className="h-5 w-5" />
+            </button>
+        </form>
+    );
+};
+
 const ActionOptions: React.FC = () => {
     const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest } = useGameStateContext();
 
@@ -90,34 +121,40 @@ const ActionOptions: React.FC = () => {
         return <HitDiceRoller />;
     }
 
-    if (actionOptions.length === 0) {
-        return <div className="text-center text-stone-500 italic">Nenhuma ação sugerida no momento.</div>
-    }
+    const hasSuggestedActions = actionOptions.length > 0;
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {actionOptions.map((action, index) => {
-                const actionText = (typeof action === 'object' && action !== null) 
-                    ? (action as any).text || (action as any).description 
-                    : action;
-                const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
-                    ? (action as any).action 
-                    : action;
-                
-                if (!actionText || typeof actionText !== 'string') return null;
+        <div className="w-full">
+            {hasSuggestedActions && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {actionOptions.map((action, index) => {
+                        const actionText = (typeof action === 'object' && action !== null) 
+                            ? (action as any).text || (action as any).description 
+                            : action;
+                        const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
+                            ? (action as any).action 
+                            : action;
+                        
+                        if (!actionText || typeof actionText !== 'string') return null;
 
-                return (
-                    <button
-                        key={index}
-                        onClick={() => processPlayerAction(actionValue)}
-                        disabled={isLoading}
-                        className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                        style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
-                    >
-                        {actionText}
-                    </button>
-                )
-            })}
+                        return (
+                            <button
+                                key={index}
+                                onClick={() => processPlayerAction(actionValue)}
+                                disabled={isLoading}
+                                className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                                style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
+                            >
+                                {actionText}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+             <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
+             {!hasSuggestedActions && (
+                 <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
+             )}
         </div>
     );
 };

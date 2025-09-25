@@ -6,7 +6,8 @@ import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
-import { useSettingsContext } from '@/contexts/SettingsContext'; // Importar o contexto de configurações
+import { useSettingsContext } from '@/contexts/SettingsContext';
+import { deepMerge } from '../utils/objectUtils';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -20,7 +21,7 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const { model: selectedModel, generationConfig } = useSettingsContext(); // Obter o modelo de IA e a configuração
+    const { model: selectedModel, generationConfig } = useSettingsContext();
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -33,7 +34,6 @@ export const useNewGameState = () => {
         }
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
     
-    // Carrega o jogo salvo ao montar o componente.
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
          try {
@@ -57,13 +57,10 @@ export const useNewGameState = () => {
         }
     }, []);
 
-    // Efeito para carregar o jogo na inicialização do hook
     useEffect(() => {
         loadGameFromLocalStorage();
     }, [loadGameFromLocalStorage]);
 
-
-    // Salva o jogo sempre que o estado relevante muda.
     useEffect(() => {
          if (character && !isLoading) { 
             saveGame();
@@ -80,16 +77,9 @@ export const useNewGameState = () => {
         setCharacter(prevCharacter => {
             if (!prevCharacter) return null;
 
-            let newCharacterState = { ...prevCharacter };
+            // Use deepMerge to intelligently combine the old and new character states
+            let newCharacterState = deepMerge(prevCharacter, response.updatedCharacter || {});
 
-            if (response.updatedCharacter) {
-                // Explicitly apply updates, replacing arrays instead of merging them
-                for (const key in response.updatedCharacter) {
-                    const typedKey = key as keyof Character;
-                    (newCharacterState as any)[typedKey] = response.updatedCharacter[typedKey];
-                }
-            }
-            
             const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
             newCharacterState.modifiers = newModifiers;
             newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
@@ -103,9 +93,9 @@ export const useNewGameState = () => {
             const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
-        if (response.actionOptions) setActionOptions(response.actionOptions);
+        if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
         if (response.combatState) setCombatState(response.combatState);
-        if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
+        if (response.levelUpState) setLevelUpState(prev => deepMerge(prev, response.levelUpState));
         if (response.shopState) setShopState(response.shopState);
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
@@ -130,9 +120,11 @@ export const useNewGameState = () => {
         }
 
         const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: actionText };
-        const currentLog = [...log, newLogEntry];
-        setLog(currentLog); 
+        setLog(prev => [...prev, newLogEntry]);
         setActionOptions([]); 
+        
+        // We pass the updated log to the AI
+        const currentLog = [...log, newLogEntry];
         
         const gameUpdateInput: geminiService.GameMasterFlowInput = {
             character,
@@ -140,7 +132,6 @@ export const useNewGameState = () => {
             gameLog: currentLog,
         };
         
-        // Passar o modelo e a configuração para o serviço Gemini
         const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
         
         handleApiResponse(response);
@@ -150,7 +141,7 @@ export const useNewGameState = () => {
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
-        localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpa qualquer jogo antigo
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
         setLog([]); 
         setActionOptions([]);
         
