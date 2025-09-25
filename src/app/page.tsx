@@ -11,14 +11,6 @@ const HomePageContent = () => {
     const { character, loadGameFromLocalStorage } = useGameStateContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
 
-    // Efeito para carregar o jogo salvo ou aguardar um novo
-    useEffect(() => {
-        // Se um jogo salvo já foi carregado no contexto, vamos direto para o jogo.
-        if (character && gameStage !== 'playing') {
-            setGameStage('playing');
-        }
-    }, [character, gameStage]);
-
     // Função para limpar o jogo salvo e ir para a tela de criação
     const startNewGameFlow = useCallback(() => {
         // A lógica de reset agora está dentro do próprio hook, 
