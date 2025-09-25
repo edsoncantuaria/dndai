@@ -34,6 +34,7 @@ async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 
 const flowInputSchema = z.object({
   text: z.string(),
   model: z.string(),
+  voice: z.string(), // Changed from apiKey
   apiKey: z.string().optional(),
 });
 
@@ -43,16 +44,16 @@ const textToSpeechFlow = ai.defineFlow(
         inputSchema: flowInputSchema,
         outputSchema: z.object({ media: z.string() }),
     },
-    async ({text, model, apiKey}) => {
+    async ({text, model, voice, apiKey}) => {
         
         const { media } = await ai.generate({
             model: `googleai/${model}`,
-            apiKey: apiKey, // Pass API key directly here
+            apiKey: apiKey, 
             config: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {
                     voiceConfig: {
-                        prebuiltVoiceConfig: { voiceName: 'Algenib' }, // A standard, clear voice
+                        prebuiltVoiceConfig: { voiceName: voice }, // Use the dynamic voice
                     },
                 },
             },
@@ -76,9 +77,9 @@ const textToSpeechFlow = ai.defineFlow(
     }
 );
 
-export async function textToSpeech(text: string, model: string, apiKey?: string): Promise<{ media: string } | null> {
+export async function textToSpeech(text: string, model: string, voice: string, apiKey?: string): Promise<{ media: string } | null> {
     try {
-        return await textToSpeechFlow({text, model, apiKey});
+        return await textToSpeechFlow({text, model, voice, apiKey});
     } catch (error) {
         console.error("Error in textToSpeech flow:", error);
         return null;
