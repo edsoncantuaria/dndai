@@ -8,7 +8,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import wav from 'wav';
-import { googleAI } from '@genkit-ai/googleai';
 
 async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 2): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -45,10 +44,10 @@ const textToSpeechFlow = ai.defineFlow(
         outputSchema: z.object({ media: z.string() }),
     },
     async ({text, model, apiKey}) => {
-        const customAI = apiKey ? genkit({ plugins: [googleAI({ apiKey })] }) : ai;
-
-        const { media } = await customAI.generate({
+        
+        const { media } = await ai.generate({
             model: `googleai/${model}`,
+            apiKey: apiKey, // Pass API key directly here
             config: {
                 responseModalities: ['AUDIO'],
                 speechConfig: {

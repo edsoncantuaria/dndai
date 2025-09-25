@@ -7,7 +7,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateImageInputSchema = z.object({
   prompt: z.string().describe('A detailed text prompt for image generation.'),
@@ -35,11 +34,10 @@ const generateImageFlow = ai.defineFlow(
         outputSchema: GenerateImageOutputSchema,
     },
     async ({ prompt, apiKey }) => {
-        const customAI = apiKey ? genkit({ plugins: [googleAI({ apiKey })] }) : ai;
-
-        const { media } = await customAI.generate({
+        const { media } = await ai.generate({
             model: 'googleai/imagen-4.0-fast-generate-001',
             prompt: prompt,
+            apiKey: apiKey, // Pass API key directly here
         });
 
         if (!media.url) {
