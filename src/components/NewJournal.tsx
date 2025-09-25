@@ -68,7 +68,7 @@ const NewJournal: React.FC = () => {
     if (!character || !character.journal || character.journal.length === 0) {
         return (
              <div className="p-4 space-y-4">
-                <h3 className="text-lg font-bold font-serif text-amber-300 flex items-center gap-2">
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
                     <Map />
                     Diário de Aventura
                 </h3>
@@ -82,7 +82,7 @@ const NewJournal: React.FC = () => {
 
     return (
         <div className="p-4 space-y-4">
-            <h3 className="text-lg font-bold font-serif text-amber-300 flex items-center gap-2">
+            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
                 <Map />
                 Diário de Aventura
             </h3>
