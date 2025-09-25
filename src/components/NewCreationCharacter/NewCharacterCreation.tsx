@@ -12,6 +12,7 @@ import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from '../Spells/NewStep6_Spells';
 import NewStep8_Finalize from './NewStep8_Finalize';
 import ConfirmationModal from '../ui/ConfirmationModal';
+import { Loader2 } from 'lucide-react';
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -19,7 +20,7 @@ interface NewCharacterCreationProps {
     backgrounds: ApiListItem[];
     alignments: ApiListItem[];
     allLanguages: ApiListItem[];
-    onBackToMenu: () => void;
+    onCharacterCreated: () => void;
 }
 
 const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
@@ -28,9 +29,9 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     backgrounds,
     alignments,
     allLanguages,
-    onBackToMenu
+    onCharacterCreated
 }) => {
-    const { createCharacter } = useGameStateContext();
+    const { createCharacter, isLoading } = useGameStateContext();
     const hook = useNewCharacterCreation({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
     const [highestStep, setHighestStep] = useState(1);
@@ -61,7 +62,8 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         if (finalCharacterData) {
             setShowConfirmationModal(false);
             await createCharacter(finalCharacterData);
-            // The transition to the game screen is now handled by Game.tsx's useEffect
+            // Avisa o componente pai que a criação terminou.
+            onCharacterCreated();
         } else {
             console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
             setShowConfirmationModal(false);
@@ -94,14 +96,22 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                 return <div>Etapa Inválida.</div>;
         }
     };
+    
+    // Se o personagem estiver sendo criado/carregado, mostra um loader.
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
+                <Loader2 className="h-12 w-12 animate-spin" />
+                <p className="mt-4">Finalizando a criação do seu herói...</p>
+            </div>
+        );
+    }
 
     return (
         <div ref={wizardRef} className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn max-h-[90vh] overflow-y-auto">
             <header className="flex justify-between items-center border-b border-stone-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold font-garamond text-amber-300 text-shadow-amber">Criação de Personagem</h2>
-                <button type="button" onClick={onBackToMenu} className="text-sm text-stone-400 hover:text-amber-400 transition-colors">
-                    Voltar ao Menu
-                </button>
+                 {/* O botão de voltar foi removido daqui para ser gerenciado pela HomePage */}
             </header>
 
             <NewStepper currentStep={currentStep} totalSteps={totalSteps} highestStep={highestStep} goToStep={goToStep} />

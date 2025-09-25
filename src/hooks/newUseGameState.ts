@@ -18,7 +18,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false); // Inicia como false
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -30,12 +30,13 @@ export const useNewGameState = () => {
             }
         }
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
-
+    
+    // Carrega o jogo salvo ao montar o componente.
     useEffect(() => {
-        // This effect runs only once on mount to load the game.
         loadGameFromLocalStorage();
     }, []);
 
+    // Salva o jogo sempre que o estado relevante muda.
     useEffect(() => {
          if (character && !isLoading) { 
             saveGame();
@@ -87,6 +88,7 @@ export const useNewGameState = () => {
     const processPlayerAction = useCallback(async (action: string | object) => {
         if (!character) return;
         
+        // Define o estado de carregamento ANTES da chamada assíncrona
         setIsLoading(true);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
@@ -101,9 +103,10 @@ export const useNewGameState = () => {
             return;
         }
 
-        const currentLog = [...log, { id: uuidv4(), type: 'action', content: actionText }];
-        setLog(currentLog);
-        setActionOptions([]);
+        const newLogEntry = { id: uuidv4(), type: 'action', content: actionText };
+        const currentLog = [...log, newLogEntry];
+        setLog(currentLog); // Atualiza o log imediatamente
+        setActionOptions([]); // Limpa as opções de ação
         
         const gameUpdateInput = {
             character,
@@ -114,7 +117,7 @@ export const useNewGameState = () => {
         const response = await geminiService.getGameUpdate(gameUpdateInput);
         
         handleApiResponse(response);
-        setIsLoading(false);
+        setIsLoading(false); // Desativa o carregamento APÓS a resposta ser processada
 
     }, [character, log, handleApiResponse]);
 
@@ -126,8 +129,6 @@ export const useNewGameState = () => {
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
-        // The game start is now handled by the useEffect in Game.tsx
-        // This ensures the character state is set before the first AI call.
         setIsLoading(false);
     }, []);
 
@@ -146,8 +147,8 @@ export const useNewGameState = () => {
         const response = await geminiService.getGameUpdate(gameUpdateInput);
         
         handleApiResponse(response);
-        
         setIsLoading(false);
+        
     }, [character, log.length, isLoading, handleApiResponse]);
     
     const checkForSavedGame = useCallback(() => {
@@ -181,20 +182,6 @@ export const useNewGameState = () => {
         }
     }, []);
 
-    
-    const startNewGame = useCallback(() => {
-        setIsLoading(true);
-        setCharacter(null);
-        setLog([]);
-        setActionOptions([]);
-        try {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-        } catch (error) {
-            console.error("Falha ao remover o jogo salvo:", error);
-        }
-        setIsLoading(false);
-    }, []);
-
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
@@ -206,7 +193,7 @@ export const useNewGameState = () => {
             a.href = url;
             a.download = "crônicas-de-aventuras.json";
             document.body.appendChild(a);
-            a.click();
+a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (error) {
@@ -321,7 +308,6 @@ export const useNewGameState = () => {
         takeLoot,
         buyItem,
         sellItem,
-        startNewGame,
         checkForSavedGame,
         loadGameFromLocalStorage,
         loadGameFromFile,

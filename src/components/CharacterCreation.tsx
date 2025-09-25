@@ -10,9 +10,14 @@ import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ConfirmationModal from './ui/ConfirmationModal';
 import { BrainCircuit, Loader2 } from 'lucide-react';
 
-const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGame }) => {
+interface CharacterCreationProps {
+  startNewGameFlow: () => void;
+  onCharacterCreated: () => void;
+  isCreating: boolean;
+}
+
+const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromLocalStorage, loadGameFromFile } = useGameStateContext();
-    const [view, setView] = useState<'menu' | 'form'>('menu');
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -71,14 +76,13 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         if (hasSavedGame) {
              setShowConfirmationModal(true);
         } else {
-            setView('form');
+            startNewGameFlow();
         }
     };
 
     const confirmNewGame = () => {
-        startNewGame();
+        startNewGameFlow();
         setShowConfirmationModal(false);
-        setView('form');
     }
 
     const handleTestAi = useCallback(async () => {
@@ -110,7 +114,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
         );
     }
     
-    if (view === 'menu') {
+    if (!isCreating) {
         return (
             <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
                  <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
@@ -178,7 +182,7 @@ const CharacterCreation: React.FC<{ startNewGame: () => void }> = ({ startNewGam
             backgrounds={backgrounds}
             allLanguages={allLanguages}
             alignments={alignments}
-            onBackToMenu={() => setView('menu')}
+            onCharacterCreated={onCharacterCreated}
         />
     );
 };
