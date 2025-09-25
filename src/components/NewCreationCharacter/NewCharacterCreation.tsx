@@ -11,6 +11,7 @@ import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLangu
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from '../Spells/NewStep6_Spells';
 import NewStep8_Finalize from './NewStep8_Finalize';
+import ConfirmationModal from '../ui/ConfirmationModal';
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -33,6 +34,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const hook = useNewCharacterCreation({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
     const [highestStep, setHighestStep] = useState(1);
+    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const totalSteps = 7; 
     const wizardRef = useRef<HTMLDivElement>(null);
 
@@ -57,13 +59,21 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const handleFinalizeAndSubmit = async () => {
         const finalCharacterData = hook.buildCharacter();
         if (finalCharacterData) {
+            setShowConfirmationModal(false);
             await createCharacter(finalCharacterData);
             // A transição para a tela do jogo será gerenciada pelo GameStateContext
         } else {
             console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
+            setShowConfirmationModal(false);
             // Idealmente, mostrar um erro para o usuário aqui.
         }
     };
+
+    const promptFinalize = () => {
+        if (hook.isComplete) {
+            setShowConfirmationModal(true);
+        }
+    }
 
     const renderStep = () => {
         switch (currentStep) {
@@ -80,7 +90,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={handleFinalizeAndSubmit} />;
+                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />;
             default:
                 return <div>Etapa Inválida.</div>;
         }
@@ -100,6 +110,16 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             <main className="mt-6 flex-grow">
                 {renderStep()}
             </main>
+
+            <ConfirmationModal
+                isOpen={showConfirmationModal}
+                title="Iniciar Aventura?"
+                message={`Você está prestes a começar sua jornada como ${hook.name || 'um herói sem nome'}. Uma vez iniciada, a história não poderá ser alterada. Deseja continuar?`}
+                onConfirm={handleFinalizeAndSubmit}
+                onCancel={() => setShowConfirmationModal(false)}
+                confirmText="Sim, iniciar aventura!"
+                cancelText="Não, voltar"
+            />
         </div>
     );
 };
