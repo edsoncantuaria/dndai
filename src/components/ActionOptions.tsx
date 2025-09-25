@@ -97,8 +97,15 @@ const ActionOptions: React.FC = () => {
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {actionOptions.map((action, index) => {
-                const actionText = typeof action === 'object' && action !== null && 'text' in action ? (action as any).text : action;
-                const actionValue = typeof action === 'object' && action !== null && 'action' in action ? (action as any).action : action;
+                const actionText = (typeof action === 'object' && action !== null) 
+                    ? (action as any).text || (action as any).description 
+                    : action;
+                const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
+                    ? (action as any).action 
+                    : action;
+                
+                if (!actionText) return null; // Não renderiza o botão se não houver texto
+
                 return (
                     <button
                         key={index}

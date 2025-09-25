@@ -21,7 +21,7 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(true);
 
     const saveGame = useCallback(() => {
-        if (character) {
+        if (character && log.length > 0) {
             try {
                 const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
@@ -32,10 +32,15 @@ export const useNewGameState = () => {
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
 
     useEffect(() => {
-         if (character && log.length > 0) { 
+        // This effect runs only once on mount to load the game.
+        loadGameFromLocalStorage();
+    }, []);
+
+    useEffect(() => {
+         if (character && !isLoading) { 
             saveGame();
         }
-    }, [character, log, saveGame]);
+    }, [character, log, saveGame, isLoading]);
 
     const handleApiResponse = useCallback((response: geminiService.GeminiResponse | null) => {
         if (!response) {
@@ -50,17 +55,14 @@ export const useNewGameState = () => {
             let newCharacterState = { ...prevCharacter };
 
             if (response.updatedCharacter) {
-                // Aplica as atualizações da IA de forma segura
                 Object.assign(newCharacterState, response.updatedCharacter);
             }
-
-            // Recalcula propriedades derivadas para garantir consistência
+            
             const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
             newCharacterState.modifiers = newModifiers;
             newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
             newCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState.attributes.strength);
             newCharacterState.currentWeight = (newCharacterState.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
-
 
             return newCharacterState;
         });
@@ -78,21 +80,23 @@ export const useNewGameState = () => {
 
     }, []);
     
-    const processPlayerAction = useCallback(async (action: string) => {
+    const processPlayerAction = useCallback(async (action: string | object) => {
         if (!character) return;
         
         setIsLoading(true);
-        // Limpa estados pendentes para evitar renderizações incorretas
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
 
-        const currentLog = [...log, { id: uuidv4(), type: 'action', content: action }];
+        // Se action for um objeto, extraia a string de ação ou use uma representação
+        const actionString = typeof action === 'string' ? action : (action as any).description || JSON.stringify(action);
+
+        const currentLog = [...log, { id: uuidv4(), type: 'action', content: actionString }];
         setLog(currentLog);
         setActionOptions([]);
         
         const gameUpdateInput = {
             character,
-            playerAction: action,
+            playerAction: actionString,
             gameLog: currentLog,
         };
         
@@ -106,20 +110,21 @@ export const useNewGameState = () => {
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         setLog([]); 
+        setActionOptions([]);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
-        // A chamada da IA foi movida para o useEffect em Game.tsx
+        // O início do jogo agora é acionado pelo useEffect no Game.tsx
         setIsLoading(false);
     }, []);
 
     const startGame = useCallback(async () => {
-        if (!character) return;
+        if (!character || log.length > 0 || isLoading) return;
+        
         setIsLoading(true);
         setActionOptions([]); 
         
-        console.log('[useGameState] Enviando para a IA (história inicial):', character);
         const gameUpdateInput = {
             character,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
@@ -131,7 +136,7 @@ export const useNewGameState = () => {
         handleApiResponse(response);
         
         setIsLoading(false);
-    }, [character, handleApiResponse]);
+    }, [character, log.length, isLoading, handleApiResponse]);
     
     const checkForSavedGame = useCallback(() => {
         try {
@@ -158,15 +163,12 @@ export const useNewGameState = () => {
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpa o save corrompido
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
         } finally {
             setIsLoading(false);
         }
     }, []);
 
-    useEffect(() => {
-        loadGameFromLocalStorage();
-    }, [loadGameFromLocalStorage]);
     
     const startNewGame = useCallback(() => {
         setIsLoading(true);
@@ -201,19 +203,29 @@ export const useNewGameState = () => {
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
 
     const loadGameFromFile = (file: File) => {
+        setIsLoading(true);
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const text = event.target?.result as string;
                 if(text) {
-                    const { character: savedCharacter, log: savedLog } = JSON.parse(text);
-                    setCharacter(savedCharacter);
-                    setLog(savedLog || []);
-                    setActionOptions([]);
+                    const parsedState = JSON.parse(text);
+                    setCharacter(parsedState.character || null);
+                    setLog(parsedState.log || []);
+                    setActionOptions(parsedState.actionOptions || []);
+                    setCombatState(parsedState.combatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                    setLevelUpState(parsedState.levelUpState || null);
+                    setShopState(parsedState.shopState || null);
+                    setPendingLootOffer(parsedState.pendingLootOffer || null);
+                    setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
+                    // Salva o estado importado no localStorage imediatamente
+                    localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {
                 console.error("Erro ao ler o arquivo de save:", e);
                 alert("Arquivo de save inválido.");
+            } finally {
+                setIsLoading(false);
             }
         };
         reader.readAsText(file);
