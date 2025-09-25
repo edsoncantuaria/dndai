@@ -18,10 +18,7 @@ const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalE
         if (existingMap.has(update.id)) {
             // Update existing entry
             const existingEntry = existingMap.get(update.id)!;
-            Object.assign(existingEntry, update);
-            if (update.subLocations && existingEntry.subLocations) {
-                existingEntry.subLocations = mergeJournalEntries(existingEntry.subLocations, update.subLocations);
-            }
+            Object.assign(existingEntry, { ...update, subLocations: update.subLocations ? mergeJournalEntries(existingEntry.subLocations || [], update.subLocations) : existingEntry.subLocations });
         } else {
             // Add new entry
             newJournal.push(update);
@@ -53,24 +50,29 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
 // Função auxiliar para mesclar o estado do personagem de forma segura.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
     // Começa com uma cópia profunda para evitar mutações inesperadas.
-    const newChar: Character = JSON.parse(JSON.stringify(oldChar));
+    let newChar: Character = JSON.parse(JSON.stringify(oldChar));
 
-    // Aplica as atualizações de nível superior, exceto para arrays aninhados que precisam de tratamento especial.
-    for (const key in updates) {
-        if (key !== 'inventory' && key !== 'conditions' && key !== 'relationships' && key !== 'journal') {
-            (newChar as any)[key] = (updates as any)[key];
-        }
-    }
-    
-    // Sobrescreve completamente o inventário e as condições, pois a IA deve enviar a lista completa.
+    // Aplica as atualizações de nível superior
+    newChar = { ...newChar, ...updates };
+
+    // Garante que arrays sejam mesclados e não sobrescritos
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
+    } else {
+        newChar.inventory = oldChar.inventory;
     }
     if (updates.conditions) {
         newChar.conditions = updates.conditions;
+    } else {
+        newChar.conditions = oldChar.conditions;
     }
-    
-    // Mescla o diário e relacionamentos de forma inteligente.
+    if (updates.spells) {
+        newChar.spells = updates.spells;
+    } else {
+        newChar.spells = oldChar.spells;
+    }
+
+    // Mesclagem inteligente para diário e relacionamentos
     if (updates.journal) {
         newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
     }
@@ -79,15 +81,12 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     }
 
     // Garante que objetos aninhados sejam mesclados e não substituídos.
-    if (updates.hp) {
-        newChar.hp = { ...oldChar.hp, ...updates.hp };
-    }
-    if (updates.currency) {
-        newChar.currency = { ...oldChar.currency, ...updates.currency };
-    }
-    if (updates.deathSaves) {
-        newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
-    }
+    newChar.hp = { ...oldChar.hp, ...updates.hp };
+    newChar.currency = { ...oldChar.currency, ...updates.currency };
+    newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
+    newChar.ac = { ...oldChar.ac, ...updates.ac };
+    newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
+
 
     // Recalcula propriedades derivadas após a fusão.
     const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
@@ -110,7 +109,10 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [apiError, setApiError] = useState<string | null>(null);
     const { model: selectedModel, generationConfig } = useSettingsContext();
+
+    const clearApiError = useCallback(() => setApiError(null), []);
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -159,9 +161,7 @@ export const useNewGameState = () => {
 
     const handleApiResponse = useCallback((response: geminiService.GeminiResponse | null) => {
         if (!response) {
-            setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: 'O Mestre parece distraído. Tente novamente.' }]);
-            setActionOptions(prev => prev.length > 0 ? prev : ['Tentar novamente.']);
-            return;
+            throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         }
 
         if (response.updatedCharacter) {
@@ -176,7 +176,9 @@ export const useNewGameState = () => {
             setLog(prev => [...prev, ...newLogEntries]);
         }
 
-        if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
+        if (response.actionOptions !== undefined) {
+             setActionOptions(response.actionOptions);
+        }
         if (response.combatState) setCombatState(response.combatState);
         if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
         if (response.shopState) setShopState(response.shopState);
@@ -189,8 +191,10 @@ export const useNewGameState = () => {
         if (!character) return;
         
         setIsLoading(true);
+        setApiError(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
+        const previousActionOptions = actionOptions; // Salva as opções anteriores
 
         const actionText = (typeof action === 'object' && action !== null) 
             ? (action as any).text || (action as any).description 
@@ -198,6 +202,7 @@ export const useNewGameState = () => {
         
         if (!actionText || typeof actionText !== 'string') {
             console.error("Ação inválida recebida:", action);
+            setApiError("Ação inválida processada. Por favor, tente algo diferente.");
             setIsLoading(false);
             return;
         }
@@ -206,21 +211,31 @@ export const useNewGameState = () => {
         setLog(prev => [...prev, newLogEntry]);
         setActionOptions([]); 
         
-        // We pass the updated log to the AI
         const currentLog = [...log, newLogEntry];
         
-        const gameUpdateInput: geminiService.GameMasterFlowInput = {
-            character,
-            playerAction: actionText,
-            gameLog: currentLog,
-        };
-        
-        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
-        
-        handleApiResponse(response);
-        setIsLoading(false); 
+        try {
+            const gameUpdateInput: geminiService.GameMasterFlowInput = {
+                character,
+                playerAction: actionText,
+                gameLog: currentLog,
+            };
+            
+            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
+            
+            handleApiResponse(response);
 
-    }, [character, log, handleApiResponse, selectedModel, generationConfig]);
+        } catch (error: any) {
+            console.error("Erro ao processar a ação do jogador:", error);
+            setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
+            // Restaura as opções para o jogador não ficar preso
+            setActionOptions(previousActionOptions);
+            // Remove a ação do jogador do log para evitar confusão no próximo turno
+            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+        } finally {
+            setIsLoading(false); 
+        }
+
+    }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig]);
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -228,6 +243,7 @@ export const useNewGameState = () => {
         setCharacter(null); // Clear character first
         setLog([]); 
         setActionOptions([]);
+        setApiError(null);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -240,17 +256,24 @@ export const useNewGameState = () => {
         
         setIsLoading(true);
         setActionOptions([]); 
+        setApiError(null);
         
-        const gameUpdateInput: geminiService.GameMasterFlowInput = {
-            character,
-            playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
-            gameLog: []
-        };
-        
-        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
-        
-        handleApiResponse(response);
-        setIsLoading(false);
+        try {
+            const gameUpdateInput: geminiService.GameMasterFlowInput = {
+                character,
+                playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
+                gameLog: []
+            };
+            
+            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
+            
+            handleApiResponse(response);
+        } catch (error: any) {
+             console.error("Erro ao iniciar o jogo:", error);
+            setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
+        } finally {
+            setIsLoading(false);
+        }
         
     }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig]);
     
@@ -301,7 +324,7 @@ export const useNewGameState = () => {
                 }
             } catch (e) {
                 console.error("Erro ao ler o arquivo de save:", e);
-                alert("Arquivo de save inválido.");
+                setApiError("Arquivo de save inválido ou corrompido.");
             } finally {
                 setIsLoading(false);
             }
@@ -377,6 +400,8 @@ export const useNewGameState = () => {
         pendingLootOffer,
         pendingHitDiceRequest,
         isLoading,
+        apiError,
+        clearApiError,
         createCharacter,
         startGame,
         processPlayerAction,

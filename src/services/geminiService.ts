@@ -48,11 +48,7 @@ Com base no estado atual do personagem e no histórico, continue a aventura.
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
-      console.error("GOOGLE_API_KEY não está definida. O serviço de IA não funcionará.");
-      return {
-        logEntries: [{ type: 'system', content: 'Erro: A chave da API do Google não foi configurada no servidor.' }],
-        actionOptions: ['Tentar novamente mais tarde.'],
-      };
+      throw new Error("Erro: A chave da API do Google não foi configurada no servidor.");
     }
 
     const model = genAI.getGenerativeModel({
@@ -94,10 +90,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
     } catch (error) {
         console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
-        return {
-            logEntries: [{ type: 'system', content: `O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}` }],
-            actionOptions: ['Tentar uma ação diferente.'],
-        };
+        // Em vez de retornar um objeto de erro, lançamos uma exceção para ser capturada pelo hook.
+        throw new Error(`O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}`);
     }
 };
 

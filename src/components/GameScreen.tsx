@@ -13,13 +13,14 @@ import ProgressionTab from './ProgressionTab';
 import RelationshipsTab from './RelationshipsTab';
 import JournalTab from './JournalTab';
 import ShopModal from './ShopModal';
+import ErrorModal from './ui/ErrorModal'; // Importar o novo modal de erro
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
 const GameScreen: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
-    const { combatState, levelUpState, shopState } = useGameStateContext();
+    const { combatState, levelUpState, shopState, apiError, clearApiError } = useGameStateContext();
 
     const renderSidebarContent = () => {
         switch (activeTab) {
@@ -53,6 +54,7 @@ const GameScreen: React.FC = () => {
         <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn">
             {levelUpState?.isPending && <LevelUpModal />}
             {shopState?.isOpen && <ShopModal />}
+            {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
 
             <Header />
             
