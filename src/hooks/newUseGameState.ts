@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -10,34 +10,83 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
-// Função auxiliar para mesclar o estado do personagem.
-// É mais seguro e explícito do que uma função genérica deepMerge.
+const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
+    const newJournal = [...existing];
+    const existingMap = new Map(newJournal.map(entry => [entry.id, entry]));
+
+    for (const update of updates) {
+        if (existingMap.has(update.id)) {
+            // Update existing entry
+            const existingEntry = existingMap.get(update.id)!;
+            Object.assign(existingEntry, update);
+            if (update.subLocations && existingEntry.subLocations) {
+                existingEntry.subLocations = mergeJournalEntries(existingEntry.subLocations, update.subLocations);
+            }
+        } else {
+            // Add new entry
+            newJournal.push(update);
+            existingMap.set(update.id, update);
+        }
+    }
+    return newJournal;
+}
+
+
+const mergeRelationships = (existing: Relationship[], updates: Relationship[]): Relationship[] => {
+    const newRelationships = [...existing];
+    const existingMap = new Map(newRelationships.map(rel => [rel.npcId, rel]));
+
+    for (const update of updates) {
+        if (existingMap.has(update.npcId)) {
+            // Update existing relationship
+            const existingRel = existingMap.get(update.npcId)!;
+            Object.assign(existingRel, update);
+        } else {
+            // Add new relationship
+            newRelationships.push(update);
+            existingMap.set(update.npcId, update);
+        }
+    }
+    return newRelationships;
+};
+
+// Função auxiliar para mesclar o estado do personagem de forma segura.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    // Começa com uma cópia do personagem antigo.
-    const newChar = { ...oldChar };
+    // Começa com uma cópia profunda para evitar mutações inesperadas.
+    const newChar: Character = JSON.parse(JSON.stringify(oldChar));
 
-    // Aplica as atualizações de nível superior.
-    Object.assign(newChar, updates);
-
-    // Tratamento especial para arrays e objetos aninhados para garantir que não sejam substituídos.
+    // Aplica as atualizações de nível superior, exceto para arrays aninhados que precisam de tratamento especial.
+    for (const key in updates) {
+        if (key !== 'inventory' && key !== 'conditions' && key !== 'relationships' && key !== 'journal') {
+            (newChar as any)[key] = (updates as any)[key];
+        }
+    }
+    
+    // Sobrescreve completamente o inventário e as condições, pois a IA deve enviar a lista completa.
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
     }
     if (updates.conditions) {
         newChar.conditions = updates.conditions;
     }
-    // Mescla o diário e relacionamentos para não perder entradas antigas se a IA não as reenviar.
+    
+    // Mescla o diário e relacionamentos de forma inteligente.
     if (updates.journal) {
-        newChar.journal = updates.journal;
+        newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
     }
     if (updates.relationships) {
-        newChar.relationships = updates.relationships;
+        newChar.relationships = mergeRelationships(oldChar.relationships || [], updates.relationships);
     }
+
+    // Garante que objetos aninhados sejam mesclados e não substituídos.
     if (updates.hp) {
         newChar.hp = { ...oldChar.hp, ...updates.hp };
     }
-     if (updates.currency) {
+    if (updates.currency) {
         newChar.currency = { ...oldChar.currency, ...updates.currency };
+    }
+    if (updates.deathSaves) {
+        newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     }
 
     // Recalcula propriedades derivadas após a fusão.
@@ -118,7 +167,6 @@ export const useNewGameState = () => {
         if (response.updatedCharacter) {
              setCharacter(prevCharacter => {
                 if (!prevCharacter) return null;
-                // Usa a nova função de mesclagem segura
                 return mergeCharacterState(prevCharacter, response.updatedCharacter as Partial<Character>);
             });
         }
