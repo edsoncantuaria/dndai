@@ -7,10 +7,13 @@ import * as GeminiService from '@/services/geminiService';
 import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
-import ConfirmationModal from './ui/ConfirmationModal';
-import SettingsModal from './SettingsModal'; // Importando o novo modal
-import { BrainCircuit, Loader2, Settings } from 'lucide-react';
+import ActionModal from './ui/ActionModal';
+import SettingsModal from './SettingsModal';
+import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { generateImage } from '@/ai/flows/generateImage';
+import { textToSpeech } from '@/ai/flows/textToSpeech';
+import Image from 'next/image';
 
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
@@ -20,25 +23,21 @@ interface CharacterCreationProps {
 }
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
-    const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
-    const { model: selectedModel, generationConfig, apiKey: userApiKey } = useSettingsContext(); // Pega o modelo e a config
+    const { isLoading, character, checkForSavedGame, loadGameFromFile, getApiKey } = useGameStateContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-    const [showAiTestModal, setShowAiTestModal] = useState(false);
-    const [showSettingsModal, setShowSettingsModal] = useState(false); // Estado para o modal de configurações
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
     
     // State for AI Test
+    const [showAiTestModal, setShowAiTestModal] = useState(false);
     const [isTestingAi, setIsTestingAi] = useState(false);
-    const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string } | null>(null);
-
-    // --- Data Fetching ---
-    const [isDataLoading, setIsDataLoading] = useState(true);
-    const [races, setRaces] = useState<ApiListItem[]>([]);
-    const [classes, setClasses] = useState<ApiListItem[]>([]);
-    const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
-    const [alignments, setAlignments] = useState<ApiListItem[]>([]);
-    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
+    const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
+    const [testImageUrl, setTestImageUrl] = useState<string | null>(null);
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
 
     useEffect(() => {
@@ -47,26 +46,19 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
 
 
     useEffect(() => {
-        // Always load data for the creation form
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
-                // Fetch data sequentially to avoid rate limiting
                 const racesData = await DndApiService.getRaces();
                 setRaces(racesData?.results || []);
-                
                 const classesData = await DndApiService.getClasses();
                 setClasses(classesData?.results || []);
-
                 const backgroundsData = await DndApiService.getBackgrounds();
                 setBackgrounds(backgroundsData?.results || []);
-
                 const alignmentsData = await DndApiService.getAlignments();
                 setAlignments(alignmentsData?.results || []);
-
                 const languagesData = await DndApiService.getLanguages();
                 setAllLanguages(languagesData?.results || []);
-
             } catch (error) {
                 console.error("Failed to load initial creation data:", error);
                 setFormError("Falha ao carregar dados essenciais. Por favor, tente recarregar a página.");
@@ -90,26 +82,85 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setShowConfirmationModal(false);
     }
 
+    const closeAiTestModal = () => {
+        setShowAiTestModal(false);
+        setAiTestResult(null);
+        setTestImageUrl(null);
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+        }
+    };
+
     const handleTestAi = useCallback(async () => {
         setIsTestingAi(true);
         setAiTestResult(null);
+        setTestImageUrl(null);
         try {
-            const apiKeyToUse = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
-            // Passa o modelo selecionado para a função de teste
-            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKeyToUse);
+            const apiKey = getApiKey();
+            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKey);
             if (!response) {
-                 throw new Error("A IA não retornou uma resposta.");
+                 throw new Error("A IA não retornou uma resposta de texto.");
             }
-            setAiTestResult({ title: 'Resposta da IA', message: response });
+            setAiTestResult({ title: 'Diagnóstico da IA', message: response, success: true });
         } catch (error: any) {
             const errorMessage = error.message || "Ocorreu um erro desconhecido ao testar a conexão com a IA.";
-            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage });
+            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage, success: false });
             console.error(error);
         } finally {
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel, generationConfig, userApiKey]); // Adiciona a config como dependência
+    }, [selectedModel, generationConfig, getApiKey]);
+
+    const handleTestImageGen = useCallback(async () => {
+        setIsGeneratingImage(true);
+        setTestImageUrl(null);
+        try {
+            const apiKey = getApiKey();
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+            const prompt = "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.";
+            const response = await generateImage(prompt, selectedImageModel, apiKey);
+            if (response?.imageUrl) {
+                setTestImageUrl(response.imageUrl);
+            } else {
+                throw new Error("A geração de imagem falhou ou retornou um resultado vazio.");
+            }
+        } catch (error: any) {
+             setAiTestResult(prev => ({...prev!, message: `Erro na geração de imagem: ${error.message}`}));
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    }, [getApiKey, selectedImageModel]);
+
+    const handleTestTts = useCallback(async () => {
+        if (!aiTestResult?.message || !aiTestResult.success) return;
+        setIsGeneratingAudio(true);
+        try {
+            const apiKey = getApiKey();
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+            const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKey);
+            if (response?.media && audioRef.current) {
+                audioRef.current.src = response.media;
+                audioRef.current.play();
+            } else {
+                throw new Error("A geração de áudio falhou.");
+            }
+        } catch (error: any) {
+             setAiTestResult(prev => ({...prev!, message: `Erro no TTS: ${error.message}`}));
+        } finally {
+            setIsGeneratingAudio(false);
+        }
+    }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
+
+
+    // Data Fetching State
+    const [isDataLoading, setIsDataLoading] = useState(true);
+    const [races, setRaces] = useState<ApiListItem[]>([]);
+    const [classes, setClasses] = useState<ApiListItem[]>([]);
+    const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
+    const [alignments, setAlignments] = useState<ApiListItem[]>([]);
+    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
     
     // --- Render Logic ---
     if (isLoading && !character) { 
@@ -157,24 +208,51 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                             <Settings className="h-6 w-6 text-amber-300" />
                         </button>
                     </div>
-                     <ConfirmationModal
-                        isOpen={showConfirmationModal}
-                        title="Iniciar Novo Jogo?"
-                        message="Tem certeza que deseja iniciar um novo jogo? Todo o progresso salvo será perdido permanentemente."
-                        onConfirm={confirmNewGame}
-                        onCancel={() => setShowConfirmationModal(false)}
-                        confirmText="Sim, começar de novo"
-                        cancelText="Não, voltar"
-                    />
-                     {aiTestResult && (
-                        <ConfirmationModal
+                     {showConfirmationModal && (
+                        <ActionModal
+                            isOpen={showConfirmationModal}
+                            title="Iniciar Novo Jogo?"
+                            onClose={() => setShowConfirmationModal(false)}
+                            actions={[
+                                { text: "Não, voltar", onClick: () => setShowConfirmationModal(false), variant: 'secondary'},
+                                { text: "Sim, começar de novo", onClick: confirmNewGame, variant: 'destructive'}
+                            ]}
+                        >
+                            <p className="text-stone-300">Tem certeza que deseja iniciar um novo jogo? Todo o progresso salvo será perdido permanentemente.</p>
+                        </ActionModal>
+                     )}
+                     {showAiTestModal && aiTestResult && (
+                        <ActionModal
                             isOpen={showAiTestModal}
                             title={aiTestResult.title}
-                            message={aiTestResult.message}
-                            onConfirm={() => setShowAiTestModal(false)}
-                            confirmText="OK"
-                        />
+                            onClose={closeAiTestModal}
+                            actions={[
+                                { text: "Fechar", onClick: closeAiTestModal, variant: 'primary'}
+                            ]}
+                        >
+                            <div className="space-y-4">
+                                <p className={`whitespace-pre-wrap p-3 rounded-md border ${aiTestResult.success ? 'bg-stone-800 border-stone-700' : 'bg-red-900/40 border-red-700'} text-stone-300`}>
+                                    {aiTestResult.message}
+                                </p>
+                                {aiTestResult.success && (
+                                    <div className="space-y-4">
+                                         {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                                {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
+                                                Gerar Imagem
+                                            </button>
+                                            <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                                 {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
+                                                Ouvir Áudio
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </ActionModal>
                      )}
+                     <audio ref={audioRef} className="hidden" />
                      <SettingsModal 
                         isOpen={showSettingsModal}
                         onClose={() => setShowSettingsModal(false)}
@@ -198,8 +276,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             races={races}
             classes={classes}
             backgrounds={backgrounds}
-            allLanguages={allLanguages}
             alignments={alignments}
+            allLanguages={allLanguages}
             onCharacterCreated={onCharacterCreated}
         />
     );

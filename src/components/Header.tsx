@@ -1,40 +1,98 @@
 'use client';
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings } from 'lucide-react';
-import ConfirmationModal from './ui/ConfirmationModal';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
+import ActionModal from './ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import Image from 'next/image';
+import { textToSpeech } from '@/ai/flows/textToSpeech';
+import { generateImage } from '@/ai/flows/generateImage';
 
 const Header: React.FC = () => {
-    const { character, saveGameToFile } = useGameStateContext();
-    const { model: selectedModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
+    const { character, saveGameToFile, getApiKey } = useGameStateContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
-    const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string } | null>(null);
+    const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [testImageUrl, setTestImageUrl] = useState<string | null>(null);
+    const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+    const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
 
+    const closeAiTestModal = () => {
+        setShowAiTestModal(false);
+        setAiTestResult(null);
+        setTestImageUrl(null);
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.src = "";
+        }
+    };
 
     const handleTestAi = useCallback(async () => {
         setIsTestingAi(true);
         setAiTestResult(null);
+        setTestImageUrl(null);
         try {
-            const apiKeyToUse = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
-            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKeyToUse);
+            const apiKey = getApiKey();
+            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKey);
             if (!response) {
-                 throw new Error("A IA não retornou uma resposta.");
+                 throw new Error("A IA não retornou uma resposta de texto.");
             }
-            setAiTestResult({ title: 'Resposta da IA', message: response });
+            setAiTestResult({ title: 'Diagnóstico da IA', message: response, success: true });
         } catch (error: any) {
             const errorMessage = error.message || "Ocorreu um erro desconhecido ao testar a conexão com a IA.";
-            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage });
+            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage, success: false });
             console.error(error);
         } finally {
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel, generationConfig, userApiKey]);
+    }, [selectedModel, generationConfig, getApiKey]);
+
+    const handleTestImageGen = useCallback(async () => {
+        setIsGeneratingImage(true);
+        setTestImageUrl(null);
+        try {
+            const apiKey = getApiKey();
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+            const prompt = "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.";
+            const response = await generateImage(prompt, selectedImageModel, apiKey);
+            if (response?.imageUrl) {
+                setTestImageUrl(response.imageUrl);
+            } else {
+                throw new Error("A geração de imagem falhou ou retornou um resultado vazio.");
+            }
+        } catch (error: any) {
+             setAiTestResult(prev => ({...prev!, message: `Erro na geração de imagem: ${error.message}`}));
+        } finally {
+            setIsGeneratingImage(false);
+        }
+    }, [getApiKey, selectedImageModel]);
+
+    const handleTestTts = useCallback(async () => {
+        if (!aiTestResult?.message || !aiTestResult.success) return;
+        setIsGeneratingAudio(true);
+        try {
+            const apiKey = getApiKey();
+            if (!apiKey) throw new Error("Chave de API não encontrada.");
+            const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKey);
+            if (response?.media && audioRef.current) {
+                audioRef.current.src = response.media;
+                audioRef.current.play();
+            } else {
+                throw new Error("A geração de áudio falhou.");
+            }
+        } catch (error: any) {
+             setAiTestResult(prev => ({...prev!, message: `Erro no TTS: ${error.message}`}));
+        } finally {
+            setIsGeneratingAudio(false);
+        }
+    }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
+
 
     if (!character) {
         return null; // Or a placeholder header
@@ -97,15 +155,36 @@ const Header: React.FC = () => {
                     </div>
                 </div>
             </div>
-             {aiTestResult && (
-                <ConfirmationModal
+             {showAiTestModal && aiTestResult && (
+                <ActionModal
                     isOpen={showAiTestModal}
                     title={aiTestResult.title}
-                    message={aiTestResult.message}
-                    onConfirm={() => setShowAiTestModal(false)}
-                    confirmText="OK"
-                />
+                    onClose={closeAiTestModal}
+                    actions={[{ text: "Fechar", onClick: closeAiTestModal, variant: 'primary'}]}
+                >
+                     <div className="space-y-4">
+                        <p className={`whitespace-pre-wrap p-3 rounded-md border ${aiTestResult.success ? 'bg-stone-800 border-stone-700' : 'bg-red-900/40 border-red-700'} text-stone-300`}>
+                            {aiTestResult.message}
+                        </p>
+                        {aiTestResult.success && (
+                            <div className="space-y-4">
+                                {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                        {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
+                                        Gerar Imagem
+                                    </button>
+                                    <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                         {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
+                                        Ouvir Áudio
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ActionModal>
             )}
+             <audio ref={audioRef} className="hidden" />
             <SettingsModal
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
