@@ -7,9 +7,49 @@ import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { deepMerge } from '../utils/objectUtils';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
+
+// Função auxiliar para mesclar o estado do personagem.
+// É mais seguro e explícito do que uma função genérica deepMerge.
+const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
+    // Começa com uma cópia do personagem antigo.
+    const newChar = { ...oldChar };
+
+    // Aplica as atualizações de nível superior.
+    Object.assign(newChar, updates);
+
+    // Tratamento especial para arrays e objetos aninhados para garantir que não sejam substituídos.
+    if (updates.inventory) {
+        newChar.inventory = updates.inventory;
+    }
+    if (updates.conditions) {
+        newChar.conditions = updates.conditions;
+    }
+    // Mescla o diário e relacionamentos para não perder entradas antigas se a IA não as reenviar.
+    if (updates.journal) {
+        newChar.journal = updates.journal;
+    }
+    if (updates.relationships) {
+        newChar.relationships = updates.relationships;
+    }
+    if (updates.hp) {
+        newChar.hp = { ...oldChar.hp, ...updates.hp };
+    }
+     if (updates.currency) {
+        newChar.currency = { ...oldChar.currency, ...updates.currency };
+    }
+
+    // Recalcula propriedades derivadas após a fusão.
+    const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
+    newChar.modifiers = newModifiers;
+    newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
+    newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
+    newChar.currentWeight = (newChar.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+
+    return newChar;
+};
+
 
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
@@ -58,7 +98,8 @@ export const useNewGameState = () => {
     }, []);
 
     useEffect(() => {
-        loadGameFromLocalStorage();
+        // This effect will only run once on mount to load the game state.
+        // The start of the game is now handled by the UI flow in page.tsx
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
@@ -74,28 +115,22 @@ export const useNewGameState = () => {
             return;
         }
 
-        setCharacter(prevCharacter => {
-            if (!prevCharacter) return null;
-
-            // Use deepMerge to intelligently combine the old and new character states
-            let newCharacterState = deepMerge(prevCharacter, response.updatedCharacter || {});
-
-            const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
-            newCharacterState.modifiers = newModifiers;
-            newCharacterState.ac = characterUtils.calculateAC(newCharacterState.inventory, newModifiers);
-            newCharacterState.carryingCapacity = characterUtils.calculateCarryingCapacity(newCharacterState.attributes.strength);
-            newCharacterState.currentWeight = (newCharacterState.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
-
-            return newCharacterState;
-        });
-
-        if (response.logEntries) {
-            const newLogEntries = (response.logEntries || []).map(entry => ({ ...entry, id: uuidv4() }));
+        if (response.updatedCharacter) {
+             setCharacter(prevCharacter => {
+                if (!prevCharacter) return null;
+                // Usa a nova função de mesclagem segura
+                return mergeCharacterState(prevCharacter, response.updatedCharacter as Partial<Character>);
+            });
+        }
+       
+        if (response.logEntries && Array.isArray(response.logEntries)) {
+            const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
+
         if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
         if (response.combatState) setCombatState(response.combatState);
-        if (response.levelUpState) setLevelUpState(prev => deepMerge(prev, response.levelUpState));
+        if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
         if (response.shopState) setShopState(response.shopState);
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
@@ -142,6 +177,7 @@ export const useNewGameState = () => {
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
+        setCharacter(null); // Clear character first
         setLog([]); 
         setActionOptions([]);
         
