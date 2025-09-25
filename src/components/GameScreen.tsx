@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import Header from './Header';
-import NarrativeLog from './NarrativeLog';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
 import CharacterSheet from './CharacterSheet';
@@ -10,10 +9,11 @@ import CombatTracker from './CombatTracker';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
-import RelationshipsTab from './RelationshipsTab';
-import JournalTab from './JournalTab';
 import ShopModal from './ShopModal';
-import ErrorModal from './ui/ErrorModal'; // Importar o novo modal de erro
+import ErrorModal from './ui/ErrorModal';
+import NewNarrativeLog from './NewNarrativeLog'; // Substituindo
+import NewJournal from './NewJournal';           // Substituindo
+import NewRelationships from './NewRelationships'; // Substituindo
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -33,9 +33,9 @@ const GameScreen: React.FC = () => {
             case 'progression':
                 return <ProgressionTab />;
             case 'relationships':
-                return <RelationshipsTab />;
+                return <NewRelationships />; // Usando o novo componente
             case 'journal':
-                return <JournalTab />;
+                return <NewJournal />; // Usando o novo componente
             default:
                 return <CharacterSheet />;
         }
@@ -64,7 +64,7 @@ const GameScreen: React.FC = () => {
                 {/* Main Content: Narrative and Actions */}
                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
                     <div className="flex-grow p-4 overflow-y-auto md:pb-4 pb-48 h-0">
-                        <NarrativeLog />
+                        <NewNarrativeLog /> {/* Usando o novo componente */}
                     </div>
                     {/* Desktop Actions */}
                     <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 hidden md:block">
