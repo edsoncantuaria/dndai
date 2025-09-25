@@ -15,11 +15,11 @@ export const AVAILABLE_MODELS = [
     ];
 
     export const AVAILABLE_TTS_MODELS = [
+        "gemini-2.5-flash-native-audio-preview-09-2025",
         "gemini-2.5-pro-preview-tts",   
         "gemini-2.5-flash-preview-tts",
         "gemini-live-2.5-flash-preview",
         "gemini-2.0-flash-live-001",
-        "gemini-2.5-flash-native-audio-preview-09-2025",
         "gemini-2.5-flash-preview-native-audio-dialog",
         "gemini-2.5-flash-exp-native-audio-thinking-dialog",
     ];
