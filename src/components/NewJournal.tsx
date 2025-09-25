@@ -55,16 +55,6 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 const NewJournal: React.FC = () => {
     const { character } = useGameStateContext();
 
-    const groupedLocations = character?.journal?.reduce((acc, loc) => {
-        const region = loc.region || 'Outras Regiões';
-        if (!acc[region]) {
-            acc[region] = [];
-        }
-        acc[region].push(loc);
-        return acc;
-    }, {} as Record<string, JournalEntryLocation[]>) || {};
-
-
     if (!character || !character.journal || character.journal.length === 0) {
         return (
              <div className="p-4 space-y-4">
@@ -79,6 +69,16 @@ const NewJournal: React.FC = () => {
             </div>
         );
     }
+    
+    // Agrupa as entradas do diário por região.
+    const groupedLocations = character.journal.reduce((acc, loc) => {
+        const region = loc.region || 'Outras Regiões';
+        if (!acc[region]) {
+            acc[region] = [];
+        }
+        acc[region].push(loc);
+        return acc;
+    }, {} as Record<string, JournalEntryLocation[]>);
 
     return (
         <div className="p-4 space-y-4">

@@ -163,7 +163,7 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
         case 'image':
             content = (
                 <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                    {entry.content.startsWith('data:image') ? (
+                    {entry.content && entry.content.startsWith('data:image') ? (
                         <Image src={entry.content} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
                     ) : (
                         <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">

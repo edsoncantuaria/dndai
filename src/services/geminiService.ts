@@ -1,8 +1,7 @@
 'use server';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem } from '../types';
-import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
+import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "./gameSchemas";
 import { GenerationConfig } from "@/contexts/SettingsContext";
 
 // Esta função agora aceita a chave de API como um argumento.
@@ -10,79 +9,41 @@ const getGenAI = (apiKey: string) => {
     return new GoogleGenerativeAI(apiKey);
 }
 
-const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
+const systemInstruction = `
+Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu papel é narrar a aventura, gerenciar o estado do personagem e controlar os elementos do mundo.
 
-### Diretrizes de Saída
-- **Formato:** Sua saída DEVE ser um único objeto JSON válido. Não inclua nenhum texto, formatação ou marcadores como \`\`\`json \`\`\` fora do objeto JSON.
-- **Idioma:** Toda a sua narração e texto devem estar em **português do Brasil**.
+### Diretrizes principais
+- **Narrativa:** Use o campo \`logEntries\` para descrever o que acontece. Seja imersivo e reaja às ações do jogador.
+- **Regras de D&D:** Aplique as regras de D&D 5e para combate, testes de perícia e habilidades. Você rola todos os dados e determina os resultados.
+- **Agência do jogador:** Sempre forneça de 2 a 4 opções de ação claras em \`actionOptions\` para guiar o jogador.
+- **Estado do personagem:** O campo mais importante é \`updatedCharacter\`. Use-o para refletir **todas** as mudanças no personagem. Retorne apenas os campos que mudaram. Por exemplo, se o jogador perde vida, retorne \`{ "hp": { "current": novo_valor } }\`. Se ele ganha um item, retorne o array \`inventory\` completo e atualizado.
+- **Diário e Relações:** Para atualizar o diário ou os relacionamentos, modifique os campos \`journal\` e \`relationships\` dentro de \`updatedCharacter\`.
+- **Combate:** Quando um combate começar, preencha o objeto \`combatState\`.
+- **Experiência (XP):** Conceda XP por completar desafios. Quando \`character.xp\` atingir \`character.xpToNextLevel\`, ative \`levelUpState.isPending = true\`.
+- **JSON Válido:** Sua resposta DEVE sempre ser um objeto JSON válido que corresponda ao schema fornecido.
 
-### Estrutura do JSON de Resposta
-
-{
-  "logEntries": [
-    {
-      "type": "'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll'",
-      "content": "O texto descritivo do que está acontecendo. Esta é a parte principal da sua narração."
-    }
-  ],
-  "actionOptions": ["Opção 1 como string", { "text": "Opção 2 como objeto", "action": "internal_action_2" }],
-  "updatedCharacter": {
-    /* Inclua APENAS os campos do personagem que mudaram. Exemplos:
-    "hp": { "current": 5 },
-    "xp": 150,
-    "inventory": [ ... ],
-    "journal": { ... },
-    "relationships": [ ... ]
-    */
-  },
-  "combatState": { /* Preencha se o combate estiver ativo */ },
-  "levelUpState": { /* Preencha quando o jogador subir de nível */ },
-  "shopState": { /* Preencha quando o jogador entrar em uma loja */ },
-  "lootOffer": { /* Preencha para oferecer saques */ },
-  "useHitDiceRequest": { /* Preencha para oferecer descanso curto */ },
-  "imagePrompt": "Ocasionalmente, um prompt de imagem detalhado (em inglês) para uma cena importante."
-}
-
-### Regras do Jogo e Narrativa
-
-1.  **Narração (\`logEntries\`):**
-    - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
-    - Use \`type: 'system'\` para mensagens do jogo (ex: "Você ganhou 25 XP.").
-    - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados.
-    - Seja descritivo e imersivo.
-
-2.  **Opções de Ação (\`actionOptions\`):**
-    - Sempre forneça de 2 a 4 opções de ação claras e relevantes para o jogador. Elas guiam a agência do jogador.
-
-3.  **Atualizações do Personagem (\`updatedCharacter\`):**
-    - **CRÍTICO:** Retorne apenas os campos que foram alterados. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`. Nunca retorne o objeto de personagem inteiro.
-    - Gerencie inventário, experiência (XP), pontos de vida (hp), diário (journal) e relacionamentos (relationships) através deste objeto.
-
-4.  **Recursos Multimídia:**
-    - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Exemplo: "Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern...". Use com moderação.
-
-5.  **Regras de D&D 5e:**
-    - Aplique as regras de combate, testes de perícia e habilidades de forma consistente. Você é responsável por todas as rolagens de dados.
-    - Ao conceder experiência (XP), quando \`character.xp\` atingir ou exceder \`character.xpToNextLevel\`, ative o \`levelUpState\` e preencha as \`choices\` para o novo nível.
+### Idioma
+Toda a narrativa e texto devem estar em **português do Brasil**. Os prompts de imagem, no entanto, devem ser em inglês.
 `;
 
 
 const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
     
+    // Serializa os objetos principais para fornecer como contexto para a IA
     const characterContext = JSON.stringify(character, null, 2);
-    const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
+    const logContext = JSON.stringify(gameLog.slice(-15), null, 2); // Apenas as últimas 15 entradas
 
     return `
-### Estado do Personagem (JSON)
+### Estado Atual do Personagem (JSON)
 ${characterContext}
 
-### Últimos Eventos (JSON)
+### Últimos Eventos do Jogo (JSON)
 ${logContext}
 ---
 A ação do jogador é: "${playerAction}"
 
-Com base no estado atual do personagem e no histórico, continue a aventura.
+Com base no estado atual do personagem e no histórico do jogo, continue a aventura como o Mestre de Jogo. Forneça sua resposta como um objeto JSON válido.
     `;
 }
 
@@ -108,30 +69,20 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             generationConfig: {
                 ...generationConfig,
                 responseMimeType: "application/json",
+                responseSchema: GameMasterResponseSchema,
             }
         });
 
         const response = result.response;
         const jsonText = response.text();
-        console.log(`[geminiService (${modelName})] Resposta da IA recebida:`, jsonText); 
-
-        const responseData = JSON.parse(jsonText) as any; // Parse como 'any' para checar a estrutura
-
-        // Adaptador: Checa se a IA enviou 'narration' em vez de 'logEntries'
-        if (responseData.narration && typeof responseData.narration === 'string') {
-            if (!responseData.logEntries) {
-                responseData.logEntries = [];
-            }
-            // Adiciona a narração ao início do array de logs
-            responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
-            delete responseData.narration; // Remove o campo antigo para evitar confusão
-        }
         
+        // A resposta já é validada pelo schema, então podemos parseá-la com segurança.
+        const responseData = JSON.parse(jsonText);
+
         return responseData as GameMasterResponse;
 
     } catch (error: any) {
         console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
-        // Em vez de retornar um objeto de erro, lançamos uma exceção para ser capturada pelo hook.
         throw new Error(`O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}`);
     }
 };

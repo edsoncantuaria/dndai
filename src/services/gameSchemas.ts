@@ -1,12 +1,11 @@
-// services/gameSchemas.ts
+'use server';
 import { z } from 'zod';
 
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-    content: z.string(),
-    rollResult: z.any().optional(),
-}).describe("An entry in the game's adventure log.");
+    content: z.string().describe("O texto descritivo da narração ou o conteúdo da mensagem."),
+}).describe("Uma entrada no log de aventura do jogo.");
 
 const CombatantSchema = z.object({
     id: z.string(),
@@ -26,46 +25,46 @@ const CombatStateSchema = z.object({
 const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
     newLevel: z.number(),
-    choices: z.any(),
+    choices: z.any().describe("Detalhes das escolhas de level up disponíveis, como aumento de atributo, novas perícias ou magias."),
 });
 
 const ShopStateSchema = z.object({
     isOpen: z.boolean(),
     isHaggling: z.boolean(),
     name: z.string(),
-    inventory: z.any(),
-    sellPrices: z.record(z.string(), z.number()),
+    inventory: z.any().describe("Array de itens disponíveis na loja."),
+    sellPrices: z.record(z.string(), z.number()).describe("Um objeto mapeando IDs de itens para seus preços de venda."),
 });
 
 const LootOfferSchema = z.object({
-    items: z.any(),
+    items: z.any().describe("Array de itens oferecidos como saque."),
     currency: z.object({ gp: z.number() }),
 });
 
 const UseHitDiceRequestSchema = z.object({
-    maxDice: z.number(),
-    hitDieValue: z.number(),
+    maxDice: z.number().describe("O número máximo de Dados de Vida que o jogador pode gastar."),
+    hitDieValue: z.number().describe("O valor do Dado de Vida da classe do personagem (ex: 10 para d10)."),
 });
 
 export const GameMasterResponseSchema = z.object({
-    logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
-    actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string() })])).optional().describe("A list of suggested actions for the player to take next."),
-    updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action."),
-    combatState: CombatStateSchema.optional().describe("The current state of combat, if any."),
-    levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
-    shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
-    lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
-    useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
-    imagePrompt: z.string().optional().describe("Occasionally, for an important scene, provide a detailed image prompt (in English) to generate an illustration. Example: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
-}).describe("The Game Master's response, containing all updates to the game state.");
+    logEntries: z.array(LogEntrySchema).optional().describe("Novas entradas para o log da aventura, incluindo narração, mensagens do sistema ou detalhes de combate."),
+    actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string() })])).optional().describe("Uma lista de ações sugeridas para o jogador tomar a seguir."),
+    updatedCharacter: z.any().optional().describe("Um objeto contendo APENAS os campos do personagem que mudaram devido à última ação. Exemplos: hp, xp, inventory, journal, relationships."),
+    combatState: CombatStateSchema.optional().describe("O estado atual do combate, se houver."),
+    levelUpState: LevelUpStateSchema.optional().describe("O estado de um level-up pendente para o personagem."),
+    shopState: ShopStateSchema.optional().describe("O estado de uma loja, se o jogador estiver atualmente em uma."),
+    lootOffer: LootOfferSchema.optional().describe("Uma oferta de saque para o jogador aceitar."),
+    useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("Um pedido para o jogador gastar Dados de Vida durante um descanso curto."),
+    imagePrompt: z.string().optional().describe("Ocasionalmente, para uma cena importante, forneça um prompt de imagem detalhado (em inglês) para gerar uma ilustração. Ex: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
+}).describe("A resposta do Mestre de Jogo, contendo todas as atualizações para o estado do jogo.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
 // Schema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
-  character: z.any().describe("The entire current character state object."),
-  playerAction: z.string().describe("The action taken by the player."),
-  gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
+  character: z.any().describe("O objeto de estado completo do personagem atual."),
+  playerAction: z.string().describe("A ação realizada pelo jogador."),
+  gameLog: z.array(LogEntrySchema).describe("As últimas 15 entradas do log do jogo para contexto."),
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
