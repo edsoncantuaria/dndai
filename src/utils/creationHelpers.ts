@@ -6,7 +6,6 @@ import { translateEquipment } from "./TranslatorEquipments";
  * Calculates the point-buy cost to increase an attribute score to the next level.
  * In D&D 5e: scores from 8-13 cost 1 point per level.
  * Scores from 14-15 cost 2 points per level.
- * The cost increases when the *current* score is 13 or 14.
  * @param currentScore The current base score of the attribute (before purchasing the next level).
  * @returns The cost (1 or 2) to increase the score by one.
  */
@@ -29,6 +28,7 @@ export const getRefundForPrevLevel = (currentScore: number): number => {
     }
     return 1;
 };
+
 
 /**
  * Generates a human-readable label for an equipment option from the API.
