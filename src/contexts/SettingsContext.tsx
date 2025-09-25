@@ -3,27 +3,31 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-1.0-pro",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-8b"
-];
 
-export const AVAILABLE_TTS_MODELS = [
-    "gemini-2.5-flash-preview-tts",
-    "gemini-2.5-flash-native-audio-preview-09-2025",
-    "gemini-2.5-flash-preview-native-audio-dialog",
-    "gemini-2.5-flash-exp-native-audio-thinking-dialog",
-    "gemini-live-2.5-flash-preview",
-    "gemini-2.0-flash-live-001"
-];
+        "gemini-2.5-pro",
+        "gemini-1.5-pro",        
+        "gemini-2.5-flash",     
+        "gemini-1.5-flash",     
+        "gemini-1.5-flash-8b",   
+        "gemini-2.0-flash-lite", 
+        "gemini-1.0-pro",        
+        "gemini-latest"         
+    ];
+
+    export const AVAILABLE_TTS_MODELS = [
+        "gemini-2.5-pro-preview-tts",   
+        "gemini-2.5-flash-preview-tts",
+        "gemini-live-2.5-flash-preview",
+        "gemini-2.0-flash-live-001",
+        "gemini-2.5-flash-native-audio-preview-09-2025",
+        "gemini-2.5-flash-preview-native-audio-dialog",
+        "gemini-2.5-flash-exp-native-audio-thinking-dialog",
+    ];
 
 export const AVAILABLE_IMAGE_MODELS = [
-    "imagen-4.0-fast-generate-001",
     "gemini-2.5-flash-image-preview",
+    "imagen-4.0-fast-generate-001",
+    "image-generation-002"
 ];
 
 export interface GenerationConfig {
