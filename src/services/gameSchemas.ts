@@ -1,4 +1,3 @@
-'use server';
 import { z } from 'zod';
 
 // Schema para uma única entrada no log da aventura.
