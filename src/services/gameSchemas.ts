@@ -1,6 +1,7 @@
 // services/gameSchemas.ts
 import { z } from 'zod';
 
+// Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
     content: z.string(),
@@ -33,7 +34,7 @@ const ShopStateSchema = z.object({
     isHaggling: z.boolean(),
     name: z.string(),
     inventory: z.any(),
-    sellPrices: z.record(z.number()),
+    sellPrices: z.record(z.string(), z.number()),
 });
 
 const LootOfferSchema = z.object({
@@ -55,11 +56,12 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
-    imagePrompt: z.string().optional().describe("Ocasionalmente, para uma cena importante, forneça um prompt de imagem detalhado (em inglês) para gerar uma ilustração. Exemplo: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
+    imagePrompt: z.string().optional().describe("Occasionally, for an important scene, provide a detailed image prompt (in English) to generate an illustration. Example: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
 }).describe("The Game Master's response, containing all updates to the game state.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
+// Schema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player."),
