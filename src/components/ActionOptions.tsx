@@ -104,7 +104,7 @@ const ActionOptions: React.FC = () => {
                     ? (action as any).action 
                     : action;
                 
-                if (!actionText) return null; // Não renderiza o botão se não houver texto
+                if (!actionText || typeof actionText !== 'string') return null;
 
                 return (
                     <button

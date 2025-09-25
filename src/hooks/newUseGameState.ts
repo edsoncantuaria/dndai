@@ -55,7 +55,11 @@ export const useNewGameState = () => {
             let newCharacterState = { ...prevCharacter };
 
             if (response.updatedCharacter) {
-                Object.assign(newCharacterState, response.updatedCharacter);
+                // Explicitly apply updates, replacing arrays instead of merging them
+                for (const key in response.updatedCharacter) {
+                    const typedKey = key as keyof Character;
+                    (newCharacterState as any)[typedKey] = response.updatedCharacter[typedKey];
+                }
             }
             
             const newModifiers = characterUtils.calculateModifiers(newCharacterState.attributes);
@@ -88,7 +92,7 @@ export const useNewGameState = () => {
         setPendingLootOffer(null);
 
         // Se action for um objeto, extraia a string de ação ou use uma representação
-        const actionString = typeof action === 'string' ? action : (action as any).description || JSON.stringify(action);
+        const actionString = typeof action === 'string' ? action : (action as any).description || (action as any).text || JSON.stringify(action);
 
         const currentLog = [...log, { id: uuidv4(), type: 'action', content: actionString }];
         setLog(currentLog);
