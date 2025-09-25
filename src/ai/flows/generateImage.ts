@@ -7,6 +7,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { GenerateMediaResponse } from 'genkit';
 
 const GenerateImageInputSchema = z.object({
   prompt: z.string().describe('A detailed text prompt for image generation.'),
@@ -35,19 +36,20 @@ const generateImageFlow = ai.defineFlow(
         outputSchema: GenerateImageOutputSchema,
     },
     async ({ prompt, model, apiKey }) => {
-        const { media } = await ai.generate({
+        const response: GenerateMediaResponse = await ai.generate({
             model: `googleai/${model}`,
             prompt: prompt,
             apiKey: apiKey,
-            config: {
-                responseModalities: ['IMAGE'],
-            },
         });
-        
-        if (!media || !Array.isArray(media) || media.length === 0 || !media[0].url) {
-            throw new Error('Image generation failed to return a valid media object.');
-        }
 
-        return { imageUrl: media[0].url };
+        // Find the image part in the response
+        for (const part of response.parts) {
+            if (part.media) {
+                 // The URL is already a data URI with base64 content
+                return { imageUrl: part.media.url };
+            }
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
     }
 );
