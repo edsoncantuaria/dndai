@@ -106,7 +106,7 @@ export const testAiConnection = async (modelName: string): Promise<string | null
         const response = result.response;
         const textResponse = response.text();
         console.log(`[geminiService (${modelName})] Resposta do teste de conexão:`, textResponse);
-        return textResponse;
+        return `Modelo: ${modelName}\n\n${textResponse}`;
     } catch (error: any) {
         console.error("Erro no teste de conexão com a IA:", error);
         return `Falha ao conectar com a IA (${modelName}). Detalhes: ${error.message}`;
