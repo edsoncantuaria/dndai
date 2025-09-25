@@ -2,21 +2,25 @@
 import React, { useState, useCallback } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2 } from 'lucide-react';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings } from 'lucide-react';
 import ConfirmationModal from './ui/ConfirmationModal';
+import SettingsModal from './SettingsModal';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const Header: React.FC = () => {
     const { character, saveGameToFile } = useGameStateContext();
+    const { model: selectedModel } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
 
 
     const handleTestAi = useCallback(async () => {
         setIsTestingAi(true);
         setAiTestResult(null);
         try {
-            const response = await GeminiService.testAiConnection();
+            const response = await GeminiService.testAiConnection(selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta.");
             }
@@ -29,7 +33,7 @@ const Header: React.FC = () => {
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, []);
+    }, [selectedModel]);
 
     if (!character) {
         return null; // Or a placeholder header
@@ -66,21 +70,30 @@ const Header: React.FC = () => {
                             <div className="font-mono font-bold text-xl text-stone-200">{character.ac.value}</div>
                         </div>
                     </div>
-                    <button 
-                        onClick={handleTestAi}
-                        disabled={isTestingAi}
-                        className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
-                        title="Testar Conexão com a IA"
-                    >
-                        {isTestingAi ? <Loader2 className="h-6 w-6 text-amber-300 animate-spin" /> : <BrainCircuit className="h-6 w-6 text-amber-300" />}
-                    </button>
-                    <button 
-                        onClick={saveGameToFile}
-                        className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
-                        title="Salvar Jogo (Download)"
-                    >
-                        <Save className="h-6 w-6 text-amber-300" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={handleTestAi}
+                            disabled={isTestingAi}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            title="Testar Conexão com a IA"
+                        >
+                            {isTestingAi ? <Loader2 className="h-6 w-6 text-amber-300 animate-spin" /> : <BrainCircuit className="h-6 w-6 text-amber-300" />}
+                        </button>
+                        <button 
+                            onClick={saveGameToFile}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            title="Salvar Jogo (Download)"
+                        >
+                            <Save className="h-6 w-6 text-amber-300" />
+                        </button>
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            title="Configurações"
+                        >
+                            <Settings className="h-6 w-6 text-amber-300" />
+                        </button>
+                    </div>
                 </div>
             </div>
              {aiTestResult && (
@@ -92,6 +105,10 @@ const Header: React.FC = () => {
                     confirmText="OK"
                 />
             )}
+            <SettingsModal
+                isOpen={showSettingsModal}
+                onClose={() => setShowSettingsModal(false)}
+            />
         </>
     );
 };
