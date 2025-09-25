@@ -98,7 +98,8 @@ export const calculateAC = (inventory: InventoryItem[], modifiers: Attributes): 
 
 export const getCantripsKnown = (level1Data?: ApiClassLevel): number => {
     if (!level1Data) return 0;
-    return level1Data?.spellcasting?.cantrips_known || 0;
+    const spellcasting = level1Data.spellcasting || level1Data.class_specific;
+    return spellcasting?.cantrips_known || 0;
 };
 
 // NEW: Centralized logic for spells known calculation
@@ -110,12 +111,12 @@ export const getSpellsKnown = (
 ): number => {
     if (!level1Data || !classDetails || !attributes) return 0;
     
-    const spellcasting = level1Data.spellcasting;
-    if (!spellcasting || !classDetails.spellcasting) return 0;
+    const spellcastingData = level1Data.spellcasting || level1Data.class_specific;
+    if (!spellcastingData || !classDetails.spellcasting) return 0;
 
     // "Spells Known" casters (Bard, Ranger, Sorcerer, Warlock)
-    if (spellcasting.spells_known) {
-        return spellcasting.spells_known;
+    if (spellcastingData.spells_known) {
+        return spellcastingData.spells_known;
     }
 
     // "Prepared" casters (Cleric, Druid, Paladin, Wizard)
@@ -190,12 +191,16 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
     
     // Populate initial spell slots if any
     const level1Data = newCharacter.classLevelsData.find(l => l.level === 1);
-    if (level1Data?.spellcasting) {
-        Object.keys(level1Data.spellcasting).forEach(key => {
+    const spellcastingDataSource = level1Data?.spellcasting || level1Data?.class_specific;
+
+    if (spellcastingDataSource) {
+        Object.keys(spellcastingDataSource).forEach(key => {
             if (key.startsWith('spell_slots_level_')) {
                 const level = key.replace('spell_slots_level_', '');
-                const max = level1Data.spellcasting![key as keyof typeof level1Data.spellcasting] as number;
-                newCharacter.spellSlots[`level${level}`] = { current: max, max: max };
+                const max = spellcastingDataSource[key as keyof typeof spellcastingDataSource] as number;
+                if (max > 0) {
+                    newCharacter.spellSlots[`level${level}`] = { current: max, max: max };
+                }
             }
         });
     }
@@ -231,3 +236,40 @@ export const SKILL_ATTRIBUTE_MAP: Record<string, keyof Attributes> = {
 };
 
 export const ALL_SKILLS = Object.keys(SKILL_ATTRIBUTE_MAP);
+
+export const applyLevelUp = async (character: Character, levelUpState: any, selections: LevelUpSelections): Promise<Character> => {
+    // This is a placeholder for a much more complex function.
+    // In a real scenario, this would involve:
+    // - Increasing HP (either by rolling or taking average)
+    // - Adding new features from class/subclass
+    // - Handling Ability Score Increases or Feats
+    // - Updating spell slots and known/prepared spells
+    console.log("Applying level up with selections:", selections);
+    const newCharacter = { ...character };
+
+    // Placeholder Logic:
+    newCharacter.level = levelUpState.newLevel;
+    newCharacter.xpToNextLevel = getXpThreshold(newCharacter.level);
+    newCharacter.proficiencyBonus = getProficiencyBonus(newCharacter.level);
+    
+    const constitutionModifier = newCharacter.modifiers.constitution;
+    const hpIncrease = selections.hpIncrease ?? (Math.floor(newCharacter.hitDie / 2) + 1) + constitutionModifier;
+    newCharacter.hp.max += hpIncrease;
+    newCharacter.hp.current += hpIncrease;
+
+    if (selections.attributes) {
+        for (const attr in selections.attributes) {
+            const key = attr as keyof Attributes;
+            newCharacter.attributes[key] += selections.attributes[key] || 0;
+        }
+        newCharacter.modifiers = calculateModifiers(newCharacter.attributes);
+    }
+    
+    if (selections.spells) {
+        newCharacter.spells = [...new Set([...newCharacter.spells, ...selections.spells])];
+    }
+    
+    // ... and so on for features, etc.
+    
+    return newCharacter;
+};
