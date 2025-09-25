@@ -111,7 +111,7 @@ export const useNewGameState = () => {
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
-    const { model: selectedModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
+    const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
         return process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
@@ -201,7 +201,7 @@ export const useNewGameState = () => {
             // Add a placeholder entry immediately
             setLog(prev => [...prev, { id: imageLogId, type: 'image', content: 'generating' }]);
 
-            generateImage(response.imagePrompt, apiKeyToUse).then(imageResult => {
+            generateImage(response.imagePrompt, selectedImageModel, apiKeyToUse).then(imageResult => {
                 if (imageResult?.imageUrl) {
                     setLog(prev => prev.map(entry => 
                         entry.id === imageLogId 
@@ -217,7 +217,7 @@ export const useNewGameState = () => {
             });
         }
 
-    }, [getApiKey]);
+    }, [getApiKey, selectedImageModel]);
     
     const processPlayerAction = useCallback(async (action: string | object) => {
         if (!character) return;

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { ChangeEvent, useState } from 'react';
-import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig } from '../contexts/SettingsContext';
+import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, AVAILABLE_IMAGE_MODELS, GenerationConfig } from '../contexts/SettingsContext';
 import { Info, KeyRound } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -49,7 +49,7 @@ const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, toolti
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { model, setModel, ttsModel, setTtsModel, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
+    const { model, setModel, ttsModel, setTtsModel, imageModel, setImageModel, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
     const [localApiKey, setLocalApiKey] = useState(apiKey);
 
     if (!isOpen) return null;
@@ -138,6 +138,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         </select>
                          <p className="text-xs text-stone-500 mt-2">
                            A mudança do modelo de voz será aplicada na próxima narração gerada.
+                        </p>
+                    </div>
+
+                     <div>
+                        <label htmlFor="image-model-select" className="block text-stone-300 font-semibold mb-2">
+                            Modelo de Geração de Imagem
+                        </label>
+                        <select
+                            id="image-model-select"
+                            value={imageModel}
+                            onChange={(e) => setImageModel(e.target.value)}
+                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        >
+                            {AVAILABLE_IMAGE_MODELS.map(modelName => (
+                                <option key={modelName} value={modelName}>
+                                    {modelName}
+                                </option>
+                            ))}
+                        </select>
+                         <p className="text-xs text-stone-500 mt-2">
+                           A mudança do modelo de imagem será aplicada na próxima imagem gerada.
                         </p>
                     </div>
 
