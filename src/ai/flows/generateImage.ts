@@ -38,13 +38,14 @@ const generateImageFlow = ai.defineFlow(
         const { media } = await ai.generate({
             model: `googleai/${model}`,
             prompt: prompt,
-            apiKey: apiKey, // Pass API key directly here
+            apiKey: apiKey, 
         });
-
-        if (!media.url) {
-            throw new Error('Image generation failed to return a URL.');
+        
+        // Correctly access the URL from the media array
+        if (!media || !Array.isArray(media) || media.length === 0 || !media[0].url) {
+            throw new Error('Image generation failed to return a valid media object.');
         }
 
-        return { imageUrl: media.url };
+        return { imageUrl: media[0].url };
     }
 );
