@@ -31,7 +31,7 @@ export const AVAILABLE_IMAGE_MODELS = [
 
 // NEW: Lista completa de vozes nativas do Gemini
 export const AVAILABLE_TTS_VOICES = [
-    "Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", 
+    "Charon", "Puck", "Zephyr", "Kore", "Fenrir", "Leda", "Orus", "Aoede", 
     "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba", 
     "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar", 
     "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", 
