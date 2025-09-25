@@ -3,12 +3,18 @@ import { translateEquipment } from "./TranslatorEquipments";
 
 /**
  * Calculates the point-buy cost to increase an attribute score to the next level.
- * In this system: scores from 8-13 cost 1 point per level.
+ * In D&D 5e: scores from 8-13 cost 1 point per level.
  * Scores from 14-15 cost 2 points per level.
+ * This means the cost increases when the *current* score is 13 or 14.
  * @param currentScore The current base score of the attribute (before purchasing the next level).
  * @returns The cost (1 or 2) to increase the score by one.
  */
-export const getCostOfNextLevel = (currentScore: number): number => (currentScore >= 13 ? 2 : 1);
+export const getCostOfNextLevel = (currentScore: number): number => {
+    if (currentScore >= 13) {
+        return 2;
+    }
+    return 1;
+};
 
 /**
  * Calculates the point refund for decreasing an attribute score.
@@ -16,7 +22,13 @@ export const getCostOfNextLevel = (currentScore: number): number => (currentScor
  * @param currentScore The current base score of the attribute (before decreasing).
  * @returns The amount of points to refund (1 or 2).
  */
-export const getRefundForPrevLevel = (currentScore: number): number => (currentScore > 13 ? 2 : 1);
+export const getRefundForPrevLevel = (currentScore: number): number => {
+    if (currentScore > 13) {
+        return 2;
+    }
+    return 1;
+};
+
 
 /**
  * Generates a human-readable label for an equipment option from the API.
