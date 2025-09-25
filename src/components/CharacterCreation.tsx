@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
 import * as GeminiService from '@/services/geminiService';
 import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
-import ActionModal from './ui/ActionModal';
+import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';

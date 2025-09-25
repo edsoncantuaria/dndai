@@ -3,7 +3,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
 import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
-import ActionModal from './ui/ActionModal';
+import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import Image from 'next/image';

@@ -55,7 +55,7 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
     // Caso contrário, mostra a tela de menu/criação.
     return (
         <CharacterCreation 
-            startNewGameFlow={startNewGameFlow} 
+            startNewGameFlow={startNewGameFlow}
             onCharacterCreated={onCharacterCreated} 
             onContinueGame={onContinueGame}
             isCreating={gameStage === 'creating'}

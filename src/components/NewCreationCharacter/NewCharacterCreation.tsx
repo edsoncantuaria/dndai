@@ -11,7 +11,7 @@ import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLangu
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from '../Spells/NewStep6_Spells';
 import NewStep8_Finalize from './NewStep8_Finalize';
-import ConfirmationModal from '../ui/ConfirmationModal';
+import ActionModal from '../ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 
 interface NewCharacterCreationProps {
@@ -119,16 +119,21 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             <main className="mt-6 flex-grow">
                 {renderStep()}
             </main>
+            
+            {showConfirmationModal && (
+                 <ActionModal
+                    isOpen={showConfirmationModal}
+                    title="Iniciar Aventura?"
+                    onClose={() => setShowConfirmationModal(false)}
+                    actions={[
+                        { text: "Não, voltar", onClick: () => setShowConfirmationModal(false), variant: 'secondary' },
+                        { text: "Sim, iniciar aventura!", onClick: handleFinalizeAndSubmit, variant: 'primary' }
+                    ]}
+                >
+                    <p className="text-stone-300">{`Você está prestes a começar sua jornada como ${hook.name || 'um herói sem nome'}. Uma vez iniciada, a história não poderá ser alterada. Deseja continuar?`}</p>
+                </ActionModal>
+            )}
 
-            <ConfirmationModal
-                isOpen={showConfirmationModal}
-                title="Iniciar Aventura?"
-                message={`Você está prestes a começar sua jornada como ${hook.name || 'um herói sem nome'}. Uma vez iniciada, a história não poderá ser alterada. Deseja continuar?`}
-                onConfirm={handleFinalizeAndSubmit}
-                onCancel={() => setShowConfirmationModal(false)}
-                confirmText="Sim, iniciar aventura!"
-                cancelText="Não, voltar"
-            />
         </div>
     );
 };
