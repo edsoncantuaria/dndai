@@ -7,7 +7,6 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { GenerateMediaResponse } from 'genkit/media';
 
 const GenerateImageInputSchema = z.object({
   prompt: z.string().describe('A detailed text prompt for image generation.'),
@@ -36,8 +35,7 @@ const generateImageFlow = ai.defineFlow(
         outputSchema: GenerateImageOutputSchema,
     },
     async ({ prompt, model, apiKey }) => {
-        // Use the GenerateMediaResponse type for the response
-        const response: GenerateMediaResponse = await ai.generate({
+        const response = await ai.generate({
             model: `googleai/${model}`,
             prompt: prompt,
             apiKey: apiKey,
@@ -45,9 +43,10 @@ const generateImageFlow = ai.defineFlow(
 
         // The response contains media parts. Find the first image.
         for (const part of response.parts) {
-            if (part.media && part.media.url) {
+            if (part.inlineData) {
                 // The URL is already a data URI with base64 content
-                return { imageUrl: part.media.url };
+                const { mimeType, data } = part.inlineData;
+                return { imageUrl: `data:${mimeType};base64,${data}` };
             }
         }
         
