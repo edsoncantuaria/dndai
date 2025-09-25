@@ -84,8 +84,8 @@ const LevelUpModal: React.FC = () => {
 
     const handleFeatureSelection = (choiceId: string, selectionIndex: string, choose: number) => {
         setFeatureSelections(prev => {
-            const currentSelections = prev[choiceId] || [];
             const newSelections = { ...prev };
+            const currentSelections = prev[choiceId] || [];
 
             if (currentSelections.includes(selectionIndex)) {
                 newSelections[choiceId] = currentSelections.filter(s => s !== selectionIndex);
@@ -313,3 +313,5 @@ const LevelUpModal: React.FC = () => {
 };
 
 export default LevelUpModal;
+
+    
