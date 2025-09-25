@@ -11,6 +11,7 @@ export const AVAILABLE_MODELS = [
     "gemini-2.0-flash-lite", 
     "gemini-1.0-pro",
     "gemma-7b-it",
+    "gemma-3-27b-it",
 ];
 
 export const AVAILABLE_TTS_MODELS = [
