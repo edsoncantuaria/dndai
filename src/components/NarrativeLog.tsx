@@ -1,7 +1,55 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit } from 'lucide-react';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
+import { textToSpeech } from '@/ai/flows/textToSpeech';
+
+const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
+    const [audioData, setAudioData] = useState<string | null>(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const audioRef = useRef<HTMLAudioElement>(null);
+
+    const handlePlay = async () => {
+        if (audioData) {
+            audioRef.current?.play();
+            setIsPlaying(true);
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const response = await textToSpeech(text);
+            if (response?.media) {
+                setAudioData(response.media);
+            }
+        } catch (error) {
+            console.error("Error generating speech:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (audioData && audioRef.current) {
+            audioRef.current.src = audioData;
+            audioRef.current.play();
+            setIsPlaying(true);
+        }
+    }, [audioData]);
+
+    const handleAudioEnded = () => {
+        setIsPlaying(false);
+    };
+
+    return (
+        <div className="inline-block ml-2">
+            <button onClick={handlePlay} disabled={isLoading || isPlaying} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className="h-4 w-4" />}
+            </button>
+            {audioData && <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />}
+        </div>
+    );
+};
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
@@ -75,7 +123,12 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let content;
     switch(entry.type) {
         case 'narration':
-            content = <p className="text-stone-300 font-garamond text-lg italic leading-relaxed">{entry.content}</p>;
+            content = (
+                <div className="flex items-start">
+                    <p className="text-stone-300 font-garamond text-lg italic leading-relaxed flex-grow">{entry.content}</p>
+                    <AudioPlayer text={entry.content} />
+                </div>
+            );
             break;
         case 'action':
             content = (
