@@ -193,10 +193,15 @@ export const useNewGameState = () => {
         // Handle image generation
         if (response.imagePrompt) {
             const imageLogId = uuidv4();
+            const apiKeyToUse = getApiKey();
+            if (!apiKeyToUse) {
+                console.warn("Nenhuma chave de API para geração de imagem, pulando.");
+                return;
+            }
             // Add a placeholder entry immediately
             setLog(prev => [...prev, { id: imageLogId, type: 'image', content: 'generating' }]);
 
-            generateImage(response.imagePrompt).then(imageResult => {
+            generateImage(response.imagePrompt, apiKeyToUse).then(imageResult => {
                 if (imageResult?.imageUrl) {
                     // Update the placeholder with the actual image
                     setLog(prev => prev.map(entry => 
@@ -211,7 +216,7 @@ export const useNewGameState = () => {
             });
         }
 
-    }, []);
+    }, [getApiKey]);
     
     const processPlayerAction = useCallback(async (action: string | object) => {
         if (!character) return;
@@ -429,6 +434,7 @@ export const useNewGameState = () => {
         isLoading,
         apiError,
         clearApiError,
+        getApiKey,
         createCharacter,
         startGame,
         processPlayerAction,

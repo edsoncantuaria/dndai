@@ -8,6 +8,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 import wav from 'wav';
+import { googleAI } from '@genkit-ai/googleai';
 
 async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 2): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -34,6 +35,7 @@ async function toWav(pcmData: Buffer, channels = 1, rate = 24000, sampleWidth = 
 const flowInputSchema = z.object({
   text: z.string(),
   model: z.string(),
+  apiKey: z.string().optional(),
 });
 
 const textToSpeechFlow = ai.defineFlow(
@@ -42,8 +44,10 @@ const textToSpeechFlow = ai.defineFlow(
         inputSchema: flowInputSchema,
         outputSchema: z.object({ media: z.string() }),
     },
-    async ({text, model}) => {
-        const { media } = await ai.generate({
+    async ({text, model, apiKey}) => {
+        const customAI = apiKey ? genkit({ plugins: [googleAI({ apiKey })] }) : ai;
+
+        const { media } = await customAI.generate({
             model: `googleai/${model}`,
             config: {
                 responseModalities: ['AUDIO'],
@@ -73,9 +77,9 @@ const textToSpeechFlow = ai.defineFlow(
     }
 );
 
-export async function textToSpeech(text: string, model: string): Promise<{ media: string } | null> {
+export async function textToSpeech(text: string, model: string, apiKey?: string): Promise<{ media: string } | null> {
     try {
-        return await textToSpeechFlow({text, model});
+        return await textToSpeechFlow({text, model, apiKey});
     } catch (error) {
         console.error("Error in textToSpeech flow:", error);
         return null;

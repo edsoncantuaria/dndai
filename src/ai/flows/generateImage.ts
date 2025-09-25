@@ -7,18 +7,20 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { googleAI } from '@genkit-ai/googleai';
 
 const GenerateImageInputSchema = z.object({
   prompt: z.string().describe('A detailed text prompt for image generation.'),
+  apiKey: z.string().optional().describe('The API key for Google AI.'),
 });
 
 const GenerateImageOutputSchema = z.object({
   imageUrl: z.string().describe('The generated image as a data URI.'),
 });
 
-export async function generateImage(prompt: string): Promise<{ imageUrl: string } | null> {
+export async function generateImage(prompt: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
     try {
-        const result = await generateImageFlow({ prompt });
+        const result = await generateImageFlow({ prompt, apiKey });
         return result;
     } catch (error) {
         console.error('Error in generateImage flow:', error);
@@ -32,8 +34,10 @@ const generateImageFlow = ai.defineFlow(
         inputSchema: GenerateImageInputSchema,
         outputSchema: GenerateImageOutputSchema,
     },
-    async ({ prompt }) => {
-        const { media } = await ai.generate({
+    async ({ prompt, apiKey }) => {
+        const customAI = apiKey ? genkit({ plugins: [googleAI({ apiKey })] }) : ai;
+
+        const { media } = await customAI.generate({
             model: 'googleai/imagen-4.0-fast-generate-001',
             prompt: prompt,
         });

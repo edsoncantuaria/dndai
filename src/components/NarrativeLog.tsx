@@ -11,7 +11,8 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const { ttsModel } = useSettingsContext();
+    const { ttsModel, apiKey: userApiKey } = useSettingsContext();
+    const { getApiKey } = useGameStateContext();
 
     const handlePlay = async () => {
         if (audioData) {
@@ -21,7 +22,11 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
         }
         setIsLoading(true);
         try {
-            const response = await textToSpeech(text, ttsModel);
+            const apiKeyToUse = getApiKey();
+            if (!apiKeyToUse) {
+                throw new Error("Chave de API não encontrada.");
+            }
+            const response = await textToSpeech(text, ttsModel, apiKeyToUse);
             if (response?.media) {
                 setAudioData(response.media);
             }
