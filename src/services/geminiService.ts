@@ -13,7 +13,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "");
 
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
-- **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida.
+- **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida. Use o array 'logEntries' com o tipo 'narration' para toda a descrição de cenas e eventos.
 - **Regras:** Siga as regras de D&D 5e para combate, testes de perícia e habilidades, mas priorize a história e a diversão. Você é responsável por todas as rolagens de dados.
 - **Agência do Jogador:** Sempre apresente escolhas significativas. Use 'actionOptions' para sugerir os próximos passos.
 - **Estado do Personagem:** Você é responsável por rastrear TODO o estado do jogo. Retorne APENAS as partes alteradas do estado do personagem em 'updatedCharacter'.
@@ -78,9 +78,19 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         const jsonText = response.text();
         console.log(`[geminiService (${modelName})] Resposta da IA recebida:`, jsonText); 
 
-        const responseData = JSON.parse(jsonText) as GameMasterResponse;
+        const responseData = JSON.parse(jsonText) as any; // Parse como 'any' para checar a estrutura
+
+        // Adaptador: Checa se a IA enviou 'narration' em vez de 'logEntries'
+        if (responseData.narration && typeof responseData.narration === 'string') {
+            if (!responseData.logEntries) {
+                responseData.logEntries = [];
+            }
+            // Adiciona a narração ao início do array de logs
+            responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
+            delete responseData.narration; // Remove o campo antigo para evitar confusão
+        }
         
-        return responseData;
+        return responseData as GameMasterResponse;
 
     } catch (error) {
         console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
