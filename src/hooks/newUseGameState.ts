@@ -334,25 +334,18 @@ export const useNewGameState = () => {
 
     const applyLevelUp = useCallback(async (selections: LevelUpSelections) => {
         if (!character || !levelUpState || !levelUpState.isPending) return;
-        console.log('Aplicando level up com as seleções:', selections);
         
-        setCharacter(prev => {
-            if (!prev) return null;
-            const newChar = { ...prev };
-            newChar.level = levelUpState.newLevel;
-            newChar.xpToNextLevel = characterUtils.getXpThreshold(newChar.level);
+        setIsLoading(true);
+        
+        const updatedChar = await characterUtils.applyLevelUp(character, levelUpState, selections);
 
-            if (selections.hpIncrease) {
-                newChar.hp.max += selections.hpIncrease;
-                newChar.hp.current += selections.hpIncrease;
-            }
+        setCharacter(updatedChar);
 
-            return newChar;
-        });
-
-        setLevelUpState(prev => prev ? { ...prev, isPending: false } : null);
+        setLevelUpState(prev => prev ? { ...prev, isPending: false, choices: {} } : null);
         setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` }]);
         setActionOptions([]);
+        setIsLoading(false);
+
     }, [character, levelUpState]);
 
     const toggleEquipped = useCallback((itemId: string) => {
