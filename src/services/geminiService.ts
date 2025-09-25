@@ -25,14 +25,6 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Saída JSON:** Você DEVE responder com um objeto JSON válido. Não inclua nenhum texto ou formatação fora do objeto JSON.
 - **Idioma:** O jogo é em português do Brasil. Toda a sua narração e texto devem estar em pt-BR.`;
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-1.5-flash",
-  systemInstruction: {
-    role: "model",
-    parts: [{ text: systemInstruction }],
-  },
-});
-
 const generationConfig = {
     temperature: 1,
     topP: 0.95,
@@ -44,7 +36,6 @@ const generationConfig = {
 const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
     
-    // Constrói uma versão mais limpa e legível do personagem para o prompt
     const characterContext = JSON.stringify(character, null, 2);
     const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
 
@@ -61,7 +52,7 @@ Com base no estado atual do personagem e no histórico, continue a aventura.
     `;
 }
 
-export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMasterResponse | null> => {
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
       console.error("GOOGLE_API_KEY não está definida. O serviço de IA não funcionará.");
       return {
@@ -69,6 +60,15 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
         actionOptions: ['Tentar novamente mais tarde.'],
       };
     }
+
+    const model = genAI.getGenerativeModel({
+        model: modelName, // Usa o modelo dinâmico passado como parâmetro
+        systemInstruction: {
+            role: "model",
+            parts: [{ text: systemInstruction }],
+        },
+    });
+
     try {
         const prompt = createPrompt(input);
         
@@ -79,14 +79,14 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
 
         const response = result.response;
         const jsonText = response.text();
-        console.log("[geminiService] Resposta da IA recebida:", jsonText); 
+        console.log(`[geminiService (${modelName})] Resposta da IA recebida:`, jsonText); 
 
         const responseData = JSON.parse(jsonText) as GameMasterResponse;
         
         return responseData;
 
     } catch (error) {
-        console.error("Erro ao chamar ou processar a resposta da API do Gemini:", error);
+        console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
         return {
             logEntries: [{ type: 'system', content: `O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}` }],
             actionOptions: ['Tentar uma ação diferente.'],
@@ -94,21 +94,21 @@ export const getGameUpdate = async (input: GameMasterFlowInput): Promise<GameMas
     }
 };
 
-export const testAiConnection = async (): Promise<string | null> => {
+export const testAiConnection = async (modelName: string): Promise<string | null> => {
      if (!apiKey) {
         return "Erro: A chave da API do Google não está configurada no servidor.";
     }
     try {
-        const testModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const testModel = genAI.getGenerativeModel({ model: modelName });
         const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
-        console.log("[geminiService] Testando conexão com a IA com o prompt:", prompt);
+        console.log(`[geminiService (${modelName})] Testando conexão com a IA com o prompt:`, prompt);
         const result = await testModel.generateContent(prompt);
         const response = result.response;
         const textResponse = response.text();
-        console.log("[geminiService] Resposta do teste de conexão:", textResponse);
+        console.log(`[geminiService (${modelName})] Resposta do teste de conexão:`, textResponse);
         return textResponse;
     } catch (error: any) {
         console.error("Erro no teste de conexão com a IA:", error);
-        return `Falha ao conectar com a IA. Detalhes: ${error.message}`;
+        return `Falha ao conectar com a IA (${modelName}). Detalhes: ${error.message}`;
     }
 };

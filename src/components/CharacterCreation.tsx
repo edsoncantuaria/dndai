@@ -8,7 +8,9 @@ import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ConfirmationModal from './ui/ConfirmationModal';
-import { BrainCircuit, Loader2 } from 'lucide-react';
+import SettingsModal from './SettingsModal'; // Importando o novo modal
+import { BrainCircuit, Loader2, Settings } from 'lucide-react';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
@@ -19,10 +21,12 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
+    const { model: selectedModel } = useSettingsContext(); // Pega o modelo selecionado
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
+    const [showSettingsModal, setShowSettingsModal] = useState(false); // Estado para o modal de configurações
     
     // State for AI Test
     const [isTestingAi, setIsTestingAi] = useState(false);
@@ -90,7 +94,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setIsTestingAi(true);
         setAiTestResult(null);
         try {
-            const response = await GeminiService.testAiConnection();
+            // Passa o modelo selecionado para a função de teste
+            const response = await GeminiService.testAiConnection(selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta.");
             }
@@ -103,7 +108,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, []);
+    }, [selectedModel]); // Adiciona o modelo como dependência
     
     // --- Render Logic ---
     if (isLoading && !character) { 
@@ -134,14 +139,21 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                         onLoadGame={onContinueGame}
                         onImportFile={loadGameFromFile}
                     />
-                    <div className="mt-4">
+                    <div className="mt-6 flex justify-center items-center gap-4">
                          <button
                             onClick={handleTestAi}
                             disabled={isTestingAi}
-                            className="menu-button btn-import text-sm max-w-xs mx-auto"
+                            className="menu-button btn-import text-sm max-w-xs"
                         >
                             {isTestingAi ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2"/>}
                             {isTestingAi ? 'Testando...' : 'Testar IA'}
+                        </button>
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="p-3 rounded-full bg-stone-700/80 hover:bg-stone-600 transition-colors"
+                            title="Configurações"
+                        >
+                            <Settings className="h-6 w-6 text-amber-300" />
                         </button>
                     </div>
                      <ConfirmationModal
@@ -162,6 +174,10 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                             confirmText="OK"
                         />
                      )}
+                     <SettingsModal 
+                        isOpen={showSettingsModal}
+                        onClose={() => setShowSettingsModal(false)}
+                     />
                 </main>
             </div>
         );

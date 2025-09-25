@@ -6,6 +6,7 @@ import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
+import { useSettingsContext } from '@/contexts/SettingsContext'; // Importar o contexto de configurações
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -19,6 +20,7 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const { model: selectedModel } = useSettingsContext(); // Obter o modelo de IA selecionado
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -32,9 +34,34 @@ export const useNewGameState = () => {
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
     
     // Carrega o jogo salvo ao montar o componente.
+    const loadGameFromLocalStorage = useCallback(() => {
+         setIsLoading(true);
+         try {
+            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedGame) {
+                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest } = JSON.parse(savedGame);
+                setCharacter(savedCharacter);
+                setLog(savedLog || []);
+                setActionOptions(savedActionOptions || []);
+                setCombatState(savedCombatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                setLevelUpState(savedLevelUpState || null);
+                setShopState(savedShopState || null);
+                setPendingLootOffer(savedPendingLootOffer || null);
+                setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
+            }
+        } catch (error) {
+            console.error("Falha ao carregar o jogo:", error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    // Efeito para carregar o jogo na inicialização do hook
     useEffect(() => {
         loadGameFromLocalStorage();
-    }, []);
+    }, [loadGameFromLocalStorage]);
+
 
     // Salva o jogo sempre que o estado relevante muda.
     useEffect(() => {
@@ -88,7 +115,6 @@ export const useNewGameState = () => {
     const processPlayerAction = useCallback(async (action: string | object) => {
         if (!character) return;
         
-        // Define o estado de carregamento ANTES da chamada assíncrona
         setIsLoading(true);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
@@ -103,26 +129,28 @@ export const useNewGameState = () => {
             return;
         }
 
-        const newLogEntry = { id: uuidv4(), type: 'action', content: actionText };
+        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: actionText };
         const currentLog = [...log, newLogEntry];
-        setLog(currentLog); // Atualiza o log imediatamente
-        setActionOptions([]); // Limpa as opções de ação
+        setLog(currentLog); 
+        setActionOptions([]); 
         
-        const gameUpdateInput = {
+        const gameUpdateInput: geminiService.GameMasterFlowInput = {
             character,
             playerAction: actionText,
             gameLog: currentLog,
         };
         
-        const response = await geminiService.getGameUpdate(gameUpdateInput);
+        // Passar o modelo selecionado para o serviço Gemini
+        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel);
         
         handleApiResponse(response);
-        setIsLoading(false); // Desativa o carregamento APÓS a resposta ser processada
+        setIsLoading(false); 
 
-    }, [character, log, handleApiResponse]);
+    }, [character, log, handleApiResponse, selectedModel]);
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
+        localStorage.removeItem(LOCAL_STORAGE_KEY); // Limpa qualquer jogo antigo
         setLog([]); 
         setActionOptions([]);
         
@@ -138,47 +166,24 @@ export const useNewGameState = () => {
         setIsLoading(true);
         setActionOptions([]); 
         
-        const gameUpdateInput = {
+        const gameUpdateInput: geminiService.GameMasterFlowInput = {
             character,
             playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
             gameLog: []
         };
         
-        const response = await geminiService.getGameUpdate(gameUpdateInput);
+        const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel);
         
         handleApiResponse(response);
         setIsLoading(false);
         
-    }, [character, log.length, isLoading, handleApiResponse]);
+    }, [character, log.length, isLoading, handleApiResponse, selectedModel]);
     
     const checkForSavedGame = useCallback(() => {
         try {
             return !!localStorage.getItem(LOCAL_STORAGE_KEY);
         } catch (e) {
             return false;
-        }
-    }, []);
-
-    const loadGameFromLocalStorage = useCallback(() => {
-         setIsLoading(true);
-         try {
-            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedGame) {
-                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest } = JSON.parse(savedGame);
-                setCharacter(savedCharacter);
-                setLog(savedLog || []);
-                setActionOptions(savedActionOptions || []);
-                setCombatState(savedCombatState || { isActive: false, round: 0, turn: 0, combatants: [] });
-                setLevelUpState(savedLevelUpState || null);
-                setShopState(savedShopState || null);
-                setPendingLootOffer(savedPendingLootOffer || null);
-                setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
-            }
-        } catch (error) {
-            console.error("Falha ao carregar o jogo:", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-        } finally {
-            setIsLoading(false);
         }
     }, []);
 
@@ -193,7 +198,7 @@ export const useNewGameState = () => {
             a.href = url;
             a.download = "crônicas-de-aventuras.json";
             document.body.appendChild(a);
-a.click();
+            a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         } catch (error) {
@@ -217,7 +222,6 @@ a.click();
                     setShopState(parsedState.shopState || null);
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
-                    // Salva o estado importado no localStorage imediatamente
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {

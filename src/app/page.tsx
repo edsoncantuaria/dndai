@@ -2,6 +2,7 @@
 import { GameStateProvider, useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect } from 'react';
+import { SettingsProvider } from '@/contexts/SettingsContext';
 
 // Define os estágios do jogo para controlar o fluxo da UI
 type GameStage = 'menu' | 'creating' | 'created' | 'playing';
@@ -66,15 +67,17 @@ const HomePageContent = () => {
     );
 };
 
-// O componente principal agora envolve tudo com o Provider.
+// O componente principal agora envolve tudo com os Providers.
 export default function HomePage() {
   return (
     <main
       className="h-full w-full bg-gradient-to-br from-black via-stone-900 to-red-950 p-2 md:p-4 flex items-center justify-center"
     >
-       <GameStateProvider>
-            <HomePageContent />
-       </GameStateProvider>
+        <SettingsProvider>
+            <GameStateProvider>
+                <HomePageContent />
+            </GameStateProvider>
+        </SettingsProvider>
     </main>
   );
 }
