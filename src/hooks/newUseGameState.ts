@@ -190,7 +190,7 @@ export const useNewGameState = () => {
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
 
-        // Handle image generation
+        // Handle image generation silently
         if (response.imagePrompt) {
             const imageLogId = uuidv4();
             const apiKeyToUse = getApiKey();
@@ -203,16 +203,17 @@ export const useNewGameState = () => {
 
             generateImage(response.imagePrompt, apiKeyToUse).then(imageResult => {
                 if (imageResult?.imageUrl) {
-                    // Update the placeholder with the actual image
                     setLog(prev => prev.map(entry => 
                         entry.id === imageLogId 
                             ? { ...entry, content: imageResult.imageUrl } 
                             : entry
                     ));
                 } else {
-                     // Remove placeholder if generation fails
                      setLog(prev => prev.filter(entry => entry.id !== imageLogId));
                 }
+            }).catch(error => {
+                console.error("Image generation failed silently:", error);
+                setLog(prev => prev.filter(entry => entry.id !== imageLogId));
             });
         }
 
@@ -225,7 +226,7 @@ export const useNewGameState = () => {
         setApiError(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
-        const previousActionOptions = actionOptions; // Salva as opções anteriores
+        const previousActionOptions = actionOptions;
 
         const actionText = (typeof action === 'object' && action !== null) 
             ? (action as any).text || (action as any).description 
@@ -262,9 +263,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            // Restaura as opções para o jogador não ficar preso
             setActionOptions(previousActionOptions);
-            // Remove a ação do jogador do log para evitar confusão no próximo turno
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 

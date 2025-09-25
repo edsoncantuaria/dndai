@@ -24,14 +24,18 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
         try {
             const apiKeyToUse = getApiKey();
             if (!apiKeyToUse) {
+                console.warn("Chave de API não encontrada para TTS, pulando.");
                 throw new Error("Chave de API não encontrada.");
             }
             const response = await textToSpeech(text, ttsModel, apiKeyToUse);
             if (response?.media) {
                 setAudioData(response.media);
+            } else {
+                throw new Error("Falha ao gerar áudio.");
             }
         } catch (error) {
-            console.error("Error generating speech:", error);
+            console.error("Error generating speech silently:", error);
+            // Don't show an error to the user, just stop loading.
         } finally {
             setIsLoading(false);
         }
