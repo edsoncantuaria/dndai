@@ -6,10 +6,6 @@ export const AVAILABLE_MODELS = [
     "gemini-1.5-flash",
     "gemini-1.5-pro",
     "gemini-1.0-pro",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-flash-8b"
 ];
 
 export interface GenerationConfig {
@@ -25,6 +21,8 @@ const LOCAL_STORAGE_KEY = 'rpg-settings';
 interface SettingsContextType {
     model: string;
     setModel: (model: string) => void;
+    apiKey: string;
+    setApiKey: (key: string) => void;
     generationConfig: GenerationConfig;
     setGenerationConfig: (config: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => void;
 }
@@ -41,6 +39,7 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoaded, setIsLoaded] = useState(false);
     const [model, setModel] = useState<string>(AVAILABLE_MODELS[0]);
+    const [apiKey, setApiKey] = useState<string>('');
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultGenerationConfig);
 
     useEffect(() => {
@@ -50,6 +49,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 const parsed = JSON.parse(savedSettings);
                 if (parsed.model && AVAILABLE_MODELS.includes(parsed.model)) {
                     setModel(parsed.model);
+                }
+                if(parsed.apiKey) {
+                    setApiKey(parsed.apiKey);
                 }
                 if (parsed.generationConfig) {
                     setGenerationConfig(prev => ({ ...prev, ...parsed.generationConfig }));
@@ -64,15 +66,15 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         if(isLoaded) {
             try {
-                const settings = { model, generationConfig };
+                const settings = { model, apiKey, generationConfig };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
             } catch (error) {
                 console.error("Failed to save settings to localStorage:", error);
             }
         }
-    }, [model, generationConfig, isLoaded]);
+    }, [model, apiKey, generationConfig, isLoaded]);
 
-    const value = { model, setModel, generationConfig, setGenerationConfig };
+    const value = { model, setModel, apiKey, setApiKey, generationConfig, setGenerationConfig };
 
     return (
         <SettingsContext.Provider value={value}>

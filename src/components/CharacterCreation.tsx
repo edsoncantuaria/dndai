@@ -21,7 +21,7 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
-    const { model: selectedModel, generationConfig } = useSettingsContext(); // Pega o modelo e a config
+    const { model: selectedModel, generationConfig, apiKey: userApiKey } = useSettingsContext(); // Pega o modelo e a config
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -94,8 +94,9 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setIsTestingAi(true);
         setAiTestResult(null);
         try {
+            const apiKeyToUse = process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
             // Passa o modelo selecionado para a função de teste
-            const response = await GeminiService.testAiConnection(selectedModel, generationConfig);
+            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKeyToUse);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta.");
             }
@@ -108,7 +109,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel, generationConfig]); // Adiciona a config como dependência
+    }, [selectedModel, generationConfig, userApiKey]); // Adiciona a config como dependência
     
     // --- Render Logic ---
     if (isLoading && !character) { 

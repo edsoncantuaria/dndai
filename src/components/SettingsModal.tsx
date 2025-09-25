@@ -1,8 +1,8 @@
 'use client';
 
-import React, { ChangeEvent } from 'react';
+import React, { ChangeEvent, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, GenerationConfig } from '../contexts/SettingsContext';
-import { Info } from 'lucide-react';
+import { Info, KeyRound } from 'lucide-react';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -49,7 +49,8 @@ const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, toolti
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { model, setModel, generationConfig, setGenerationConfig } = useSettingsContext();
+    const { model, setModel, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
+    const [localApiKey, setLocalApiKey] = useState(apiKey);
 
     if (!isOpen) return null;
     
@@ -61,11 +62,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         }));
     };
 
+    const handleSaveAndClose = () => {
+        setApiKey(localApiKey);
+        onClose();
+    }
+
     return (
         <div 
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
             style={{ animationDuration: '200ms' }}
-            onClick={onClose}
+            onClick={handleSaveAndClose}
         >
             <div 
                 className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
@@ -73,9 +79,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             >
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
                     <h2 className="text-xl font-bold font-garamond text-amber-300">Configurações</h2>
-                    <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
+                    <button onClick={handleSaveAndClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
                 </header>
                 <main className="p-6 space-y-6 overflow-y-auto">
+                     <div>
+                        <label htmlFor="api-key-input" className="block text-stone-300 font-semibold mb-2 flex items-center gap-2">
+                           <KeyRound className="h-4 w-4"/> Chave de API do Google AI
+                        </label>
+                         <input
+                            id="api-key-input"
+                            type="password"
+                            value={localApiKey}
+                            onChange={(e) => setLocalApiKey(e.target.value)}
+                            placeholder="Cole sua chave aqui"
+                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                        />
+                         <p className="text-xs text-stone-500 mt-2">
+                            Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
+                        </p>
+                    </div>
+
                     <div>
                         <label htmlFor="ai-model-select" className="block text-stone-300 font-semibold mb-2">
                             Modelo de IA do Mestre
@@ -136,10 +159,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 </main>
                 <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
                     <button
-                        onClick={onClose}
+                        onClick={handleSaveAndClose}
                         className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors"
                     >
-                        Fechar
+                        Salvar e Fechar
                     </button>
                 </footer>
             </div>

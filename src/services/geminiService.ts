@@ -5,12 +5,10 @@ import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOff
 import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
 import { GenerationConfig } from "@/contexts/SettingsContext";
 
-const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
-  console.warn("A variável de ambiente GOOGLE_API_KEY não está definida.");
+// Esta função agora aceita a chave de API como um argumento.
+const getGenAI = (apiKey: string) => {
+    return new GoogleGenerativeAI(apiKey);
 }
-
-const genAI = new GoogleGenerativeAI(apiKey || "");
 
 const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
 - **Narração:** Teça uma narrativa rica. Descreva o mundo, as pessoas e as consequências das ações do jogador de forma vívida. Use o array 'logEntries' com o tipo 'narration' para toda a descrição de cenas e eventos.
@@ -46,10 +44,11 @@ Com base no estado atual do personagem e no histórico, continue a aventura.
     `;
 }
 
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig): Promise<GameMasterResponse | null> => {
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
-      throw new Error("Erro: A chave da API do Google não foi configurada no servidor.");
+      throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
     }
+    const genAI = getGenAI(apiKey);
 
     const model = genAI.getGenerativeModel({
         model: modelName,
@@ -95,14 +94,14 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     }
 };
 
-export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig): Promise<string | null> => {
+export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<string | null> => {
      if (!apiKey) {
-        return "Erro: A chave da API do Google não está configurada no servidor.";
+        return "Erro: Nenhuma chave de API fornecida ou configurada. Por favor, adicione uma chave nas configurações.";
     }
     try {
+        const genAI = getGenAI(apiKey);
         const testModel = genAI.getGenerativeModel({ model: modelName });
         const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
-        console.log(`[geminiService (${modelName})] Testando conexão com a IA com o prompt:`, prompt);
         
         const result = await testModel.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -114,7 +113,6 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 
         const response = result.response;
         const textResponse = response.text();
-        console.log(`[geminiService (${modelName})] Resposta do teste de conexão:`, textResponse);
         return `Modelo: ${modelName}\n\n${textResponse}`;
     } catch (error: any) {
         console.error("Erro no teste de conexão com a IA:", error);

@@ -110,7 +110,11 @@ export const useNewGameState = () => {
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
-    const { model: selectedModel, generationConfig } = useSettingsContext();
+    const { model: selectedModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
+
+    const getApiKey = useCallback(() => {
+        return process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
+    }, [userApiKey]);
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
@@ -159,7 +163,7 @@ export const useNewGameState = () => {
         }
     }, [character, log, saveGame, isLoading]);
 
-    const handleApiResponse = useCallback((response: geminiService.GeminiResponse | null) => {
+    const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
             throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         }
@@ -214,13 +218,17 @@ export const useNewGameState = () => {
         const currentLog = [...log, newLogEntry];
         
         try {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+            }
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: actionText,
                 gameLog: currentLog,
             };
             
-            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
+            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
             
             handleApiResponse(response);
 
@@ -235,7 +243,7 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig]);
+    }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -259,13 +267,17 @@ export const useNewGameState = () => {
         setApiError(null);
         
         try {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+            }
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
                 gameLog: []
             };
             
-            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig);
+            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
             
             handleApiResponse(response);
         } catch (error: any) {
@@ -275,7 +287,7 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
         
-    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig]);
+    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey]);
     
     const checkForSavedGame = useCallback(() => {
         try {
