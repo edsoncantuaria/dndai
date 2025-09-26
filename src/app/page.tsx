@@ -76,7 +76,7 @@ const HomePageContent = () => {
     // o menu/criação ou a tela de jogo principal.
     return (
         <>
-            <audio ref={menuAudioRef} src="/audio/inicio.mp3" loop />
+            <audio ref={menuAudioRef} src="/audio/index/inicio.mp3" loop />
             <Game
                 startNewGameFlow={startNewGameFlow}
                 onCharacterCreated={onCharacterCreated}
