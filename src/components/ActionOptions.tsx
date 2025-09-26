@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
 import DiceRollModal from './ui/DiceRollModal';
