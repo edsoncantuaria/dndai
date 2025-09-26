@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "copy-dice-assets": "node ./copy-dice-assets.js",
+    "postinstall": "npm run copy-dice-assets"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
@@ -33,6 +35,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/uuid": "^10.0.0",
+    "fs-extra": "^11.2.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"

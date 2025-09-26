@@ -15,20 +15,30 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const diceBoxInstance = useRef<DiceBox | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [rollResult, setRollResult] = useState<{ total: number; rolls: number[] } | null>(null);
+  const [hasRolled, setHasRolled] = useState(false);
 
   // Efeito para inicializar o DiceBox
   useEffect(() => {
     if (diceBoxRef.current && !diceBoxInstance.current) {
-      const diceBox = new DiceBox("#dice-box", {
+      const diceBox = new DiceBox({
+        container: diceBoxRef.current, // Pass the element directly
         assetPath: '/assets/dice-box/',
         theme: 'default',
         offscreen: true,
         scale: 6,
       });
+      
       diceBox.init().then(() => {
         diceBoxInstance.current = diceBox;
         console.log("DiceBox na arena de rolagem inicializado.");
+      }).catch(e => {
+        console.error("Falha ao inicializar o DiceBox:", e);
       });
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      diceBoxInstance.current?.clear();
     }
   }, []);
 
@@ -36,8 +46,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     if (!diceBoxInstance.current || isRolling) return;
     
     setIsRolling(true);
-    setRollResult(null); // Limpa o resultado anterior
-    
+    setHasRolled(true);
     console.log("Objeto PlayerRollRequest recebido e sendo rolado:", JSON.stringify(request, null, 2));
 
     try {
@@ -64,15 +73,13 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       
       const total = finalRollResult + (request.modifier || 0);
 
-      // Espera um pouco para o usuário ver o resultado dos dados
       setTimeout(() => {
         setRollResult({ total, rolls: diceValues });
         setIsRolling(false);
-      }, 1000); // 1 segundo de delay
+      }, 1000); 
 
     } catch (e) {
       console.error("Erro na rolagem de dados 3D:", e);
-      // Fallback para rolagem simples caso o 3D falhe
       const fallbackRoll = Math.floor(Math.random() * 20) + 1;
       setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
       setIsRolling(false);
@@ -82,7 +89,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const handleContinue = () => {
     if (rollResult) {
       onRoll(rollResult);
-      onClose(); // Fecha o modal após a rolagem ser submetida
     }
   };
 
@@ -126,7 +132,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         <div id="dice-box" ref={diceBoxRef} className="w-full h-48 sm:h-64"></div>
         <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl min-h-[180px]">
           <h3 className="text-xl font-semibold text-center text-stone-300 mb-4">{request.reason}</h3>
-          {rollResult ? renderResult() : renderRollButton()}
+          {hasRolled ? (rollResult ? renderResult() : <div className="flex justify-center items-center h-24"><Loader2 className="h-8 w-8 animate-spin text-amber-400"/></div>) : renderRollButton()}
         </div>
       </div>
     </div>
