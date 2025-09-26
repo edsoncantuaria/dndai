@@ -12,7 +12,7 @@ import { generateImage } from '@/ai/flows/generateImage';
 
 const Header: React.FC = () => {
     const { character, saveGameToFile, getApiKey } = useGameStateContext();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig, apiKey: userApiKey } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -102,9 +102,10 @@ const Header: React.FC = () => {
 
     return (
         <>
-            <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-2 rounded-lg border border-stone-700 flex items-center justify-between gap-4">
+            <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                {/* Character Info */}
                 <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-stone-700 rounded-full flex items-center justify-center border-2 border-stone-600">
+                    <div className="w-12 h-12 bg-stone-700 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-stone-600">
                         <User className="h-8 w-8 text-stone-400"/>
                     </div>
                     <div>
@@ -114,22 +115,29 @@ const Header: React.FC = () => {
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div className="text-center flex items-center gap-2">
-                        <Heart className="h-6 w-6 text-red-500" />
-                        <div>
-                            <div className="text-xs text-red-400 font-semibold">VIDA</div>
-                            <div className="font-mono font-bold text-xl text-stone-200">{hp.current} / {hp.max}</div>
+                
+                {/* Stats and Actions Wrapper */}
+                <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
+                    {/* Stats */}
+                    <div className="flex items-center justify-around md:justify-end gap-4 bg-stone-800/50 p-2 rounded-md">
+                        <div className="text-center flex items-center gap-2">
+                            <Heart className="h-5 w-5 md:h-6 md:w-6 text-red-500" />
+                            <div>
+                                <div className="text-xs text-red-400 font-semibold">VIDA</div>
+                                <div className="font-mono font-bold text-lg md:text-xl text-stone-200">{hp.current} / {hp.max}</div>
+                            </div>
+                        </div>
+                        <div className="text-center flex items-center gap-2">
+                            <Shield className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
+                            <div>
+                                <div className="text-xs text-blue-400 font-semibold">CA</div>
+                                <div className="font-mono font-bold text-lg md:text-xl text-stone-200">{character.ac.value}</div>
+                            </div>
                         </div>
                     </div>
-                    <div className="text-center flex items-center gap-2">
-                        <Shield className="h-6 w-6 text-blue-500" />
-                        <div>
-                            <div className="text-xs text-blue-400 font-semibold">CA</div>
-                            <div className="font-mono font-bold text-xl text-stone-200">{character.ac.value}</div>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-around md:justify-end gap-2">
                         <button 
                             onClick={handleTestAi}
                             disabled={isTestingAi}
@@ -155,6 +163,7 @@ const Header: React.FC = () => {
                     </div>
                 </div>
             </div>
+
              {showAiTestModal && aiTestResult && (
                 <ActionModal
                     isOpen={showAiTestModal}
