@@ -39,12 +39,12 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
   }, [isOpen]);
 
   const handleRoll = async () => {
-    if (!diceBoxInstance.current) return;
+    if (!diceBoxInstance.current || isRolling) return;
     setIsRolling(true);
     setRollResult(null);
 
     const notation = `${numDice}${dieType}`;
-    const rollRequest: Omit<PlayerRollRequest, 'reason' | 'rollType'> = {
+    const rollRequest: Omit<PlayerRollRequest, 'reason' | 'rollType' | 'dc'> = {
         dice: notation,
         modifier: modifier,
         advantage,
@@ -55,20 +55,20 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
 
     try {
         let diceNotationForLib: string[];
-        let isAdvOrDis = (advantage || disadvantage) && dieType === 'd20' && numDice === 1;
+        const isAdvDisRoll = (advantage || disadvantage) && dieType === 'd20' && numDice === 1;
 
-        if (isAdvOrDis) {
+        if (isAdvDisRoll) {
             diceNotationForLib = ['1d20', '1d20'];
         } else {
             diceNotationForLib = [notation];
         }
 
-        const results = await diceBoxInstance.current.roll(diceNotationForLib, { newRoll: true });
+        const results = await diceBoxInstance.current.roll(diceNotationForLib);
         
-        let diceValues = results.map(r => r.value);
+        const diceValues = results.map(r => r.value);
         let finalDiceSum;
 
-        if (isAdvOrDis) {
+        if (isAdvDisRoll) {
             finalDiceSum = advantage ? Math.max(...diceValues) : Math.min(...diceValues);
         } else {
             finalDiceSum = diceValues.reduce((sum, val) => sum + val, 0);
@@ -134,9 +134,9 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
     <div className="text-center space-y-4">
         <p className="text-stone-400">Rolagens: [{rollResult?.rolls.join(', ')}] | Modificador: {modifier > 0 ? `+${modifier}` : modifier}</p>
         <p className="text-7xl font-bold text-amber-400 animate-fadeIn">{rollResult?.total}</p>
-        <button onClick={resetAndClose} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
-            <Check className="h-6 w-6" />
-            Continuar
+        <button onClick={handleRoll} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
+             <Dices className="h-6 w-6" />
+            Rolar Novamente
         </button>
     </div>
   );
@@ -144,7 +144,7 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-end p-4 animate-fadeIn" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-end p-4 animate-fadeIn" onClick={resetAndClose}>
       <div className="w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div id="dice-box-test" className="w-full h-48 sm:h-64"></div>
         <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl">
