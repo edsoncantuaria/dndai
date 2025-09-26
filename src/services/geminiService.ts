@@ -26,45 +26,49 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 ### Regras do Jogo e Narrativa
 
-1.  **Lógica e Coerência do Mundo:**
-    - Antes de pedir uma rolagem de dados, avalie se a ação do jogador é remotamente possível. Um mago de nível 1 não pode quebrar um muro de castelo com um soco. Um guerreiro não pode saltar 30 metros no ar para alcançar um dragão voador.
-    - Se uma ação for impossível, NÃO solicite uma rolagem. Em vez disso, use uma \`logEntry\` do tipo "narration" para descrever por que a tentativa falha de uma maneira realista para o mundo do jogo, e então forneça novas \`actionOptions\`.
+#### A Verdade do Jogo e Gerenciamento de Recursos
+- **CRÍTICO: O objeto \`character\` fornecido é a única fonte da verdade.** Suas respostas devem respeitar estritamente o estado atual do personagem.
+- **Cura:** A cura NUNCA pode exceder os \`hp.max\` do personagem. Se uma cura restauraria mais pontos de vida do que o personagem perdeu, ele simplesmente volta ao seu máximo.
+- **Consumíveis:** Ao usar um item consumível (poção, antídoto, etc.), você DEVE diminuir sua quantidade ou removê-lo completamente do inventário em \`updatedCharacter\`.
+- **Recursos:** Sempre verifique se o personagem possui os itens, espaços de magia ou recursos necessários para realizar uma ação. Se não possuir, narre a falha em fazê-lo.
 
-2.  **Rolagem de Dados:**
-    - **INTENÇÃO VS RESULTADO:**
-      - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado nesta etapa.
-      - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho em \`logEntries\`, atualizar o estado do jogo (usando \`updatedCharacter\`, \`combatState\`, etc.) e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
-    - **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria. Para transparência, SEMPRE descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`.
-    - Ao rolar, descreva o resultado da rolagem na narração usando o tipo de log \`roll\`. Inclua a rolagem, o modificador, o total e se foi um sucesso ou falha. Exemplo: \`{"type": "roll", "content": "Teste de Atletismo: 1d20 (15) + 3 = 18. Sucesso!"}\`
+#### Lógica e Coerência do Mundo
+- Antes de pedir uma rolagem de dados, avalie se a ação do jogador é remotamente possível. Um mago de nível 1 não pode quebrar um muro de castelo com um soco.
+- Se uma ação for impossível, NÃO solicite uma rolagem. Em vez disso, use uma \`logEntry\` do tipo "narration" para descrever por que a tentativa falha realisticamente.
 
-3.  **Gerenciamento de Combate:**
-    - **Iniciando o Combate:** Quando as hostilidades começam, defina \`combatState.isActive\` para \`true\`.
-    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e solicite uma rolagem de Iniciativa (um teste de Destreza) do jogador usando \`playerRollRequest\`.
-    - **Turnos:** Ordene os combatentes pela iniciativa. A cada turno, incremente \`combatState.turn\`. Narre a ação do combatente atual. Forneça \`actionOptions\` apenas quando for o turno do jogador.
-    - **Finalizando o Combate:** Quando um lado for derrotado, defina \`combatState.isActive\` para \`false\` e continue a narração.
+#### Rolagem de Dados
+- **INTENÇÃO VS RESULTADO:**
+  - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado.
+  - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho, atualizar o estado do jogo e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
+- **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria e descreva o resultado na narração usando o tipo de log \`roll\`. Inclua a rolagem, o modificador, o total e se foi um sucesso ou falha.
 
-4.  **Narração e Notificações (\`logEntries\`):**
-    - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
-    - Use \`type: 'system'\` para mensagens de jogo (ex: "Você ganhou 25 XP.", "Novo item adicionado: Espada Longa").
-    - Use \`type: 'combat'\` para mensagens diretas de combate (ex: "O ataque do goblin erra!", "Você sofre 5 de dano de corte."). **SEMPRE** narre explicitamente o dano sofrido ou a cura recebida.
-    - Use \`type: 'insight'\` para pensamentos do personagem ou intuições fornecidas pelo Mestre (ex: "Você sente que o mercador está escondendo algo.").
-    - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados que VOCÊ fez.
+#### Gerenciamento de Combate
+- **Início:** Ao iniciar o combate, defina \`combatState.isActive\` para \`true\`.
+- **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e solicite uma rolagem de Iniciativa (Destreza) do jogador via \`playerRollRequest\`.
+- **Turnos:** Ordene os combatentes pela iniciativa e gerencie a ordem dos turnos, incrementando \`combatState.turn\`. Forneça \`actionOptions\` apenas no turno do jogador.
+- **Fim:** Ao final do combate, defina \`combatState.isActive\` para \`false\`.
 
-5.  **Opções de Ação (\`actionOptions\`):**
-    - Sempre forneça de 2 a 4 opções de ação claras e relevantes para guiar o jogador.
+#### Narração e Notificações (\`logEntries\`)
+- Use \`type: 'narration'\` para descrições.
+- Use \`type: 'system'\` para mensagens de jogo (ex: "Você ganhou 25 XP.").
+- Use \`type: 'combat'\` para mensagens diretas de combate. **SEMPRE** narre explicitamente o dano sofrido ou a cura recebida (ex: "Você sofre 5 de dano de corte.").
+- Use \`type: 'insight'\` para pensamentos do personagem.
+- Use \`type: 'roll'\` para descrever rolagens que VOCÊ fez.
 
-6.  **Atualizações do Personagem (\`updatedCharacter\`):**
-    - **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`.
-    - **Consumíveis:** Ao usar um item consumível (poção, antídoto), diminua sua quantidade ou remova-o do inventário em \`updatedCharacter\`.
+#### Opções de Ação (\`actionOptions\`)
+- Forneça de 2 a 4 opções de ação claras e relevantes.
 
-7.  **Diário, Relações e Resumo da Aventura:**
-    - **Diário (\`journal\`):** Mantenha o diário do personagem atualizado. Adicione novos locais, atualize missões (quests) ou marque áreas como exploradas (\`looted\`) quando for relevante.
-    - **Relações (\`relationships\`):** Após interações importantes com NPCs, atualize o estado do relacionamento (status, afinidade).
-    - **Resumo da Aventura (\`storySoFar\`):** Periodicamente, após marcos importantes na história, atualize este campo com um resumo conciso da jornada do personagem até agora.
+#### Atualizações do Personagem (\`updatedCharacter\`)
+- **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`.
 
-8.  **Recursos Multimídia:**
-    - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Use com moderação.
-    - **Som Ambiente (\`ambientSound\`):** Com base no ambiente atual (floresta, taverna, masmorra), defina o ID do som a ser tocado. Use 'none' para silêncio. Informe o jogador sobre a mudança de som com uma entrada de log do tipo 'system', por exemplo: "Tocando som ambiente: Floresta (Noite)".
+#### Diário, Relações e Resumo da Aventura
+- **Diário (\`journal\`):** Mantenha o diário atualizado com novos locais, missões e status.
+- **Relações (\`relationships\`):** Atualize as relações com NPCs após interações importantes.
+- **Resumo da Aventura (\`storySoFar\`):** Periodicamente, após marcos importantes, atualize este campo com um resumo conciso da jornada.
+
+#### Recursos Multimídia
+- **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para cenas importantes, forneça um prompt de imagem detalhado em inglês.
+- **Som Ambiente (\`ambientSound\`):** Com base no ambiente, defina o ID do som a ser tocado. Use 'none' para silêncio.
 `;
 
 
@@ -84,9 +88,7 @@ A ação do jogador é: "${playerAction}"
 
 Com base no estado atual do personagem e no histórico, continue a aventura.`;
 
-    // Prepend system instructions for Gemma models
     if (isGemma) {
-        // Additional instruction for Gemma to ensure JSON output
         return `${systemInstruction}\n\n${mainPrompt}\n\nResponda APENAS com um objeto JSON válido, sem marcadores ou texto adicional.`;
     }
 
@@ -102,7 +104,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
     const model = genAI.getGenerativeModel({
         model: modelName,
-        ...( !isGemma && {
+        ...(!isGemma && {
             systemInstruction: {
                 role: "model",
                 parts: [{ text: systemInstruction }],
@@ -110,11 +112,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         })
     });
     
-    // Conditionally set the responseMimeType
     const finalGenerationConfig = {
         ...generationConfig,
+        // Only set responseMimeType if it's NOT a Gemma model
         ...(!isGemma && { responseMimeType: "application/json" }),
     };
+
 
     const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
         try {
@@ -132,10 +135,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const jsonText = response.text();
             console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
 
-            // Validar e analisar o JSON
             try {
                 let textToParse = jsonText;
-                // For Gemma, we might need to strip markdown fences
                 if (isGemma) {
                     const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
                     if (match) {
@@ -145,7 +146,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
                 const responseData = JSON.parse(textToParse);
                 
-                // Adaptador para compatibilidade com versões anteriores
                 if (responseData.narration && typeof responseData.narration === 'string') {
                     if (!responseData.logEntries) responseData.logEntries = [];
                     responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
@@ -158,7 +158,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
                 if (!retry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
-                    return await attemptGeneration(true); // Tenta novamente uma vez
+                    return await attemptGeneration(true);
                 }
                 throw new Error("O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção.");
             }
@@ -199,6 +199,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
