@@ -14,6 +14,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const diceBoxRef = useRef<HTMLDivElement>(null);
   const diceBoxInstance = useRef<DiceBox | null>(null);
   const [isRolling, setIsRolling] = useState(false);
+  const [isDiceboxReady, setIsDiceboxReady] = useState(false);
   const [rollResult, setRollResult] = useState<{ total: number; rolls: number[] } | null>(null);
   const [hasRolled, setHasRolled] = useState(false);
 
@@ -30,9 +31,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       
       diceBox.init().then(() => {
         diceBoxInstance.current = diceBox;
-        console.log("DiceBox na arena de rolagem inicializado.");
+        setIsDiceboxReady(true);
+        console.log("DiceBox na arena de rolagem inicializado e pronto.");
       }).catch(e => {
         console.error("Falha ao inicializar o DiceBox:", e);
+        // Opcional: Adicionar um estado de erro para a UI
       });
     }
     
@@ -50,7 +53,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   }, []);
 
   const handleRoll = useCallback(async () => {
-    if (!diceBoxInstance.current || isRolling) return;
+    if (!diceBoxInstance.current || isRolling || !isDiceboxReady) return;
     
     setIsRolling(true);
     setHasRolled(true);
@@ -93,7 +96,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
       setIsRolling(false);
     }
-  }, [request, isRolling]);
+  }, [request, isRolling, isDiceboxReady]);
 
   const handleContinue = () => {
     if (rollResult) {
@@ -104,11 +107,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const renderRollButton = () => (
     <button
       onClick={handleRoll}
-      disabled={isRolling}
+      disabled={isRolling || !isDiceboxReady}
       className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-amber-600 hover:bg-amber-700 text-stone-900 transition-colors disabled:opacity-50"
     >
-      {isRolling ? <Loader2 className="animate-spin h-6 w-6" /> : <Dices className="h-6 w-6" />}
-      Rolar {request.dice}
+      {isRolling ? <Loader2 className="animate-spin h-6 w-6" /> : (isDiceboxReady ? <Dices className="h-6 w-6" /> : <Loader2 className="animate-spin h-6 w-6" />) }
+      {isDiceboxReady ? `Rolar ${request.dice}` : 'Carregando Dados...'}
     </button>
   );
 
