@@ -4,11 +4,12 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
+import { SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils'; // <-- IMPORTAÇÃO ADICIONADA AQUI
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
+import { translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -163,9 +164,16 @@ export const useNewGameState = () => {
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
-         if (character && !isLoading) { 
-            saveGame();
-        }
+        // Debounced save
+        const handler = setTimeout(() => {
+            if (character && !isLoading) { 
+                saveGame();
+            }
+        }, 1500);
+
+        return () => {
+            clearTimeout(handler);
+        };
     }, [character, log, isLoading, saveGame]);
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
