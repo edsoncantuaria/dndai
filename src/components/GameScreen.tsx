@@ -96,7 +96,7 @@ const GameScreen: React.FC = () => {
             </div>
 
             {/* Mobile Sticky Actions & Toolbar */}
-            <div className="md:hidden fixed bottom-16 left-0 right-0 bg-stone-800/80 backdrop-blur-md p-2 z-20 border-t border-stone-700 max-h-48 overflow-y-auto">
+             <div className="md:hidden fixed bottom-16 left-0 right-0 bg-stone-800/80 backdrop-blur-md p-2 z-20 border-t border-stone-700 max-h-48 overflow-y-auto">
                 <ActionOptions />
             </div>
             <MobileToolbar 
