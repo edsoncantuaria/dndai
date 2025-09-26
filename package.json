@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.15.0",
+    "@3d-dice/dice-box": "^1.1.4",
     "@genkit-ai/googleai": "^1.1.2",
+    "@google/generative-ai": "^0.15.0",
     "@radix-ui/react-slot": "^1.1.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",

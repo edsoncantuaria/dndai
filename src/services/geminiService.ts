@@ -2,7 +2,7 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
-import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
+import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "./gameSchemas";
 import { GenerationConfig } from "@/contexts/SettingsContext";
 
 // Esta função agora aceita a chave de API como um argumento.
@@ -199,6 +199,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 

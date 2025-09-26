@@ -15,8 +15,9 @@ import NewNarrativeLog from './NewNarrativeLog';
 import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
-import SkillCheckModal from './ui/SkillCheckModal';
-import SpellCastModal from './ui/SpellCastModal'; // Importa o novo modal de magia
+import DiceRollModal from './DiceRollModal';
+import SkillCheckModal from './ui/SkillCheckModal'; // Importar o modal
+import SpellCastModal from './Spells/SpellCastModal'; // Importar o modal de magia
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -29,6 +30,8 @@ const GameScreen: React.FC = () => {
         shopState, 
         apiError, 
         clearApiError,
+        playerRollRequest,
+        handleRollResult,
         skillCheckRequest,
         setSkillCheckRequest,
         handleSkillCheckSubmit,
@@ -71,6 +74,12 @@ const GameScreen: React.FC = () => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
+                {playerRollRequest && (
+                    <DiceRollModal 
+                        request={playerRollRequest}
+                        onRoll={handleRollResult}
+                    />
+                )}
                 {skillCheckRequest && (
                     <SkillCheckModal
                         skillName={skillCheckRequest.skillName}

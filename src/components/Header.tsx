@@ -2,13 +2,14 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import Image from 'next/image';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { generateImage } from '@/ai/flows/generateImage';
+import DiceTestModal from './DiceTestModal'; 
 
 const Header: React.FC = () => {
     const { character, saveGameToFile, getApiKey } = useGameStateContext();
@@ -20,6 +21,7 @@ const Header: React.FC = () => {
     const [testImageUrl, setTestImageUrl] = useState<string | null>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+    const [showDiceTestModal, setShowDiceTestModal] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
     const closeAiTestModal = () => {
@@ -204,7 +206,7 @@ const Header: React.FC = () => {
                         {aiTestResult.success && (
                             <div className="space-y-4">
                                 {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                                     <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
                                         {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
                                         Gerar Imagem
@@ -213,6 +215,10 @@ const Header: React.FC = () => {
                                          {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
                                         Ouvir Áudio
                                     </button>
+                                    <button onClick={() => setShowDiceTestModal(true)} className="lg:col-span-1 flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
+                                        <Dices className="h-5 w-5" />
+                                        Testar Dados
+                                    </button>
                                 </div>
                             </div>
                         )}
@@ -220,6 +226,7 @@ const Header: React.FC = () => {
                 </ActionModal>
             )}
              <audio ref={audioRef} className="hidden" />
+             {showDiceTestModal && <DiceTestModal isOpen={showDiceTestModal} onClose={() => setShowDiceTestModal(false)} />}
             <SettingsModal
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
