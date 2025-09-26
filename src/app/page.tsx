@@ -14,20 +14,42 @@ const HomePageContent = () => {
     const [gameStage, setGameStage] = useState<GameStage>('menu');
     const menuAudioRef = useRef<HTMLAudioElement>(null);
 
-     useEffect(() => {
+    useEffect(() => {
         const audio = menuAudioRef.current;
         if (!audio) return;
 
-        if (gameStage === 'menu' && playMenuMusic) {
+        const audioUrl = '/audio/inicio.mp3';
+
+        const playAudio = () => {
             audio.volume = isMuted ? 0 : volume;
-            if (audio.src && audio.paused) { // Garante que só toque se tiver uma fonte e estiver pausado
+            if (audio.paused) {
                 audio.play().catch(e => console.error("Menu audio play failed:", e));
+            }
+        };
+        
+        if (gameStage === 'menu' && playMenuMusic) {
+            // Se a URL do áudio ainda não foi definida ou é diferente, defina-a
+            if (audio.src !== window.location.origin + audioUrl) {
+                audio.src = audioUrl;
+                // Adiciona um ouvinte para garantir que a música só toque quando estiver pronta
+                audio.addEventListener('canplaythrough', playAudio);
+                audio.load();
+            } else {
+                // Se o src já estiver correto, apenas toque
+                playAudio();
             }
         } else {
             audio.pause();
             audio.currentTime = 0;
         }
+
+        // Função de limpeza para remover o ouvinte de eventos
+        return () => {
+            audio.removeEventListener('canplaythrough', playAudio);
+        };
+
     }, [gameStage, playMenuMusic, volume, isMuted]);
+
 
     // Função para limpar o jogo salvo e ir para a tela de criação
     const startNewGameFlow = useCallback(() => {
@@ -76,7 +98,7 @@ const HomePageContent = () => {
     // o menu/criação ou a tela de jogo principal.
     return (
         <>
-            <audio ref={menuAudioRef} src="/audio/index/inicio.mp3" loop />
+            <audio ref={menuAudioRef} loop />
             <Game
                 startNewGameFlow={startNewGameFlow}
                 onCharacterCreated={onCharacterCreated}
