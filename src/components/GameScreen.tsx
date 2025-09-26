@@ -30,9 +30,15 @@ const GameScreen: React.FC = () => {
         apiError, 
         clearApiError,
         skillCheckRequest,
-        handleSkillCheckSubmit,
         setSkillCheckRequest,
+        processPlayerAction
     } = useGameStateContext();
+
+    const handleSkillCheckSubmit = (description: string) => {
+        if (!skillCheckRequest) return;
+        const actionText = `Eu tento usar ${skillCheckRequest.skillName}: ${description}`;
+        processPlayerAction(actionText);
+    };
 
     const renderSidebarContent = () => {
         switch (activeTab) {

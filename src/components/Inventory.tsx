@@ -1,57 +1,54 @@
-import React, { useMemo, useState } from 'react';
+'use client';
+import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
-import { translateEquipment } from '../utils/TranslatorEquipments';
-import { Backpack, ChevronDown } from 'lucide-react';
+import { translateEquipment } from '../utils/translator';
+import { Backpack, Hand, Loader2 } from 'lucide-react';
 
-const CATEGORY_ORDER: Record<string, number> = {
-    'Armas': 1,
-    'Armaduras': 2,
-    'Itens Diversos': 3,
+const LootDisplay: React.FC = () => {
+    const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
+
+    if (!pendingLootOffer) return null;
+    const hasItems = pendingLootOffer.items && pendingLootOffer.items.length > 0;
+    const hasCurrency = pendingLootOffer.currency && pendingLootOffer.currency.gp > 0;
+    if (!hasItems && !hasCurrency) return null;
+
+    return (
+        <div className="mt-6 animate-fadeIn">
+             <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2 flex items-center gap-2">
+                <Hand className="h-5 w-5" />
+                Saque Próximo
+            </h4>
+            <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2">
+                {pendingLootOffer.items.map((item, index) => {
+                    const translatedItem = translateEquipment(item);
+                    return (
+                        <div key={item.id || index} className="text-sm text-stone-300">
+                             <span className="font-semibold text-stone-200">{translatedItem.name}</span> {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                        </div>
+                    )
+                })}
+                {pendingLootOffer.currency.gp > 0 && (
+                    <div className="text-amber-400 font-semibold">{pendingLootOffer.currency.gp} moedas de ouro</div>
+                )}
+                 <button
+                    onClick={() => takeLoot(true)}
+                    disabled={isLoading}
+                    className="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? <Loader2 className="mx-auto animate-spin" /> : 'Pegar Tudo'}
+                </button>
+            </div>
+        </div>
+    );
 };
+
 
 const Inventory: React.FC = () => {
     const { character, toggleEquipped } = useGameStateContext();
-    const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-        'Armas': true,
-        'Armaduras': true,
-        'Itens Diversos': true,
-    });
-
-    const groupedInventory = useMemo(() => {
-        if (!character) return {};
-        
-        const groups = character.inventory.reduce((acc, item) => {
-            let category = 'Itens Diversos';
-            if (item.weapon_category) {
-                category = 'Armas';
-            } else if (item.armor_category) {
-                category = 'Armaduras';
-            }
-            
-            if (!acc[category]) {
-                acc[category] = [];
-            }
-            acc[category].push(item);
-            return acc;
-        }, {} as Record<string, InventoryItem[]>);
-
-        // Sort categories based on predefined order
-        return Object.keys(groups)
-            .sort((a, b) => (CATEGORY_ORDER[a] || 99) - (CATEGORY_ORDER[b] || 99))
-            .reduce((obj, key) => {
-                obj[key] = groups[key];
-                return obj;
-            }, {} as Record<string, InventoryItem[]>);
-
-    }, [character?.inventory]);
 
     if (!character) return null;
-
-    const toggleCategory = (category: string) => {
-        setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }));
-    };
 
     const { currentWeight, carryingCapacity } = character;
     const loadPercentage = carryingCapacity > 0 ? (currentWeight / carryingCapacity) * 100 : 0;
@@ -80,34 +77,17 @@ const Inventory: React.FC = () => {
                 </div>
              </div>
 
-            {Object.keys(groupedInventory).length === 0 ? (
-                <p className="text-stone-400 italic">Sua bolsa está vazia.</p>
+            {character.inventory.length === 0 ? (
+                <p className="text-stone-400 italic text-center py-4 bg-stone-800/40 rounded-md">Sua bolsa está vazia.</p>
             ) : (
-                <div className="space-y-3">
-                    {Object.entries(groupedInventory).map(([category, items]) => {
-                        const isExpanded = !!expandedCategories[category];
-                        return (
-                            <div key={category}>
-                                <button 
-                                    onClick={() => toggleCategory(category)}
-                                    className="w-full flex justify-between items-center p-2 bg-stone-800 hover:bg-stone-700/50 rounded-md transition-colors"
-                                    aria-expanded={isExpanded}
-                                >
-                                    <h4 className="font-semibold text-amber-200">{category} ({items.length})</h4>
-                                    <ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                                </button>
-                                <div className={`transition-all ease-in-out duration-500 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                                    <div className="space-y-2 pl-2 border-l-2 border-stone-700 pt-px">
-                                        {items.map((item) => (
-                                            <ItemCard key={item.id} item={translateEquipment(item)} onToggleEquip={toggleEquipped} />
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )
-                    })}
+                <div className="space-y-2">
+                    {character.inventory.map((item) => (
+                        <ItemCard key={item.id} item={translateEquipment(item)} onToggleEquip={toggleEquipped} />
+                    ))}
                 </div>
             )}
+
+            <LootDisplay />
         </div>
     );
 };

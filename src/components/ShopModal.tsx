@@ -1,8 +1,7 @@
-// components/ShopModal.tsx
+'use client';
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { Icons } from './Icons';
-import { InventoryItem, ShopItem } from '../types';
+import { ShopItem, InventoryItem } from '../types';
 import { translateEquipment } from '../utils/translator';
 import ItemCard from './ItemCard';
 
@@ -28,7 +27,7 @@ const ShopModal: React.FC = () => {
                 shopState.inventory.map(item => (
                     <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
                         <div>
-                            <h4 className="font-semibold text-stone-200">{translateEquipment(item.name)}</h4>
+                            <h4 className="font-semibold text-stone-200">{translateEquipment(item).name}</h4>
                             <p className="text-xs text-stone-400">Quantidade: {item.quantity === Infinity ? 'Infinita' : item.quantity}</p>
                         </div>
                         <div className="text-right">
@@ -57,7 +56,7 @@ const ShopModal: React.FC = () => {
                      return (
                          <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
                             <div className="max-w-[60%]">
-                                <h4 className="font-semibold text-stone-200 truncate">{translateEquipment(item.name)} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
+                                <h4 className="font-semibold text-stone-200 truncate">{translateEquipment(item).name} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
                                 <p className="text-xs text-stone-400">Valor Base: {item.cost?.quantity || '-'} {item.cost?.unit || ''}</p>
                             </div>
                             <div className="text-right">
@@ -85,7 +84,7 @@ const ShopModal: React.FC = () => {
                         <h2 className="text-2xl font-bold font-garamond text-amber-300">{shopState.name}</h2>
                         <p className="text-stone-400 text-sm">Seu Ouro: <span className="font-mono font-semibold text-amber-300">{character.currency.gp} gp</span></p>
                     </div>
-                    <button onClick={handleClose} disabled={isLoading} className="text-stone-400 hover:text-white">&times;</button>
+                    <button onClick={handleClose} disabled={isLoading} className="text-stone-400 hover:text-white text-2xl">&times;</button>
                 </header>
                  <nav className="flex border-b border-stone-700 flex-shrink-0">
                     <button onClick={() => setActiveTab('buy')} className={`flex-1 py-2 px-4 text-sm font-semibold ${activeTab === 'buy' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-stone-400'}`}>Comprar</button>
