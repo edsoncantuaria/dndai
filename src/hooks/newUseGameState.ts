@@ -103,7 +103,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
-    const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string})[]>([]);
+    const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string, skill: string})[]>([]);
     const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 0, turn: 0, combatants: [] });
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
@@ -165,7 +165,7 @@ export const useNewGameState = () => {
          if (character && !isLoading) { 
             saveGame();
         }
-    }, [character, log, saveGame, isLoading]);
+    }, [character, log, isLoading]);
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
@@ -182,6 +182,13 @@ export const useNewGameState = () => {
         if (response.logEntries && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
+        }
+
+        if (response.playerRollRequest) {
+            setPlayerRollRequest(response.playerRollRequest);
+            setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `O mestre pediu uma rolagem: ${response.playerRollRequest!.reason}` }]);
+            // Pause further processing, wait for player roll
+            return;
         }
 
         if (response.actionOptions !== undefined) {
@@ -274,6 +281,10 @@ export const useNewGameState = () => {
         }
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+
+    const requestPlayerRoll = useCallback((request: PlayerRollRequest) => {
+        setPlayerRollRequest(request);
+    }, []);
 
     const submitPlayerRoll = useCallback(async (result: number) => {
         if (!character || !playerRollRequest) return;
@@ -465,6 +476,7 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
+        requestPlayerRoll,
         submitPlayerRoll
     };
 };

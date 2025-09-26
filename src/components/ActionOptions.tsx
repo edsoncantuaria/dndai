@@ -2,7 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import DiceRollModal from './ui/DiceRollModal'; // Importa o novo modal
+import DiceRollModal from './ui/DiceRollModal';
+import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
+import { PlayerRollRequest } from '@/types';
+
 
 const HitDiceRoller: React.FC = () => {
     // ... (código existente inalterado)
@@ -106,7 +109,7 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
 };
 
 const ActionOptions: React.FC = () => {
-    const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest, playerRollRequest, submitPlayerRoll } = useGameStateContext();
+    const { character, actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest, playerRollRequest, submitPlayerRoll, requestPlayerRoll } = useGameStateContext();
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
@@ -114,6 +117,21 @@ const ActionOptions: React.FC = () => {
             setIsOpen(false);
         }
     }, [isLoading, playerRollRequest]);
+
+    const handleSkillCheck = (skillName: string) => {
+        if (!character) return;
+        const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
+        const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
+        const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
+
+        const rollRequest: PlayerRollRequest = {
+            reason: `um teste de ${translateApiString(`Skill: ${skillName}`)}`,
+            dice: '1d20',
+            modifier,
+            rollType: 'check',
+        };
+        requestPlayerRoll(rollRequest);
+    };
 
     const renderActionContent = () => {
         if (pendingLootOffer) {
@@ -137,6 +155,21 @@ const ActionOptions: React.FC = () => {
                 {!isLoading && hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
+                             if (typeof action === 'object' && action !== null && 'skill' in action) {
+                                const skillAction = action as { text: string; skill: string };
+                                return (
+                                    <button
+                                        key={index}
+                                        onClick={() => handleSkillCheck(skillAction.skill)}
+                                        disabled={isLoading}
+                                        className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                                        style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
+                                    >
+                                        {skillAction.text}
+                                    </button>
+                                );
+                            }
+
                             const actionText = (typeof action === 'object' && action !== null) 
                                 ? (action as any).text || (action as any).description 
                                 : action;
