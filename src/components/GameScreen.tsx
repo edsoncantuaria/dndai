@@ -16,14 +16,14 @@ import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
 import DiceRollModal from './DiceRollModal';
-import SkillCheckModal from './ui/SkillCheckModal'; // Corrigido o caminho de importação
-import SpellCastModal from './ui/SpellCastModal'; // Importar o modal de magia
+import SkillCheckModal from './ui/SkillCheckModal';
+import SpellCastModal from './ui/SpellCastModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
 const GameScreen: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<Tab>('character');
+    const [activeTab, setActiveTab] = useState<Tab>('relationships');
     const { 
         combatState, 
         levelUpState, 
@@ -61,11 +61,11 @@ const GameScreen: React.FC = () => {
     };
 
     const tabConfig: Record<Tab, { label: string, icon: React.ReactNode }> = {
+        relationships: { label: 'Missões', icon: <Users className="h-5 w-5"/> },
+        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
         character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
         spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
-        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
-        relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
 

@@ -64,7 +64,7 @@ const NewJournal: React.FC = () => {
                 </h3>
                 <div className="text-center text-stone-400 italic p-8 bg-stone-800/50 rounded-lg">
                     <p>Seu diário está vazio.</p>
-                    <p className="text-sm">Locais importantes e missões que você descobrir aparecerão aqui.</p>
+                    <p className="text-sm">Locais importantes que você descobrir aparecerão aqui.</p>
                 </div>
             </div>
         );
