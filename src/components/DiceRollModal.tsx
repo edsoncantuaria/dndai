@@ -10,12 +10,15 @@ interface DiceRollModalProps {
   onClose: () => void;
 }
 
+type RollStatus = 'normal' | 'critical-success' | 'critical-failure';
+
 const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose }) => {
   const diceBoxRef = useRef<HTMLDivElement>(null);
   const diceBoxInstance = useRef<DiceBox | null>(null);
   const [isRolling, setIsRolling] = useState(false);
   const [isDiceboxReady, setIsDiceboxReady] = useState(false);
   const [rollResult, setRollResult] = useState<{ total: number; rolls: number[] } | null>(null);
+  const [rollStatus, setRollStatus] = useState<RollStatus>('normal');
   const [hasRolled, setHasRolled] = useState(false);
 
   // Efeito para inicializar o DiceBox
@@ -35,15 +38,12 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         console.log("DiceBox na arena de rolagem inicializado e pronto.");
       }).catch(e => {
         console.error("Falha ao inicializar o DiceBox:", e);
-        // Opcional: Adicionar um estado de erro para a UI
       });
     }
     
     return () => {
       if (diceBoxInstance.current) {
         try {
-          // A documentação do dice-box não é clara sobre um método de "destroy",
-          // mas limpar os dados e o canvas pode ajudar a evitar memory leaks.
           diceBoxInstance.current.clear();
         } catch(e) {
           console.error("Erro ao limpar o DiceBox:", e);
@@ -66,7 +66,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       const isAdvDis = (request.advantage || request.disadvantage) && request.dice === '1d20';
 
       if (isAdvDis) {
-        // Para vantagem/desvantagem, precisamos de duas rolagens separadas de 1d20
         diceNotation = ['1d20', '1d20'];
       } else {
         diceNotation = [request.dice];
@@ -75,15 +74,25 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       const results = await diceBoxInstance.current.roll(diceNotation);
       
       const diceValues = results.map(r => r.value);
-      let finalRollResult: number;
+      let finalRawRoll: number;
 
       if (isAdvDis) {
-        finalRollResult = request.advantage ? Math.max(...diceValues) : Math.min(...diceValues);
+        finalRawRoll = request.advantage ? Math.max(...diceValues) : Math.min(...diceValues);
       } else {
-        finalRollResult = diceValues.reduce((sum, val) => sum + val, 0);
+        finalRawRoll = diceValues.reduce((sum, val) => sum + val, 0);
       }
       
-      const total = finalRollResult + (request.modifier || 0);
+      const total = finalRawRoll + (request.modifier || 0);
+
+      // Lógica para sucesso/falha crítica
+      const isD20Roll = request.dice === '1d20';
+      if (isD20Roll && finalRawRoll === 20) {
+        setRollStatus('critical-success');
+      } else if (isD20Roll && finalRawRoll === 1) {
+        setRollStatus('critical-failure');
+      } else {
+        setRollStatus('normal');
+      }
 
       setTimeout(() => {
         setRollResult({ total, rolls: diceValues });
@@ -92,7 +101,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
 
     } catch (e) {
       console.error("Erro na rolagem de dados 3D:", e);
-      // Fallback para rolagem matemática se a biblioteca 3D falhar
       const fallbackRoll = Math.floor(Math.random() * 20) + 1;
       setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
       setIsRolling(false);
@@ -102,6 +110,17 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const handleContinue = () => {
     if (rollResult) {
       onRoll(rollResult);
+    }
+  };
+
+  const getResultColorClass = () => {
+    switch (rollStatus) {
+      case 'critical-success':
+        return 'text-green-400';
+      case 'critical-failure':
+        return 'text-red-500';
+      default:
+        return 'text-amber-400';
     }
   };
 
@@ -122,7 +141,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         Rolagens: [{rollResult?.rolls.join(', ')}] {request.modifier >= 0 ? '+' : '-'} {Math.abs(request.modifier || 0)}
         {request.dc && <span className="ml-2"> (CD: {request.dc})</span>}
       </p>
-      <p className="text-8xl font-bold text-amber-400 my-2">{rollResult?.total}</p>
+      <p className={`text-8xl font-bold my-2 ${getResultColorClass()}`}>{rollResult?.total}</p>
       <button 
         onClick={handleContinue}
         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors"
