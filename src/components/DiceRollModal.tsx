@@ -21,11 +21,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   useEffect(() => {
     if (diceBoxRef.current && !diceBoxInstance.current) {
       const diceBox = new DiceBox({
-        container: '#dice-box', // Corrigido para usar o seletor de ID
+        container: '#dice-box',
         assetPath: '/assets/dice-box/',
         theme: 'default',
         offscreen: true,
-        scale: 6,
+        scale: 8,
       });
       
       diceBox.init().then(() => {
@@ -36,13 +36,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       });
     }
     
-    // Cleanup on unmount
     return () => {
-      // A instância pode não ter sido criada se init() falhou
       if (diceBoxInstance.current) {
-        // A API de cleanup pode variar, verifique a documentação se isso causar problemas
-        // Tentar um método de cleanup mais robusto
         try {
+          // A documentação do dice-box não é clara sobre um método de "destroy",
+          // mas limpar os dados e o canvas pode ajudar a evitar memory leaks.
           diceBoxInstance.current.clear();
         } catch(e) {
           console.error("Erro ao limpar o DiceBox:", e);
@@ -64,6 +62,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       const isAdvDis = (request.advantage || request.disadvantage) && request.dice === '1d20';
 
       if (isAdvDis) {
+        // Para vantagem/desvantagem, precisamos de duas rolagens separadas de 1d20
         diceNotation = ['1d20', '1d20'];
       } else {
         diceNotation = [request.dice];
