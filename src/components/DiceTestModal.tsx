@@ -44,11 +44,9 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
     setRollResult(null);
 
     const notation = `${numDice}${dieType}`;
-    const rollRequest: PlayerRollRequest = {
-        reason: "Teste de Rolagem de Dados",
+    const rollRequest: Omit<PlayerRollRequest, 'reason' | 'rollType'> = {
         dice: notation,
         modifier: modifier,
-        rollType: 'check',
         advantage,
         disadvantage,
     };
@@ -56,23 +54,28 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
     console.log("Objeto de Rolagem (como seria no jogo):", JSON.stringify(rollRequest, null, 2));
 
     try {
-        const diceNotationForLib = `${numDice}${dieType}`;
-        const notations = [diceNotationForLib];
-        if(advantage || disadvantage) notations.push(diceNotationForLib);
+        let diceNotationForLib: string[];
+        let isAdvOrDis = (advantage || disadvantage) && dieType === 'd20' && numDice === 1;
 
-        const results = await diceBoxInstance.current.roll(notations, { newRoll: true });
-        
-        let diceSum;
-        if (advantage) {
-            diceSum = Math.max(...results.map(r => r.value));
-        } else if (disadvantage) {
-            diceSum = Math.min(...results.map(r => r.value));
+        if (isAdvOrDis) {
+            diceNotationForLib = ['1d20', '1d20'];
         } else {
-            diceSum = results.reduce((sum, r) => sum + r.value, 0);
+            diceNotationForLib = [notation];
         }
 
-        const total = diceSum + modifier;
-        setRollResult({ total, rolls: results.map(r => r.value) });
+        const results = await diceBoxInstance.current.roll(diceNotationForLib, { newRoll: true });
+        
+        let diceValues = results.map(r => r.value);
+        let finalDiceSum;
+
+        if (isAdvOrDis) {
+            finalDiceSum = advantage ? Math.max(...diceValues) : Math.min(...diceValues);
+        } else {
+            finalDiceSum = diceValues.reduce((sum, val) => sum + val, 0);
+        }
+
+        const total = finalDiceSum + modifier;
+        setRollResult({ total, rolls: diceValues });
 
     } catch (e) {
         console.error("Erro na rolagem dos dados:", e);
@@ -80,6 +83,7 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
         setIsRolling(false);
     }
   };
+
 
   const resetAndClose = () => {
     setRollResult(null);
@@ -128,7 +132,7 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
 
   const renderResult = () => (
     <div className="text-center space-y-4">
-        <p className="text-stone-400">Rolagens: [{rollResult?.rolls.join(', ')}] | Modificador: {modifier}</p>
+        <p className="text-stone-400">Rolagens: [{rollResult?.rolls.join(', ')}] | Modificador: {modifier > 0 ? `+${modifier}` : modifier}</p>
         <p className="text-7xl font-bold text-amber-400 animate-fadeIn">{rollResult?.total}</p>
         <button onClick={resetAndClose} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
             <Check className="h-6 w-6" />
