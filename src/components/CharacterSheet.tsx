@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition, translateEquipment } from '../utils/translator';
 import { Attributes, Proficiency } from '../types';
-import { ALL_SKILLS, SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils';
+import { ALL_SKILLS } from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
 import SkillCheckModal from './ui/SkillCheckModal';
 
@@ -39,10 +39,13 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { handleSkillCheck, isLoading } = useGameStateContext();
+    const { handleSkillCheck, isLoading, character } = useGameStateContext();
     
-    const isProficient = characterProfs.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
-    const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
+    if (!character) return null;
+
+    // A lógica para calcular o modificador é movida para o hook, mas podemos mantê-la aqui por simplicidade de exibição.
+    const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
+    const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
     
     return (
@@ -82,33 +85,7 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
 };
 
 const CharacterSheet: React.FC = () => {
-    const { character, processPlayerAction, isLoading, combatState, requestPlayerRoll } = useGameStateContext();
-    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string, request: PlayerRollRequest } | null>(null);
-
-    const handleSkillCheck = (skillName: string) => {
-        if (!character) return;
-        const translatedSkill = translateApiString(`Skill: ${skillName}`);
-        const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
-        const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
-        const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
-
-        setSkillCheckRequest({
-            skillName: translatedSkill,
-            request: {
-                reason: `um teste de ${translatedSkill}`, // This will be prefixed by user input
-                dice: '1d20',
-                modifier,
-                rollType: 'check',
-            }
-        });
-    };
-    
-    const handleSkillCheckSubmit = (description: string) => {
-        if (!skillCheckRequest) return;
-        const fullReason = `Eu tento usar ${skillCheckRequest.skillName} para ${description}`;
-        requestPlayerRoll({ ...skillCheckRequest.request, reason: fullReason });
-        setSkillCheckRequest(null);
-    };
+    const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
 
     if (!character) return null;
 
@@ -118,13 +95,6 @@ const CharacterSheet: React.FC = () => {
 
     return (
         <>
-            {skillCheckRequest && (
-                <SkillCheckModal
-                    skillName={skillCheckRequest.skillName}
-                    onConfirm={handleSkillCheckSubmit}
-                    onClose={() => setSkillCheckRequest(null)}
-                />
-            )}
             <div className="p-4 space-y-4">
                 <DeathSavesTracker />
                 
