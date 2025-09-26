@@ -11,10 +11,10 @@ import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
 import ShopModal from './ShopModal';
 import ErrorModal from './ui/ErrorModal';
-import NewNarrativeLog from './NewNarrativeLog'; // Substituindo
-import NewJournal from './NewJournal';           // Substituindo
-import NewRelationships from './NewRelationships'; // Substituindo
-import AmbientPlayer from './AmbientPlayer'; // Importando o novo player
+import NewNarrativeLog from './NewNarrativeLog';
+import NewJournal from './NewJournal';
+import NewRelationships from './NewRelationships';
+import AmbientPlayer from './AmbientPlayer';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -34,9 +34,9 @@ const GameScreen: React.FC = () => {
             case 'progression':
                 return <ProgressionTab />;
             case 'relationships':
-                return <NewRelationships />; // Usando o novo componente
+                return <NewRelationships />;
             case 'journal':
-                return <NewJournal />; // Usando o novo componente
+                return <NewJournal />;
             default:
                 return <CharacterSheet />;
         }
@@ -66,7 +66,7 @@ const GameScreen: React.FC = () => {
                 {/* Main Content: Narrative and Actions */}
                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
                     <div className="flex-grow p-4 overflow-y-auto h-0 pb-32 md:pb-4">
-                        <NewNarrativeLog /> {/* Usando o novo componente */}
+                        <NewNarrativeLog />
                     </div>
                     {/* Desktop Actions */}
                     <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 hidden md:block">

@@ -2,14 +2,14 @@
 
 import React, { ChangeEvent, useEffect, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, AVAILABLE_IMAGE_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
-import { Info, KeyRound } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX } from 'lucide-react';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
-interface SliderWithTooltipProps {
+interface SliderProps {
     id: keyof GenerationConfig;
     label: string;
     tooltip: string;
@@ -20,7 +20,7 @@ interface SliderWithTooltipProps {
     onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }
 
-const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, tooltip, value, min, max, step, onChange }) => (
+const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, step, onChange }) => (
     <div>
         <div className="flex justify-between items-center mb-1">
             <label htmlFor={id} className="text-stone-300 font-semibold flex items-center gap-2">
@@ -46,6 +46,28 @@ const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, toolti
         />
     </div>
 );
+
+const AmbientSoundControls: React.FC = () => {
+    const { volume, setVolume, isMuted, setIsMuted } = useSettingsContext();
+
+    return (
+        <div className="flex items-center gap-3">
+             <button onClick={() => setIsMuted(m => !m)} className="text-stone-300 hover:text-white p-2 rounded-full bg-stone-700/50 hover:bg-stone-600/50 transition-colors">
+                {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
+            </button>
+             <Slider 
+                id="temperature" // Dummy ID, não usado por esta lógica
+                label="Volume"
+                tooltip="Ajusta o volume dos sons de ambiente."
+                value={Math.round(volume * 100)}
+                min={0}
+                max={100}
+                step={5}
+                onChange={(e) => setVolume(Number(e.target.value) / 100)}
+            />
+        </div>
+    )
+}
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
@@ -73,7 +95,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         >
             <div 
                 className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()} // Impede o fechamento ao clicar dentro do modal
+                onClick={(e) => e.stopPropagation()}
             >
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
                     <h2 className="text-xl font-bold font-garamond text-amber-300">Configurações</h2>
@@ -97,72 +119,72 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         </p>
                     </div>
 
-                    <div>
-                        <label htmlFor="ai-model-select" className="block text-stone-300 font-semibold mb-2">
-                            Modelo de IA do Mestre
-                        </label>
-                        <select
-                            id="ai-model-select"
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        >
-                            {AVAILABLE_MODELS.map(modelName => (
-                                <option key={modelName} value={modelName}>
-                                    {modelName}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-xs text-stone-500 mt-2">
-                            A mudança de modelo será aplicada na próxima ação enviada ao mestre.
-                        </p>
-                    </div>
-                    
-                     <div>
-                        <label htmlFor="tts-voice-select" className="block text-stone-300 font-semibold mb-2">
-                            Voz do Narrador (TTS)
-                        </label>
-                        <select
-                            id="tts-voice-select"
-                            value={ttsVoice}
-                            onChange={(e) => setTtsVoice(e.target.value)}
-                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        >
-                            {AVAILABLE_TTS_VOICES.map(voiceName => (
-                                <option key={voiceName} value={voiceName}>
-                                    {voiceName}
-                                </option>
-                            ))}
-                        </select>
-                         <p className="text-xs text-stone-500 mt-2">
-                           A mudança da voz será aplicada na próxima narração gerada.
-                        </p>
-                    </div>
-
-                     <div>
-                        <label htmlFor="image-model-select" className="block text-stone-300 font-semibold mb-2">
-                            Modelo de Geração de Imagem
-                        </label>
-                        <select
-                            id="image-model-select"
-                            value={imageModel}
-                            onChange={(e) => setImageModel(e.target.value)}
-                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                        >
-                            {AVAILABLE_IMAGE_MODELS.map(modelName => (
-                                <option key={modelName} value={modelName}>
-                                    {modelName}
-                                </option>
-                            ))}
-                        </select>
-                         <p className="text-xs text-stone-500 mt-2">
-                           A mudança do modelo de imagem será aplicada na próxima imagem gerada.
-                        </p>
+                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
+                        <h3 className="text-lg font-semibold text-stone-300">Áudio Ambiente</h3>
+                        <AmbientSoundControls />
                     </div>
 
                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
+                        <h3 className="text-lg font-semibold text-stone-300">Modelos de IA</h3>
+                         <div>
+                            <label htmlFor="ai-model-select" className="block text-stone-300 font-semibold mb-2">
+                                Modelo do Mestre
+                            </label>
+                            <select
+                                id="ai-model-select"
+                                value={model}
+                                onChange={(e) => setModel(e.target.value)}
+                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            >
+                                {AVAILABLE_MODELS.map(modelName => (
+                                    <option key={modelName} value={modelName}>
+                                        {modelName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        
+                         <div>
+                            <label htmlFor="tts-voice-select" className="block text-stone-300 font-semibold mb-2">
+                                Voz do Narrador (TTS)
+                            </label>
+                            <select
+                                id="tts-voice-select"
+                                value={ttsVoice}
+                                onChange={(e) => setTtsVoice(e.target.value)}
+                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            >
+                                {AVAILABLE_TTS_VOICES.map(voiceName => (
+                                    <option key={voiceName} value={voiceName}>
+                                        {voiceName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                         <div>
+                            <label htmlFor="image-model-select" className="block text-stone-300 font-semibold mb-2">
+                                Modelo de Geração de Imagem
+                            </label>
+                            <select
+                                id="image-model-select"
+                                value={imageModel}
+                                onChange={(e) => setImageModel(e.target.value)}
+                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            >
+                                {AVAILABLE_IMAGE_MODELS.map(modelName => (
+                                    <option key={modelName} value={modelName}>
+                                        {modelName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <div className="space-y-4 pt-4 border-t border-stone-700/50">
                          <h3 className="text-lg font-semibold text-stone-300">Parâmetros da IA</h3>
-                        <SliderWithTooltip 
+                        <Slider 
                             id="temperature"
                             label="Temperatura"
                             tooltip="A 'Inspiração' do Mestre. Valores altos o tornam mais criativo e imprevisível. Valores baixos o mantêm mais focado e direto."
@@ -170,7 +192,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             min={0} max={1} step={0.05}
                             onChange={handleConfigChange}
                         />
-                         <SliderWithTooltip 
+                         <Slider 
                             id="topP"
                             label="Top-P"
                             tooltip="A 'Confiança' do Mestre. Um valor alto permite que ele considere palavras mais ousadas e incomuns. Um valor baixo o limita às palavras mais seguras e prováveis."
@@ -178,7 +200,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             min={0} max={1} step={0.05}
                             onChange={handleConfigChange}
                         />
-                         <SliderWithTooltip 
+                         <Slider 
                             id="topK"
                             label="Top-K"
                             tooltip="O 'Foco' do Mestre. Limita o número de palavras que ele considera a cada passo. Um valor baixo o torna mais repetitivo e previsível; um valor alto aumenta a variedade."
@@ -186,7 +208,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             min={1} max={100} step={1}
                             onChange={handleConfigChange}
                         />
-                         <SliderWithTooltip 
+                         <Slider 
                             id="maxOutputTokens"
                             label="Tamanho da Resposta"
                             tooltip="O 'Fôlego' do Mestre. Define o quão longas e detalhadas suas respostas podem ser. Valores altos permitem narrativas épicas, mas podem levar mais tempo."

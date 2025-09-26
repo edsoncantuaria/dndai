@@ -3,15 +3,11 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "gemini-2.5-pro",
     "gemini-1.5-pro",        
-    "gemini-2.5-flash",     
     "gemini-1.5-flash",     
-    "gemini-1.5-flash-8b",   
-    "gemini-2.0-flash-lite", 
-    "gemini-1.0-pro",
+    "gemma-2-27b-it",
+    "gemma-2-9b-it",
     "gemma-7b-it",
-    "gemma-3-27b-it",
 ];
 
 export const AVAILABLE_TTS_MODELS = [
@@ -47,7 +43,7 @@ export interface GenerationConfig {
 }
 
 
-const LOCAL_STORAGE_KEY = 'rpg-settings';
+const LOCAL_STORAGE_KEY = 'rpg-settings-v2';
 
 interface SettingsContextType {
     model: string;
@@ -56,12 +52,16 @@ interface SettingsContextType {
     setTtsModel: (model: string) => void;
     imageModel: string;
     setImageModel: (model: string) => void;
-    ttsVoice: string; // NEW
-    setTtsVoice: (voice: string) => void; // NEW
-    apiKey: string;
-    setApiKey: (key: string) => void;
+    ttsVoice: string;
+    setTtsVoice: (voice: string) => void;
+    apiKeys: string[];
+    setApiKeys: (keys: string[]) => void;
     generationConfig: GenerationConfig;
     setGenerationConfig: (config: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => void;
+    volume: number;
+    setVolume: (volume: number) => void;
+    isMuted: boolean;
+    setIsMuted: (isMuted: boolean) => void;
 }
 
 const defaultGenerationConfig: GenerationConfig = {
@@ -78,33 +78,26 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [model, setModel] = useState<string>(AVAILABLE_MODELS[0]);
     const [ttsModel, setTtsModel] = useState<string>(AVAILABLE_TTS_MODELS[0]);
     const [imageModel, setImageModel] = useState<string>(AVAILABLE_IMAGE_MODELS[0]);
-    const [ttsVoice, setTtsVoice] = useState<string>(AVAILABLE_TTS_VOICES[0]); // NEW
-    const [apiKey, setApiKey] = useState<string>('');
+    const [ttsVoice, setTtsVoice] = useState<string>(AVAILABLE_TTS_VOICES[0]);
+    const [apiKeys, setApiKeys] = useState<string[]>(['', '', '']);
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultGenerationConfig);
+    const [volume, setVolume] = useState(0.3);
+    const [isMuted, setIsMuted] = useState(false);
+
 
     useEffect(() => {
         try {
             const savedSettings = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedSettings) {
                 const parsed = JSON.parse(savedSettings);
-                if (parsed.model && AVAILABLE_MODELS.includes(parsed.model)) {
-                    setModel(parsed.model);
-                }
-                 if (parsed.ttsModel && AVAILABLE_TTS_MODELS.includes(parsed.ttsModel)) {
-                    setTtsModel(parsed.ttsModel);
-                }
-                if (parsed.imageModel && AVAILABLE_IMAGE_MODELS.includes(parsed.imageModel)) {
-                    setImageModel(parsed.imageModel);
-                }
-                 if (parsed.ttsVoice && AVAILABLE_TTS_VOICES.includes(parsed.ttsVoice)) { // NEW
-                    setTtsVoice(parsed.ttsVoice);
-                }
-                if(parsed.apiKey) {
-                    setApiKey(parsed.apiKey);
-                }
-                if (parsed.generationConfig) {
-                    setGenerationConfig(prev => ({ ...prev, ...parsed.generationConfig }));
-                }
+                if (parsed.model && AVAILABLE_MODELS.includes(parsed.model)) setModel(parsed.model);
+                if (parsed.ttsModel && AVAILABLE_TTS_MODELS.includes(parsed.ttsModel)) setTtsModel(parsed.ttsModel);
+                if (parsed.imageModel && AVAILABLE_IMAGE_MODELS.includes(parsed.imageModel)) setImageModel(parsed.imageModel);
+                if (parsed.ttsVoice && AVAILABLE_TTS_VOICES.includes(parsed.ttsVoice)) setTtsVoice(parsed.ttsVoice);
+                if(parsed.apiKeys && Array.isArray(parsed.apiKeys)) setApiKeys(parsed.apiKeys);
+                if (parsed.generationConfig) setGenerationConfig(prev => ({ ...prev, ...parsed.generationConfig }));
+                if (typeof parsed.volume === 'number') setVolume(parsed.volume);
+                if (typeof parsed.isMuted === 'boolean') setIsMuted(parsed.isMuted);
             }
         } catch (error) {
             console.error("Failed to load settings from localStorage:", error);
@@ -115,15 +108,24 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         if(isLoaded) {
             try {
-                const settings = { model, ttsModel, imageModel, apiKey, generationConfig, ttsVoice }; // NEW
+                const settings = { model, ttsModel, imageModel, apiKeys, generationConfig, ttsVoice, volume, isMuted };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
             } catch (error) {
                 console.error("Failed to save settings to localStorage:", error);
             }
         }
-    }, [model, ttsModel, imageModel, apiKey, generationConfig, ttsVoice, isLoaded]); // NEW
+    }, [model, ttsModel, imageModel, apiKeys, generationConfig, ttsVoice, volume, isMuted, isLoaded]);
 
-    const value = { model, setModel, ttsModel, setTtsModel, imageModel, setImageModel, apiKey, setApiKey, generationConfig, setGenerationConfig, ttsVoice, setTtsVoice }; // NEW
+    const value = { 
+        model, setModel, 
+        ttsModel, setTtsModel, 
+        imageModel, setImageModel, 
+        apiKeys, setApiKeys, 
+        generationConfig, setGenerationConfig, 
+        ttsVoice, setTtsVoice,
+        volume, setVolume,
+        isMuted, setIsMuted
+    };
 
     return (
         <SettingsContext.Provider value={value}>
