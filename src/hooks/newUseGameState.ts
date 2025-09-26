@@ -5,7 +5,6 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
-import { SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -442,6 +441,11 @@ export const useNewGameState = () => {
          if (!character) return;
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
+    
+    const handleSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
+
 
     return {
         character,
@@ -475,7 +479,6 @@ export const useNewGameState = () => {
         loadGameFromFile,
         saveGameToFile,
         submitPlayerRoll,
+        handleSkillCheck,
     };
 };
-
-    
