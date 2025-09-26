@@ -1,146 +1,141 @@
 'use server';
 
-import { GoogleGenerativeAI, Content, GenerationConfig, GenerativeModel } from "@google/generative-ai";
-import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "./gameSchemas";
-import { ambientSounds } from "@/data/ambient-sounds";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem } from '../types';
+import { GameMasterResponse, GameMasterFlowInput } from "./gameSchemas";
+import { GenerationConfig } from "@/contexts/SettingsContext";
 
-// Cache for the GenAI client and for the models
-let genAI: GoogleGenerativeAI | null = null;
-const modelCache = new Map<string, GenerativeModel>();
+// Esta função agora aceita a chave de API como um argumento.
+const getGenAI = (apiKey: string) => {
+    return new GoogleGenerativeAI(apiKey);
+}
 
-/**
- * Gets a singleton instance of GoogleGenerativeAI.
- */
-const getGenAI = (apiKey: string): GoogleGenerativeAI => {
-    if (!genAI || genAI.apiKey !== apiKey) {
-        genAI = new GoogleGenerativeAI(apiKey);
+const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu objetivo é criar uma história contínua e envolvente que reaja às escolhas do jogador.
+
+### Diretrizes de Saída
+- **Formato:** Sua saída DEVE ser um único objeto JSON válido. Não inclua nenhum texto, formatação ou marcadores como \`\`\`json \`\`\` fora do objeto JSON.
+- **Idioma:** Toda a sua narração e texto devem estar em **português do Brasil**.
+
+### Estrutura do JSON de Resposta
+
+{
+  "logEntries": [
+    {
+      "type": "'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll'",
+      "content": "O texto descritivo do que está acontecendo. Esta é a parte principal da sua narração."
     }
-    return genAI;
-};
+  ],
+  "actionOptions": ["Opção 1 como string", { "text": "Opção 2 como objeto", "action": "internal_action_2" }],
+  "updatedCharacter": {
+    /* Inclua APENAS os campos do personagem que mudaram. Exemplos:
+    "hp": { "current": 5 },
+    "xp": 150,
+    "inventory": [ ... ],
+    "journal": { ... },
+    "relationships": [ ... ]
+    */
+  },
+  "combatState": { /* Preencha se o combate estiver ativo */ },
+  "levelUpState": { /* Preencha quando o jogador subir de nível */ },
+  "shopState": { /* Preencha quando o jogador entrar em uma loja */ },
+  "lootOffer": { /* Preencha para oferecer saques */ },
+  "useHitDiceRequest": { /* Preencha para oferecer descanso curto */ },
+  "imagePrompt": "Ocasionalmente, um prompt de imagem detalhado (em inglês) para uma cena importante."
+}
 
-/**
- * Gets a generative model from cache or creates it if it doesn't exist.
- * Configures the model to always expect a JSON response based on our schema.
- */
-const getModel = (apiKey: string, modelName: string, config: GenerationConfig): GenerativeModel => {
-    const cacheKey = `${apiKey}-${modelName}`;
-    if (modelCache.has(cacheKey)) {
-        return modelCache.get(cacheKey)!;
-    }
-    
-    const ai = getGenAI(apiKey);
-    const model = ai.getGenerativeModel({
-        model: modelName,
-        generationConfig: {
-            ...config,
-            responseMimeType: "application/json",
-            responseSchema: GameMasterResponseSchema,
-        },
-        systemInstruction: systemInstruction, // Set the system instruction directly on the model
-    });
-    
-    modelCache.set(cacheKey, model);
-    return model;
-};
+### Regras do Jogo e Narrativa
 
-const ambientSoundList = ambientSounds.map(s => `- ${s.id}: ${s.name}`).join('\n');
+1.  **Narração (\`logEntries\`):**
+    - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
+    - Use \`type: 'system'\` para mensagens do jogo (ex: "Você ganhou 25 XP.").
+    - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados.
+    - Seja descritivo e imersivo.
 
-// The system instruction, now updated to request rolls instead of making them.
-const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um RPG de texto solo de Dungeons & Dragons 5ª Edição. Seu papel é narrar a aventura, gerenciar o estado do personagem e controlar os elementos do mundo.
+2.  **Opções de Ação (\`actionOptions\`):**
+    - Sempre forneça de 2 a 4 opções de ação claras e relevantes para o jogador. Elas guiam a agência do jogador.
 
-### Diretrizes de Resposta (JSON OBRIGATÓRIO)
-Sua resposta DEVE ser um objeto JSON válido que corresponda ao schema fornecido.
+3.  **Atualizações do Personagem (\`updatedCharacter\`):**
+    - **CRÍTICO:** Retorne apenas os campos que foram alterados. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`. Nunca retorne o objeto de personagem inteiro.
+    - Gerencie inventário, experiência (XP), pontos de vida (hp), diário (journal) e relacionamentos (relationships) através deste objeto.
 
-1.  **Rolagem de Dados pelo Jogador**:
-    *   **NÃO ROLE DADOS PELO JOGADOR.** Quando uma ação incerta for tentada (ataque, teste de perícia, salvamento), responda com o objeto 'playerRollRequest'.
-    *   Preencha 'playerRollRequest' com a 'reason', o 'dice' ("1d20"), e o 'modifier'. Se houver uma Classe de Dificuldade (CD) pública, inclua-a.
-    *   O jogo irá pausar. Na próxima chamada, a 'playerAction' conterá o resultado do jogador. Use esse resultado para determinar o sucesso ou fracasso e narrar a consequência em 'logEntries'.
+4.  **Recursos Multimídia:**
+    - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Exemplo: "Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern...". Use com moderação.
 
-2.  **Transparência nas Rolagens do Mestre (NOVO!)**:
-    *   Quando um NPC ou inimigo fizer uma rolagem contra o jogador (ataque, teste de resistência, etc.), você **deve** realizar a rolagem internamente.
-    *   Na narração ('logEntries' com 'type: "roll"'), descreva a rolagem e o resultado claramente. Exemplo de descrição: "O goblin ataca você com a sua cimitarra! Ele tira 14 no dado (1d20 + 2), totalizando 16 para acertar." Isso gera confiança e imersão.
-
-3.  **Narração e Ações ('logEntries', 'actionOptions')**:
-    *   Use 'logEntries' para descrever o que acontece. Use 'type: "narration"' para descrições.
-    *   Sempre forneça 2 a 4 opções claras de ação em 'actionOptions'.
-
-4.  **Atualizações do Personagem ('updatedCharacter')**:
-    *   Este é o campo mais importante. Retorne **apenas** as propriedades do personagem que mudaram.
-    *   Exemplos: Dano -> \`"updatedCharacter": { "hp": { "current": 5 } }\`. Item -> \`"updatedCharacter": { "inventory": [...] }\` com o inventário completo.
-
-5.  **Imersão**:
-    *   Para cenas importantes, forneça um prompt detalhado em inglês no campo 'imagePrompt'.
-    *   Quando a atmosfera mudar, defina 'ambientSound' para um dos IDs disponíveis. Não mude a cada turno. IDs:
-        ${ambientSoundList}`;
+5.  **Regras de D&D 5e:**
+    - Aplique as regras de combate, testes de perícia e habilidades de forma consistente. Você é responsável por todas as rolagens de dados.
+    - Ao conceder experiência (XP), quando \`character.xp\` atingir ou exceder \`character.xpToNextLevel\`, ative o \`levelUpState\` e preencha as \`choices\` para o novo nível.
+`;
 
 
-/**
- * Creates the user prompt to be sent to the model.
- */
-const createPrompt = (input: GameMasterFlowInput): Content[] => {
+const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog } = input;
     
     const characterContext = JSON.stringify(character, null, 2);
-    const logContext = JSON.stringify(gameLog.slice(-15), null, 2); // Keep recent log for context
+    const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
 
-    const promptText = `
-### Estado Atual do Personagem (JSON)
+    return `
+### Estado do Personagem (JSON)
 ${characterContext}
 
-### Últimos Eventos do Jogo (JSON)
+### Últimos Eventos (JSON)
 ${logContext}
 ---
 A ação do jogador é: "${playerAction}"
 
-Com base no estado atual do personagem e no histórico do jogo, continue a aventura como o Mestre de Jogo. Lembre-se, quando um teste for necessário, solicite uma rolagem ao jogador usando 'playerRollRequest'. Para suas próprias rolagens (NPCs), seja transparente. Forneça sua resposta como um objeto JSON válido.
+Com base no estado atual do personagem e no histórico, continue a aventura.
     `;
-    
-    return [{ role: "user", parts: [{ text: promptText }] }];
 }
 
-/**
- * Main function to get the game state update from the AI.
- */
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
     if (!apiKey) {
       throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
     }
-    
+    const genAI = getGenAI(apiKey);
+
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        systemInstruction: {
+            role: "model",
+            parts: [{ text: systemInstruction }],
+        },
+    });
+
     try {
-        const model = getModel(apiKey, modelName, generationConfig);
-        const userPrompt = createPrompt(input);
+        const prompt = createPrompt(input);
         
         const result = await model.generateContent({
-            contents: userPrompt,
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+                ...generationConfig,
+                responseMimeType: "application/json",
+            }
         });
 
         const response = result.response;
         const jsonText = response.text();
-        
-        if (!jsonText) {
-            throw new Error("A resposta da IA está vazia.");
-        }
+        console.log(`[geminiService (${modelName})] Resposta da IA recebida:`, jsonText); 
 
-        const responseData = JSON.parse(jsonText);
+        const responseData = JSON.parse(jsonText) as any; // Parse como 'any' para checar a estrutura
+
+        // Adaptador: Checa se a IA enviou 'narration' em vez de 'logEntries'
+        if (responseData.narration && typeof responseData.narration === 'string') {
+            if (!responseData.logEntries) {
+                responseData.logEntries = [];
+            }
+            // Adiciona a narração ao início do array de logs
+            responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
+            delete responseData.narration; // Remove o campo antigo para evitar confusão
+        }
+        
         return responseData as GameMasterResponse;
 
     } catch (error: any) {
         console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
-        
-        let errorMessage = `O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}`;
-        if (error.message.toLowerCase().includes('json')) {
-             errorMessage = `O Mestre de Jogo tentou responder, mas a magia falhou (erro de formatação JSON). Verifique o console para mais detalhes.`;
-        } else if (error.message.toLowerCase().includes('api key')) {
-             errorMessage = `A conexão com o mundo arcano falhou. Verifique sua chave de API nas configurações. Detalhes: ${error.message}`;
-        }
-        
-        throw new Error(errorMessage);
+        // Em vez de retornar um objeto de erro, lançamos uma exceção para ser capturada pelo hook.
+        throw new Error(`O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}`);
     }
 };
 
-/**
- * Tests the connection to the AI.
- */
 export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<string | null> => {
      if (!apiKey) {
         return "Erro: Nenhuma chave de API fornecida ou configurada. Por favor, adicione uma chave nas configurações.";
@@ -154,7 +149,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
                 ...generationConfig,
-                responseMimeType: "text/plain", 
+                responseMimeType: "text/plain",
             }
         });
 
