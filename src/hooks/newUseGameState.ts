@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -112,7 +111,8 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
-    const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null); // Novo estado para magias
+    const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null);
+    const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
@@ -127,13 +127,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
@@ -194,6 +194,13 @@ export const useNewGameState = () => {
             setLog(prev => [...prev, ...newLogEntries]);
         }
         
+        // Se a IA pedir uma rolagem, definimos o estado para abrir o modal. A execução para aqui.
+        if(response.playerRollRequest) {
+            setPlayerRollRequest(response.playerRollRequest);
+            setActionOptions([]); // Limpa as ações para focar na rolagem
+            return; // Impede o processamento de outras partes da resposta
+        }
+        
         if (response.actionOptions !== undefined) {
              setActionOptions(response.actionOptions);
         }
@@ -232,7 +239,7 @@ export const useNewGameState = () => {
         }
 
     }, [getApiKey, selectedImageModel]);
-    
+
     const processPlayerAction = useCallback(async (action: string) => {
         if (!character) return;
         
@@ -274,6 +281,16 @@ export const useNewGameState = () => {
         }
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+
+    const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
+        if (!playerRollRequest) return;
+        
+        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}. (Rolagens: ${result.rolls.join(', ')})`;
+        
+        setPlayerRollRequest(null);
+        processPlayerAction(actionText);
+
+    }, [playerRollRequest, processPlayerAction]);
     
     const handleSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
@@ -462,6 +479,9 @@ export const useNewGameState = () => {
         setSpellCastRequest,
         castSpell,
         submitSpellCast,
+        playerRollRequest,
+        setPlayerRollRequest,
+        handleRollResult,
         isLoading,
         apiError,
         ambientSound,

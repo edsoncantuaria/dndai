@@ -2,15 +2,17 @@
 import { z } from 'zod';
 
 // Schema for PlayerRollRequest
-const PlayerRollRequestSchema = z.object({
-    reason: z.string().describe("The reason for the roll (e.g., 'to persuade the guard', 'to dodge the fireball')."),
+export const PlayerRollRequestSchema = z.object({
+    reason: z.string().describe("The reason for the roll (e.g., 'to persuade the guard', 'to dodge the fireball'). This will be displayed to the player."),
     dice: z.string().describe("The dice to roll, in standard notation (e.g., '1d20', '2d6')."),
-    modifier: z.number().describe("The total modifier to add to the roll."),
-    dc: z.number().optional().describe("The difficulty class of the check, if applicable."),
+    modifier: z.number().describe("The total modifier to add to the roll, calculated from character stats."),
+    dc: z.number().optional().describe("The Difficulty Class of the check. This is crucial for the player to know what they need to beat."),
     rollType: z.enum(['check', 'save', 'attack', 'damage']).describe("The type of roll being made."),
     advantage: z.boolean().optional().describe("Whether the roll should be made with advantage."),
     disadvantage: z.boolean().optional().describe("Whether the roll should be made with disadvantage.")
 });
+export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
+
 
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
@@ -64,7 +66,7 @@ export const GameMasterResponseSchema = z.object({
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action."),
     combatState: CombatStateSchema.optional().describe("The current state of combat, if any."),
     levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
-    playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice, this object will be populated."),
+    playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice for a skill check, saving throw, or attack, this object MUST be populated. This is the ONLY way to make the player roll dice."),
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
@@ -72,12 +74,12 @@ export const GameMasterResponseSchema = z.object({
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night', 'dungeon_i', 'none' for silence). This should be chosen from the available `ambient-sounds.json` file to match the current scene's atmosphere."),
 }).describe("The Game Master's response, containing all updates to the game state.");
 
-export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
+export type GameMasterResponse = z_infer<typeof GameMasterResponseSchema>;
 
 // Schema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("The entire current character state object."),
-  playerAction: z.string().describe("The action taken by the player."),
+  playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
 });
 

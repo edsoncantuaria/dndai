@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import { PlayerRollRequest } from '@/types';
+import type { PlayerRollRequest } from '@/types';
 import SkillCheckModal from './ui/SkillCheckModal';
 
 
@@ -115,11 +115,22 @@ const ActionOptions: React.FC = () => {
         pendingLootOffer, 
         pendingHitDiceRequest, 
         handleSkillCheck,
+        playerRollRequest
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
 
     const renderActionContent = () => {
+        // A nova regra de ouro: se uma rolagem está pendente, nada mais é interativo.
+        if(playerRollRequest) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400">
+                    <Loader2 className="animate-spin" />
+                    <span className="ml-2">Aguardando sua rolagem de dados...</span>
+                </div>
+            );
+        }
+
         if (pendingLootOffer) {
             return <LootOfferDisplay />;
         }

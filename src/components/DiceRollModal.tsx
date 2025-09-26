@@ -44,11 +44,9 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     return () => {
       if (diceBoxInstance.current) {
         try {
-          // A documentação sugere que a limpeza pode não ser mais necessária da mesma forma
-          // mas vamos manter por segurança. Se causar erros, removeremos.
           diceBoxInstance.current.clear();
         } catch(e) {
-          // Ignora erros de limpeza que podem ocorrer durante o hot-reloading
+          // Ignora erros de limpeza
         }
       }
     }
@@ -57,7 +55,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const handleRoll = useCallback(async () => {
     if (!diceBoxInstance.current || isRolling || !isDiceboxReady || hasRolled) return;
     
-    console.log("Iniciando rolagem para:", JSON.stringify(request, null, 2));
+    console.log("PlayerRollRequest recebido:", JSON.stringify(request, null, 2));
 
     setIsRolling(true);
     setHasRolled(true);
@@ -86,7 +84,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       
       const total = finalRawRoll + (request.modifier || 0);
 
-      // Lógica para sucesso/falha crítica
       const isD20Roll = request.dice === '1d20';
       if (isD20Roll && finalRawRoll === 20) {
         setRollStatus('critical-success');
@@ -99,7 +96,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       setTimeout(() => {
         setRollResult({ total, rolls: diceValues });
         setIsRolling(false);
-      }, 1500); // Adiciona um pequeno atraso para a animação terminar
+      }, 1500);
 
     } catch (e) {
       console.error("Erro na rolagem de dados 3D:", e);
