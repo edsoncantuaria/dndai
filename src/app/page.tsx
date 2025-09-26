@@ -16,6 +16,17 @@ const HomePageContent = () => {
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
+        const event = new Event('dice-loaded');
+        (window as any).dice_is_loading = false;
+        
+        // This function will be called once the dice.js script is loaded
+        (window as any).onDiceLoaded = () => {
+            (window as any).dice_is_loading = false;
+            window.dispatchEvent(event);
+        };
+    }, []);
+
+    useEffect(() => {
         // Create audio element programmatically to ensure it's available
         if (!menuAudioRef.current) {
             menuAudioRef.current = new Audio();
@@ -37,7 +48,9 @@ const HomePageContent = () => {
         } else {
             audio.pause();
             // Reset src to stop buffering
-            audio.src = '';
+            if (audio.src) {
+                audio.src = '';
+            }
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
@@ -98,7 +111,7 @@ export default function HomePage() {
         <script src="/extras/dice-main/libs/teal.js" defer></script>
         <script src="/extras/dice-main/libs/three.min.js" defer></script>
         <script src="/extras/dice-main/libs/cannon.min.js" defer></script>
-        <script src="/extras/dice-main/dice.js" defer></script>
+        <script src="/extras/dice-main/dice.js" defer onLoad="(window.onDiceLoaded || (() => {}))()"></script>
     </Head>
     <main
       className="h-full w-full bg-gradient-to-br from-black via-stone-900 to-red-950 p-2 md:p-4 flex items-center justify-center"

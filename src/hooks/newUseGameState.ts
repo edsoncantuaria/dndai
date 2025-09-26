@@ -8,6 +8,7 @@ import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
+import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -165,7 +166,7 @@ export const useNewGameState = () => {
          if (character && !isLoading) { 
             saveGame();
         }
-    }, [character, log, isLoading]);
+    }, [character, log, isLoading, saveGame]);
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
@@ -294,6 +295,22 @@ export const useNewGameState = () => {
 
         await processPlayerAction(`O resultado da minha rolagem de ${originalReason} foi ${result}.`);
     }, [character, playerRollRequest, processPlayerAction]);
+
+    const handleSkillCheck = useCallback((skillName: string) => {
+        if (!character) return;
+        const translatedSkill = translateApiString(`Skill: ${skillName}`);
+        const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
+        const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
+        const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
+
+        requestPlayerRoll({
+            reason: `um teste de ${translatedSkill}`,
+            dice: '1d20',
+            modifier,
+            rollType: 'check',
+        });
+    }, [character, requestPlayerRoll]);
+
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -477,6 +494,7 @@ export const useNewGameState = () => {
         loadGameFromFile,
         saveGameToFile,
         requestPlayerRoll,
-        submitPlayerRoll
+        submitPlayerRoll,
+        handleSkillCheck,
     };
 };

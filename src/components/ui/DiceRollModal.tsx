@@ -3,6 +3,12 @@ import React, { useRef, useEffect, useState } from 'react';
 import { PlayerRollRequest } from '@/types';
 import { Loader2 } from 'lucide-react';
 
+declare global {
+    interface Window {
+        DICE: any;
+    }
+}
+
 interface DiceRollModalProps {
     request: PlayerRollRequest;
     onRoll: (result: number) => void;
@@ -10,34 +16,11 @@ interface DiceRollModalProps {
 
 const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
     const canvasRef = useRef<HTMLDivElement>(null);
-    const [diceNotation, setDiceNotation] = useState('');
     const [result, setResult] = useState<number | null>(null);
     const [isRolling, setIsRolling] = useState(false);
     const boxRef = useRef<any>(null);
 
-    useEffect(() => {
-        if (typeof window === 'undefined' || !(window as any).DICE || !canvasRef.current) return;
-
-        // Limpa o canvas anterior, se houver
-        if (canvasRef.current.hasChildNodes()) {
-            canvasRef.current.innerHTML = '';
-        }
-
-        // Inicializa o dice_box
-        boxRef.current = new (window as any).DICE.dice_box(canvasRef.current);
-
-        // Dispara a rolagem automaticamente quando o modal abre
-        handleRoll();
-
-        return () => {
-            if (boxRef.current) {
-                boxRef.current.clear();
-            }
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Executa apenas uma vez
-
-    const handleRoll = () => {
+    const handleRoll = useCallback(() => {
         if (!boxRef.current || isRolling) return;
         
         setIsRolling(true);
@@ -52,15 +35,44 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
                 const totalResult = diceResult + (request.modifier || 0);
                 setResult(totalResult);
             } else {
-                // Em caso de erro na biblioteca de dados (dado "caiu da mesa")
                 console.error("Erro na rolagem de dados 3D, usando fallback.");
                 const fallbackResult = Math.floor(Math.random() * 20) + 1 + (request.modifier || 0);
                 setResult(fallbackResult);
             }
             setIsRolling(false);
         });
-    };
-    
+    }, [isRolling, request.dice, request.modifier]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined' || !canvasRef.current) return;
+
+        const initializeDiceBox = () => {
+            if (window.DICE && canvasRef.current) {
+                if (canvasRef.current.hasChildNodes()) {
+                    canvasRef.current.innerHTML = '';
+                }
+                boxRef.current = new window.DICE.dice_box(canvasRef.current);
+                // Trigger the roll automatically once initialized
+                setTimeout(handleRoll, 100); 
+            }
+        };
+
+        if (window.DICE) {
+            initializeDiceBox();
+        } else {
+            // If the script hasn't loaded yet, wait for it.
+            window.addEventListener('dice-loaded', initializeDiceBox, { once: true });
+        }
+
+        return () => {
+            window.removeEventListener('dice-loaded', initializeDiceBox);
+            if (boxRef.current) {
+                boxRef.current.clear();
+            }
+        };
+    }, [handleRoll]);
+
+
     const handleConfirm = () => {
         if (result !== null) {
             onRoll(result);
