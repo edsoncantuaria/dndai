@@ -1,4 +1,3 @@
-
 'use server';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -37,26 +36,32 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
       - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho em \`logEntries\`, atualizar o estado do jogo (usando \`updatedCharacter\`, \`combatState\`, etc.) e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
     - **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria. Para transparência, SEMPRE descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`.
 
-3.  **Narração e Notificações (\`logEntries\`):**
+3.  **Gerenciamento de Combate:**
+    - **Iniciando o Combate:** Quando as hostilidades começam (seja por uma ação do jogador ou um evento), defina \`combatState.isActive\` para \`true\`.
+    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e solicite uma rolagem de iniciativa (teste de Destreza) do jogador usando \`playerRollRequest\`. Preencha a lista \`combatants\` com todos os participantes e seus resultados de iniciativa.
+    - **Turnos:** Ordene os combatentes pela iniciativa. A cada turno, incremente \`combatState.turn\`. Narre a ação do combatente atual. Forneça \`actionOptions\` apenas quando for o turno do jogador.
+    - **Finalizando o Combate:** Quando um lado for derrotado, defina \`combatState.isActive\` para \`false\` e continue a narração.
+
+4.  **Narração e Notificações (\`logEntries\`):**
     - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
     - Use \`type: 'system'\` para mensagens de jogo (ex: "Você ganhou 25 XP.", "Novo item adicionado: Espada Longa").
     - Use \`type: 'combat'\` para mensagens diretas de combate (ex: "O ataque do goblin erra!", "Você sofre 5 de dano de corte."). **SEMPRE** narre explicitamente o dano sofrido ou a cura recebida.
     - Use \`type: 'insight'\` para pensamentos do personagem ou intuições fornecidas pelo Mestre (ex: "Você sente que o mercador está escondendo algo.").
     - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados que VOCÊ fez.
 
-4.  **Opções de Ação (\`actionOptions\`):**
+5.  **Opções de Ação (\`actionOptions\`):**
     - Sempre forneça de 2 a 4 opções de ação claras e relevantes para guiar o jogador.
 
-5.  **Atualizações do Personagem (\`updatedCharacter\`):**
+6.  **Atualizações do Personagem (\`updatedCharacter\`):**
     - **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`.
     - **Consumíveis:** Ao usar um item consumível (poção, antídoto), diminua sua quantidade ou remova-o do inventário em \`updatedCharacter\`.
 
-6.  **Diário, Relações e Resumo da História:**
+7.  **Diário, Relações e Resumo da História:**
     - **Diário (\`journal\`):** Mantenha o diário do personagem atualizado. Adicione novos locais, atualize missões (quests) ou marque áreas como exploradas (\`looted\`) quando for relevante.
     - **Relações (\`relationships\`):** Após interações importantes com NPCs, atualize o estado do relacionamento (status, afinidade).
     - **Resumo da Aventura (\`storySoFar\`):** Periodicamente, após marcos importantes na história, atualize este campo com um resumo conciso da jornada do personagem até agora.
 
-7.  **Recursos Multimídia:**
+8.  **Recursos Multimídia:**
     - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Use com moderação.
 `;
 
@@ -170,6 +175,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
