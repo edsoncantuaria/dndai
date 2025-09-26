@@ -17,7 +17,7 @@ import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
 import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal'; // Importar o modal
-import SpellCastModal from './Spells/SpellCastModal'; // Importar o modal de magia
+import SpellCastModal from './ui/SpellCastModal'; // Importar o modal de magia
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
