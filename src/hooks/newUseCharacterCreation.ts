@@ -158,7 +158,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 if (option.option_type === 'choice') {
                     processChoice(option.choice, source, newId);
                 } else if (option.option_type === 'reference' && option.item) {
-                     const parentId = `${idPrefix}-group-${choice.desc.substring(0, 10)}`;
+                     const descSlice = choice.desc ? choice.desc.substring(0, 10) : choice.type || 'default';
+                     const parentId = `${idPrefix}-group-${descSlice}`;
                     const existingGroup = choices.find(c => c.id === parentId);
                     if (existingGroup) {
                         existingGroup.options.push(option.item);
