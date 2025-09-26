@@ -17,12 +17,13 @@ const HomePageContent = () => {
     useEffect(() => {
         const audio = menuAudioRef.current;
         if (!audio) return;
-        
-        const audioUrl = '/audios/index/inicio.mp3';
 
-        if (gameStage === 'menu' && playMenuMusic) {
-            // If the src is not set or is different, set it and play.
-            if (audio.src !== window.location.origin + audioUrl) {
+        const shouldPlay = playMenuMusic && (gameStage === 'menu' || gameStage === 'creating' || gameStage === 'created');
+
+        if (shouldPlay) {
+            // Garante que o src está correto antes de tocar
+            const audioUrl = '/audios/index/inicio.mp3';
+            if (!audio.src || !audio.src.endsWith(audioUrl)) {
                 audio.src = audioUrl;
             }
             audio.loop = true;
@@ -30,7 +31,6 @@ const HomePageContent = () => {
             audio.play().catch(e => console.error("Menu audio play failed:", e));
         } else {
             audio.pause();
-            audio.currentTime = 0;
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
@@ -82,7 +82,7 @@ const HomePageContent = () => {
     // o menu/criação ou a tela de jogo principal.
     return (
         <>
-            <audio ref={menuAudioRef} loop />
+            <audio ref={menuAudioRef} />
             <Game
                 startNewGameFlow={startNewGameFlow}
                 onCharacterCreated={onCharacterCreated}
