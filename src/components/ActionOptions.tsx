@@ -105,23 +105,13 @@ const ActionOptions: React.FC = () => {
     const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest } = useGameStateContext();
     const [isOpen, setIsOpen] = useState(false);
 
-    // Efeito para fechar o painel de ação quando a IA começar a carregar uma nova resposta.
     useEffect(() => {
         if(isLoading) {
             setIsOpen(false);
         }
-    }, [isLoading])
+    }, [isLoading]);
 
     const renderActionContent = () => {
-        if (isLoading && !isOpen) {
-            return (
-                <div className="flex items-center justify-center p-4 text-stone-400">
-                    <Loader2 className="animate-spin" />
-                    <span className="ml-2">Aguardando o mestre...</span>
-                </div>
-            );
-        }
-    
         if (pendingLootOffer) {
             return <LootOfferDisplay />;
         }
@@ -134,7 +124,13 @@ const ActionOptions: React.FC = () => {
     
         return (
             <div className="w-full">
-                {hasSuggestedActions && (
+                 {isLoading && (
+                    <div className="flex items-center justify-center p-4 text-stone-400">
+                        <Loader2 className="animate-spin" />
+                        <span className="ml-2">Aguardando o mestre...</span>
+                    </div>
+                )}
+                {!isLoading && hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
                             const actionText = (typeof action === 'object' && action !== null) 
@@ -161,47 +157,45 @@ const ActionOptions: React.FC = () => {
                     </div>
                 )}
                  <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
-                 {!hasSuggestedActions && (
+                 {!isLoading && !hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
             </div>
         );
     }
     
-    // Desktop view (sempre visível)
-    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
-         return (
-            <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
-                {renderActionContent()}
-            </div>
-        );
-    }
-
-    // Mobile view (FAB)
     return (
         <>
-             {isOpen && (
-                <div 
-                    className="fixed inset-0 bg-black/50 z-20"
-                    onClick={() => setIsOpen(false)}
-                />
-            )}
-            <div className="fixed bottom-20 right-4 z-30 md:hidden">
-                <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    disabled={isLoading}
-                    className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-                    aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
-                >
-                    {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
-                </button>
+            {/* Desktop: Static Panel */}
+            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
+                 {renderActionContent()}
             </div>
-            
-            {isOpen && (
-                 <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/70 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp">
-                    {renderActionContent()}
+
+            {/* Mobile: Floating Action Button and Modal */}
+            <div className="md:hidden">
+                {isOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/50 z-20"
+                        onClick={() => setIsOpen(false)}
+                    />
+                )}
+                <div className="fixed bottom-20 right-4 z-30">
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        disabled={isLoading}
+                        className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                        aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
+                    >
+                        {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
+                    </button>
                 </div>
-            )}
+                
+                {isOpen && (
+                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp">
+                        {renderActionContent()}
+                    </div>
+                )}
+            </div>
         </>
     );
 };
