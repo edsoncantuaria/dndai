@@ -39,7 +39,7 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { handleSkillCheck, isLoading, character } = useGameStateContext();
+    const { isLoading, character, handleSkillCheck } = useGameStateContext();
     
     if (!character) return null;
     

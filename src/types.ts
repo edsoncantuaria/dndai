@@ -243,6 +243,7 @@ export interface Character {
     spells: string[];
     feats: Feat[];
     backstory: string;
+    storySoFar?: string;
     personalityTraits: string[];
     ideal: string;
     bond: string;
@@ -255,7 +256,6 @@ export interface Character {
     relationships: Relationship[];
     journal: JournalEntryLocation[];
     currentRegion: string;
-    storySoFar?: string;
     hitDice: {
         current: number;
         total: number;
