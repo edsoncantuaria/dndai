@@ -118,7 +118,7 @@ const ActionOptions: React.FC = () => {
         }
     }, [isLoading, playerRollRequest]);
 
-    const handleSkillCheck = (skillName: string) => {
+    const handleSkillClick = (skillName: string) => {
         if (!character) return;
         const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
         const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
@@ -160,7 +160,7 @@ const ActionOptions: React.FC = () => {
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => handleSkillCheck(skillAction.skill)}
+                                        onClick={() => handleSkillClick(skillAction.skill)}
                                         disabled={isLoading}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
