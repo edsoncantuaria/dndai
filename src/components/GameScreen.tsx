@@ -65,7 +65,7 @@ const GameScreen: React.FC = () => {
             <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                 {/* Main Content: Narrative and Actions */}
                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                    <div className="flex-grow p-4 overflow-y-auto h-0 md:pb-4 pb-48">
+                    <div className="flex-grow p-4 overflow-y-auto h-0 pb-40 md:pb-4">
                         <NewNarrativeLog />
                     </div>
                     {/* Desktop Actions */}
