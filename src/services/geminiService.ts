@@ -1,3 +1,4 @@
+
 'use server';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -28,9 +29,13 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 ### Regras do Jogo e Narrativa
 
 1.  **Rolagem de Dados:**
-    - **NUNCA role dados para o jogador.** Se uma ação do jogador exige uma rolagem (testes de perícia, ataques, testes de resistência), solicite-a preenchendo o campo \`playerRollRequest\`.
+    - **NUNCA role dados para o jogador, a menos que seja um teste de resistência não solicitado (ex: veneno, medo).**
     - **SEMPRE role os dados para os NPCs e monstros por conta própria.** Para transparência, SEMPRE descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`. Por exemplo: \`{ "type": "roll", "rollResult": { "description": "O goblin ataca você!", "dice": "1d20", "modifier": 2, "rolls": [15], "total": 17, "success": true, "rollType": "attack" } }\`.
-    - **Se o jogador enviar o resultado de uma rolagem** (ex: "O resultado da minha rolagem de Percepção foi 18"), use esse número para determinar o resultado da ação e descreva-o vividamente. Não peça outra rolagem para a mesma ação.
+    - **FLUXO DE AÇÃO DE PERÍCIA (MUITO IMPORTANTE):**
+        - **REGRA A (Intenção do Jogador):** Se a ação do jogador for uma declaração de intenção de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro", "Eu uso Persuasão para convencer o guarda"), você DEVE primeiro avaliar se a ação é possível.
+            - Se for possível, sua resposta DEVE conter **apenas** o campo \`playerRollRequest\`, solicitando a rolagem apropriada. NÃO narre o resultado ainda.
+            - Se for impossível, sua resposta DEVE conter uma \`logEntry\` do tipo "narration" explicando o porquê, e novas \`actionOptions\`. NÃO solicite uma rolagem.
+        - **REGRA B (Resultado da Rolagem do Jogador):** Se a ação do jogador contiver o resultado de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18"), você DEVE usar esse número para determinar o resultado da ação, descrevê-lo vividamente no \`logEntries\`, e então continuar a história com novas \`actionOptions\`. NÃO peça uma nova rolagem para a mesma ação.
 
 2.  **Narração (\`logEntries\`):**
     - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
@@ -39,7 +44,6 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 3.  **Opções de Ação (\`actionOptions\`):**
     - Sempre forneça de 2 a 4 opções de ação claras e relevantes para guiar o jogador.
-    - Para testes de perícia, você pode sugerir uma ação com um campo 'skill', por exemplo: \`{ "text": "Tentar perceber se há armadilhas.", "skill": "Perception" }\`.
 
 4.  **Atualizações do Personagem (\`updatedCharacter\`):**
     - **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`. Nunca retorne o objeto de personagem inteiro.
@@ -81,40 +85,54 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         },
     });
 
-    try {
-        const prompt = createPrompt(input);
-        
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-                ...generationConfig,
-                responseMimeType: "application/json",
+    const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
+        try {
+            let prompt = createPrompt(input);
+            if (retry) {
+                prompt += "\n\nSua resposta anterior não era um objeto JSON válido. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra."
             }
-        });
 
-        const response = result.response;
-        const jsonText = response.text();
-        console.log(`[geminiService (${modelName})] Resposta da IA recebida:`, jsonText); 
+            const result = await model.generateContent({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                    ...generationConfig,
+                    responseMimeType: "application/json",
+                }
+            });
 
-        const responseData = JSON.parse(jsonText) as any; // Parse como 'any' para checar a estrutura
+            const response = result.response;
+            const jsonText = response.text();
+            console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
 
-        // Adaptador: Checa se a IA enviou 'narration' em vez de 'logEntries'
-        if (responseData.narration && typeof responseData.narration === 'string') {
-            if (!responseData.logEntries) {
-                responseData.logEntries = [];
+            // Validar e analisar o JSON
+            try {
+                const responseData = JSON.parse(jsonText);
+                
+                // Adaptador para compatibilidade com versões anteriores
+                if (responseData.narration && typeof responseData.narration === 'string') {
+                    if (!responseData.logEntries) responseData.logEntries = [];
+                    responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
+                    delete responseData.narration;
+                }
+                
+                return responseData as GameMasterResponse;
+
+            } catch(e) {
+                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
+                if (!retry) {
+                    console.log("[geminiService] Tentando novamente com prompt de correção...");
+                    return await attemptGeneration(true); // Tenta novamente uma vez
+                }
+                throw new Error("O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção.");
             }
-            // Adiciona a narração ao início do array de logs
-            responseData.logEntries.unshift({ type: 'narration', content: responseData.narration });
-            delete responseData.narration; // Remove o campo antigo para evitar confusão
+
+        } catch (error: any) {
+            console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
+            throw new Error(`Erro de comunicação com o Mestre de Jogo: ${error.message}`);
         }
-        
-        return responseData as GameMasterResponse;
-
-    } catch (error: any) {
-        console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
-        // Em vez de retornar um objeto de erro, lançamos uma exceção para ser capturada pelo hook.
-        throw new Error(`O Mestre de Jogo tentou responder, mas a magia falhou (erro de formatação JSON). Verifique o console para mais detalhes.`);
     }
+
+    return await attemptGeneration();
 };
 
 export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<string | null> => {
@@ -142,3 +160,5 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
         return `Falha ao conectar com a IA (${modelName}). Detalhes: ${error.message}`;
     }
 };
+
+    

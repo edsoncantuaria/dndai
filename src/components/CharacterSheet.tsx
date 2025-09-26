@@ -29,7 +29,7 @@ const DeathSavesTracker: React.FC = () => {
                     <span className="text-sm text-stone-300">Falhas</span>
                     <div className="flex gap-2 mt-1">
                         {Array.from({ length: 3 }).map((_, i) => (
-                           <div key={i} className={`h-4 w-4 rounded-full border-2 ${i < failures ? 'bg-red-600 border-red-500' : 'bg-stone-700 border-stone-600'}`}></div>
+                            <div key={i} className={`h-4 w-4 rounded-full border-2 ${i < failures ? 'bg-red-600 border-red-500' : 'bg-stone-700 border-stone-600'}`}></div>
                         ))}
                     </div>
                 </div>
@@ -39,7 +39,7 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { handleSkillCheck, isLoading, character } = useGameStateContext();
+    const { setSkillCheckRequest, isLoading, character } = useGameStateContext();
     
     if (!character) return null;
     
@@ -48,8 +48,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
     const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
     
     const onUseClick = () => {
-        // Agora, isso chama a função do contexto que abrirá o modal de descrição.
-        handleSkillCheck(skillName);
+        setSkillCheckRequest({ skillName });
     };
 
     return (
@@ -259,3 +258,5 @@ const CharacterSheet: React.FC = () => {
 };
 
 export default CharacterSheet;
+
+    

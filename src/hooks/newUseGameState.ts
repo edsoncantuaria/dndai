@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -118,7 +119,7 @@ export const useNewGameState = () => {
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
-        return process.env.NEXT_PUBLIC_GOOGLE_API_KEY || userApiKey;
+        return userApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     }, [userApiKey]);
 
     const clearApiError = useCallback(() => setApiError(null), []);
@@ -290,10 +291,6 @@ export const useNewGameState = () => {
         await processPlayerAction(`O resultado da minha rolagem para "${originalReason}" foi ${result}.`);
     }, [character, playerRollRequest, processPlayerAction]);
     
-    const handleSkillCheck = useCallback((skillName: string) => {
-        setSkillCheckRequest({ skillName });
-    }, []);
-
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -478,6 +475,7 @@ export const useNewGameState = () => {
         loadGameFromFile,
         saveGameToFile,
         submitPlayerRoll,
-        handleSkillCheck,
     };
 };
+
+    
