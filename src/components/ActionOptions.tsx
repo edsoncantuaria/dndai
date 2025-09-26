@@ -2,8 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
+import DiceRollModal from './ui/DiceRollModal'; // Importa o novo modal
 
 const HitDiceRoller: React.FC = () => {
+    // ... (código existente inalterado)
     const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
     const [diceToSpend, setDiceToSpend] = useState(1);
     
@@ -45,6 +47,7 @@ const HitDiceRoller: React.FC = () => {
 };
 
 const LootOfferDisplay: React.FC = () => {
+    // ... (código existente inalterado)
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
     if (!pendingLootOffer) return null;
 
@@ -66,9 +69,10 @@ const LootOfferDisplay: React.FC = () => {
             </button>
         </div>
     )
-}
+};
 
 const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean }> = ({ onActionSubmit, disabled }) => {
+    // ... (código existente inalterado)
     const [inputValue, setInputValue] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -102,14 +106,14 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
 };
 
 const ActionOptions: React.FC = () => {
-    const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest } = useGameStateContext();
+    const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest, playerRollRequest, submitPlayerRoll } = useGameStateContext();
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        if(isLoading) {
+        if (isLoading || playerRollRequest) {
             setIsOpen(false);
         }
-    }, [isLoading]);
+    }, [isLoading, playerRollRequest]);
 
     const renderActionContent = () => {
         if (pendingLootOffer) {
@@ -124,7 +128,7 @@ const ActionOptions: React.FC = () => {
     
         return (
             <div className="w-full">
-                 {isLoading && (
+                 {isLoading && !playerRollRequest && (
                     <div className="flex items-center justify-center p-4 text-stone-400">
                         <Loader2 className="animate-spin" />
                         <span className="ml-2">Aguardando o mestre...</span>
@@ -166,6 +170,12 @@ const ActionOptions: React.FC = () => {
     
     return (
         <>
+            {playerRollRequest && (
+                <DiceRollModal
+                    request={playerRollRequest}
+                    onRoll={submitPlayerRoll}
+                />
+            )}
             {/* Desktop: Static Panel */}
             <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
                  {renderActionContent()}
@@ -182,7 +192,7 @@ const ActionOptions: React.FC = () => {
                 <div className="fixed bottom-20 right-4 z-30">
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        disabled={isLoading}
+                        disabled={isLoading || !!playerRollRequest}
                         className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
                         aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
                     >

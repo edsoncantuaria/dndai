@@ -16,6 +16,7 @@ import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
+import Head from 'next/head';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -52,61 +53,61 @@ const GameScreen: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn">
-            {levelUpState?.isPending && <LevelUpModal />}
-            {shopState?.isOpen && <ShopModal />}
-            {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
-            <AmbientPlayer /> 
+        <>
+            <Head>
+                {/* Carrega as libs de dados 3D apenas quando necessário */}
+                <script src="/extras/dice-main/libs/teal.js" defer></script>
+                <script src="/extras/dice-main/libs/three.min.js" defer></script>
+                <script src="/extras/dice-main/libs/cannon.min.js" defer></script>
+                <script src="/extras/dice-main/dice.js" defer></script>
+            </Head>
+            <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn">
+                {levelUpState?.isPending && <LevelUpModal />}
+                {shopState?.isOpen && <ShopModal />}
+                {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
+                <AmbientPlayer /> 
 
-            <Header />
-            
-            {combatState.isActive && <CombatTracker />}
+                <Header />
+                
+                {combatState.isActive && <CombatTracker />}
 
-            <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
-                {/* Main Content: Narrative and Actions */}
-                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                    <div className="flex-grow p-4 overflow-y-auto pb-24 md:pb-4">
-                        <NewNarrativeLog />
-                    </div>
-                    {/* Desktop Actions - Oculto no mobile, gerenciado pelo ActionOptions */}
-                    <div className="hidden md:block">
+                <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
+                    <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
+                        <div className="flex-grow p-4 overflow-y-auto h-0 pb-40 md:pb-4">
+                            <NewNarrativeLog />
+                        </div>
                         <ActionOptions />
                     </div>
+                    
+                    <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
+                        <div className="flex-none border-b border-stone-700 flex justify-around">
+                            {Object.entries(tabConfig).map(([key, {label, icon}]) => (
+                                <button 
+                                    key={key} 
+                                    onClick={() => setActiveTab(key as Tab)} 
+                                    className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
+                                    title={label}
+                                >
+                                    {icon}
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex-grow overflow-y-auto">
+                            {renderSidebarContent()}
+                        </div>
+                    </aside>
                 </div>
-                
-                {/* Sidebar (Desktop) */}
-                <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                     <div className="flex-none border-b border-stone-700 flex justify-around">
-                        {Object.entries(tabConfig).map(([key, {label, icon}]) => (
-                             <button 
-                                key={key} 
-                                onClick={() => setActiveTab(key as Tab)} 
-                                className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
-                                title={label}
-                            >
-                                {icon}
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                    </div>
-                    <div className="flex-grow overflow-y-auto">
-                        {renderSidebarContent()}
-                    </div>
-                </aside>
-            </div>
 
-            {/* Mobile Actions & Toolbar */}
-            <div className="md:hidden">
-                <ActionOptions />
+                <MobileToolbar 
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    tabConfig={tabConfig}
+                >
+                    {renderSidebarContent()}
+                </MobileToolbar>
             </div>
-            <MobileToolbar 
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                tabConfig={tabConfig}
-            >
-                {renderSidebarContent()}
-            </MobileToolbar>
-        </div>
+        </>
     );
 };
 

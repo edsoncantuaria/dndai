@@ -12,7 +12,7 @@ import { generateImage } from '@/ai/flows/generateImage';
 
 const Header: React.FC = () => {
     const { character, saveGameToFile, getApiKey } = useGameStateContext();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig, apiKey: userApiKey } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -103,40 +103,48 @@ const Header: React.FC = () => {
     return (
         <>
             <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700">
-                <div className="flex justify-between items-center flex-wrap gap-3">
+                <div className="flex justify-between items-start gap-3">
                     {/* Character Info */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-grow">
                         <div className="w-10 h-10 bg-stone-700 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-stone-600">
                             <User className="h-6 w-6 text-stone-400"/>
                         </div>
-                        <div>
-                            <h2 className="font-bold text-lg text-stone-100">{name}</h2>
+                        <div className="flex-grow">
+                            <div className="flex justify-between items-baseline">
+                                <h2 className="font-bold text-lg text-stone-100 truncate">{name}</h2>
+                                <div className="md:hidden flex items-center gap-1.5">
+                                    <button 
+                                        onClick={handleTestAi}
+                                        disabled={isTestingAi}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                                        title="Testar Conexão com a IA"
+                                    >
+                                        {isTestingAi ? <Loader2 className="h-4 w-4 text-amber-300 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-amber-300" />}
+                                    </button>
+                                    <button 
+                                        onClick={saveGameToFile}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                                        title="Salvar Jogo (Download)"
+                                    >
+                                        <Save className="h-4 w-4 text-amber-300" />
+                                    </button>
+                                    <button
+                                        onClick={() => setShowSettingsModal(true)}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                                        title="Configurações"
+                                    >
+                                        <Settings className="h-4 w-4 text-amber-300" />
+                                    </button>
+                                </div>
+                            </div>
                             <p className="text-sm text-stone-400">
                                 {characterClass} de Nível {level}
                             </p>
                         </div>
                     </div>
 
-                    {/* Stats - moved next to name on desktop */}
-                    <div className="flex items-center gap-4 md:order-last">
-                        <div className="text-center flex items-center gap-2">
-                            <Heart className="h-5 w-5 text-red-500" />
-                            <div>
-                                <div className="text-xs text-red-400 font-semibold">VIDA</div>
-                                <div className="font-mono font-bold text-lg text-stone-200">{hp.current} / {hp.max}</div>
-                            </div>
-                        </div>
-                        <div className="text-center flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-blue-500" />
-                            <div>
-                                <div className="text-xs text-blue-400 font-semibold">CA</div>
-                                <div className="font-mono font-bold text-lg text-stone-200">{character.ac.value}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-end gap-2 flex-grow md:flex-grow-0">
+                    {/* Desktop Action Buttons */}
+                    <div className="hidden md:flex items-center justify-end gap-2">
                          <button 
                             onClick={handleTestAi}
                             disabled={isTestingAi}
@@ -159,6 +167,24 @@ const Header: React.FC = () => {
                         >
                             <Settings className="h-5 w-5 text-amber-300" />
                         </button>
+                    </div>
+                </div>
+
+                {/* Stats - moved below name on all screen sizes */}
+                <div className="flex items-center gap-4 justify-center mt-3">
+                    <div className="text-center flex items-center gap-2">
+                        <Heart className="h-5 w-5 text-red-500" />
+                        <div>
+                            <div className="text-xs text-red-400 font-semibold">VIDA</div>
+                            <div className="font-mono font-bold text-lg text-stone-200">{hp.current} / {hp.max}</div>
+                        </div>
+                    </div>
+                    <div className="text-center flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-blue-500" />
+                        <div>
+                            <div className="text-xs text-blue-400 font-semibold">CA</div>
+                            <div className="font-mono font-bold text-lg text-stone-200">{character.ac.value}</div>
+                        </div>
                     </div>
                 </div>
             </div>

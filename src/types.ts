@@ -1,5 +1,13 @@
 // types.ts
 
+export interface PlayerRollRequest {
+    reason: string;
+    dice: string; // Ex: "1d20", "2d6"
+    modifier: number;
+    dc?: number;
+    rollType: 'check' | 'save' | 'attack' | 'damage';
+}
+
 export interface ApiListItem {
     index: string;
     name: string;
@@ -26,10 +34,7 @@ export interface ApiRace {
         choose: number;
         from: {
             option_set_type: string;
-            options: {
-                item: ApiListItem;
-                option_type: string;
-            }[];
+            options: any[];
         }
     };
     traits: ApiListItem[];
