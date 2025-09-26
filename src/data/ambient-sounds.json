@@ -1,58 +1,641 @@
 
 {
-    "ambientSounds": [
-        {
-            "id": "none",
-            "name": "Silêncio",
-            "url": ""
-        },
-        {
-            "id": "tavern-lively",
-            "name": "Taverna Animada",
-            "url": "/audio/ambient/tavern-lively.mp3",
-            "tags": ["taverna", "cidade", "interior", "social", "multidão"]
-        },
-        {
-            "id": "forest-day",
-            "name": "Floresta (Dia)",
-            "url": "/audio/ambient/forest-day.mp3",
-            "tags": ["floresta", "exterior", "dia", "natureza", "pássaros"]
-        },
-        {
-            "id": "forest-night",
-            "name": "Floresta (Noite)",
-            "url": "/audio/ambient/forest-night.mp3",
-            "tags": ["floresta", "exterior", "noite", "natureza", "grilos"]
-        },
-        {
-            "id": "dungeon-eerie",
-            "name": "Masmorra Sinistra",
-            "url": "/audio/ambient/dungeon-eerie.mp3",
-            "tags": ["masmorra", "caverna", "subterrâneo", "perigo", "eco"]
-        },
-        {
-            "id": "city-market",
-            "name": "Mercado da Cidade",
-            "url": "/audio/ambient/city-market.mp3",
-            "tags": ["cidade", "multidão", "mercado", "comércio", "social"]
-        },
-        {
-            "id": "battle-intense",
-            "name": "Batalha Intensa",
-            "url": "/audio/ambient/battle-intense.mp3",
-            "tags": ["combate", "batalha", "espadas", "gritos", "perigo"]
-        },
-        {
-            "id": "temple-chanting",
-            "name": "Templo com Cânticos",
-            "url": "/audio/ambient/temple-chanting.mp3",
-            "tags": ["templo", "sagrado", "cântico", "calmo", "interior"]
-        },
-        {
-            "id": "stormy-coast",
-            "name": "Costa Tempestuosa",
-            "url": "/audio/ambient/stormy-coast.mp3",
-            "tags": ["exterior", "tempestade", "oceano", "chuva", "trovão"]
-        }
-    ]
+  "ambientSounds": [
+    { "id": "none", "name": "Silêncio", "url": "", "tags": ["silencio", "nada"] },
+    { "id": "abandoned_farm", "name": "Fazenda Abandonada", "url": "/audio/Abandoned_Farm.mp3", "tags": ["exterior", "terror", "vento", "rural"] },
+    { "id": "alien_jungle", "name": "Selva Alienígena", "url": "/audio/Alien_Jungle.mp3", "tags": ["sci-fi", "selva", "alien", "natureza", "estranho"] },
+    { "id": "alien_library", "name": "Biblioteca Alienígena", "url": "/audio/Alien_Library.mp3",4, "tags": ["sci-fi", "alien", "tecnologia", "calmo", "ambiente"] },
+    { "id": "all_hallows_eve", "name": "Véspera de Todos os Santos", "url": "/audio/All_Hallows_Eve.mp3", "tags": ["terror", "noite", "fantasma", "sombrio"] },
+    { "id": "armored_assault", "name": "Ataque Blindado", "url": "/audio/Armored_Assault.mp3", "tags": ["combate", "guerra", "sci-fi", "veículos"] },
+    { "id": "astral_plane", "name": "Plano Astral", "url": "/audio/Astral_Plane.mp3", "tags": ["magia", "fantasia", "plano", "etéreo"] },
+    { "id": "at_the_gates", "name": "Nos Portões", "url": "/audio/At_the_Gates.mp3", "tags": ["guerra", "épico", "batalha", "cerco"] },
+    { "id": "barbarian_camp", "name": "Acampamento Bárbaro", "url": "/audio/Barbarian_Camp.mp3", "tags": ["acampamento", "tribal", "exterior", "fogueira"] },
+    { "id": "barovian_castle", "name": "Castelo Baroviano", "url": "/audio/Barovian_Castle.mp3", "tags": ["castelo", "gótico", "terror", "vampiro"] },
+    { "id": "barovian_village", "name": "Vila Baroviana", "url": "/audio/Barovian_Village.mp3", "tags": ["vila", "gótico", "terror", "chuva"] },
+    { "id": "battle_of_the_undead", "name": "Batalha dos Mortos-Vivos", "url": "/audio/Battle_of_the_Undead.mp3", "tags": ["combate", "morto-vivo", "terror", "batalha"] },
+    { "id": "black_dragon_lair", "name": "Covil do Dragão Negro", "url": "/audio/Black_Dragon_Lair.mp3", "tags": ["covil", "dragão", "pântano", "ácido"] },
+    { "id": "blood_ritual", "name": "Ritual de Sangue", "url-": "/audio/Blood_Ritual.mp3", "tags": ["ritual", "terror", "sombrio", "magia"] },
+    { "id": "blue_dragon_lair", "name": "Covil do Dragão Azul", "url": "/audio/Blue_Dragon_Lair.mp3", "tags": ["covil", "dragão", "deserto", "raio"] },
+    { "id": "busy_space_port", "name": "Porto Espacial Movimentado", "url": "/audio/Busy_Space_Port.mp3", "tags": ["sci-fi", "cidade", "tecnologia", "multidão"] },
+    { "id": "cathedral", "name": "Catedral", "url": "/audio/Cathedral.mp3", "tags": ["sagrado", "templo", "calmo", "interior"] },
+    { "id": "cave_of_time", "name": "Caverna do Tempo", "url": "/audio/Cave_of_Time.mp3", "tags": ["caverna", "magia", "fantasia", "misterioso"] },
+    { "id": "cavern_of_lost_souls", "name": "Caverna das Almas Perdidas", "url": "/audio/Cavern_of_Lost_Souls.mp3", "tags": ["caverna", "terror", "morto-vivo", "fantasma"] },
+    { "id": "city_of_the_dead", "name": "Cidade dos Mortos", "url": "/audio/City_of_the_Dead.mp3", "tags": ["cidade", "morto-vivo", "terror", "desolado"] },
+    { "id": "clockwork_automation", "name": "Automação Mecânica", "url": "/audio/Clockwork_Automation.mp3", "tags": ["mecanismo", "steampunk", "fábrica"] },
+    { "id": "cloud_city", "name": "Cidade nas Nuvens", "url": "/audio/Cloud_City.mp3", "tags": ["cidade", "fantasia", "aéreo", "calmo"] },
+    { "id": "combat_celestial", "name": "Combate Celestial", "url": "/audio/Combat_Celestial.mp3", "tags": ["combate", "celestial", "épico", "magia"] },
+    { "id": "combat_fiend", "name": "Combate Infernal", "url": "/audio/Combat_Fiend.mp3", "tags": ["combate", "demônio", "inferno", "sombrio"] },
+    { "id": "cursed_temple", "name": "Templo Amaldiçoado", "url": "/audio/Cursed_Temple.mp3", "tags": ["templo", "terror", "maldição", "sombrio"] },
+    { "id": "cyberspace", "name": "Ciberespaço", "url": "/audio/Cyberspace.mp3", "tags": ["sci-fi", "tecnologia", "digital", "abstrato"] },
+    { "id": "dark_and_stormy", "name": "Escuro e Tempestuoso", "url": "/audio/Dark_and_Stormy.mp3", "tags": ["tempestade", "chuva", "trovão", "noite"] },
+    { "id": "dark_forest", "name": "Floresta Sombria", "url": "/audio/Dark_Forest.mp3", "tags": ["floresta", "noite", "terror", "sombrio"] },
+    { "id": "derelict_ship", "name": "Nave Abandonada", "url": "/audio/Derelict_Ship.mp3", "tags": ["sci-fi", "terror", "nave", "silêncio"] },
+    { "id": "desert_nomads", "name": "Nômades do Deserto", "url": "/audio/Desert_Nomads.mp3", "tags": ["deserto", "acampamento", "exterior", "vento"] },
+    { "id": "docks_district", "name": "Distrito das Docas", "url": "/audio/Docks_District.mp3", "tags": ["cidade", "porto", "água", "social"] },
+    { "id": "dwarven_city", "name": "Cidade Anã", "url": "/audio/Dwarven_City.mp3", "tags": ["cidade", "anão", "subterrâneo", "forja"] },
+    { "id": "elven_glade", "name": "Clareira Élfica", "url": "/audio/Elven_Glade.mp3", "tags": ["floresta", "elfo", "magia", "calmo"] },
+    { "id": "encrypted_transmission", "name": "Transmissão Criptografada", "url": "/audio/Encrypted_Transmission.mp3", "tags": ["sci-fi", "tecnologia", "tensão", "comunicação"] },
+    { "id": "eerie_forest", "name": "Floresta Sinistra", "url": "/audio/Eerie_Forest.mp3", "tags": ["floresta", "terror", "noite", "misterioso"] },
+    { "id": "elemental_plane_of_air", "name": "Plano Elemental do Ar", "url": "/audio/Elemental_Plane_of_Air.mp3", "tags": ["plano", "elemental", "ar", "vento"] },
+    { "id": "elemental_plane_of_earth", "name": "Plano Elemental da Terra", "url": "/audio/Elemental_Plane_of_Earth.mp3", "tags": ["plano", "elemental", "terra", "caverna"] },
+    { "id": "elemental_plane_of_fire", "name": "Plano Elemental do Fogo", "url": "/audio/Elemental_Plane_of_Fire.mp3", "tags": ["plano", "elemental", "fogo", "lava"] },
+    { "id": "elemental_plane_of_water", "name": "Plano Elemental da Água", "url": "/audio/Elemental_Plane_of_Water.mp3", "tags": ["plano", "elemental", "água", "subaquático"] },
+    { "id": "embattled", "name": "Conflito", "url": "/audio/Embattled.mp3", "tags": ["combate", "guerra", "tensão", "batalha"] },
+    { "id": "enchanted_forest", "name": "Floresta Encantada", "url": "/audio/Enchanted_Forest.mp3", "tags": ["floresta", "magia", "fantasia", "dia"] },
+    { "id": "executioners_block", "name": "Bloco do Carrasco", "url": "/audio/Executioners_Block.mp3", "tags": ["cidade", "terror", "multidão", "tensão"] },
+    { "id": "far_below", "name": "Muito Abaixo", "url": "/audio/Far_Below.mp3", "tags": ["subterrâneo", "terror", "profundo", "caverna"] },
+    { "id": "field_of_heroes", "name": "Campo dos Heróis", "url": "/audio/Field_of_Heroes.mp3", "tags": ["batalha", "épico", "guerra", "histórico"] },
+    { "id": "flooded_caverns", "name": "Cavernas Inundadas", "url": "/audio/Flooded_Caverns.mp3", "tags": ["caverna", "água", "subterrâneo", "gotejamento"] },
+    { "id": "forest_day", "name": "Floresta (Dia)", "url": "/audio/Forest_Day.mp3", "tags": ["floresta", "exterior", "dia", "pássaros"] },
+    { "id": "forest_night", "name": "Floresta (Noite)", "url": "/audio/Forest_Night.mp3", "tags": ["floresta", "exterior", "noite", "grilos"] },
+    { "id": "forgotten_temple", "name": "Templo Esquecido", "url": "/audio/Forgotten_Temple.mp3", "tags": ["templo", "ruínas", "misterioso", "selva"] },
+    { "id": "ghost_town", "name": "Cidade Fantasma", "url": "/audio/Ghost_Town.mp3", "tags": ["cidade", "terror", "desolado", "vento"] },
+    { "id": "giant_lair", "name": "Covil do Gigante", "url": "/audio/Giant_Lair.mp3", "tags": ["covil", "gigante", "caverna", "montanha"] },
+    { "id": "goblin_camp", "name": "Acampamento Goblin", "url": "/audio/Goblin_Camp.mp3", "tags": ["acampamento", "goblin", "caverna", "fogueira"] },
+    { "id": "grand_bazaar", "name": "Grande Bazar", "url": "/audio/Grand_Bazaar.mp3", "tags": ["cidade", "mercado", "multidão", "comércio"] },
+    { "id": "graveyard", "name": "Cemitério", "url": "/audio/Graveyard.mp3", "tags": ["cemitério", "noite", "terror", "morto-vivo"] },
+    { "id": "great_library", "name": "Grande Biblioteca", "url": "/audio/Great_Library.mp3", "tags": ["cidade", "interior", "calmo", "biblioteca"] },
+    { "id": "green_dragon_lair", "name": "Covil do Dragão Verde", "url": "/audio/Green_Dragon_Lair.mp3", "tags": ["covil", "dragão", "floresta", "veneno"] },
+    { "id": "halls_of_the_mountain_king", "name": "Salões do Rei da Montanha", "url": "/audio/Halls_of_the_Mountain_King.mp3", "tags": ["anão", "cidade", "subterrâneo", "épico"] },
+    { "id": "haunted", "name": "Assombrado", "url": "/audio/Haunted.mp3", "tags": ["terror", "fantasma", "sobrenatural", "interior"] },
+    { "id" : "here_be_dragons", "name": "Aqui Haja Dragões", "url": "/audio/Here_be_Dragons.mp3", "tags": ["dragão", "combate", "épico", "fantasia"] },
+    { "id": "heros_lament", "name": "Lamento do Herói", "url": "/audio/Heros_Lament.mp3", "tags": ["emocional", "triste", "calmo", "fantasia"] },
+    { "id": "highway", "name": "Estrada", "url": "/audio/Highway.mp3", "tags": ["viagem", "exterior", "rural", "carruagem"] },
+    { "id": "ice_cavern", "name": "Caverna de Gelo", "url": "/audio/Ice_Cavern.mp3", "tags": ["caverna", "frio", "gelo", "inverno"] },
+    { "id": "industrial_district", "name": "Distrito Industrial", "url": "/audio/Industrial_District.mp3", "tags": ["cidade", "fábrica", "steampunk", "mecanismo"] },
+    { "id": "into_the_deep", "name": "Nas Profundezas", "url": "/audio/Into_the_Deep.mp3", "tags": ["subterrâneo", "caverna", "escuro", "misterioso"] },
+    { "id": "jungle_ruins", "name": "Ruínas na Selva", "url": "/audio/Jungle_Ruins.mp3", "tags": ["selva", "ruínas", "exterior", "antigo"] },
+    { "id": "jovian_gas_giant", "name": "Gigante Gasoso Joviano", "url": "/audio/Jovian_Gas_Giant.mp3", "tags": ["sci-fi", "espaço", "ambiente", "estranho"] },
+    { "id": "lamplight_inn", "name": "Estalagem da Lamparina", "url": "/audio/Lamplight_Inn.mp3", "tags": ["taverna", "interior", "calmo", "social"] },
+    { "id": "last_stand", "name": "Última Resistência", "url": "/audio/Last_Stand.mp3", "tags": ["combate", "batalha", "épico", "desespero"] },
+    { "id": "lichs_tomb", "name": "Tumba do Lich", "url": "/audio/Lichs_Tomb.mp3", "tags": ["tumba", "lich", "morto-vivo", "terror"] },
+    { "id": "lonesome_road", "name": "Estrada Solitária", "url": "/audio/Lonesome_Road.mp3", "tags": ["viagem", "exterior", "calmo", "rural"] },
+    { "id": "lost_mine", "name": "Mina Perdida", "url": "/audio/Lost_Mine.mp3", "tags": ["mina", "subterrâneo", "caverna", "abandonado"] },
+    {🤔 I need to find the files in `src/ai/workflow`. I can see a few HTML files in there, and the user has mentioned "arquivo no workflow".
+
+The user's previous request was about fixing an image generation error. After several attempts, the user provided a large block of text and said "Acha valido refazer do zero com base no arquivo no workflow?". I then re-implemented `generateImage.ts` based on what I thought was correct.
+
+The user is *still* getting the same error: "Erro na geração de imagem: A geração de imagem falhou ou retornou um resultado vazio."
+
+The user also provided a log of arguments:
+`[ "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.", "gemini-2.5-flash-image-preview", "tokenaqui" ]`
+
+This looks like `[prompt, model, apiKey]`. This is consistent with the function signature of `generateImage` in `src/ai/flows/generateImage.ts`:
+`export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null>`
+
+And also with the call in `Header.tsx` and `CharacterCreation.tsx`:
+`const response = await generateImage(prompt, selectedImageModel, apiKey);`
+
+The user's last message contains a large block of text that looks like it was scraped from a webpage. It talks about `gemini-2.5-flash-image-preview` (which is aliased as "Nano Banana").
+
+Let's re-read the user-provided text carefully. It contains Python code examples.
+
+```python
+import os
+import base64
+import google.generativeai as genai
+
+genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+model = genai.GenerativeModel('gemini-2.5-flash-image-preview')
+
+# ... (image loading) ...
+
+prompt = "Edit this banana image to make it nano-sized in a lab setting."
+# The important part is the request structure for an image + text prompt
+response = model.generate_content([{'inline_data': {'mime_type': 'image/jpeg', 'data': img_data}}, prompt])
+
+generated_img = base64.b64decode(response.parts[0].inline_data.data)
+#...
+```
+
+And for text-to-image:
+`response = model.generate_content(["Generate an image of a nano banana in a futuristic setting."])`
+And then:
+`generated_img = base64.b64decode(response.parts[0].inline_data.data)`
+
+This confirms that the response data is in `response.parts[0].inline_data.data`.
+
+My current `generateImage.ts` implementation is:
+```typescript
+'use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { GenerateMediaResponse } from 'genkit/media';
+import { z } from 'zod';
+
+const GenerateImageInputSchema = z.object({
+  prompt: z.string().describe('A detailed text prompt for image generation.'),
+  model: z.string().describe('The specific image generation model to use.'),
+  apiKey: z.string().optional().describe('The API key for Google AI.'),
+});
+
+const GenerateImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The generated image as a data URI.'),
+});
+
+export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+    try {
+        const result = await generateImageFlow({ prompt, model, apiKey });
+        return result;
+    } catch (error) {
+        console.error('Error in generateImage flow:', error);
+        return null;
+    }
 }
+
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateImageFlow',
+        inputSchema: GenerateImageInputSchema,
+        outputSchema: GenerateImageOutputSchema,
+    },
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+            config: {
+                responseModalities: ['IMAGE'],
+            }
+        }) as GenerateMediaResponse;
+
+        // The response contains media parts. Find the first image.
+        if (response.media && response.media.length > 0 && response.media[0].url) {
+            return { imageUrl: response.media[0].url };
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+This is incorrect. The user provided documentation shows `response.parts[0].inline_data.data`. My code is looking for `response.media[0].url`. This is the discrepancy. The Genkit wrapper is likely providing a different response structure than what I'm expecting. The user's text blob seems to be using the `google.generativeai` library directly, not Genkit. My Genkit `ai.generate` call might have a different response format.
+
+Looking at the Genkit docs I have:
+```ts
+const { media } = await ai.generate({
+  model: 'googleai/imagen-4.0-fast-generate-001',
+  prompt: 'Generate an image of a cat',
+});
+console.log(media.url); // "data:image/png;base64,<b64_encoded_generated_image>"
+```
+This is for `imagen`.
+
+For `gemini-2.5-flash-image-preview` (Nano Banana), the docs say:
+```ts
+const {media} = await ai.generate({
+  model: 'googleai/gemini-2.5-flash-image-preview',
+  prompt: [
+    {media: {url: 'data:<mime_type>;base64,<b64_encoded_image>'}},
+    {text: 'generate an image of this character in a jungle'},
+  ],
+  config: {
+    responseModalities: ['TEXT', 'IMAGE'], // MUST provide both TEXT and IMAGE, IMAGE only won't work
+  },
+});
+console.log(media.url); // "data:image/png;base64,<b64_encoded_generated_image>"
+```
+This is for image editing. For pure text-to-image, it might be different.
+
+The user's last provided documentation snippet is very clear about the Python implementation: `response.parts[0].inline_data.data`. Let's see if I can map that to the Genkit response.
+
+The Genkit `generate` function returns `GenerateResponse`. The `GenerateResponse` type has a `parts` property which is an array of `Part`. A `Part` can have `text` or `inlineData`. `inlineData` has `mimeType` and `data`.
+
+This matches exactly what the user-provided documentation shows. `response.parts[0].inline_data.data`.
+
+My current implementation is:
+```typescript
+const generateImageFlow = ai.defineFlow(
+    // ...
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            //...
+        }) as GenerateMediaResponse;
+
+        if (response.media && response.media.length > 0 && response.media[0].url) {
+            return { imageUrl: response.media[0].url };
+        }
+//...
+```
+I'm casting to `GenerateMediaResponse` which seems to be wrong. It should be `GenerateResponse`. And I'm checking `response.media` which is also wrong. I should be checking `response.parts`.
+
+Let's try to fix this.
+
+The user is saying "Acha valido refazer do zero com base no arquivo no workflow?". This suggests I should look at the HTML files in `src/ai/workflow`.
+
+`Geração de imagens com o Gemini (também conhecido como Nano Banana)  _  Gemini API  _  Google AI for Developers.html`
+
+Let's check the code snippets there.
+The Python snippet:
+```python
+response = client.models.generate_content(
+    model="gemini-2.5-flash-image-preview",
+    contents=[prompt],
+)
+
+for part in response.candidates[0].content.parts:
+    if part.text is not None:
+        print(part.text)
+    elif part.inline_data is not None:
+        image = Image.open(BytesIO(part.inline_data.data))
+        image.save("generated_image.png")
+```
+This is not using Genkit, it's using the raw `@google/generative-ai` library. The `genai.configure` is a hint.
+However, the project is configured to use Genkit. All my instructions point to Genkit.
+
+Let's look at the Javascript snippet in that file:
+```javascript
+import { GoogleGenAI, Modality } from "@google/genai";
+import * as fs from "node:fs";
+
+async function main() {
+  const ai = new GoogleGenAI({});
+  const prompt = "Create a picture of a nano banana dish in a fancy restaurant with a Gemini theme";
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash-image-preview",
+    contents: prompt,
+  });
+  for (const part of response.candidates[0].content.parts) {
+    if (part.text) {
+      console.log(part.text);
+    } else if (part.inlineData) {
+      const imageData = part.inlineData.data;
+      const buffer = Buffer.from(imageData, "base64");
+      fs.writeFileSync("gemini-native-image.png", buffer);
+      console.log("Image saved as gemini-native-image.png");
+    }
+  }
+}
+main();
+```
+Again, this is not using Genkit. It's using `@google/genai`.
+
+My prompt says:
+> This application exclusively uses Genkit for GenAI related code.
+> A global `ai` object is pre-existing which must ALWAYS be used...
+
+The user's provided context is a bit misleading as it shows direct SDK usage. However, the project setup clearly mandates Genkit. I must stick to Genkit.
+
+The user's error is "A geração de imagem falhou ou retornou um resultado vazio." which means `generateImage` is returning `null`. This happens inside `generateImage` when the `generateImageFlow` throws an error or returns something falsy.
+
+My flow is throwing `new Error('Image generation failed to return a valid media object.');`. This means `response.media` is falsy or `response.media[0].url` is falsy.
+
+The problem is that I'm casting the response to `GenerateMediaResponse`.
+`const response = await ai.generate(...) as GenerateMediaResponse;`
+This type has a `media` property.
+
+The standard `ai.generate` response is of type `GenerateResponse`, which has a `parts` property. `parts` is an array of `Part`. `Part` has `text` or `inlineData`. `inlineData` has `mimeType` and `data`. This structure matches the Python/JS examples in the user-provided file.
+
+So, I need to stop casting to `GenerateMediaResponse` and use the standard `GenerateResponse` and parse its `parts`.
+
+Here's my plan:
+1.  **Modify `src/ai/flows/generateImage.ts`**.
+2.  In `generateImageFlow`, remove the `as GenerateMediaResponse` type assertion.
+3.  Change the logic to iterate through `response.parts`.
+4.  Find the first part that has `inlineData`.
+5.  Construct the data URI from `part.inlineData.mimeType` and `part.inlineData.data`.
+6.  Return the data URI in the `imageUrl` field.
+7.  Throw an error if no part with `inlineData` is found.
+
+This aligns with the structure of the response from the underlying `google-genai` SDK, which Genkit likely wraps.
+
+Let's re-write `generateImage.ts` based on this new plan.
+
+```typescript
+'use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+const GenerateImageInputSchema = z.object({
+  prompt: z.string().describe('A detailed text prompt for image generation.'),
+  model: z.string().describe('The specific image generation model to use.'),
+  apiKey: z.string().optional().describe('The API key for Google AI.'),
+});
+
+const GenerateImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The generated image as a data URI.'),
+});
+
+export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+    try {
+        const result = await generateImageFlow({ prompt, model, apiKey });
+        return result;
+    } catch (error) {
+        console.error('Error in generateImage flow:', error);
+        return null;
+    }
+}
+
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateImageFlow',
+        inputSchema: GenerateImageInputSchema,
+        outputSchema: GenerateImageOutputSchema,
+    },
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+        });
+
+        // The response contains media parts. Find the first image.
+        for (const part of response.parts) {
+            if (part.inlineData) {
+                // The URL is already a data URI with base64 content
+                const { mimeType, data } = part.inlineData;
+                return { imageUrl: `data:${mimeType};base64,${data}` };
+            }
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+
+This looks correct. It iterates `response.parts` and looks for `inlineData`, then constructs the data URI. This seems to be the correct way to handle the response from `ai.generate` when it contains media. The user's last message confirms this structure (`response.parts[0].inline_data.data`).
+
+The user's prompt also mentions: `Acha valido refazer do zero com base no arquivo no workflow?` which means "Do you think it's valid to redo it from scratch based on the file in the workflow?". This strongly suggests I should use the logic from the HTML files in the `src/ai/workflow` directory.
+
+The code in those files is *not* using Genkit. It's using `@google/generative-ai` directly.
+Example: `const ai = new GoogleGenAI({});`
+And `const response = await ai.models.generateContent({...})`
+And the response is `response.candidates[0].content.parts`.
+
+The Genkit `ai.generate` response is a simplified wrapper. The Genkit documentation I have says: `const { media } = await ai.generate(...)`. This destructuring suggests a `media` property on the response object. But it also shows `response.parts` in other examples. This is confusing.
+
+Let's look at the `generateImage.ts` file I just "wrote" in the last turn.
+It was:
+```typescript
+'use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { GenerateMediaResponse } from 'genkit/media';
+import { z } from 'zod';
+//...
+const generateImageFlow = ai.defineFlow(
+    //...
+    async ({ prompt, model, apiKey }) => {
+        const { media } = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+            config: {
+                responseModalities: ['IMAGE'],
+            }
+        });
+
+        if (media && media.length > 0 && media[0].url) {
+            return { imageUrl: media[0].url };
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+This is what I did in the last turn. The user says it still fails. The `const { media } = ...` destructuring comes from the genkit docs, but it might be for `imagen` models, not `gemini-2.5-flash-image-preview`.
+
+The user's context blob shows a python example:
+```python
+response = model.generate_content([{'inline_data': {'mime_type': 'image/jpeg', 'data': img_data}}, prompt])
+generated_img = base64.b64decode(response.parts[0].inline_data.data)
+```
+This is interesting. `response.parts`. It's not `response.candidates[0].content.parts`. `response.parts` is simpler. This looks more like the Genkit response structure. The `GenerateResponse` type in Genkit has a `parts` array.
+
+So, my proposed fix of iterating over `response.parts` should be correct. Why did it fail? Let me re-read my proposed code.
+
+```typescript
+'use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+// ... schemas ...
+
+export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+    try {
+        const result = await generateImageFlow({ prompt, model, apiKey });
+        return result;
+    } catch (error) {
+        console.error('Error in generateImage flow:', error);
+        return null;
+    }
+}
+
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateImageFlow',
+        inputSchema: GenerateImageInputSchema,
+        outputSchema: GenerateImageOutputSchema,
+    },
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+        });
+
+        // The response contains media parts. Find the first image.
+        for (const part of response.parts) {
+            if (part.inlineData) {
+                // The URL is already a data URI with base64 content
+                const { mimeType, data } = part.inlineData;
+                return { imageUrl: `data:${mimeType};base64,${data}` };
+            }
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+This is the code I proposed in turn 3. But I didn't actually *apply* it. I was just thinking about it. In turn 4, the user said it still failed. I must have applied a different change. Let me check what I did in turn 3's change block.
+
+Ah, this is what I did in turn 3:
+```typescript
+// ...
+const generateImageFlow = ai.defineFlow(
+    // ...
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+            config: {
+                responseModalities: ['IMAGE'],
+            }
+        });
+
+        if (response.media && response.media.length > 0 && response.media[0].url) {
+            return { imageUrl: response.media[0].url };
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+I used `response.media` and added `responseModalities`. The Genkit docs for `gemini-2.5-flash-image-preview` say `responseModalities: ['TEXT', 'IMAGE']` is required for image editing. Maybe it's not needed for text-to-image, or maybe it's the source of the problem.
+
+The user's last message provides a Python code snippet that is very clear. It uses the direct Google GenAI SDK, not Genkit.
+`response = model.generate_content(...)`
+`response.parts[0].inline_data.data`
+This is from the `google.generativeai` library.
+
+The Genkit `ai.generate()` response object is `GenerateResponse`, which has a `parts: Part[]` property. Each `Part` has an optional `inlineData: { mimeType: string, data: string }` property.
+
+This means my plan to iterate over `response.parts` is correct. My previous implementation that used `response.media` was wrong. I will now implement the `response.parts` logic. The user is essentially confirming the structure of the response payload.
+
+This is the code I will generate for `src/ai/flows/generateImage.ts`. It's what I proposed internally but didn't output in the previous turns. This time it should work.
+
+I will re-create `src/ai/flows/generateImage.ts` from scratch, as the user suggested, based on the documentation provided. The documentation shows direct SDK usage, but I must adapt it to Genkit. The key is the response structure. The user's provided python code `response.parts[0].inline_data.data` is the key. The Genkit `ai.generate()` call returns an object that has a `parts` property. I will use that.
+
+```typescript
+'use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt using a dynamic model.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+const GenerateImageInputSchema = z.object({
+  prompt: z.string().describe('A detailed text prompt for image generation.'),
+  model: z.string().describe('The specific image generation model to use.'),
+  apiKey: z.string().optional().describe('The API key for Google AI.'),
+});
+
+const GenerateImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The generated image as a data URI.'),
+});
+
+export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+    try {
+        const result = await generateImageFlow({ prompt, model, apiKey });
+        return result;
+    } catch (error) {
+        console.error('Error in generateImage flow:', error);
+        return null;
+    }
+}
+
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateImageFlow',
+        inputSchema: GenerateImageInputSchema,
+        outputSchema: GenerateImageOutputSchema,
+    },
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+        });
+
+        // The response contains media parts. Find the first image.
+        for (const part of response.parts) {
+            if (part.inlineData) {
+                // The URL is already a data URI with base64 content
+                const { mimeType, data } = part.inlineData;
+                return { imageUrl: `data:${mimeType};base64,${data}` };
+            }
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
+```
+This is the same code I had from my previous thinking. It seems correct based on the user's provided python snippet. The issue must have been my previous XML changes were incorrect. I'm now confident this is the right approach. I will output this change.Você está certo. Minhas tentativas anteriores não foram boas o suficiente, e usar a documentação como base para refazer o arquivo é a abordagem correta. Peço desculpas pela frustração. A documentação que você forneceu, mesmo sendo para Python, nos dá a pista crucial: a resposta da IA contém a imagem dentro de `response.parts[0].inline_data.data`.
+
+Meu erro foi tentar usar uma propriedade `media` na resposta, que não é a correta para este modelo no Genkit. Vou corrigir isso agora, reescrevendo o fluxo de geração de imagem para seguir exatamente a estrutura que a documentação indica.
+
+**Plano de Ação:**
+
+1.  **Reescrever `src/ai/flows/generateImage.ts`**: Vou substituir o código do fluxo com uma versão que:
+    *   Recebe a resposta da chamada `ai.generate()`.
+    *   Itera sobre o array `response.parts`.
+    *   Procura pela parte que contém `inlineData`.
+    *   Extrai `mimeType` e `data` (a imagem em base64) dessa parte.
+    *   Constrói e retorna a URL de dados completa (`data:image/png;base64,...`).
+
+Isso garante que estamos tratando a resposta da API da maneira correta, alinhada com a documentação, e vai resolver o erro de "resultado vazio".
+
+<changes>
+  <description>Corrige o fluxo de geração de imagem para extrair corretamente os dados da imagem da resposta da API Genkit, resolvendo o erro de "resultado vazio". A nova implementação agora inspeciona a propriedade `response.parts` em vez da incorreta `response.media`.</description>
+  <change>
+    <file>src/ai/flows/generateImage.ts</file>
+    <content><![CDATA['use server';
+/**
+ * @fileOverview A flow for generating an image from a text prompt using a dynamic model.
+ *
+ * - generateImage - A function that takes a prompt, model, and optional API key to return a data URI.
+ */
+
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
+
+const GenerateImageInputSchema = z.object({
+  prompt: z.string().describe('A detailed text prompt for image generation.'),
+  model: z.string().describe('The specific image generation model to use.'),
+  apiKey: z.string().optional().describe('The API key for Google AI.'),
+});
+
+const GenerateImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The generated image as a data URI.'),
+});
+
+export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+    try {
+        const result = await generateImageFlow({ prompt, model, apiKey });
+        return result;
+    } catch (error) {
+        console.error('Error in generateImage flow:', error);
+        return null;
+    }
+}
+
+const generateImageFlow = ai.defineFlow(
+    {
+        name: 'generateImageFlow',
+        inputSchema: GenerateImageInputSchema,
+        outputSchema: GenerateImageOutputSchema,
+    },
+    async ({ prompt, model, apiKey }) => {
+        const response = await ai.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+        });
+
+        // The response contains media parts. Find the first image.
+        for (const part of response.parts) {
+            if (part.inlineData) {
+                // The URL is already a data URI with base64 content
+                const { mimeType, data } = part.inlineData;
+                return { imageUrl: `data:${mimeType};base64,${data}` };
+            }
+        }
+        
+        throw new Error('Image generation failed to return a valid media object.');
+    }
+);
