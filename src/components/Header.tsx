@@ -102,64 +102,61 @@ const Header: React.FC = () => {
 
     return (
         <>
-            <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                {/* Character Info */}
-                <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-stone-700 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-stone-600">
-                        <User className="h-8 w-8 text-stone-400"/>
-                    </div>
-                    <div>
-                        <h2 className="font-bold text-lg text-stone-100">{name}</h2>
-                        <p className="text-sm text-stone-400">
-                            {characterClass} de Nível {level}
-                        </p>
-                    </div>
-                </div>
-                
-                {/* Stats and Actions Wrapper */}
-                <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-                    {/* Stats */}
-                    <div className="flex items-center justify-around md:justify-end gap-4 bg-stone-800/50 p-2 rounded-md">
-                        <div className="text-center flex items-center gap-2">
-                            <Heart className="h-5 w-5 md:h-6 md:w-6 text-red-500" />
-                            <div>
-                                <div className="text-xs text-red-400 font-semibold">VIDA</div>
-                                <div className="font-mono font-bold text-lg md:text-xl text-stone-200">{hp.current} / {hp.max}</div>
-                            </div>
+            <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700 flex flex-col gap-3">
+                {/* Top Row: Character Name and Actions */}
+                <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-stone-700 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-stone-600">
+                            <User className="h-6 w-6 text-stone-400"/>
                         </div>
-                        <div className="text-center flex items-center gap-2">
-                            <Shield className="h-5 w-5 md:h-6 md:w-6 text-blue-500" />
-                            <div>
-                                <div className="text-xs text-blue-400 font-semibold">CA</div>
-                                <div className="font-mono font-bold text-lg md:text-xl text-stone-200">{character.ac.value}</div>
-                            </div>
+                        <div>
+                            <h2 className="font-bold text-lg text-stone-100">{name}</h2>
+                            <p className="text-sm text-stone-400">
+                                {characterClass} de Nível {level}
+                            </p>
                         </div>
                     </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-around md:justify-end gap-2">
-                        <button 
+                    <div className="flex items-center justify-end gap-2">
+                         <button 
                             onClick={handleTestAi}
                             disabled={isTestingAi}
                             className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
                             title="Testar Conexão com a IA"
                         >
-                            {isTestingAi ? <Loader2 className="h-6 w-6 text-amber-300 animate-spin" /> : <BrainCircuit className="h-6 w-6 text-amber-300" />}
+                            {isTestingAi ? <Loader2 className="h-5 w-5 text-amber-300 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300" />}
                         </button>
                         <button 
                             onClick={saveGameToFile}
                             className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
                             title="Salvar Jogo (Download)"
                         >
-                            <Save className="h-6 w-6 text-amber-300" />
+                            <Save className="h-5 w-5 text-amber-300" />
                         </button>
                         <button
                             onClick={() => setShowSettingsModal(true)}
                             className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
                             title="Configurações"
                         >
-                            <Settings className="h-6 w-6 text-amber-300" />
+                            <Settings className="h-5 w-5 text-amber-300" />
                         </button>
+                    </div>
+                </div>
+
+                {/* Bottom Row: Stats */}
+                <div className="flex items-center justify-around gap-4 bg-stone-800/50 p-2 rounded-md">
+                    <div className="text-center flex items-center gap-2">
+                        <Heart className="h-5 w-5 text-red-500" />
+                        <div>
+                            <div className="text-xs text-red-400 font-semibold">VIDA</div>
+                            <div className="font-mono font-bold text-lg text-stone-200">{hp.current} / {hp.max}</div>
+                        </div>
+                    </div>
+                    <div className="text-center flex items-center gap-2">
+                        <Shield className="h-5 w-5 text-blue-500" />
+                        <div>
+                            <div className="text-xs text-blue-400 font-semibold">CA</div>
+                            <div className="font-mono font-bold text-lg text-stone-200">{character.ac.value}</div>
+                        </div>
                     </div>
                 </div>
             </div>
