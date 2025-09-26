@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { PlayerRollRequest } from '@/types';
 import { Loader2 } from 'lucide-react';
 
