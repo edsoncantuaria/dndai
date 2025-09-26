@@ -51,22 +51,24 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 ### Diretrizes de Resposta (JSON OBRIGATÓRIO)
 Sua resposta DEVE ser um objeto JSON válido que corresponda ao schema fornecido.
 
-1.  **Rolagem de Dados pelo Jogador (NOVO!)**:
-    *   **NÃO ROLE DADOS PARA O JOGADOR.** Em vez disso, quando uma ação incerta for tentada (ataque, teste de perícia, salvamento), responda com o objeto 'playerRollRequest'.
-    *   Preencha 'playerRollRequest' com a 'reason' (ex: "Teste de Força (Atletismo) para escalar o muro"), o 'dice' ("1d20"), e o 'modifier' relevante do personagem. Se houver um DC, inclua-o.
-    *   O jogo irá pausar. Na próxima chamada, a 'playerAction' conterá o resultado. Ex: "Eu tirei 18 no meu 1d20 para Atletismo." Use esse resultado para determinar o sucesso ou fracasso e narrar a consequência em 'logEntries'.
-    *   Para dano, solicite a rolagem apropriada (ex: "1d8+3").
-    *   Falhas lógicas (ex: procurar repetidamente por algo que não existe) não devem permitir novas rolagens. Narre a falha final.
+1.  **Rolagem de Dados pelo Jogador**:
+    *   **NÃO ROLE DADOS PELO JOGADOR.** Quando uma ação incerta for tentada (ataque, teste de perícia, salvamento), responda com o objeto 'playerRollRequest'.
+    *   Preencha 'playerRollRequest' com a 'reason', o 'dice' ("1d20"), e o 'modifier'. Se houver uma Classe de Dificuldade (CD) pública, inclua-a.
+    *   O jogo irá pausar. Na próxima chamada, a 'playerAction' conterá o resultado do jogador. Use esse resultado para determinar o sucesso ou fracasso e narrar a consequência em 'logEntries'.
 
-2.  **Narração e Ações ('logEntries', 'actionOptions')**:
+2.  **Transparência nas Rolagens do Mestre (NOVO!)**:
+    *   Quando um NPC ou inimigo fizer uma rolagem contra o jogador (ataque, teste de resistência, etc.), você **deve** realizar a rolagem internamente.
+    *   Na narração ('logEntries' com 'type: "roll"'), descreva a rolagem e o resultado claramente. Exemplo de descrição: "O goblin ataca você com a sua cimitarra! Ele tira 14 no dado (1d20 + 2), totalizando 16 para acertar." Isso gera confiança e imersão.
+
+3.  **Narração e Ações ('logEntries', 'actionOptions')**:
     *   Use 'logEntries' para descrever o que acontece. Use 'type: "narration"' para descrições.
     *   Sempre forneça 2 a 4 opções claras de ação em 'actionOptions'.
 
-3.  **Atualizações do Personagem ('updatedCharacter')**:
+4.  **Atualizações do Personagem ('updatedCharacter')**:
     *   Este é o campo mais importante. Retorne **apenas** as propriedades do personagem que mudaram.
     *   Exemplos: Dano -> \`"updatedCharacter": { "hp": { "current": 5 } }\`. Item -> \`"updatedCharacter": { "inventory": [...] }\` com o inventário completo.
 
-4.  **Imersão**:
+5.  **Imersão**:
     *   Para cenas importantes, forneça um prompt detalhado em inglês no campo 'imagePrompt'.
     *   Quando a atmosfera mudar, defina 'ambientSound' para um dos IDs disponíveis. Não mude a cada turno. IDs:
         ${ambientSoundList}`;
@@ -90,7 +92,7 @@ ${logContext}
 ---
 A ação do jogador é: "${playerAction}"
 
-Com base no estado atual do personagem e no histórico do jogo, continue a aventura como o Mestre de Jogo. Lembre-se, quando um teste for necessário, solicite uma rolagem ao jogador usando 'playerRollRequest'. Forneça sua resposta como um objeto JSON válido.
+Com base no estado atual do personagem e no histórico do jogo, continue a aventura como o Mestre de Jogo. Lembre-se, quando um teste for necessário, solicite uma rolagem ao jogador usando 'playerRollRequest'. Para suas próprias rolagens (NPCs), seja transparente. Forneça sua resposta como um objeto JSON válido.
     `;
     
     return [{ role: "user", parts: [{ text: promptText }] }];
