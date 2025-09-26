@@ -18,7 +18,7 @@ const HomePageContent = () => {
         const audio = menuAudioRef.current;
         if (!audio) return;
         
-        const audioUrl = '/audio/inicio.mp3';
+        const audioUrl = '/audio/index/inicio.mp3';
 
         if (gameStage === 'menu' && playMenuMusic) {
             // If the src is not set or is different, set it and play.
