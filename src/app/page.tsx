@@ -17,37 +17,21 @@ const HomePageContent = () => {
     useEffect(() => {
         const audio = menuAudioRef.current;
         if (!audio) return;
-
+        
         const audioUrl = '/audio/inicio.mp3';
 
-        const playAudio = () => {
-            audio.volume = isMuted ? 0 : volume;
-            if (audio.paused) {
-                audio.play().catch(e => console.error("Menu audio play failed:", e));
-            }
-        };
-        
         if (gameStage === 'menu' && playMenuMusic) {
-            // Se a URL do áudio ainda não foi definida ou é diferente, defina-a
+            // If the src is not set or is different, set it and play.
             if (audio.src !== window.location.origin + audioUrl) {
                 audio.src = audioUrl;
-                // Adiciona um ouvinte para garantir que a música só toque quando estiver pronta
-                audio.addEventListener('canplaythrough', playAudio);
-                audio.load();
-            } else {
-                // Se o src já estiver correto, apenas toque
-                playAudio();
             }
+            audio.loop = true;
+            audio.volume = isMuted ? 0 : volume;
+            audio.play().catch(e => console.error("Menu audio play failed:", e));
         } else {
             audio.pause();
             audio.currentTime = 0;
         }
-
-        // Função de limpeza para remover o ouvinte de eventos
-        return () => {
-            audio.removeEventListener('canplaythrough', playAudio);
-        };
-
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
 

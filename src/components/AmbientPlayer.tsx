@@ -16,32 +16,29 @@ const AmbientPlayer: React.FC = () => {
         const audio = audioRef.current;
 
         if (!audio) return;
+        
+        // Construct the full URL to avoid relative path issues
+        const fullUrl = newSoundUrl ? window.location.origin + newSoundUrl : '';
 
-        // Se a URL mudou, atualize e toque.
-        if (audio.src !== window.location.origin + newSoundUrl) {
-            audio.src = newSoundUrl;
+        // If the URL has changed, update and play.
+        if (audio.src !== fullUrl) {
+            audio.src = fullUrl;
             if (newSoundUrl) {
                 audio.load();
-                audio.play().catch(e => console.error("Audio play failed:", e));
+                audio.play().catch(e => console.error("Ambient audio play failed:", e));
             } else {
                 audio.pause();
             }
         }
     }, [ambientSound]);
     
-    // Efeito para controlar o estado de mudo.
+    // Efeito para controlar o estado de mudo e o volume.
     useEffect(() => {
         if (audioRef.current) {
             audioRef.current.muted = isMuted;
+            audioRef.current.volume = isMuted ? 0 : volume;
         }
-    }, [isMuted]);
-
-    // Efeito para controlar o volume.
-    useEffect(() => {
-        if (audioRef.current && !isMuted) {
-            audioRef.current.volume = volume;
-        }
-    }, [volume, isMuted]);
+    }, [isMuted, volume]);
 
     // O atributo 'loop' no elemento de áudio cuidará da repetição.
     return <audio ref={audioRef} loop />;
