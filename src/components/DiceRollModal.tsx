@@ -26,7 +26,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         assetPath: '/assets/dice-box/',
         theme: 'default',
         offscreen: true,
-        scale: 16,
+        scale: 18,
       });
       
       diceBox.init().then(() => {
