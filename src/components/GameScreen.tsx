@@ -65,12 +65,12 @@ const GameScreen: React.FC = () => {
             <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                 {/* Main Content: Narrative and Actions */}
                  <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                    {/* Alteração aqui: Adicionado pb-48 no contêiner de rolagem para mobile */}
-                    <div className="flex-grow p-4 overflow-y-auto h-0 pb-40 md:pb-4">
+                     {/* No mobile, esta div de rolagem agora ocupa o espaço inteiro até a barra de ferramentas inferior */}
+                    <div className="flex-grow p-4 overflow-y-auto h-0 pb-24 md:pb-4">
                         <NewNarrativeLog />
                     </div>
-                    {/* Desktop Actions */}
-                    <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 hidden md:block">
+                    {/* Desktop Actions - Oculto no mobile, gerenciado pelo ActionOptions */}
+                    <div className="hidden md:block">
                         <ActionOptions />
                     </div>
                 </div>
@@ -96,8 +96,8 @@ const GameScreen: React.FC = () => {
                 </aside>
             </div>
 
-            {/* Mobile Sticky Actions & Toolbar */}
-            <div className="md:hidden fixed bottom-16 left-0 right-0 z-20 bg-stone-800/80 backdrop-blur-md p-2 border-t border-stone-700 max-h-48 overflow-y-auto">
+            {/* Mobile Actions & Toolbar */}
+            <div className="md:hidden">
                 <ActionOptions />
             </div>
             <MobileToolbar 

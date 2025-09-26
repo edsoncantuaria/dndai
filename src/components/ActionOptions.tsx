@@ -1,7 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Swords, X } from 'lucide-react';
 
 const HitDiceRoller: React.FC = () => {
     const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
@@ -103,59 +103,106 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
 
 const ActionOptions: React.FC = () => {
     const { actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest } = useGameStateContext();
+    const [isOpen, setIsOpen] = useState(false);
 
-    if (isLoading) {
+    // Efeito para fechar o painel de ação quando a IA começar a carregar uma nova resposta.
+    useEffect(() => {
+        if(isLoading) {
+            setIsOpen(false);
+        }
+    }, [isLoading])
+
+    const renderActionContent = () => {
+        if (isLoading && !isOpen) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400">
+                    <Loader2 className="animate-spin" />
+                    <span className="ml-2">Aguardando o mestre...</span>
+                </div>
+            );
+        }
+    
+        if (pendingLootOffer) {
+            return <LootOfferDisplay />;
+        }
+    
+        if (pendingHitDiceRequest) {
+            return <HitDiceRoller />;
+        }
+
+        const hasSuggestedActions = actionOptions.length > 0;
+    
         return (
-            <div className="flex items-center justify-center p-4 text-stone-400">
-                <Loader2 className="animate-spin" />
-                <span className="ml-2">Aguardando o mestre...</span>
+            <div className="w-full">
+                {hasSuggestedActions && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {actionOptions.map((action, index) => {
+                            const actionText = (typeof action === 'object' && action !== null) 
+                                ? (action as any).text || (action as any).description 
+                                : action;
+                            const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
+                                ? (action as any).action 
+                                : action;
+                            
+                            if (!actionText || typeof actionText !== 'string') return null;
+    
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => processPlayerAction(actionValue)}
+                                    disabled={isLoading}
+                                    className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                                    style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
+                                >
+                                    {actionText}
+                                </button>
+                            )
+                        })}
+                    </div>
+                )}
+                 <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
+                 {!hasSuggestedActions && (
+                     <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
+                 )}
             </div>
         );
     }
     
-    if (pendingLootOffer) {
-        return <LootOfferDisplay />;
+    // Desktop view (sempre visível)
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+         return (
+            <div className="p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
+                {renderActionContent()}
+            </div>
+        );
     }
 
-    if (pendingHitDiceRequest) {
-        return <HitDiceRoller />;
-    }
-
-    const hasSuggestedActions = actionOptions.length > 0;
-
+    // Mobile view (FAB)
     return (
-        <div className="w-full">
-            {hasSuggestedActions && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {actionOptions.map((action, index) => {
-                        const actionText = (typeof action === 'object' && action !== null) 
-                            ? (action as any).text || (action as any).description 
-                            : action;
-                        const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
-                            ? (action as any).action 
-                            : action;
-                        
-                        if (!actionText || typeof actionText !== 'string') return null;
-
-                        return (
-                            <button
-                                key={index}
-                                onClick={() => processPlayerAction(actionValue)}
-                                disabled={isLoading}
-                                className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                                style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
-                            >
-                                {actionText}
-                            </button>
-                        )
-                    })}
+        <>
+             {isOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-20"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
+            <div className="fixed bottom-20 right-4 z-30 md:hidden">
+                <button
+                    onClick={() => setIsOpen(!isOpen)}
+                    disabled={isLoading}
+                    className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                    aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
+                >
+                    {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
+                </button>
+            </div>
+            
+            {isOpen && (
+                 <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/70 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp">
+                    {renderActionContent()}
                 </div>
             )}
-             <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
-             {!hasSuggestedActions && (
-                 <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
-             )}
-        </div>
+        </>
     );
 };
 
