@@ -55,9 +55,10 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const handleRoll = useCallback(async () => {
     if (!diceBoxInstance.current || isRolling || !isDiceboxReady) return;
     
+    console.log("Objeto PlayerRollRequest recebido e sendo rolado:", JSON.stringify(request, null, 2));
+
     setIsRolling(true);
     setHasRolled(true);
-    console.log("Objeto PlayerRollRequest recebido e sendo rolado:", JSON.stringify(request, null, 2));
 
     try {
       let diceNotation: string[];
