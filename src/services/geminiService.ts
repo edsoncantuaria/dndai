@@ -38,7 +38,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 #### Rolagem de Dados
 - **INTENÇÃO VS RESULTADO:**
-  - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado.
+  - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), você deve primeiro avaliar se a ação é possível. Se for impossível (ex: "tento usar intimidação para assustar a porta"), responda com uma narração explicando por que não funciona e forneça novas \`actionOptions\`. Se a ação for possível, sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado.
   - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho, atualizar o estado do jogo e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
 - **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria e descreva o resultado na narração usando o tipo de log \`roll\`. Inclua a rolagem, o modificador, o total e se foi um sucesso ou falha.
 
@@ -199,6 +199,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
