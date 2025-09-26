@@ -12,12 +12,12 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const { ttsModel, ttsVoice } = useSettingsContext();
+    const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
     const handlePlay = async () => {
-        if (audioData) {
-            audioRef.current?.play();
+        if (audioData && audioRef.current) {
+            audioRef.current.play();
             setIsPlaying(true);
             return;
         }
@@ -46,6 +46,13 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
             setIsPlaying(true);
         }
     }, [audioData]);
+
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.muted = isMuted;
+            audioRef.current.volume = volume;
+        }
+    }, [isMuted, volume]);
 
     const handleAudioEnded = () => {
         setIsPlaying(false);
