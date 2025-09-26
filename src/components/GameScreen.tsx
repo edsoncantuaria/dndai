@@ -64,7 +64,8 @@ const GameScreen: React.FC = () => {
 
             <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                 {/* Main Content: Narrative and Actions */}
-                <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
+                 <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
+                    {/* Alteração aqui: Adicionado pb-48 no contêiner de rolagem para mobile */}
                     <div className="flex-grow p-4 overflow-y-auto h-0 pb-40 md:pb-4">
                         <NewNarrativeLog />
                     </div>
@@ -96,7 +97,7 @@ const GameScreen: React.FC = () => {
             </div>
 
             {/* Mobile Sticky Actions & Toolbar */}
-             <div className="md:hidden fixed bottom-16 left-0 right-0 bg-stone-800/80 backdrop-blur-md p-2 z-20 border-t border-stone-700 max-h-48 overflow-y-auto">
+            <div className="md:hidden fixed bottom-16 left-0 right-0 z-20 bg-stone-800/80 backdrop-blur-md p-2 border-t border-stone-700 max-h-48 overflow-y-auto">
                 <ActionOptions />
             </div>
             <MobileToolbar 
