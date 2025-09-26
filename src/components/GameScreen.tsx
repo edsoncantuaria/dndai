@@ -16,7 +16,7 @@ import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
 import DiceRollModal from './DiceRollModal';
-import SkillCheckModal from './ui/SkillCheckModal'; // Importar o modal
+import SkillCheckModal from './ui/SkillCheckModal'; // Corrigido o caminho de importação
 import SpellCastModal from './ui/SpellCastModal'; // Importar o modal de magia
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
@@ -31,13 +31,14 @@ const GameScreen: React.FC = () => {
         apiError, 
         clearApiError,
         playerRollRequest,
+        setPlayerRollRequest,
         handleRollResult,
         skillCheckRequest,
         setSkillCheckRequest,
         handleSkillCheckSubmit,
-        spellCastRequest,      // Novo estado do hook
-        setSpellCastRequest,   // Novo estado do hook
-        submitSpellCast,       // Nova função do hook
+        spellCastRequest,
+        setSpellCastRequest,
+        submitSpellCast,
     } = useGameStateContext();
 
     const renderSidebarContent = () => {
@@ -78,6 +79,7 @@ const GameScreen: React.FC = () => {
                     <DiceRollModal 
                         request={playerRollRequest}
                         onRoll={handleRollResult}
+                        onClose={() => setPlayerRollRequest(null)}
                     />
                 )}
                 {skillCheckRequest && (
@@ -87,7 +89,6 @@ const GameScreen: React.FC = () => {
                         onClose={() => setSkillCheckRequest(null)}
                     />
                 )}
-                {/* Renderiza o novo modal de magia */}
                 {spellCastRequest && (
                     <SpellCastModal
                         spell={spellCastRequest.spell}

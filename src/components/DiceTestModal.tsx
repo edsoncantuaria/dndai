@@ -1,8 +1,8 @@
 'use client';
-import React, { useState, useRef, useEffect, useCallback, ChangeEvent } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { PlayerRollRequest } from '../types';
-import DiceBox from '@3d-dice/dice-box';
-import { Dices, Check, Loader2 } from 'lucide-react';
+import { Dices } from 'lucide-react';
+import DiceRollModal from './DiceRollModal';
 
 interface DiceTestModalProps {
   isOpen: boolean;
@@ -12,148 +12,102 @@ interface DiceTestModalProps {
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100', 'd12', 'd20'];
 
 const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
-  const diceBoxRef = useRef<HTMLDivElement>(null);
-  const diceBoxInstance = useRef<DiceBox | null>(null);
-  const [isRolling, setIsRolling] = useState(false);
-  const [rollResult, setRollResult] = useState<{ total: number; rolls: number[] } | null>(null);
+    const [numDice, setNumDice] = useState(1);
+    const [dieType, setDieType] = useState('d20');
+    const [modifier, setModifier] = useState(0);
+    const [advantage, setAdvantage] = useState(false);
+    const [disadvantage, setDisadvantage] = useState(false);
 
-  const [numDice, setNumDice] = useState(1);
-  const [dieType, setDieType] = useState('d20');
-  const [modifier, setModifier] = useState(0);
-  const [advantage, setAdvantage] = useState(false);
-  const [disadvantage, setDisadvantage] = useState(false);
+    // Novo estado para controlar o modal de rolagem
+    const [rollRequest, setRollRequest] = useState<PlayerRollRequest | null>(null);
 
-  useEffect(() => {
-    if (isOpen && diceBoxRef.current && !diceBoxInstance.current) {
-      const diceBox = new DiceBox("#dice-box-test", {
-        assetPath: '/assets/dice-box/',
-        theme: 'default',
-        offscreen: true,
-        scale: 6,
-      });
-      diceBox.init().then(() => {
-        diceBoxInstance.current = diceBox;
-        console.log("DiceBox Initialized for testing");
-      });
-    }
-  }, [isOpen]);
+    const handlePrepareRoll = () => {
+        const notation = `${numDice}${dieType}`;
+        const newRollRequest: PlayerRollRequest = {
+            reason: 'Teste de Rolagem',
+            dice: notation,
+            modifier: modifier,
+            rollType: 'check',
+            // Vantagem/desvantagem só se aplicam a 1d20
+            advantage: advantage && numDice === 1 && dieType === 'd20',
+            disadvantage: disadvantage && numDice === 1 && dieType === 'd20',
+        };
+        setRollRequest(newRollRequest);
+    };
 
-  const handleRoll = async () => {
-    if (!diceBoxInstance.current || isRolling) return;
-    setIsRolling(true);
-    setRollResult(null);
-
-    const notation = `${numDice}${dieType}`;
-    const rollRequest: Omit<PlayerRollRequest, 'reason' | 'rollType' | 'dc'> = {
-        dice: notation,
-        modifier: modifier,
-        advantage,
-        disadvantage,
+    const handleRollComplete = (result: { total: number; rolls: number[] }) => {
+        console.log("Resultado final do teste:", result);
+        // Em um jogo real, este resultado seria enviado de volta para a IA.
+        // Para o teste, apenas fechamos o modal.
+        setRollRequest(null);
     };
     
-    console.log("Objeto de Rolagem (como seria no jogo):", JSON.stringify(rollRequest, null, 2));
+    if (!isOpen) return null;
 
-    try {
-        let diceNotationForLib: string[];
-        const isAdvDisRoll = (advantage || disadvantage) && dieType === 'd20' && numDice === 1;
-
-        if (isAdvDisRoll) {
-            diceNotationForLib = ['1d20', '1d20'];
-        } else {
-            diceNotationForLib = [notation];
-        }
-
-        const results = await diceBoxInstance.current.roll(diceNotationForLib);
-        
-        const diceValues = results.map(r => r.value);
-        let finalDiceSum;
-
-        if (isAdvDisRoll) {
-            finalDiceSum = advantage ? Math.max(...diceValues) : Math.min(...diceValues);
-        } else {
-            finalDiceSum = diceValues.reduce((sum, val) => sum + val, 0);
-        }
-
-        const total = finalDiceSum + modifier;
-        setRollResult({ total, rolls: diceValues });
-
-    } catch (e) {
-        console.error("Erro na rolagem dos dados:", e);
-    } finally {
-        setIsRolling(false);
-    }
-  };
-
-
-  const resetAndClose = () => {
-    setRollResult(null);
-    setNumDice(1);
-    setDieType('d20');
-    setModifier(0);
-    setAdvantage(false);
-    setDisadvantage(false);
-    onClose();
-  }
-
-  const renderConfig = () => (
-    <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-            <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Quantidade</label>
-                <input type="number" value={numDice} onChange={e => setNumDice(parseInt(e.target.value))} min="1" max="10" className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+    return (
+        <>
+            <div 
+                className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-fadeIn"
+                style={{ animationDuration: '200ms' }}
+                onClick={onClose}
+            >
+                <div 
+                    className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-md flex flex-col"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <header className="p-4 border-b border-stone-700 flex justify-between items-center">
+                        <h2 className="text-xl font-bold font-garamond text-amber-300">Configurar Teste de Dados</h2>
+                        <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
+                    </header>
+                    <main className="p-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-stone-300 mb-1">Quantidade</label>
+                                <input type="number" value={numDice} onChange={e => setNumDice(parseInt(e.target.value))} min="1" max="10" className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dado</label>
+                                <select value={dieType} onChange={e => setDieType(e.target.value)} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200">
+                                    {DICE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-stone-300 mb-1">Modificador</label>
+                            <input type="number" value={modifier} onChange={e => setModifier(parseInt(e.target.value))} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+                        </div>
+                        <div className="flex justify-around text-stone-300">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked={advantage} onChange={e => { setAdvantage(e.target.checked); if (e.target.checked) setDisadvantage(false); }} disabled={numDice > 1 || dieType !== 'd20'} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded disabled:opacity-50"/>
+                                Vantagem
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" checked={disadvantage} onChange={e => { setDisadvantage(e.target.checked); if (e.target.checked) setAdvantage(false); }} disabled={numDice > 1 || dieType !== 'd20'} className="form-checkbox text-red-500 bg-stone-700 border-stone-600 rounded disabled:opacity-50"/>
+                                Desvantagem
+                            </label>
+                        </div>
+                    </main>
+                    <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
+                        <button
+                            onClick={handlePrepareRoll}
+                            className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors flex items-center gap-2"
+                        >
+                            Rolar o Dado
+                            <Dices className="h-4 w-4"/>
+                        </button>
+                    </footer>
+                </div>
             </div>
-            <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dado</label>
-                <select value={dieType} onChange={e => setDieType(e.target.value)} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200">
-                    {DICE_TYPES.map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
-            </div>
-        </div>
-         <div>
-            <label className="block text-sm font-medium text-stone-300 mb-1">Modificador</label>
-            <input type="number" value={modifier} onChange={e => setModifier(parseInt(e.target.value))} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
-        </div>
-        <div className="flex justify-around">
-            <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={advantage} onChange={e => { setAdvantage(e.target.checked); if (e.target.checked) setDisadvantage(false); }} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"/>
-                Vantagem
-            </label>
-             <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={disadvantage} onChange={e => { setDisadvantage(e.target.checked); if (e.target.checked) setAdvantage(false); }} className="form-checkbox text-red-500 bg-stone-700 border-stone-600 rounded"/>
-                Desvantagem
-            </label>
-        </div>
-        <button onClick={handleRoll} disabled={isRolling} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-amber-600 hover:bg-amber-700 text-stone-900 transition-colors disabled:opacity-50">
-            {isRolling ? <Loader2 className="animate-spin h-6 w-6"/> : <Dices className="h-6 w-6" />}
-            Rolar
-        </button>
-    </div>
-  );
 
-  const renderResult = () => (
-    <div className="text-center space-y-4">
-        <p className="text-stone-400">Rolagens: [{rollResult?.rolls.join(', ')}] | Modificador: {modifier > 0 ? `+${modifier}` : modifier}</p>
-        <p className="text-7xl font-bold text-amber-400 animate-fadeIn">{rollResult?.total}</p>
-        <button onClick={handleRoll} className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
-             <Dices className="h-6 w-6" />
-            Rolar Novamente
-        </button>
-    </div>
-  );
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex flex-col items-center justify-end p-4 animate-fadeIn" onClick={resetAndClose}>
-      <div className="w-full max-w-md" onClick={e => e.stopPropagation()}>
-        <div id="dice-box-test" className="w-full h-48 sm:h-64"></div>
-        <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl">
-          <h3 className="text-xl font-semibold text-center text-stone-300 mb-4">Teste de Rolagem de Dados</h3>
-          {rollResult ? renderResult() : renderConfig()}
-        </div>
-      </div>
-    </div>
-  );
+            {rollRequest && (
+                <DiceRollModal
+                    request={rollRequest}
+                    onRoll={handleRollComplete}
+                    onClose={() => setRollRequest(null)}
+                />
+            )}
+        </>
+    );
 };
 
 export default DiceTestModal;

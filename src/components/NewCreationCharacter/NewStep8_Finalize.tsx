@@ -1,4 +1,4 @@
-// src/components/NewCreationCharacter/NewStep7_Finalize.tsx
+// src/components/NewCreationCharacter/NewStep8_Finalize.tsx
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';

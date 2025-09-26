@@ -55,6 +55,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             onClick={handleCastClick}
                             disabled={!canCast || isActionLoading}
                             className="mr-2 p-1.5 rounded-md bg-amber-700/80 hover:bg-amber-600/80 text-stone-100 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Conjurar Magia"
                         >
                             <Sparkles className="h-4 w-4" />
                         </button>
