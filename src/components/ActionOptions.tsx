@@ -117,9 +117,7 @@ const ActionOptions: React.FC = () => {
         pendingHitDiceRequest, 
         playerRollRequest, 
         submitPlayerRoll,
-        skillCheckRequest,
-        handleSkillCheck, // Usando a função do contexto
-        setSkillCheckRequest,
+        handleSkillCheck,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -129,13 +127,6 @@ const ActionOptions: React.FC = () => {
             setIsOpen(false);
         }
     }, [isLoading, playerRollRequest]);
-    
-    const handleSkillCheckSubmit = (description: string) => {
-        if (!skillCheckRequest) return;
-        const fullReason = `Eu tento usar ${skillCheckRequest.skillName} para ${description}`;
-        processPlayerAction(fullReason); 
-        setSkillCheckRequest(null);
-    };
 
     const renderActionContent = () => {
         if (pendingLootOffer) {
@@ -213,13 +204,8 @@ const ActionOptions: React.FC = () => {
                     onRoll={submitPlayerRoll}
                 />
             )}
-             {skillCheckRequest && (
-                <SkillCheckModal
-                    skillName={skillCheckRequest.skillName}
-                    onConfirm={handleSkillCheckSubmit}
-                    onClose={() => setSkillCheckRequest(null)}
-                />
-            )}
+            {/* O SkillCheckModal agora é renderizado pelo GameScreen */}
+            
             {/* Desktop: Static Panel */}
             <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
                  {renderActionContent()}

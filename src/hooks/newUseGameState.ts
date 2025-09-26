@@ -287,7 +287,7 @@ export const useNewGameState = () => {
         const originalReason = playerRollRequest.reason;
         setPlayerRollRequest(null); // Clear request before sending new action
 
-        await processPlayerAction(`O resultado da minha rolagem para ${originalReason} foi ${result}.`);
+        await processPlayerAction(`O resultado da minha rolagem para "${originalReason}" foi ${result}.`);
     }, [character, playerRollRequest, processPlayerAction]);
     
     const handleSkillCheck = useCallback((skillName: string) => {

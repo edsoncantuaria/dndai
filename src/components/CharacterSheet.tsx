@@ -48,6 +48,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
     const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
     
     const onUseClick = () => {
+        // Agora, isso chama a função do contexto que abrirá o modal de descrição.
         handleSkillCheck(skillName);
     };
 
@@ -88,188 +89,172 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
 };
 
 const CharacterSheet: React.FC = () => {
-    const { character, processPlayerAction, isLoading, combatState, skillCheckRequest, setSkillCheckRequest } = useGameStateContext();
+    const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
 
     if (!character) return null;
 
     const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice } = character;
     const equippedItems = character.inventory.filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
-    
-    const handleSkillCheckSubmit = (description: string) => {
-        if (!skillCheckRequest) return;
-        const fullAction = `Eu tento usar ${skillCheckRequest.skillName} para ${description}`;
-        processPlayerAction(fullAction); 
-        setSkillCheckRequest(null);
-    };
 
     return (
-        <>
-            {skillCheckRequest && (
-                <SkillCheckModal
-                    skillName={skillCheckRequest.skillName}
-                    onConfirm={handleSkillCheckSubmit}
-                    onClose={() => setSkillCheckRequest(null)}
-                />
-            )}
-            <div className="p-4 space-y-4">
-                <DeathSavesTracker />
-                
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Informações Básicas</h3>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-stone-800/50 p-3 rounded-md">
-                        <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{character.race}{character.subrace && ` (${character.subrace})`}</span></div>
-                        <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{character.characterClass}</span></div>
-                        <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass || 'Nenhuma'}</span></div>
-                        <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{character.background}</span></div>
-                        <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{character.alignment}</span></div>
-                    </div>
+        <div className="p-4 space-y-4">
+            <DeathSavesTracker />
+            
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Informações Básicas</h3>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-stone-800/50 p-3 rounded-md">
+                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{character.race}{character.subrace && ` (${character.subrace})`}</span></div>
+                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{character.characterClass}</span></div>
+                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass || 'Nenhuma'}</span></div>
+                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{character.background}</span></div>
+                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{character.alignment}</span></div>
                 </div>
+            </div>
 
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Atributos</h3>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                        {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
-                            <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
-                                <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
-                                <div className="font-bold text-lg text-stone-200">{attributes[attr]}</div>
-                                <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
-                            </div>
-                        ))}
-                    </div>
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Atributos</h3>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                    {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
+                        <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
+                            <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
+                            <div className="font-bold text-lg text-stone-200">{attributes[attr]}</div>
+                            <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
+                        </div>
+                    ))}
                 </div>
+            </div>
 
-                {conditions.length > 0 && (
-                    <div>
-                        <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Condições Ativas</h3>
-                        <div className="flex flex-wrap gap-2">
-                            {conditions.map(condition => (
-                                <div key={condition.index} className="relative group">
-                                    <span className="flex items-center gap-1 bg-red-900/70 text-red-300 text-xs font-semibold px-2 py-1 rounded-full border border-red-700/80">
-                                        <AlertTriangle className="h-3 w-3" />
-                                        {translateCondition(condition.name)}
-                                    </span>
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
-                                        <h4 className="font-bold text-red-400 mb-1">{translateCondition(condition.name)}</h4>
-                                        {condition.desc.map((d, i) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
+            {conditions.length > 0 && (
                 <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
-                    <div className="bg-stone-800/50 p-3 rounded-md space-y-1 divide-y divide-stone-700/50">
-                        {characterUtils.ALL_SKILLS.map(skill => (
-                            <SkillItem 
-                                key={skill}
-                                skillName={skill}
-                                characterProfs={character.proficiencies}
-                                modifiers={character.modifiers}
-                                profBonus={character.proficiencyBonus}
-                            />
-                        ))}
-                    </div>
-                </div>
-                
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                            <span className="text-xs font-bold text-stone-400">Iniciativa</span>
-                            <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                            <span className="text-xs font-bold text-stone-400">Deslocamento</span>
-                            <p className="font-bold text-2xl text-stone-200">{character.speed} <span className="text-base">ft</span></p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md">
-                            <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
-                            <p className="font-bold text-lg text-stone-200">{hitDice.current} / {hitDice.total} <span className="text-sm text-stone-400">d{character.hitDie}</span></p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md">
-                            <span className="text-xs font-bold text-stone-400">Moedas</span>
-                            <div className="flex gap-2 items-baseline">
-                                <div className="text-amber-400 font-mono">
-                                    <span className="font-bold text-lg">{currency.gp}</span>
-                                    <span className="text-sm">gp</span>
-                                </div>
-                                <div className="text-slate-400 font-mono">
-                                    <span className="font-bold text-lg">{currency.sp}</span>
-                                    <span className="text-sm">sp</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Ações de Descanso</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button
-                            onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
-                            disabled={isLoading || combatState.isActive}
-                            className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            <Coffee className="h-4 w-4" />
-                            Descanso Curto
-                        </button>
-                        <button
-                            onClick={() => processPlayerAction("Tentar fazer um descanso longo.")}
-                            disabled={isLoading || combatState.isActive}
-                            className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        >
-                            <BedDouble className="h-4 w-4" />
-                            Descanso Longo
-                        </button>
-                    </div>
-                </div>
-
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Equipamento Vestido</h3>
-                    {equippedItems.length > 0 ? (
-                        <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm">
-                            {equippedItems.map(item => <li key={item.id}>{translateEquipment(item).name}</li>)}
-                        </ul>
-                    ) : (
-                        <p className="text-stone-400 italic text-sm">Nenhum item equipado.</p>
-                    )}
-                </div>
-                
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Outras Proficiências</h3>
+                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Condições Ativas</h3>
                     <div className="flex flex-wrap gap-2">
-                        {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                            <span key={prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                {translateApiString(prof.name)}
-                            </span>
+                        {conditions.map(condition => (
+                            <div key={condition.index} className="relative group">
+                                <span className="flex items-center gap-1 bg-red-900/70 text-red-300 text-xs font-semibold px-2 py-1 rounded-full border border-red-700/80">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    {translateCondition(condition.name)}
+                                </span>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
+                                    <h4 className="font-bold text-red-400 mb-1">{translateCondition(condition.name)}</h4>
+                                    {condition.desc.map((d, i) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
+                                </div>
+                            </div>
                         ))}
                     </div>
                 </div>
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                    <p className="text-stone-300">{languages.join(', ')}</p>
+            )}
+
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
+                <div className="bg-stone-800/50 p-3 rounded-md space-y-1 divide-y divide-stone-700/50">
+                    {characterUtils.ALL_SKILLS.map(skill => (
+                        <SkillItem 
+                            key={skill}
+                            skillName={skill}
+                            characterProfs={character.proficiencies}
+                            modifiers={character.modifiers}
+                            profBonus={character.proficiencyBonus}
+                        />
+                    ))}
                 </div>
-                <CollapsibleSection title="Personalidade">
-                    <div className="space-y-1">
-                        <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {character.personalityTraits.join(' ')}</p>
-                        <p className="text-sm text-stone-400"><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
-                        <p className="text-sm text-stone-400"><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
-                        <p className="text-sm text-stone-400"><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
+            </div>
+            
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                        <span className="text-xs font-bold text-stone-400">Iniciativa</span>
+                        <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
                     </div>
-                </CollapsibleSection>
-                <CollapsibleSection title="História de Fundo">
-                    <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.backstory}</p>
-                </CollapsibleSection>
-                {character.storySoFar && (
-                    <CollapsibleSection title="Crônicas da Aventura">
-                        <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.storySoFar}</p>
-                    </CollapsibleSection>
+                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                        <span className="text-xs font-bold text-stone-400">Deslocamento</span>
+                        <p className="font-bold text-2xl text-stone-200">{character.speed} <span className="text-base">ft</span></p>
+                    </div>
+                    <div className="bg-stone-800/50 p-2 rounded-md">
+                        <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
+                        <p className="font-bold text-lg text-stone-200">{hitDice.current} / {hitDice.total} <span className="text-sm text-stone-400">d{character.hitDie}</span></p>
+                    </div>
+                    <div className="bg-stone-800/50 p-2 rounded-md">
+                        <span className="text-xs font-bold text-stone-400">Moedas</span>
+                        <div className="flex gap-2 items-baseline">
+                            <div className="text-amber-400 font-mono">
+                                <span className="font-bold text-lg">{currency.gp}</span>
+                                <span className="text-sm">gp</span>
+                            </div>
+                            <div className="text-slate-400 font-mono">
+                                <span className="font-bold text-lg">{currency.sp}</span>
+                                <span className="text-sm">sp</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Ações de Descanso</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <button
+                        onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
+                        disabled={isLoading || combatState.isActive}
+                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        <Coffee className="h-4 w-4" />
+                        Descanso Curto
+                    </button>
+                    <button
+                        onClick={() => processPlayerAction("Tentar fazer um descanso longo.")}
+                        disabled={isLoading || combatState.isActive}
+                        className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                        <BedDouble className="h-4 w-4" />
+                        Descanso Longo
+                    </button>
+                </div>
+            </div>
+
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Equipamento Vestido</h3>
+                {equippedItems.length > 0 ? (
+                    <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm">
+                        {equippedItems.map(item => <li key={item.id}>{translateEquipment(item).name}</li>)}
+                    </ul>
+                ) : (
+                    <p className="text-stone-400 italic text-sm">Nenhum item equipado.</p>
                 )}
             </div>
-        </>
+            
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Outras Proficiências</h3>
+                <div className="flex flex-wrap gap-2">
+                    {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
+                        <span key={prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                            {translateApiString(prof.name)}
+                        </span>
+                    ))}
+                </div>
+            </div>
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
+                <p className="text-stone-300">{languages.join(', ')}</p>
+            </div>
+            <CollapsibleSection title="Personalidade">
+                <div className="space-y-1">
+                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {character.personalityTraits.join(' ')}</p>
+                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
+                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
+                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
+                </div>
+            </CollapsibleSection>
+            <CollapsibleSection title="História de Fundo">
+                <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.backstory}</p>
+            </CollapsibleSection>
+            {character.storySoFar && (
+                <CollapsibleSection title="Crônicas da Aventura">
+                    <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.storySoFar}</p>
+                </CollapsibleSection>
+            )}
+        </div>
     );
 };
 

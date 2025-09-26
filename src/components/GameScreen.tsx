@@ -15,6 +15,7 @@ import NewNarrativeLog from './NewNarrativeLog';
 import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
+import SkillCheckModal from './ui/SkillCheckModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 import Head from 'next/head';
 
@@ -22,7 +23,23 @@ type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships
 
 const GameScreen: React.FC = () => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
-    const { combatState, levelUpState, shopState, apiError, clearApiError } = useGameStateContext();
+    const { 
+        combatState, 
+        levelUpState, 
+        shopState, 
+        apiError, 
+        clearApiError,
+        skillCheckRequest,
+        setSkillCheckRequest,
+        processPlayerAction
+    } = useGameStateContext();
+
+    const handleSkillCheckSubmit = (description: string) => {
+        if (!skillCheckRequest) return;
+        const fullAction = `Eu tento usar ${skillCheckRequest.skillName} para ${description}`;
+        processPlayerAction(fullAction);
+        setSkillCheckRequest(null);
+    };
 
     const renderSidebarContent = () => {
         switch (activeTab) {
@@ -65,6 +82,13 @@ const GameScreen: React.FC = () => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
+                {skillCheckRequest && (
+                    <SkillCheckModal
+                        skillName={skillCheckRequest.skillName}
+                        onConfirm={handleSkillCheckSubmit}
+                        onClose={() => setSkillCheckRequest(null)}
+                    />
+                )}
                 <AmbientPlayer /> 
 
                 <Header />
