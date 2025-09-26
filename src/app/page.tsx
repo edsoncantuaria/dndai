@@ -16,31 +16,23 @@ const HomePageContent = () => {
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
-        // Create audio element programmatically to ensure it's available
         if (!menuAudioRef.current) {
-            menuAudioRef.current = new Audio();
+            const audio = new Audio('/audios/index/inicio.mp3');
+            audio.loop = true;
+            menuAudioRef.current = audio;
         }
+        
         const audio = menuAudioRef.current;
-
         const shouldPlay = playMenuMusic && (gameStage === 'menu' || gameStage === 'creating' || gameStage === 'created');
 
-        if (shouldPlay) {
-            // Only change src if it's not already set to the correct one
-            if (audio.src !== window.location.origin + '/audios/index/inicio.mp3') {
-                audio.src = '/audios/index/inicio.mp3';
-                audio.loop = true;
-            }
-            audio.volume = isMuted ? 0 : volume;
-            // The play() must be called after a user interaction in some browsers.
-            // If it fails silently, the user can still trigger it via settings.
+        audio.volume = isMuted ? 0 : volume;
+
+        if (shouldPlay && audio.paused) {
             audio.play().catch(e => console.warn("Menu audio auto-play was prevented. A user interaction is required.", e));
-        } else {
+        } else if (!shouldPlay && !audio.paused) {
             audio.pause();
-            // Reset src to stop buffering
-            if (audio.src) {
-                audio.src = '';
-            }
         }
+
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
 
