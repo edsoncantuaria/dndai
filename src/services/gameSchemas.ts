@@ -6,7 +6,7 @@ export const PlayerRollRequestSchema = z.object({
     reason: z.string().describe("The reason for the roll (e.g., 'to persuade the guard', 'to dodge the fireball'). This will be displayed to the player."),
     dice: z.string().describe("The dice to roll, in standard notation (e.g., '1d20', '2d6')."),
     modifier: z.number().describe("The total modifier to add to the roll, calculated from character stats."),
-    dc: z.number().optional().describe("The Difficulty Class of the check. This is crucial for the player to know what they need to beat."),
+    dc: z.number().optional().describe("The Difficulty Class of the check. This is crucial for the player to know what they need to beat. The DC MUST be calculated based on the desired chance of success for the player. Example for a d20 roll with a total +3 modifier (max roll of 23): Easy (60-70% success) -> DC ~8-10. Medium (40-50% success) -> DC ~12-14. Hard (15-20% success) -> DC ~18-20. Impossible (0% success) -> DC > 23."),
     rollType: z.enum(['check', 'save', 'attack', 'damage']).describe("The type of roll being made."),
     advantage: z.boolean().optional().describe("Whether the roll should be made with advantage."),
     disadvantage: z.boolean().optional().describe("Whether the roll should be made with disadvantage.")
@@ -74,7 +74,7 @@ export const GameMasterResponseSchema = z.object({
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night', 'dungeon_i', 'none' for silence). This should be chosen from the available `ambient-sounds.json` file to match the current scene's atmosphere."),
 }).describe("The Game Master's response, containing all updates to the game state.");
 
-export type GameMasterResponse = z_infer<typeof GameMasterResponseSchema>;
+export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
 // Schema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
