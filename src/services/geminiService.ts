@@ -21,7 +21,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
   "logEntries": [{ "type": "...", "content": "..." }],
   "actionOptions": ["Opção 1", { "text": "Opção 2", "action": "internal_action" }],
   "updatedCharacter": { /* APENAS os campos que mudaram */ },
-  /* outros campos opcionais como combatState, levelUpState, ambientSound, etc. */
+  /* outros campos opcionais como combatState, playerRollRequest, levelUpState, ambientSound, etc. */
 }
 
 ### Regras do Jogo e Narrativa
@@ -184,6 +184,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
