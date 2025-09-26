@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ChangeEvent, useState } from 'react';
+import React, { ChangeEvent, useEffect, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, AVAILABLE_IMAGE_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
 import { Info, KeyRound } from 'lucide-react';
 
@@ -50,8 +50,7 @@ const SliderWithTooltip: React.FC<SliderWithTooltipProps> = ({ id, label, toolti
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { model, setModel, ttsModel, setTtsModel, imageModel, setImageModel, ttsVoice, setTtsVoice, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
-    const [localApiKey, setLocalApiKey] = useState(apiKey);
-
+    
     if (!isOpen) return null;
     
     const handleConfigChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -63,7 +62,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     };
 
     const handleSaveAndClose = () => {
-        setApiKey(localApiKey);
         onClose();
     }
 
@@ -89,8 +87,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                          <input
                             id="api-key-input"
                             type="password"
-                            value={localApiKey}
-                            onChange={(e) => setLocalApiKey(e.target.value)}
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
                             placeholder="Cole sua chave aqui"
                             className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         />
@@ -204,7 +202,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         onClick={handleSaveAndClose}
                         className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors"
                     >
-                        Salvar e Fechar
+                        Fechar
                     </button>
                 </footer>
             </div>
