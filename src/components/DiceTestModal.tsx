@@ -74,7 +74,10 @@ const DiceTestModal: React.FC<DiceTestModalProps> = ({ isOpen, onClose }) => {
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-stone-300 mb-1">Modificador</label>
-                            <input type="number" value={modifier} onChange={e => setModifier(parseInt(e.target.value))} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
+                            <input type="number" value={modifier} onChange={e => {
+                                const value = parseInt(e.target.value, 10);
+                                setModifier(isNaN(value) ? 0 : value);
+                            }} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"/>
                         </div>
                         <div className="flex justify-around text-stone-300">
                             <label className="flex items-center gap-2 cursor-pointer">
