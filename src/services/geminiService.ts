@@ -62,6 +62,7 @@ Nada avança sem que você valide, peça a rolagem e interprete o resultado.
 ## Estrutura de Saída Obrigatória (GameMasterResponseSchema)
 Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 
+\`\`\`json
 {
   "logEntries": [{ "type": "...", "content": "..." }],
   "actionOptions": ["Opção 1", { "text": "Opção 2", "action": "internal_action" }],
@@ -71,8 +72,9 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
   "imagePrompt": "Prompt em inglês para gerar imagem de cena importante",
   "ambientSound": "id do som ambiente ou 'none'"
 }
+\`\`\`
 
-**IMPORTANTE sobre `updatedCharacter`**:
+**IMPORTANTE sobre \`updatedCharacter\`**:
 - **NUNCA** retorne o objeto de personagem inteiro.
 - **SEMPRE** retorne **APENAS** as propriedades que mudaram. Ex: \`{ "hp": { "current": 8 }, "xp": 50 }\`.
 - **Missões e Diário:** Use esta propriedade para atualizar o diário (\`journal\`) e os relacionamentos (\`relationships\`).
