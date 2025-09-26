@@ -111,6 +111,7 @@ export const useNewGameState = () => {
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
+    const [ambientSound, setAmbientSound] = useState<string>('none');
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
@@ -122,20 +123,20 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
-                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest } = JSON.parse(savedGame);
+                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest, ambientSound: savedAmbientSound } = JSON.parse(savedGame);
                 setCharacter(savedCharacter);
                 setLog(savedLog || []);
                 setActionOptions(savedActionOptions || []);
@@ -144,6 +145,7 @@ export const useNewGameState = () => {
                 setShopState(savedShopState || null);
                 setPendingLootOffer(savedPendingLootOffer || null);
                 setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
+                setAmbientSound(savedAmbientSound || 'none');
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -189,6 +191,7 @@ export const useNewGameState = () => {
         if (response.shopState) setShopState(response.shopState);
         if (response.lootOffer) setPendingLootOffer(response.lootOffer);
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
+        if (response.ambientSound) setAmbientSound(response.ambientSound);
 
         // Handle image generation silently
         if (response.imagePrompt) {
@@ -278,6 +281,7 @@ export const useNewGameState = () => {
         setLog([]); 
         setActionOptions([]);
         setApiError(null);
+        setAmbientSound('none');
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -326,7 +330,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest };
+            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -340,7 +344,7 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound]);
 
     const loadGameFromFile = (file: File) => {
         setIsLoading(true);
@@ -358,6 +362,7 @@ export const useNewGameState = () => {
                     setShopState(parsedState.shopState || null);
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
+                    setAmbientSound(parsedState.ambientSound || 'none');
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {
@@ -432,6 +437,7 @@ export const useNewGameState = () => {
         pendingHitDiceRequest,
         isLoading,
         apiError,
+        ambientSound,
         clearApiError,
         getApiKey,
         createCharacter,

@@ -1,0 +1,69 @@
+// src/data/ambient-sounds.ts
+
+export type AmbientSound = {
+    id: string;
+    name: string;
+    url: string;
+    tags: string[];
+}
+
+export const ambientSounds: AmbientSound[] = [
+    {
+        id: "none",
+        name: "Silêncio",
+        url: "",
+        tags: ["silencio", "nada"]
+    },
+    {
+        id: "tavern-lively",
+        name: "Taverna Animada",
+        url: "/audio/ambient/tavern-lively.mp3",
+        tags: ["taverna", "cidade", "interior", "social", "multidão"]
+    },
+    {
+        id: "forest-day",
+        name: "Floresta (Dia)",
+        url: "/audio/ambient/forest-day.mp3",
+        tags: ["floresta", "exterior", "dia", "natureza", "pássaros"]
+    },
+    {
+        id: "forest-night",
+        name: "Floresta (Noite)",
+        url: "/audio/ambient/forest-night.mp3",
+        tags: ["floresta", "exterior", "noite", "natureza", "grilos"]
+    },
+    {
+        id: "dungeon-eerie",
+        name: "Masmorra Sinistra",
+        url: "/audio/ambient/dungeon-eerie.mp3",
+        tags: ["masmorra", "caverna", "subterrâneo", "perigo", "eco"]
+    },
+    {
+        id: "city-market",
+        name: "Mercado da Cidade",
+        url: "/audio/ambient/city-market.mp3",
+        tags: ["cidade", "multidão", "mercado", "comércio", "social"]
+    },
+    {
+        id: "battle-intense",
+        name: "Batalha Intensa",
+        url: "/audio/ambient/battle-intense.mp3",
+        tags: ["combate", "batalha", "espadas", "gritos", "perigo"]
+    },
+    {
+        id: "temple-chanting",
+        name: "Templo com Cânticos",
+        url: "/audio/ambient/temple-chanting.mp3",
+        tags: ["templo", "sagrado", "cântico", "calmo", "interior"]
+    },
+    {
+        id: "stormy-coast",
+        name: "Costa Tempestuosa",
+        url: "/audio/ambient/stormy-coast.mp3",
+        tags: ["exterior", "tempestade", "oceano", "chuva", "trovão"]
+    }
+];
+
+// Nota: Os arquivos de áudio referenciados (ex: /audio/ambient/tavern-lively.mp3)
+// devem ser adicionados manualmente à pasta `public` do seu projeto Next.js.
+// Por exemplo: public/audio/ambient/tavern-lively.mp3

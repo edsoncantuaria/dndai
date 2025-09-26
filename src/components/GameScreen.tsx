@@ -14,6 +14,7 @@ import ErrorModal from './ui/ErrorModal';
 import NewNarrativeLog from './NewNarrativeLog'; // Substituindo
 import NewJournal from './NewJournal';           // Substituindo
 import NewRelationships from './NewRelationships'; // Substituindo
+import AmbientPlayer from './AmbientPlayer'; // Importando o novo player
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -55,6 +56,7 @@ const GameScreen: React.FC = () => {
             {levelUpState?.isPending && <LevelUpModal />}
             {shopState?.isOpen && <ShopModal />}
             {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
+            <AmbientPlayer /> 
 
             <Header />
             

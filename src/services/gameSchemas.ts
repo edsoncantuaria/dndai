@@ -55,6 +55,7 @@ export const GameMasterResponseSchema = z.object({
     lootOffer: LootOfferSchema.optional().describe("Uma oferta de saque para o jogador aceitar."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("Um pedido para o jogador gastar Dados de Vida durante um descanso curto."),
     imagePrompt: z.string().optional().describe("Ocasionalmente, para uma cena importante, forneça um prompt de imagem detalhado (em inglês) para gerar uma ilustração. Ex: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
+    ambientSound: z.string().optional().describe("O ID de uma nova trilha sonora ambiente para tocar, com base na mudança de cena ou humor (ex: 'tavern-lively', 'dungeon-eerie', 'forest-day')."),
 }).describe("A resposta do Mestre de Jogo, contendo todas as atualizações para o estado do jogo.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
