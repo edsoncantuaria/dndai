@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 interface SliderProps {
-    id: keyof GenerationConfig;
+    id: keyof GenerationConfig | 'volume';
     label: string;
     tooltip: string;
     value: number;
@@ -47,24 +47,40 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
     </div>
 );
 
-const AmbientSoundControls: React.FC = () => {
-    const { volume, setVolume, isMuted, setIsMuted } = useSettingsContext();
+const AudioControls: React.FC = () => {
+    const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic } = useSettingsContext();
 
     return (
-        <div className="flex items-center gap-3">
-             <button onClick={() => setIsMuted(m => !m)} className="text-stone-300 hover:text-white p-2 rounded-full bg-stone-700/50 hover:bg-stone-600/50 transition-colors">
-                {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
-            </button>
-             <Slider 
-                id="temperature" // Dummy ID, não usado por esta lógica
-                label="Volume"
-                tooltip="Ajusta o volume dos sons de ambiente."
-                value={Math.round(volume * 100)}
-                min={0}
-                max={100}
-                step={5}
-                onChange={(e) => setVolume(Number(e.target.value) / 100)}
-            />
+         <div className="space-y-4 pt-4 border-t border-stone-700/50">
+            <h3 className="text-lg font-semibold text-stone-300">Áudio</h3>
+            <div className="flex items-center gap-3">
+                 <button onClick={() => setIsMuted(m => !m)} className="text-stone-300 hover:text-white p-2 rounded-full bg-stone-700/50 hover:bg-stone-600/50 transition-colors">
+                    {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
+                </button>
+                 <Slider 
+                    id="volume"
+                    label="Volume do Ambiente"
+                    tooltip="Ajusta o volume dos sons de ambiente no jogo."
+                    value={Math.round(volume * 100)}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onChange={(e) => setVolume(Number(e.target.value) / 100)}
+                />
+            </div>
+            <div className="flex items-center justify-between bg-stone-800/50 p-3 rounded-md">
+                <label htmlFor="menu-music-toggle" className="text-stone-300">Música da Tela Principal</label>
+                <button
+                    id="menu-music-toggle"
+                    onClick={() => setPlayMenuMusic(p => !p)}
+                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-600' : 'bg-stone-600'}`}
+                >
+                    <span
+                        aria-hidden="true"
+                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${playMenuMusic ? 'translate-x-5' : 'translate-x-0'}`}
+                    />
+                </button>
+            </div>
         </div>
     )
 }
@@ -119,10 +135,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         </p>
                     </div>
 
-                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
-                        <h3 className="text-lg font-semibold text-stone-300">Áudio Ambiente</h3>
-                        <AmbientSoundControls />
-                    </div>
+                    <AudioControls />
 
                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
                         <h3 className="text-lg font-semibold text-stone-300">Modelos de IA</h3>

@@ -11,7 +11,6 @@ export const AVAILABLE_MODELS = [
     "gemini-1.0-pro",
     "gemini-1.5-flash",     
     "gemma-3-27b-it",
-    "gemma-3-9b-it",
     "gemma-7b-it",
 ];
 
@@ -59,14 +58,16 @@ interface SettingsContextType {
     setImageModel: (model: string) => void;
     ttsVoice: string;
     setTtsVoice: (voice: string) => void;
-    apiKeys: string[];
-    setApiKeys: (keys: string[]) => void;
+    apiKey: string;
+    setApiKey: (key: string) => void;
     generationConfig: GenerationConfig;
     setGenerationConfig: (config: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => void;
     volume: number;
     setVolume: (volume: number) => void;
     isMuted: boolean;
     setIsMuted: (isMuted: boolean) => void;
+    playMenuMusic: boolean;
+    setPlayMenuMusic: (play: boolean) => void;
 }
 
 const defaultGenerationConfig: GenerationConfig = {
@@ -84,10 +85,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [ttsModel, setTtsModel] = useState<string>(AVAILABLE_TTS_MODELS[0]);
     const [imageModel, setImageModel] = useState<string>(AVAILABLE_IMAGE_MODELS[0]);
     const [ttsVoice, setTtsVoice] = useState<string>(AVAILABLE_TTS_VOICES[0]);
-    const [apiKeys, setApiKeys] = useState<string[]>(['', '', '']);
+    const [apiKey, setApiKey] = useState<string>('');
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultGenerationConfig);
     const [volume, setVolume] = useState(0.3);
     const [isMuted, setIsMuted] = useState(false);
+    const [playMenuMusic, setPlayMenuMusic] = useState(true);
 
 
     useEffect(() => {
@@ -99,10 +101,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 if (parsed.ttsModel && AVAILABLE_TTS_MODELS.includes(parsed.ttsModel)) setTtsModel(parsed.ttsModel);
                 if (parsed.imageModel && AVAILABLE_IMAGE_MODELS.includes(parsed.imageModel)) setImageModel(parsed.imageModel);
                 if (parsed.ttsVoice && AVAILABLE_TTS_VOICES.includes(parsed.ttsVoice)) setTtsVoice(parsed.ttsVoice);
-                if(parsed.apiKeys && Array.isArray(parsed.apiKeys)) setApiKeys(parsed.apiKeys);
+                if(parsed.apiKey && typeof parsed.apiKey === 'string') setApiKey(parsed.apiKey);
                 if (parsed.generationConfig) setGenerationConfig(prev => ({ ...prev, ...parsed.generationConfig }));
                 if (typeof parsed.volume === 'number') setVolume(parsed.volume);
                 if (typeof parsed.isMuted === 'boolean') setIsMuted(parsed.isMuted);
+                if (typeof parsed.playMenuMusic === 'boolean') setPlayMenuMusic(parsed.playMenuMusic);
             }
         } catch (error) {
             console.error("Failed to load settings from localStorage:", error);
@@ -113,23 +116,24 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     useEffect(() => {
         if(isLoaded) {
             try {
-                const settings = { model, ttsModel, imageModel, apiKeys, generationConfig, ttsVoice, volume, isMuted };
+                const settings = { model, ttsModel, imageModel, apiKey, generationConfig, ttsVoice, volume, isMuted, playMenuMusic };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(settings));
             } catch (error) {
                 console.error("Failed to save settings to localStorage:", error);
             }
         }
-    }, [model, ttsModel, imageModel, apiKeys, generationConfig, ttsVoice, volume, isMuted, isLoaded]);
+    }, [model, ttsModel, imageModel, apiKey, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, isLoaded]);
 
     const value = { 
         model, setModel, 
         ttsModel, setTtsModel, 
         imageModel, setImageModel, 
-        apiKeys, setApiKeys, 
+        apiKey, setApiKey, 
         generationConfig, setGenerationConfig, 
         ttsVoice, setTtsVoice,
         volume, setVolume,
-        isMuted, setIsMuted
+        isMuted, setIsMuted,
+        playMenuMusic, setPlayMenuMusic
     };
 
     return (

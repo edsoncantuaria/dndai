@@ -1,8 +1,8 @@
 'use client';
 import { GameStateProvider, useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
-import { useState, useCallback, useEffect } from 'react';
-import { SettingsProvider } from '@/contexts/SettingsContext';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { SettingsProvider, useSettingsContext } from '@/contexts/SettingsContext';
 
 // Define os estágios do jogo para controlar o fluxo da UI
 type GameStage = 'menu' | 'creating' | 'created' | 'playing';
@@ -10,7 +10,22 @@ type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 // Este componente agora contém a lógica principal da página e pode acessar o contexto.
 const HomePageContent = () => {
     const { character, loadGameFromLocalStorage } = useGameStateContext();
+    const { playMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
+    const menuAudioRef = useRef<HTMLAudioElement>(null);
+
+     useEffect(() => {
+        const audio = menuAudioRef.current;
+        if (!audio) return;
+
+        if (gameStage === 'menu' && playMenuMusic) {
+            audio.volume = isMuted ? 0 : volume;
+            audio.play().catch(e => console.error("Menu audio play failed:", e));
+        } else {
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    }, [gameStage, playMenuMusic, volume, isMuted]);
 
     // Função para limpar o jogo salvo e ir para a tela de criação
     const startNewGameFlow = useCallback(() => {
@@ -58,12 +73,15 @@ const HomePageContent = () => {
     // Renderiza o componente Game, que internamente decide se mostra
     // o menu/criação ou a tela de jogo principal.
     return (
-        <Game
-            startNewGameFlow={startNewGameFlow}
-            onCharacterCreated={onCharacterCreated}
-            onContinueGame={onContinueGame}
-            gameStage={gameStage}
-        />
+        <>
+            <audio ref={menuAudioRef} src="/audio/ambient/inicio.mp3" loop />
+            <Game
+                startNewGameFlow={startNewGameFlow}
+                onCharacterCreated={onCharacterCreated}
+                onContinueGame={onContinueGame}
+                gameStage={gameStage}
+            />
+        </>
     );
 };
 
