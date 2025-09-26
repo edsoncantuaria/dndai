@@ -4,12 +4,11 @@ import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
-import { SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils'; // <-- IMPORTAÇÃO ADICIONADA AQUI
+import { SKILL_ATTRIBUTE_MAP } from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -112,6 +111,7 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
+    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
@@ -126,13 +126,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, playerRollRequest, skillCheckRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, playerRollRequest, skillCheckRequest]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
@@ -195,9 +195,9 @@ export const useNewGameState = () => {
 
         if (response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `O mestre pediu uma rolagem: ${response.playerRollRequest!.reason}` }]);
-            // Pause further processing, wait for player roll
-            return;
+            // DO NOT add a log entry here. The player needs to see the modal first.
+            // The action will be logged when the player submits the roll.
+            return; // Pause further processing, wait for player roll
         }
 
         if (response.actionOptions !== undefined) {
@@ -239,7 +239,7 @@ export const useNewGameState = () => {
 
     }, [getApiKey, selectedImageModel]);
     
-    const processPlayerAction = useCallback(async (action: string | object) => {
+    const processPlayerAction = useCallback(async (action: string) => {
         if (!character) return;
         
         setIsLoading(true);
@@ -247,19 +247,8 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         const previousActionOptions = actionOptions;
-
-        const actionText = (typeof action === 'object' && action !== null) 
-            ? (action as any).text || (action as any).description 
-            : action;
         
-        if (!actionText || typeof actionText !== 'string') {
-            console.error("Ação inválida recebida:", action);
-            setApiError("Ação inválida processada. Por favor, tente algo diferente.");
-            setIsLoading(false);
-            return;
-        }
-
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: actionText };
+        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
         setLog(prev => [...prev, newLogEntry]);
         setActionOptions([]); 
         
@@ -272,7 +261,7 @@ export const useNewGameState = () => {
             }
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
-                playerAction: actionText,
+                playerAction: action,
                 gameLog: currentLog,
             };
             
@@ -283,6 +272,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
+            // Rollback UI changes on error
             setActionOptions(previousActionOptions);
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
@@ -291,34 +281,18 @@ export const useNewGameState = () => {
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
 
-    const requestPlayerRoll = useCallback((request: PlayerRollRequest) => {
-        setPlayerRollRequest(request);
-    }, []);
-
     const submitPlayerRoll = useCallback(async (result: number) => {
         if (!character || !playerRollRequest) return;
 
         const originalReason = playerRollRequest.reason;
         setPlayerRollRequest(null); // Clear request before sending new action
 
-        await processPlayerAction(`O resultado da minha rolagem de ${originalReason} foi ${result}.`);
+        await processPlayerAction(`O resultado da minha rolagem para ${originalReason} foi ${result}.`);
     }, [character, playerRollRequest, processPlayerAction]);
-
+    
     const handleSkillCheck = useCallback((skillName: string) => {
-        if (!character) return;
-        const translatedSkill = translateApiString(`Skill: ${skillName}`);
-        const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
-        const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
-        const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
-
-        requestPlayerRoll({
-            reason: `um teste de ${translatedSkill}`,
-            dice: '1d20',
-            modifier,
-            rollType: 'check',
-        });
-    }, [character, requestPlayerRoll]);
-
+        setSkillCheckRequest({ skillName });
+    }, []);
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
@@ -482,6 +456,8 @@ export const useNewGameState = () => {
         pendingLootOffer,
         pendingHitDiceRequest,
         playerRollRequest,
+        skillCheckRequest,
+        setSkillCheckRequest,
         isLoading,
         apiError,
         ambientSound,
@@ -501,7 +477,6 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
-        requestPlayerRoll,
         submitPlayerRoll,
         handleSkillCheck,
     };

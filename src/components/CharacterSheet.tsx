@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition, translateEquipment } from '../utils/translator';
 import { Attributes, Proficiency } from '../types';
-import { ALL_SKILLS } from '../utils/characterUtils';
+import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
 import SkillCheckModal from './ui/SkillCheckModal';
 
@@ -42,12 +42,15 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
     const { handleSkillCheck, isLoading, character } = useGameStateContext();
     
     if (!character) return null;
-
-    // A lógica para calcular o modificador é movida para o hook, mas podemos mantê-la aqui por simplicidade de exibição.
+    
     const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
     
+    const onUseClick = () => {
+        handleSkillCheck(skillName);
+    };
+
     return (
         <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
@@ -57,7 +60,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={() => handleSkillCheck(skillName)} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={onUseClick} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>
@@ -85,16 +88,30 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
 };
 
 const CharacterSheet: React.FC = () => {
-    const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
+    const { character, processPlayerAction, isLoading, combatState, skillCheckRequest, setSkillCheckRequest } = useGameStateContext();
 
     if (!character) return null;
 
     const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice } = character;
     const equippedItems = character.inventory.filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
+    
+    const handleSkillCheckSubmit = (description: string) => {
+        if (!skillCheckRequest) return;
+        const fullAction = `Eu tento usar ${skillCheckRequest.skillName} para ${description}`;
+        processPlayerAction(fullAction); 
+        setSkillCheckRequest(null);
+    };
 
     return (
         <>
+            {skillCheckRequest && (
+                <SkillCheckModal
+                    skillName={skillCheckRequest.skillName}
+                    onConfirm={handleSkillCheckSubmit}
+                    onClose={() => setSkillCheckRequest(null)}
+                />
+            )}
             <div className="p-4 space-y-4">
                 <DeathSavesTracker />
                 
@@ -145,7 +162,7 @@ const CharacterSheet: React.FC = () => {
                 <div>
                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
                     <div className="bg-stone-800/50 p-3 rounded-md space-y-1 divide-y divide-stone-700/50">
-                        {ALL_SKILLS.map(skill => (
+                        {characterUtils.ALL_SKILLS.map(skill => (
                             <SkillItem 
                                 key={skill}
                                 skillName={skill}
