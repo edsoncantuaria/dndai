@@ -16,7 +16,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
     const boxRef = useRef<any>(null);
 
     useEffect(() => {
-        if (!window.DICE || !canvasRef.current) return;
+        if (typeof window === 'undefined' || !(window as any).DICE || !canvasRef.current) return;
 
         // Limpa o canvas anterior, se houver
         if (canvasRef.current.hasChildNodes()) {
@@ -24,14 +24,18 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
         }
 
         // Inicializa o dice_box
-        boxRef.current = new window.DICE.dice_box(canvasRef.current);
+        boxRef.current = new (window as any).DICE.dice_box(canvasRef.current);
+
+        // Dispara a rolagem automaticamente quando o modal abre
+        handleRoll();
 
         return () => {
             if (boxRef.current) {
                 boxRef.current.clear();
             }
         };
-    }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Executa apenas uma vez
 
     const handleRoll = () => {
         if (!boxRef.current || isRolling) return;
@@ -43,10 +47,15 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
         boxRef.current.setDice(diceToRoll);
         
         boxRef.current.start_throw(null, (notation: any) => {
-            if (notation.result.length > 0) {
+            if (notation.result.length > 0 && !notation.result.some((r: number) => r < 0)) {
                 const diceResult = notation.result.reduce((sum: number, val: number) => sum + val, 0);
                 const totalResult = diceResult + (request.modifier || 0);
                 setResult(totalResult);
+            } else {
+                // Em caso de erro na biblioteca de dados (dado "caiu da mesa")
+                console.error("Erro na rolagem de dados 3D, usando fallback.");
+                const fallbackResult = Math.floor(Math.random() * 20) + 1 + (request.modifier || 0);
+                setResult(fallbackResult);
             }
             setIsRolling(false);
         });
@@ -71,16 +80,13 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll }) => {
                 <main className="p-6">
                     <div ref={canvasRef} className="h-48 w-full rounded-md bg-black/30 border border-stone-700" id="dice-canvas"></div>
                     
-                    {!result && (
-                        <button
-                            onClick={handleRoll}
-                            disabled={isRolling}
-                            className="w-full mt-4 bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-3 px-6 rounded-md transition-colors text-lg disabled:opacity-50"
-                        >
-                            {isRolling ? <Loader2 className="mx-auto animate-spin" /> : 'Rolar os Dados'}
-                        </button>
+                    {isRolling && (
+                        <div className="text-center mt-4">
+                            <Loader2 className="mx-auto h-8 w-8 animate-spin text-amber-400" />
+                            <p className="text-stone-300 mt-2">Rolando dados...</p>
+                        </div>
                     )}
-
+                    
                     {result !== null && (
                          <div className="text-center mt-4 animate-fadeIn">
                              <p className="text-stone-300">Resultado Total:</p>

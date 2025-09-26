@@ -16,54 +16,35 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 - **Formato:** Sua saída DEVE ser um único objeto JSON válido. Não inclua nenhum texto, formatação ou marcadores como \`\`\`json \`\`\` fora do objeto JSON.
 - **Idioma:** Toda a sua narração e texto devem estar em **português do Brasil**.
 
-### Estrutura do JSON de Resposta
-
+### Estrutura do JSON de Resposta (GameMasterResponseSchema)
 {
-  "logEntries": [
-    {
-      "type": "'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll'",
-      "content": "O texto descritivo do que está acontecendo. Esta é a parte principal da sua narração."
-    }
-  ],
-  "actionOptions": ["Opção 1 como string", { "text": "Opção 2 como objeto", "action": "internal_action_2" }],
-  "updatedCharacter": {
-    /* Inclua APENAS os campos do personagem que mudaram. Exemplos:
-    "hp": { "current": 5 },
-    "xp": 150,
-    "inventory": [ ... ],
-    "journal": { ... },
-    "relationships": [ ... ]
-    */
-  },
-  "combatState": { /* Preencha se o combate estiver ativo */ },
-  "levelUpState": { /* Preencha quando o jogador subir de nível */ },
-  "shopState": { /* Preencha quando o jogador entrar em uma loja */ },
-  "lootOffer": { /* Preencha para oferecer saques */ },
-  "useHitDiceRequest": { /* Preencha para oferecer descanso curto */ },
-  "imagePrompt": "Ocasionalmente, um prompt de imagem detalhado (em inglês) para uma cena importante."
+  "logEntries": [{ "type": "...", "content": "..." }],
+  "actionOptions": ["Opção 1", { "text": "Opção 2", "action": "internal_action" }],
+  "updatedCharacter": { /* APENAS os campos que mudaram */ },
+  "playerRollRequest": { "reason": "Para escalar o muro", "dice": "1d20", "modifier": 3, "rollType": "check" },
+  /* outros campos opcionais como combatState, levelUpState, etc. */
 }
 
 ### Regras do Jogo e Narrativa
 
-1.  **Narração (\`logEntries\`):**
+1.  **Rolagem de Dados:**
+    - **NUNCA role dados para o jogador.** Em vez disso, solicite uma rolagem preenchendo o campo \`playerRollRequest\`. Use-o para testes de perícia, ataques, testes de resistência, etc.
+    - **SEMPRE role os dados para os NPCs e monstros por conta própria.** Descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`.
+    - **Se o jogador enviar o resultado de uma rolagem** (ex: "O resultado da minha rolagem de... foi 18"), use esse número para determinar o resultado da ação e descreva-o. Não peça outra rolagem.
+
+2.  **Narração (\`logEntries\`):**
     - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
     - Use \`type: 'system'\` para mensagens do jogo (ex: "Você ganhou 25 XP.").
-    - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados.
-    - Seja descritivo e imersivo.
+    - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados que VOCÊ fez por um NPC.
 
-2.  **Opções de Ação (\`actionOptions\`):**
-    - Sempre forneça de 2 a 4 opções de ação claras e relevantes para o jogador. Elas guiam a agência do jogador.
+3.  **Opções de Ação (\`actionOptions\`):**
+    - Sempre forneça de 2 a 4 opções de ação claras e relevantes para guiar o jogador.
 
-3.  **Atualizações do Personagem (\`updatedCharacter\`):**
-    - **CRÍTICO:** Retorne apenas os campos que foram alterados. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`. Nunca retorne o objeto de personagem inteiro.
-    - Gerencie inventário, experiência (XP), pontos de vida (hp), diário (journal) e relacionamentos (relationships) através deste objeto.
+4.  **Atualizações do Personagem (\`updatedCharacter\`):**
+    - **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`. Nunca retorne o objeto de personagem inteiro.
 
-4.  **Recursos Multimídia:**
-    - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Exemplo: "Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern...". Use com moderação.
-
-5.  **Regras de D&D 5e:**
-    - Aplique as regras de combate, testes de perícia e habilidades de forma consistente. Você é responsável por todas as rolagens de dados.
-    - Ao conceder experiência (XP), quando \`character.xp\` atingir ou exceder \`character.xpToNextLevel\`, ative o \`levelUpState\` e preencha as \`choices\` para o novo nível.
+5.  **Recursos Multimídia:**
+    - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Use com moderação.
 `;
 
 
@@ -73,17 +54,16 @@ const createPrompt = (input: GameMasterFlowInput) => {
     const characterContext = JSON.stringify(character, null, 2);
     const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
 
-    return `
-### Estado do Personagem (JSON)
+    const promptText = `### Estado Atual do Personagem (JSON)
 ${characterContext}
 
-### Últimos Eventos (JSON)
+### Últimos Eventos do Jogo (JSON)
 ${logContext}
 ---
 A ação do jogador é: "${playerAction}"
 
-Com base no estado atual do personagem e no histórico, continue a aventura.
-    `;
+Com base no estado atual do personagem e no histórico, continue a aventura.`;
+    return promptText;
 }
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
@@ -132,7 +112,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     } catch (error: any) {
         console.error(`[geminiService (${modelName})] Erro ao chamar ou processar a resposta da API do Gemini:`, error);
         // Em vez de retornar um objeto de erro, lançamos uma exceção para ser capturada pelo hook.
-        throw new Error(`O Mestre está confuso e não pôde continuar. Erro: ${(error as Error).message}`);
+        throw new Error(`O Mestre de Jogo tentou responder, mas a magia falhou (erro de formatação JSON). Verifique o console para mais detalhes.`);
     }
 };
 

@@ -1,6 +1,17 @@
 // services/gameSchemas.ts
 import { z } from 'zod';
 
+// Schema for PlayerRollRequest
+const PlayerRollRequestSchema = z.object({
+    reason: z.string().describe("The reason for the roll (e.g., 'to persuade the guard', 'to dodge the fireball')."),
+    dice: z.string().describe("The dice to roll, in standard notation (e.g., '1d20', '2d6')."),
+    modifier: z.number().describe("The total modifier to add to the roll."),
+    dc: z.number().optional().describe("The difficulty class of the check, if applicable."),
+    rollType: z.enum(['check', 'save', 'attack', 'damage']).describe("The type of roll being made."),
+    advantage: z.boolean().optional().describe("Whether the roll should be made with advantage."),
+    disadvantage: z.boolean().optional().describe("Whether the roll should be made with disadvantage.")
+});
+
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
@@ -53,6 +64,7 @@ export const GameMasterResponseSchema = z.object({
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action."),
     combatState: CombatStateSchema.optional().describe("The current state of combat, if any."),
     levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
+    playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice, this object will be populated."),
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),

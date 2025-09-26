@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -109,6 +109,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
+    const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
@@ -274,6 +275,15 @@ export const useNewGameState = () => {
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
 
+    const submitPlayerRoll = useCallback(async (result: number) => {
+        if (!character || !playerRollRequest) return;
+
+        const originalReason = playerRollRequest.reason;
+        setPlayerRollRequest(null); // Clear request before sending new action
+
+        await processPlayerAction(`O resultado da minha rolagem de ${originalReason} foi ${result}.`);
+    }, [character, playerRollRequest, processPlayerAction]);
+
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -435,6 +445,7 @@ export const useNewGameState = () => {
         shopState,
         pendingLootOffer,
         pendingHitDiceRequest,
+        playerRollRequest,
         isLoading,
         apiError,
         ambientSound,
@@ -453,6 +464,7 @@ export const useNewGameState = () => {
         checkForSavedGame,
         loadGameFromLocalStorage,
         loadGameFromFile,
-        saveGameToFile
+        saveGameToFile,
+        submitPlayerRoll
     };
 };
