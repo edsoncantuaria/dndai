@@ -2,13 +2,14 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Attributes } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
+import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -283,13 +284,23 @@ export const useNewGameState = () => {
 
     const submitPlayerRoll = useCallback(async (result: number) => {
         if (!character || !playerRollRequest) return;
+        
+        const { reason } = playerRollRequest;
+        const actionText = `O resultado da minha rolagem para "${reason}" foi ${result}.`;
+        
+        setPlayerRollRequest(null); 
+        await processPlayerAction(actionText);
 
-        const originalReason = playerRollRequest.reason;
-        setPlayerRollRequest(null); // Clear request before sending new action
-
-        await processPlayerAction(`O resultado da minha rolagem para "${originalReason}" foi ${result}.`);
     }, [character, playerRollRequest, processPlayerAction]);
     
+    const handleSkillCheckSubmit = useCallback((description: string) => {
+        if (!skillCheckRequest) return;
+        const actionText = `Eu tento usar ${translateApiString(`Skill: ${skillCheckRequest.skillName}`)}: ${description}`;
+        setSkillCheckRequest(null);
+        processPlayerAction(actionText);
+    }, [skillCheckRequest, processPlayerAction]);
+
+
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -480,5 +491,6 @@ export const useNewGameState = () => {
         saveGameToFile,
         submitPlayerRoll,
         handleSkillCheck,
+        handleSkillCheckSubmit,
     };
 };
