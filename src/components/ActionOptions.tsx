@@ -1,10 +1,11 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
 import DiceRollModal from './ui/DiceRollModal';
 import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
 import { PlayerRollRequest } from '@/types';
+import SkillCheckModal from './ui/SkillCheckModal';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -111,6 +112,7 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
 const ActionOptions: React.FC = () => {
     const { character, actionOptions, processPlayerAction, isLoading, pendingLootOffer, pendingHitDiceRequest, playerRollRequest, submitPlayerRoll, requestPlayerRoll } = useGameStateContext();
     const [isOpen, setIsOpen] = useState(false);
+    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string, request: PlayerRollRequest } | null>(null);
 
     useEffect(() => {
         if (isLoading || playerRollRequest) {
@@ -118,19 +120,29 @@ const ActionOptions: React.FC = () => {
         }
     }, [isLoading, playerRollRequest]);
 
-    const handleSkillClick = (skillName: string) => {
+     const handleSkillClick = (skillName: string) => {
         if (!character) return;
+        const translatedSkill = translateApiString(`Skill: ${skillName}`);
         const attribute = SKILL_ATTRIBUTE_MAP[skillName as keyof typeof SKILL_ATTRIBUTE_MAP];
         const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
         const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
 
-        const rollRequest: PlayerRollRequest = {
-            reason: `um teste de ${translateApiString(`Skill: ${skillName}`)}`,
-            dice: '1d20',
-            modifier,
-            rollType: 'check',
-        };
-        requestPlayerRoll(rollRequest);
+        setSkillCheckRequest({
+            skillName: translatedSkill,
+            request: {
+                reason: `um teste de ${translatedSkill}`, // This will be prefixed by user input
+                dice: '1d20',
+                modifier,
+                rollType: 'check',
+            }
+        });
+    };
+    
+    const handleSkillCheckSubmit = (description: string) => {
+        if (!skillCheckRequest) return;
+        const fullReason = `${skillCheckRequest.request.reason} para ${description}`;
+        requestPlayerRoll({ ...skillCheckRequest.request, reason: fullReason });
+        setSkillCheckRequest(null);
     };
 
     const renderActionContent = () => {
@@ -203,10 +215,17 @@ const ActionOptions: React.FC = () => {
     
     return (
         <>
-            {playerRollRequest && (
+             {playerRollRequest && (
                 <DiceRollModal
                     request={playerRollRequest}
                     onRoll={submitPlayerRoll}
+                />
+            )}
+             {skillCheckRequest && (
+                <SkillCheckModal
+                    skillName={skillCheckRequest.skillName}
+                    onConfirm={handleSkillCheckSubmit}
+                    onClose={() => setSkillCheckRequest(null)}
                 />
             )}
             {/* Desktop: Static Panel */}
