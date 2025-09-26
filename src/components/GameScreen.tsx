@@ -64,13 +64,6 @@ const GameScreen: React.FC = () => {
 
     return (
         <>
-            <Head>
-                {/* Carrega as libs de dados 3D apenas quando necessário */}
-                <script src="/extras/dice-main/libs/teal.js" defer></script>
-                <script src="/extras/dice-main/libs/three.min.js" defer></script>
-                <script src="/extras/dice-main/libs/cannon.min.js" defer></script>
-                <script src="/extras/dice-main/dice.js" defer></script>
-            </Head>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn">
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}

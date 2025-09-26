@@ -1,8 +1,7 @@
 'use client';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import DiceRollModal from './ui/DiceRollModal';
 import { PlayerRollRequest } from '@/types';
 import SkillCheckModal from './ui/SkillCheckModal';
 
@@ -115,18 +114,10 @@ const ActionOptions: React.FC = () => {
         actionOptions,
         pendingLootOffer, 
         pendingHitDiceRequest, 
-        playerRollRequest, 
-        submitPlayerRoll,
         handleSkillCheck,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
-
-    useEffect(() => {
-        if (isLoading || playerRollRequest) {
-            setIsOpen(false);
-        }
-    }, [isLoading, playerRollRequest]);
 
     const renderActionContent = () => {
         if (pendingLootOffer) {
@@ -141,7 +132,7 @@ const ActionOptions: React.FC = () => {
     
         return (
             <div className="w-full">
-                 {isLoading && !playerRollRequest && (
+                 {isLoading && (
                     <div className="flex items-center justify-center p-4 text-stone-400">
                         <Loader2 className="animate-spin" />
                         <span className="ml-2">Aguardando o mestre...</span>
@@ -198,13 +189,6 @@ const ActionOptions: React.FC = () => {
     
     return (
         <>
-             {playerRollRequest && (
-                <DiceRollModal
-                    request={playerRollRequest}
-                    onRoll={submitPlayerRoll}
-                />
-            )}
-            
             {/* Desktop: Static Panel */}
             <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
                  {renderActionContent()}
@@ -221,7 +205,7 @@ const ActionOptions: React.FC = () => {
                 <div className="fixed bottom-20 right-4 z-30">
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        disabled={isLoading || !!playerRollRequest}
+                        disabled={isLoading}
                         className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
                         aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
                     >

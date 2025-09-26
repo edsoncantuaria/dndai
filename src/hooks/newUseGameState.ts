@@ -111,7 +111,6 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
     const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
@@ -127,13 +126,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, playerRollRequest, skillCheckRequest };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, playerRollRequest, skillCheckRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
@@ -193,14 +192,7 @@ export const useNewGameState = () => {
             const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
-
-        if (response.playerRollRequest) {
-            setPlayerRollRequest(response.playerRollRequest);
-            // DO NOT add a log entry here. The player needs to see the modal first.
-            // The action will be logged when the player submits the roll.
-            return; // Pause further processing, wait for player roll
-        }
-
+        
         if (response.actionOptions !== undefined) {
              setActionOptions(response.actionOptions);
         }
@@ -281,17 +273,6 @@ export const useNewGameState = () => {
         }
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
-
-    const submitPlayerRoll = useCallback(async (result: number) => {
-        if (!character || !playerRollRequest) return;
-        
-        const { reason } = playerRollRequest;
-        const actionText = `O resultado da minha rolagem para "${reason}" foi ${result}.`;
-        
-        setPlayerRollRequest(null); 
-        await processPlayerAction(actionText);
-
-    }, [character, playerRollRequest, processPlayerAction]);
     
     const handleSkillCheckSubmit = useCallback((description: string) => {
         if (!skillCheckRequest) return;
@@ -467,7 +448,6 @@ export const useNewGameState = () => {
         shopState,
         pendingLootOffer,
         pendingHitDiceRequest,
-        playerRollRequest,
         skillCheckRequest,
         setSkillCheckRequest,
         isLoading,
@@ -489,7 +469,6 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
-        submitPlayerRoll,
         handleSkillCheck,
         handleSkillCheckSubmit,
     };
