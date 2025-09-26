@@ -1,4 +1,4 @@
-'use server';
+'use client';
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
@@ -32,14 +32,14 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 2.  **Rolagem de Dados:**
     - **INTENÇÃO VS RESULTADO:**
-      - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), você DEVE primeiro avaliar se a ação é possível. Se for, sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado nesta etapa.
+      - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado nesta etapa.
       - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho em \`logEntries\`, atualizar o estado do jogo (usando \`updatedCharacter\`, \`combatState\`, etc.) e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
     - **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria. Para transparência, SEMPRE descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`.
     - Ao rolar, descreva o resultado da rolagem na narração usando o tipo de log \`roll\`. Inclua a rolagem, o modificador, o total e se foi um sucesso ou falha. Exemplo: \`{"type": "roll", "content": "Teste de Atletismo: 1d20 (15) + 3 = 18. Sucesso!"}\`
 
 3.  **Gerenciamento de Combate:**
     - **Iniciando o Combate:** Quando as hostilidades começam, defina \`combatState.isActive\` para \`true\`.
-    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e para o jogador. Preencha a lista \`combatants\` com todos os participantes e seus resultados de iniciativa.
+    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e solicite uma rolagem de Iniciativa (um teste de Destreza) do jogador usando \`playerRollRequest\`.
     - **Turnos:** Ordene os combatentes pela iniciativa. A cada turno, incremente \`combatState.turn\`. Narre a ação do combatente atual. Forneça \`actionOptions\` apenas quando for o turno do jogador.
     - **Finalizando o Combate:** Quando um lado for derrotado, defina \`combatState.isActive\` para \`false\` e continue a narração.
 
@@ -86,7 +86,8 @@ Com base no estado atual do personagem e no histórico, continue a aventura.`;
 
     // Prepend system instructions for Gemma models
     if (isGemma) {
-        return `${systemInstruction}\n\n${mainPrompt}`;
+        // Additional instruction for Gemma to ensure JSON output
+        return `${systemInstruction}\n\n${mainPrompt}\n\nResponda APENAS com um objeto JSON válido, sem marcadores ou texto adicional.`;
     }
 
     return mainPrompt;
@@ -101,7 +102,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
     const model = genAI.getGenerativeModel({
         model: modelName,
-        // Only use systemInstruction for non-Gemma models
         ...( !isGemma && {
             systemInstruction: {
                 role: "model",
@@ -109,6 +109,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             },
         })
     });
+    
+    // Conditionally set the responseMimeType
+    const finalGenerationConfig = {
+        ...generationConfig,
+        ...(!isGemma && { responseMimeType: "application/json" }),
+    };
 
     const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
         try {
@@ -119,10 +125,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: {
-                    ...generationConfig,
-                    responseMimeType: "application/json",
-                }
+                generationConfig: finalGenerationConfig,
             });
 
             const response = result.response;
@@ -131,7 +134,16 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             // Validar e analisar o JSON
             try {
-                const responseData = JSON.parse(jsonText);
+                let textToParse = jsonText;
+                // For Gemma, we might need to strip markdown fences
+                if (isGemma) {
+                    const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+                    if (match) {
+                        textToParse = match[1];
+                    }
+                }
+
+                const responseData = JSON.parse(textToParse);
                 
                 // Adaptador para compatibilidade com versões anteriores
                 if (responseData.narration && typeof responseData.narration === 'string') {
@@ -187,6 +199,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
