@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Attributes } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { SKILL_ATTRIBUTE_MAP, translateApiString } from '@/utils/translator';
+import { translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 
@@ -112,6 +112,7 @@ export const useNewGameState = () => {
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
     const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
+    const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null); // Novo estado para magias
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
@@ -126,13 +127,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
@@ -274,12 +275,27 @@ export const useNewGameState = () => {
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
     
+    const handleSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
+
     const handleSkillCheckSubmit = useCallback((description: string) => {
         if (!skillCheckRequest) return;
-        const actionText = `Eu tento usar ${translateApiString(`Skill: ${skillCheckRequest.skillName}`)}: ${description}`;
+        const translatedSkill = translateApiString(`Skill: ${skillCheckRequest.skillName}`);
+        const actionText = `Eu tento usar ${translatedSkill}: ${description}`;
         setSkillCheckRequest(null);
         processPlayerAction(actionText);
     }, [skillCheckRequest, processPlayerAction]);
+
+    const castSpell = useCallback((spell: ApiSpell) => {
+        setSpellCastRequest({ spell });
+    }, []);
+
+    const submitSpellCast = useCallback((spell: ApiSpell, description: string) => {
+        const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}`: '.'}`;
+        setSpellCastRequest(null);
+        processPlayerAction(actionText);
+    }, [processPlayerAction]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
@@ -406,11 +422,6 @@ export const useNewGameState = () => {
         const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
         processPlayerAction(actionText);
     }, [character, processPlayerAction]);
-
-    const castSpell = useCallback((spell: ApiSpell) => {
-        if (!character) return;
-        processPlayerAction(`Eu conjuro a magia ${spell.name}.`);
-    }, [character, processPlayerAction]);
     
     const spendHitDice = useCallback((diceCount: number) => {
         if (!character) return;
@@ -434,11 +445,6 @@ export const useNewGameState = () => {
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
     
-    const handleSkillCheck = useCallback((skillName: string) => {
-        setSkillCheckRequest({ skillName });
-    }, []);
-
-
     return {
         character,
         log,
@@ -450,6 +456,12 @@ export const useNewGameState = () => {
         pendingHitDiceRequest,
         skillCheckRequest,
         setSkillCheckRequest,
+        handleSkillCheck,
+        handleSkillCheckSubmit,
+        spellCastRequest,
+        setSpellCastRequest,
+        castSpell,
+        submitSpellCast,
         isLoading,
         apiError,
         ambientSound,
@@ -460,7 +472,6 @@ export const useNewGameState = () => {
         processPlayerAction,
         applyLevelUp,
         toggleEquipped,
-        castSpell,
         spendHitDice,
         takeLoot,
         buyItem,
@@ -469,7 +480,5 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
-        handleSkillCheck,
-        handleSkillCheckSubmit,
     };
 };

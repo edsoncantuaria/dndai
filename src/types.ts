@@ -323,7 +323,6 @@ export interface ApiSpell {
     material: string;
     ritual: boolean;
     duration: string;
-    concentration: boolean;
     casting_time: string;
     level: number;
     attack_type?: string;

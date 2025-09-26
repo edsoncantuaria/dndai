@@ -16,8 +16,8 @@ import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
 import SkillCheckModal from './ui/SkillCheckModal';
+import SpellCastModal from './ui/SpellCastModal'; // Importa o novo modal de magia
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
-import Head from 'next/head';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -31,14 +31,11 @@ const GameScreen: React.FC = () => {
         clearApiError,
         skillCheckRequest,
         setSkillCheckRequest,
-        processPlayerAction
+        handleSkillCheckSubmit,
+        spellCastRequest,      // Novo estado do hook
+        setSpellCastRequest,   // Novo estado do hook
+        submitSpellCast,       // Nova função do hook
     } = useGameStateContext();
-
-    const handleSkillCheckSubmit = (description: string) => {
-        if (!skillCheckRequest) return;
-        const actionText = `Eu tento usar ${skillCheckRequest.skillName}: ${description}`;
-        processPlayerAction(actionText);
-    };
 
     const renderSidebarContent = () => {
         switch (activeTab) {
@@ -79,6 +76,14 @@ const GameScreen: React.FC = () => {
                         skillName={skillCheckRequest.skillName}
                         onConfirm={handleSkillCheckSubmit}
                         onClose={() => setSkillCheckRequest(null)}
+                    />
+                )}
+                {/* Renderiza o novo modal de magia */}
+                {spellCastRequest && (
+                    <SpellCastModal
+                        spell={spellCastRequest.spell}
+                        onConfirm={submitSpellCast}
+                        onClose={() => setSpellCastRequest(null)}
                     />
                 )}
                 <AmbientPlayer /> 
