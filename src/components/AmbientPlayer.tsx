@@ -7,7 +7,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const AmbientPlayer: React.FC = () => {
     const { ambientSound } = useGameStateContext();
-    const { volume, isMuted } = useSettingsContext();
+    const { volume, isMuted, playMenuMusic } = useSettingsContext();
     const audioRef = useRef<HTMLAudioElement>(null);
 
     useEffect(() => {
@@ -15,7 +15,13 @@ const AmbientPlayer: React.FC = () => {
         const newSoundUrl = soundData?.url || '';
         const audio = audioRef.current;
 
-        if (!audio) return;
+        if (!audio || !playMenuMusic) {
+            if (audio) {
+                audio.pause();
+                audio.src = '';
+            }
+            return;
+        };
         
         // Construct the full URL to avoid relative path issues
         const fullUrl = newSoundUrl ? window.location.origin + newSoundUrl : '';
@@ -30,7 +36,7 @@ const AmbientPlayer: React.FC = () => {
                 audio.pause();
             }
         }
-    }, [ambientSound]);
+    }, [ambientSound, playMenuMusic]);
     
     // Efeito para controlar o estado de mudo e o volume.
     useEffect(() => {

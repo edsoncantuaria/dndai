@@ -21,7 +21,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
   "logEntries": [{ "type": "...", "content": "..." }],
   "actionOptions": ["Opção 1", { "text": "Opção 2", "action": "internal_action" }],
   "updatedCharacter": { /* APENAS os campos que mudaram */ },
-  /* outros campos opcionais como combatState, levelUpState, etc. */
+  /* outros campos opcionais como combatState, levelUpState, ambientSound, etc. */
 }
 
 ### Regras do Jogo e Narrativa
@@ -63,6 +63,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 8.  **Recursos Multimídia:**
     - **Geração de Imagem (\`imagePrompt\`):** Ocasionalmente, para uma cena importante (introdução de um local, um NPC chave, um monstro épico), forneça um prompt de imagem detalhado em inglês. Use com moderação.
+    - **Som Ambiente (\`ambientSound\`):** Com base no ambiente atual (floresta, taverna, masmorra), defina o ID do som a ser tocado. Use 'none' para silêncio. Informe o jogador sobre a mudança de som com uma entrada de log do tipo 'system', por exemplo: "Tocando som ambiente: Floresta (Noite)".
 `;
 
 
@@ -175,6 +176,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
