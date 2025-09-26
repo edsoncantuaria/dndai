@@ -29,7 +29,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         assetPath: '/assets/dice-box/',
         theme: 'default',
         offscreen: true,
-        scale: 18,
+        scale: 23,
       });
       
       diceBox.init().then(() => {
@@ -44,18 +44,20 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     return () => {
       if (diceBoxInstance.current) {
         try {
+          // A documentação sugere que a limpeza pode não ser mais necessária da mesma forma
+          // mas vamos manter por segurança. Se causar erros, removeremos.
           diceBoxInstance.current.clear();
         } catch(e) {
-          console.error("Erro ao limpar o DiceBox:", e);
+          // Ignora erros de limpeza que podem ocorrer durante o hot-reloading
         }
       }
     }
   }, []);
 
   const handleRoll = useCallback(async () => {
-    if (!diceBoxInstance.current || isRolling || !isDiceboxReady) return;
+    if (!diceBoxInstance.current || isRolling || !isDiceboxReady || hasRolled) return;
     
-    console.log("Objeto PlayerRollRequest recebido e sendo rolado:", JSON.stringify(request, null, 2));
+    console.log("Iniciando rolagem para:", JSON.stringify(request, null, 2));
 
     setIsRolling(true);
     setHasRolled(true);
@@ -105,7 +107,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
       setIsRolling(false);
     }
-  }, [request, isRolling, isDiceboxReady]);
+  }, [request, isRolling, isDiceboxReady, hasRolled]);
 
   const handleContinue = () => {
     if (rollResult) {
