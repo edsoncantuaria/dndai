@@ -21,7 +21,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   useEffect(() => {
     if (diceBoxRef.current && !diceBoxInstance.current) {
       const diceBox = new DiceBox({
-        container: diceBoxRef.current, // Pass the element directly
+        container: '#dice-box', // Corrigido para usar o seletor de ID
         assetPath: '/assets/dice-box/',
         theme: 'default',
         offscreen: true,
@@ -38,7 +38,16 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     
     // Cleanup on unmount
     return () => {
-      diceBoxInstance.current?.clear();
+      // A instância pode não ter sido criada se init() falhou
+      if (diceBoxInstance.current) {
+        // A API de cleanup pode variar, verifique a documentação se isso causar problemas
+        // Tentar um método de cleanup mais robusto
+        try {
+          diceBoxInstance.current.clear();
+        } catch(e) {
+          console.error("Erro ao limpar o DiceBox:", e);
+        }
+      }
     }
   }, []);
 
@@ -76,10 +85,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       setTimeout(() => {
         setRollResult({ total, rolls: diceValues });
         setIsRolling(false);
-      }, 1000); 
+      }, 1500); // Adiciona um pequeno atraso para a animação terminar
 
     } catch (e) {
       console.error("Erro na rolagem de dados 3D:", e);
+      // Fallback para rolagem matemática se a biblioteca 3D falhar
       const fallbackRoll = Math.floor(Math.random() * 20) + 1;
       setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
       setIsRolling(false);
