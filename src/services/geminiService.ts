@@ -39,7 +39,10 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 
 2.  **Narração (\`logEntries\`):**
     - Use \`type: 'narration'\` para descrever o ambiente, eventos e as ações de NPCs.
-    - Use \`type: 'system'\` para mensagens do jogo (ex: "Você ganhou 25 XP.").
+    - **Sempre narre explicitamente o dano sofrido pelo jogador ou a cura recebida.**
+    - Use \`type: 'system'\` para mensagens do jogo (ex: "Você ganhou 25 XP.", "Novo item adicionado: Espada Longa").
+    - Use \`type: 'combat'\` para mensagens diretas de combate que não são narração (ex: "O ataque do goblin erra!", "Sua vez de agir.").
+    - Use \`type: 'insight'\` para pensamentos do personagem ou intuições fornecidas pelo Mestre (ex: "Você sente que o mercador está escondendo algo.").
     - Use \`type: 'roll'\` para descrever o resultado de uma rolagem de dados que VOCÊ fez por um NPC.
 
 3.  **Opções de Ação (\`actionOptions\`):**

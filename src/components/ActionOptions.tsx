@@ -204,7 +204,6 @@ const ActionOptions: React.FC = () => {
                     onRoll={submitPlayerRoll}
                 />
             )}
-            {/* O SkillCheckModal agora é renderizado pelo GameScreen */}
             
             {/* Desktop: Static Panel */}
             <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">

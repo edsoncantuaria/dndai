@@ -39,7 +39,7 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { setSkillCheckRequest, isLoading, character } = useGameStateContext();
+    const { handleSkillCheck, isLoading, character } = useGameStateContext();
     
     if (!character) return null;
     
@@ -47,10 +47,6 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
     
-    const onUseClick = () => {
-        setSkillCheckRequest({ skillName });
-    };
-
     return (
         <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
@@ -60,7 +56,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={onUseClick} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={() => handleSkillCheck(skillName)} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>
@@ -258,5 +254,3 @@ const CharacterSheet: React.FC = () => {
 };
 
 export default CharacterSheet;
-
-    

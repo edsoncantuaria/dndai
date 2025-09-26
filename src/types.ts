@@ -6,6 +6,8 @@ export interface PlayerRollRequest {
     modifier: number;
     dc?: number;
     rollType: 'check' | 'save' | 'attack' | 'damage';
+    advantage?: boolean;
+    disadvantage?: boolean;
 }
 
 export interface ApiListItem {
