@@ -157,6 +157,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             </select>
                         </div>
                         
+                        <div>
+                            <label htmlFor="tts-model-select" className="block text-stone-300 font-semibold mb-2">
+                                Modelo de Voz (TTS)
+                            </label>
+                            <select
+                                id="tts-model-select"
+                                value={ttsModel}
+                                onChange={(e) => setTtsModel(e.target.value)}
+                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            >
+                                {AVAILABLE_TTS_MODELS.map(modelName => (
+                                    <option key={modelName} value={modelName}>
+                                        {modelName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
                          <div>
                             <label htmlFor="tts-voice-select" className="block text-stone-300 font-semibold mb-2">
                                 Voz do Narrador (TTS)
