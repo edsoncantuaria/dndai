@@ -20,7 +20,9 @@ const HomePageContent = () => {
 
         if (gameStage === 'menu' && playMenuMusic) {
             audio.volume = isMuted ? 0 : volume;
-            audio.play().catch(e => console.error("Menu audio play failed:", e));
+            if (audio.src && audio.paused) { // Garante que só toque se tiver uma fonte e estiver pausado
+                audio.play().catch(e => console.error("Menu audio play failed:", e));
+            }
         } else {
             audio.pause();
             audio.currentTime = 0;
@@ -74,7 +76,7 @@ const HomePageContent = () => {
     // o menu/criação ou a tela de jogo principal.
     return (
         <>
-            <audio ref={menuAudioRef} src="/audio/ambient/inicio.mp3" loop />
+            <audio ref={menuAudioRef} src="/audio/inicio.mp3" loop />
             <Game
                 startNewGameFlow={startNewGameFlow}
                 onCharacterCreated={onCharacterCreated}
