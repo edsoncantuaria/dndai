@@ -31,14 +31,12 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
     - Se uma ação for impossível, NÃO solicite uma rolagem. Em vez disso, use uma \`logEntry\` do tipo "narration" para descrever por que a tentativa falha de uma maneira realista para o mundo do jogo, e então forneça novas \`actionOptions\`.
 
 2.  **Rolagem de Dados:**
-    - **INTENÇÃO VS RESULTADO:**
-      - **REGRA A (Intenção):** Se a ação do jogador for uma *tentativa* de usar uma perícia (ex: "Eu tento usar Atletismo para escalar o muro."), você DEVE primeiro avaliar se a ação é possível. Se for, sua resposta DEVE conter APENAS o objeto \`playerRollRequest\` solicitando a rolagem de dados necessária. NÃO role os dados você mesmo nem narre o resultado nesta etapa.
-      - **REGRA B (Resultado):** Se a ação do jogador for o *resultado* de uma rolagem (ex: "O resultado da minha rolagem de Atletismo foi 18."), você DEVE usar esse número para determinar o sucesso ou o fracasso, narrar o desfecho em \`logEntries\`, atualizar o estado do jogo (usando \`updatedCharacter\`, \`combatState\`, etc.) e fornecer novas \`actionOptions\`. NÃO peça outra rolagem.
-    - **Rolagens do Mestre:** SEMPRE role os dados para NPCs e monstros por conta própria. Para transparência, SEMPRE descreva o resultado da sua rolagem na narração usando o tipo de log \`roll\`.
+    - A IA rola os dados para todas as ações de perícia, ataques e salvamentos do jogador e dos NPCs.
+    - Ao rolar, descreva o resultado da rolagem na narração usando o tipo de log \`roll\`. Inclua a rolagem, o modificador, o total e se foi um sucesso ou falha. Exemplo: \`{"type": "roll", "content": "Teste de Atletismo: 1d20 (15) + 3 = 18. Sucesso!"}\`
 
 3.  **Gerenciamento de Combate:**
-    - **Iniciando o Combate:** Quando as hostilidades começam (seja por uma ação do jogador ou um evento), defina \`combatState.isActive\` para \`true\`.
-    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e solicite uma rolagem de iniciativa (teste de Destreza) do jogador usando \`playerRollRequest\`. Preencha a lista \`combatants\` com todos os participantes e seus resultados de iniciativa.
+    - **Iniciando o Combate:** Quando as hostilidades começam, defina \`combatState.isActive\` para \`true\`.
+    - **Iniciativa:** No primeiro turno, role a iniciativa para todos os NPCs e para o jogador. Preencha a lista \`combatants\` com todos os participantes e seus resultados de iniciativa.
     - **Turnos:** Ordene os combatentes pela iniciativa. A cada turno, incremente \`combatState.turn\`. Narre a ação do combatente atual. Forneça \`actionOptions\` apenas quando for o turno do jogador.
     - **Finalizando o Combate:** Quando um lado for derrotado, defina \`combatState.isActive\` para \`false\` e continue a narração.
 
@@ -56,7 +54,7 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
     - **CRÍTICO:** Retorne apenas os campos que mudaram. Se os HP do jogador mudaram de 10 para 5, retorne \`{"hp": {"current": 5}}\`.
     - **Consumíveis:** Ao usar um item consumível (poção, antídoto), diminua sua quantidade ou remova-o do inventário em \`updatedCharacter\`.
 
-7.  **Diário, Relações e Resumo da História:**
+7.  **Diário, Relações e Resumo da Aventura:**
     - **Diário (\`journal\`):** Mantenha o diário do personagem atualizado. Adicione novos locais, atualize missões (quests) ou marque áreas como exploradas (\`looted\`) quando for relevante.
     - **Relações (\`relationships\`):** Após interações importantes com NPCs, atualize o estado do relacionamento (status, afinidade).
     - **Resumo da Aventura (\`storySoFar\`):** Periodicamente, após marcos importantes na história, atualize este campo com um resumo conciso da jornada do personagem até agora.
@@ -67,13 +65,13 @@ const systemInstruction = `Você é um Mestre de Jogo criativo e justo para um R
 `;
 
 
-const createPrompt = (input: GameMasterFlowInput) => {
+const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const { character, playerAction, gameLog } = input;
     
     const characterContext = JSON.stringify(character, null, 2);
     const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
 
-    const promptText = `### Estado Atual do Personagem (JSON)
+    const mainPrompt = `### Estado Atual do Personagem (JSON)
 ${characterContext}
 
 ### Últimos Eventos do Jogo (JSON)
@@ -82,7 +80,13 @@ ${logContext}
 A ação do jogador é: "${playerAction}"
 
 Com base no estado atual do personagem e no histórico, continue a aventura.`;
-    return promptText;
+
+    // Prepend system instructions for Gemma models
+    if (isGemma) {
+        return `${systemInstruction}\n\n${mainPrompt}`;
+    }
+
+    return mainPrompt;
 }
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
@@ -90,18 +94,22 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
       throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
     }
     const genAI = getGenAI(apiKey);
+    const isGemma = modelName.toLowerCase().includes('gemma');
 
     const model = genAI.getGenerativeModel({
         model: modelName,
-        systemInstruction: {
-            role: "model",
-            parts: [{ text: systemInstruction }],
-        },
+        // Only use systemInstruction for non-Gemma models
+        ...( !isGemma && {
+            systemInstruction: {
+                role: "model",
+                parts: [{ text: systemInstruction }],
+            },
+        })
     });
 
     const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
         try {
-            let prompt = createPrompt(input);
+            let prompt = createPrompt(input, isGemma);
             if (retry) {
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra."
             }
@@ -155,10 +163,10 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
     }
     try {
         const genAI = getGenAI(apiKey);
-        const testModel = genAI.getGenerativeModel({ model: modelName });
+        const model = genAI.getGenerativeModel({ model: modelName });
         const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
         
-        const result = await testModel.generateContent({
+        const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             generationConfig: {
                 ...generationConfig,
@@ -176,6 +184,7 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
     
+
 
 
 
