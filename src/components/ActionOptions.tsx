@@ -122,7 +122,7 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.combatants && combatState.combatants[combatState.turn]?.id === 'player');
+    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.combatants && combatState.initiativeOrder[combatState.turn] === 'player');
     
     // Actions are locked if a roll is pending, loot is offered, etc., or if it's not the player's turn.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || !isPlayerTurn;
