@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { PlayerRollRequest } from '../types';
 import DiceBox from '@3d-dice/dice-box';
-import { Dices, Check, Loader2 } from 'lucide-react';
+import { Dices, Check, Loader2, Target } from 'lucide-react';
 
 interface DiceRollModalProps {
   request: PlayerRollRequest;
@@ -10,7 +10,7 @@ interface DiceRollModalProps {
   onClose: () => void;
 }
 
-type RollStatus = 'normal' | 'critical-success' | 'critical-failure';
+type RollStatus = 'normal' | 'critical-success' | 'critical-failure' | 'success' | 'failure';
 
 const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose }) => {
   const diceBoxRef = useRef<HTMLDivElement>(null);
@@ -21,7 +21,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const [rollStatus, setRollStatus] = useState<RollStatus>('normal');
   const [hasRolled, setHasRolled] = useState(false);
 
-  // Efeito para inicializar o DiceBox
+  // Initialize DiceBox
   useEffect(() => {
     if (diceBoxRef.current && !diceBoxInstance.current) {
       const diceBox = new DiceBox({
@@ -35,10 +35,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       diceBox.init().then(() => {
         diceBoxInstance.current = diceBox;
         setIsDiceboxReady(true);
-        console.log("DiceBox na arena de rolagem inicializado e pronto.");
-      }).catch(e => {
-        console.error("Falha ao inicializar o DiceBox:", e);
-      });
+      }).catch(e => console.error("Falha ao inicializar o DiceBox:", e));
     }
     
     return () => {
@@ -46,7 +43,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         try {
           diceBoxInstance.current.clear();
         } catch(e) {
-          // Ignora erros de limpeza
+          // Ignore cleanup errors
         }
       }
     }
@@ -55,14 +52,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
   const handleRoll = useCallback(async () => {
     if (!diceBoxInstance.current || isRolling || !isDiceboxReady || hasRolled) return;
     
-    console.log("PlayerRollRequest recebido:", JSON.stringify(request, null, 2));
-
     setIsRolling(true);
     setHasRolled(true);
 
     try {
       let diceNotation: string[];
-      // Vantagem/desvantagem só se aplicam a 1d20
       const isAdvDis = (request.advantage || request.disadvantage) && request.dice === '1d20';
 
       if (isAdvDis) {
@@ -84,11 +78,14 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       
       const total = finalRawRoll + (request.modifier || 0);
 
+      // Determine roll status
       const isD20Roll = request.dice === '1d20';
       if (isD20Roll && finalRawRoll === 20) {
         setRollStatus('critical-success');
       } else if (isD20Roll && finalRawRoll === 1) {
         setRollStatus('critical-failure');
+      } else if (request.dc !== undefined) {
+        setRollStatus(total >= request.dc ? 'success' : 'failure');
       } else {
         setRollStatus('normal');
       }
@@ -101,7 +98,11 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     } catch (e) {
       console.error("Erro na rolagem de dados 3D:", e);
       const fallbackRoll = Math.floor(Math.random() * 20) + 1;
-      setRollResult({ total: fallbackRoll + (request.modifier || 0), rolls: [fallbackRoll] });
+      const total = fallbackRoll + (request.modifier || 0);
+      if (request.dc) {
+         setRollStatus(total >= request.dc ? 'success' : 'failure');
+      }
+      setRollResult({ total, rolls: [fallbackRoll] });
       setIsRolling(false);
     }
   }, [request, isRolling, isDiceboxReady, hasRolled]);
@@ -112,16 +113,22 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
     }
   };
 
-  const getResultColorClass = () => {
+  const getResultPresentation = () => {
     switch (rollStatus) {
       case 'critical-success':
-        return 'text-green-400';
+        return { color: 'text-green-400', text: 'Sucesso Crítico!' };
+      case 'success':
+         return { color: 'text-green-400', text: 'Sucesso!' };
       case 'critical-failure':
-        return 'text-red-500';
+        return { color: 'text-red-500', text: 'Falha Crítica!' };
+      case 'failure':
+        return { color: 'text-red-500', text: 'Falha.' };
       default:
-        return 'text-amber-400';
+        return { color: 'text-amber-400', text: '' };
     }
   };
+  
+  const { color: resultColor, text: resultText } = getResultPresentation();
 
   const renderRollButton = () => (
     <button
@@ -136,11 +143,15 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
 
   const renderResult = () => (
     <div className="text-center animate-fadeIn">
+      <div className="flex justify-center items-baseline gap-2">
+         {request.dc && <p className="text-stone-400 flex items-center gap-1"><Target className="h-4 w-4" /> CD: {request.dc}</p>}
+      </div>
+      <p className={`text-8xl font-bold my-2 ${resultColor}`}>{rollResult?.total}</p>
       <p className="text-stone-400">
         Rolagens: [{rollResult?.rolls.join(', ')}] {request.modifier >= 0 ? '+' : '-'} {Math.abs(request.modifier || 0)}
-        {request.dc && <span className="ml-2"> (CD: {request.dc})</span>}
+        
       </p>
-      <p className={`text-8xl font-bold my-2 ${getResultColorClass()}`}>{rollResult?.total}</p>
+      {resultText && <p className={`font-bold text-lg mt-1 ${resultColor}`}>{resultText}</p>}
       <button 
         onClick={handleContinue}
         className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-3 text-lg font-bold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors"
@@ -161,7 +172,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         onClick={e => e.stopPropagation()}
       >
         <div id="dice-box" ref={diceBoxRef} className="w-full h-48 sm:h-64"></div>
-        <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl min-h-[180px]">
+        <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl min-h-[220px]">
           <h3 className="text-xl font-semibold text-center text-stone-300 mb-4">{request.reason}</h3>
           {hasRolled ? (rollResult ? renderResult() : <div className="flex justify-center items-center h-24"><Loader2 className="h-8 w-8 animate-spin text-amber-400"/></div>) : renderRollButton()}
         </div>

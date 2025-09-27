@@ -106,7 +106,7 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
             <div className={`font-mono ${resultColor}`}>
                 <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier || 0)}`} = <span className="font-bold text-lg">{total}</span>. </span>
-                {dc && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
+                {dc !== undefined && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
                 <span className={`font-bold`}>{outcomeText}</span>
             </div>
         </div>
