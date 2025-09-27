@@ -1,6 +1,6 @@
 // src/components/NewCreationCharacter/NewStep1_RaceClass.tsx
 import React, { useState, useEffect } from 'react';
-import type { ApiListItem, ApiTrait } from '@/types';
+import type { ApiListItem, ApiTrait, ApiRace } from '@/types';
 import { translateApiString } from '@/utils/translator';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Dice5, ArrowRight, Loader2 } from 'lucide-react';
@@ -11,32 +11,36 @@ interface DraconicAncestryChoiceProps {
 }
 
 const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook }) => {
-    const { draconicAncestry, setDraconicAncestry, raceDetails, traitChoiceDetails } = hook;
+    const { draconicAncestry, setDraconicAncestry, raceDetails } = hook;
     const [ancestryOptions, setAncestryOptions] = useState<ApiListItem[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-
+    
     useEffect(() => {
+        // As opções de ancestralidade estão dentro de uma das características (traits) do draconato.
+        const ancestryTraitChoice = raceDetails?.traits.find(t => t.index === 'draconic-ancestry');
+        
+        // As opções reais estão em `trait_specific`
         const fetchAncestryOptions = async () => {
-            if (raceDetails?.index !== 'dragonborn') return;
-
-            const ancestryTrait = traitChoiceDetails.find(t => t.index === 'draconic-ancestry');
-            if (ancestryTrait?.trait_specific?.subfeature_options?.options) {
-                setIsLoading(true);
-                const options = ancestryTrait.trait_specific.subfeature_options.options.map((opt: any) => opt.item);
-                setAncestryOptions(options);
-                setIsLoading(false);
+            if (ancestryTraitChoice) {
+                const traitDetails = await DndApiService.getTraitDetails(ancestryTraitChoice.index);
+                if (traitDetails?.trait_specific?.subfeature_options?.options) {
+                    const options = traitDetails.trait_specific.subfeature_options.options.map((opt: any) => opt.item);
+                    setAncestryOptions(options);
+                }
             }
         };
 
-        fetchAncestryOptions();
-    }, [raceDetails, traitChoiceDetails]);
+        if (raceDetails?.index === 'dragonborn') {
+            fetchAncestryOptions();
+        }
 
-    if (raceDetails?.index !== 'dragonborn' || isLoading) {
+    }, [raceDetails]);
+
+    if (raceDetails?.index !== 'dragonborn') {
         return null;
     }
 
     if (ancestryOptions.length === 0) {
-        return <p>Carregando ancestralidades...</p>;
+        return <p className="text-center text-stone-400 mt-4">Carregando ancestralidades...</p>;
     }
 
     return (
