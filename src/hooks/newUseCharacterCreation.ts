@@ -76,6 +76,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
     const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
+    const [traitSelections, setTraitSelections] = useState<Record<string, string>>({}); // NEW for trait choices
     
     // Personality
     const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
@@ -90,11 +91,25 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
+    const [traitChoiceDetails, setTraitChoiceDetails] = useState<ApiTrait[]>([]);
     
     // --- MEMOIZED DERIVED STATE ---
 
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
+        const abilityBonusChoices = raceDetails?.ability_bonus_options;
+        if(abilityBonusChoices){
+            const selection = traitSelections[abilityBonusChoices.from.options[0].item.index];
+            if(selection){
+                const selectedBonus = abilityBonusChoices.from.options.find(o => o.item.index === selection);
+                if(selectedBonus){
+                    const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[selectedBonus.item.index.replace('ability-bonus-','' as any)];
+                    if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + 1;
+                }
+            }
+        }
+
+
         (raceDetails?.ability_bonuses || []).forEach(b => {
             const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
             if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
@@ -104,7 +119,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
         });
         return bonuses;
-    }, [raceDetails, subraceDetails]);
+    }, [raceDetails, subraceDetails, traitSelections]);
 
     const finalAttributes = useMemo<Attributes>(() =>
         (Object.keys(baseAttributes) as Array<keyof Attributes>).reduce((acc, key) => {
@@ -308,6 +323,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setProficiencySelections({});
         setFinalizedEquipment([]);
         setEquipmentSelections({});
+        setTraitSelections({});
         
         if (type === 'full') {
             setChosenRacialSpells({});
@@ -357,10 +373,12 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (allTraitList.length === 0) {
                 setRacialSpellTraits([]);
                 setRacialSpellOptions([]);
+                setTraitChoiceDetails([]);
                 return;
             }
     
             const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
+            setTraitChoiceDetails(traitDetails.filter((t): t is ApiTrait => !!t));
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<ApiListItem>();
@@ -535,6 +553,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     }, [characterClass]);
 
     // --- OTHER HANDLERS ---
+    const handleTraitSelection = (traitIndex: string, selection: string) => {
+        setTraitSelections(prev => ({ ...prev, [traitIndex]: selection }));
+    };
+
     const handleProficiencyChange = useCallback((profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
         setProficiencySelections(prev => {
             const newSelections = { ...prev };
@@ -834,13 +856,18 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
-        const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold")));
+        const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0]?.toLowerCase().includes("gold")));
 
-        // Collect traits from race and subrace
+        // Collect traits and selected trait choices
         const finalTraits = [
             ...(raceDetails.traits || []),
             ...(subraceDetails?.racial_traits || [])
         ];
+        // Add selected choice traits
+        Object.values(traitSelections).forEach(selectedIndex => {
+            finalTraits.push({ index: selectedIndex, name: selectedIndex, url: '' }); // Simplified, assuming index is enough
+        });
+
 
         return {
             name,
@@ -857,7 +884,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             alignment: alignment,
             attributes: finalAttributes,
             proficiencies: allProficiencies,
-            traits: finalTraits, // Add traits here
+            traits: finalTraits,
             languages: finalLanguages,
             inventory: inventoryWithoutGold,
             spells: allSpells,
@@ -926,6 +953,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         buildCharacter,
         cantripsKnown,
         spellsKnown,
+        // Trait choices
+        traitChoiceDetails,
+        traitSelections,
+        handleTraitSelection,
         // Randomizers
         handleRandomizeRaceAndClass,
         handleRandomizeBackground,

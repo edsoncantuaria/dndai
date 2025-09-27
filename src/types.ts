@@ -41,6 +41,7 @@ export interface ApiRace {
         ability_score: ApiListItem;
         bonus: number;
     }[];
+    ability_bonus_options?: ProficiencyChoice;
     alignment: string;
     age: string;
     size: string;
@@ -167,7 +168,7 @@ export interface NewCharacterInfo {
     alignment: string;
     attributes: Attributes;
     proficiencies: Proficiency[];
-    traits: ApiListItem[]; // Added this line
+    traits: ApiListItem[];
     languages: string[];
     inventory: InventoryItem[];
     spells: string[];
