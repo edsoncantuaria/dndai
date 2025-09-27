@@ -30,22 +30,27 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: GenerateImageOutputSchema,
   },
   async ({ prompt, model, apiKey }) => {
+    // Para modelos multimodais como o 'flash-image-preview', é necessário
+    // especificar que tanto TEXTO quanto IMAGEM são modalidades de resposta esperadas.
+    const isMultimodalImageModel = model.includes('image-preview');
+
     const response = await ai.generate({
       model: `googleai/${model}`,  
       prompt: prompt,
       apiKey: apiKey,
-      // **Adicionado** a configuração para especificar modalidades de resposta
-      config: {
-        responseModalities: ["TEXT", "IMAGE"],  // necessário para Gemini/Nano Banana gerar imagens
-      },
+      ...(isMultimodalImageModel && {
+        config: {
+          responseModalities: ["TEXT", "IMAGE"],
+        },
+      })
     });
-
-    // acessar a parte de imagem no retorno multimodal
-    const imagePart = response.media?.[0];  // geralmente é um array
-    if (imagePart && imagePart.url) {
+    
+    // A resposta de mídia em Genkit v1.x vem na propriedade `media`.
+    const imagePart = response.media;
+    if (imagePart?.url) {
       return { imageUrl: imagePart.url };
     }
 
-    throw new Error('Image generation failed to return a valid media object.');
+    throw new Error('A geração de imagem falhou ou retornou um resultado vazio.');
   }
 );
