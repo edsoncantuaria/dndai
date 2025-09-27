@@ -98,17 +98,18 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
         const abilityBonusChoices = raceDetails?.ability_bonus_options;
-        if(abilityBonusChoices){
-            const selection = traitSelections[abilityBonusChoices.from.options[0].item.index];
-            if(selection){
+
+        if (abilityBonusChoices?.from?.options?.[0]?.item?.index) {
+            const selectionKey = abilityBonusChoices.from.options[0].item.index;
+            const selection = traitSelections[selectionKey];
+            if (selection) {
                 const selectedBonus = abilityBonusChoices.from.options.find(o => o.item.index === selection);
-                if(selectedBonus){
-                    const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[selectedBonus.item.index.replace('ability-bonus-','' as any)];
+                if(selectedBonus?.item) {
+                     const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[selectedBonus.item.index.replace('ability-bonus-', '')];
                     if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + 1;
                 }
             }
         }
-
 
         (raceDetails?.ability_bonuses || []).forEach(b => {
             const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
