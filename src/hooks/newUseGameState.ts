@@ -1,7 +1,6 @@
-// hooks/newUseGameState.ts
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
@@ -9,7 +8,8 @@ import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { translateApiString } from '@/utils/translator';
+import { translateApiString, translateSpell } from '@/utils/translator';
+import { TRANSLATIONS_SPELLS } from '@/utils/TranslatorSpells';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
 const SAVE_VERSION = 2; // Version for the save file structure
@@ -272,22 +272,26 @@ export const useNewGameState = () => {
 
     }, [getApiKey, selectedImageModel]);
 
-    const processPlayerAction = useCallback(async (action: string) => {
+    const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
         
         setIsLoading(true);
         setApiError(null);
-        setPlayerRollRequest(null); // Clear any stale roll requests
+        setPlayerRollRequest(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         const previousActionOptions = actionOptions;
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        
+        let newLogEntries: LogEntry[] = [];
+        if (rollResultForLog) {
+            newLogEntries.push({ id: uuidv4(), type: 'roll', content: action, rollResult: rollResultForLog });
+        } else {
+            newLogEntries.push({ id: uuidv4(), type: 'action', content: action });
+        }
+
         let currentLog: LogEntry[] = [];
-        // Use functional update to ensure we have the latest state before sending to the API.
         setLog(prev => {
-            currentLog = [...prev, newLogEntry];
+            currentLog = [...prev, ...newLogEntries];
             return currentLog;
         });
 
@@ -312,22 +316,28 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            // Rollback UI changes on error
             setActionOptions(previousActionOptions);
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            setLog(prev => prev.filter(entry => !newLogEntries.some(ne => ne.id === entry.id)));
         } finally {
             setIsLoading(false); 
         }
 
-    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log]);
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         
-        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}. (Rolagens: ${result.rolls.join(', ')})`;
+        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         
+        const rollLogEntry: LogEntry['rollResult'] = {
+            ...playerRollRequest,
+            ...result,
+            description: `Rolagem de ${playerRollRequest.reason}`,
+            success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
+        };
+
         setPlayerRollRequest(null);
-        processPlayerAction(actionText);
+        processPlayerAction(actionText, rollLogEntry);
 
     }, [playerRollRequest, processPlayerAction]);
     
@@ -348,7 +358,8 @@ export const useNewGameState = () => {
     }, []);
 
     const submitSpellCast = useCallback((spell: ApiSpell, description: string) => {
-        const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}`: '.'}`;
+        const translatedSpellName = translateSpell(spell)?.name || spell.name;
+        const actionText = `Eu conjuro ${translatedSpellName}${description ? `: ${description}`: '.'}`;
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, [processPlayerAction]);

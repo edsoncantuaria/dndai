@@ -79,23 +79,23 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let bgColor = 'bg-stone-900/50 border-stone-700';
     let resultColor = 'text-cyan-400';
 
-    if (isDamageRoll) {
-        outcomeText = `${total} de Dano`;
-        themeColor = 'text-rose-300';
-        bgColor = 'bg-rose-900/30 border-rose-700/50';
-        resultColor = 'text-rose-400';
-    } else if (success !== undefined) {
+    if (!isDamageRoll && success !== undefined) {
         if (success) {
-            outcomeText = rollType === 'attack' ? 'Acerto!' : 'Sucesso!';
+            outcomeText = 'Sucesso!';
             themeColor = 'text-green-300';
             bgColor = 'bg-green-900/30 border-green-700/50';
             resultColor = 'text-green-400';
         } else {
-            outcomeText = rollType === 'attack' ? 'Erro!' : 'Falha.';
+            outcomeText = 'Falha.';
             themeColor = 'text-red-300';
             bgColor = 'bg-red-900/30 border-red-700/50';
             resultColor = 'text-red-400';
         }
+    } else if (isDamageRoll) {
+        outcomeText = `${total} de Dano`;
+        themeColor = 'text-rose-300';
+        bgColor = 'bg-rose-900/30 border-rose-700/50';
+        resultColor = 'text-rose-400';
     }
 
     const advantageText = advantage ? " (Vantagem)" : disadvantage ? " (Desvantagem)" : "";
