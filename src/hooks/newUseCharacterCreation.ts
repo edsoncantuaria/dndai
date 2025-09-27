@@ -402,8 +402,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const breathWeaponTrait = traitDetails.find(t => t?.index === 'breath-weapon');
             if (breathWeaponTrait && raceDetails?.index === 'dragonborn') {
                 const ancestryTraitDetails = await DndApiService.getTraitDetails('draconic-ancestry');
-                if (ancestryTraitDetails?.trait_specific?.subfeature_options?.options) {
-                    const options = ancestryTraitDetails.trait_specific.subfeature_options.options.map((opt: any) => opt.item);
+                if (ancestryTraitDetails?.trait_specific?.subtrait_options?.options) {
+                    const options = ancestryTraitDetails.trait_specific.subtrait_options.options.map((opt: any) => opt.item);
                     setDraconicAncestryOptions(options);
                     const breathWeaponSpell = racialAbilities.abilities.find(a => a.index === 'breath-weapon');
                     if (breathWeaponSpell) {
@@ -691,6 +691,14 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (newRaceIndex) {
             const details = await DndApiService.getRaceDetails(newRaceIndex);
             setRaceDetails(details);
+            if (newRaceIndex === 'dragonborn') {
+                const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
+                if (ancestryTrait?.trait_specific?.subtrait_options) {
+                    setDraconicAncestryOptions(ancestryTrait.trait_specific.subtrait_options.from.options.map((o: any) => o.item));
+                }
+            } else {
+                setDraconicAncestryOptions([]);
+            }
         } 
     }, [resetSelections]);
     
@@ -773,8 +781,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const ancestryTrait = raceData.traits.find(t => t.index === 'draconic-ancestry');
                 if (ancestryTrait) {
                     const ancestryDetails = await DndApiService.getTraitDetails(ancestryTrait.index);
-                    if (ancestryDetails?.trait_specific?.subfeature_options?.options) {
-                        const options = ancestryDetails.trait_specific.subfeature_options.options;
+                    if (ancestryDetails?.trait_specific?.subtrait_options?.options) {
+                        const options = ancestryDetails.trait_specific.subtrait_options.options;
                         const randomAncestry = options[Math.floor(Math.random() * options.length)];
                         setDraconicAncestry(randomAncestry.item.index);
                     }
