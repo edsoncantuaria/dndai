@@ -40,14 +40,11 @@ const generateImageFlow = ai.defineFlow(
             prompt: prompt,
             apiKey: apiKey,
         });
-
-        // The response contains media parts. Find the first image.
-        for (const part of response.parts) {
-            if (part.inlineData) {
-                // The URL is already a data URI with base64 content
-                const { mimeType, data } = part.inlineData;
-                return { imageUrl: `data:${mimeType};base64,${data}` };
-            }
+        
+        // Genkit 1.x provides the image in the 'media' property.
+        const imagePart = response.media;
+        if (imagePart?.url) {
+            return { imageUrl: imagePart.url };
         }
         
         throw new Error('Image generation failed to return a valid media object.');
