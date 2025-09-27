@@ -60,6 +60,44 @@ const UseHitDiceRequestSchema = z.object({
     hitDieValue: z.number(),
 });
 
+// Itens do inventário com propriedades de uso/equipamento
+export const InventoryItemSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    quantity: z.number().min(1),
+    weight: z.number().optional(),
+    equipped: z.boolean().optional().describe("Se o item está atualmente equipado."),
+    consumable: z.boolean().optional().describe("Se o item pode ser consumido."),
+    usable: z.boolean().optional().describe("Se o item pode ser usado em ações específicas."),
+    recoverable: z.boolean().optional().describe("Se o item ou recursos (como flechas) podem ser recuperados após uso."),
+    cost: z.object({
+        unit: z.string(),
+        amount: z.number(),
+    }).optional(),
+    restrictions: z.array(z.string()).optional().describe("Regras ou requisitos que impedem equipar ou usar o item."),
+});
+
+export type InventoryItem = z.infer<typeof InventoryItemSchema>;
+
+// Expansão do ShopState para suportar compra/venda com detalhes
+export const ShopItemSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    cost: z.object({
+        unit: z.string(),
+        amount: z.number(),
+    }),
+    availableQuantity: z.number().optional(),
+    restrictions: z.array(z.string()).optional(),
+});
+
+export type ShopItem = z.infer<typeof ShopItemSchema>;
+
+// Loot detalhado
+export const LootItemSchema = InventoryItemSchema; // reusar schema de inventário
+export type LootItem = InventoryItem;
+
+
 export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string() })])).optional().describe("A list of suggested actions for the player to take next."),
@@ -87,6 +125,18 @@ export const GameMasterResponseSchema = z.object({
         savingThrowEachTurn: z.boolean().optional(),
     })).optional().describe("Ongoing conditions, effects, and status ailments on characters or NPCs."),
     modularRules: z.array(z.enum(['realism', 'cinematic'])).optional().describe("Active rule modules that modify gameplay mechanics or narrative style."),
+    inventoryUpdates: z.array(InventoryItemSchema).optional().describe("Atualizações do inventário resultantes de ações do jogador (equipar, desequipar, consumir, recuperar flechas, vender, comprar, loot). O Mestre valida tudo antes de enviar."),
+    shopTransactionResult: z.object({
+        success: z.boolean(),
+        message: z.string().optional(),
+    }).optional().describe("Resultado da tentativa de comprar ou vender itens."),
+    lootResult: z.object({
+        success: z.boolean(),
+        message: z.string().optional(),
+        itemsGained: z.array(LootItemSchema).optional(),
+        currencyGained: z.object({ gp: z.number() }).optional(),
+    }).optional().describe("Resultado do loot, baú ou corpo, incluindo itens e moedas adquiridas."),
+
 }).describe("The Game Master's response, containing all updates to the game state.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
