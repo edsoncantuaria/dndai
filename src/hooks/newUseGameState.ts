@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry, Combatant } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Combatant } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -148,50 +148,6 @@ export const useNewGameState = () => {
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
-    const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
-        if (!response) {
-            throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
-        }
-
-        const characterUpdates: Partial<Character> = response.updatedCharacter || {};
-        
-        if (response.systemLog) {
-            setSystemLog(response.systemLog);
-            console.log("System Log from GM:", response.systemLog);
-        }
-        if (response.worldState) {
-            characterUpdates.worldState = response.worldState;
-        }
-
-        if (Object.keys(characterUpdates).length > 0) {
-            setCharacter(prevCharacter => {
-               if (!prevCharacter) return null;
-               return mergeCharacterState(prevCharacter, characterUpdates);
-           });
-        }
-       
-        if (response.logEntries && Array.isArray(response.logEntries)) {
-            response.logEntries.forEach(entry => addLog(entry));
-        }
-        
-        if(response.playerRollRequest) {
-            setPlayerRollRequest({ ...response.playerRollRequest, reason: response.playerRollRequest.reason || '...' });
-            setActionOptions([]); 
-            return; 
-        }
-        
-        if (response.actionOptions !== undefined) {
-             setActionOptions(response.actionOptions);
-        }
-        if (response.combatState) setCombatState(response.combatState);
-        if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
-        if (response.shopState) setShopState(response.shopState);
-        if (response.lootOffer) setPendingLootOffer(response.lootOffer);
-        if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
-        if (response.ambientSound) setAmbientSound(response.ambientSound);
-
-    }, [addLog, getApiKey, selectedImageModel]);
-
     const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
         
@@ -221,6 +177,52 @@ export const useNewGameState = () => {
             if (!apiKey) {
                 throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
             }
+
+            const handleApiResponse = (response: geminiService.GameMasterResponse | null) => {
+                if (!response) {
+                    throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+                }
+        
+                const characterUpdates: Partial<Character> = response.updatedCharacter || {};
+                
+                if (response.systemLog) {
+                    setSystemLog(response.systemLog);
+                    console.log("System Log from GM:", response.systemLog);
+                }
+                if (response.worldState) {
+                    characterUpdates.worldState = response.worldState;
+                }
+        
+                if (Object.keys(characterUpdates).length > 0) {
+                    setCharacter(prevCharacter => {
+                       if (!prevCharacter) return null;
+                       return mergeCharacterState(prevCharacter, characterUpdates);
+                   });
+                }
+               
+                if (response.logEntries && Array.isArray(response.logEntries)) {
+                    response.logEntries.forEach(entry => addLog(entry));
+                }
+                
+                if(response.playerRollRequest) {
+                    setPlayerRollRequest({ ...response.playerRollRequest, reason: response.playerRollRequest.reason || '...' });
+                    setActionOptions([]); 
+                    return; 
+                }
+                
+                if (response.actionOptions !== undefined) {
+                     setActionOptions(response.actionOptions);
+                }
+                if (response.combatState) setCombatState(response.combatState);
+                if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
+                if (response.shopState) setShopState(response.shopState);
+                if (response.lootOffer) setPendingLootOffer(response.lootOffer);
+                if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
+                if (response.ambientSound) setAmbientSound(response.ambientSound);
+        
+            };
+
+
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: action,
@@ -241,12 +243,54 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log, actionOptions]);
+    }, [character, combatState, selectedModel, generationConfig, getApiKey, log, actionOptions, addLog]);
 
     const nextTurn = useCallback(() => {
         if (!combatState.isActive) return;
         processPlayerAction("Processar o próximo turno do combate.");
     }, [combatState.isActive, processPlayerAction]);
+
+    const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
+        if (!playerRollRequest) return;
+    
+        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
+    
+        const rollLogEntry: LogEntry['rollResult'] = {
+            ...playerRollRequest,
+            ...result,
+            description: playerRollRequest.reason,
+            success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
+        };
+    
+        // Immediately update player's roll history in combatState
+        if (combatState.isActive) {
+            setCombatState(prev => {
+                const playerCombatantIndex = prev.combatants.findIndex(c => c.id === 'player');
+                if (playerCombatantIndex === -1) return prev;
+    
+                const newCombatants = [...prev.combatants];
+                const playerCombatant = { ...newCombatants[playerCombatantIndex] };
+                
+                const newHistoryEntry: Combatant['rollHistory'][0] = {
+                    type: rollLogEntry.rollType, // Map rollType to history type
+                    total: rollLogEntry.total,
+                    rolls: rollLogEntry.rolls,
+                    description: rollLogEntry.description,
+                    dice: rollLogEntry.dice,
+                };
+    
+                playerCombatant.rollHistory = [...(playerCombatant.rollHistory || []), newHistoryEntry];
+                newCombatants[playerCombatantIndex] = playerCombatant;
+    
+                return { ...prev, combatants: newCombatants };
+            });
+        }
+    
+        setPlayerRollRequest(null);
+        processPlayerAction(actionText, rollLogEntry);
+    
+    }, [playerRollRequest, processPlayerAction, combatState.isActive]);
+    
 
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
@@ -317,6 +361,7 @@ export const useNewGameState = () => {
         setApiError(null);
         setAmbientSound('none');
         setSystemLog(null);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
     }, []);
 
 
@@ -333,22 +378,6 @@ export const useNewGameState = () => {
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, isLoading, saveGame]);
 
     
-    const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
-        if (!playerRollRequest) return;
-        
-        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
-        
-        const rollLogEntry: LogEntry['rollResult'] = {
-            ...playerRollRequest,
-            ...result,
-            description: playerRollRequest.reason,
-            success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
-        };
-
-        setPlayerRollRequest(null);
-        processPlayerAction(actionText, rollLogEntry);
-
-    }, [playerRollRequest, processPlayerAction]);
     
     const handleSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
@@ -377,7 +406,6 @@ export const useNewGameState = () => {
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         clearGameState();
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -397,6 +425,7 @@ export const useNewGameState = () => {
             if (!apiKey) {
                 throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações para continuar.");
             }
+
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
@@ -406,7 +435,47 @@ export const useNewGameState = () => {
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
             
-            handleApiResponse(response);
+            if (!response) {
+                throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+            }
+    
+            const characterUpdates: Partial<Character> = response.updatedCharacter || {};
+            
+            if (response.systemLog) {
+                setSystemLog(response.systemLog);
+                console.log("System Log from GM:", response.systemLog);
+            }
+            if (response.worldState) {
+                characterUpdates.worldState = response.worldState;
+            }
+    
+            if (Object.keys(characterUpdates).length > 0) {
+                setCharacter(prevCharacter => {
+                   if (!prevCharacter) return null;
+                   return mergeCharacterState(prevCharacter, characterUpdates);
+               });
+            }
+           
+            if (response.logEntries && Array.isArray(response.logEntries)) {
+                response.logEntries.forEach(entry => addLog(entry));
+            }
+            
+            if(response.playerRollRequest) {
+                setPlayerRollRequest({ ...response.playerRollRequest, reason: response.playerRollRequest.reason || '...' });
+                setActionOptions([]); 
+                return true; 
+            }
+            
+            if (response.actionOptions !== undefined) {
+                 setActionOptions(response.actionOptions);
+            }
+            if (response.combatState) setCombatState(response.combatState);
+            if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
+            if (response.shopState) setShopState(response.shopState);
+            if (response.lootOffer) setPendingLootOffer(response.lootOffer);
+            if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
+            if (response.ambientSound) setAmbientSound(response.ambientSound);
+
             return true;
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
@@ -417,7 +486,7 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
         
-    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey, combatState]);
+    }, [character, log.length, isLoading, selectedModel, generationConfig, getApiKey, combatState, addLog]);
     
     const checkForSavedGame = useCallback(() => {
         try {
