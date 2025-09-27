@@ -7,19 +7,45 @@ import { Swords } from 'lucide-react';
 
 
 const NewCombatTracker: React.FC = () => {
-    const { combatState, nextTurn } = useGameStateContext();
+    const { combatState, character, nextTurn } = useGameStateContext();
 
-    if (!combatState || !combatState.isActive || !combatState.combatants || combatState.combatants.length === 0) {
+    if (!combatState || !combatState.isActive || !character) {
         return null;
     }
 
     const { round, combatants, turn, initiativeOrder } = combatState;
     
+    // Create a combatant representation for the player
+    const playerCombatant: Combatant | null = character ? {
+        id: 'player',
+        name: character.name,
+        hp: character.hp.current,
+        maxHp: character.hp.max,
+        initiative: 0, // Placeholder, will be updated if player is in combatants list
+        isDead: character.hp.current <= 0,
+        hasMoved: false,
+        hasActed: false,
+        actionPoints: 1, // Assuming default, should be managed in combatState
+        bonusActionPoints: 1, // Assuming default
+        rollHistory: [],
+    } : null;
+
+    // Merge player into the combatants list if they are part of the initiative order
+    const allCombatants = useMemo(() => {
+        const combatantMap = new Map((combatants || []).map(c => [c.id, c]));
+        if (playerCombatant && initiativeOrder?.includes('player')) {
+            // Find player's specific combat data if it exists, otherwise use the derived one
+            const playerCombatData = combatantMap.get('player') || {};
+            combatantMap.set('player', { ...playerCombatant, ...playerCombatData, id: 'player' });
+        }
+        return Array.from(combatantMap.values());
+    }, [combatants, playerCombatant, initiativeOrder]);
+    
     const livingCombatants = useMemo(() => 
         (initiativeOrder || [])
-            .map(id => Array.isArray(combatants) ? combatants.find(c => c.id === id && !c.isDead) : undefined)
+            .map(id => allCombatants.find(c => c.id === id && !c.isDead))
             .filter((c): c is Combatant => !!c)
-    , [combatants, initiativeOrder]);
+    , [allCombatants, initiativeOrder]);
 
     if (livingCombatants.length === 0) {
         // Combat might be ending, don't render a broken tracker
