@@ -12,6 +12,8 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
 
     const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
     const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
+    const advantage = combatant.tempModifiers?.advantage;
+    const disadvantage = combatant.tempModifiers?.disadvantage;
 
     return (
         <div className="flex items-center gap-4 text-xs font-semibold">
@@ -25,10 +27,12 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
                 <span>CA {combatant.armorClass ?? '?'}</span>
             </div>
             {combatant.conditions && combatant.conditions.length > 0 && (
-                 <div className="flex items-center gap-1.5 text-yellow-300">
-                    {combatant.conditions.map(c => <span key={c.index} title={translateCondition(c.name)}>⚠️</span>)}
+                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.map(c => translateCondition(c.name)).join(', ')}>
+                    <span>⚠️</span>
                 </div>
             )}
+             {advantage && <span className="text-green-400" title="Vantagem">▲</span>}
+             {disadvantage && <span className="text-red-400" title="Desvantagem">▼</span>}
         </div>
     )
 }
@@ -39,19 +43,14 @@ const NewCombatTracker: React.FC = () => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const allCombatants = useMemo<Combatant[]>(() => {
-        if (!combatState || !Array.isArray(combatState.combatants) || !character) return [];
+        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character) return [];
 
         const combatantMap = new Map<string, Combatant>();
 
         // Add all NPCs to the map
         combatState.combatants.forEach(c => {
             if (c.id !== 'player') {
-                combatantMap.set(c.id, {
-                    ...c,
-                    hp: c.hp,
-                    maxHp: c.maxHp,
-                    armorClass: c.armorClass
-                });
+                combatantMap.set(c.id, c);
             }
         });
         
@@ -72,11 +71,11 @@ const NewCombatTracker: React.FC = () => {
             bonusActionPoints: playerInCombat.bonusActionPoints !== undefined ? playerInCombat.bonusActionPoints : 1,
             conditions: character.conditions,
             rollHistory: playerInCombat.rollHistory || [],
+            tempModifiers: playerInCombat.tempModifiers || {},
         };
         combatantMap.set('player', playerCombatant);
 
-        // Use initiativeOrder to sort and return the final array
-        if (!combatState.initiativeOrder) {
+        if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
             return Array.from(combatantMap.values()).sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
 
@@ -86,27 +85,30 @@ const NewCombatTracker: React.FC = () => {
 
     }, [combatState, character]);
 
-    if (!combatState || !combatState.isActive) {
+    if (!combatState.isActive || allCombatants.length === 0) {
         return null;
     }
     
     const { round, turn, initiativeOrder } = combatState;
-    if (!initiativeOrder || initiativeOrder.length === 0 || allCombatants.length === 0) return null;
+    if (!initiativeOrder || initiativeOrder.length === 0) return null;
 
     const currentCombatantId = initiativeOrder[turn % initiativeOrder.length];
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
     const upcomingCombatants = initiativeOrder
+        .map((id, index) => ({ id, originalIndex: index }))
         .slice(1)
-        .map(id => allCombatants.find(c => c.id === id))
+        .map(item => allCombatants.find(c => c.id === item.id))
         .filter((c): c is Combatant => !!c && !c.isDead);
 
     const isPlayerTurn = currentCombatant?.id === 'player';
 
     return (
         <div className="flex-shrink-0 bg-red-950/40 backdrop-blur-sm p-3 rounded-lg border-2 border-red-800/80 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
-            <div 
+            <button 
                 className="flex justify-between items-center w-full"
+                onClick={() => setIsExpanded(!isExpanded)}
+                aria-expanded={isExpanded}
             >
                 <h3 className="text-xl font-bold font-garamond text-red-200 flex items-center gap-2">
                     <Swords /> 
@@ -116,15 +118,9 @@ const NewCombatTracker: React.FC = () => {
                 <div className="flex items-center gap-4">
                   { !isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant} /> }
                   <span className="font-mono text-lg text-red-300">Round {round}</span>
-                  <button 
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    aria-expanded={isExpanded}
-                    className="text-red-300 hover:text-white"
-                  >
-                    <ChevronDown className={`h-6 w-6 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                  </button>
+                  <ChevronDown className={`h-6 w-6 transition-transform text-red-300 hover:text-white ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
-            </div>
+            </button>
 
             {isExpanded && (
                 <div className="mt-4 animate-fadeIn" style={{ animationDuration: '300ms'}}>
@@ -173,3 +169,5 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
+
+    

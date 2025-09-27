@@ -122,7 +122,7 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = combatState.isActive ? combatState.initiativeOrder?.[combatState.turn] === 'player' : true;
+    const isPlayerTurn = combatState.isActive ? combatState.initiativeOrder?.[combatState.turn % combatState.initiativeOrder.length] === 'player' : true;
     
     // Actions are locked if a roll is pending, loot is offered, etc.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest;
@@ -144,6 +144,7 @@ const ActionOptions: React.FC = () => {
 
     const renderActionContent = () => {
         if (!isPlayerTurn && combatState.isActive) {
+            // Only show this message on larger screens, mobile will just hide the button
             return (
                 <div className="hidden md:flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30">
                     Aguardando turno de outros combatentes...
@@ -151,8 +152,6 @@ const ActionOptions: React.FC = () => {
             );
         }
 
-
-        // The new golden rule: if a roll is pending, nothing else is interactive.
         if(playerRollRequest) {
             return (
                 <div className="flex items-center justify-center p-4 text-stone-400">
@@ -244,8 +243,19 @@ const ActionOptions: React.FC = () => {
                         onClick={() => setIsOpen(false)}
                     />
                 )}
-                { isPlayerTurn && (
+                { combatState.isActive ? (isPlayerTurn && (
                     <div className="fixed bottom-20 right-4 z-30">
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            disabled={isLoading}
+                            className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                            aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
+                        >
+                            {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
+                        </button>
+                    </div>
+                )) : (
+                     <div className="fixed bottom-20 right-4 z-30">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             disabled={isLoading}
@@ -268,3 +278,5 @@ const ActionOptions: React.FC = () => {
 };
 
 export default ActionOptions;
+
+    
