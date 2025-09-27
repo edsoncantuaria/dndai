@@ -1,4 +1,9 @@
 
+export const TRANSLations_EQUIPMENT: Record<string, any> = {
+  "abacus": {
+    "name": "Ábaco"
+  },
+};
 
 
 export const TRANSLATIONS: Record<string, string> = {
@@ -22,6 +27,9 @@ export const TRANSLATIONS: Record<string, string> = {
     'Tiefling': 'Tiefling',
     'Hill Dwarf': 'Anão da Colina',
     'High Elf': 'Alto Elfo',
+    'Rock Gnome': 'Gnomo da Rocha',
+    'Lightfoot Halfling': 'Pés Leves',
+
 
     // Classes
     'Barbarian': 'Bárbaro',
@@ -31,11 +39,26 @@ export const TRANSLATIONS: Record<string, string> = {
     'Fighter': 'Guerreiro',
     'Monk': 'Monge',
     'Paladin': 'Paladino',
-    'Ranger': 'Ranger',
+    'Ranger': 'Patrulheiro',
     'Rogue': 'Ladino',
     'Sorcerer': 'Feiticeiro',
     'Warlock': 'Bruxo',
     'Wizard': 'Mago',
+
+    // Subclasses
+    'Berserker': 'Berserker',
+    'Lore': 'do Conhecimento',
+    'Life': 'da Vida',
+    'Land': 'da Terra',
+    'Champion': 'Campeão',
+    'Open Hand': 'Mão Aberta',
+    'Devotion': 'da Devoção',
+    'Hunter': 'Caçador',
+    'Thief': 'Ladrão',
+    'Draconic': 'Dracônico',
+    'Fiend': 'O Ínfero',
+    'Evocation': 'da Evocação',
+
 
     // Alignments
     'Lawful Good': 'Leal e Bom',
@@ -43,6 +66,7 @@ export const TRANSLATIONS: Record<string, string> = {
     'Chaotic Good': 'Caótico e Bom',
     'Lawful Neutral': 'Leal e Neutro',
     'True Neutral': 'Neutro',
+    'Neutral': 'Neutro',
     'Chaotic Neutral': 'Caótico e Neutro',
     'Lawful Evil': 'Leal e Mau',
     'Neutral Evil': 'Neutro e Mau',
@@ -50,7 +74,7 @@ export const TRANSLATIONS: Record<string, string> = {
     
     // Skills & Proficiencies
     'Acrobatics': 'Acrobacia',
-    'Animal Handling': 'Trato com Animais',
+    'Animal Handling': 'Adestrar Animais',
     'Arcana': 'Arcanismo',
     'Athletics': 'Atletismo',
     'Deception': 'Enganação',
@@ -68,7 +92,7 @@ export const TRANSLATIONS: Record<string, string> = {
     'Stealth': 'Furtividade',
     'Survival': 'Sobrevivência',
     'Skill: Acrobatics': 'Acrobacia',
-    'Skill: Animal Handling': 'Trato com Animais',
+    'Skill: Animal Handling': 'Adestrar Animais',
     'Skill: Arcana': 'Arcanismo',
     'Skill: Athletics': 'Atletismo',
     'Skill: Deception': 'Enganação',
@@ -91,6 +115,30 @@ export const TRANSLATIONS: Record<string, string> = {
     'Saving Throw: INT': 'Resistência: INT',
     'Saving Throw: WIS': 'Resistência: SAB',
     'Saving Throw: CHA': 'Resistência: CAR',
+    'Light Armor': 'Armaduras Leves',
+    'Medium Armor': 'Armaduras Médias',
+    'Heavy Armor': 'Armaduras Pesadas',
+    'All armor': 'Todas as Armaduras',
+    'Shields': 'Escudos',
+    'Simple Weapons': 'Armas Simples',
+    'Martial Weapons': 'Armas Marciais',
+    'Battleaxes': 'Machados de Batalha',
+    'Handaxes': 'Machadinhas',
+    'Throwing hammers': 'Martelos de Arremesso',
+    'Warhammers': 'Martelos de Guerra',
+    'Disguise Kit': 'Kit de Disfarce',
+    'Poisoner\'s Kit': 'Kit de Venenos',
+    'Thieves\' Tools': 'Ferramentas de Ladrão',
+
+
+    // Backgrounds
+    'Acolyte': 'Acólito',
+    'Criminal': 'Criminoso',
+    'Folk Hero': 'Herói do Povo',
+    'Noble': 'Nobre',
+    'Sage': 'Sábio',
+    'Soldier': 'Soldado',
+
 
     // Equipment & Items
     'A simple puzzle box': 'Uma caixa de quebra-cabeça simples',
@@ -101,8 +149,8 @@ export const TRANSLATIONS: Record<string, string> = {
     'Longsword': 'Espada Longa',
     'Leather Armor': 'Armadura de Couro',
     'Shield': 'Escudo',
-    'Explorer\'s Pack': 'Pacote de Explorador',
-    'Dungeoneer\'s Pack': 'Pacote de Aventureiro',
+    'Explorer\'s Pack': 'Pacote do Explorador',
+    'Dungeoneer\'s Pack': 'Pacote do Aventureiro',
     'Holy Symbol': 'Símbolo Sagrado',
     
     // Spells
@@ -114,14 +162,14 @@ export const TRANSLATIONS: Record<string, string> = {
     'Guiding Bolt': 'Raio Guiado',
 
     // Magic Schools
-    'abjuration': 'Abjuração',
-    'conjuration': 'Conjuração',
-    'divination': 'Adivinhação',
-    'enchantment': 'Encantamento',
-    'evocation': 'Evocação',
-    'illusion': 'Ilusão',
-    'necromancy': 'Necromancia',
-    'transmutation': 'Transmutação',
+    'Abjuration': 'Abjuração',
+    'Conjuration': 'Conjuração',
+    'Divination': 'Adivinhação',
+    'Enchantment': 'Encantamento',
+    'Evocation': 'Evocação',
+    'Illusion': 'Ilusão',
+    'Necromancy': 'Necromancia',
+    'Transmutation': 'Transmutação',
 
     // Conditions
     'Blinded': 'Cego',
@@ -147,11 +195,32 @@ export const TRANSLATIONS: Record<string, string> = {
     'Giant': 'Gigante',
     'Gnomish': 'Gnômico',
     'Goblin': 'Goblin',
+    'Halfling': 'Halfling',
     'Orc': 'Orc',
     'Abyssal': 'Abissal',
     'Celestial': 'Celestial',
     'Draconic': 'Dracônico',
     'Infernal': 'Infernal',
+    'Undercommon': 'Subcomum',
+    'Sylvan': 'Silvestre',
+    'Deep Speech': 'Linguagem Profunda',
+    'Primordial': 'Primordial',
+    
+    // World State
+    'Clear': 'Céu Limpo',
+    'Light Clouds': 'Nuvens Leves',
+    'Overcast': 'Nublado',
+    'Rain': 'Chuva',
+    'Storm': 'Tempestade',
+    'Snow': 'Neve',
+    'Blizzard': 'Nevasca',
+    'Fog': 'Nevoeiro',
+    'Morning': 'Manhã',
+    'Day': 'Dia',
+    'Afternoon': 'Tarde',
+    'Night': 'Noite',
+    'Dusk': 'Crepúsculo',
+    'Dawn': 'Alvorecer',
 };
 
 export const translateApiString = (s?: string): string => {
@@ -159,57 +228,18 @@ export const translateApiString = (s?: string): string => {
     return TRANSLATIONS[s] || s;
 };
 
-const PROFICIENCY_TRANSLATION_MAP: Record<string, string> = {
-    // Skills
-    'Acrobatics': 'Acrobacia',
-    'Animal Handling': 'Trato com Animais',
-    'Arcana': 'Arcanismo',
-    'Athletics': 'Atletismo',
-    'Deception': 'Enganação',
-    'History': 'História',
-    'Insight': 'Intuição',
-    'Intimidation': 'Intimidação',
-    'Investigation': 'Investigação',
-    'Medicine': 'Medicina',
-    'Nature': 'Natureza',
-    'Perception': 'Percepção',
-    'Performance': 'Atuação',
-    'Persuasion': 'Persuasão',
-    'Religion': 'Religião',
-    'Sleight of Hand': 'Prestidigitação',
-    'Stealth': 'Furtividade',
-    'Survival': 'Sobrevivência',
-    // Weapons
-    'Longswords': 'Espadas Longas',
-    'Shortswords': 'Espadas Curtas',
-    'Shortbows': 'Arcos Curtos',
-    'Longbows': 'Arcos Longos',
-    // Armor
-    'Light Armor': 'Armadura Leve',
-    'Medium Armor': 'Armadura Média',
-    'Shields': 'Escudos',
-    // Tools
-    'Thieves\' Tools': 'Ferramentas de Ladrão',
-    // General
-    'Simple Weapons': 'Armas Simples',
-    'Martial Weapons': 'Armas Marciais',
-};
-
-
 export const normalizeProficiencyName = (name: string): string => {
-    if (!name) {
-        return '';
-    }
-    // Remove "Skill:" prefix and translate
+    if (!name) return '';
+    
     if (name.startsWith('Skill: ')) {
         const skillName = name.substring(7);
-        return PROFICIENCY_TRANSLATION_MAP[skillName] || skillName;
+        return TRANSLATIONS[skillName] || skillName;
     }
      if (name.startsWith('Saving Throw: ')) {
         const attr = name.substring(14);
         return `Resistência: ${attr}`;
     }
-     // Dynamic translation for "Choose X from..."
+   
     const chooseMatch = name.match(/Choose (\w+) from (.+)/);
     if (chooseMatch) {
         const numberWord = chooseMatch[1];
@@ -221,7 +251,7 @@ export const normalizeProficiencyName = (name: string): string => {
             default: number = numberWord;
         }
 
-        const options = chooseMatch[2].split(', ').map(opt => PROFICIENCY_TRANSLATION_MAP[opt.trim()] || opt.trim());
+        const options = chooseMatch[2].split(', ').map(opt => TRANSLATIONS[opt.trim()] || opt.trim());
         return `Escolha ${number} entre: ${options.join(', ')}`;
     }
 
@@ -229,9 +259,21 @@ export const normalizeProficiencyName = (name: string): string => {
 };
 
 export const translateAttribute = (s: keyof typeof TRANSLATIONS): string => translateApiString(s);
-export const translateEquipment = (s?: string): string => translateApiString(s);
-export const translateSpell = (s?: string): string => translateApiString(s);
+export const translateEquipment = (s?: any): any => {
+    if (!s) return s;
+    if (typeof s === 'string') {
+        const translation = TRANSLATIONS[s];
+        return translation ? translation: s;
+    }
+    const translatedName = TRANSLATIONS[s.name] || s.name;
+    const translatedDesc = s.desc ? s.desc.map((d:string) => translateApiString(d)) : s.desc;
+    return { ...s, name: translatedName, desc: translatedDesc };
+};
+export const translateSpell = (s?: any): any => {
+    if (!s) return s;
+    const translatedName = TRANSLATIONS[s.name] || s.name;
+    return { ...s, name: translatedName };
+};
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
-

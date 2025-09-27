@@ -3,6 +3,7 @@
 import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { Users, Sun, Moon, Cloud, CloudRain, CloudSnow } from 'lucide-react';
+import { translateApiString } from '../utils/translator';
 
 const ReputationBar: React.FC<{ name: string; score: number }> = ({ name, score }) => {
     // Clamps the score between -10 and 10 and then normalizes it to a 0-100 scale.
@@ -49,10 +50,12 @@ const WorldStateIcon: React.FC<{ stateKey: string, value?: string }> = ({ stateK
 }
 
 const WorldStatePanel: React.FC = () => {
-    const { character, worldState } = useGameStateContext();
+    const { character } = useGameStateContext();
 
+    // The worldState is now part of the main character object in this context
+    const worldState = character?.worldState || {};
     const hasFactions = character?.factionReputation && Object.keys(character.factionReputation).length > 0;
-    const hasWorldState = worldState && Object.keys(worldState).length > 0;
+    const hasWorldState = Object.keys(worldState).length > 0;
     
     if (!hasFactions && !hasWorldState) {
         return null; // Don't render the component if there's nothing to show
@@ -67,13 +70,13 @@ const WorldStatePanel: React.FC = () => {
                         {worldState.timeOfDay && (
                              <div>
                                 <WorldStateIcon stateKey="timeOfDay" value={worldState.timeOfDay} />
-                                <p className="text-xs text-stone-400 mt-1">{worldState.timeOfDay}</p>
+                                <p className="text-xs text-stone-400 mt-1">{translateApiString(worldState.timeOfDay)}</p>
                             </div>
                         )}
                          {worldState.weather && (
                              <div>
                                 <WorldStateIcon stateKey="weather" value={worldState.weather} />
-                                <p className="text-xs text-stone-400 mt-1">{worldState.weather}</p>
+                                <p className="text-xs text-stone-400 mt-1">{translateApiString(worldState.weather)}</p>
                             </div>
                         )}
                         {/* You can add more world state displays here */}

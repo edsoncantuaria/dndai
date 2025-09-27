@@ -87,7 +87,7 @@ const Inventory: React.FC = () => {
                     {character.inventory.map((item) => (
                         <ItemCard 
                             key={item.id} 
-                            item={translateEquipment(item)} 
+                            item={item} 
                             onToggleEquip={toggleEquipped}
                             onUseConsumable={useConsumable}
                             actionDisabled={actionDisabled}

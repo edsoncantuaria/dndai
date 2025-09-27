@@ -1,11 +1,10 @@
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { translateAttribute, translateApiString, translateCondition, translateEquipment } from '../utils/translator';
+import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
 import { Attributes, Proficiency } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
-import SkillCheckModal from './ui/SkillCheckModal';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -99,11 +98,11 @@ const CharacterSheet: React.FC = () => {
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Informações Básicas</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-stone-800/50 p-3 rounded-md">
-                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{character.race}{character.subrace && ` (${character.subrace})`}</span></div>
-                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{character.characterClass}</span></div>
-                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass || 'Nenhuma'}</span></div>
-                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{character.background}</span></div>
-                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{character.alignment}</span></div>
+                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{translateApiString(character.race)}{character.subrace && ` (${translateApiString(character.subrace)})`}</span></div>
+                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{translateApiString(character.characterClass)}</span></div>
+                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass ? translateApiString(character.subclass) : 'Nenhuma'}</span></div>
+                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{translateApiString(character.background)}</span></div>
+                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{translateApiString(character.alignment)}</span></div>
                 </div>
             </div>
 
@@ -156,7 +155,7 @@ const CharacterSheet: React.FC = () => {
             </div>
             
             <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate &amp; Recursos</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <div className="bg-stone-800/50 p-2 rounded-md text-center">
                         <span className="text-xs font-bold text-stone-400">Iniciativa</span>
@@ -231,7 +230,7 @@ const CharacterSheet: React.FC = () => {
             </div>
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                <p className="text-stone-300">{languages.join(', ')}</p>
+                <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>
             </div>
             <CollapsibleSection title="Personalidade">
                 <div className="space-y-1">
