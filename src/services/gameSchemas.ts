@@ -180,7 +180,7 @@ export const GameMasterResponseSchema = z.object({
         concentration: z.boolean().optional(),
         savingThrowEachTurn: z.boolean().optional(),
     })).optional().describe("Ongoing conditions, effects, and status ailments on characters or NPCs."),
-    modularRules: z.array(z.enum(['realism', 'cinematic'])).optional().describe("Active rule modules that modify gameplay mechanics or narrative style."),
+    modularRules: z.array(z.enum(['realism', 'cinematic', 'coreCombat', 'worldPersistence', 'exploration', 'downtime', 'social'])).optional().describe("Active rule modules that modify gameplay mechanics or narrative style."),
     inventoryUpdates: z.array(InventoryItemSchema).optional().describe("Atualizações do inventário resultantes de ações do jogador (equipar, desequipar, consumir, recuperar flechas, vender, comprar, loot). O Mestre valida tudo antes de enviar."),
     shopTransactionResult: z.object({
         success: z.boolean(),

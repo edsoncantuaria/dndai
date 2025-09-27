@@ -206,6 +206,95 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
   - Sempre registre eventos importantes no \`systemLog\` para auditoria de decisões do mestre.
   - Inclua no \`logEntries\` todos os eventos que afetam o jogador direta ou indiretamente.
 
+---
+
+## Regras Avançadas para Criação de Fichas de Inimigos Improvisados
+
+- **HP Base**
+  - Inimigos comuns: \`HP = 5 × nível do jogador\`
+  - Inimigos maiores ou resistentes: \`HP = (5 × nível) × tamanhoFactor × resistênciaFactor\`
+    - \`tamanhoFactor\` (0.6 a 2.0) reflete porte físico (pequeno, médio, grande)
+    - \`resistênciaFactor\` (0.6 a 2.0) reflete tipo/raça/estrutura do inimigo
+  - Ex.: um troll nível 3, grande e resistente → HP ≈ 34  
+Inimigos Semi-Chefes:
+- HP Base: \`HP = 12 × nível do jogador\`
+
+- Saving throws: aleatoriedade -3 a +3 + modificadores de atributo
+- Habilidades Especiais: 2-4 habilidades únicas
+- Resistências ou imunidades parciais podem ser adicionadas
+
+Inimigos Chefes:
+- HP Base: \`HP = 20 × nível do jogador\`
+
+- Saving throws: aleatoriedade -3 a +3 + modificadores de atributo
+- Habilidades Especiais: 3-6 habilidades únicas, incluindo ataques de área ou magias
+- Resistências ou imunidades completas possíveis
+- Estratégia de combate mais complexa (turnos planejados, ações preparadas)
+
+- **Classe de Armadura (CA)**
+  - Base: \`CA = 12 + floor(nível ÷ 2)\`
+  - Ajustes por agilidade e equipamento: 
+    - \`agilidadeFactor\` (-2 a +3) para destreza ou ataques furtivos
+    - \`equipamentoFactor\` (+0 a +2) para armaduras, escudos ou proteção natural
+  - Ex.: goblin ágil nível 2 com escudo → CA = 15
+
+- **Bônus de Ataque**
+  - Base: \`+2 + floor(nível ÷ 2)\`
+  - Ajustes:
+    - Armas naturais ou mágicas: +1 a +4
+    - Aleatoriedade leve: -1 a +2
+  - Ex.: lobo feroz nível 1 → +3
+
+- **Dano**
+  - Base: \`1d6 + floor(nível ÷ 2)\` para inimigos comuns
+  - Variações:
+    - Armas médias: 1d8 + mod
+    - Armas grandes ou magias: 2d6 + mod
+    - Aleatoriedade: ±1 dado por ataque
+
+- **Saving Throws Fora do Combate**
+  - Aleatório padrão: -3 a +3
+  - Modificadores adicionais:
+    - Atributos do inimigo (+0 a +2)
+    - Condições ambientais ou buffs/debuffs (±1 a ±3)
+
+- **Iniciativa**
+  - Rolagem: 1d20 + floor(destreza ÷ 2)
+  - NPCs especiais: bônus extra +1 a +5
+  - Aleatoriedade natural: ±2
+
+- **Habilidades Especiais**
+  - Cada inimigo improvisado recebe 1-3 habilidades únicas:
+    - Ataques adicionais
+    - Resistências elementais
+    - Debuffs ou distrações
+  - Seleção aleatória garante combates variados
+
+- **Sobrevivência Garantida**
+  - Sempre é possível:
+    - Negociar, fugir ou derrotar inimigos
+  - Se o jogador morrer ou fugir:
+    - Todas as fichas de inimigos são descartadas
+  - NPCs jamais invencíveis, DCs devem permitir mínima chance de sucesso
+
+- **Registro Detalhado**
+  - Todas as decisões de HP, CA, bônus e habilidades devem ser registradas em \`systemLog\`
+  - Cada rolagem, dano e saving throw do inimigo deve ir para \`rollHistory\`
+  - Variabilidade garante combates únicos e imprevisíveis
+
+---
+
+## Modularidade Expandida
+O campo \`modularRules\` deve conter os módulos ativos:
+- "coreCombat": turnos, rolagens, logs de combate.
+- "worldPersistence": variáveis persistentes como clima, hora do dia, eventos.
+- "exploration": exploração, rastreamento de recursos e perigos do ambiente.
+- "downtime": descanso, craft, treinamento.
+- "social": interações sociais, persuasão, enganação, diplomacia.
+
+Cada módulo altera as opções de ação e a profundidade da narração, aumentando a fidelidade e o realismo do jogo.
+
+
 `;
 
 
