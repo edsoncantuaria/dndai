@@ -10,7 +10,6 @@ import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
 import { translateApiString, translateSpell } from '@/utils/translator';
 import { v4 as uuidv4 } from 'uuid';
-import racialAbilities from '../data/racial-abilities.json';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     id: string;
@@ -460,10 +459,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 return;
             };
 
-            setIsDraconicAncestryLoading(true);
             const details = await DndApiService.getTraitDetails(draconicAncestry);
             setSelectedAncestryDetails(details);
-            setIsDraconicAncestryLoading(false);
 
             if (details?.trait_specific?.breath_weapon) {
                 const bw = details.trait_specific.breath_weapon;
@@ -934,16 +931,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         
         const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0]?.toLowerCase().includes("gold")));
 
-        // Collect traits and selected trait choices
-        const finalTraits = [
-            ...(raceDetails.traits || []),
-            ...(subraceDetails?.racial_traits || [])
-        ];
-        // Add selected choice traits
-        Object.values(traitSelections).forEach(selectedIndex => {
-            finalTraits.push({ index: selectedIndex, name: selectedIndex, url: '' }); // Simplified, assuming index is enough
-        });
-
+        // Collect traits and selected trait choices.
+        const finalTraits: ApiListItem[] = [...traitChoiceDetails];
+        if (selectedAncestryDetails) {
+            finalTraits.push(selectedAncestryDetails);
+        }
 
         return {
             name,
@@ -955,8 +947,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             subrace: subraceDetails?.name || null,
             draconicAncestry: draconicAncestry || undefined,
             characterClass: classDetails.name,
-            subclass: null, 
-            hitDie: classDetails.hit_die,
             background: backgroundDetails.name,
             alignment: alignment,
             attributes: finalAttributes,
@@ -971,6 +961,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             bond,
             flaw,
             feats: [],
+            hitDie: classDetails.hit_die,
+            subclass: null, 
         };
     };
 
