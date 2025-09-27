@@ -93,7 +93,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                         checked={isSelected}
                         disabled={isDisabled}
                         onChange={onToggleSelect}
-                        className={`form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded mt-1 transition-all ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`form-checkbox h-5 w-5 text-amber-500 bg-stone-900 border-stone-600 rounded focus:ring-amber-500 focus:ring-offset-stone-800 transition-all ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     />
                     <div className="flex-grow">
                         {cardContent}

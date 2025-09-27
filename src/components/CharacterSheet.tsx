@@ -39,7 +39,7 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { isLoading, character, setSkillCheckRequest } = useGameStateContext();
+    const { isLoading, character, setSkillCheckRequest, playerRollRequest } = useGameStateContext();
     
     if (!character) return null;
     
@@ -56,7 +56,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={() => setSkillCheckRequest({ skillName })} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={() => setSkillCheckRequest({ skillName })} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>

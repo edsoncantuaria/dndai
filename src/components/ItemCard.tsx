@@ -1,18 +1,21 @@
 // components/ItemCard.tsx
 import React, { useState } from 'react';
 import type { InventoryItem } from '../types';
-import { Shield, ChevronDown } from 'lucide-react';
+import { Shield, ChevronDown, Hand } from 'lucide-react';
 
 interface ItemCardProps {
     item: InventoryItem;
     onToggleEquip?: (itemId: string) => void;
+    onUseConsumable?: (itemId: string) => void;
+    actionDisabled?: boolean;
     defaultExpanded?: boolean;
 }
 
-const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, defaultExpanded = false }) => {
+const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     const canBeEquipped = !!(item.weapon_category || item.armor_category);
+    const canBeUsed = item.consumable || item.usable;
 
     return (
         <div className="bg-stone-800/70 p-3 rounded-lg border border-stone-700">
@@ -26,13 +29,25 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, defaultExpande
                                 {item.equipped ? 'Equipado' : 'Desequipado'}
                             </span>
                         )}
+                         {canBeUsed && <span className="px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-300">Consumível/Usável</span>}
                     </div>
                 </div>
                 <div className="flex items-center">
+                     {canBeUsed && onUseConsumable && (
+                         <button
+                            onClick={() => onUseConsumable(item.id)}
+                            disabled={actionDisabled}
+                            className="p-1 text-stone-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Usar Item"
+                        >
+                            <Hand />
+                        </button>
+                     )}
                      {canBeEquipped && onToggleEquip && (
                         <button
                             onClick={() => onToggleEquip(item.id)}
-                            className="p-1 text-stone-400 hover:text-amber-300"
+                            disabled={actionDisabled}
+                            className="p-1 text-stone-400 hover:text-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             title={item.equipped ? 'Desequipar' : 'Equipar'}
                         >
                             <Shield />

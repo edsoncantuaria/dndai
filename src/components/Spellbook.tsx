@@ -8,7 +8,7 @@ import NewSpellCard from './Spells/NewSpellCard';
 import { Book, Loader2 } from 'lucide-react';
 
 const Spellbook: React.FC = () => {
-    const { character, castSpell, isLoading: isActionLoading } = useGameStateContext();
+    const { character, castSpell, isLoading: isActionLoading, playerRollRequest, combatState } = useGameStateContext();
     const [spellDetails, setSpellDetails] = useState<ApiSpell[]>([]);
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState<string | null>(null);
@@ -62,6 +62,8 @@ const Spellbook: React.FC = () => {
     const spellSlotLevels = Object.keys(character.spellSlots)
         .map(key => parseInt(key.replace('level', '')))
         .sort((a, b) => a - b);
+        
+    const isPlayerTurn = combatState.isActive ? combatState.combatants[combatState.turn]?.id === 'player' : true;
 
 
     return (
@@ -112,7 +114,7 @@ const Spellbook: React.FC = () => {
                                         spell={spell}
                                         onCast={castSpell}
                                         canCast={spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0}
-                                        isActionLoading={isActionLoading}
+                                        isActionLoading={isActionLoading || !!playerRollRequest || !isPlayerTurn}
                                     />
                                 ))}
                             </div>

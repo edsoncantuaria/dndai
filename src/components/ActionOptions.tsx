@@ -120,8 +120,11 @@ const ActionOptions: React.FC = () => {
 
     const [isOpen, setIsOpen] = useState(false);
 
+    // Any pending request that requires user input (rolling, looting, etc.) should disable other actions.
+    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest;
+
     const renderActionContent = () => {
-        // A nova regra de ouro: se uma rolagem está pendente, nada mais é interativo.
+        // The new golden rule: if a roll is pending, nothing else is interactive.
         if(playerRollRequest) {
             return (
                 <div className="flex items-center justify-center p-4 text-stone-400">
@@ -158,7 +161,7 @@ const ActionOptions: React.FC = () => {
                                     <button
                                         key={index}
                                         onClick={() => handleSkillCheck(skillAction.skill)}
-                                        disabled={isLoading}
+                                        disabled={isLoading || isActionLocked}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                     >
@@ -180,7 +183,7 @@ const ActionOptions: React.FC = () => {
                                 <button
                                     key={index}
                                     onClick={() => processPlayerAction(actionValue)}
-                                    disabled={isLoading}
+                                    disabled={isLoading || isActionLocked}
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                 >
@@ -190,7 +193,7 @@ const ActionOptions: React.FC = () => {
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
+                 <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading || isActionLocked} />
                  {!isLoading && !hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
