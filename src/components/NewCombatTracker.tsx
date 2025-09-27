@@ -17,37 +17,45 @@ const NewCombatTracker: React.FC = () => {
 
     const { round, combatants, turn, initiativeOrder } = combatState;
     
-    const playerCombatant: Combatant | null = useMemo(() => character ? {
-        id: 'player',
-        name: character.name,
-        hp: character.hp.current,
-        maxHp: character.hp.max,
-        initiative: 0, 
-        isDead: character.hp.current <= 0,
-        hasMoved: false,
-        hasActed: false,
-        actionPoints: 1,
-        bonusActionPoints: 1,
-        rollHistory: [],
-        armorClass: character.ac.value,
-        conditions: character.conditions
-    } : null, [character]);
-    
+    // Create a fully-realized list of combatants for rendering, merging player data.
     const allCombatants = useMemo(() => {
-        if (!Array.isArray(combatants)) return []; // Safeguard against non-array combatants
+        if (!Array.isArray(combatants)) return [];
+
         const combatantMap = new Map(combatants.map(c => [c.id, c]));
-        if (playerCombatant && (initiativeOrder || []).includes('player')) {
-            const playerCombatData = combatantMap.get('player') || {};
-            combatantMap.set('player', { ...playerCombatant, ...playerCombatData, id: 'player' });
+
+        // Ensure player data is correctly merged into the combatant list
+        if ((initiativeOrder || []).includes('player')) {
+            const playerInCombat = combatantMap.get('player') || {};
+            const playerCombatant: Combatant = {
+                id: 'player',
+                name: character.name,
+                hp: character.hp.current,
+                maxHp: character.hp.max,
+                initiative: playerInCombat.initiative || 0,
+                isDead: character.hp.current <= 0,
+                armorClass: character.ac.value,
+                conditions: character.conditions,
+                // These are defaults and should be updated by the combatState if present
+                hasMoved: playerInCombat.hasMoved || false,
+                hasActed: playerInCombat.hasActed || false,
+                actionPoints: playerInCombat.actionPoints !== undefined ? playerInCombat.actionPoints : 1,
+                bonusActionPoints: playerInCombat.bonusActionPoints !== undefined ? playerInCombat.bonusActionPoints : 1,
+                rollHistory: playerInCombat.rollHistory || [],
+            };
+            combatantMap.set('player', playerCombatant);
         }
+
         return Array.from(combatantMap.values());
-    }, [combatants, playerCombatant, initiativeOrder]);
+
+    }, [combatants, character, initiativeOrder]);
     
-    const livingCombatants = useMemo(() => 
-        (initiativeOrder || [])
+    
+    const livingCombatants = useMemo(() => {
+        if (!Array.isArray(allCombatants)) return [];
+        return (initiativeOrder || [])
             .map(id => allCombatants.find(c => c.id === id && !c.isDead))
             .filter((c): c is Combatant => !!c)
-    , [allCombatants, initiativeOrder]);
+    }, [allCombatants, initiativeOrder]);
     
     if (livingCombatants.length === 0 && combatants.length > 0) {
         return null;
