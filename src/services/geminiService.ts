@@ -73,7 +73,6 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
   "shopState": { /* se aplicável */ },
   "lootOffer": { /* se aplicável */ },
   "useHitDiceRequest": { /* se aplicável */ },
-  "imagePrompt": "Prompt em inglês para gerar imagem de cena importante",
   "ambientSound": "id do som ambiente ou 'none'",
   "systemLog": "Justificativa opcional do Mestre para decisões (ex: DC escolhida, dano calculado)",
   "worldState": { "weather": "storm", "timeOfDay": "dusk", "ongoingEvents": ["invasão"] },
