@@ -144,9 +144,9 @@ const ActionOptions: React.FC = () => {
 
     const renderActionContent = () => {
         if (!isPlayerTurn && combatState.isActive) {
-            // Only show this message on larger screens, mobile will just hide the button
+            // Now this message will also show on mobile inside the modal.
             return (
-                <div className="hidden md:flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30">
+                <div className="flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 rounded-md">
                     Aguardando turno de outros combatentes...
                 </div>
             );
@@ -228,6 +228,11 @@ const ActionOptions: React.FC = () => {
         );
     }
     
+    // In combat, button is always visible on mobile, but disabled when not player's turn
+    const isMobileCombatButtonVisible = combatState.isActive;
+    const isMobileCombatButtonEnabled = isPlayerTurn && !isLoading;
+    const isMobileNonCombatButtonVisible = !combatState.isActive;
+    
     return (
         <>
             {/* Desktop: Static Panel */}
@@ -243,22 +248,11 @@ const ActionOptions: React.FC = () => {
                         onClick={() => setIsOpen(false)}
                     />
                 )}
-                { combatState.isActive ? (isPlayerTurn && (
+                {(isMobileCombatButtonVisible || isMobileNonCombatButtonVisible) && (
                     <div className="fixed bottom-20 right-4 z-30">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
-                            disabled={isLoading}
-                            className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-                            aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
-                        >
-                            {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
-                        </button>
-                    </div>
-                )) : (
-                     <div className="fixed bottom-20 right-4 z-30">
-                        <button
-                            onClick={() => setIsOpen(!isOpen)}
-                            disabled={isLoading}
+                            disabled={!isMobileCombatButtonEnabled && combatState.isActive}
                             className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
                             aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
                         >
