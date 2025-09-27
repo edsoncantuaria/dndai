@@ -46,6 +46,9 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     const borderColor = isCurrentTurn ? 'border-amber-400 shadow-lg shadow-amber-900/50' : isPlayer ? 'border-blue-500/70' : 'border-stone-700';
     const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
 
+    const currentHp = typeof combatant.hp === 'object' ? combatant.hp.current : combatant.hp;
+    const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : combatant.maxHp;
+
     return (
         <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${bgColor}`}>
             <div className="flex justify-between items-start">
@@ -88,7 +91,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
             <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                 <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-red-400 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> HP</div>
-                    <div className="font-mono text-lg font-bold text-red-300">{combatant.hp ?? '?'} / {combatant.maxHp ?? '?'}</div>
+                    <div className="font-mono text-lg font-bold text-red-300">{currentHp ?? '?'} / {maxHp ?? '?'}</div>
                 </div>
                 <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>

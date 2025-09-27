@@ -122,18 +122,17 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.combatants.length > 0 && combatState.initiativeOrder[combatState.turn] === 'player');
+    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.initiativeOrder.length > 0 && combatState.initiativeOrder[combatState.turn] === 'player');
     
-    // Actions are locked if a roll is pending, loot is offered, etc., or if it's not the player's turn.
-    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || !isPlayerTurn;
+    // Actions are locked if a roll is pending, loot is offered, etc.
+    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest;
 
-    // The entire component shouldn't render if it's not the player's turn in active combat.
-    if (combatState.isActive && !isPlayerTurn && !playerRollRequest && !pendingLootOffer && !pendingHitDiceRequest) {
+    if (combatState.isActive && !isPlayerTurn) {
         return (
             <div className="hidden md:flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 border-t border-stone-700/80">
                 Aguardando turno de outros combatentes...
             </div>
-        )
+        );
     }
 
     const handleActionClick = (action: any) => {
@@ -152,6 +151,10 @@ const ActionOptions: React.FC = () => {
     };
 
     const renderActionContent = () => {
+        if (!isPlayerTurn) {
+            return <p className="text-center text-stone-400 italic">É o turno de outro combatente.</p>;
+        }
+
         // The new golden rule: if a roll is pending, nothing else is interactive.
         if(playerRollRequest) {
             return (
@@ -247,7 +250,7 @@ const ActionOptions: React.FC = () => {
                 <div className="fixed bottom-20 right-4 z-30">
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        disabled={isLoading || !isPlayerTurn}
+                        disabled={isLoading}
                         className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
                         aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
                     >
@@ -257,7 +260,7 @@ const ActionOptions: React.FC = () => {
                 
                 {isOpen && (
                      <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[calc(100vh-12rem)] overflow-y-auto">
-                        {isPlayerTurn ? renderActionContent() : <p className="text-center text-stone-400 italic">É o turno de outro combatente.</p>}
+                        {renderActionContent()}
                     </div>
                 )}
             </div>

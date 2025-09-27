@@ -7,7 +7,7 @@ import { Swords } from 'lucide-react';
 
 
 const NewCombatTracker: React.FC = () => {
-    const { combatState, character, nextTurn } = useGameStateContext();
+    const { combatState, character, nextTurn, isLoading } = useGameStateContext();
 
     if (!combatState || !combatState.isActive || !character) {
         return null;
@@ -15,26 +15,25 @@ const NewCombatTracker: React.FC = () => {
 
     const { round, combatants, turn, initiativeOrder } = combatState;
     
-    // Create a combatant representation for the player
-    const playerCombatant: Combatant | null = character ? {
+    const playerCombatant: Combatant | null = useMemo(() => character ? {
         id: 'player',
         name: character.name,
         hp: character.hp.current,
         maxHp: character.hp.max,
-        initiative: 0, // Placeholder, will be updated if player is in combatants list
+        initiative: 0, 
         isDead: character.hp.current <= 0,
         hasMoved: false,
         hasActed: false,
-        actionPoints: 1, // Assuming default, should be managed in combatState
-        bonusActionPoints: 1, // Assuming default
+        actionPoints: 1,
+        bonusActionPoints: 1,
         rollHistory: [],
-    } : null;
+        armorClass: character.ac.value,
+        conditions: character.conditions
+    } : null, [character]);
 
-    // Merge player into the combatants list if they are part of the initiative order
     const allCombatants = useMemo(() => {
         const combatantMap = new Map((combatants || []).map(c => [c.id, c]));
-        if (playerCombatant && initiativeOrder?.includes('player')) {
-            // Find player's specific combat data if it exists, otherwise use the derived one
+        if (playerCombatant && (initiativeOrder || []).includes('player')) {
             const playerCombatData = combatantMap.get('player') || {};
             combatantMap.set('player', { ...playerCombatant, ...playerCombatData, id: 'player' });
         }
@@ -46,20 +45,22 @@ const NewCombatTracker: React.FC = () => {
             .map(id => allCombatants.find(c => c.id === id && !c.isDead))
             .filter((c): c is Combatant => !!c)
     , [allCombatants, initiativeOrder]);
-
-    if (livingCombatants.length === 0) {
-        // Combat might be ending, don't render a broken tracker
+    
+    if (livingCombatants.length === 0 && combatants.length > 0) {
         return null;
     }
     
-    const currentTurnIndex = turn % livingCombatants.length;
-    const currentCombatant = livingCombatants[currentTurnIndex];
+    const currentCombatantId = initiativeOrder && initiativeOrder.length > turn ? initiativeOrder[turn] : null;
+    const currentCombatant = currentCombatantId ? allCombatants.find(c => c.id === currentCombatantId) : null;
     
-    // Create an array with the order of turns starting from the next combatant.
-    const upcomingCombatants = [
-        ...livingCombatants.slice(currentTurnIndex + 1),
-        ...livingCombatants.slice(0, currentTurnIndex)
-    ];
+    const upcomingCombatants = useMemo(() => {
+        if (!initiativeOrder || !currentCombatantId) return [];
+        const currentIndex = initiativeOrder.indexOf(currentCombatantId);
+        if (currentIndex === -1) return [];
+
+        const orderedIds = [...initiativeOrder.slice(currentIndex + 1), ...initiativeOrder.slice(0, currentIndex)];
+        return orderedIds.map(id => allCombatants.find(c => c.id === id)).filter((c): c is Combatant => !!c && !c.isDead);
+    }, [allCombatants, initiativeOrder, currentCombatantId]);
 
     const isPlayerTurn = currentCombatant?.id === 'player';
 
@@ -102,7 +103,8 @@ const NewCombatTracker: React.FC = () => {
                 <div className="mt-4 text-center">
                     <button
                         onClick={nextTurn}
-                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-100 font-bold transition-colors shadow-md"
+                        disabled={isLoading}
+                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-100 font-bold transition-colors shadow-md disabled:opacity-50"
                     >
                         Próximo Turno
                     </button>
