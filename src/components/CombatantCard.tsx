@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { Combatant } from '../types';
 import { translateCondition } from '../utils/translator';
-import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap } from 'lucide-react';
+import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap, ArrowDown, ArrowUp, LocateFixed } from 'lucide-react';
 
 const statusColorMap: Record<string, string> = {
     'Stunned': 'bg-yellow-600/50 text-yellow-200',
@@ -20,7 +20,7 @@ const RollHistoryDisplay: React.FC<{ rollHistory: Combatant['rollHistory'] }> = 
     return (
         <div className="space-y-1">
             {rollHistory.slice(-5).reverse().map((roll, index) => {
-                if (!roll || !roll.type) return null; // Add safety check here
+                if (!roll || !roll.type) return null;
                 return (
                     <div key={index} className="text-xs text-stone-400">
                         <span className="font-semibold">{roll.type.toUpperCase()}:</span> {roll.total} <span className="text-stone-500">({roll.rolls.join(', ')})</span>
@@ -51,6 +51,9 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
 
     const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
     const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
+    const advantage = combatant.tempModifiers?.advantage;
+    const disadvantage = combatant.tempModifiers?.disadvantage;
+
 
     return (
         <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${bgColor}`}>
@@ -68,12 +71,9 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                     {isCurrentTurn && (
-                        <span className="ml-2 px-2 py-0.5 bg-amber-600 text-black text-xs font-bold rounded-full">
-                            TURNO ATUAL
-                        </span>
-                    )}
+                <div className="flex items-center gap-3">
+                     {advantage && <ArrowUp className="h-5 w-5 text-green-400" title="Vantagem no Ataque" />}
+                     {disadvantage && <ArrowDown className="h-5 w-5 text-red-400" title="Desvantagem no Ataque" />}
                     <button onClick={() => setShowHistory(!showHistory)} className="text-stone-400 hover:text-white" title="Histórico de Rolagens">
                         <History className="h-4 w-4" />
                     </button>
@@ -91,20 +91,26 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                 </div>
             )}
             
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                <div className="bg-stone-900/50 p-1.5 rounded-md">
+            <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+                <div className="bg-stone-900/50 p-1.5 rounded-md col-span-2">
                     <div className="text-xs text-red-400 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> HP</div>
                     <div className="font-mono text-lg font-bold text-red-300">{currentHp} / {maxHp}</div>
                 </div>
-                <div className="bg-stone-900/50 p-1.5 rounded-md">
+                 <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>
-                    <div className="font-mono text-lg font-bold text-sky-300">{combatant.actionPoints}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints}</div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-lime-400 flex items-center justify-center gap-1"><PlusSquare className="h-3 w-3"/> Bônus</div>
-                    <div className="font-mono text-lg font-bold text-lime-300">{combatant.bonusActionPoints}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints}</div>
                 </div>
             </div>
+             {combatant.distance !== undefined && !isPlayer && (
+                 <div className="mt-2 bg-stone-900/50 p-1.5 rounded-md text-center">
+                    <div className="text-xs text-purple-300 flex items-center justify-center gap-1"><LocateFixed className="h-3 w-3"/> Distância</div>
+                    <div className="font-mono text-lg font-bold text-purple-200">{combatant.distance}m</div>
+                </div>
+            )}
         </div>
     );
 };
