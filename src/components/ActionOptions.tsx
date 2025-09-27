@@ -122,18 +122,10 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.initiativeOrder.length > 0 && combatState.initiativeOrder[combatState.turn] === 'player');
+    const isPlayerTurn = combatState.isActive ? combatState.initiativeOrder?.[combatState.turn] === 'player' : true;
     
     // Actions are locked if a roll is pending, loot is offered, etc.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest;
-
-    if (combatState.isActive && !isPlayerTurn) {
-        return (
-            <div className="hidden md:flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 border-t border-stone-700/80">
-                Aguardando turno de outros combatentes...
-            </div>
-        );
-    }
 
     const handleActionClick = (action: any) => {
         processPlayerAction(action);
@@ -151,9 +143,14 @@ const ActionOptions: React.FC = () => {
     };
 
     const renderActionContent = () => {
-        if (!isPlayerTurn) {
-            return <p className="text-center text-stone-400 italic">É o turno de outro combatente.</p>;
+        if (!isPlayerTurn && combatState.isActive) {
+            return (
+                <div className="hidden md:flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30">
+                    Aguardando turno de outros combatentes...
+                </div>
+            );
         }
+
 
         // The new golden rule: if a roll is pending, nothing else is interactive.
         if(playerRollRequest) {
@@ -247,16 +244,18 @@ const ActionOptions: React.FC = () => {
                         onClick={() => setIsOpen(false)}
                     />
                 )}
-                <div className="fixed bottom-20 right-4 z-30">
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        disabled={isLoading}
-                        className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-                        aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
-                    >
-                        {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
-                    </button>
-                </div>
+                { isPlayerTurn && (
+                    <div className="fixed bottom-20 right-4 z-30">
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            disabled={isLoading}
+                            className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                            aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
+                        >
+                            {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
+                        </button>
+                    </div>
+                )}
                 
                 {isOpen && (
                      <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[calc(100vh-12rem)] overflow-y-auto">

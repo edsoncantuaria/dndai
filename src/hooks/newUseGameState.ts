@@ -203,14 +203,18 @@ export const useNewGameState = () => {
         const previousActionOptions = actionOptions;
         
         const entryId = uuidv4();
-        const newLogEntry: LogEntry = rollResultForLog
-            ? { id: entryId, type: 'roll', content: action, rollResult: rollResultForLog }
-            : { id: entryId, type: 'action', content: action };
+        // Don't add a new log entry if the action is just to process the next turn
+        if (action !== "Processar o próximo turno do combate.") {
+            const newLogEntry: LogEntry = rollResultForLog
+                ? { id: entryId, type: 'roll', content: action, rollResult: rollResultForLog }
+                : { id: entryId, type: 'action', content: action };
 
-        setLog(prev => [...prev, newLogEntry]);
+            setLog(prev => [...prev, newLogEntry]);
+        }
+
         setActionOptions([]); 
         
-        const currentLog = [...log, newLogEntry];
+        const currentLog = [...log, { id: entryId, type: 'action', content: action }];
         
         try {
             const apiKey = getApiKey();
@@ -231,7 +235,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            setLog(prev => prev.filter(entry => entry.id !== entryId));
             setActionOptions(previousActionOptions);
         } finally {
             setIsLoading(false); 
@@ -587,4 +591,3 @@ export const useNewGameState = () => {
         clearGameState,
     };
 };
-
