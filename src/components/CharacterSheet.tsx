@@ -87,7 +87,7 @@ const CharacterSheet: React.FC = () => {
 
     if (!character) return null;
 
-    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits } = character;
+    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
     const equippedItems = character.inventory.filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
 
@@ -138,6 +138,18 @@ const CharacterSheet: React.FC = () => {
                     </div>
                 </div>
             )}
+             {damage_resistances && damage_resistances.length > 0 && (
+                <div>
+                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Resistências a Dano</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {damage_resistances.map(res => (
+                            <span key={res} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                {translateApiString(res)}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+             )}
              {traits && traits.length > 0 && (
                 <CollapsibleSection title="Características Raciais">
                     <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm bg-stone-800/50 p-3 rounded-md">

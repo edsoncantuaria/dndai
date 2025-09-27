@@ -10,6 +10,13 @@ export interface PlayerRollRequest {
     disadvantage?: boolean;
 }
 
+export type ImageLogEntry = {
+    id: string;
+    type: 'image';
+    content: 'generating' | 'failed' | string; // generating, failed, or the data URL
+};
+
+
 export interface GameMasterResponse {
     logEntries?: LogEntry[];
     actionOptions?: (string | { text: string; action: string })[];
@@ -53,8 +60,8 @@ export interface ApiRace {
     language_options?: {
         choose: number;
         from: {
-            option_set_type: string;
-            options: any[];
+             option_set_type: string;
+             options: any[];
         }
     };
     traits: ApiListItem[];
@@ -163,6 +170,7 @@ export interface NewCharacterInfo {
     skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
     race: string;
     subrace: string | null;
+    draconicAncestry?: string;
     characterClass: string;
     background: string;
     alignment: string;
@@ -249,6 +257,7 @@ export interface Character {
     xpToNextLevel: number;
     race: string;
     subrace: string | null;
+    draconicAncestry?: string;
     characterClass: string;
     subclass: string | null;
     hitDie: number;
@@ -260,6 +269,7 @@ export interface Character {
     proficiencies: Proficiency[];
     traits: ApiListItem[];
     languages: string[];
+    damage_resistances: string[];
     hp: {
         current: number;
         max: number;
@@ -389,11 +399,16 @@ export interface ApiSpell {
     attack_type?: string;
     damage?: {
         damage_type: ApiListItem;
+        damage_at_character_level?: Record<string, string>;
         [key: string]: any;
     };
     school: ApiListItem;
     classes: ApiListItem[];
     subclasses: ApiListItem[];
+    dc?: {
+        dc_type: ApiListItem;
+        dc_success: string;
+    }
 }
 
 export interface ApiTrait {
