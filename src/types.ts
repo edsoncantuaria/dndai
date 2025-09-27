@@ -157,6 +157,10 @@ export interface ApiEquipmentOption {
 
 export interface NewCharacterInfo {
     name: string;
+    sex: 'Masculino' | 'Feminino' | 'Outro';
+    hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
+    beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
+    skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
     race: string;
     subrace: string | null;
     characterClass: string;
@@ -228,6 +232,10 @@ export interface ShopItem extends InventoryItem {
 
 export interface Character {
     name: string;
+    sex: 'Masculino' | 'Feminino' | 'Outro';
+    hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
+    beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
+    skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
     level: number;
     xp: number;
     xpToNextLevel: number;

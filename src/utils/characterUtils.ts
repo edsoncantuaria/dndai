@@ -149,6 +149,10 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
 
     const newCharacter: Character = {
         name: info.name,
+        sex: info.sex,
+        hairStyle: info.hairStyle,
+        beardStyle: info.beardStyle,
+        skinColor: info.skinColor,
         level: 1,
         xp: 0,
         xpToNextLevel: getXpThreshold(1),
@@ -174,19 +178,21 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         spells: info.spells,
         feats: info.feats as Feat[],
         backstory: info.backstory,
+        storySoFar: '',
         personalityTraits: info.personalityTraits,
         ideal: info.ideal,
         bond: info.bond,
         flaw: info.flaw,
-        speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: [],
         relationships: [],
         journal: [],
         currentRegion: 'Desconhecida',
         hitDice: { current: 1, total: 1 },
+        speed: raceDetails?.speed || 30,
         classLevelsData: classLevelsData || [],
         subclassLevelsData: subclassLevelsData || [],
+        factionReputation: {},
     };
     
     // Populate initial spell slots if any
@@ -237,7 +243,7 @@ export const SKILL_ATTRIBUTE_MAP: Record<string, keyof Attributes> = {
 
 export const ALL_SKILLS = Object.keys(SKILL_ATTRIBUTE_MAP);
 
-export const applyLevelUp = async (character: Character, levelUpState: any, selections: LevelUpSelections): Promise<Character> => {
+export const applyLevelUp = async (character: Character, levelUpState: any, selections: any): Promise<Character> => {
     // This is a placeholder for a much more complex function.
     // In a real scenario, this would involve:
     // - Increasing HP (either by rolling or taking average)

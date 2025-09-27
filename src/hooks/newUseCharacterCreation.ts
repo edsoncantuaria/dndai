@@ -50,6 +50,13 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [alignment, setAlignment] = useState('');
     const [backstory, setBackstory] = useState('');
 
+    // Appearance
+    const [sex, setSex] = useState<'Masculino' | 'Feminino' | 'Outro'>('Masculino');
+    const [hairStyle, setHairStyle] = useState<'Careca' | 'Curto' | 'Médio' | 'Longo'>('Curto');
+    const [beardStyle, setBeardStyle] = useState<'Sem Barba' | 'Curta' | 'Grande'>('Sem Barba');
+    const [skinColor, setSkinColor] = useState<'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela'>('Parda');
+
+
     // Attributes
     const [attributeMethod, setAttributeMethod] = useState<'point-buy' | 'roll' | null>(null);
     const [points, setPoints] = useState(27);
@@ -831,6 +838,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
         return {
             name,
+            sex,
+            hairStyle,
+            beardStyle,
+            skinColor,
             race: raceDetails.name,
             subrace: subraceDetails?.name || null,
             characterClass: classDetails.name,
@@ -854,6 +865,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     return {
         name, setName,
+        sex, setSex,
+        hairStyle, setHairStyle,
+        beardStyle, setBeardStyle,
+        skinColor, setSkinColor,
         race, handleRaceChange,
         subrace, handleSubraceChange,
         characterClass, handleClassChange,
