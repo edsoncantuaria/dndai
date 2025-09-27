@@ -212,39 +212,40 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-  const { character, playerAction, gameLog, combatState } = input;
+    const { character, playerAction, gameLog, combatState } = input;
+    
+    const characterContext = JSON.stringify(character, null, 2);
+    const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
+    const combatContextValue = combatState ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
   
-  const characterContext = JSON.stringify(character, null, 2);
-  const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
-  const combatContext = JSON.stringify(combatState, null, 2);
-
-  const mainPrompt = `### Estado Atual do Personagem (JSON)
-${characterContext}
-
-### Estado de Combate (JSON)
-${combatContext}
-
-### Últimos Eventos do Jogo (JSON)
-${logContext}
-
-A ação do jogador é: "${playerAction}"
-
-Com base no estado atual do personagem, do combate e no histórico, continue a aventura. 
-Sempre retorne um objeto JSON válido com os campos obrigatórios:
-- logEntries
-- actionOptions
-- updatedCharacter
-- combatState (se aplicável)
-- levelUpState (se aplicável)
-- playerRollRequest (se aplicável)
-- shopState, lootOffer, useHitDiceRequest, imagePrompt, ambientSound, systemLog, worldState, factionReputation, conditions, modularRules`;
-
-  if (isGemma) {
-      return `${systemInstruction}\n\n${mainPrompt}\n\nResponda APENAS com um objeto JSON válido, sem marcadores ou texto adicional.`;
+    const mainPrompt = `### Estado Atual do Personagem (JSON)
+  ${characterContext}
+  
+  ### Estado de Combate (JSON)
+  ${combatContextValue}
+  
+  ### Últimos Eventos do Jogo (JSON)
+  ${logContext}
+  
+  A ação do jogador é: "${playerAction}"
+  
+  Com base no estado atual do personagem, do combate e no histórico, continue a aventura. 
+  Sempre retorne um objeto JSON válido com os campos obrigatórios:
+  - logEntries
+  - actionOptions
+  - updatedCharacter
+  - combatState (se aplicável)
+  - levelUpState (se aplicável)
+  - playerRollRequest (se aplicável)
+  - shopState, lootOffer, useHitDiceRequest, imagePrompt, ambientSound, systemLog, worldState, factionReputation, conditions, modularRules`;
+  
+    if (isGemma) {
+        return `${systemInstruction}\n\n${mainPrompt}\n\nResponda APENAS com um objeto JSON válido, sem marcadores ou texto adicional.`;
+    }
+  
+    return mainPrompt;
   }
-
-  return mainPrompt;
-}
+  
 
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {

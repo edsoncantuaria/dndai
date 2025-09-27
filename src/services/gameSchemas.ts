@@ -19,24 +19,9 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-    content: z.string(),
+    content: z.any(),
     rollResult: z.any().optional(),
 }).describe("An entry in the game's adventure log.");
-
-const CombatantSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    hp: z.number().optional(),
-    maxHp: z.number().optional(),
-    initiative: z.number(),
-});
-
-const CombatStateSchema = z.object({
-    isActive: z.boolean(),
-    round: z.number(),
-    turn: z.number(),
-    combatants: z.array(CombatantSchema),
-});
 
 const CombatantBaseSchema = z.object({
     id: z.string(),
@@ -61,19 +46,21 @@ export const FullCombatantSchema = CombatantBaseSchema.extend({
     armorClass: z.number().optional().describe("Classe de armadura do combatente."),
     hasMoved: z.boolean().default(false).describe("Se o combatente já se moveu neste turno."),
     hasActed: z.boolean().default(false).describe("Se o combatente já realizou ação neste turno."),
-    readyWeapon: z.string().optional().describe("Arma selecionada para ataque."),
-    readySpell: z.string().optional().describe("Magia preparada para uso."),
     actionPoints: z.number().default(1).describe("Número de ações restantes neste turno."),
     bonusActionPoints: z.number().default(1).describe("Número de ações bônus disponíveis."),
     rollHistory: z.array(z.object({
-      type: z.enum(['attack', 'damage', 'save', 'check']),
+      type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
       dice: z.string(),
       modifier: z.number().optional(),
-      result: z.number(),
+      total: z.number(),
+      rolls: z.array(z.number()),
       timestamp: z.string().optional(),
       targetDC: z.number().optional(),
       advantage: z.boolean().optional(),
       disadvantage: z.boolean().optional(),
+      success: z.boolean().optional(),
+      description: z.string(),
+      rollType: z.string(),
     })).default([]).describe("Histórico de rolagens do combatente durante o combate."),
     isDead: z.boolean().default(false).describe("Se o combatente está inconsciente ou morto."),
     readyAction: z.string().optional().describe("Ação planejada para o turno."),
@@ -142,7 +129,7 @@ export const InventoryItemSchema = z.object({
     recoverable: z.boolean().optional().describe("Se o item ou recursos (como flechas) podem ser recuperados após uso."),
     cost: z.object({
         unit: z.string(),
-        amount: z.number(),
+        quantity: z.number(),
     }).optional(),
     restrictions: z.array(z.string()).optional().describe("Regras ou requisitos que impedem equipar ou usar o item."),
 });
@@ -155,7 +142,7 @@ export const ShopItemSchema = z.object({
     name: z.string(),
     cost: z.object({
         unit: z.string(),
-        amount: z.number(),
+        quantity: z.number(),
     }),
     availableQuantity: z.number().optional(),
     restrictions: z.array(z.string()).optional(),
@@ -170,7 +157,7 @@ export type LootItem = InventoryItem;
 
 export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
-    actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string() })])).optional().describe("A list of suggested actions for the player to take next."),
+    actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action."),
     combatState: ExtendedCombatStateSchema.optional().describe("O estado completo do combate, incluindo iniciativa, turnos, distância, ações e condições."), // aqui usamos o novo schema
     levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
@@ -216,6 +203,7 @@ export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
+  combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active.")
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

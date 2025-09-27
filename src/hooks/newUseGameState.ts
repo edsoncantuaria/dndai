@@ -1,3 +1,4 @@
+// hooks/newUseGameState.ts
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -301,6 +302,7 @@ export const useNewGameState = () => {
                 character,
                 playerAction: action,
                 gameLog: currentLog,
+                combatState: combatState
             };
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
@@ -317,7 +319,7 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey]);
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
@@ -385,7 +387,8 @@ export const useNewGameState = () => {
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
-                gameLog: []
+                gameLog: [],
+                combatState: combatState
             };
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
@@ -398,7 +401,7 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
         
-    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey, combatState]);
     
     const checkForSavedGame = useCallback(() => {
         try {
@@ -555,5 +558,8 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
+        systemLog, 
+        worldState,
+        modularRules,
     };
 };
