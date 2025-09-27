@@ -836,6 +836,12 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         
         const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0].toLowerCase().includes("gold")));
 
+        // Collect traits from race and subrace
+        const finalTraits = [
+            ...(raceDetails.traits || []),
+            ...(subraceDetails?.racial_traits || [])
+        ];
+
         return {
             name,
             sex,
@@ -851,6 +857,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             alignment: alignment,
             attributes: finalAttributes,
             proficiencies: allProficiencies,
+            traits: finalTraits, // Add traits here
             languages: finalLanguages,
             inventory: inventoryWithoutGold,
             spells: allSpells,

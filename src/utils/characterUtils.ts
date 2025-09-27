@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -139,10 +139,9 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
     const proficiencyBonus = getProficiencyBonus(1);
     const maxHp = calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
 
-    const [classLevelsData, subclassLevelsData, raceDetails] = await Promise.all([
+    const [classLevelsData, subclassLevelsData] = await Promise.all([
         DndApiService.getClassLevels(info.characterClass.toLowerCase()),
         info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
-        DndApiService.getRaceDetails(info.race.toLowerCase()),
     ]);
     
     const startingGold = 15; // TODO: Derive from background
@@ -167,6 +166,7 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         modifiers,
         proficiencyBonus,
         proficiencies: info.proficiencies,
+        traits: info.traits, // Added traits here
         languages: info.languages,
         hp: { current: maxHp, max: maxHp, temp: 0 },
         ac: calculateAC(info.inventory, modifiers),
@@ -189,10 +189,14 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         journal: [],
         currentRegion: 'Desconhecida',
         hitDice: { current: 1, total: 1 },
-        speed: raceDetails?.speed || 30,
+        speed: (await DndApiService.getRaceDetails(info.race.toLowerCase()))?.speed || 30,
         classLevelsData: classLevelsData || [],
         subclassLevelsData: subclassLevelsData || [],
         factionReputation: {},
+        worldState: {
+            timeOfDay: 'Manhã',
+            weather: 'Céu Limpo'
+        },
     };
     
     // Populate initial spell slots if any

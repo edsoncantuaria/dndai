@@ -4,7 +4,7 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
 import { Attributes, Proficiency } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -87,7 +87,7 @@ const CharacterSheet: React.FC = () => {
 
     if (!character) return null;
 
-    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice } = character;
+    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits } = character;
     const equippedItems = character.inventory.filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
 
@@ -138,6 +138,13 @@ const CharacterSheet: React.FC = () => {
                     </div>
                 </div>
             )}
+             {traits && traits.length > 0 && (
+                <CollapsibleSection title="Características Raciais">
+                    <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm bg-stone-800/50 p-3 rounded-md">
+                        {traits.map(trait => <li key={trait.index}>{translateApiString(trait.name)}</li>)}
+                    </ul>
+                </CollapsibleSection>
+            )}
 
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
@@ -155,7 +162,7 @@ const CharacterSheet: React.FC = () => {
             </div>
             
             <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate &amp; Recursos</h3>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <div className="bg-stone-800/50 p-2 rounded-md text-center">
                         <span className="text-xs font-bold text-stone-400">Iniciativa</span>
@@ -211,23 +218,22 @@ const CharacterSheet: React.FC = () => {
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Equipamento Vestido</h3>
                 {equippedItems.length > 0 ? (
                     <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm">
-                        {equippedItems.map(item => <li key={item.id}>{translateEquipment(item).name}</li>)}
+                        {equippedItems.map(item => <li key={item.id}>{translateApiString(item.name)}</li>)}
                     </ul>
                 ) : (
                     <p className="text-stone-400 italic text-sm">Nenhum item equipado.</p>
                 )}
             </div>
             
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Outras Proficiências</h3>
-                <div className="flex flex-wrap gap-2">
+             <CollapsibleSection title="Outras Proficiências">
+                <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
                     {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                        <span key={prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                        <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                             {translateApiString(prof.name)}
                         </span>
                     ))}
                 </div>
-            </div>
+            </CollapsibleSection>
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
                 <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>

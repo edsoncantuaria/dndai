@@ -167,6 +167,7 @@ export interface NewCharacterInfo {
     alignment: string;
     attributes: Attributes;
     proficiencies: Proficiency[];
+    traits: ApiListItem[]; // Added this line
     languages: string[];
     inventory: InventoryItem[];
     spells: string[];
@@ -229,6 +230,13 @@ export interface ShopItem extends InventoryItem {
     };
 }
 
+export interface LootOffer {
+    items: InventoryItem[];
+    currency: {
+        gp: number;
+    }
+}
+
 export interface Character {
     name: string;
     sex: 'Masculino' | 'Feminino' | 'Outro';
@@ -249,6 +257,7 @@ export interface Character {
     modifiers: Attributes;
     proficiencyBonus: number;
     proficiencies: Proficiency[];
+    traits: ApiListItem[];
     languages: string[];
     hp: {
         current: number;
@@ -430,21 +439,6 @@ export interface LevelUpSelections {
     featureChoices?: { id: string; selections: string[] }[];
     subclass?: string;
     hpIncrease?: number;
-}
-
-export interface ShopState {
-    isOpen: boolean;
-    isHaggling: boolean;
-    name: string;
-    inventory: ShopItem[];
-    sellPrices: Record<string, number>; // maps item ID to sell price
-}
-
-export interface LootOffer {
-    items: InventoryItem[];
-    currency: {
-        gp: number;
-    }
 }
 
 export interface UseHitDiceRequest {
