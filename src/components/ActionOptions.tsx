@@ -204,7 +204,7 @@ const ActionOptions: React.FC = () => {
     return (
         <>
             {/* Desktop: Static Panel */}
-            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
+            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 overflow-y-auto">
                  {renderActionContent()}
             </div>
 
@@ -228,7 +228,7 @@ const ActionOptions: React.FC = () => {
                 </div>
                 
                 {isOpen && (
-                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp">
+                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[calc(100vh-12rem)] overflow-y-auto">
                         {renderActionContent()}
                     </div>
                 )}
