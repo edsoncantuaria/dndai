@@ -31,6 +31,7 @@ const generateImageFlow = ai.defineFlow(
   },
   async ({ prompt, model, apiKey }) => {
     
+    // Determine the correct parameters based on the model type
     const isMultimodalImageModel = model.includes('image-preview');
     const isImagenModel = model.startsWith('imagen');
 
@@ -49,7 +50,7 @@ const generateImageFlow = ai.defineFlow(
       } : {}),
     });
     
-    // Genkit v1.x provides media in `response.media`
+    // Genkit v1.x provides media in `response.media` for both model types when configured correctly
     const imageUrl = response.media?.url;
 
     if (imageUrl) {
