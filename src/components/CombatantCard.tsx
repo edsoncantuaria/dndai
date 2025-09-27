@@ -19,11 +19,14 @@ const RollHistoryDisplay: React.FC<{ rollHistory: Combatant['rollHistory'] }> = 
     }
     return (
         <div className="space-y-1">
-            {rollHistory.slice(-5).reverse().map((roll, index) => (
-                <div key={index} className="text-xs text-stone-400">
-                    <span className="font-semibold">{roll.type.toUpperCase()}:</span> {roll.total} <span className="text-stone-500">({roll.rolls.join(', ')})</span>
-                </div>
-            ))}
+            {rollHistory.slice(-5).reverse().map((roll, index) => {
+                if (!roll || !roll.type) return null; // Add safety check here
+                return (
+                    <div key={index} className="text-xs text-stone-400">
+                        <span className="font-semibold">{roll.type.toUpperCase()}:</span> {roll.total} <span className="text-stone-500">({roll.rolls.join(', ')})</span>
+                    </div>
+                )
+            })}
         </div>
     );
 };
