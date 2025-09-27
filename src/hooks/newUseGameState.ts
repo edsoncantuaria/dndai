@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry, Combatant } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -138,7 +138,7 @@ export const useNewGameState = () => {
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const addLog = useCallback((newEntryData: Omit<LogEntry, 'id'>) => {
-        const newEntry = { ...newEntryData, id: uuidv4() };
+        const newEntry = { ...newEntryData, id: uuidv4() } as LogEntry;
         setLog(prev => [...prev, newEntry]);
     }, []);
 
@@ -153,22 +153,18 @@ export const useNewGameState = () => {
             return { ...prev, isActive: false };
         }
         
-        const currentCombatantId = prev.initiativeOrder![prev.turn];
-        let nextTurnIndex = (prev.turn + 1) % prev.initiativeOrder!.length;
+        const currentTurnCombatantId = prev.initiativeOrder![prev.turn];
+        const currentTurnIndexInLiving = livingCombatantsInOrder.findIndex(c => c.id === currentTurnCombatantId);
+
+        const nextTurnIndexInLiving = (currentTurnIndexInLiving + 1) % livingCombatantsInOrder.length;
+        const nextCombatantId = livingCombatantsInOrder[nextTurnIndexInLiving].id;
         
-        // Find the next living combatant's index in the original initiativeOrder array
-        while(true) {
-            const nextId = prev.initiativeOrder![nextTurnIndex];
-            const nextCombatant = prev.combatants.find(c => c.id === nextId);
-            if (nextCombatant && !nextCombatant.isDead) {
-                break;
-            }
-            nextTurnIndex = (nextTurnIndex + 1) % prev.initiativeOrder!.length;
-        }
+        // Find the index in the original initiativeOrder
+        const nextTurnIndex = prev.initiativeOrder!.findIndex(id => id === nextCombatantId);
 
         const nextRound = (prev.turn > nextTurnIndex) ? prev.round + 1 : prev.round;
         
-        const nextCombatantName = prev.combatants.find(c => c.id === prev.initiativeOrder![nextTurnIndex])?.name || 'desconhecido';
+        const nextCombatantName = livingCombatantsInOrder[nextTurnIndexInLiving].name;
         
         addLog({
           type: "system",
@@ -209,12 +205,9 @@ export const useNewGameState = () => {
             if (savedGame) {
                 const parsedState = JSON.parse(savedGame);
 
-                // Self-correction: if the last log entry is a player action, it means the game was closed
-                // before the GM could respond. We roll back that action to return to a stable state.
                 const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
                 if (lastEntry && lastEntry.type === 'action') {
-                    parsedState.log.pop(); // Remove the unanswered action
-                    // The actionOptions from the saved state will be used, putting the player back where they were.
+                    parsedState.log.pop(); 
                 }
 
                 setCharacter(parsedState.character || null);
@@ -226,7 +219,6 @@ export const useNewGameState = () => {
                 setAmbientSound(parsedState.ambientSound || 'none');
                 setSystemLog(parsedState.systemLog || null);
                 
-                // Clear all transient states that should not persist on reload
                 setPlayerRollRequest(null);
                 setSkillCheckRequest(null);
                 setSpellCastRequest(null);
@@ -356,7 +348,6 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            // Rollback UI changes on error
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
             setActionOptions(previousActionOptions);
         } finally {
@@ -409,6 +400,7 @@ export const useNewGameState = () => {
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
         clearGameState();
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -477,45 +469,55 @@ export const useNewGameState = () => {
         }
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog]);
 
-    const loadGameFromFile = (file: File) => {
-        setIsLoading(true);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const text = event.target?.result as string;
-                if(text) {
-                    const parsedState = JSON.parse(text);
+    const loadGameFromFile = (file: File): Promise<boolean> => {
+        return new Promise((resolve) => {
+            setIsLoading(true);
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const text = event.target?.result as string;
+                    if(text) {
+                        const parsedState = JSON.parse(text);
 
-                    const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
-                    if (lastEntry && lastEntry.type === 'action') {
-                        parsedState.log.pop();
+                        const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
+                        if (lastEntry && lastEntry.type === 'action') {
+                            parsedState.log.pop();
+                        }
+
+                        setCharacter(parsedState.character || null);
+                        setLog(parsedState.log || []);
+                        setActionOptions(parsedState.actionOptions || []);
+                        setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
+                        setLevelUpState(parsedState.levelUpState || null);
+                        setShopState(parsedState.shopState || null);
+                        setAmbientSound(parsedState.ambientSound || 'none');
+                        setSystemLog(parsedState.systemLog || null);
+                        
+                        setPlayerRollRequest(null);
+                        setSkillCheckRequest(null);
+                        setSpellCastRequest(null);
+                        setPendingLootOffer(null);
+                        setPendingHitDiceRequest(null);
+
+                        localStorage.setItem(LOCAL_STORAGE_KEY, text);
+                        resolve(true);
+                    } else {
+                        resolve(false);
                     }
-
-                    setCharacter(parsedState.character || null);
-                    setLog(parsedState.log || []);
-                    setActionOptions(parsedState.actionOptions || []);
-                    setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
-                    setLevelUpState(parsedState.levelUpState || null);
-                    setShopState(parsedState.shopState || null);
-                    setAmbientSound(parsedState.ambientSound || 'none');
-                    setSystemLog(parsedState.systemLog || null);
-                    
-                    setPlayerRollRequest(null);
-                    setSkillCheckRequest(null);
-                    setSpellCastRequest(null);
-                    setPendingLootOffer(null);
-                    setPendingHitDiceRequest(null);
-
-                    localStorage.setItem(LOCAL_STORAGE_KEY, text);
+                } catch (e) {
+                    console.error("Erro ao ler o arquivo de save:", e);
+                    setApiError("Arquivo de save inválido ou corrompido.");
+                    resolve(false);
+                } finally {
+                    setIsLoading(false);
                 }
-            } catch (e) {
-                console.error("Erro ao ler o arquivo de save:", e);
-                setApiError("Arquivo de save inválido ou corrompido.");
-            } finally {
+            };
+            reader.onerror = () => {
                 setIsLoading(false);
-            }
-        };
-        reader.readAsText(file);
+                resolve(false);
+            };
+            reader.readAsText(file);
+        });
     };
 
     const applyLevelUp = useCallback(async (selections: LevelUpSelections) => {
@@ -618,5 +620,3 @@ export const useNewGameState = () => {
         clearGameState,
     };
 };
-
-    

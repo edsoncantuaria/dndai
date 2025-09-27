@@ -155,6 +155,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         }
     }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
 
+    const handleFileImport = async (file: File) => {
+        const success = await loadGameFromFile(file);
+        if (success) {
+            setHasSavedGame(true);
+        }
+    }
+
 
     // Data Fetching State
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -191,7 +198,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                         hasSavedGame={hasSavedGame}
                         onNewGame={handleNewGame}
                         onLoadGame={onContinueGame}
-                        onImportFile={loadGameFromFile}
+                        onImportFile={handleFileImport}
                     />
                     <div className="mt-6 flex justify-center items-center gap-4">
                          <button
