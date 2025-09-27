@@ -5,12 +5,12 @@ import { z } from 'zod';
 
 const GenerateImageInputSchema = z.object({
   prompt: z.string().describe('A detailed text prompt for image generation.'),
-  model: z.string().describe('The specific image generation model to use, ex: "gemini-2.5-flash-image-preview"'),
+  model: z.string().describe('The specific image generation model to use, ex: "imagen-4.0-fast-generate-001"'),
   apiKey: z.string().optional().describe('The API key for Google AI.'),
 });
 
 const GenerateImageOutputSchema = z.object({
-  imageUrl: z.string().describe('The generated image URL.'),
+  imageUrl: z.string().describe('The generated image URL in data URI format.'),
 });
 
 export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
@@ -30,25 +30,31 @@ const generateImageFlow = ai.defineFlow(
     outputSchema: GenerateImageOutputSchema,
   },
   async ({ prompt, model, apiKey }) => {
-    // Para modelos multimodais como o 'flash-image-preview', é necessário
-    // especificar que tanto TEXTO quanto IMAGEM são modalidades de resposta esperadas.
+    
+    // Modelos 'imagen' são para text-to-image direto.
+    // Modelos 'gemini-*-image-preview' são multimodais.
     const isMultimodalImageModel = model.includes('image-preview');
 
     const response = await ai.generate({
-      model: `googleai/${model}`,  
+      model: `googleai/${model}`,
       prompt: prompt,
       apiKey: apiKey,
-      ...(isMultimodalImageModel && {
+      ...(isMultimodalImageModel ? {
         config: {
           responseModalities: ["TEXT", "IMAGE"],
         },
-      })
+      } : {
+        output: {
+          format: 'media'
+        }
+      }),
     });
     
-    // A resposta de mídia em Genkit v1.x vem na propriedade `media`.
-    const imagePart = response.media;
-    if (imagePart?.url) {
-      return { imageUrl: imagePart.url };
+    // A resposta de mídia em Genkit v1.x vem na propriedade `output.media`.
+    const imageUrl = response.output?.media?.url;
+
+    if (imageUrl) {
+      return { imageUrl };
     }
 
     throw new Error('A geração de imagem falhou ou retornou um resultado vazio.');
