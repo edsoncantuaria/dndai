@@ -31,23 +31,26 @@ const generateImageFlow = ai.defineFlow(
   },
   async ({ prompt, model, apiKey }) => {
     
-    // Modelos 'imagen' são para text-to-image direto.
-    // Modelos 'gemini-*-image-preview' são multimodais.
     const isMultimodalImageModel = model.includes('image-preview');
+    const isImagenModel = model.startsWith('imagen');
 
     const response = await ai.generate({
       model: `googleai/${model}`,
       prompt: prompt,
       apiKey: apiKey,
+      // Add model-specific configuration based on its type
       ...(isMultimodalImageModel ? {
         config: {
           responseModalities: ["TEXT", "IMAGE"],
         },
       } : {}),
+      ...(isImagenModel ? {
+        output: { format: 'media' },
+      } : {}),
     });
     
-    // A resposta de mídia em Genkit v1.x vem na propriedade `output.media`.
-    const imageUrl = response.output?.media?.url;
+    // Genkit v1.x provides media in `response.media`
+    const imageUrl = response.media?.url;
 
     if (imageUrl) {
       return { imageUrl };
