@@ -1,4 +1,5 @@
 
+
 export const TRANSLations_EQUIPMENT: Record<string, any> = {
   "abacus": {
     "name": "Ábaco"
@@ -129,6 +130,44 @@ export const TRANSLATIONS: Record<string, string> = {
     'Disguise Kit': 'Kit de Disfarce',
     'Poisoner\'s Kit': 'Kit de Venenos',
     'Thieves\' Tools': 'Ferramentas de Ladrão',
+    'Artificer\'s Lore': 'Conhecimento de Artífice',
+    'Brave': 'Bravura',
+    'Breath Weapon': 'Arma de Sopro',
+    'Damage Resistance': 'Resistência a Dano',
+    'Darkvision': 'Visão no Escuro',
+    'Draconic Ancestry': 'Ancestralidade Dracônica',
+    'Draconic Ancestry (Black)': 'Ancestralidade Dracônica (Preto)',
+    'Draconic Ancestry (Blue)': 'Ancestralidade Dracônica (Azul)',
+    'Draconic Ancestry (Brass)': 'Ancestralidade Dracônica (Latão)',
+    'Draconic Ancestry (Bronze)': 'Ancestralidade Dracônica (Bronze)',
+    'Draconic Ancestry (Copper)': 'Ancestralidade Dracônica (Cobre)',
+    'Draconic Ancestry (Gold)': 'Ancestralidade Dracônica (Ouro)',
+    'Draconic Ancestry (Green)': 'Ancestralidade Dracônica (Verde)',
+    'Draconic Ancestry (Red)': 'Ancestralidade Dracônica (Vermelho)',
+    'Draconic Ancestry (Silver)': 'Ancestralidade Dracônica (Prata)',
+    'Draconic Ancestry (White)': 'Ancestralidade Dracônica (Branco)',
+    'Dwarven Combat Training': 'Treinamento de Combate Anão',
+    'Dwarven Resilience': 'Resiliência Anã',
+    'Dwarven Toughness': 'Resistência Anã',
+    'Elf Weapon Training': 'Treinamento com Armas Élficas',
+    'Extra Language': 'Idioma Extra',
+    'Fey Ancestry': 'Ancestralidade Feérica',
+    'Gnome Cunning': 'Astúcia Gnômica',
+    'Halfling Nimbleness': 'Agilidade Halfling',
+    'Hellish Resistance': 'Resistência Infernal',
+    'High Elf Cantrip': 'Truque de Alto Elfo',
+    'Infernal Legacy': 'Legado Infernal',
+    'Keen Senses': 'Sentidos Aguçados',
+    'Lucky': 'Sortudo',
+    'Menacing': 'Ameaçador',
+    'Naturally Stealthy': 'Furtividade Natural',
+    'Relentless Endurance': 'Resistência Implacável',
+    'Savage Attacks': 'Ataques Selvagens',
+    'Skill Versatility': 'Versatilidade em Perícia',
+    'Stonecunning': 'Astúcia da Pedra',
+    'Tinker': 'Engenhoso',
+    'Tool Proficiency': 'Proficiência em Ferramenta',
+    'Trance': 'Transe',
 
 
     // Backgrounds
@@ -277,3 +316,4 @@ export const translateSpell = (s?: any): any => {
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
+
