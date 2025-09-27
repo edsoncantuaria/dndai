@@ -4,6 +4,8 @@ import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { SettingsProvider, useSettingsContext } from '@/contexts/SettingsContext';
 import Head from 'next/head';
+import { Settings } from 'lucide-react';
+import SettingsModal from '@/components/SettingsModal';
 
 // Define os estágios do jogo para controlar o fluxo da UI
 type GameStage = 'menu' | 'creating' | 'created' | 'playing';
@@ -13,6 +15,7 @@ const HomePageContent = () => {
     const { character, loadGameFromLocalStorage, startGame } = useGameStateContext();
     const { playMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
@@ -68,17 +71,30 @@ const HomePageContent = () => {
     // No estágio 'created', mostramos uma tela intermediária com o botão "Continuar".
     if (gameStage === 'created') {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-                <h2 className="text-3xl font-bold text-amber-300 font-garamond animate-fadeIn">Personagem Criado!</h2>
-                <p className="text-stone-400 mt-2 animate-fadeIn" style={{ animationDelay: '200ms' }}>Seu herói está pronto para a aventura.</p>
-                <button
-                    onClick={onPlay}
-                    className="menu-button btn-new mt-8 animate-fadeIn"
-                    style={{ animationDelay: '400ms' }}
-                >
-                    Continuar
-                </button>
-            </div>
+            <>
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                    <h2 className="text-3xl font-bold text-amber-300 font-garamond animate-fadeIn">Personagem Criado!</h2>
+                    <p className="text-stone-400 mt-2 animate-fadeIn" style={{ animationDelay: '200ms' }}>Seu herói está pronto para a aventura.</p>
+                    <div className="flex items-center gap-4 mt-8">
+                        <button
+                            onClick={onPlay}
+                            className="menu-button btn-new animate-fadeIn"
+                            style={{ animationDelay: '400ms' }}
+                        >
+                            Continuar
+                        </button>
+                        <button
+                            onClick={() => setShowSettingsModal(true)}
+                            className="p-3 rounded-full bg-stone-700/80 hover:bg-stone-600 transition-colors animate-fadeIn"
+                            style={{ animationDelay: '500ms' }}
+                            title="Configurações"
+                        >
+                            <Settings className="h-6 w-6 text-amber-300" />
+                        </button>
+                    </div>
+                </div>
+                <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
+            </>
         );
     }
 
