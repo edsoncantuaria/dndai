@@ -347,6 +347,16 @@ export const useNewGameState = () => {
     }, []);
 
     const forceReload = useCallback(() => {
+        // Clear all transient and potentially problematic states for a "Fresh Reset"
+        setCombatState(INITIAL_COMBAT_STATE); 
+        setPlayerRollRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setApiError(null);
+        setIsLoading(false); // Ensure loading is stopped
+
         let lastRollIndex = -1;
         for (let i = log.length - 1; i >= 0; i--) {
             const entry = log[i];
@@ -358,29 +368,16 @@ export const useNewGameState = () => {
     
         let actionToReplay = "O mestre resume a situação atual para que eu possa continuar.";
         if (lastRollIndex > 0) {
-            // Find the action that led to this roll
             for (let i = lastRollIndex - 1; i >= 0; i--) {
                 if (log[i].type === 'action') {
                     actionToReplay = log[i].content;
                     break;
                 }
             }
-             // Trim the log to the point of the last safe roll.
-            setLog(prev => prev.slice(0, lastRollIndex));
+            setLog(prev => prev.slice(0, lastRollIndex + 1));
         } else {
-            // If no safe point is found, just clear the log.
             setLog([]);
         }
-    
-        // Clear all transient and potentially problematic states
-        setCombatState(INITIAL_COMBAT_STATE);
-        setPlayerRollRequest(null);
-        setSkillCheckRequest(null);
-        setSpellCastRequest(null);
-        setPendingLootOffer(null);
-        setPendingHitDiceRequest(null);
-        setApiError(null);
-        setIsLoading(false); // Ensure loading is stopped
     
         // Add the thematic message
         const warningMessage = "Helm, o Vigilante, interveio para proteger seu destino. O tempo retrocedeu a um ponto seguro para que sua jornada não seja corrompida. Seus itens e experiência foram preservados, mas não abuse da paciência de um deus, pois o fio do seu destino pode ser cortado.";
@@ -673,4 +670,3 @@ export const useNewGameState = () => {
     };
 };
 
-    
