@@ -205,8 +205,8 @@ export const useNewGameState = () => {
     }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog]);
     
     const loadGameFromLocalStorage = useCallback(() => {
-         setIsLoading(true);
-         try {
+        setIsLoading(true);
+        try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
                 const parsedState = JSON.parse(savedGame);
@@ -216,10 +216,16 @@ export const useNewGameState = () => {
                 setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
                 setLevelUpState(parsedState.levelUpState || null);
                 setShopState(parsedState.shopState || null);
-                setPendingLootOffer(parsedState.pendingLootOffer || null);
-                setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                 setAmbientSound(parsedState.ambientSound || 'none');
                 setSystemLog(parsedState.systemLog || null);
+                
+                // Clear transient states that should not persist on reload
+                setPlayerRollRequest(null);
+                setSkillCheckRequest(null);
+                setSpellCastRequest(null);
+                setPendingLootOffer(null);
+                setPendingHitDiceRequest(null);
+
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -245,7 +251,6 @@ export const useNewGameState = () => {
         setApiError(null);
         setAmbientSound('none');
         setSystemLog(null);
-        // CRITICAL: Do NOT remove the item from localStorage here.
     }, []);
 
 
@@ -484,11 +489,16 @@ export const useNewGameState = () => {
                     setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
                     setLevelUpState(parsedState.levelUpState || null);
                     setShopState(parsedState.shopState || null);
-                    setPendingLootOffer(parsedState.pendingLootOffer || null);
-                    setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                     setAmbientSound(parsedState.ambientSound || 'none');
                     setSystemLog(parsedState.systemLog || null);
                     
+                    // Clear transient states that should not persist on load
+                    setPlayerRollRequest(null);
+                    setSkillCheckRequest(null);
+                    setSpellCastRequest(null);
+                    setPendingLootOffer(null);
+                    setPendingHitDiceRequest(null);
+
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {

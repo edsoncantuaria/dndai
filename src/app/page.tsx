@@ -68,9 +68,9 @@ const HomePageContent = () => {
     }, [startGame, setPlayMenuMusic]);
     
     const onContinueGame = useCallback(() => {
+        loadGameFromLocalStorage();
         setGameStage('playing');
         setPlayMenuMusic(false); // Stop menu music when continuing a game
-        loadGameFromLocalStorage();
     }, [loadGameFromLocalStorage, setPlayMenuMusic]);
     
     const returnToMenu = useCallback(() => {
