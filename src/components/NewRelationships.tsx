@@ -15,7 +15,7 @@ const statusMap: Record<Relationship['status'], { label: string, color: string }
 const AffinityBar: React.FC<{ affinity: number }> = ({ affinity }) => {
     const percentage = ((affinity + 100) / 200) * 100;
     
-    let color = 'bg-yellow-500';
+    let color = 'bg-yellow-500'; // Neutro
     if (affinity <= -50) color = 'bg-red-600';
     else if (affinity < 0) color = 'bg-orange-500';
     else if (affinity >= 50) color = 'bg-green-500';
@@ -60,7 +60,7 @@ const NewRelationships: React.FC = () => {
     if (!character || !character.relationships || character.relationships.length === 0) {
         return (
             <div className="p-4 space-y-4">
-                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                     <Users />
                     Relacionamentos e Missões
                 </h3>
@@ -78,7 +78,7 @@ const NewRelationships: React.FC = () => {
 
     return (
         <div className="p-4 space-y-6">
-            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
+            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                 <Users />
                 Relacionamentos e Missões
             </h3>

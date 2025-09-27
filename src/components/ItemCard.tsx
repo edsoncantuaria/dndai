@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { InventoryItem } from '../types';
 import { Shield, ChevronDown, Hand } from 'lucide-react';
+import { translateEquipment } from '@/utils/translator';
 
 interface ItemCardProps {
     item: InventoryItem;

@@ -63,7 +63,7 @@ const GameScreen: React.FC = () => {
     };
 
     const tabConfig: Record<Tab, { label: string, icon: React.ReactNode }> = {
-        relationships: { label: 'Missões', icon: <Users className="h-5 w-5"/> },
+        relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
         journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
         character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
