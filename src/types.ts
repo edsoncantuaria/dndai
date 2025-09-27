@@ -1,3 +1,4 @@
+
 // types.ts
 
 export interface PlayerRollRequest {
@@ -327,14 +328,14 @@ export interface Combatant {
     initiative: number;
     initiativeRoll?: number;
     armorClass?: number;
-    hasMoved?: boolean;
-    hasActed?: boolean;
-    actionPoints?: number;
-    bonusActionPoints?: number;
+    hasMoved: boolean;
+    hasActed: boolean;
+    actionPoints: number;
+    bonusActionPoints: number;
     readyWeapon?: string;
     readySpell?: string;
-    rollHistory?: { type: 'initiative'|'attack'|'check'|'save'|'damage', total: number, rolls: number[] }[];
-    isDead?: boolean;
+    rollHistory: { type: 'initiative'|'attack'|'check'|'save'|'damage', total: number, rolls: number[], timestamp: string }[];
+    isDead: boolean;
     readyAction?: string;
     conditions?: any[];
 }
@@ -344,6 +345,9 @@ export interface CombatState {
     round: number;
     turn: number;
     combatants: Combatant[];
+    initiativeOrder?: string[];
+    log?: LogEntry[];
+    globalConditions?: any[];
 }
 
 export interface ApiClassLevel {

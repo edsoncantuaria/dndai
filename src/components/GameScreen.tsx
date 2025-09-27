@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Header from './Header';
 import ActionOptions from './ActionOptions';
@@ -5,7 +6,7 @@ import Inventory from './Inventory';
 import CharacterSheet from './CharacterSheet';
 import Spellbook from './Spellbook';
 import MobileToolbar from './MobileToolbar';
-import CombatTracker from './CombatTracker';
+import NewCombatTracker from './NewCombatTracker'; // Importar o novo componente
 import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
@@ -100,7 +101,7 @@ const GameScreen: React.FC = () => {
 
                 <Header />
                 
-                {combatState.isActive && <CombatTracker />}
+                {combatState.isActive && <NewCombatTracker />} 
 
                 <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">

@@ -1,3 +1,4 @@
+
 'use client';
 import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -9,7 +10,8 @@ const CombatTracker: React.FC = () => {
     if (!combatState.isActive || combatState.combatants.length === 0) return null;
 
     const { round, combatants, turn } = combatState;
-    const sortedCombatants = [...combatants].sort((a, b) => b.initiative - a.initiative);
+    // Sorting by initiative, falling back to 0 if not present
+    const sortedCombatants = [...combatants].sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
     const currentTurnIndex = turn % combatants.length;
     
     return (
