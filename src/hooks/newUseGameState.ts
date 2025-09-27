@@ -176,7 +176,7 @@ export const useNewGameState = () => {
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
-        // Debounced save
+        // Debounced save. This effect now triggers on any significant game state change.
         const handler = setTimeout(() => {
             if (character && !isLoading) { 
                 saveGame();
@@ -186,7 +186,8 @@ export const useNewGameState = () => {
         return () => {
             clearTimeout(handler);
         };
-    }, [character, log, isLoading, saveGame]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules, isLoading, saveGame]);
+
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
@@ -282,8 +283,8 @@ export const useNewGameState = () => {
         
         const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
         
-        // Use functional update to get the latest state
         let currentLog: LogEntry[] = [];
+        // Use functional update to ensure we have the latest state before sending to the API.
         setLog(prev => {
             currentLog = [...prev, newLogEntry];
             return currentLog;
