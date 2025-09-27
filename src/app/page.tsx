@@ -1,3 +1,4 @@
+
 'use client';
 import { GameStateProvider, useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
@@ -13,7 +14,7 @@ type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 // Este componente agora contém a lógica principal da página e pode acessar o contexto.
 const HomePageContent = () => {
     const { character, loadGameFromLocalStorage, startGame, clearGameState } = useGameStateContext();
-    const { playMenuMusic, volume, isMuted } = useSettingsContext();
+    const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -26,6 +27,7 @@ const HomePageContent = () => {
         }
         
         const audio = menuAudioRef.current;
+        // The menu music should play if the setting is on AND we are in a pre-game stage.
         const shouldPlay = playMenuMusic && (gameStage === 'menu' || gameStage === 'creating' || gameStage === 'created');
 
         audio.volume = isMuted ? 0 : volume;
@@ -47,30 +49,35 @@ const HomePageContent = () => {
     // Função chamada pelo componente de criação quando o personagem está pronto
     const onCharacterCreated = useCallback(() => {
         setGameStage('created');
-    }, []);
+        setPlayMenuMusic(false); // Stop menu music when character is created and ready to play
+    }, [setPlayMenuMusic]);
     
     // Função para finalmente entrar no jogo e fazer a primeira chamada à IA
     const onPlay = useCallback(async () => {
         // First, set the stage to playing to show the loading screen
         setGameStage('playing');
+        setPlayMenuMusic(false); // Ensure menu music is stopped
         // Then, attempt to start the game, which makes the initial API call.
         const success = await startGame();
         // If the API call fails, revert to the 'created' stage so the user isn't stuck.
         if (success === false) {
              // A mensagem de erro já terá sido definida pelo hook, então o ErrorModal aparecerá.
             setGameStage('created');
+            setPlayMenuMusic(true); // Bring back menu music if game start fails
         }
-    }, [startGame]);
+    }, [startGame, setPlayMenuMusic]);
     
     const onContinueGame = useCallback(() => {
-        loadGameFromLocalStorage();
         setGameStage('playing');
-    }, [loadGameFromLocalStorage]);
+        setPlayMenuMusic(false); // Stop menu music when continuing a game
+        loadGameFromLocalStorage();
+    }, [loadGameFromLocalStorage, setPlayMenuMusic]);
     
     const returnToMenu = useCallback(() => {
-        clearGameState();
+        clearGameState(); // This now only clears the session state, not localStorage
         setGameStage('menu');
-    }, [clearGameState]);
+        setPlayMenuMusic(true); // Re-enable menu music on return to menu
+    }, [clearGameState, setPlayMenuMusic]);
 
 
     // No estágio 'created', mostramos uma tela intermediária com o botão "Continuar".
@@ -110,7 +117,6 @@ const HomePageContent = () => {
             onContinueGame={onContinueGame}
             returnToMenu={returnToMenu}
             gameStage={gameStage}
-            startGame={startGame}
         />
     );
 };

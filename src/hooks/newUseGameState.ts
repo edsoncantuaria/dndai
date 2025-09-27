@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -229,6 +230,7 @@ export const useNewGameState = () => {
     }, []);
 
     const clearGameState = useCallback(() => {
+        // Resets the state for the current session, but DOES NOT delete the localStorage save.
         setCharacter(null);
         setLog([]);
         setActionOptions([]);
@@ -243,11 +245,12 @@ export const useNewGameState = () => {
         setApiError(null);
         setAmbientSound('none');
         setSystemLog(null);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        // CRITICAL: Do NOT remove the item from localStorage here.
     }, []);
 
 
     useEffect(() => {
+        // This auto-load is no longer needed as the UI flow controls it.
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
@@ -290,7 +293,7 @@ export const useNewGameState = () => {
         }
         
         if(response.playerRollRequest) {
-            setPlayerRollRequest(response.playerRollRequest);
+            setPlayerRollRequest({ ...response.playerRollRequest, reason: response.playerRollRequest.reason || '...' });
             setActionOptions([]); 
             return; 
         }
@@ -363,7 +366,7 @@ export const useNewGameState = () => {
         const rollLogEntry: LogEntry['rollResult'] = {
             ...playerRollRequest,
             ...result,
-            description: playerRollRequest.reason, // Use a razão fornecida
+            description: playerRollRequest.reason,
             success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
         };
 
@@ -428,6 +431,7 @@ export const useNewGameState = () => {
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
             
             handleApiResponse(response);
+            return true;
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
@@ -436,7 +440,6 @@ export const useNewGameState = () => {
         } finally {
             setIsLoading(false);
         }
-        return true;
         
     }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey, combatState]);
     

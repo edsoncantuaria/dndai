@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -14,19 +15,16 @@ interface GameProps {
   onContinueGame: () => void;
   returnToMenu: () => void;
   gameStage: GameStage;
-  startGame: () => Promise<boolean | undefined>;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, returnToMenu, gameStage, startGame }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, returnToMenu, gameStage }: GameProps) {
     const gameStateHook = useGameStateContext();
 
-    // This effect now only handles continuing a game from localStorage.
-    // Starting a new game is explicitly triggered by the onPlay button in page.tsx.
     useEffect(() => {
         if (
             gameStage === 'playing' &&
             gameStateHook.character && 
-            gameStateHook.log.length > 0 && // This condition ensures we don't re-trigger for new games
+            gameStateHook.log.length > 0 &&
             !gameStateHook.isLoading
         ) {
             // This path is for continuing a saved game.
@@ -42,7 +40,7 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
     // If the character exists and we are in the 'playing' stage
     if (gameStateHook.character && gameStage === 'playing') {
         // If the initial narration hasn't arrived yet (log is empty), show a loader.
-        if (gameStateHook.log.length === 0) {
+        if (gameStateHook.log.length === 0 && gameStateHook.isLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
                     <Loader2 className="h-12 w-12 animate-spin mb-4" />
