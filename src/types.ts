@@ -10,6 +10,24 @@ export interface PlayerRollRequest {
     disadvantage?: boolean;
 }
 
+export interface GameMasterResponse {
+    logEntries?: LogEntry[];
+    actionOptions?: (string | { text: string; action: string })[];
+    updatedCharacter?: Partial<Character>;
+    combatState?: CombatState;
+    levelUpState?: LevelUpState;
+    playerRollRequest?: PlayerRollRequest;
+    shopState?: ShopState;
+    lootOffer?: LootOffer;
+    useHitDiceRequest?: UseHitDiceRequest;
+    imagePrompt?: string;
+    ambientSound?: string;
+    systemLog?: string;
+    worldState?: { [key: string]: any };
+    modularRules?: string[];
+}
+
+
 export interface ApiListItem {
     index: string;
     name: string;

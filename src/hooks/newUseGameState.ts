@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ApiCondition } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -64,6 +64,8 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
         newChar.inventory = oldChar.inventory;
     }
     if (updates.conditions) {
+        // A IA geralmente enviará a lista completa de condições ativas.
+        // Portanto, a substituição é o comportamento pretendido.
         newChar.conditions = updates.conditions;
     } else {
         newChar.conditions = oldChar.conditions;
@@ -80,6 +82,9 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     }
     if (updates.relationships) {
         newChar.relationships = mergeRelationships(oldChar.relationships || [], updates.relationships);
+    }
+    if (updates.factionReputation) {
+        newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
     }
 
     // Garante que objetos aninhados sejam mesclados e não substituídos.
@@ -116,6 +121,12 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
+    
+    // New states
+    const [systemLog, setSystemLog] = useState<string | null>(null);
+    const [worldState, setWorldState] = useState<{ [key: string]: any }>({});
+    const [modularRules, setModularRules] = useState<string[]>([]);
+    
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
@@ -127,29 +138,32 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest };
+                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
-                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest, ambientSound: savedAmbientSound } = JSON.parse(savedGame);
-                setCharacter(savedCharacter);
-                setLog(savedLog || []);
-                setActionOptions(savedActionOptions || []);
-                setCombatState(savedCombatState || { isActive: false, round: 0, turn: 0, combatants: [] });
-                setLevelUpState(savedLevelUpState || null);
-                setShopState(savedShopState || null);
-                setPendingLootOffer(savedPendingLootOffer || null);
-                setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
-                setAmbientSound(savedAmbientSound || 'none');
+                const parsedState = JSON.parse(savedGame);
+                setCharacter(parsedState.character || null);
+                setLog(parsedState.log || []);
+                setActionOptions(parsedState.actionOptions || []);
+                setCombatState(parsedState.combatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                setLevelUpState(parsedState.levelUpState || null);
+                setShopState(parsedState.shopState || null);
+                setPendingLootOffer(parsedState.pendingLootOffer || null);
+                setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
+                setAmbientSound(parsedState.ambientSound || 'none');
+                setSystemLog(parsedState.systemLog || null);
+                setWorldState(parsedState.worldState || {});
+                setModularRules(parsedState.modularRules || []);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -194,6 +208,17 @@ export const useNewGameState = () => {
             setLog(prev => [...prev, ...newLogEntries]);
         }
         
+        // Handle new state fields
+        if (response.systemLog) {
+            setSystemLog(response.systemLog);
+            console.log("System Log from GM:", response.systemLog); // For debugging
+        }
+        if (response.worldState) {
+            setWorldState(prev => ({ ...prev, ...response.worldState }));
+        }
+        if (response.modularRules) setModularRules(response.modularRules);
+
+
         // Se a IA pedir uma rolagem, definimos o estado para abrir o modal. A execução para aqui.
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
@@ -323,6 +348,9 @@ export const useNewGameState = () => {
         setActionOptions([]);
         setApiError(null);
         setAmbientSound('none');
+        setSystemLog(null);
+        setWorldState({});
+        setModularRules([]);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -371,7 +399,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
+            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -385,7 +413,7 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules]);
 
     const loadGameFromFile = (file: File) => {
         setIsLoading(true);
@@ -404,6 +432,10 @@ export const useNewGameState = () => {
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                     setAmbientSound(parsedState.ambientSound || 'none');
+                    setSystemLog(parsedState.systemLog || null);
+                    setWorldState(parsedState.worldState || {});
+                    setModularRules(parsedState.modularRules || []);
+                    
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {
