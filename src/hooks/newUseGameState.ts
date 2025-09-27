@@ -347,23 +347,32 @@ export const useNewGameState = () => {
     }, []);
 
     const forceReload = useCallback(() => {
-        let lastSafeIndex = -1;
+        let lastRollIndex = -1;
         for (let i = log.length - 1; i >= 0; i--) {
             const entry = log[i];
             if (entry.type === 'roll' && entry.rollResult?.rollType !== 'attack' && entry.rollResult?.rollType !== 'damage') {
-                lastSafeIndex = i;
+                lastRollIndex = i;
                 break;
             }
         }
     
-        if (lastSafeIndex !== -1) {
-            setLog(prev => prev.slice(0, lastSafeIndex + 1));
+        let actionToReplay = "O mestre resume a situação atual para que eu possa continuar.";
+        if (lastRollIndex > 0) {
+            // Find the action that led to this roll
+            for (let i = lastRollIndex - 1; i >= 0; i--) {
+                if (log[i].type === 'action') {
+                    actionToReplay = log[i].content;
+                    break;
+                }
+            }
+             // Trim the log to the point of the last safe roll.
+            setLog(prev => prev.slice(0, lastRollIndex));
         } else {
-            // If no safe point found, just clear the log but keep the character
+            // If no safe point is found, just clear the log.
             setLog([]);
         }
     
-        // Clear all transient states
+        // Clear all transient and potentially problematic states
         setCombatState(INITIAL_COMBAT_STATE);
         setPlayerRollRequest(null);
         setSkillCheckRequest(null);
@@ -371,14 +380,14 @@ export const useNewGameState = () => {
         setPendingLootOffer(null);
         setPendingHitDiceRequest(null);
         setApiError(null);
-        setIsLoading(false);
+        setIsLoading(false); // Ensure loading is stopped
     
-        // Add thematic message
+        // Add the thematic message
         const warningMessage = "Helm, o Vigilante, interveio para proteger seu destino. O tempo retrocedeu a um ponto seguro para que sua jornada não seja corrompida. Seus itens e experiência foram preservados, mas não abuse da paciência de um deus, pois o fio do seu destino pode ser cortado.";
         addLog({ type: 'system', content: warningMessage });
     
-        // Ask the AI to re-establish context
-        processPlayerAction("O mestre resume a situação atual para que eu possa continuar.");
+        // Re-submit the last known safe action to the AI to re-establish context
+        processPlayerAction(actionToReplay);
     
     }, [log, addLog, processPlayerAction]);
 
@@ -663,3 +672,5 @@ export const useNewGameState = () => {
         forceReload,
     };
 };
+
+    
