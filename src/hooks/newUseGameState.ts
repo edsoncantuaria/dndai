@@ -49,34 +49,29 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
     return newRelationships;
 };
 
-// Função auxiliar para mesclar o estado do personagem de forma segura.
+// Character state updates should always come from the Game Master (AI).
+// This function ensures that new data from the API is safely merged into the existing character state
+// without unintended side effects, and recalculates derived stats.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    // Começa com uma cópia profunda para evitar mutações inesperadas.
+    // Start with a deep copy to prevent unexpected mutations.
     let newChar: Character = JSON.parse(JSON.stringify(oldChar));
 
-    // Aplica as atualizações de nível superior
+    // Apply top-level updates.
     newChar = { ...newChar, ...updates };
 
-    // Garante que arrays sejam mesclados e não sobrescritos
+    // Ensure arrays are handled correctly. Most arrays are completely replaced if provided.
+    // The GM's response is the single source of truth for the current state.
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
-    } else {
-        newChar.inventory = oldChar.inventory;
     }
     if (updates.conditions) {
-        // A IA geralmente enviará a lista completa de condições ativas.
-        // Portanto, a substituição é o comportamento pretendido.
         newChar.conditions = updates.conditions;
-    } else {
-        newChar.conditions = oldChar.conditions;
     }
     if (updates.spells) {
         newChar.spells = updates.spells;
-    } else {
-        newChar.spells = oldChar.spells;
     }
 
-    // Mesclagem inteligente para diário e relacionamentos
+    // Smart merging for complex nested data structures that need to be preserved.
     if (updates.journal) {
         newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
     }
@@ -87,7 +82,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
         newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
     }
 
-    // Garante que objetos aninhados sejam mesclados e não substituídos.
+    // Ensure nested objects are merged correctly, not fully replaced.
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
@@ -95,7 +90,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
 
 
-    // Recalcula propriedades derivadas após a fusão.
+    // Recalculate derived properties after the merge.
     const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
     newChar.modifiers = newModifiers;
     newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
@@ -122,7 +117,7 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    // New states
+    // New states for world persistence and GM feedback
     const [systemLog, setSystemLog] = useState<string | null>(null);
     const [worldState, setWorldState] = useState<{ [key: string]: any }>({});
     const [modularRules, setModularRules] = useState<string[]>([]);
@@ -208,7 +203,7 @@ export const useNewGameState = () => {
             setLog(prev => [...prev, ...newLogEntries]);
         }
         
-        // Handle new state fields
+        // Handle new state fields from the Game Master
         if (response.systemLog) {
             setSystemLog(response.systemLog);
             console.log("System Log from GM:", response.systemLog); // For debugging
@@ -219,11 +214,11 @@ export const useNewGameState = () => {
         if (response.modularRules) setModularRules(response.modularRules);
 
 
-        // Se a IA pedir uma rolagem, definimos o estado para abrir o modal. A execução para aqui.
+        // If the AI asks for a roll, set the state to open the modal. Execution stops here for this response.
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setActionOptions([]); // Limpa as ações para focar na rolagem
-            return; // Impede o processamento de outras partes da resposta
+            setActionOptions([]); // Clear actions to focus on the roll
+            return; // Prevents processing other parts of the response
         }
         
         if (response.actionOptions !== undefined) {
@@ -270,6 +265,7 @@ export const useNewGameState = () => {
         
         setIsLoading(true);
         setApiError(null);
+        setPlayerRollRequest(null); // Clear any stale roll requests
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         const previousActionOptions = actionOptions;
@@ -306,7 +302,7 @@ export const useNewGameState = () => {
         }
 
     }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
-
+    
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         
@@ -316,7 +312,7 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
 
     }, [playerRollRequest, processPlayerAction]);
-    
+
     const handleSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
     }, []);
@@ -472,6 +468,13 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
     }, [character, processPlayerAction]);
     
+    const useConsumable = useCallback((itemId: string) => {
+      if (!character) return;
+      const item = character.inventory.find(i => i.id === itemId);
+      if (!item) return; // Frontend check can be minimal, GM has final say
+      processPlayerAction(`Eu uso meu ${item.name}.`);
+    }, [character, processPlayerAction]);
+
     const spendHitDice = useCallback((diceCount: number) => {
         if (!character) return;
         processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
@@ -479,6 +482,7 @@ export const useNewGameState = () => {
 
     const takeLoot = useCallback((takeAll: boolean) => {
          if (!character || !pendingLootOffer) return;
+         setPlayerRollRequest(null);
          if (takeAll) {
              processPlayerAction('Eu pego todo o tesouro.');
          }
@@ -486,11 +490,13 @@ export const useNewGameState = () => {
 
     const buyItem = useCallback((item: ShopItem, price: number) => {
         if (!character) return;
+        setPlayerRollRequest(null);
         processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
     }, [character, processPlayerAction]);
     
     const sellItem = useCallback((item: InventoryItem, price: number) => {
          if (!character) return;
+         setPlayerRollRequest(null);
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
     
@@ -524,6 +530,7 @@ export const useNewGameState = () => {
         processPlayerAction,
         applyLevelUp,
         toggleEquipped,
+        useConsumable,
         spendHitDice,
         takeLoot,
         buyItem,

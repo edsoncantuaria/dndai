@@ -212,6 +212,11 @@ export interface InventoryItem {
     };
     str_minimum?: number;
     stealth_disadvantage?: boolean;
+    // New properties
+    consumable?: boolean;
+    usable?: boolean;
+    recoverable?: boolean;
+    restrictions?: string[];
 }
 
 export interface ShopItem extends InventoryItem {
