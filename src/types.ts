@@ -420,9 +420,31 @@ export interface ApiTrait {
     desc: string[];
     proficiencies: Proficiency[];
     proficiency_choices?: ProficiencyChoice;
+    parent?: ApiListItem;
     trait_specific?: {
         spell_options?: ProficiencyChoice;
-        subfeature_options?: ProficiencyChoice;
+        subtrait_options?: ProficiencyChoice;
+        damage_type?: ApiListItem;
+        breath_weapon?: {
+            name: string;
+            desc: string;
+            area_of_effect: {
+                size: number;
+                type: string;
+            };
+            usage: {
+                type: string;
+                times: number;
+            };
+            dc: {
+                dc_type: ApiListItem;
+                success_type: string;
+            };
+            damage: {
+                damage_type: ApiListItem;
+                damage_at_character_level: Record<string, string>;
+            }[];
+        };
         [key: string]: any;
     }
 }

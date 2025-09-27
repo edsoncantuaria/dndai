@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -159,7 +159,7 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
     
     const startingGold = 15; // TODO: Derive from background
     
-    const damage_resistances = [];
+    const damage_resistances: string[] = [];
     if(info.draconicAncestry && DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]){
         damage_resistances.push(DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]);
     }
