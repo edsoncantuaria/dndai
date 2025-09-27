@@ -376,12 +376,19 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const jsonText = response.text();
             console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
 
+            // If the response is empty, retry automatically if it's the first attempt.
+            if (!jsonText?.trim()) {
+                if (!retry) {
+                    console.warn("[geminiService] Resposta da IA vazia. Tentando novamente...");
+                    return await attemptGeneration(true);
+                } else {
+                    throw new Error("O Mestre de Jogo não respondeu (resposta vazia após retentativa).");
+                }
+            }
+
             try {
                 let textToParse = jsonText;
-                if (!textToParse) {
-                    throw new Error("O Mestre de Jogo não respondeu (resposta vazia).");
-                }
-
+                
                 if (isGemma) {
                     const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
                     if (match) {
