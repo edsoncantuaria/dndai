@@ -7,7 +7,11 @@ import { fetchDetailsInChunks } from '../utils/apiUtils';
 import NewSpellCard from './Spells/NewSpellCard';
 import { Book, Loader2 } from 'lucide-react';
 
-const Spellbook: React.FC = () => {
+interface SpellbookProps {
+    onModalAction?: () => void;
+}
+
+const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
     const { character, castSpell, isLoading: isActionLoading, playerRollRequest, combatState } = useGameStateContext();
     const [spellDetails, setSpellDetails] = useState<ApiSpell[]>([]);
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
@@ -38,6 +42,11 @@ const Spellbook: React.FC = () => {
 
         fetchSpells();
     }, [character?.spells]);
+
+    const handleCastSpell = (spell: ApiSpell) => {
+        if(onModalAction) onModalAction();
+        castSpell(spell);
+    }
 
     const groupedSpells = useMemo(() => {
         return spellDetails.reduce((acc, spell) => {
@@ -112,7 +121,7 @@ const Spellbook: React.FC = () => {
                                     <NewSpellCard 
                                         key={spell.index} 
                                         spell={spell}
-                                        onCast={castSpell}
+                                        onCast={handleCastSpell}
                                         canCast={spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0}
                                         isActionLoading={isActionLoading || !!playerRollRequest || !isPlayerTurn}
                                     />

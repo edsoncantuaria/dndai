@@ -7,10 +7,11 @@ interface MobileToolbarProps {
     setActiveTab: (tab: Tab) => void;
     children: React.ReactNode;
     tabConfig: Record<Tab, { label: string, icon: React.ReactNode }>;
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
 }
 
-const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, children, tabConfig }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, children, tabConfig, isOpen, setIsOpen }) => {
 
     const toggleOpen = (tab?: Tab) => {
         if (tab && tab === activeTab && isOpen) {

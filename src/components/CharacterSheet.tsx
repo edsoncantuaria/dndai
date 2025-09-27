@@ -37,14 +37,19 @@ const DeathSavesTracker: React.FC = () => {
     )
 }
 
-const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
+const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillName, onUse }) => {
     const { isLoading, character, setSkillCheckRequest, playerRollRequest } = useGameStateContext();
     
     if (!character) return null;
     
     const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-    const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
+    const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
+
+    const handleSkillUse = () => {
+        if (onUse) onUse();
+        setSkillCheckRequest({ skillName });
+    }
     
     return (
         <div className="flex items-center justify-between text-sm py-1">
@@ -55,7 +60,7 @@ const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], mo
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={() => setSkillCheckRequest({ skillName })} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={handleSkillUse} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>
@@ -82,7 +87,7 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
     );
 };
 
-const CharacterSheet: React.FC = () => {
+const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalAction }) => {
     const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
 
     if (!character) return null;
@@ -165,9 +170,7 @@ const CharacterSheet: React.FC = () => {
                         <SkillItem 
                             key={skill}
                             skillName={skill}
-                            characterProfs={character.proficiencies}
-                            modifiers={character.modifiers}
-                            profBonus={character.proficiencyBonus}
+                            onUse={onModalAction}
                         />
                     ))}
                 </div>

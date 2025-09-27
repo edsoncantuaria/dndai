@@ -122,7 +122,7 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.combatants && combatState.initiativeOrder[combatState.turn] === 'player');
+    const isPlayerTurn = !combatState.isActive || (combatState.initiativeOrder && combatState.combatants.length > 0 && combatState.initiativeOrder[combatState.turn] === 'player');
     
     // Actions are locked if a roll is pending, loot is offered, etc., or if it's not the player's turn.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || !isPlayerTurn;
@@ -135,6 +135,21 @@ const ActionOptions: React.FC = () => {
             </div>
         )
     }
+
+    const handleActionClick = (action: any) => {
+        processPlayerAction(action);
+        setIsOpen(false); // Close mobile modal on action
+    };
+
+    const handleSkillClick = (skill: string) => {
+        handleSkillCheck(skill);
+        setIsOpen(false); // Close mobile modal on skill check
+    };
+    
+    const handleCustomSubmit = (action: string) => {
+        processPlayerAction(action);
+        setIsOpen(false);
+    };
 
     const renderActionContent = () => {
         // The new golden rule: if a roll is pending, nothing else is interactive.
@@ -173,7 +188,7 @@ const ActionOptions: React.FC = () => {
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => handleSkillCheck(skillAction.skill)}
+                                        onClick={() => handleSkillClick(skillAction.skill)}
                                         disabled={isLoading || isActionLocked}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
@@ -195,7 +210,7 @@ const ActionOptions: React.FC = () => {
                             return (
                                 <button
                                     key={index}
-                                    onClick={() => processPlayerAction(actionValue)}
+                                    onClick={() => handleActionClick(actionValue)}
                                     disabled={isLoading || isActionLocked}
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
@@ -206,7 +221,7 @@ const ActionOptions: React.FC = () => {
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading || isActionLocked} />
+                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isLoading || isActionLocked} />
                  {!isLoading && !hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}

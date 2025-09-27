@@ -139,7 +139,7 @@ const getActionIcon = (content: string) => {
 };
 
 
-const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }) {
+const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntryType, index: number }) {
     let content;
     switch(entry.type) {
         case 'narration':
@@ -174,7 +174,7 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             content = null;
     }
 
-    return <div className="animate-fadeInSlideUp">{content}</div>;
+    return <div className="animate-fadeIn" style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, animationDuration: '400ms' }}>{content}</div>;
 });
 
 const NewNarrativeLog: React.FC = () => {
@@ -195,8 +195,8 @@ const NewNarrativeLog: React.FC = () => {
     
     return (
         <div className="space-y-4">
-            {log.map((entry) => (
-                <LogEntry key={entry.id} entry={entry} />
+            {log.map((entry, index) => (
+                <LogEntry key={entry.id} entry={entry} index={log.length - 1 - index} />
             ))}
             <div ref={logEndRef} />
         </div>

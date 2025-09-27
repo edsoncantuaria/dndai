@@ -47,14 +47,17 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         submitSpellCast,
     } = useGameStateContext();
 
+    const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const handleModalAction = () => setIsMobileSheetOpen(false);
+
     const renderSidebarContent = () => {
         switch (activeTab) {
             case 'character':
-                return <CharacterSheet />;
+                return <CharacterSheet onModalAction={handleModalAction} />;
             case 'inventory':
                 return <Inventory />;
             case 'spells':
-                return <Spellbook />;
+                return <Spellbook onModalAction={handleModalAction} />;
             case 'progression':
                 return <ProgressionTab />;
             case 'relationships':
@@ -62,7 +65,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
             case 'journal':
                 return <NewJournal />;
             default:
-                return <CharacterSheet />;
+                return <CharacterSheet onModalAction={handleModalAction} />;
         }
     };
 
@@ -140,6 +143,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     tabConfig={tabConfig}
+                    isOpen={isMobileSheetOpen}
+                    setIsOpen={setIsMobileSheetOpen}
                 >
                     {renderSidebarContent()}
                 </MobileToolbar>
