@@ -296,6 +296,12 @@ export const useNewGameState = () => {
         }
     }, []);
 
+    const forceReload = useCallback(() => {
+        addLog({ type: 'system', content: 'Restaurando o jogo para o último estado seguro...' });
+        loadGameFromLocalStorage();
+    }, [loadGameFromLocalStorage, addLog]);
+
+
     const clearGameState = useCallback(() => {
         setCharacter(null);
         setLog([]);
@@ -589,5 +595,6 @@ export const useNewGameState = () => {
         systemLog, 
         nextTurn,
         clearGameState,
+        forceReload,
     };
 };

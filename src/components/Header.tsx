@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, LogOut, DoorOpen } from 'lucide-react';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, DoorOpen, LogOut } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -16,7 +16,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
-    const { character, saveGameToFile, getApiKey, isLoading } = useGameStateContext();
+    const { character, saveGameToFile, getApiKey, isLoading, forceReload } = useGameStateContext();
     const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
@@ -122,6 +122,14 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             <div className="flex justify-between items-baseline">
                                 <h2 className="font-bold text-lg text-stone-100 truncate">{name}</h2>
                                 <div className="md:hidden flex items-center gap-1.5">
+                                    <button 
+                                        onClick={forceReload}
+                                        disabled={isInteractionDisabled}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                        title="Restaurar Jogo / Descongelar"
+                                    >
+                                        <LogOut className="h-4 w-4 text-amber-300" />
+                                    </button>
                                      <button 
                                         onClick={saveGameToFile}
                                         disabled={isInteractionDisabled}
@@ -163,6 +171,14 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             title="Testar Conexão com a IA"
                         >
                             {isTestingAi ? <Loader2 className="h-5 w-5 text-amber-300 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300" />}
+                        </button>
+                        <button 
+                            onClick={forceReload}
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                            title="Restaurar Jogo / Descongelar"
+                        >
+                            <LogOut className="h-5 w-5 text-amber-300" />
                         </button>
                         <button 
                             onClick={saveGameToFile}
