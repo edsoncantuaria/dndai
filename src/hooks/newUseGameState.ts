@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ApiCondition } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ApiCondition, ImageLogEntry } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -53,8 +53,8 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
 // This function ensures that new data from the API is safely merged into the existing character state
 // without unintended side effects, and recalculates derived stats.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    // Start with a deep copy to prevent unexpected mutations.
-    let newChar: Character = JSON.parse(JSON.stringify(oldChar));
+    // Use structuredClone for a safe and performant deep copy.
+    let newChar: Character = structuredClone(oldChar);
 
     // Apply top-level updates.
     newChar = { ...newChar, ...updates };
@@ -239,22 +239,30 @@ export const useNewGameState = () => {
                 console.warn("Nenhuma chave de API para geração de imagem, pulando.");
                 return;
             }
-            // Add a placeholder entry immediately
-            setLog(prev => [...prev, { id: imageLogId, type: 'image', content: 'generating' }]);
+             const imageEntry: ImageLogEntry = { id: imageLogId, type: 'image', content: { status: 'generating' } };
+            setLog(prev => [...prev, imageEntry]);
 
             generateImage(response.imagePrompt, selectedImageModel, apiKeyToUse).then(imageResult => {
                 if (imageResult?.imageUrl) {
                     setLog(prev => prev.map(entry => 
                         entry.id === imageLogId 
-                            ? { ...entry, content: imageResult.imageUrl } 
+                            ? { ...entry, content: { status: 'done', url: imageResult.imageUrl } } 
                             : entry
                     ));
                 } else {
-                     setLog(prev => prev.filter(entry => entry.id !== imageLogId));
+                     setLog(prev => prev.map(entry => 
+                        entry.id === imageLogId 
+                            ? { ...entry, content: { status: 'failed' } } 
+                            : entry
+                    ));
                 }
             }).catch(error => {
                 console.error("Image generation failed silently:", error);
-                setLog(prev => prev.filter(entry => entry.id !== imageLogId));
+                setLog(prev => prev.map(entry => 
+                    entry.id === imageLogId 
+                        ? { ...entry, content: { status: 'failed' } } 
+                        : entry
+                ));
             });
         }
 
@@ -271,10 +279,15 @@ export const useNewGameState = () => {
         const previousActionOptions = actionOptions;
         
         const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
-        setActionOptions([]); 
         
-        const currentLog = [...log, newLogEntry];
+        // Use functional update to get the latest state
+        let currentLog: LogEntry[] = [];
+        setLog(prev => {
+            currentLog = [...prev, newLogEntry];
+            return currentLog;
+        });
+
+        setActionOptions([]); 
         
         try {
             const apiKey = getApiKey();
@@ -301,7 +314,7 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+    }, [character, handleApiResponse, selectedModel, generationConfig, getApiKey]);
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;

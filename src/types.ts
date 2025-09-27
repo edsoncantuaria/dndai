@@ -289,9 +289,19 @@ export interface Character {
     factionReputation?: Record<string, number>;
 }
 
-export interface LogEntry {
+export type ImageLogEntryContent = {
+    status: 'generating' | 'done' | 'failed';
+    url?: string;
+}
+export interface ImageLogEntry {
     id: string;
-    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
+    type: 'image';
+    content: ImageLogEntryContent;
+}
+
+export type SimpleLogEntry = {
+    id: string;
+    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
     content: string;
     rollResult?: {
         description: string;
@@ -305,7 +315,9 @@ export interface LogEntry {
         advantage?: boolean;
         disadvantage?: boolean;
     };
-}
+};
+
+export type LogEntry = SimpleLogEntry | ImageLogEntry;
 
 export interface Combatant {
     id: string;
