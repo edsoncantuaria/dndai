@@ -134,13 +134,17 @@ export const useNewGameState = () => {
     const nextTurn = useCallback(() => {
         setCombatState(prev => {
             const livingCombatants = prev.combatants.filter(c => !c.isDead);
-            if (livingCombatants.length === 0) return prev;
+            if (livingCombatants.length === 0 || !prev.initiativeOrder) return prev;
     
-            const currentTurnInLiving = livingCombatants.findIndex(c => c.id === (prev.initiativeOrder || [])[prev.turn % (prev.initiativeOrder || []).length]);
+            const currentTurnId = prev.initiativeOrder[prev.turn % prev.initiativeOrder.length];
             
-            const nextTurnIndex = (prev.turn + 1) % (prev.initiativeOrder || []).length;
+            let nextTurnIndex = (prev.turn + 1);
+            if (nextTurnIndex >= prev.initiativeOrder.length) {
+                 nextTurnIndex = 0;
+            }
+            
             const nextRound = nextTurnIndex === 0 ? prev.round + 1 : prev.round;
-            const nextCombatantId = (prev.initiativeOrder || [])[nextTurnIndex];
+            const nextCombatantId = prev.initiativeOrder[nextTurnIndex];
             const nextCombatant = prev.combatants.find(c => c.id === nextCombatantId);
             
             if (nextCombatant) {
@@ -156,7 +160,7 @@ export const useNewGameState = () => {
               round: nextRound,
             };
         });
-    }, [addLog, combatState.combatants, combatState.initiativeOrder]);
+    }, [addLog]);
 
 
     const getApiKey = useCallback(() => {
@@ -313,7 +317,7 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log]);
+    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log, actionOptions]);
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
@@ -562,3 +566,5 @@ export const useNewGameState = () => {
         nextTurn,
     };
 };
+
+      

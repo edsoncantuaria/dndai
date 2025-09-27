@@ -126,7 +126,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 
 ## Novos Campos e Auditoria
 - **systemLog:** registre justificativas do mestre para decisões importantes (DC, dano, rolagens de NPCs).
-- **worldState:** armazene variáveis persistentes do mundo (clima, hora, eventos em andamento).
+- **worldState:** armazene variáveis persistentes do mundo (clima, hora do dia, eventos em andamento).
 - **factionReputation:** rastreie a reputação do jogador com facções.
 - **conditions:** efeitos contínuos, status e magias que exigem concentração ou salvamentos contínuos.
 - **modularRules:** indique módulos ativos (ex: realismo, cinematográfico) que alteram a mecânica ou narrativa.
@@ -438,3 +438,5 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
         return `Falha ao conectar com a IA (${modelName}). Detalhes: ${error.message}`;
     }
 };
+
+      

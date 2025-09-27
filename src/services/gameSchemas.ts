@@ -1,4 +1,4 @@
-// services/gameSchemas.ts
+'use client';
 import { z } from 'zod';
 
 // Schema for PlayerRollRequest
@@ -206,3 +206,5 @@ export const GameMasterFlowInputSchema = z.object({
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
+
+      
