@@ -21,6 +21,7 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -113,7 +114,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 
                 <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                        <div className="flex-grow p-4 overflow-y-auto h-0 pb-20 md:pb-4">
+                        <div className={cn(
+                            "flex-grow p-4 overflow-y-auto h-0",
+                            combatState.isActive ? "pb-36 md:pb-4" : "pb-20 md:pb-4"
+                        )}>
                             <NewNarrativeLog />
                         </div>
                         <ActionOptions />
