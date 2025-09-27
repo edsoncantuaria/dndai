@@ -43,11 +43,7 @@ const generateImageFlow = ai.defineFlow(
         config: {
           responseModalities: ["TEXT", "IMAGE"],
         },
-      } : {
-        output: {
-          format: 'media'
-        }
-      }),
+      } : {}),
     });
     
     // A resposta de mídia em Genkit v1.x vem na propriedade `output.media`.
