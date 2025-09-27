@@ -10,10 +10,10 @@ export interface PlayerRollRequest {
     disadvantage?: boolean;
 }
 
-export type ImageLogEntry = {
-    id: string;
-    type: 'image';
-    content: 'generating' | 'failed' | string; // generating, failed, or the data URL
+export type ImageLogEntryContent = {
+    status: 'generating' | 'failed' | 'done';
+    url?: string;
+    prompt?: string;
 };
 
 
@@ -28,6 +28,7 @@ export interface GameMasterResponse {
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
     ambientSound?: string;
+    imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
     modularRules?: string[];

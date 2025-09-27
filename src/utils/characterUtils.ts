@@ -134,6 +134,19 @@ export const getSpellsKnown = (
 };
 
 
+const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
+    'draconic-ancestry-black': 'acid',
+    'draconic-ancestry-blue': 'lightning',
+    'draconic-ancestry-brass': 'fire',
+    'draconic-ancestry-bronze': 'lightning',
+    'draconic-ancestry-copper': 'acid',
+    'draconic-ancestry-gold': 'fire',
+    'draconic-ancestry-green': 'poison',
+    'draconic-ancestry-red': 'fire',
+    'draconic-ancestry-silver': 'cold',
+    'draconic-ancestry-white': 'cold',
+};
+
 export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Character> => {
     const modifiers = calculateModifiers(info.attributes);
     const proficiencyBonus = getProficiencyBonus(1);
@@ -145,6 +158,12 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
     ]);
     
     const startingGold = 15; // TODO: Derive from background
+    
+    const damage_resistances = [];
+    if(info.draconicAncestry && DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]){
+        damage_resistances.push(DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]);
+    }
+
 
     const newCharacter: Character = {
         name: info.name,
@@ -157,6 +176,7 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         xpToNextLevel: getXpThreshold(1),
         race: info.race,
         subrace: info.subrace,
+        draconicAncestry: info.draconicAncestry,
         characterClass: info.characterClass,
         subclass: info.subclass,
         hitDie: info.hitDie,
@@ -168,6 +188,7 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         proficiencies: info.proficiencies,
         traits: info.traits, // Added traits here
         languages: info.languages,
+        damage_resistances,
         hp: { current: maxHp, max: maxHp, temp: 0 },
         ac: calculateAC(info.inventory, modifiers),
         inventory: info.inventory.map(item => ({...item, id: uuidv4(), equipped: false })),

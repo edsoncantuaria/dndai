@@ -1,4 +1,3 @@
-
 // hooks/newUseCharacterCreation.ts
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import * as DndApiService from '../services/dndApiService';
@@ -11,6 +10,7 @@ import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
 import { translateSpell } from '@/utils/TranslatorSpells';
 import { v4 as uuidv4 } from 'uuid';
+import racialAbilities from '../data/racial-abilities.json';
 
 export type ProficiencyChoiceWithSource = ProficiencyChoice & {
     id: string;
@@ -77,6 +77,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
     const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
     const [traitSelections, setTraitSelections] = useState<Record<string, string>>({}); // NEW for trait choices
+    const [draconicAncestry, setDraconicAncestry] = useState(''); // NEW for dragonborn choice
     
     // Personality
     const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
@@ -98,7 +99,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
         const abilityBonusChoices = raceDetails?.ability_bonus_options;
-
+    
         if (abilityBonusChoices?.from?.options?.[0]?.item?.index) {
             const selectionKey = abilityBonusChoices.from.options[0].item.index;
             const selection = traitSelections[selectionKey];
@@ -110,14 +111,18 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 }
             }
         }
-
+    
         (raceDetails?.ability_bonuses || []).forEach(b => {
-            const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
-            if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
+            if (b && b.ability_score && b.ability_score.index) {
+                const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
+                if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
+            }
         });
         (subraceDetails?.ability_bonuses || []).forEach(b => {
-            const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
-            if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
+            if (b && b.ability_score && b.ability_score.index) {
+                const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[b.ability_score.index];
+                if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + b.bonus;
+            }
         });
         return bonuses;
     }, [raceDetails, subraceDetails, traitSelections]);
@@ -303,6 +308,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             // Subrace is optional, so this check might need adjustment if subrace is not a hard requirement
         }
         if(!canProceedFromProficiencies) return false;
+        
+        // Check for Draconic Ancestry selection
+        if (race === 'dragonborn' && !draconicAncestry) {
+            return false;
+        }
 
         const cantripsKnownVal = cantripsKnown;
         const spellsKnownVal = spellsKnown;
@@ -316,7 +326,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (!racialSpellsDone) return false;
 
         return areAllEquipmentChoicesMade;
-    }, [name, race, subrace, characterClass, background, alignment, points, attributeMethod, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade]);
+    }, [name, race, subrace, characterClass, background, alignment, points, attributeMethod, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade, draconicAncestry]);
 
     // --- CALLBACKS & EFFECTS ---
 
@@ -325,6 +335,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setFinalizedEquipment([]);
         setEquipmentSelections({});
         setTraitSelections({});
+        setDraconicAncestry('');
         
         if (type === 'full') {
             setChosenRacialSpells({});
@@ -383,6 +394,18 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
             const spellOptionsToFetch = new Set<ApiListItem>();
+
+            // Handle Dragonborn Breath Weapon as a special case derived from a trait
+            const breathWeaponTrait = traitDetails.find(t => t?.index === 'breath-weapon');
+            if (breathWeaponTrait && raceDetails?.index === 'dragonborn') {
+                const ancestryTrait = traitDetails.find(t => t?.index === 'draconic-ancestry');
+                if (ancestryTrait?.trait_specific?.subfeature_options?.options) {
+                    const breathWeaponSpell = racialAbilities.abilities.find(a => a.index === 'breath-weapon');
+                    if (breathWeaponSpell) {
+                        spellOptionsToFetch.add(breathWeaponSpell as ApiListItem);
+                    }
+                }
+            }
     
             // Special Case: High Elf Cantrip
             const highElfTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
@@ -407,7 +430,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     
             // General case for other racial spell traits
             for (const trait of traitDetails) {
-                if (!trait || trait.index === 'high-elf-cantrip') continue;
+                if (!trait || trait.index === 'high-elf-cantrip' || trait.index === 'draconic-ancestry' || trait.index === 'breath-weapon') continue;
                 
                 const choice = trait.trait_specific?.spell_options || trait.trait_specific?.subfeature_options;
                 if (choice && choice.from?.options) {
@@ -739,6 +762,17 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const randomSubrace = raceData.subraces[Math.floor(Math.random() * raceData.subraces.length)];
                 await handleSubraceChange(randomSubrace.index);
             }
+             if (raceData?.index === 'dragonborn') {
+                const ancestryTrait = raceData.traits.find(t => t.index === 'draconic-ancestry');
+                if (ancestryTrait) {
+                    const ancestryDetails = await DndApiService.getTraitDetails(ancestryTrait.index);
+                    if (ancestryDetails?.trait_specific?.subfeature_options?.options) {
+                        const options = ancestryDetails.trait_specific.subfeature_options.options;
+                        const randomAncestry = options[Math.floor(Math.random() * options.length)];
+                        setDraconicAncestry(randomAncestry.item.index);
+                    }
+                }
+            }
         }, 500); // Delay to allow raceDetails to be set
 
     }, [handleRaceChange, handleClassChange, handleSubraceChange]);
@@ -853,7 +887,12 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         ];
         
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
-        const allSpells = [...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()];
+        
+        const allSpells = [...new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()])];
+        if (race === 'dragonborn' && draconicAncestry) {
+            allSpells.push('breath-weapon'); 
+        }
+
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
@@ -878,6 +917,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             skinColor,
             race: raceDetails.name,
             subrace: subraceDetails?.name || null,
+            draconicAncestry: draconicAncestry || undefined,
             characterClass: classDetails.name,
             subclass: null, 
             hitDie: classDetails.hit_die,
@@ -958,6 +998,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         traitChoiceDetails,
         traitSelections,
         handleTraitSelection,
+        draconicAncestry, setDraconicAncestry, // Exporting the new state and setter
         // Randomizers
         handleRandomizeRaceAndClass,
         handleRandomizeBackground,
