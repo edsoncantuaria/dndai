@@ -11,35 +11,13 @@ interface DraconicAncestryChoiceProps {
 }
 
 const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook }) => {
-    const { draconicAncestry, setDraconicAncestry, raceDetails } = hook;
-    const [ancestryOptions, setAncestryOptions] = useState<ApiListItem[]>([]);
-    
-    useEffect(() => {
-        // As opções de ancestralidade estão dentro de uma das características (traits) do draconato.
-        const ancestryTraitChoice = raceDetails?.traits.find(t => t.index === 'draconic-ancestry');
-        
-        // As opções reais estão em `trait_specific`
-        const fetchAncestryOptions = async () => {
-            if (ancestryTraitChoice) {
-                const traitDetails = await DndApiService.getTraitDetails(ancestryTraitChoice.index);
-                if (traitDetails?.trait_specific?.subfeature_options?.options) {
-                    const options = traitDetails.trait_specific.subfeature_options.options.map((opt: any) => opt.item);
-                    setAncestryOptions(options);
-                }
-            }
-        };
-
-        if (raceDetails?.index === 'dragonborn') {
-            fetchAncestryOptions();
-        }
-
-    }, [raceDetails]);
+    const { draconicAncestry, setDraconicAncestry, draconicAncestryOptions, raceDetails } = hook;
 
     if (raceDetails?.index !== 'dragonborn') {
         return null;
     }
 
-    if (ancestryOptions.length === 0) {
+    if (draconicAncestryOptions.length === 0) {
         return <p className="text-center text-stone-400 mt-4">Carregando ancestralidades...</p>;
     }
 
@@ -53,7 +31,7 @@ const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook })
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
                 <option value="" disabled>Escolha sua linhagem...</option>
-                {ancestryOptions.map(opt => (
+                {draconicAncestryOptions.map(opt => (
                     <option key={opt.index} value={opt.index}>
                         {translateApiString(opt.name.replace('Draconic Ancestry: ', ''))}
                     </option>

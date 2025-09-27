@@ -77,8 +77,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
     const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
     const [traitSelections, setTraitSelections] = useState<Record<string, string>>({}); // NEW for trait choices
-    const [draconicAncestry, setDraconicAncestry] = useState(''); // NEW for dragonborn choice
-    
+    const [draconicAncestry, setDraconicAncestry] = useState('');
+    const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<ApiListItem[]>([]);
+
+
     // Personality
     const [personalityTraits, setPersonalityTraits] = useState<string[]>([]);
     const [ideal, setIdeal] = useState('');
@@ -386,6 +388,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 setRacialSpellTraits([]);
                 setRacialSpellOptions([]);
                 setTraitChoiceDetails([]);
+                setDraconicAncestryOptions([]);
                 return;
             }
     
@@ -398,13 +401,17 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             // Handle Dragonborn Breath Weapon as a special case derived from a trait
             const breathWeaponTrait = traitDetails.find(t => t?.index === 'breath-weapon');
             if (breathWeaponTrait && raceDetails?.index === 'dragonborn') {
-                const ancestryTrait = traitDetails.find(t => t?.index === 'draconic-ancestry');
-                if (ancestryTrait?.trait_specific?.subfeature_options?.options) {
+                const ancestryTraitDetails = await DndApiService.getTraitDetails('draconic-ancestry');
+                if (ancestryTraitDetails?.trait_specific?.subfeature_options?.options) {
+                    const options = ancestryTraitDetails.trait_specific.subfeature_options.options.map((opt: any) => opt.item);
+                    setDraconicAncestryOptions(options);
                     const breathWeaponSpell = racialAbilities.abilities.find(a => a.index === 'breath-weapon');
                     if (breathWeaponSpell) {
                         spellOptionsToFetch.add(breathWeaponSpell as ApiListItem);
                     }
                 }
+            } else {
+                 setDraconicAncestryOptions([]);
             }
     
             // Special Case: High Elf Cantrip
@@ -998,7 +1005,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         traitChoiceDetails,
         traitSelections,
         handleTraitSelection,
-        draconicAncestry, setDraconicAncestry, // Exporting the new state and setter
+        draconicAncestry, setDraconicAncestry,
+        draconicAncestryOptions,
         // Randomizers
         handleRandomizeRaceAndClass,
         handleRandomizeBackground,
