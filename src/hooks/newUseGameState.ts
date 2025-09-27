@@ -247,7 +247,7 @@ export const useNewGameState = () => {
         }
 
     }, [character, combatState, selectedModel, generationConfig, getApiKey, log, actionOptions, addLog, handleApiResponse]);
-
+    
     const nextTurn = useCallback(() => {
         if (!combatState.isActive || isLoading) return;
         processPlayerAction("Processar o próximo turno do combate.");
