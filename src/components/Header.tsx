@@ -122,6 +122,14 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             <div className="flex justify-between items-baseline">
                                 <h2 className="font-bold text-lg text-stone-100 truncate">{name}</h2>
                                 <div className="md:hidden flex items-center gap-1.5">
+                                     <button 
+                                        onClick={handleTestAi}
+                                        disabled={isInteractionDisabled}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                        title="Testar Conexão com a IA"
+                                    >
+                                        {isTestingAi ? <Loader2 className="h-4 w-4 text-amber-300 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-amber-300" />}
+                                    </button>
                                     <button 
                                         onClick={forceReload}
                                         disabled={isInteractionDisabled}
