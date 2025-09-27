@@ -111,7 +111,7 @@ export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string, skill: string})[]>([]);
-    const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 0, turn: 0, combatants: [] });
+    const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 1, turn: 0, combatants: [] });
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
@@ -123,11 +123,41 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    // New states for world persistence and GM feedback
     const [systemLog, setSystemLog] = useState<string | null>(null);
-    // worldState is now part of the Character object
     
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
+
+    const addLog = useCallback((newEntry: Omit<LogEntry, 'id'>) => {
+        setLog(prev => [...prev, { ...newEntry, id: uuidv4() }]);
+    }, []);
+
+    const nextTurn = useCallback(() => {
+        setCombatState(prev => {
+            const livingCombatants = prev.combatants.filter(c => !c.isDead);
+            if (livingCombatants.length === 0) return prev;
+    
+            const currentTurnInLiving = livingCombatants.findIndex(c => c.id === (prev.initiativeOrder || [])[prev.turn % (prev.initiativeOrder || []).length]);
+            
+            const nextTurnIndex = (prev.turn + 1) % (prev.initiativeOrder || []).length;
+            const nextRound = nextTurnIndex === 0 ? prev.round + 1 : prev.round;
+            const nextCombatantId = (prev.initiativeOrder || [])[nextTurnIndex];
+            const nextCombatant = prev.combatants.find(c => c.id === nextCombatantId);
+            
+            if (nextCombatant) {
+                addLog({
+                  type: "combat",
+                  content: `É o turno de ${nextCombatant.name}!`,
+                });
+            }
+    
+            return {
+              ...prev,
+              turn: nextTurnIndex,
+              round: nextRound,
+            };
+        });
+    }, [addLog, combatState.combatants, combatState.initiativeOrder]);
+
 
     const getApiKey = useCallback(() => {
         return userApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
@@ -155,7 +185,7 @@ export const useNewGameState = () => {
                 setCharacter(parsedState.character || null);
                 setLog(parsedState.log || []);
                 setActionOptions(parsedState.actionOptions || []);
-                setCombatState(parsedState.combatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [] });
                 setLevelUpState(parsedState.levelUpState || null);
                 setShopState(parsedState.shopState || null);
                 setPendingLootOffer(parsedState.pendingLootOffer || null);
@@ -172,12 +202,9 @@ export const useNewGameState = () => {
     }, []);
 
     useEffect(() => {
-        // This effect will only run once on mount to load the game state.
-        // The start of the game is now handled by the UI flow in page.tsx
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
-        // Debounced save. This effect now triggers on any significant game state change.
         const handler = setTimeout(() => {
             if (character && !isLoading) { 
                 saveGame();
@@ -197,7 +224,6 @@ export const useNewGameState = () => {
 
         const characterUpdates: Partial<Character> = response.updatedCharacter || {};
         
-        // Handle new state fields from the Game Master and add them to the updates
         if (response.systemLog) {
             setSystemLog(response.systemLog);
             console.log("System Log from GM:", response.systemLog);
@@ -214,8 +240,7 @@ export const useNewGameState = () => {
         }
        
         if (response.logEntries && Array.isArray(response.logEntries)) {
-            const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
-            setLog(prev => [...prev, ...newLogEntries]);
+            response.logEntries.forEach(entry => addLog(entry));
         }
         
         if(response.playerRollRequest) {
@@ -234,7 +259,7 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, []);
+    }, [addLog]);
 
     const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
@@ -247,10 +272,12 @@ export const useNewGameState = () => {
         const previousActionOptions = actionOptions;
         
         let newLogEntries: LogEntry[] = [];
+        const entryId = uuidv4();
+
         if (rollResultForLog) {
-            newLogEntries.push({ id: uuidv4(), type: 'roll', content: action, rollResult: rollResultForLog });
+            newLogEntries.push({ id: entryId, type: 'roll', content: action, rollResult: rollResultForLog });
         } else {
-            newLogEntries.push({ id: uuidv4(), type: 'action', content: action });
+            newLogEntries.push({ id: entryId, type: 'action', content: action });
         }
 
         let currentLog: LogEntry[] = [];
@@ -281,7 +308,7 @@ export const useNewGameState = () => {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
             setActionOptions(previousActionOptions);
-            setLog(prev => prev.filter(entry => !newLogEntries.some(ne => ne.id === entry.id)));
+            setLog(prev => prev.filter(entry => entry.id !== entryId));
         } finally {
             setIsLoading(false); 
         }
@@ -370,7 +397,6 @@ export const useNewGameState = () => {
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
-            // Return false to indicate failure, allowing the UI to react.
             return false;
         } finally {
             setIsLoading(false);
@@ -417,7 +443,7 @@ export const useNewGameState = () => {
                     setCharacter(parsedState.character || null);
                     setLog(parsedState.log || []);
                     setActionOptions(parsedState.actionOptions || []);
-                    setCombatState(parsedState.combatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                    setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [] });
                     setLevelUpState(parsedState.levelUpState || null);
                     setShopState(parsedState.shopState || null);
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
@@ -447,11 +473,11 @@ export const useNewGameState = () => {
         setCharacter(updatedChar);
 
         setLevelUpState(prev => prev ? { ...prev, isPending: false, choices: {} } : null);
-        setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` }]);
+        addLog({ type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` });
         setActionOptions([]);
         setIsLoading(false);
 
-    }, [character, levelUpState]);
+    }, [character, levelUpState, addLog]);
 
     const toggleEquipped = useCallback((itemId: string) => {
         if (!character) return;
@@ -464,7 +490,7 @@ export const useNewGameState = () => {
     const useConsumable = useCallback((itemId: string) => {
       if (!character) return;
       const item = character.inventory.find(i => i.id === itemId);
-      if (!item) return; // Frontend check can be minimal, GM has final say
+      if (!item) return;
       processPlayerAction(`Eu uso meu ${item.name}.`);
     }, [character, processPlayerAction]);
 
@@ -533,7 +559,6 @@ export const useNewGameState = () => {
         loadGameFromFile,
         saveGameToFile,
         systemLog, 
+        nextTurn,
     };
 };
-
-    

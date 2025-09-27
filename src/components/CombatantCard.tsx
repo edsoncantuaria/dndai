@@ -44,9 +44,10 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     }
     
     const borderColor = isCurrentTurn ? 'border-amber-400 shadow-lg shadow-amber-900/50' : isPlayer ? 'border-blue-500/70' : 'border-stone-700';
+    const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
 
     return (
-        <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${isCurrentTurn ? 'bg-stone-700/50' : 'bg-stone-800/50'}`}>
+        <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${bgColor}`}>
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
                      <div className={`p-2 rounded-full ${isCurrentTurn ? 'bg-amber-800' : 'bg-stone-900'}`}>{isPlayer ? <User className="h-5 w-5 text-blue-300"/> : <Bot className="h-5 w-5 text-red-300"/>}</div>
@@ -62,6 +63,11 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
+                     {isCurrentTurn && (
+                        <span className="ml-2 px-2 py-0.5 bg-amber-600 text-black text-xs font-bold rounded-full">
+                            TURNO ATUAL
+                        </span>
+                    )}
                     <button onClick={() => setShowHistory(!showHistory)} className="text-stone-400 hover:text-white" title="Histórico de Rolagens">
                         <History className="h-4 w-4" />
                     </button>
