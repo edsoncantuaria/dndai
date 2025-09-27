@@ -15,19 +15,39 @@ const NewCombatTracker: React.FC = () => {
 
     const { round, combatants, turn, initiativeOrder } = combatState;
     
-    const sortedCombatants = useMemo(() => {
-        const livingCombatants = combatants.filter(c => !c.isDead);
+    // Filtra combatentes vivos e os ordena pela ordem de iniciativa.
+    const sortedLivingCombatants = useMemo(() => {
+        const livingCombatantsMap = new Map(combatants.filter(c => !c.isDead).map(c => [c.id, c]));
         if (!initiativeOrder || initiativeOrder.length === 0) {
-            return livingCombatants.sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
+            // Fallback para a ordem do array se initiativeOrder não estiver definido.
+            return Array.from(livingCombatantsMap.values());
         }
         return initiativeOrder
-            .map(id => livingCombatants.find(c => c.id === id))
+            .map(id => livingCombatantsMap.get(id))
             .filter((c): c is Combatant => !!c);
     }, [combatants, initiativeOrder]);
     
-    const currentTurnIndex = turn % sortedCombatants.length;
-    const currentCombatant = sortedCombatants[currentTurnIndex];
-    const nextCombatant = sortedCombatants[(currentTurnIndex + 1) % sortedCombatants.length];
+    // Determina o índice atual na lista de combatentes vivos.
+    const currentTurnIndex = sortedLivingCombatants.findIndex(c => c.id === initiativeOrder?.[turn]);
+
+    if (currentTurnIndex === -1 && sortedLivingCombatants.length > 0) {
+        // Se o combatente do turno atual não está mais na lista (ex: morreu), o tracker pode ficar dessincronizado.
+        // Uma solução simples é não renderizar nada até o próximo avanço de turno corrigir o índice.
+        // Uma solução mais complexa seria avançar o turno automaticamente.
+        // Por enquanto, apenas evitamos o erro.
+        return (
+             <div className="flex-shrink-0 bg-red-900/40 p-3 rounded-lg border-2 border-red-700/60 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
+                 <p className="text-center text-amber-300">Atualizando ordem de combate...</p>
+             </div>
+        );
+    }
+    
+    const currentCombatant = sortedLivingCombatants[currentTurnIndex];
+    // Cria um array com a ordem de turnos começando pelo próximo.
+    const upcomingCombatants = [
+        ...sortedLivingCombatants.slice(currentTurnIndex + 1),
+        ...sortedLivingCombatants.slice(0, currentTurnIndex)
+    ];
 
 
     return (
@@ -37,23 +57,34 @@ const NewCombatTracker: React.FC = () => {
                 <span className="font-mono text-lg text-red-300">Round {round}</span>
             </div>
 
-            <div className="mb-2 text-amber-300 font-semibold">
-              Turno: {currentCombatant?.name}
-            </div>
-            <div className="mb-3 text-stone-400 text-sm">
-              Próximo: {nextCombatant?.name}
-            </div>
-
-            <div className="space-y-3">
-                {sortedCombatants.map((combatant, index) => (
+            {currentCombatant && (
+                 <div className="space-y-3">
+                     <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual</p>
                     <CombatantCard
-                        key={combatant.id}
-                        combatant={combatant}
-                        isCurrentTurn={index === currentTurnIndex}
-                        isPlayer={combatant.id === 'player'}
+                        key={currentCombatant.id}
+                        combatant={currentCombatant}
+                        isCurrentTurn={true}
+                        isPlayer={currentCombatant.id === 'player'}
                     />
-                ))}
-            </div>
+                </div>
+            )}
+            
+            {upcomingCombatants.length > 0 && (
+                <div className="mt-4 space-y-2">
+                    <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
+                    <div className="space-y-3 opacity-80">
+                         {upcomingCombatants.map((combatant) => (
+                            <CombatantCard
+                                key={combatant.id}
+                                combatant={combatant}
+                                isCurrentTurn={false}
+                                isPlayer={combatant.id === 'player'}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
+
 
             <div className="mt-4 text-center">
                 <button
