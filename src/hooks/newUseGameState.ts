@@ -111,7 +111,7 @@ export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string, skill: string})[]>([]);
-    const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 1, turn: 0, combatants: [] });
+    const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
@@ -134,15 +134,11 @@ export const useNewGameState = () => {
     const nextTurn = useCallback(() => {
         setCombatState(prev => {
             const livingCombatants = prev.combatants.filter(c => !c.isDead);
-            if (livingCombatants.length === 0 || !prev.initiativeOrder) return prev;
+            if (!prev.isActive || livingCombatants.length === 0 || !prev.initiativeOrder) return prev;
     
             const currentTurnId = prev.initiativeOrder[prev.turn % prev.initiativeOrder.length];
             
-            let nextTurnIndex = (prev.turn + 1);
-            if (nextTurnIndex >= prev.initiativeOrder.length) {
-                 nextTurnIndex = 0;
-            }
-            
+            let nextTurnIndex = (prev.turn + 1) % prev.initiativeOrder.length;
             const nextRound = nextTurnIndex === 0 ? prev.round + 1 : prev.round;
             const nextCombatantId = prev.initiativeOrder[nextTurnIndex];
             const nextCombatant = prev.combatants.find(c => c.id === nextCombatantId);
@@ -189,7 +185,7 @@ export const useNewGameState = () => {
                 setCharacter(parsedState.character || null);
                 setLog(parsedState.log || []);
                 setActionOptions(parsedState.actionOptions || []);
-                setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [] });
+                setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
                 setLevelUpState(parsedState.levelUpState || null);
                 setShopState(parsedState.shopState || null);
                 setPendingLootOffer(parsedState.pendingLootOffer || null);
@@ -321,7 +317,7 @@ export const useNewGameState = () => {
         const rollLogEntry: LogEntry['rollResult'] = {
             ...playerRollRequest,
             ...result,
-            description: `Rolagem de ${playerRollRequest.reason}`,
+            description: playerRollRequest.reason, // Use a razão fornecida
             success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
         };
 
@@ -441,7 +437,7 @@ export const useNewGameState = () => {
                     setCharacter(parsedState.character || null);
                     setLog(parsedState.log || []);
                     setActionOptions(parsedState.actionOptions || []);
-                    setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [] });
+                    setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
                     setLevelUpState(parsedState.levelUpState || null);
                     setShopState(parsedState.shopState || null);
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
