@@ -72,6 +72,21 @@ export const GameMasterResponseSchema = z.object({
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
     imagePrompt: z.string().optional().describe("Occasionally, for an important scene, provide a detailed image prompt (in English) to generate an illustration. Example: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night', 'dungeon_i', 'none' for silence). This should be chosen from the available `ambient-sounds.json` file to match the current scene's atmosphere."),
+    systemLog: z.string().optional().describe("Optional log where the GM explains decisions, e.g., DC choice, damage calculation, NPC rolls."),
+    worldState: z.object({
+        weather: z.string().optional(),
+        timeOfDay: z.string().optional(),
+        ongoingEvents: z.array(z.string()).optional(),
+    }).optional().describe("Global world state variables to track persistent environment and events."),
+    factionReputation: z.record(z.string(), z.number()).optional().describe("Tracks the player's reputation with different factions. Negative values indicate hostility."),
+    conditions: z.array(z.object({
+        name: z.string(),
+        durationRounds: z.number().optional(),
+        durationMinutes: z.number().optional(),
+        concentration: z.boolean().optional(),
+        savingThrowEachTurn: z.boolean().optional(),
+    })).optional().describe("Ongoing conditions, effects, and status ailments on characters or NPCs."),
+    modularRules: z.array(z.enum(['realism', 'cinematic'])).optional().describe("Active rule modules that modify gameplay mechanics or narrative style."),
 }).describe("The Game Master's response, containing all updates to the game state.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;

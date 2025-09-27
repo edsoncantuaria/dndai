@@ -69,8 +69,17 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
   "updatedCharacter": { /* apenas os campos que mudaram */ },
   "combatState": { /* se aplicável */ },
   "levelUpState": { /* se aplicável */ },
+  "playerRollRequest": { /* se aplicável */ },
+  "shopState": { /* se aplicável */ },
+  "lootOffer": { /* se aplicável */ },
+  "useHitDiceRequest": { /* se aplicável */ },
   "imagePrompt": "Prompt em inglês para gerar imagem de cena importante",
-  "ambientSound": "id do som ambiente ou 'none'"
+  "ambientSound": "id do som ambiente ou 'none'",
+  "systemLog": "Justificativa opcional do Mestre para decisões (ex: DC escolhida, dano calculado)",
+  "worldState": { "weather": "storm", "timeOfDay": "dusk", "ongoingEvents": ["invasão"] },
+  "factionReputation": { "guildaLadrao": -2, "reinoHumano": 1 },
+  "conditions": [{ "name": "envenenado", "durationRounds": 3, "concentration": true }],
+  "modularRules": ["realism", "cinematic"],
 }
 \`\`\`
 
@@ -113,7 +122,17 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 ## Idioma e Formato
 - Toda a narração e texto devem estar em **português do Brasil**.
 - A saída deve ser **sempre** um **único objeto JSON válido**, sem texto adicional fora dele.
+
+---
+
+## Novos Campos e Auditoria
+- **systemLog:** registre justificativas do mestre para decisões importantes (DC, dano, rolagens de NPCs).
+- **worldState:** armazene variáveis persistentes do mundo (clima, hora, eventos em andamento).
+- **factionReputation:** rastreie a reputação do jogador com facções.
+- **conditions:** efeitos contínuos, status e magias que exigem concentração ou salvamentos contínuos.
+- **modularRules:** indique módulos ativos (ex: realismo, cinematográfico) que alteram a mecânica ou narrativa.
 `;
+
 
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
