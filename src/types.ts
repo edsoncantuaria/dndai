@@ -20,7 +20,6 @@ export interface GameMasterResponse {
     shopState?: ShopState;
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
-    imagePrompt?: string;
     ambientSound?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
@@ -295,19 +294,10 @@ export interface Character {
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
     factionReputation?: Record<string, number>;
+    worldState?: { [key: string]: any };
 }
 
-export type ImageLogEntryContent = {
-    status: 'generating' | 'done' | 'failed';
-    url?: string;
-}
-export interface ImageLogEntry {
-    id: string;
-    type: 'image';
-    content: ImageLogEntryContent;
-}
-
-export type SimpleLogEntry = {
+export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
     content: string;
@@ -324,8 +314,6 @@ export type SimpleLogEntry = {
         disadvantage?: boolean;
     };
 };
-
-export type LogEntry = SimpleLogEntry | ImageLogEntry;
 
 export interface Combatant {
     id: string;

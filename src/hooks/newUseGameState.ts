@@ -1,13 +1,12 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { generateImage } from '@/ai/flows/generateImage';
 import { translateApiString, translateSpell } from '@/utils/translator';
 import { TRANSLATIONS_SPELLS } from '@/utils/TranslatorSpells';
 
@@ -83,6 +82,9 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     }
     if (updates.factionReputation) {
         newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
+    }
+    if (updates.worldState) {
+        newChar.worldState = { ...(oldChar.worldState || {}), ...updates.worldState };
     }
 
     // Ensure nested objects are merged correctly, not fully replaced.
@@ -160,7 +162,7 @@ export const useNewGameState = () => {
                 setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                 setAmbientSound(parsedState.ambientSound || 'none');
                 setSystemLog(parsedState.systemLog || null);
-                setWorldState(parsedState.worldState || {});
+                setWorldState(parsedState.character.worldState || {});
                 setModularRules(parsedState.modularRules || []);
             }
         } catch (error) {
@@ -195,28 +197,30 @@ export const useNewGameState = () => {
             throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         }
 
-        if (response.updatedCharacter) {
-             setCharacter(prevCharacter => {
-                if (!prevCharacter) return null;
-                return mergeCharacterState(prevCharacter, response.updatedCharacter as Partial<Character>);
-            });
+        const characterUpdates: Partial<Character> = response.updatedCharacter || {};
+        
+        // Handle new state fields from the Game Master and add them to the updates
+        if (response.systemLog) {
+            setSystemLog(response.systemLog);
+            console.log("System Log from GM:", response.systemLog);
+        }
+        if (response.worldState) {
+            characterUpdates.worldState = response.worldState;
+        }
+        if (response.modularRules) setModularRules(response.modularRules);
+
+
+        if (Object.keys(characterUpdates).length > 0) {
+            setCharacter(prevCharacter => {
+               if (!prevCharacter) return null;
+               return mergeCharacterState(prevCharacter, characterUpdates);
+           });
         }
        
         if (response.logEntries && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
-        
-        // Handle new state fields from the Game Master
-        if (response.systemLog) {
-            setSystemLog(response.systemLog);
-            console.log("System Log from GM:", response.systemLog); // For debugging
-        }
-        if (response.worldState) {
-            setWorldState(prev => ({ ...prev, ...response.worldState }));
-        }
-        if (response.modularRules) setModularRules(response.modularRules);
-
 
         // If the AI asks for a roll, set the state to open the modal. Execution stops here for this response.
         if(response.playerRollRequest) {
@@ -235,42 +239,7 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-        // Handle image generation silently
-        if (response.imagePrompt) {
-            const imageLogId = uuidv4();
-            const apiKeyToUse = getApiKey();
-            if (!apiKeyToUse) {
-                console.warn("Nenhuma chave de API para geração de imagem, pulando.");
-                return;
-            }
-             const imageEntry: ImageLogEntry = { id: imageLogId, type: 'image', content: { status: 'generating' } };
-            setLog(prev => [...prev, imageEntry]);
-
-            generateImage(response.imagePrompt, selectedImageModel, apiKeyToUse).then(imageResult => {
-                if (imageResult?.imageUrl) {
-                    setLog(prev => prev.map(entry => 
-                        entry.id === imageLogId 
-                            ? { ...entry, content: { status: 'done', url: imageResult.imageUrl } } 
-                            : entry
-                    ));
-                } else {
-                     setLog(prev => prev.map(entry => 
-                        entry.id === imageLogId 
-                            ? { ...entry, content: { status: 'failed' } } 
-                            : entry
-                    ));
-                }
-            }).catch(error => {
-                console.error("Image generation failed silently:", error);
-                setLog(prev => prev.map(entry => 
-                    entry.id === imageLogId 
-                        ? { ...entry, content: { status: 'failed' } } 
-                        : entry
-                ));
-            });
-        }
-
-    }, [getApiKey, selectedImageModel]);
+    }, []);
 
     const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
@@ -459,7 +428,7 @@ export const useNewGameState = () => {
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                     setAmbientSound(parsedState.ambientSound || 'none');
                     setSystemLog(parsedState.systemLog || null);
-                    setWorldState(parsedState.worldState || {});
+                    setWorldState(parsedState.character.worldState || {});
                     setModularRules(parsedState.modularRules || []);
                     
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);

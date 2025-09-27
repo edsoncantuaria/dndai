@@ -18,7 +18,7 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
-    type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
+    type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll']),
     content: z.any(),
     rollResult: z.any().optional(),
 }).describe("An entry in the game's adventure log.");
@@ -165,7 +165,6 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
-    imagePrompt: z.string().optional().describe("Occasionally, for an important scene, provide a detailed image prompt (in English) to generate an illustration. Example: 'Dungeons and Dragons 5e style: A tiefling man in a dark cloak watches you from across a tavern, while blurry dwarves dance in the foreground.'"),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night', 'dungeon_i', 'none' for silence). This should be chosen from the available `ambient-sounds.json` file to match the current scene's atmosphere."),
     systemLog: z.string().optional().describe("Optional log where the GM explains decisions, e.g., DC choice, damage calculation, NPC rolls."),
     worldState: z.object({

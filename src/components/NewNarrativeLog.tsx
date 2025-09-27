@@ -1,8 +1,8 @@
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker, Image as ImageIcon } from 'lucide-react';
+import type { LogEntry as LogEntryType } from '../types';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import Image from 'next/image';
@@ -170,40 +170,6 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
         case 'insight':
              content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
-        case 'image':
-            if (typeof entry.content === 'object' && entry.content !== null) {
-                const imageContent = entry.content as ImageLogEntryContent;
-                content = (
-                    <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                        {imageContent.status === 'generating' ? (
-                            <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                                <Loader2 className="h-8 w-8 animate-spin" />
-                            </div>
-                        ) : imageContent.status === 'done' && imageContent.url ? (
-                            <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
-                        ) : (
-                             <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                                <ImageIcon className="h-12 w-12 mr-2 text-red-500/50"/> 
-                                <span>Falha ao gerar imagem.</span>
-                            </div>
-                        )}
-                    </div>
-                );
-            } else {
-                 // Fallback for old string-based image logs for compatibility
-                content = (
-                    <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                         {(entry.content as string) === 'generating' ? (
-                            <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                                <Loader2 className="h-8 w-8 animate-spin" />
-                            </div>
-                         ) : (
-                            <Image src={entry.content as string} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
-                         )}
-                    </div>
-                );
-            }
-            break;
         default:
             content = null;
     }
