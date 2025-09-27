@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { translateApiString } from '@/utils/translator';
+import { translateApiString, translateSpell } from '@/utils/translator';
+import { TRANSLATIONS_SPELLS } from '@/utils/TranslatorSpells';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
+const SAVE_VERSION = 2; // Version for the save file structure
 
 const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
     const newJournal = [...existing];
@@ -49,51 +51,49 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
     return newRelationships;
 };
 
-// Função auxiliar para mesclar o estado do personagem de forma segura.
+// Character state updates should always come from the Game Master (AI).
+// This function ensures that new data from the API is safely merged into the existing character state
+// without unintended side effects, and recalculates derived stats.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    // Começa com uma cópia profunda para evitar mutações inesperadas.
-    let newChar: Character = JSON.parse(JSON.stringify(oldChar));
+    // Use structuredClone for a safe and performant deep copy.
+    let newChar: Character = structuredClone(oldChar);
 
-    // Aplica as atualizações de nível superior
+    // Apply top-level updates.
     newChar = { ...newChar, ...updates };
 
-    // Garante que arrays sejam mesclados e não sobrescritos
+    // Ensure arrays are handled correctly. Most arrays are completely replaced if provided.
+    // The GM's response is the single source of truth for the current state.
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
-    } else {
-        newChar.inventory = oldChar.inventory;
-    }
-    if (updates.conditions) {
-        newChar.conditions = updates.conditions;
-    } else {
-        newChar.conditions = oldChar.conditions;
     }
     if (updates.spells) {
         newChar.spells = updates.spells;
-    } else {
-        newChar.spells = oldChar.spells;
+    }
+     // The GM sends the full list of current conditions. Always replace.
+    if (updates.conditions) {
+        newChar.conditions = updates.conditions;
     }
 
-    // Mesclagem inteligente para diário e relacionamentos
+    // Smart merging for complex nested data structures that need to be preserved.
     if (updates.journal) {
         newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
     }
     if (updates.relationships) {
         newChar.relationships = mergeRelationships(oldChar.relationships || [], updates.relationships);
     }
+    if (updates.factionReputation) {
+        newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
+    }
 
-    // Garante que objetos aninhados sejam mesclados e não substituídos.
+    // Ensure nested objects are merged correctly, not fully replaced.
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
-    if (updates.factionReputation) {
-        newChar.factionReputation = { ...oldChar.factionReputation, ...updates.factionReputation };
-    }
 
 
-    // Recalcula propriedades derivadas após a fusão.
+    // Recalculate derived properties after the merge.
     const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
     newChar.modifiers = newModifiers;
     newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
@@ -119,6 +119,12 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
+    
+    // New states for world persistence and GM feedback
+    const [systemLog, setSystemLog] = useState<string | null>(null);
+    const [worldState, setWorldState] = useState<{ [key: string]: any }>({});
+    const [modularRules, setModularRules] = useState<string[]>([]);
+    
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
@@ -130,29 +136,32 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest };
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
          try {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
-                const { character: savedCharacter, log: savedLog, actionOptions: savedActionOptions, combatState: savedCombatState, levelUpState: savedLevelUpState, shopState: savedShopState, pendingLootOffer: savedPendingLootOffer, pendingHitDiceRequest: savedPendingHitDiceRequest, ambientSound: savedAmbientSound } = JSON.parse(savedGame);
-                setCharacter(savedCharacter);
-                setLog(savedLog || []);
-                setActionOptions(savedActionOptions || []);
-                setCombatState(savedCombatState || { isActive: false, round: 0, turn: 0, combatants: [] });
-                setLevelUpState(savedLevelUpState || null);
-                setShopState(savedShopState || null);
-                setPendingLootOffer(savedPendingLootOffer || null);
-                setPendingHitDiceRequest(savedPendingHitDiceRequest || null);
-                setAmbientSound(savedAmbientSound || 'none');
+                const parsedState = JSON.parse(savedGame);
+                setCharacter(parsedState.character || null);
+                setLog(parsedState.log || []);
+                setActionOptions(parsedState.actionOptions || []);
+                setCombatState(parsedState.combatState || { isActive: false, round: 0, turn: 0, combatants: [] });
+                setLevelUpState(parsedState.levelUpState || null);
+                setShopState(parsedState.shopState || null);
+                setPendingLootOffer(parsedState.pendingLootOffer || null);
+                setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
+                setAmbientSound(parsedState.ambientSound || 'none');
+                setSystemLog(parsedState.systemLog || null);
+                setWorldState(parsedState.worldState || {});
+                setModularRules(parsedState.modularRules || []);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -168,7 +177,7 @@ export const useNewGameState = () => {
     }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
-        // Debounced save
+        // Debounced save. This effect now triggers on any significant game state change.
         const handler = setTimeout(() => {
             if (character && !isLoading) { 
                 saveGame();
@@ -178,7 +187,8 @@ export const useNewGameState = () => {
         return () => {
             clearTimeout(handler);
         };
-    }, [character, log, isLoading, saveGame]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules, isLoading, saveGame]);
+
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
@@ -197,11 +207,22 @@ export const useNewGameState = () => {
             setLog(prev => [...prev, ...newLogEntries]);
         }
         
-        // Se a IA pedir uma rolagem, definimos o estado para abrir o modal. A execução para aqui.
+        // Handle new state fields from the Game Master
+        if (response.systemLog) {
+            setSystemLog(response.systemLog);
+            console.log("System Log from GM:", response.systemLog); // For debugging
+        }
+        if (response.worldState) {
+            setWorldState(prev => ({ ...prev, ...response.worldState }));
+        }
+        if (response.modularRules) setModularRules(response.modularRules);
+
+
+        // If the AI asks for a roll, set the state to open the modal. Execution stops here for this response.
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setActionOptions([]); // Limpa as ações para focar na rolagem
-            return; // Impede o processamento de outras partes da resposta
+            setActionOptions([]); // Clear actions to focus on the roll
+            return; // Prevents processing other parts of the response
         }
         
         if (response.actionOptions !== undefined) {
@@ -222,41 +243,59 @@ export const useNewGameState = () => {
                 console.warn("Nenhuma chave de API para geração de imagem, pulando.");
                 return;
             }
-            // Add a placeholder entry immediately
-            setLog(prev => [...prev, { id: imageLogId, type: 'image', content: 'generating' }]);
+             const imageEntry: ImageLogEntry = { id: imageLogId, type: 'image', content: { status: 'generating' } };
+            setLog(prev => [...prev, imageEntry]);
 
             generateImage(response.imagePrompt, selectedImageModel, apiKeyToUse).then(imageResult => {
                 if (imageResult?.imageUrl) {
                     setLog(prev => prev.map(entry => 
                         entry.id === imageLogId 
-                            ? { ...entry, content: imageResult.imageUrl } 
+                            ? { ...entry, content: { status: 'done', url: imageResult.imageUrl } } 
                             : entry
                     ));
                 } else {
-                     setLog(prev => prev.filter(entry => entry.id !== imageLogId));
+                     setLog(prev => prev.map(entry => 
+                        entry.id === imageLogId 
+                            ? { ...entry, content: { status: 'failed' } } 
+                            : entry
+                    ));
                 }
             }).catch(error => {
                 console.error("Image generation failed silently:", error);
-                setLog(prev => prev.filter(entry => entry.id !== imageLogId));
+                setLog(prev => prev.map(entry => 
+                    entry.id === imageLogId 
+                        ? { ...entry, content: { status: 'failed' } } 
+                        : entry
+                ));
             });
         }
 
     }, [getApiKey, selectedImageModel]);
-    
-    const processPlayerAction = useCallback(async (action: string) => {
+
+    const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
         
         setIsLoading(true);
         setApiError(null);
+        setPlayerRollRequest(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         const previousActionOptions = actionOptions;
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
+        let newLogEntries: LogEntry[] = [];
+        if (rollResultForLog) {
+            newLogEntries.push({ id: uuidv4(), type: 'roll', content: action, rollResult: rollResultForLog });
+        } else {
+            newLogEntries.push({ id: uuidv4(), type: 'action', content: action });
+        }
+
+        let currentLog: LogEntry[] = [];
+        setLog(prev => {
+            currentLog = [...prev, ...newLogEntries];
+            return currentLog;
+        });
+
         setActionOptions([]); 
-        
-        const currentLog = [...log, newLogEntry];
         
         try {
             const apiKey = getApiKey();
@@ -267,6 +306,7 @@ export const useNewGameState = () => {
                 character,
                 playerAction: action,
                 gameLog: currentLog,
+                combatState: combatState
             };
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
@@ -276,22 +316,28 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            // Rollback UI changes on error
             setActionOptions(previousActionOptions);
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            setLog(prev => prev.filter(entry => !newLogEntries.some(ne => ne.id === entry.id)));
         } finally {
             setIsLoading(false); 
         }
 
-    }, [character, log, actionOptions, handleApiResponse, selectedModel, generationConfig, getApiKey]);
-
+    }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log]);
+    
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         
-        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}. (Rolagens: ${result.rolls.join(', ')})`;
+        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         
+        const rollLogEntry: LogEntry['rollResult'] = {
+            ...playerRollRequest,
+            ...result,
+            description: `Rolagem de ${playerRollRequest.reason}`,
+            success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
+        };
+
         setPlayerRollRequest(null);
-        processPlayerAction(actionText);
+        processPlayerAction(actionText, rollLogEntry);
 
     }, [playerRollRequest, processPlayerAction]);
     
@@ -312,7 +358,8 @@ export const useNewGameState = () => {
     }, []);
 
     const submitSpellCast = useCallback((spell: ApiSpell, description: string) => {
-        const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}`: '.'}`;
+        const translatedSpellName = translateSpell(spell)?.name || spell.name;
+        const actionText = `Eu conjuro ${translatedSpellName}${description ? `: ${description}`: '.'}`;
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, [processPlayerAction]);
@@ -326,6 +373,9 @@ export const useNewGameState = () => {
         setActionOptions([]);
         setApiError(null);
         setAmbientSound('none');
+        setSystemLog(null);
+        setWorldState({});
+        setModularRules([]);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -348,7 +398,8 @@ export const useNewGameState = () => {
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
-                gameLog: []
+                gameLog: [],
+                combatState: combatState
             };
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
@@ -361,7 +412,7 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
         
-    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey]);
+    }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey, combatState]);
     
     const checkForSavedGame = useCallback(() => {
         try {
@@ -374,7 +425,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
+            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -388,7 +439,7 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules]);
 
     const loadGameFromFile = (file: File) => {
         setIsLoading(true);
@@ -407,6 +458,10 @@ export const useNewGameState = () => {
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                     setAmbientSound(parsedState.ambientSound || 'none');
+                    setSystemLog(parsedState.systemLog || null);
+                    setWorldState(parsedState.worldState || {});
+                    setModularRules(parsedState.modularRules || []);
+                    
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
             } catch (e) {
@@ -443,6 +498,13 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
     }, [character, processPlayerAction]);
     
+    const useConsumable = useCallback((itemId: string) => {
+      if (!character) return;
+      const item = character.inventory.find(i => i.id === itemId);
+      if (!item) return; // Frontend check can be minimal, GM has final say
+      processPlayerAction(`Eu uso meu ${item.name}.`);
+    }, [character, processPlayerAction]);
+
     const spendHitDice = useCallback((diceCount: number) => {
         if (!character) return;
         processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
@@ -450,6 +512,7 @@ export const useNewGameState = () => {
 
     const takeLoot = useCallback((takeAll: boolean) => {
          if (!character || !pendingLootOffer) return;
+         setPlayerRollRequest(null);
          if (takeAll) {
              processPlayerAction('Eu pego todo o tesouro.');
          }
@@ -457,11 +520,13 @@ export const useNewGameState = () => {
 
     const buyItem = useCallback((item: ShopItem, price: number) => {
         if (!character) return;
+        setPlayerRollRequest(null);
         processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
     }, [character, processPlayerAction]);
     
     const sellItem = useCallback((item: InventoryItem, price: number) => {
          if (!character) return;
+         setPlayerRollRequest(null);
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
     
@@ -495,6 +560,7 @@ export const useNewGameState = () => {
         processPlayerAction,
         applyLevelUp,
         toggleEquipped,
+        useConsumable,
         spendHitDice,
         takeLoot,
         buyItem,
@@ -503,5 +569,8 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
+        systemLog, 
+        worldState,
+        modularRules,
     };
 };

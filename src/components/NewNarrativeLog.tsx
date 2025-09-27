@@ -131,6 +131,9 @@ const getActionIcon = (content: string) => {
     if (lowerContent.includes('tento usar') || lowerContent.includes('uso') || lowerContent.includes('perícia')) {
         return <Dice5 className="h-4 w-4 text-cyan-400" title="Ação de Perícia" />;
     }
+    if (lowerContent.includes('rolagem')) {
+        return <Dice5 className="h-4 w-4 text-cyan-400" title="Rolagem de Dados" />;
+    }
 
     return <ChevronsRight className="text-amber-400 font-bold h-4 w-4" aria-hidden="true" />;
 };
