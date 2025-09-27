@@ -8,7 +8,7 @@ import {
 import * as characterUtils from '../utils/characterUtils';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
-import { translateSpell } from '@/utils/TranslatorSpells';
+import { translateApiString, translateSpell } from '@/utils/translator';
 import { v4 as uuidv4 } from 'uuid';
 import racialAbilities from '../data/racial-abilities.json';
 
@@ -440,14 +440,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                     }
                 }
             }
-            
-            // Add Breath Weapon as a "spell" option for Dragonborn
-            if (raceDetails?.index === 'dragonborn') {
-                const breathWeaponSpell = racialAbilities.abilities.find(a => a.index === 'breath-weapon');
-                if (breathWeaponSpell) {
-                    spellOptionsToFetch.add(breathWeaponSpell as ApiListItem);
-                }
-            }
 
             if (spellOptionsToFetch.size > 0) {
                 const fetchedSpellDetails = await fetchDetailsInChunks(Array.from(spellOptionsToFetch), DndApiService.getSpellDetails, () => {});
@@ -464,11 +456,35 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     useEffect(() => {
         const fetchAncestryDetails = async () => {
-            if (draconicAncestry) {
-                const details = await DndApiService.getTraitDetails(draconicAncestry);
-                setSelectedAncestryDetails(details);
-            } else {
+            if (!draconicAncestry) {
                 setSelectedAncestryDetails(null);
+                return;
+            };
+
+            const details = await DndApiService.getTraitDetails(draconicAncestry);
+            setSelectedAncestryDetails(details);
+
+            if (details?.trait_specific?.breath_weapon) {
+                const bw = details.trait_specific.breath_weapon;
+                const breathWeaponSpell: ApiSpell = {
+                    index: `breath-weapon-${details.trait_specific.damage_type.index}`,
+                    name: `Arma de Sopro (${details.trait_specific.damage_type.name})`,
+                    desc: [bw.desc],
+                    higher_level: [],
+                    range: `${bw.area_of_effect.size} pés ${bw.area_of_effect.type}`,
+                    components: [],
+                    material: '',
+                    ritual: false,
+                    duration: 'Instantânea',
+                    casting_time: bw.usage.type,
+                    level: 0, 
+                    school: { name: 'Evocação', index: 'evocation', url:'' },
+                    classes: [],
+                    subclasses: [],
+                    damage: bw.damage ? { damage_type: bw.damage[0].damage_type } : undefined
+                };
+                setChosenRacialSpells(prev => ({...prev, 'breath-weapon': [breathWeaponSpell.index]}));
+                setRacialSpellOptions(prev => [...prev.filter(s => !s.index.startsWith('breath-weapon-')), breathWeaponSpell]);
             }
         };
         fetchAncestryDetails();
@@ -699,10 +715,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (newRaceIndex) {
             const details = await DndApiService.getRaceDetails(newRaceIndex);
             setRaceDetails(details);
+            
             if (newRaceIndex === 'dragonborn') {
                 setIsDraconicAncestryLoading(true);
                 const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
-                if (ancestryTrait?.trait_specific?.subtrait_options) {
+                if (ancestryTrait?.trait_specific?.subtrait_options?.from?.options) {
                     setDraconicAncestryOptions(ancestryTrait.trait_specific.subtrait_options.from.options.map((o: any) => o.item));
                 }
                 setIsDraconicAncestryLoading(false);
@@ -788,14 +805,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 await handleSubraceChange(randomSubrace.index);
             }
              if (raceData?.index === 'dragonborn') {
-                const ancestryTrait = raceData.traits.find(t => t.index === 'draconic-ancestry');
-                if (ancestryTrait) {
-                    const ancestryDetails = await DndApiService.getTraitDetails(ancestryTrait.index);
-                    if (ancestryDetails?.trait_specific?.subtrait_options?.options) {
-                        const options = ancestryDetails.trait_specific.subtrait_options.options;
-                        const randomAncestry = options[Math.floor(Math.random() * options.length)];
-                        setDraconicAncestry(randomAncestry.item.index);
-                    }
+                const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
+                if (ancestryTrait?.trait_specific?.subtrait_options?.from?.options) {
+                    const options = ancestryTrait.trait_specific.subtrait_options.from.options;
+                    const randomAncestry = options[Math.floor(Math.random() * options.length)];
+                    setDraconicAncestry(randomAncestry.item.index);
                 }
             }
         }, 500); // Delay to allow raceDetails to be set
@@ -914,10 +928,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
         
         const allSpells = [...new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()])];
-        if (race === 'dragonborn' && draconicAncestry) {
-            allSpells.push('breath-weapon'); 
-        }
-
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         

@@ -1,29 +1,4 @@
 
 {
-  "abilities": [
-    {
-      "index": "breath-weapon",
-      "name": "Arma de Sopro",
-      "desc": [
-        "Você pode usar sua ação para exalar energia destrutiva. Sua ancestralidade dracônica determina o tamanho, a forma e o tipo de dano da exalação.",
-        "Quando você usa sua arma de sopro, cada criatura na área da exalação deve fazer um teste de resistência, o tipo do qual é determinado por sua ancestralidade. A CD para este teste de resistência é 8 + seu modificador de Constituição + seu bônus de proficiência. Uma criatura sofre 2d6 de dano em uma falha, e metade do dano em um sucesso. O dano aumenta para 3d6 no 6º nível, 4d6 no 11º nível e 5d6 no 16º nível.",
-        "Depois de usar sua arma de sopro, você não pode usá-la novamente até completar um descanso curto ou longo."
-      ],
-      "higher_level": [],
-      "range": "Pessoal",
-      "components": ["V", "S"],
-      "material": "",
-      "ritual": false,
-      "duration": "Instantâneo",
-      "casting_time": "1 ação",
-      "level": 0,
-      "school": {
-        "index": "evocation",
-        "name": "Evocação",
-        "url": "/api/2014/magic-schools/evocation"
-      },
-      "classes": [],
-      "subclasses": []
-    }
-  ]
+  "abilities": []
 }
