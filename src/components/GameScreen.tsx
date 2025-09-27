@@ -112,11 +112,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 
                 <NewCombatTracker /> 
 
-                <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
+                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden", "md:mb-0 mb-16")}>
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
                         <div className={cn(
-                            "flex-grow p-4 overflow-y-auto h-0",
-                            combatState.isActive ? "pb-36 md:pb-4" : "pb-20 md:pb-4"
+                            "flex-grow p-4 overflow-y-auto h-0"
                         )}>
                             <NewNarrativeLog />
                         </div>
