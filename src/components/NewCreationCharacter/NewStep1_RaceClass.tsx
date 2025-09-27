@@ -168,7 +168,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                 </div>
             )}
             
-            {traitChoiceDetails.length > 0 && traitDetails.filter(t => t.index !== 'draconic-ancestry').map(trait => (
+            {traitChoiceDetails.length > 0 && traitChoiceDetails.filter(t => t.index !== 'draconic-ancestry').map(trait => (
                 <div key={trait.index} className="animate-fadeIn p-3 bg-stone-900/40 rounded-md border border-stone-700">
                      <p className="font-semibold text-stone-300">{translateApiString(trait.name)}</p>
                     <p className="text-xs text-stone-400 italic">{trait.desc[0]}</p>
