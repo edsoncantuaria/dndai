@@ -10,7 +10,7 @@ type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 
 // Este componente agora contém a lógica principal da página e pode acessar o contexto.
 const HomePageContent = () => {
-    const { character, loadGameFromLocalStorage } = useGameStateContext();
+    const { character, loadGameFromLocalStorage, startGame } = useGameStateContext();
     const { playMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -47,9 +47,17 @@ const HomePageContent = () => {
     }, []);
     
     // Função para finalmente entrar no jogo e fazer a primeira chamada à IA
-    const onPlay = useCallback(() => {
+    const onPlay = useCallback(async () => {
+        // First, set the stage to playing to show the loading screen
         setGameStage('playing');
-    }, []);
+        // Then, attempt to start the game, which makes the initial API call.
+        const success = await startGame();
+        // If the API call fails, revert to the 'created' stage so the user isn't stuck.
+        if (success === false) {
+             // A mensagem de erro já terá sido definida pelo hook, então o ErrorModal aparecerá.
+            setGameStage('created');
+        }
+    }, [startGame]);
     
     const onContinueGame = useCallback(() => {
         loadGameFromLocalStorage();
@@ -80,6 +88,7 @@ const HomePageContent = () => {
             onCharacterCreated={onCharacterCreated}
             onContinueGame={onContinueGame}
             gameStage={gameStage}
+            startGame={startGame}
         />
     );
 };

@@ -87,6 +87,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
         newChar.worldState = { ...(oldChar.worldState || {}), ...updates.worldState };
     }
 
+
     // Ensure nested objects are merged correctly, not fully replaced.
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
@@ -124,8 +125,7 @@ export const useNewGameState = () => {
     
     // New states for world persistence and GM feedback
     const [systemLog, setSystemLog] = useState<string | null>(null);
-    const [worldState, setWorldState] = useState<{ [key: string]: any }>({});
-    const [modularRules, setModularRules] = useState<string[]>([]);
+    // worldState is now part of the Character object
     
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
@@ -138,13 +138,13 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules };
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog]);
     
     const loadGameFromLocalStorage = useCallback(() => {
          setIsLoading(true);
@@ -162,8 +162,6 @@ export const useNewGameState = () => {
                 setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                 setAmbientSound(parsedState.ambientSound || 'none');
                 setSystemLog(parsedState.systemLog || null);
-                setWorldState(parsedState.character.worldState || {});
-                setModularRules(parsedState.modularRules || []);
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
@@ -189,7 +187,7 @@ export const useNewGameState = () => {
         return () => {
             clearTimeout(handler);
         };
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules, isLoading, saveGame]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, isLoading, saveGame]);
 
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
@@ -207,8 +205,6 @@ export const useNewGameState = () => {
         if (response.worldState) {
             characterUpdates.worldState = response.worldState;
         }
-        if (response.modularRules) setModularRules(response.modularRules);
-
 
         if (Object.keys(characterUpdates).length > 0) {
             setCharacter(prevCharacter => {
@@ -221,12 +217,11 @@ export const useNewGameState = () => {
             const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
-
-        // If the AI asks for a roll, set the state to open the modal. Execution stops here for this response.
+        
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setActionOptions([]); // Clear actions to focus on the roll
-            return; // Prevents processing other parts of the response
+            setActionOptions([]); 
+            return; 
         }
         
         if (response.actionOptions !== undefined) {
@@ -343,8 +338,6 @@ export const useNewGameState = () => {
         setApiError(null);
         setAmbientSound('none');
         setSystemLog(null);
-        setWorldState({});
-        setModularRules([]);
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
@@ -362,7 +355,7 @@ export const useNewGameState = () => {
         try {
             const apiKey = getApiKey();
             if (!apiKey) {
-                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações para continuar.");
             }
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
@@ -377,9 +370,12 @@ export const useNewGameState = () => {
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
+            // Return false to indicate failure, allowing the UI to react.
+            return false;
         } finally {
             setIsLoading(false);
         }
+        return true;
         
     }, [character, log.length, isLoading, handleApiResponse, selectedModel, generationConfig, getApiKey, combatState]);
     
@@ -394,7 +390,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules };
+            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
@@ -408,7 +404,7 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog]);
 
     const loadGameFromFile = (file: File) => {
         setIsLoading(true);
@@ -428,8 +424,6 @@ export const useNewGameState = () => {
                     setPendingHitDiceRequest(parsedState.pendingHitDiceRequest || null);
                     setAmbientSound(parsedState.ambientSound || 'none');
                     setSystemLog(parsedState.systemLog || null);
-                    setWorldState(parsedState.character.worldState || {});
-                    setModularRules(parsedState.modularRules || []);
                     
                     localStorage.setItem(LOCAL_STORAGE_KEY, text);
                 }
@@ -539,7 +533,5 @@ export const useNewGameState = () => {
         loadGameFromFile,
         saveGameToFile,
         systemLog, 
-        worldState,
-        modularRules,
     };
 };

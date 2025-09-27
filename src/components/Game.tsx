@@ -13,33 +13,34 @@ interface GameProps {
   onCharacterCreated: () => void;
   onContinueGame: () => void;
   gameStage: GameStage;
+  startGame: () => Promise<boolean | undefined>;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, gameStage }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, gameStage, startGame }: GameProps) {
     const gameStateHook = useGameStateContext();
 
-    // Este useEffect agora SÓ inicia o jogo quando o estágio 'playing' é ativado
-    // e o log de aventura está vazio.
+    // This effect now only handles continuing a game from localStorage.
+    // Starting a new game is explicitly triggered by the onPlay button in page.tsx.
     useEffect(() => {
         if (
             gameStage === 'playing' &&
             gameStateHook.character && 
-            gameStateHook.log.length === 0 && 
+            gameStateHook.log.length > 0 && // This condition ensures we don't re-trigger for new games
             !gameStateHook.isLoading
         ) {
-            gameStateHook.startGame();
+            // This path is for continuing a saved game.
+            // The `startGame` logic isn't needed here as the log already exists.
         }
     }, [
-        gameStage, // A dependência principal que controla o fluxo
+        gameStage,
         gameStateHook.character, 
         gameStateHook.log.length, 
-        gameStateHook.isLoading, 
-        gameStateHook.startGame
+        gameStateHook.isLoading
     ]);
 
-    // Se o personagem existe e estamos no estágio de jogo, mostra a tela principal ou o carregamento.
+    // If the character exists and we are in the 'playing' stage
     if (gameStateHook.character && gameStage === 'playing') {
-        // Se a narração inicial ainda não chegou (log está vazio), mostra um loader.
+        // If the initial narration hasn't arrived yet (log is empty), show a loader.
         if (gameStateHook.log.length === 0) {
             return (
                 <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
@@ -52,7 +53,7 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
         return <GameScreen />;
     }
 
-    // Caso contrário, mostra a tela de menu/criação.
+    // Otherwise, show the menu/creation screen.
     return (
         <CharacterCreation 
             startNewGameFlow={startNewGameFlow}
