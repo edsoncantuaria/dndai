@@ -1,12 +1,11 @@
-
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateCondition } from '../utils/translator';
-import { Heart, Shield, Swords, Sparkles, Zap, ChevronDown, User, Bot, Skull, History, PlusSquare } from 'lucide-react';
-import type { Combatant, LogEntry } from '../types';
+import { Heart, Shield, Swords, User, Bot, Skull, History, PlusSquare, Zap } from 'lucide-react';
+import type { Combatant } from '../types';
 
-const statusColorMap: { [key: string]: string } = {
+const statusColorMap: Record<string, string> = {
     'Stunned': 'bg-yellow-600/50 text-yellow-200',
     'Unconscious': 'bg-gray-700/50 text-gray-300',
     'Paralyzed': 'bg-purple-600/50 text-purple-200',
@@ -68,7 +67,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                         <History className="h-4 w-4" />
                     </button>
                     <div className="text-center">
-                        <div className="text-xs text-stone-400">AC</div>
+                        <div className="text-xs text-stone-400 flex items-center gap-1"><Shield className="h-3 w-3"/>AC</div>
                         <div className="font-bold text-stone-200">{combatant.armorClass ?? '?'}</div>
                     </div>
                 </div>
@@ -112,11 +111,10 @@ const NewCombatTracker: React.FC = () => {
         if (combatState.initiativeOrder && combatState.initiativeOrder.length > 0) {
             return combatState.initiativeOrder.map(id => combatants.find(c => c.id === id)).filter((c): c is Combatant => !!c);
         }
-        return [...combatants].sort((a, b) => b.initiative - a.initiative);
+        return [...combatants].sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
     }, [combatants, combatState.initiativeOrder]);
     
     const currentTurnIndex = turn % sortedCombatants.length;
-    const currentCombatant = sortedCombatants[currentTurnIndex];
 
     return (
         <div className="flex-shrink-0 bg-red-900/40 p-3 rounded-lg border-2 border-red-700/60 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
@@ -139,4 +137,3 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
-

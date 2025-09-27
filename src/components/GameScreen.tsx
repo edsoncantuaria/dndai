@@ -1,3 +1,4 @@
+'use client';
 
 import React, { useState } from 'react';
 import Header from './Header';
@@ -24,7 +25,7 @@ import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
 const GameScreen: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<Tab>('relationships');
+    const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
         combatState, 
         levelUpState, 
