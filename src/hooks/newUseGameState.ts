@@ -142,128 +142,11 @@ export const useNewGameState = () => {
         setLog(prev => [...prev, newEntry]);
     }, []);
 
-    const nextTurn = useCallback(() => {
-      setCombatState(prev => {
-        if (!prev.isActive || !prev.combatants || prev.combatants.length === 0) return prev;
-
-        const livingCombatantsInOrder = (prev.initiativeOrder || []).map(id => prev.combatants.find(c => c.id === id)).filter((c): c is Combatant => !!c && !c.isDead);
-
-        if (livingCombatantsInOrder.length === 0) {
-            // No living combatants, maybe end combat? For now, just don't advance.
-            return { ...prev, isActive: false };
-        }
-        
-        const currentTurnCombatantId = prev.initiativeOrder![prev.turn];
-        const currentTurnIndexInLiving = livingCombatantsInOrder.findIndex(c => c.id === currentTurnCombatantId);
-
-        const nextTurnIndexInLiving = (currentTurnIndexInLiving + 1) % livingCombatantsInOrder.length;
-        const nextCombatantId = livingCombatantsInOrder[nextTurnIndexInLiving].id;
-        
-        // Find the index in the original initiativeOrder
-        const nextTurnIndex = prev.initiativeOrder!.findIndex(id => id === nextCombatantId);
-
-        const nextRound = (prev.turn > nextTurnIndex) ? prev.round + 1 : prev.round;
-        
-        const nextCombatantName = livingCombatantsInOrder[nextTurnIndexInLiving].name;
-        
-        addLog({
-          type: "system",
-          content: `É o turno de ${nextCombatantName}!`,
-        });
-    
-        return {
-          ...prev,
-          turn: nextTurnIndex,
-          round: nextRound,
-        };
-      });
-    }, [addLog]);
-
-
     const getApiKey = useCallback(() => {
         return userApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     }, [userApiKey]);
 
     const clearApiError = useCallback(() => setApiError(null), []);
-
-    const saveGame = useCallback(() => {
-        if (character && log.length > 0) {
-            try {
-                // Don't save transient states
-                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog };
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
-            } catch (error) {
-                console.error("Falha ao salvar o jogo no localStorage:", error);
-            }
-        }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog]);
-    
-    const loadGameFromLocalStorage = useCallback(() => {
-        setIsLoading(true);
-        try {
-            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (savedGame) {
-                const parsedState = JSON.parse(savedGame);
-
-                const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
-                if (lastEntry && lastEntry.type === 'action') {
-                    parsedState.log.pop(); 
-                }
-
-                setCharacter(parsedState.character || null);
-                setLog(parsedState.log || []);
-                setActionOptions(parsedState.actionOptions || []);
-                setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
-                setLevelUpState(parsedState.levelUpState || null);
-                setShopState(parsedState.shopState || null);
-                setAmbientSound(parsedState.ambientSound || 'none');
-                setSystemLog(parsedState.systemLog || null);
-                
-                setPlayerRollRequest(null);
-                setSkillCheckRequest(null);
-                setSpellCastRequest(null);
-                setPendingLootOffer(null);
-                setPendingHitDiceRequest(null);
-
-            }
-        } catch (error) {
-            console.error("Falha ao carregar o jogo:", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-        } finally {
-            setIsLoading(false);
-        }
-    }, []);
-
-    const clearGameState = useCallback(() => {
-        setCharacter(null);
-        setLog([]);
-        setActionOptions([]);
-        setCombatState(INITIAL_COMBAT_STATE);
-        setLevelUpState(null);
-        setShopState(null);
-        setPendingLootOffer(null);
-        setPendingHitDiceRequest(null);
-        setSkillCheckRequest(null);
-        setSpellCastRequest(null);
-        setPlayerRollRequest(null);
-        setApiError(null);
-        setAmbientSound('none');
-        setSystemLog(null);
-    }, []);
-
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            if (character && !isLoading) { 
-                saveGame();
-            }
-        }, 1500);
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, isLoading, saveGame]);
-
 
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
@@ -307,7 +190,7 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [addLog]);
+    }, [addLog, getApiKey, selectedImageModel]);
 
     const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
         if (!character) return;
@@ -355,6 +238,90 @@ export const useNewGameState = () => {
         }
 
     }, [character, combatState, handleApiResponse, selectedModel, generationConfig, getApiKey, log, actionOptions]);
+
+    const nextTurn = useCallback(() => {
+        if (!combatState.isActive) return;
+        processPlayerAction("Processar o próximo turno do combate.");
+    }, [combatState.isActive, processPlayerAction]);
+
+    const saveGame = useCallback(() => {
+        if (character && log.length > 0) {
+            try {
+                // Don't save transient states
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+            } catch (error) {
+                console.error("Falha ao salvar o jogo no localStorage:", error);
+            }
+        }
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog]);
+    
+    const loadGameFromLocalStorage = useCallback(() => {
+        setIsLoading(true);
+        try {
+            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (savedGame) {
+                const parsedState = JSON.parse(savedGame);
+
+                const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
+                if (lastEntry && lastEntry.type === 'action') {
+                    parsedState.log.pop(); 
+                }
+
+                setCharacter(parsedState.character || null);
+                setLog(parsedState.log || []);
+                setActionOptions(parsedState.actionOptions || []);
+                setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
+                setLevelUpState(parsedState.levelUpState || null);
+                setShopState(parsedState.shopState || null);
+                setAmbientSound(parsedState.ambientSound || 'none');
+                setSystemLog(parsedState.systemLog || null);
+                
+                // Clear transient states that should not persist across sessions
+                setPlayerRollRequest(null);
+                setSkillCheckRequest(null);
+                setSpellCastRequest(null);
+                setPendingLootOffer(null);
+                setPendingHitDiceRequest(null);
+            }
+        } catch (error) {
+            console.error("Falha ao carregar o jogo:", error);
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const clearGameState = useCallback(() => {
+        setCharacter(null);
+        setLog([]);
+        setActionOptions([]);
+        setCombatState(INITIAL_COMBAT_STATE);
+        setLevelUpState(null);
+        setShopState(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPlayerRollRequest(null);
+        setApiError(null);
+        setAmbientSound('none');
+        setSystemLog(null);
+    }, []);
+
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            if (character && !isLoading) { 
+                saveGame();
+            }
+        }, 1500);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, isLoading, saveGame]);
+
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
@@ -620,3 +587,4 @@ export const useNewGameState = () => {
         clearGameState,
     };
 };
+

@@ -1,13 +1,15 @@
 'use client';
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import CombatantCard from './CombatantCard';
 import type { Combatant } from '../types';
-import { Swords } from 'lucide-react';
+import { Swords, ChevronDown } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
+    const [isExpanded, setIsExpanded] = useState(true);
 
     if (!combatState || !combatState.isActive || !character) {
         return null;
@@ -30,9 +32,10 @@ const NewCombatTracker: React.FC = () => {
         armorClass: character.ac.value,
         conditions: character.conditions
     } : null, [character]);
-
+    
     const allCombatants = useMemo(() => {
-        const combatantMap = new Map((combatants || []).map(c => [c.id, c]));
+        if (!Array.isArray(combatants)) return []; // Safeguard against non-array combatants
+        const combatantMap = new Map(combatants.map(c => [c.id, c]));
         if (playerCombatant && (initiativeOrder || []).includes('player')) {
             const playerCombatData = combatantMap.get('player') || {};
             combatantMap.set('player', { ...playerCombatant, ...playerCombatData, id: 'player' });
@@ -65,49 +68,60 @@ const NewCombatTracker: React.FC = () => {
     const isPlayerTurn = currentCombatant?.id === 'player';
 
     return (
-        <div className="flex-shrink-0 bg-red-900/40 p-3 rounded-lg border-2 border-red-700/60 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
-            <div className="flex justify-between items-center mb-3 px-1">
+        <div className="flex-shrink-0 bg-red-950/40 backdrop-blur-sm p-3 rounded-lg border-2 border-red-800/80 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
+            <button 
+                className="flex justify-between items-center w-full"
+                onClick={() => setIsExpanded(!isExpanded)}
+                aria-expanded={isExpanded}
+            >
                 <h3 className="text-xl font-bold font-garamond text-red-200 flex items-center gap-2"><Swords /> COMBATE ATIVO</h3>
-                <span className="font-mono text-lg text-red-300">Round {round}</span>
-            </div>
-
-            {currentCombatant && (
-                 <div className="space-y-3">
-                     <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual</p>
-                    <CombatantCard
-                        key={currentCombatant.id}
-                        combatant={currentCombatant}
-                        isCurrentTurn={true}
-                        isPlayer={isPlayerTurn}
-                    />
+                <div className="flex items-center gap-4">
+                  <span className="font-mono text-lg text-red-300">Round {round}</span>
+                  <ChevronDown className={`h-6 w-6 text-red-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
-            )}
-            
-            {upcomingCombatants.length > 0 && (
-                <div className="mt-4 space-y-2">
-                    <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
-                    <div className="space-y-3 opacity-80">
-                         {upcomingCombatants.map((combatant) => (
+            </button>
+
+            {isExpanded && (
+                <div className="mt-4 animate-fadeIn" style={{ animationDuration: '300ms'}}>
+                    {currentCombatant && (
+                        <div className="space-y-3">
+                            <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual</p>
                             <CombatantCard
-                                key={combatant.id}
-                                combatant={combatant}
-                                isCurrentTurn={false}
-                                isPlayer={combatant.id === 'player'}
+                                key={currentCombatant.id}
+                                combatant={currentCombatant}
+                                isCurrentTurn={true}
+                                isPlayer={isPlayerTurn}
                             />
-                        ))}
-                    </div>
-                </div>
-            )}
+                        </div>
+                    )}
+                    
+                    {upcomingCombatants.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                            <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
+                            <div className="space-y-3 opacity-80">
+                                {upcomingCombatants.map((combatant) => (
+                                    <CombatantCard
+                                        key={combatant.id}
+                                        combatant={combatant}
+                                        isCurrentTurn={false}
+                                        isPlayer={combatant.id === 'player'}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-            {!isPlayerTurn && (
-                <div className="mt-4 text-center">
-                    <button
-                        onClick={nextTurn}
-                        disabled={isLoading}
-                        className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-100 font-bold transition-colors shadow-md disabled:opacity-50"
-                    >
-                        Próximo Turno
-                    </button>
+                    {!isPlayerTurn && (
+                        <div className="mt-4 text-center">
+                            <button
+                                onClick={() => nextTurn()}
+                                disabled={isLoading}
+                                className="w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Próximo Turno' }
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
