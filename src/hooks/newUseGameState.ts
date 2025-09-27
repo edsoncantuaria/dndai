@@ -120,7 +120,7 @@ const INITIAL_COMBAT_STATE: CombatState = {
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
-    const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string, skill: string})[]>([]);
+    const [actionOptions, setActionOptions] = useState<(string | { text: string; action: string, skill?: string })[]>([]);
     const [combatState, setCombatState] = useState<CombatState>(INITIAL_COMBAT_STATE);
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
@@ -269,17 +269,20 @@ export const useNewGameState = () => {
         if (combatState.isActive) {
             setCombatState(prev => {
                 const playerCombatantIndex = prev.combatants.findIndex(c => c.id === 'player');
-                if (playerCombatantIndex === -1) return prev;
-    
+                if (playerCombatantIndex === -1 && !prev.combatants.some(c => c.id === 'player')) {
+                    // This can happen if the combatant list hasn't been updated yet.
+                    // Let's defer this to the GM's response, but for now, we'll log it.
+                    console.warn("Player combatant not found in combat state during roll result handling.");
+                    return prev;
+                }
                 const newCombatants = [...prev.combatants];
-                const playerCombatant = { ...newCombatants[playerCombatantIndex] };
-                
+                const playerCombatant = { ...(newCombatants[playerCombatantIndex] || {}) } as Combatant;
+
                 const newHistoryEntry: Combatant['rollHistory'][0] = {
                     type: rollLogEntry.rollType, // Map rollType to history type
                     total: rollLogEntry.total,
                     rolls: rollLogEntry.rolls,
                     description: rollLogEntry.description,
-                    dice: rollLogEntry.dice,
                 };
     
                 playerCombatant.rollHistory = [...(playerCombatant.rollHistory || []), newHistoryEntry];
@@ -344,9 +347,18 @@ export const useNewGameState = () => {
     }, []);
 
     const forceReload = useCallback(() => {
-        addLog({ type: 'system', content: 'Restaurando o jogo para o último estado seguro...' });
-        loadGameFromLocalStorage();
-    }, [loadGameFromLocalStorage, addLog]);
+        addLog({ type: 'system', content: 'Restaurando o jogo para um estado seguro...' });
+        setCombatState(INITIAL_COMBAT_STATE);
+        setPlayerRollRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setApiError(null);
+        setIsLoading(false); // Force loading state to off
+        // We ask the AI for a neutral summary to get back on track.
+        processPlayerAction("O mestre resume a situação atual para que eu possa continuar.");
+    }, [addLog, processPlayerAction]);
 
 
     const clearGameState = useCallback(() => {
@@ -629,3 +641,5 @@ export const useNewGameState = () => {
         forceReload,
     };
 };
+
+    
