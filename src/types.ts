@@ -357,6 +357,9 @@ export interface Combatant {
         total: number;
         rolls: number[];
         timestamp: string;
+        rollType: string;
+        dice: string;
+        description: string;
     }[];
 }
 
