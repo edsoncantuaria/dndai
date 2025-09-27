@@ -1,6 +1,7 @@
 // services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { customFeats } from '../data/feats';
+import allSpellsData from '../api/spells.json';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
@@ -9,6 +10,7 @@ const cache = new Map<string, any>();
 
 // Map to hold custom/hard-coded content
 const localContent = new Map<string, any>();
+const allSpells = allSpellsData as ApiSpell[];
 
 // Load custom content into the map
 customFeats.forEach(feat => localContent.set(`/feats/${feat.index}`, feat));
@@ -61,10 +63,24 @@ export const getSubclassDetails = (index: string) => fetchFromApi<ApiSubclass>(`
 export const getBackgroundDetails = (index: string) => fetchFromApi<ApiBackground>(`/backgrounds/${index}`);
 export const getClassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/classes/${index}/levels`);
 export const getSubclassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/subclasses/${index}/levels`);
-export const getSpellsForClass = (index: string) => fetchFromApi<{ results: ApiListItem[] }>(`/classes/${index}/spells`);
+
+// Modified to use local JSON
+export const getSpellsForClass = async (index: string): Promise<{ results: ApiListItem[] } | null> => {
+    const spellsForClass = allSpells
+        .filter(spell => spell.classes.some(c => c.index === index))
+        .map(spell => ({ index: spell.index, name: spell.name, url: spell.url }));
+    
+    return Promise.resolve({ results: spellsForClass });
+};
+
 export const getEquipmentForCategory = (index: string) => fetchFromApi<{ equipment: ApiListItem[] }>(`/equipment-categories/${index}`);
 
-export const getSpellDetails = (index: string) => fetchFromApi<ApiSpell>(`/spells/${index}`);
+// Modified to use local JSON
+export const getSpellDetails = async (index: string): Promise<ApiSpell | null> => {
+    const spell = allSpells.find(s => s.index === index);
+    return Promise.resolve(spell || null);
+};
+
 export const getTraitDetails = (index: string) => fetchFromApi<ApiTrait>(`/traits/${index}`);
 export const getEquipmentDetails = (index: string) => fetchFromApi<Partial<InventoryItem>>(`/equipment/${index}`);
 export const getConditionDetails = (index: string) => fetchFromApi<ApiCondition>(`/conditions/${index}`);
