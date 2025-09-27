@@ -143,47 +143,48 @@ export const useNewGameState = () => {
     }, []);
 
     const nextTurn = useCallback(() => {
-        setCombatState(prev => {
-            if (!prev.isActive || !prev.initiativeOrder || prev.initiativeOrder.length === 0) return prev;
-    
-            const livingCombatantsInOrder = prev.initiativeOrder.filter(id => {
-                const c = prev.combatants.find(combatant => combatant.id === id);
-                return c && !c.isDead;
-            });
-    
-            if (livingCombatantsInOrder.length === 0) {
-                 // No living combatants, can't advance turn.
-                return prev;
-            }
-    
-            const currentTurnId = prev.initiativeOrder[prev.turn % prev.initiativeOrder.length];
-            let nextTurnIndex = (prev.turn + 1);
-            let nextRound = prev.round;
-    
-            if (nextTurnIndex >= prev.initiativeOrder.length) {
-                nextTurnIndex = 0;
-                nextRound += 1;
-            }
-    
-            const nextCombatantId = prev.initiativeOrder[nextTurnIndex];
-            const nextCombatant = prev.combatants.find(c => c.id === nextCombatantId);
-    
-            if (nextCombatant && !nextCombatant.isDead) {
-                addLog({
-                    type: "combat",
-                    content: `É o turno de ${nextCombatant.name}!`,
-                });
-            } else {
-                 // This logic needs to be smarter; if the next combatant is dead, skip them.
-                 // For now, the UI will just not show them, but the turn index advances.
-            }
-    
-            return {
-              ...prev,
-              turn: nextTurnIndex,
-              round: nextRound,
-            };
+      setCombatState(prev => {
+        if (!prev.isActive || !prev.combatants || prev.combatants.length === 0) return prev;
+
+        const livingCombatantsInOrder = (prev.initiativeOrder || []).filter(id => {
+            const c = prev.combatants.find(combatant => combatant.id === id);
+            return c && !c.isDead;
         });
+
+        if (livingCombatantsInOrder.length === 0) {
+            return prev;
+        }
+
+        const currentTurnIdInFullList = prev.initiativeOrder?.[prev.turn % prev.initiativeOrder.length];
+        
+        let nextTurnIndex = (prev.turn + 1);
+        
+        // Find the next living combatant
+        while(true) {
+            const nextId = prev.initiativeOrder?.[nextTurnIndex % prev.initiativeOrder.length];
+            const nextCombatant = prev.combatants.find(c => c.id === nextId);
+            if (nextCombatant && !nextCombatant.isDead) {
+                break;
+            }
+            nextTurnIndex++;
+        }
+        
+        const nextRound = Math.floor(nextTurnIndex / prev.initiativeOrder!.length) + prev.round;
+        const finalNextTurnIndex = nextTurnIndex % prev.initiativeOrder!.length;
+        
+        const nextCombatantName = prev.combatants.find(c => c.id === prev.initiativeOrder![finalNextTurnIndex])?.name || 'desconhecido';
+        
+        addLog({
+          type: "combat",
+          content: `É o turno de ${nextCombatantName}!`,
+        });
+    
+        return {
+          ...prev,
+          turn: finalNextTurnIndex,
+          round: nextRound,
+        };
+      });
     }, [addLog]);
 
 
@@ -355,8 +356,8 @@ export const useNewGameState = () => {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
             // Rollback UI changes on error
-            setActionOptions(previousActionOptions);
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            setActionOptions(previousActionOptions);
         } finally {
             setIsLoading(false); 
         }
@@ -611,3 +612,5 @@ export const useNewGameState = () => {
         clearGameState,
     };
 };
+
+    
