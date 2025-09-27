@@ -17,7 +17,7 @@ const NewCombatTracker: React.FC = () => {
     
     const livingCombatants = useMemo(() => 
         (initiativeOrder || [])
-            .map(id => combatants.find(c => c.id === id && !c.isDead))
+            .map(id => Array.isArray(combatants) ? combatants.find(c => c.id === id && !c.isDead) : undefined)
             .filter((c): c is Combatant => !!c)
     , [combatants, initiativeOrder]);
 
