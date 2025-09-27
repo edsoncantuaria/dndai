@@ -263,6 +263,7 @@ export interface Character {
     speed: number;
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
+    factionReputation?: Record<string, number>;
 }
 
 export interface LogEntry {
