@@ -378,6 +378,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             try {
                 let textToParse = jsonText;
+                if (!textToParse) {
+                    throw new Error("O Mestre de Jogo não respondeu (resposta vazia).");
+                }
+
                 if (isGemma) {
                     const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
                     if (match) {
@@ -440,3 +444,5 @@ export const testAiConnection = async (modelName: string, generationConfig: Gene
 };
 
       
+
+    
