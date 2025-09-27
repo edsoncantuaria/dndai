@@ -9,7 +9,8 @@ import { Swords } from 'lucide-react';
 const NewCombatTracker: React.FC = () => {
     const { combatState, nextTurn } = useGameStateContext();
 
-    if (!combatState.isActive || combatState.combatants.length === 0) {
+    // Fix: Add a guard clause to ensure combatState and combatants are defined
+    if (!combatState || !combatState.isActive || !combatState.combatants || combatState.combatants.length === 0) {
         return null;
     }
 
