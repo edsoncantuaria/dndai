@@ -12,11 +12,12 @@ interface GameProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
   onContinueGame: () => void;
+  returnToMenu: () => void;
   gameStage: GameStage;
   startGame: () => Promise<boolean | undefined>;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, gameStage, startGame }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, returnToMenu, gameStage, startGame }: GameProps) {
     const gameStateHook = useGameStateContext();
 
     // This effect now only handles continuing a game from localStorage.
@@ -50,7 +51,7 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
                 </div>
             )
         }
-        return <GameScreen />;
+        return <GameScreen returnToMenu={returnToMenu} />;
     }
 
     // Otherwise, show the menu/creation screen.

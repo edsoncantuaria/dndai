@@ -12,7 +12,7 @@ type GameStage = 'menu' | 'creating' | 'created' | 'playing';
 
 // Este componente agora contém a lógica principal da página e pode acessar o contexto.
 const HomePageContent = () => {
-    const { character, loadGameFromLocalStorage, startGame } = useGameStateContext();
+    const { character, loadGameFromLocalStorage, startGame, clearGameState } = useGameStateContext();
     const { playMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('menu');
     const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -66,6 +66,11 @@ const HomePageContent = () => {
         loadGameFromLocalStorage();
         setGameStage('playing');
     }, [loadGameFromLocalStorage]);
+    
+    const returnToMenu = useCallback(() => {
+        clearGameState();
+        setGameStage('menu');
+    }, [clearGameState]);
 
 
     // No estágio 'created', mostramos uma tela intermediária com o botão "Continuar".
@@ -103,6 +108,7 @@ const HomePageContent = () => {
             startNewGameFlow={startNewGameFlow}
             onCharacterCreated={onCharacterCreated}
             onContinueGame={onContinueGame}
+            returnToMenu={returnToMenu}
             gameStage={gameStage}
             startGame={startGame}
         />

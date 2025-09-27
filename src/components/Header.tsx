@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as GeminiService from '@/services/geminiService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices } from 'lucide-react';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, LogOut, DoorOpen } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -11,9 +11,13 @@ import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { generateImage } from '@/ai/flows/generateImage';
 import DiceTestModal from './DiceTestModal'; 
 
-const Header: React.FC = () => {
-    const { character, saveGameToFile, getApiKey } = useGameStateContext();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig, apiKey: userApiKey } = useSettingsContext();
+interface HeaderProps {
+    returnToMenu: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
+    const { character, saveGameToFile, getApiKey, isLoading } = useGameStateContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -22,6 +26,7 @@ const Header: React.FC = () => {
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
     const [showDiceTestModal, setShowDiceTestModal] = useState(false);
+    const [showExitModal, setShowExitModal] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
     const closeAiTestModal = () => {
@@ -101,6 +106,8 @@ const Header: React.FC = () => {
     }
 
     const { name, level, characterClass, hp } = character;
+    const isInteractionDisabled = isLoading || isTestingAi;
+
 
     return (
         <>
@@ -115,27 +122,29 @@ const Header: React.FC = () => {
                             <div className="flex justify-between items-baseline">
                                 <h2 className="font-bold text-lg text-stone-100 truncate">{name}</h2>
                                 <div className="md:hidden flex items-center gap-1.5">
-                                    <button 
-                                        onClick={handleTestAi}
-                                        disabled={isTestingAi}
-                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
-                                        title="Testar Conexão com a IA"
-                                    >
-                                        {isTestingAi ? <Loader2 className="h-4 w-4 text-amber-300 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-amber-300" />}
-                                    </button>
-                                    <button 
+                                     <button 
                                         onClick={saveGameToFile}
-                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                                        disabled={isInteractionDisabled}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
                                         title="Salvar Jogo (Download)"
                                     >
                                         <Save className="h-4 w-4 text-amber-300" />
                                     </button>
                                     <button
                                         onClick={() => setShowSettingsModal(true)}
-                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                                        disabled={isInteractionDisabled}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
                                         title="Configurações"
                                     >
                                         <Settings className="h-4 w-4 text-amber-300" />
+                                    </button>
+                                     <button
+                                        onClick={() => setShowExitModal(true)}
+                                        disabled={isInteractionDisabled}
+                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                        title="Voltar ao Menu"
+                                    >
+                                        <DoorOpen className="h-4 w-4 text-amber-300" />
                                     </button>
                                 </div>
                             </div>
@@ -149,25 +158,35 @@ const Header: React.FC = () => {
                     <div className="hidden md:flex items-center justify-end gap-2">
                          <button 
                             onClick={handleTestAi}
-                            disabled={isTestingAi}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
                             title="Testar Conexão com a IA"
                         >
                             {isTestingAi ? <Loader2 className="h-5 w-5 text-amber-300 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300" />}
                         </button>
                         <button 
                             onClick={saveGameToFile}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
                             title="Salvar Jogo (Download)"
                         >
                             <Save className="h-5 w-5 text-amber-300" />
                         </button>
                         <button
                             onClick={() => setShowSettingsModal(true)}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors"
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
                             title="Configurações"
                         >
                             <Settings className="h-5 w-5 text-amber-300" />
+                        </button>
+                         <button
+                            onClick={() => setShowExitModal(true)}
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                            title="Voltar ao Menu"
+                        >
+                            <DoorOpen className="h-5 w-5 text-amber-300" />
                         </button>
                     </div>
                 </div>
@@ -225,6 +244,21 @@ const Header: React.FC = () => {
                     </div>
                 </ActionModal>
             )}
+            
+            {showExitModal && (
+                <ActionModal
+                    isOpen={showExitModal}
+                    title="Voltar ao Menu Principal?"
+                    onClose={() => setShowExitModal(false)}
+                    actions={[
+                        { text: "Não, continuar", onClick: () => setShowExitModal(false), variant: 'secondary' },
+                        { text: "Sim, sair", onClick: returnToMenu, variant: 'destructive' }
+                    ]}
+                >
+                    <p className="text-stone-300">Tem certeza de que deseja voltar ao menu? O progresso da sua aventura é salvo automaticamente, mas é sempre bom salvar manualmente antes de sair.</p>
+                </ActionModal>
+            )}
+
              <audio ref={audioRef} className="hidden" />
              {showDiceTestModal && <DiceTestModal isOpen={showDiceTestModal} onClose={() => setShowDiceTestModal(false)} />}
             <SettingsModal

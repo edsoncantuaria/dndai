@@ -24,7 +24,11 @@ import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
-const GameScreen: React.FC = () => {
+interface GameScreenProps {
+    returnToMenu: () => void;
+}
+
+const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
         combatState, 
@@ -100,7 +104,7 @@ const GameScreen: React.FC = () => {
                 )}
                 <AmbientPlayer /> 
 
-                <Header />
+                <Header returnToMenu={returnToMenu} />
                 
                 {combatState.isActive && <NewCombatTracker />} 
 

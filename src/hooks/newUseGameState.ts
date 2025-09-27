@@ -7,6 +7,7 @@ import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { generateImage } from '@/ai/flows/generateImage';
 import { translateApiString, translateSpell } from '@/utils/translator';
 import { TRANSLATIONS_SPELLS } from '@/utils/TranslatorSpells';
 
@@ -106,12 +107,20 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     return newChar;
 };
 
+const INITIAL_COMBAT_STATE: CombatState = {
+    isActive: false,
+    round: 1,
+    turn: 0,
+    combatants: [],
+    initiativeOrder: [],
+};
+
 
 export const useNewGameState = () => {
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [actionOptions, setActionOptions] = useState<(string | {text: string, action: string, skill: string})[]>([]);
-    const [combatState, setCombatState] = useState<CombatState>({ isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
+    const [combatState, setCombatState] = useState<CombatState>(INITIAL_COMBAT_STATE);
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
@@ -127,27 +136,45 @@ export const useNewGameState = () => {
     
     const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
 
-    const addLog = useCallback((newEntry: Omit<LogEntry, 'id'>) => {
-        setLog(prev => [...prev, { ...newEntry, id: uuidv4() }]);
+    const addLog = useCallback((newEntryData: Omit<LogEntry, 'id'>) => {
+        const newEntry = { ...newEntryData, id: uuidv4() };
+        setLog(prev => [...prev, newEntry]);
     }, []);
 
     const nextTurn = useCallback(() => {
         setCombatState(prev => {
-            const livingCombatants = prev.combatants.filter(c => !c.isDead);
-            if (!prev.isActive || livingCombatants.length === 0 || !prev.initiativeOrder) return prev;
+            if (!prev.isActive || !prev.initiativeOrder || prev.initiativeOrder.length === 0) return prev;
+    
+            const livingCombatantsInOrder = prev.initiativeOrder.filter(id => {
+                const c = prev.combatants.find(combatant => combatant.id === id);
+                return c && !c.isDead;
+            });
+    
+            if (livingCombatantsInOrder.length === 0) {
+                 // No living combatants, can't advance turn.
+                return prev;
+            }
     
             const currentTurnId = prev.initiativeOrder[prev.turn % prev.initiativeOrder.length];
-            
-            let nextTurnIndex = (prev.turn + 1) % prev.initiativeOrder.length;
-            const nextRound = nextTurnIndex === 0 ? prev.round + 1 : prev.round;
+            let nextTurnIndex = (prev.turn + 1);
+            let nextRound = prev.round;
+    
+            if (nextTurnIndex >= prev.initiativeOrder.length) {
+                nextTurnIndex = 0;
+                nextRound += 1;
+            }
+    
             const nextCombatantId = prev.initiativeOrder[nextTurnIndex];
             const nextCombatant = prev.combatants.find(c => c.id === nextCombatantId);
-            
-            if (nextCombatant) {
+    
+            if (nextCombatant && !nextCombatant.isDead) {
                 addLog({
-                  type: "combat",
-                  content: `É o turno de ${nextCombatant.name}!`,
+                    type: "combat",
+                    content: `É o turno de ${nextCombatant.name}!`,
                 });
+            } else {
+                 // This logic needs to be smarter; if the next combatant is dead, skip them.
+                 // For now, the UI will just not show them, but the turn index advances.
             }
     
             return {
@@ -185,7 +212,7 @@ export const useNewGameState = () => {
                 setCharacter(parsedState.character || null);
                 setLog(parsedState.log || []);
                 setActionOptions(parsedState.actionOptions || []);
-                setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
+                setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
                 setLevelUpState(parsedState.levelUpState || null);
                 setShopState(parsedState.shopState || null);
                 setPendingLootOffer(parsedState.pendingLootOffer || null);
@@ -200,6 +227,25 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
     }, []);
+
+    const clearGameState = useCallback(() => {
+        setCharacter(null);
+        setLog([]);
+        setActionOptions([]);
+        setCombatState(INITIAL_COMBAT_STATE);
+        setLevelUpState(null);
+        setShopState(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPlayerRollRequest(null);
+        setApiError(null);
+        setAmbientSound('none');
+        setSystemLog(null);
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }, []);
+
 
     useEffect(() => {
     }, [loadGameFromLocalStorage]);
@@ -352,19 +398,13 @@ export const useNewGameState = () => {
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        setCharacter(null); // Clear character first
-        setLog([]); 
-        setActionOptions([]);
-        setApiError(null);
-        setAmbientSound('none');
-        setSystemLog(null);
+        clearGameState();
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
         setIsLoading(false);
-    }, []);
+    }, [clearGameState]);
 
     const startGame = useCallback(async () => {
         if (!character || log.length > 0 || isLoading) return;
@@ -391,6 +431,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
+            setLog([]); // Clear log on error to allow retry
             return false;
         } finally {
             setIsLoading(false);
@@ -437,7 +478,7 @@ export const useNewGameState = () => {
                     setCharacter(parsedState.character || null);
                     setLog(parsedState.log || []);
                     setActionOptions(parsedState.actionOptions || []);
-                    setCombatState(parsedState.combatState || { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] });
+                    setCombatState(parsedState.combatState || INITIAL_COMBAT_STATE);
                     setLevelUpState(parsedState.levelUpState || null);
                     setShopState(parsedState.shopState || null);
                     setPendingLootOffer(parsedState.pendingLootOffer || null);
@@ -554,5 +595,6 @@ export const useNewGameState = () => {
         saveGameToFile,
         systemLog, 
         nextTurn,
+        clearGameState,
     };
 };
