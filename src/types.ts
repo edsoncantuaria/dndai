@@ -325,6 +325,18 @@ export interface Combatant {
     hp?: number;
     maxHp?: number;
     initiative: number;
+    initiativeRoll?: number;
+    armorClass?: number;
+    hasMoved?: boolean;
+    hasActed?: boolean;
+    actionPoints?: number;
+    bonusActionPoints?: number;
+    readyWeapon?: string;
+    readySpell?: string;
+    rollHistory?: { type: 'initiative'|'attack'|'check'|'save'|'damage', total: number, rolls: number[] }[];
+    isDead?: boolean;
+    readyAction?: string;
+    conditions?: any[];
 }
 
 export interface CombatState {

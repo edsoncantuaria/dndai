@@ -10,7 +10,9 @@ export const PlayerRollRequestSchema = z.object({
     rollType: z.enum(['check', 'save', 'attack', 'damage']).describe("The type of roll being made."),
     advantage: z.boolean().optional().describe("Whether the roll should be made with advantage."),
     disadvantage: z.boolean().optional().describe("Whether the roll should be made with disadvantage.")
-});
+}).refine(data => !(data.advantage && data.disadvantage), {
+        message: "Uma rolagem não pode ter vantagem e desvantagem ao mesmo tempo",
+      });
 export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 
@@ -35,6 +37,74 @@ const CombatStateSchema = z.object({
     turn: z.number(),
     combatants: z.array(CombatantSchema),
 });
+
+const CombatantBaseSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    hp: z.number().optional(),
+    maxHp: z.number().optional(),
+    initiative: z.number(),
+    distance: z.number().optional().describe("Distância em metros ou unidades até o alvo principal."),
+    isHidden: z.boolean().default(false).describe("Se o combatente está em stealth ou invisível."),
+    tempModifiers: z.record(z.string(), z.number()).default({}).describe("Modificadores temporários (vantagem, desvantagem, buffs)."),
+    conditions: z.array(z.object({
+      name: z.string(),
+      durationRounds: z.number().optional(),
+      durationMinutes: z.number().optional(),
+      concentration: z.boolean().optional(),
+      savingThrowEachTurn: z.boolean().optional(),
+    })).default([]).describe("Condições ativas no combatente."),
+  });
+
+export const FullCombatantSchema = CombatantBaseSchema.extend({
+    initiativeRoll: z.number().optional().describe("O valor da rolagem de iniciativa antes de aplicar modificadores."),
+    armorClass: z.number().optional().describe("Classe de armadura do combatente."),
+    hasMoved: z.boolean().default(false).describe("Se o combatente já se moveu neste turno."),
+    hasActed: z.boolean().default(false).describe("Se o combatente já realizou ação neste turno."),
+    readyWeapon: z.string().optional().describe("Arma selecionada para ataque."),
+    readySpell: z.string().optional().describe("Magia preparada para uso."),
+    actionPoints: z.number().default(1).describe("Número de ações restantes neste turno."),
+    bonusActionPoints: z.number().default(1).describe("Número de ações bônus disponíveis."),
+    rollHistory: z.array(z.object({
+      type: z.enum(['attack', 'damage', 'save', 'check']),
+      dice: z.string(),
+      modifier: z.number().optional(),
+      result: z.number(),
+      timestamp: z.string().optional(),
+      targetDC: z.number().optional(),
+      advantage: z.boolean().optional(),
+      disadvantage: z.boolean().optional(),
+    })).default([]).describe("Histórico de rolagens do combatente durante o combate."),
+    isDead: z.boolean().default(false).describe("Se o combatente está inconsciente ou morto."),
+    readyAction: z.string().optional().describe("Ação planejada para o turno."),
+  });
+
+
+export const ExtendedCombatStateSchema = z.object({
+    isActive: z.boolean().describe("Se o combate está ativo."),
+    round: z.number().describe("Número do round atual."),
+    turn: z.number().describe("Índice do combatente que está na vez de agir."),
+    combatants: z.array(FullCombatantSchema).describe("Lista completa de combatentes com todas as informações necessárias para combate."),
+    initiativeOrder: z.array(z.string()).optional().describe("IDs dos combatentes em ordem de iniciativa."),
+    log: z.array(z.object({
+      type: z.enum(['combat', 'action', 'system', 'roll']),
+      content: z.string(),
+      rollResult: z.any().optional(),
+      timestamp: z.string().optional(),
+    })).default([]).describe("Log detalhado de todas as ações, rolagens e eventos do combate."),
+    globalConditions: z.array(z.object({
+      name: z.string(),
+      durationRounds: z.number().optional(),
+      durationMinutes: z.number().optional(),
+      description: z.string().optional().describe("Descrição da condição global."),
+    })).default([]).describe("Condições que afetam todos os combatentes, como darkness, fog, slow."),
+  })
+  .refine(data => data.combatants.every(c => c.hp === undefined || c.hp >= 0), {
+    message: "HP dos combatentes não pode ser negativo",
+  });
+
+
+
 
 const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
@@ -102,7 +172,7 @@ export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string() })])).optional().describe("A list of suggested actions for the player to take next."),
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action."),
-    combatState: CombatStateSchema.optional().describe("The current state of combat, if any."),
+    combatState: ExtendedCombatStateSchema.optional().describe("O estado completo do combate, incluindo iniciativa, turnos, distância, ações e condições."), // aqui usamos o novo schema
     levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
     playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice for a skill check, saving throw, or attack, this object MUST be populated. This is the ONLY way to make the player roll dice."),
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
