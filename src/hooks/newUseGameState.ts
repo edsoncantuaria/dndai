@@ -146,42 +146,38 @@ export const useNewGameState = () => {
       setCombatState(prev => {
         if (!prev.isActive || !prev.combatants || prev.combatants.length === 0) return prev;
 
-        const livingCombatantsInOrder = (prev.initiativeOrder || []).filter(id => {
-            const c = prev.combatants.find(combatant => combatant.id === id);
-            return c && !c.isDead;
-        });
+        const livingCombatantsInOrder = (prev.initiativeOrder || []).map(id => prev.combatants.find(c => c.id === id)).filter((c): c is Combatant => !!c && !c.isDead);
 
         if (livingCombatantsInOrder.length === 0) {
-            return prev;
+            // No living combatants, maybe end combat? For now, just don't advance.
+            return { ...prev, isActive: false };
         }
-
-        const currentTurnIdInFullList = prev.initiativeOrder?.[prev.turn % prev.initiativeOrder.length];
         
-        let nextTurnIndex = (prev.turn + 1);
+        const currentCombatantId = prev.initiativeOrder![prev.turn];
+        let nextTurnIndex = (prev.turn + 1) % prev.initiativeOrder!.length;
         
-        // Find the next living combatant
+        // Find the next living combatant's index in the original initiativeOrder array
         while(true) {
-            const nextId = prev.initiativeOrder?.[nextTurnIndex % prev.initiativeOrder.length];
+            const nextId = prev.initiativeOrder![nextTurnIndex];
             const nextCombatant = prev.combatants.find(c => c.id === nextId);
             if (nextCombatant && !nextCombatant.isDead) {
                 break;
             }
-            nextTurnIndex++;
+            nextTurnIndex = (nextTurnIndex + 1) % prev.initiativeOrder!.length;
         }
+
+        const nextRound = (prev.turn > nextTurnIndex) ? prev.round + 1 : prev.round;
         
-        const nextRound = Math.floor(nextTurnIndex / prev.initiativeOrder!.length) + prev.round;
-        const finalNextTurnIndex = nextTurnIndex % prev.initiativeOrder!.length;
-        
-        const nextCombatantName = prev.combatants.find(c => c.id === prev.initiativeOrder![finalNextTurnIndex])?.name || 'desconhecido';
+        const nextCombatantName = prev.combatants.find(c => c.id === prev.initiativeOrder![nextTurnIndex])?.name || 'desconhecido';
         
         addLog({
-          type: "combat",
+          type: "system",
           content: `É o turno de ${nextCombatantName}!`,
         });
     
         return {
           ...prev,
-          turn: finalNextTurnIndex,
+          turn: nextTurnIndex,
           round: nextRound,
         };
       });
@@ -197,13 +193,14 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog };
+                // Don't save transient states
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog]);
     
     const loadGameFromLocalStorage = useCallback(() => {
         setIsLoading(true);
@@ -211,6 +208,15 @@ export const useNewGameState = () => {
             const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (savedGame) {
                 const parsedState = JSON.parse(savedGame);
+
+                // Self-correction: if the last log entry is a player action, it means the game was closed
+                // before the GM could respond. We roll back that action to return to a stable state.
+                const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
+                if (lastEntry && lastEntry.type === 'action') {
+                    parsedState.log.pop(); // Remove the unanswered action
+                    // The actionOptions from the saved state will be used, putting the player back where they were.
+                }
+
                 setCharacter(parsedState.character || null);
                 setLog(parsedState.log || []);
                 setActionOptions(parsedState.actionOptions || []);
@@ -220,7 +226,7 @@ export const useNewGameState = () => {
                 setAmbientSound(parsedState.ambientSound || 'none');
                 setSystemLog(parsedState.systemLog || null);
                 
-                // Clear transient states that should not persist on reload
+                // Clear all transient states that should not persist on reload
                 setPlayerRollRequest(null);
                 setSkillCheckRequest(null);
                 setSpellCastRequest(null);
@@ -237,7 +243,6 @@ export const useNewGameState = () => {
     }, []);
 
     const clearGameState = useCallback(() => {
-        // Resets the state for the current session, but DOES NOT delete the localStorage save.
         setCharacter(null);
         setLog([]);
         setActionOptions([]);
@@ -254,10 +259,6 @@ export const useNewGameState = () => {
         setSystemLog(null);
     }, []);
 
-
-    useEffect(() => {
-        // This auto-load is no longer needed as the UI flow controls it.
-    }, [loadGameFromLocalStorage]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -484,6 +485,12 @@ export const useNewGameState = () => {
                 const text = event.target?.result as string;
                 if(text) {
                     const parsedState = JSON.parse(text);
+
+                    const lastEntry = parsedState.log && parsedState.log.length > 0 ? parsedState.log[parsedState.log.length - 1] : null;
+                    if (lastEntry && lastEntry.type === 'action') {
+                        parsedState.log.pop();
+                    }
+
                     setCharacter(parsedState.character || null);
                     setLog(parsedState.log || []);
                     setActionOptions(parsedState.actionOptions || []);
@@ -493,7 +500,6 @@ export const useNewGameState = () => {
                     setAmbientSound(parsedState.ambientSound || 'none');
                     setSystemLog(parsedState.systemLog || null);
                     
-                    // Clear transient states that should not persist on load
                     setPlayerRollRequest(null);
                     setSkillCheckRequest(null);
                     setSpellCastRequest(null);
