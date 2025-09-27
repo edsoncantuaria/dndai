@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ApiCondition, ImageLogEntry } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, ImageLogEntry } from '../types';
 import * as geminiService from '../services/geminiService';
 import * as characterUtils from '../utils/characterUtils';
 import * as DndApiService from '../services/dndApiService';
@@ -11,6 +11,7 @@ import { generateImage } from '@/ai/flows/generateImage';
 import { translateApiString } from '@/utils/translator';
 
 const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
+const SAVE_VERSION = 2; // Version for the save file structure
 
 const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
     const newJournal = [...existing];
@@ -64,11 +65,12 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
     }
-    if (updates.conditions) {
-        newChar.conditions = updates.conditions;
-    }
     if (updates.spells) {
         newChar.spells = updates.spells;
+    }
+     // The GM sends the full list of current conditions. Always replace.
+    if (updates.conditions) {
+        newChar.conditions = updates.conditions;
     }
 
     // Smart merging for complex nested data structures that need to be preserved.
@@ -133,7 +135,7 @@ export const useNewGameState = () => {
     const saveGame = useCallback(() => {
         if (character && log.length > 0) {
             try {
-                const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules };
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, worldState, modularRules };
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
@@ -325,7 +327,7 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
 
     }, [playerRollRequest, processPlayerAction]);
-
+    
     const handleSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
     }, []);
@@ -408,7 +410,7 @@ export const useNewGameState = () => {
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules };
+            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog, worldState, modularRules };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
