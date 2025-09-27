@@ -136,7 +136,7 @@ const getActionIcon = (content: string) => {
 };
 
 
-const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
+const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }) {
     let content;
     switch(entry.type) {
         case 'narration':
@@ -168,27 +168,45 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
              content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'image':
-            const imageContent = entry.content as ImageLogEntryContent;
-            content = (
-                <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                    {imageContent.status === 'done' && imageContent.url ? (
-                        <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
-                    ) : (
-                        <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                            <ImageIcon className="h-12 w-12 mr-2"/> 
-                            {imageContent.status === 'generating' && 'Gerando imagem...'}
-                            {imageContent.status === 'failed' && 'Falha ao gerar imagem.'}
-                        </div>
-                    )}
-                </div>
-            );
+            if (typeof entry.content === 'object' && entry.content !== null) {
+                const imageContent = entry.content as ImageLogEntryContent;
+                content = (
+                    <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
+                        {imageContent.status === 'generating' ? (
+                            <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                            </div>
+                        ) : imageContent.status === 'done' && imageContent.url ? (
+                            <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
+                        ) : (
+                             <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                                <ImageIcon className="h-12 w-12 mr-2 text-red-500/50"/> 
+                                <span>Falha ao gerar imagem.</span>
+                            </div>
+                        )}
+                    </div>
+                );
+            } else {
+                 // Fallback for old string-based image logs for compatibility
+                content = (
+                    <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
+                         {(entry.content as string) === 'generating' ? (
+                            <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                                <Loader2 className="h-8 w-8 animate-spin" />
+                            </div>
+                         ) : (
+                            <Image src={entry.content as string} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
+                         )}
+                    </div>
+                );
+            }
             break;
         default:
             content = null;
     }
 
     return <div className="animate-fadeInSlideUp">{content}</div>;
-}
+});
 
 const NewNarrativeLog: React.FC = () => {
     const { log } = useGameStateContext();
