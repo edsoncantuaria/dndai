@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
 import type { PlayerRollRequest } from '@/types';
@@ -117,12 +117,20 @@ const ActionOptions: React.FC = () => {
         handleSkillCheck,
         playerRollRequest,
         combatState,
+        character,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
     
-    // Determine if it's the player's turn in combat
-    const isPlayerTurn = combatState.isActive && combatState.initiativeOrder ? combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length] === 'player' : !combatState.isActive;
+    const playerId = useMemo(() => character?.name.toLowerCase() + "_player", [character]);
+
+    const isPlayerTurn = useMemo(() => {
+        if (!combatState.isActive || !combatState.initiativeOrder || !playerId) {
+            return !combatState.isActive; // If not in combat, it's always the "player's turn" to act.
+        }
+        const currentTurnId = (combatState.initiativeOrder as any[])[combatState.turn % combatState.initiativeOrder.length]?.id;
+        return currentTurnId === playerId;
+    }, [combatState, playerId]);
     
     // Actions are available if it is the player's turn and the game is not otherwise locked.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
@@ -143,7 +151,7 @@ const ActionOptions: React.FC = () => {
     };
 
     const renderActionContent = () => {
-        if (!isPlayerTurn && combatState.isActive) {
+        if (combatState.isActive && !isPlayerTurn) {
             return (
                 <div className="flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 rounded-md">
                     Aguardando turno de outros combatentes...

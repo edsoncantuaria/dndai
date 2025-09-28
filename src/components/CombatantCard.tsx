@@ -52,7 +52,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
 
     const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
-    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : (typeof combatant.hp === 'number' ? '?' : '');
+    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
 
@@ -96,7 +96,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
             <div className="mt-2 grid grid-cols-4 gap-2 text-center">
                 <div className="bg-stone-900/50 p-1.5 rounded-md col-span-2">
                     <div className="text-xs text-red-400 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> HP</div>
-                    <div className="font-mono text-lg font-bold text-red-300">{currentHp}{maxHp ? ` / ${maxHp}` : ''}</div>
+                    <div className="font-mono text-lg font-bold text-red-300">{currentHp} / {maxHp}</div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>
@@ -118,5 +118,3 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
 };
 
 export default CombatantCard;
-
-    

@@ -1,5 +1,5 @@
 'use client';
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
@@ -152,12 +152,12 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
             break;
         case 'action':
              // Hide internal processing actions from the log
-            if (entry.content.startsWith("Processar")) {
+            if (typeof entry.content === 'string' && entry.content.startsWith("Processar")) {
                 content = null;
             } else {
                 content = (
                     <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
-                        <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content)}</div>
+                        <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content as string)}</div>
                         <p className="text-amber-400 font-semibold">{entry.content}</p>
                     </div>
                 );
@@ -183,6 +183,52 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
     return <div className="animate-fadeIn" style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, animationDuration: '400ms' }}>{content}</div>;
 });
 
+const NpcRollDisplay: React.FC = () => {
+    const { combatState } = useGameStateContext();
+
+    const initiativeRolls = useMemo(() => {
+        if (!combatState.isActive || !combatState.combatants) return [];
+        return combatState.combatants.map(c => {
+            const initRoll = c.rollHistory?.find(r => r.type === 'initiative');
+            if (initRoll) {
+                return `${c.name}: ${initRoll.total} (${initRoll.rolls.join(', ')} + ${initRoll.modifier || 0})`;
+            }
+            return null;
+        }).filter(Boolean);
+    }, [combatState]);
+
+    const lastNpcRoll = useMemo(() => {
+        if (!combatState.isActive || !combatState.combatants) return null;
+
+        const lastCombatant = combatState.combatants[(combatState.turn - 1 + combatState.combatants.length) % combatState.combatants.length];
+        if (!lastCombatant || lastCombatant.id.includes('_player')) return null;
+
+        const lastAttack = lastCombatant.rollHistory?.slice().reverse().find(r => r.type === 'attack');
+        if (!lastAttack) return null;
+        
+        return `${lastCombatant.name} ataca: ${lastAttack.total} (${lastAttack.rolls.join(', ')} + ${lastAttack.modifier || 0}) vs CA ${lastAttack.targetAc}. ${lastAttack.success ? 'Acertou!' : 'Errou!'}`;
+
+    }, [combatState]);
+
+    if (!combatState.isActive) return null;
+
+    return (
+        <>
+            {initiativeRolls.length > 0 && (
+                <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm">
+                    <h5 className="font-bold text-amber-300 mb-1">Iniciativa:</h5>
+                    <p className="text-stone-300 font-mono">{combatState.initiativeOrder?.map(c => `${c.id} (${c.initiative})`).join(', ')}</p>
+                </div>
+            )}
+             {lastNpcRoll && (
+                 <div className="bg-red-900/30 p-3 my-2 rounded-md border border-red-700/50 text-sm">
+                    <p className="text-red-200 font-mono">{lastNpcRoll}</p>
+                </div>
+            )}
+        </>
+    );
+};
+
 const NewNarrativeLog: React.FC = () => {
     const { log } = useGameStateContext();
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -204,6 +250,7 @@ const NewNarrativeLog: React.FC = () => {
             {log.map((entry, index) => (
                 <LogEntry key={entry.id} entry={entry} index={log.length - 1 - index} />
             ))}
+            <NpcRollDisplay />
             <div ref={logEndRef} />
         </div>
     );

@@ -10,47 +10,37 @@ import CombatantHeaderInfo from './CombatantHeaderInfo';
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(true);
+    
+    // Find the player's unique ID from the combatant list if it exists
+    const playerId = useMemo(() => character?.name.toLowerCase() + "_player", [character]);
 
     const allCombatants = useMemo<Combatant[]>(() => {
-        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character) return [];
+        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character || !playerId) return [];
 
         const combatantMap = new Map<string, Combatant>();
 
-        // Add all NPCs to the map, ensuring HP values are valid
+        // Process all combatants from the state
         combatState.combatants.forEach(c => {
-            if (c.id !== 'player') {
-                const npcCombatant: Combatant = {
-                    ...c,
-                    hp: typeof c.hp === 'number' ? c.hp : 1, // Fallback HP
-                    maxHp: typeof c.maxHp === 'number' ? c.maxHp : c.hp || 1, // Fallback Max HP
-                };
-                if(typeof c.hp !== 'number' || typeof c.maxHp !== 'number'){
-                    console.warn(`Combatant ${c.name} (${c.id}) is missing valid HP values.`);
-                }
-                combatantMap.set(c.id, npcCombatant);
+             // Handle inconsistent HP structures
+            const currentHp = typeof c.hp === 'number' ? c.hp : (c.hp as any)?.current;
+            const maxHp = typeof c.maxHp === 'number' ? c.maxHp : (c.hp as any)?.max;
+
+            const combatant: Combatant = {
+                ...c,
+                hp: typeof currentHp === 'number' ? currentHp : 1, // Fallback HP
+                maxHp: typeof maxHp === 'number' ? maxHp : currentHp || 1, // Fallback Max HP
+            };
+            
+            if(typeof currentHp !== 'number' || typeof maxHp !== 'number'){
+                 console.warn(`Combatant ${c.name} (${c.id}) is missing valid HP values. Received:`, c.hp);
             }
+            combatantMap.set(c.id, combatant);
         });
-        
-        // Add or update player data
-        const playerInCombat = combatState.combatants.find(c => c.id === 'player') || {};
-        const playerCombatant: Combatant = {
-            id: 'player',
-            name: character.name,
-            hp: character.hp.current,
-            maxHp: character.hp.max,
-            armorClass: character.ac.value,
-            initiative: playerInCombat.initiative ?? -1,
-            initiativeRoll: playerInCombat.initiativeRoll,
-            isDead: character.hp.current <= 0,
-            hasMoved: playerInCombat.hasMoved || false,
-            hasActed: playerInCombat.hasActed || false,
-            actionPoints: playerInCombat.actionPoints !== undefined ? playerInCombat.actionPoints : 1,
-            bonusActionPoints: playerInCombat.bonusActionPoints !== undefined ? playerInCombat.bonusActionPoints : 1,
-            conditions: character.conditions,
-            rollHistory: playerInCombat.rollHistory || [],
-            tempModifiers: playerInCombat.tempModifiers || {},
-        };
-        combatantMap.set('player', playerCombatant);
+
+        if (!combatantMap.has(playerId)) {
+           console.error("Player character is not in the combatant list from AI.");
+           return [];
+        }
         
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
             // Fallback sort if initiativeOrder is missing
@@ -59,10 +49,10 @@ const NewCombatTracker: React.FC = () => {
 
         // Main logic: sort based on the initiativeOrder array
         return combatState.initiativeOrder
-            .map(id => combatantMap.get(id))
+            .map(orderEntry => combatantMap.get(typeof orderEntry === 'string' ? orderEntry : orderEntry.id))
             .filter((c): c is Combatant => !!c);
 
-    }, [combatState, character]);
+    }, [combatState, character, playerId]);
 
     if (!combatState.isActive || allCombatants.length === 0) {
         return null;
@@ -70,18 +60,20 @@ const NewCombatTracker: React.FC = () => {
     
     const { round, turn, initiativeOrder } = combatState;
     if (!initiativeOrder || initiativeOrder.length === 0) return null;
+    
+    // Handle both string array and object array for initiativeOrder
+    const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
 
-    const currentCombatantId = initiativeOrder[turn % initiativeOrder.length];
+    const currentCombatantId = getCombatantId(initiativeOrder[turn % initiativeOrder.length]);
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
     const upcomingCombatants = Array.from({ length: Math.min(initiativeOrder.length, allCombatants.length) -1 }, (_, i) => {
         const nextIndex = (turn + 1 + i) % allCombatants.length;
-        // Use the ordered allCombatants array to find the next combatant
         return allCombatants[nextIndex];
     }).filter((c): c is Combatant => !!c && !c.isDead && c.id !== currentCombatantId);
 
 
-    const isPlayerTurn = currentCombatant?.id === 'player';
+    const isPlayerTurn = currentCombatant?.id === playerId;
 
     return (
         <div className="flex-shrink-0 bg-red-950/40 backdrop-blur-sm p-3 rounded-lg border-2 border-red-800/80 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
@@ -125,7 +117,7 @@ const NewCombatTracker: React.FC = () => {
                                         key={combatant.id}
                                         combatant={combatant}
                                         isCurrentTurn={false}
-                                        isPlayer={combatant.id === 'player'}
+                                        isPlayer={combatant.id === playerId}
                                     />
                                 ))}
                             </div>
@@ -149,5 +141,3 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
-
-    
