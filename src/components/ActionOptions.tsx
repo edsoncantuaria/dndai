@@ -122,7 +122,7 @@ const ActionOptions: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
     
     // Determine if it's the player's turn in combat
-    const isPlayerTurn = combatState.isActive ? combatState.initiativeOrder?.[combatState.turn % combatState.initiativeOrder.length] === 'player' : true;
+    const isPlayerTurn = combatState.isActive && combatState.initiativeOrder ? combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length] === 'player' : !combatState.isActive;
     
     // Actions are available if it is the player's turn and the game is not otherwise locked.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
@@ -167,18 +167,21 @@ const ActionOptions: React.FC = () => {
         if (pendingHitDiceRequest) {
             return <HitDiceRoller />;
         }
+        
+        if (isLoading) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400">
+                    <Loader2 className="animate-spin" />
+                    <span className="ml-2">Aguardando o mestre...</span>
+                </div>
+            );
+        }
 
         const hasSuggestedActions = actionOptions.length > 0;
     
         return (
             <div className="w-full">
-                 {isLoading && (
-                    <div className="flex items-center justify-center p-4 text-stone-400">
-                        <Loader2 className="animate-spin" />
-                        <span className="ml-2">Aguardando o mestre...</span>
-                    </div>
-                )}
-                {!isLoading && hasSuggestedActions && (
+                {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
                              if (typeof action === 'object' && action !== null && 'skill' in action) {
@@ -220,7 +223,7 @@ const ActionOptions: React.FC = () => {
                     </div>
                 )}
                  <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
-                 {!isLoading && !hasSuggestedActions && (
+                 {!hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
             </div>
