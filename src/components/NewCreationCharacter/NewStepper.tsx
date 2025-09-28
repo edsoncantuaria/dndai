@@ -10,8 +10,8 @@ interface NewStepperProps {
 
 const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highestStep, goToStep }) => {
     return (
-        <div className="flex items-center justify-center w-full mb-8 overflow-x-auto pb-2">
-            <div className="flex items-center">
+        <div className="flex items-center justify-center w-full mb-8">
+            <div className="flex items-center justify-center flex-wrap gap-y-2">
                 {Array.from({ length: totalSteps }).map((_, index) => {
                     const step = index + 1;
                     const isCompleted = step < highestStep;
@@ -20,7 +20,7 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
 
                     return (
                         <React.Fragment key={step}>
-                            <div className="flex flex-col items-center flex-shrink-0">
+                            <div className="flex flex-col items-center">
                                 <button
                                     onClick={() => isReachable && !isActive && goToStep(step)}
                                     disabled={!isReachable || isActive}
@@ -37,7 +37,7 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
                             </div>
                             {step < totalSteps && (
                                 <div
-                                    className={`flex-auto border-t-2 transition-all duration-300 mx-1 w-4 sm:w-8 md:w-12 ${
+                                    className={`flex-auto border-t-2 transition-all duration-300 mx-1 w-4 sm:w-6 md:w-8 ${
                                         step < currentStep ? 'border-amber-500' : 'border-stone-700'
                                     }`}
                                 ></div>
