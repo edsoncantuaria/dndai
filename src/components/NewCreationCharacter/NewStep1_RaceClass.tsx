@@ -128,7 +128,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
             
             <div>
                 <h4 className="text-lg font-semibold text-stone-300 mb-4">Raça</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {races.map(r => (
                         <button
                             key={r.index}
@@ -147,7 +147,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
             {raceDetails?.subraces?.length > 0 && (
                 <div className="animate-fadeIn">
                     <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça (Opcional)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {raceDetails.subraces.map((sr: ApiListItem) => (
                             <button
                                 key={sr.index}
@@ -175,7 +175,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
 
             <div>
                 <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
-                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {classes.map(c => (
                         <button
                             key={c.index}
