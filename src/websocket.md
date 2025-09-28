@@ -80,7 +80,17 @@ Mesmo sem o multiplayer, a introdução de um servidor robustece a experiência 
 - **Latência**: A comunicação com um servidor introduz uma pequena latência. Cada ação precisa de uma viagem de ida e volta pela internet, o que pode ser notado em conexões lentas.
 - **Requisito de Conexão Online**: O jogo passaria a exigir uma conexão constante com a internet, perdendo a funcionalidade offline.
 
-## 6. Fluxo de Jogo Multiplayer (Exemplo)
+## 6. Auto-Hospedagem (Self-Hosting) e Requisitos
+
+É perfeitamente viável hospedar o backend em um servidor caseiro, como um com um processador Xeon E5.
+
+- **Requisitos de CPU**: A carga de trabalho principal da IA (processamento de LLM) ocorre nos servidores do Google, não no seu. Seu servidor apenas gerencia as conexões, a lógica do jogo e o banco de dados, tarefas que são de baixa intensidade para um processador de servidor.
+- **Fatores Mais Importantes**: Para uma boa experiência em auto-hospedagem, os seguintes fatores são mais críticos que a CPU:
+    - **Memória RAM**: Pelo menos 8GB de RAM é recomendado para rodar o sistema operacional, o servidor Node.js e o banco de dados sem problemas.
+    - **Velocidade de Upload da Internet**: Uma boa velocidade de upload é essencial para garantir que os outros jogadores tenham uma experiência fluida e sem atrasos.
+    - **Configuração de Rede**: Será necessário configurar o roteador (port forwarding) para permitir que conexões externas cheguem ao seu servidor. O uso de um serviço de DNS dinâmico (DDNS) também é recomendado.
+
+## 7. Fluxo de Jogo Multiplayer (Exemplo)
 
 O loop de jogo será adaptado para um modelo baseado em turnos.
 
