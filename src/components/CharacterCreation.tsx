@@ -187,7 +187,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                  <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
                     <h1 
                       className="text-5xl md:text-7xl font-bold text-amber-50"
-                      style={{ textShadow: '0 0 15px rgba(239, 68, 68, 0.4), 0 0 5px rgba(239, 68, 68, 0.6)' }}
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
                     >
                         Crônicas de Aventuras
                     </h1>
