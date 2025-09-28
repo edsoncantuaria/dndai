@@ -10,67 +10,67 @@ import CombatantHeaderInfo from './CombatantHeaderInfo';
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(true);
-    
+
     const allCombatants = useMemo<Combatant[]>(() => {
-        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character) {
+        if (!combatState.isActive || !character) {
             return [];
         }
-    
+
         const combatantMap = new Map<string, Combatant>();
-    
-        // First, create the player combatant object from the main character state
+
+        // Create player combatant from the main character state
         const playerCombatant: Combatant = {
-            id: character.name, // Use character name as a stable ID
+            id: character.name,
             name: character.name,
             hp: character.hp.current,
             maxHp: character.hp.max,
-            initiative: 0, // Placeholder, will be updated from combatState
+            initiative: 0,
             isDead: character.hp.current <= 0,
             hasMoved: false,
             hasActed: false,
             actionPoints: 1,
             bonusActionPoints: 1,
             conditions: character.conditions,
-            rollHistory: [], // This will be populated from combatState if available
+            rollHistory: [],
             isPlayer: true,
+            armorClass: character.ac.value,
         };
-    
-        // Process combatants from the API, excluding any potential player duplicates
-        combatState.combatants.forEach(c => {
-            if (c.name === character.name) {
-                // If the player exists in the list, use its initiative and merge roll history
-                const playerFromState = c;
-                playerCombatant.initiative = playerFromState.initiative ?? 0;
-                playerCombatant.rollHistory = playerFromState.rollHistory || [];
+        combatantMap.set(playerCombatant.id, playerCombatant);
+        
+        // Process combatants from the API, merging with player data if necessary
+        (combatState.combatants || []).forEach(c => {
+            if (!c || !c.id) return;
+            const currentHp = typeof c.hp === 'number' ? c.hp : (c.hp as any)?.current;
+            const maxHp = typeof c.maxHp === 'number' ? c.maxHp : (c.hp as any)?.max;
 
-                // Use the more reliable HP from the main character object
-                playerCombatant.hp = character.hp.current;
-                playerCombatant.maxHp = character.hp.max;
-
-            } else {
-                 const currentHp = typeof c.hp === 'number' ? c.hp : (c.hp as any)?.current;
-                 const maxHp = typeof c.maxHp === 'number' ? c.maxHp : (c.hp as any)?.max;
+            // If it's the player, update the existing entry
+            if (c.name === character.name || c.id === playerCombatant.id) {
+                const existingPlayer = combatantMap.get(playerCombatant.id)!;
+                existingPlayer.initiative = c.initiative ?? existingPlayer.initiative;
+                existingPlayer.rollHistory = c.rollHistory || existingPlayer.rollHistory;
+                existingPlayer.hp = character.hp.current;
+                existingPlayer.maxHp = character.hp.max;
+                existingPlayer.actionPoints = c.actionPoints ?? existingPlayer.actionPoints;
+                existingPlayer.bonusActionPoints = c.bonusActionPoints ?? existingPlayer.bonusActionPoints;
+                existingPlayer.hasActed = c.hasActed ?? existingPlayer.hasActed;
+                existingPlayer.hasMoved = c.hasMoved ?? existingPlayer.hasMoved;
+            } else { // It's an NPC
                 combatantMap.set(c.id, {
                     ...c,
-                    hp: typeof currentHp === 'number' ? currentHp : 1, 
+                    hp: typeof currentHp === 'number' ? currentHp : 1,
                     maxHp: typeof maxHp === 'number' ? maxHp : Math.max(currentHp || 1, 1),
                     isPlayer: false,
                 });
             }
         });
-        
-        // Add the definitive player combatant to the map
-        combatantMap.set(playerCombatant.id, playerCombatant);
 
         // Sort based on initiativeOrder
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
-            // Fallback sort if initiativeOrder is missing
-            return Array.from(combatantMap.values()).sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
+             return Array.from(combatantMap.values()).sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
     
         const getCombatantId = (entry: any): string => {
             if (typeof entry === 'string') return entry;
-            // Handle both 'edson_player' and 'Edson' as valid player IDs from the AI
             if (entry.id.toLowerCase().includes(character.name.toLowerCase())) return character.name;
             return entry.id;
         }
@@ -80,7 +80,7 @@ const NewCombatTracker: React.FC = () => {
                 const id = getCombatantId(orderEntry);
                 return combatantMap.get(id);
             })
-            .filter((c): c is Combatant => !!c);
+            .filter((c): c is Combatant => !!c && c.id != null && c.name != null); // Ensure no undefined combatants
     
     }, [combatState, character]);
 
@@ -96,15 +96,15 @@ const NewCombatTracker: React.FC = () => {
         if (entry.id.toLowerCase().includes(character!.name.toLowerCase())) return character!.name;
         return entry.id;
     }
-
-    const currentCombatantId = getCombatantId(initiativeOrder[turn % initiativeOrder.length]);
+    
+    const currentCombatantIndex = turn % initiativeOrder.length;
+    const currentCombatantId = getCombatantId(initiativeOrder[currentCombatantIndex]);
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
-    // Create the list of upcoming combatants
     const upcomingCombatants = [];
     if (allCombatants.length > 1) {
         for (let i = 1; i < allCombatants.length; i++) {
-            const nextIndex = (turn + i) % allCombatants.length;
+            const nextIndex = (currentCombatantIndex + i) % allCombatants.length;
             const nextCombatant = allCombatants[nextIndex];
             if (nextCombatant && !nextCombatant.isDead) {
                 upcomingCombatants.push(nextCombatant);
@@ -142,7 +142,7 @@ const NewCombatTracker: React.FC = () => {
                                 key={currentCombatant.id}
                                 combatant={currentCombatant}
                                 isCurrentTurn={true}
-                                isPlayer={isPlayerTurn}
+                                isPlayer={!!currentCombatant.isPlayer}
                             />
                         </div>
                     )}
@@ -156,7 +156,7 @@ const NewCombatTracker: React.FC = () => {
                                         key={combatant.id}
                                         combatant={combatant}
                                         isCurrentTurn={false}
-                                        isPlayer={combatant.isPlayer || false}
+                                        isPlayer={!!combatant.isPlayer}
                                     />
                                 ))}
                             </div>
