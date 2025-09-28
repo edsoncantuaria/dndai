@@ -16,10 +16,18 @@ const NewCombatTracker: React.FC = () => {
 
         const combatantMap = new Map<string, Combatant>();
 
-        // Add all NPCs to the map
+        // Add all NPCs to the map, ensuring HP values are valid
         combatState.combatants.forEach(c => {
             if (c.id !== 'player') {
-                combatantMap.set(c.id, c);
+                const npcCombatant: Combatant = {
+                    ...c,
+                    hp: typeof c.hp === 'number' ? c.hp : 1, // Fallback HP
+                    maxHp: typeof c.maxHp === 'number' ? c.maxHp : c.hp || 1, // Fallback Max HP
+                };
+                if(typeof c.hp !== 'number' || typeof c.maxHp !== 'number'){
+                    console.warn(`Combatant ${c.name} (${c.id}) is missing valid HP values.`);
+                }
+                combatantMap.set(c.id, npcCombatant);
             }
         });
         
@@ -66,10 +74,12 @@ const NewCombatTracker: React.FC = () => {
     const currentCombatantId = initiativeOrder[turn % initiativeOrder.length];
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
-    const upcomingCombatants = Array.from({ length: initiativeOrder.length -1 }, (_, i) => {
-        const nextIndex = (turn + 1 + i) % initiativeOrder.length;
-        return allCombatants.find(c => c.id === initiativeOrder[nextIndex]);
-    }).filter((c): c is Combatant => !!c && !c.isDead);
+    const upcomingCombatants = Array.from({ length: Math.min(initiativeOrder.length, allCombatants.length) -1 }, (_, i) => {
+        const nextIndex = (turn + 1 + i) % allCombatants.length;
+        // Use the ordered allCombatants array to find the next combatant
+        return allCombatants[nextIndex];
+    }).filter((c): c is Combatant => !!c && !c.isDead && c.id !== currentCombatantId);
+
 
     const isPlayerTurn = currentCombatant?.id === 'player';
 
@@ -139,3 +149,5 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
+
+    

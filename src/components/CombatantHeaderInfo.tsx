@@ -9,7 +9,7 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
     if (!combatant) return null;
 
     const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
-    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
+    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '';
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
 
@@ -18,7 +18,7 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
             <span className="text-stone-300 font-bold">{combatant.name}</span>
             <div className="flex items-center gap-1.5 text-red-300">
                 <Heart className="h-4 w-4" />
-                <span>{currentHp} / {maxHp}</span>
+                <span>{currentHp}{maxHp ? ` / ${maxHp}` : ''}</span>
             </div>
             <div className="flex items-center gap-1.5 text-blue-300">
                 <Shield className="h-4 w-4" />
@@ -36,3 +36,5 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
 }
 
 export default CombatantHeaderInfo;
+
+    
