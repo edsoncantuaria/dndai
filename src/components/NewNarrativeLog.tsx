@@ -1,7 +1,7 @@
 'use client';
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import type { LogEntry as LogEntryType } from '../types';
+import type { LogEntry as LogEntryType, Combatant } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { useSettingsContext } from '../contexts/SettingsContext';
@@ -99,7 +99,7 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     }
 
     const advantageText = advantage ? " (Vantagem)" : disadvantage ? " (Desvantagem)" : "";
-    const rollsText = rolls.join(', ');
+    const rollsText = rolls?.join(', ') || total - (modifier || 0);
 
     return (
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
@@ -190,7 +190,7 @@ const NpcRollDisplay: React.FC = () => {
         if (!combatState.isActive || !combatState.combatants) return [];
         return combatState.combatants.map(c => {
             const initRoll = c.rollHistory?.find(r => r.type === 'initiative');
-            if (initRoll) {
+            if (initRoll && initRoll.rolls) {
                 return `${c.name}: ${initRoll.total} (${initRoll.rolls.join(', ')} + ${initRoll.modifier || 0})`;
             }
             return null;
@@ -200,24 +200,34 @@ const NpcRollDisplay: React.FC = () => {
     const lastNpcRoll = useMemo(() => {
         if (!combatState.isActive || !combatState.combatants) return null;
 
-        const lastCombatant = combatState.combatants[(combatState.turn - 1 + combatState.combatants.length) % combatState.combatants.length];
+        const lastTurnIndex = (combatState.turn - 1 + combatState.combatants.length) % combatState.combatants.length;
+        const lastCombatantId = combatState.initiativeOrder?.[lastTurnIndex];
+        if (!lastCombatantId) return null;
+        const lastCombatant = combatState.combatants.find(c => c.id === lastCombatantId);
+        
         if (!lastCombatant || lastCombatant.id.includes('_player')) return null;
 
         const lastAttack = lastCombatant.rollHistory?.slice().reverse().find(r => r.type === 'attack');
-        if (!lastAttack) return null;
+        if (!lastAttack || !lastAttack.rolls) return null;
         
-        return `${lastCombatant.name} ataca: ${lastAttack.total} (${lastAttack.rolls.join(', ')} + ${lastAttack.modifier || 0}) vs CA ${lastAttack.targetAc}. ${lastAttack.success ? 'Acertou!' : 'Errou!'}`;
+        const targetAc = (lastAttack as any).targetAc;
+        
+        return `${lastCombatant.name} ataca: ${lastAttack.total} (${lastAttack.rolls.join(', ')} + ${lastAttack.modifier || 0}) vs CA ${targetAc}. ${lastAttack.success ? 'Acertou!' : 'Errou!'}`;
 
     }, [combatState]);
 
     if (!combatState.isActive) return null;
 
+    const initiativeOrderString = `A ordem de iniciativa é: ${combatState.initiativeOrder?.map(entry => {
+        const combatant = combatState.combatants.find(c => c.id === (typeof entry === 'string' ? entry : entry.id));
+        return `${combatant?.name || entry.id} (${(typeof entry === 'object' ? entry.initiative : combatant?.initiative)})`;
+    }).join(', ')}.`;
+    
     return (
         <>
             {initiativeRolls.length > 0 && (
                 <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm">
-                    <h5 className="font-bold text-amber-300 mb-1">Iniciativa:</h5>
-                    <p className="text-stone-300 font-mono">{combatState.initiativeOrder?.map(c => `${c.id} (${c.initiative})`).join(', ')}</p>
+                    <p className="text-stone-300 font-mono">{initiativeOrderString}</p>
                 </div>
             )}
              {lastNpcRoll && (
@@ -247,10 +257,10 @@ const NewNarrativeLog: React.FC = () => {
     
     return (
         <div className="space-y-4">
+            <NpcRollDisplay />
             {log.map((entry, index) => (
                 <LogEntry key={entry.id} entry={entry} index={log.length - 1 - index} />
             ))}
-            <NpcRollDisplay />
             <div ref={logEndRef} />
         </div>
     );
