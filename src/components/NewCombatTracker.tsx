@@ -11,24 +11,22 @@ const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(true);
     
-    // Find the player's unique ID from the combatant list if it exists
-    const playerId = useMemo(() => character?.name.toLowerCase() + "_player", [character]);
-
     const allCombatants = useMemo<Combatant[]>(() => {
-        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character || !playerId) return [];
+        if (!combatState.isActive || !Array.isArray(combatState.combatants) || !character) return [];
 
         const combatantMap = new Map<string, Combatant>();
 
         // Process all combatants from the state
         combatState.combatants.forEach(c => {
-             // Handle inconsistent HP structures
             const currentHp = typeof c.hp === 'number' ? c.hp : (c.hp as any)?.current;
             const maxHp = typeof c.maxHp === 'number' ? c.maxHp : (c.hp as any)?.max;
 
             const combatant: Combatant = {
                 ...c,
-                hp: typeof currentHp === 'number' ? currentHp : 1, // Fallback HP
-                maxHp: typeof maxHp === 'number' ? maxHp : currentHp || 1, // Fallback Max HP
+                hp: typeof currentHp === 'number' ? currentHp : 1, 
+                maxHp: typeof maxHp === 'number' ? maxHp : currentHp || 1,
+                // NEW: Explicitly mark the player combatant
+                isPlayer: c.name === character.name,
             };
             
             if(typeof currentHp !== 'number' || typeof maxHp !== 'number'){
@@ -37,22 +35,26 @@ const NewCombatTracker: React.FC = () => {
             combatantMap.set(c.id, combatant);
         });
 
-        if (!combatantMap.has(playerId)) {
+        // Ensure player is in the map
+        const playerInMap = Array.from(combatantMap.values()).some(c => c.isPlayer);
+        if (!playerInMap) {
            console.error("Player character is not in the combatant list from AI.");
+           // Optional: You could try to manually inject the player here as a fallback
            return [];
         }
         
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
-            // Fallback sort if initiativeOrder is missing
             return Array.from(combatantMap.values()).sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
 
-        // Main logic: sort based on the initiativeOrder array
+        // Handle both string array and object array for initiativeOrder
+        const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
+
         return combatState.initiativeOrder
-            .map(orderEntry => combatantMap.get(typeof orderEntry === 'string' ? orderEntry : orderEntry.id))
+            .map(orderEntry => combatantMap.get(getCombatantId(orderEntry)))
             .filter((c): c is Combatant => !!c);
 
-    }, [combatState, character, playerId]);
+    }, [combatState, character]);
 
     if (!combatState.isActive || allCombatants.length === 0) {
         return null;
@@ -61,19 +63,25 @@ const NewCombatTracker: React.FC = () => {
     const { round, turn, initiativeOrder } = combatState;
     if (!initiativeOrder || initiativeOrder.length === 0) return null;
     
-    // Handle both string array and object array for initiativeOrder
     const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
 
     const currentCombatantId = getCombatantId(initiativeOrder[turn % initiativeOrder.length]);
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
-    const upcomingCombatants = Array.from({ length: Math.min(initiativeOrder.length, allCombatants.length) -1 }, (_, i) => {
-        const nextIndex = (turn + 1 + i) % allCombatants.length;
-        return allCombatants[nextIndex];
-    }).filter((c): c is Combatant => !!c && !c.isDead && c.id !== currentCombatantId);
+    // Create the list of upcoming combatants, ensuring the current one isn't duplicated
+    const upcomingCombatants = [];
+    if (allCombatants.length > 1) {
+        for (let i = 1; i < allCombatants.length; i++) {
+            const nextIndex = (turn + i) % allCombatants.length;
+            const nextCombatant = allCombatants[nextIndex];
+            if (nextCombatant && !nextCombatant.isDead) {
+                upcomingCombatants.push(nextCombatant);
+            }
+        }
+    }
 
 
-    const isPlayerTurn = currentCombatant?.id === playerId;
+    const isPlayerTurn = currentCombatant?.isPlayer || false;
 
     return (
         <div className="flex-shrink-0 bg-red-950/40 backdrop-blur-sm p-3 rounded-lg border-2 border-red-800/80 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
@@ -117,7 +125,7 @@ const NewCombatTracker: React.FC = () => {
                                         key={combatant.id}
                                         combatant={combatant}
                                         isCurrentTurn={false}
-                                        isPlayer={combatant.id === playerId}
+                                        isPlayer={combatant.isPlayer || false}
                                     />
                                 ))}
                             </div>

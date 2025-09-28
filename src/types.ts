@@ -23,7 +23,6 @@ export interface GameMasterResponse {
     updatedCharacter?: Partial<Character>;
     combatState?: CombatState;
     levelUpState?: LevelUpState;
-    playerRollRequest?: PlayerRollRequest;
     shopState?: ShopState;
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
@@ -339,6 +338,7 @@ export interface LogEntry {
 export interface Combatant {
     id: string;
     name: string;
+    isPlayer?: boolean; // New optional property
     hp?: number;
     maxHp?: number;
     armorClass?: number;
@@ -374,7 +374,7 @@ export interface CombatState {
     round: number;
     turn: number;
     combatants: Combatant[];
-    initiativeOrder?: string[];
+    initiativeOrder?: string[] | {id: string, initiative: number}[];
     log?: LogEntry[];
     globalConditions?: any[];
 }

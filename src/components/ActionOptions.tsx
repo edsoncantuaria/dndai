@@ -1,9 +1,8 @@
 'use client';
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
 import type { PlayerRollRequest } from '@/types';
-import SkillCheckModal from './ui/SkillCheckModal';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -122,15 +121,20 @@ const ActionOptions: React.FC = () => {
 
     const [isOpen, setIsOpen] = useState(false);
     
-    const playerId = useMemo(() => character?.name.toLowerCase() + "_player", [character]);
+    const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
 
     const isPlayerTurn = useMemo(() => {
-        if (!combatState.isActive || !combatState.initiativeOrder || !playerId) {
-            return !combatState.isActive; // If not in combat, it's always the "player's turn" to act.
+        if (!combatState.isActive || !combatState.initiativeOrder || !character) {
+            return !combatState.isActive;
         }
-        const currentTurnId = (combatState.initiativeOrder as any[])[combatState.turn % combatState.initiativeOrder.length]?.id;
-        return currentTurnId === playerId;
-    }, [combatState, playerId]);
+        if (combatState.initiativeOrder.length === 0) return false;
+
+        const currentTurnId = getCombatantId(combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length]);
+        const playerCombatant = combatState.combatants.find(c => c.name === character.name);
+        
+        return playerCombatant ? currentTurnId === playerCombatant.id : false;
+
+    }, [combatState, character]);
     
     // Actions are available if it is the player's turn and the game is not otherwise locked.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
