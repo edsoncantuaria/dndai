@@ -21,9 +21,11 @@ const RollHistoryDisplay: React.FC<{ rollHistory: Combatant['rollHistory'] }> = 
         <div className="space-y-1">
             {rollHistory.slice(-5).reverse().map((roll, index) => {
                 if (!roll || !roll.type) return null;
+                 const resultText = roll.success === true ? ' (Sucesso!)' : roll.success === false ? ' (Falha)' : '';
+                 const advantageText = roll.advantage ? ' (Vantagem)' : roll.disadvantage ? ' (Desvantagem)' : '';
                 return (
                     <div key={index} className="text-xs text-stone-400">
-                        <span className="font-semibold">{roll.type.toUpperCase()}:</span> {roll.total} <span className="text-stone-500">({roll.rolls.join(', ')})</span>
+                        <span className="font-semibold">{roll.description || roll.type.toUpperCase()}:</span> {roll.total}{resultText} <span className="text-stone-500">({roll.dice}: {roll.rolls.join(', ')}{roll.modifier ? `${roll.modifier >= 0 ? '+' : ''}${roll.modifier}` : ''}){advantageText}</span>
                     </div>
                 )
             })}

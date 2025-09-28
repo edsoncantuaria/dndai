@@ -124,8 +124,8 @@ const ActionOptions: React.FC = () => {
     // Determine if it's the player's turn in combat
     const isPlayerTurn = combatState.isActive ? combatState.initiativeOrder?.[combatState.turn % combatState.initiativeOrder.length] === 'player' : true;
     
-    // Actions are locked if a roll is pending, loot is offered, etc.
-    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest;
+    // Actions are available if it is the player's turn and the game is not otherwise locked.
+    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
 
     const handleActionClick = (action: any) => {
         processPlayerAction(action);
@@ -144,7 +144,6 @@ const ActionOptions: React.FC = () => {
 
     const renderActionContent = () => {
         if (!isPlayerTurn && combatState.isActive) {
-            // Now this message will also show on mobile inside the modal.
             return (
                 <div className="flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 rounded-md">
                     Aguardando turno de outros combatentes...
@@ -188,7 +187,7 @@ const ActionOptions: React.FC = () => {
                                     <button
                                         key={index}
                                         onClick={() => handleSkillClick(skillAction.skill)}
-                                        disabled={isLoading || isActionLocked}
+                                        disabled={isActionLocked}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                     >
@@ -210,7 +209,7 @@ const ActionOptions: React.FC = () => {
                                 <button
                                     key={index}
                                     onClick={() => handleActionClick(actionValue)}
-                                    disabled={isLoading || isActionLocked}
+                                    disabled={isActionLocked}
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                 >
@@ -220,7 +219,7 @@ const ActionOptions: React.FC = () => {
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isLoading || isActionLocked} />
+                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
                  {!isLoading && !hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
@@ -272,5 +271,3 @@ const ActionOptions: React.FC = () => {
 };
 
 export default ActionOptions;
-
-    

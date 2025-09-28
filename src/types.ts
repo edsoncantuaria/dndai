@@ -330,7 +330,7 @@ export interface LogEntry {
         rolls: number[];
         success?: boolean;
         dc?: number;
-        rollType: 'check' | 'save' | 'attack' | 'damage';
+        rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative';
         advantage?: boolean;
         disadvantage?: boolean;
     };
@@ -351,16 +351,22 @@ export interface Combatant {
     bonusActionPoints: number;
     readyWeapon?: string;
     readySpell?: string;
-    conditions?: ApiCondition[];
+    conditions: ApiCondition[];
     rollHistory: {
         type: 'initiative' | 'attack' | 'check' | 'save' | 'damage';
         total: number;
         rolls: number[];
-        timestamp: string;
+        timestamp?: string;
         rollType: string;
         dice: string;
         description: string;
+        modifier?: number;
+        advantage?: boolean;
+        disadvantage?: boolean;
+        success?: boolean;
     }[];
+    tempModifiers?: any;
+    distance?: number;
 }
 
 export interface CombatState {

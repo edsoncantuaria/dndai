@@ -99,13 +99,13 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     }
 
     const advantageText = advantage ? " (Vantagem)" : disadvantage ? " (Desvantagem)" : "";
-    const rollsText = rolls.length > 1 ? `[${rolls.join(', ')}]` : `(${total - (modifier || 0)})`;
+    const rollsText = rolls.join(', ');
 
     return (
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
             <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
             <div className={`font-mono ${resultColor}`}>
-                <span>Rolagem: {dice} {rollsText} {modifier >= 0 ? `+ ${modifier}`: `- ${Math.abs(modifier || 0)}`} = <span className="font-bold text-lg">{total}</span>. </span>
+                <span>Rolagem: {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`) : ''} = <span className="font-bold text-lg">{total}</span>. </span>
                 {dc !== undefined && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
                 <span className={`font-bold`}>{outcomeText}</span>
             </div>
@@ -151,12 +151,17 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
             );
             break;
         case 'action':
-            content = (
-                <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
-                    <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content)}</div>
-                    <p className="text-amber-400 font-semibold">{entry.content}</p>
-                </div>
-            );
+             // Hide internal processing actions from the log
+            if (entry.content.startsWith("Processar")) {
+                content = null;
+            } else {
+                content = (
+                    <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
+                        <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content)}</div>
+                        <p className="text-amber-400 font-semibold">{entry.content}</p>
+                    </div>
+                );
+            }
             break;
         case 'roll':
             content = <RollEntry entry={entry} />;
@@ -173,6 +178,7 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
         default:
             content = null;
     }
+    if(content === null) return null;
 
     return <div className="animate-fadeIn" style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, animationDuration: '400ms' }}>{content}</div>;
 });

@@ -3,39 +3,8 @@ import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import CombatantCard from './CombatantCard';
 import type { Combatant } from '../types';
-import { Swords, ChevronDown, Heart, Shield, Loader2 } from 'lucide-react';
-import { translateCondition } from '@/utils/translator';
-
-
-const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) => {
-    if (!combatant) return null;
-
-    const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
-    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
-    const advantage = combatant.tempModifiers?.advantage;
-    const disadvantage = combatant.tempModifiers?.disadvantage;
-
-    return (
-        <div className="flex items-center gap-4 text-xs font-semibold">
-            <span className="text-stone-300 font-bold">{combatant.name}</span>
-            <div className="flex items-center gap-1.5 text-red-300">
-                <Heart className="h-4 w-4" />
-                <span>{currentHp} / {maxHp}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-blue-300">
-                <Shield className="h-4 w-4" />
-                <span>CA {combatant.armorClass ?? '?'}</span>
-            </div>
-            {combatant.conditions && combatant.conditions.length > 0 && (
-                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.map(c => translateCondition(c.name)).join(', ')}>
-                    <span>⚠️</span>
-                </div>
-            )}
-             {advantage && <span className="text-green-400" title="Vantagem">▲</span>}
-             {disadvantage && <span className="text-red-400" title="Desvantagem">▼</span>}
-        </div>
-    )
-}
+import { Swords, ChevronDown, Loader2 } from 'lucide-react';
+import CombatantHeaderInfo from './CombatantHeaderInfo';
 
 
 const NewCombatTracker: React.FC = () => {
@@ -62,7 +31,7 @@ const NewCombatTracker: React.FC = () => {
             hp: character.hp.current,
             maxHp: character.hp.max,
             armorClass: character.ac.value,
-            initiative: playerInCombat.initiative || 0,
+            initiative: playerInCombat.initiative ?? -1,
             initiativeRoll: playerInCombat.initiativeRoll,
             isDead: character.hp.current <= 0,
             hasMoved: playerInCombat.hasMoved || false,
@@ -74,11 +43,13 @@ const NewCombatTracker: React.FC = () => {
             tempModifiers: playerInCombat.tempModifiers || {},
         };
         combatantMap.set('player', playerCombatant);
-
+        
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
+            // Fallback sort if initiativeOrder is missing
             return Array.from(combatantMap.values()).sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
 
+        // Main logic: sort based on the initiativeOrder array
         return combatState.initiativeOrder
             .map(id => combatantMap.get(id))
             .filter((c): c is Combatant => !!c);
@@ -95,11 +66,10 @@ const NewCombatTracker: React.FC = () => {
     const currentCombatantId = initiativeOrder[turn % initiativeOrder.length];
     const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
     
-    const upcomingCombatants = initiativeOrder
-        .map((id, index) => ({ id, originalIndex: index }))
-        .slice(1)
-        .map(item => allCombatants.find(c => c.id === item.id))
-        .filter((c): c is Combatant => !!c && !c.isDead);
+    const upcomingCombatants = Array.from({ length: initiativeOrder.length -1 }, (_, i) => {
+        const nextIndex = (turn + 1 + i) % initiativeOrder.length;
+        return allCombatants.find(c => c.id === initiativeOrder[nextIndex]);
+    }).filter((c): c is Combatant => !!c && !c.isDead);
 
     const isPlayerTurn = currentCombatant?.id === 'player';
 
@@ -169,5 +139,3 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
-
-    
