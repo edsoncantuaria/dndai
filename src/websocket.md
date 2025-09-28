@@ -49,25 +49,38 @@ Para que os jogadores tenham seus próprios dados, eles precisam de uma identida
     - **Galeria de Personagens**: Um jogador poderá criar e armazenar múltiplos personagens em sua conta, escolhendo qual usar para cada nova aventura.
     - **Segurança e Propriedade**: Garante que apenas o jogador possa acessar e modificar seus personagens e jogos salvos.
 
-## 3. Benefícios do Backend para a Experiência Solo
+## 3. Benefícios do Backend (Mesmo para Jogador Solo)
 
 Mesmo sem o multiplayer, a introdução de um servidor robustece a experiência para um jogador de formas cruciais:
 
 ### 3.1. Persistência e Portabilidade
 
--   **Salvamento em Nuvem**: Seu progresso não fica mais preso a um único navegador. Com uma conta de usuário, sua campanha é salva no servidor, permitindo que você continue sua aventura em qualquer dispositivo (desktop, tablet, celular), a qualquer momento.
+- **Salvamento em Nuvem**: Seu progresso não fica mais preso a um único navegador. Com uma conta de usuário, sua campanha é salva no servidor, permitindo que você continue sua aventura em qualquer dispositivo (desktop, tablet, celular), a qualquer momento.
 
 ### 3.2. Processamento Avançado de IA
 
--   **Geração de Imagens e Áudio (TTS) em Segundo Plano**: Tarefas pesadas e demoradas, como gerar uma ilustração de cena ou um arquivo de áudio para a narração, são descarregadas para o servidor. Isso libera seu navegador, tornando a interface do jogo mais rápida e fluida, sem travamentos enquanto se espera o resultado da IA.
--   **Memória de Longo Prazo para o Mestre**: O servidor pode armazenar e analisar o histórico completo de sua campanha. Isso permite que o Mestre de IA tenha uma "memória" profunda, recordando-se de NPCs, decisões e eventos de sessões muito antigas para criar uma narrativa mais rica e coerente, onde suas ações passadas têm consequências reais e duradouras.
+- **Geração de Imagens e Áudio (TTS) em Segundo Plano**: Tarefas pesadas e demoradas, como gerar uma ilustração de cena ou um arquivo de áudio para a narração, são descarregadas para o servidor. Isso libera seu navegador, tornando a interface do jogo mais rápida e fluida, sem travamentos enquanto se espera o resultado da IA.
+- **Memória de Longo Prazo para o Mestre**: O servidor pode armazenar e analisar o histórico completo de sua campanha. Isso permite que o Mestre de IA tenha uma "memória" profunda, recordando-se de NPCs, decisões e eventos de sessões muito antigas para criar uma narrativa mais rica e coerente, onde suas ações passadas têm consequências reais e duradouras.
 
 ### 3.3. Gerenciamento de Conteúdo e Expansibilidade
 
--   **Fonte Centralizada de Dados**: Todo o conteúdo do jogo (raças, classes, magias, itens) passa a ser gerenciado pelo servidor. Isso facilita a introdução de novas expansões, correções de balanceamento e conteúdo adicional de forma transparente para o jogador.
--   **Preparação para Conteúdo da Comunidade (Homebrew)**: Essa arquitetura é o primeiro passo para permitir que, no futuro, jogadores possam criar e compartilhar seu próprio conteúdo, como monstros, itens mágicos e até mesmo aventuras customizadas.
+- **Fonte Centralizada de Dados**: Todo o conteúdo do jogo (raças, classes, magias, itens) passa a ser gerenciado pelo servidor. Isso facilita a introdução de novas expansões, correções de balanceamento e conteúdo adicional de forma transparente para o jogador.
+- **Preparação para Conteúdo da Comunidade (Homebrew)**: Essa arquitetura é o primeiro passo para permitir que, no futuro, jogadores possam criar e compartilhar seu próprio conteúdo, como monstros, itens mágicos e até mesmo aventuras customizadas.
 
-## 4. Fluxo de Jogo Multiplayer (Exemplo)
+## 4. Vantagens Adicionais
+
+- **Análise de Jogo e Balanceamento**: Um servidor permite a coleta de dados anônimos sobre como os jogadores interagem com o jogo (ex: classes populares, monstros mais desafiadores). Esses dados são valiosos para balancear a dificuldade e melhorar a experiência geral.
+- **Segurança e Integridade**: Com a lógica do jogo rodando no servidor, a manipulação do estado do jogo (ex: adicionar ouro ilegalmente) torna-se muito mais difícil, garantindo uma experiência justa.
+- **Recursos Assíncronos**: O servidor pode executar tarefas em segundo plano. Por exemplo, um NPC poderia progredir em uma tarefa e enviar uma notificação ao jogador quando algo novo acontecer, criando um mundo que parece vivo mesmo quando o jogador está offline.
+
+## 5. Desvantagens e Considerações
+
+- **Custos de Hospedagem**: A desvantagem mais significativa. Um servidor que precisa estar sempre online (especialmente para WebSockets) gera custos mensais de hospedagem, em contraste com a arquitetura atual, que é extremamente barata.
+- **Complexidade de Manutenção**: Adicionar um backend aumenta a complexidade do projeto. Requer gerenciamento de segurança, banco de dados, atualizações de servidor e monitoramento de falhas.
+- **Latência**: A comunicação com um servidor introduz uma pequena latência. Cada ação precisa de uma viagem de ida e volta pela internet, o que pode ser notado em conexões lentas.
+- **Requisito de Conexão Online**: O jogo passaria a exigir uma conexão constante com a internet, perdendo a funcionalidade offline.
+
+## 6. Fluxo de Jogo Multiplayer (Exemplo)
 
 O loop de jogo será adaptado para um modelo baseado em turnos.
 
