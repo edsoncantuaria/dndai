@@ -22,7 +22,7 @@ Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo, ond
 
 ## Arquitetura e Tecnologias
 
-- **Frontend**: [Next.js](https://nextjs.org/) com [React](https://react.org/) e [TypeScript](https://www.typescriptlang.org/).
+- **Frontend**: [Next.js](https://nextjs.org/) com [React](https://reactjs.org/) e [TypeScript](https://www.typescriptlang.org/).
 - **UI**: [Tailwind CSS](https://tailwindcss.com/) com componentes de [ShadCN UI](https://ui.shadcn.com/) para uma interface moderna e responsiva.
 - **IA Generativa**: [Genkit (Firebase AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini.
 - **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada para popular dados de raças, classes, magias, equipamentos, etc.
