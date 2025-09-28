@@ -9,7 +9,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "copy-dice-assets": "node ./copy-dice-assets.js",
-    "postinstall": "npm run copy-dice-assets"
+    "postinstall": "npm run copy-dice-assets",
+    "dev:backend": "cd backend && npm run dev",
+    "install:backend": "cd backend && npm install"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
