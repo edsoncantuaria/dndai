@@ -23,9 +23,10 @@ const RollHistoryDisplay: React.FC<{ rollHistory: Combatant['rollHistory'] }> = 
                 if (!roll || !roll.type) return null;
                  const resultText = roll.success === true ? ' (Sucesso!)' : roll.success === false ? ' (Falha)' : '';
                  const advantageText = roll.advantage ? ' (Vantagem)' : roll.disadvantage ? ' (Desvantagem)' : '';
+                 const rollsDisplay = roll.rolls && roll.rolls.length > 0 ? roll.rolls.join(', ') : '';
                 return (
                     <div key={index} className="text-xs text-stone-400">
-                        <span className="font-semibold">{roll.description || roll.type.toUpperCase()}:</span> {roll.total}{resultText} <span className="text-stone-500">({roll.dice}: {roll.rolls.join(', ')}{roll.modifier ? `${roll.modifier >= 0 ? '+' : ''}${roll.modifier}` : ''}){advantageText}</span>
+                        <span className="font-semibold">{roll.description || roll.type.toUpperCase()}:</span> {roll.total}{resultText} <span className="text-stone-500">({roll.dice}: {rollsDisplay}{roll.modifier ? `${roll.modifier >= 0 ? '+' : ''}${roll.modifier}` : ''}){advantageText}</span>
                     </div>
                 )
             })}
@@ -100,11 +101,11 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints ?? 1}</div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-lime-400 flex items-center justify-center gap-1"><PlusSquare className="h-3 w-3"/> Bônus</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints ?? 1}</div>
                 </div>
             </div>
              {combatant.distance !== undefined && !isPlayer && (

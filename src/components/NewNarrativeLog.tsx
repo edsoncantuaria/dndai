@@ -184,55 +184,61 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
 });
 
 const NpcRollDisplay: React.FC = () => {
-    const { combatState } = useGameStateContext();
+    const { combatState, character } = useGameStateContext();
 
-    const initiativeRolls = useMemo(() => {
+    const initiativeString = useMemo(() => {
+        if (!combatState.isActive || !combatState.initiativeOrder || combatState.initiativeOrder.length === 0) return null;
+
+        const order = combatState.initiativeOrder.map(entry => {
+            const id = typeof entry === 'object' ? entry.id : entry;
+            const combatant = combatState.combatants.find(c => c.id === id || c.name === id); // Handle player name as ID
+            const name = combatant?.name || (id === character?.name ? character.name : id);
+            const initiative = typeof entry === 'object' ? entry.initiative : combatant?.initiative;
+            return `${name} (${initiative ?? '?'})`;
+        }).join(', ');
+
+        return `A ordem de iniciativa é: ${order}.`;
+    }, [combatState, character]);
+
+    const lastNpcRolls = useMemo(() => {
         if (!combatState.isActive || !combatState.combatants) return [];
-        return combatState.combatants.map(c => {
-            const initRoll = c.rollHistory?.find(r => r.type === 'initiative');
-            if (initRoll && initRoll.rolls) {
-                return `${c.name}: ${initRoll.total} (${initRoll.rolls.join(', ')} + ${initRoll.modifier || 0})`;
-            }
-            return null;
-        }).filter(Boolean);
-    }, [combatState]);
-
-    const lastNpcRoll = useMemo(() => {
-        if (!combatState.isActive || !combatState.combatants) return null;
-
         const lastTurnIndex = (combatState.turn - 1 + combatState.combatants.length) % combatState.combatants.length;
-        const lastCombatantId = combatState.initiativeOrder?.[lastTurnIndex];
-        if (!lastCombatantId) return null;
+        if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) return [];
+        
+        const lastCombatantId = typeof combatState.initiativeOrder[lastTurnIndex] === 'object' 
+            ? (combatState.initiativeOrder[lastTurnIndex] as {id: string}).id
+            : combatState.initiativeOrder[lastTurnIndex] as string;
+
+        if (!lastCombatantId) return [];
         const lastCombatant = combatState.combatants.find(c => c.id === lastCombatantId);
         
-        if (!lastCombatant || lastCombatant.id.includes('_player')) return null;
+        if (!lastCombatant || lastCombatant.isPlayer) return [];
 
-        const lastAttack = lastCombatant.rollHistory?.slice().reverse().find(r => r.type === 'attack');
-        if (!lastAttack || !lastAttack.rolls) return null;
-        
-        const targetAc = (lastAttack as any).targetAc;
-        
-        return `${lastCombatant.name} ataca: ${lastAttack.total} (${lastAttack.rolls.join(', ')} + ${lastAttack.modifier || 0}) vs CA ${targetAc}. ${lastAttack.success ? 'Acertou!' : 'Errou!'}`;
+        return lastCombatant.rollHistory?.slice().reverse()
+            .filter(r => r.type === 'attack' || r.type === 'damage')
+            .map(r => {
+                const targetAc = (r as any).targetAc ? ` vs CA ${(r as any).targetAc}` : '';
+                const successText = r.success === true ? 'Acertou!' : r.success === false ? 'Errou!' : '';
+                const rollsDisplay = r.rolls && r.rolls.length > 0 ? `(${r.rolls.join(', ')}${r.modifier ? `+${r.modifier}`: ''})`: '';
+                return `${lastCombatant.name} ${r.description || r.type}: ${r.total} ${rollsDisplay}${targetAc}. ${successText}`;
+            }) || [];
 
     }, [combatState]);
-
+    
     if (!combatState.isActive) return null;
-
-    const initiativeOrderString = `A ordem de iniciativa é: ${combatState.initiativeOrder?.map(entry => {
-        const combatant = combatState.combatants.find(c => c.id === (typeof entry === 'string' ? entry : entry.id));
-        return `${combatant?.name || entry.id} (${(typeof entry === 'object' ? entry.initiative : combatant?.initiative)})`;
-    }).join(', ')}.`;
     
     return (
         <>
-            {initiativeRolls.length > 0 && (
-                <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm">
-                    <p className="text-stone-300 font-mono">{initiativeOrderString}</p>
+            {initiativeString && (
+                <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm font-semibold">
+                    <p className="text-stone-300 font-mono">{initiativeString}</p>
                 </div>
             )}
-             {lastNpcRoll && (
-                 <div className="bg-red-900/30 p-3 my-2 rounded-md border border-red-700/50 text-sm">
-                    <p className="text-red-200 font-mono">{lastNpcRoll}</p>
+             {lastNpcRolls.length > 0 && (
+                 <div className="bg-red-900/30 p-3 my-2 rounded-md border border-red-700/50 text-sm space-y-1">
+                    {lastNpcRolls.map((rollString, index) => (
+                        <p key={index} className="text-red-200 font-mono">{rollString}</p>
+                    ))}
                 </div>
             )}
         </>

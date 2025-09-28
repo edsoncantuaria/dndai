@@ -105,6 +105,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 ---
 
 ## Combate
+- **REGRA CRÍTICA**: O campo \`combatState.isActive\` **DEVE** ser \`true\` enquanto houver inimigos vivos. Se todos os inimigos forem derrotados, defina-o como \`false\`. Ocultar ou omitir este campo fará com que o jogo quebre.
 - Início: \`combatState.isActive = true\`.
 - Primeiro turno: solicite rolagem de iniciativa do jogador e role para NPCs.
 - Ordene por iniciativa e gerencie os turnos via \`combatState.turn\`.
