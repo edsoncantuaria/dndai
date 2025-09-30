@@ -1,5 +1,12 @@
 
 * **Objetivo:** mover toda a lógica do jogo para o backend, fazer o backend conversar com o Genkit/Google Gemini usando a API key criptografada do usuário, e enviar atualizações em tempo real ao frontend por WebSocket.
+
+Sempre Atualizar integracao_backend.md com tudo que foi feito.
+
+Usar o backend/README.md: Este novo arquivo fornecerá instruções passo a passo para configurar e iniciar o servidor backend, incluindo a configuração do banco de dados e as variáveis de ambiente.
+
+Um backend, por mais funcional que seja, é inútil se o frontend não estiver preparado para se comunicar com ele. É crucial documentar o estado de ambos os lados para termos uma visão clara do progresso.
+
 * **Componentes principais:**
 
   1. Backend HTTP (Express) — API REST (autenticação, gerenciamento de usuário, endpoints administrativos).
