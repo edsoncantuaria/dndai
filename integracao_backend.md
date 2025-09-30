@@ -64,6 +64,15 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
     *   Retorna sucesso ou falha na ativação.
 *   **[Próximo Passo]** Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (ser criptografada e armazenada no DB).
 
+### Preparação e Status do Frontend
+
+*   **Situação Atual:** O frontend **NÃO** está atualmente integrado com a nova API de backend. Toda a lógica de criação de personagem, salvamento de jogo e chamadas de IA ainda reside no cliente (nos hooks e contextos de React).
+*   **Validação da Fase 1:** Para testar os endpoints de `/register`, `/login` e `/api/activate-license`, é necessário usar uma ferramenta de API como Postman ou `curl`. O frontend ainda não possui as telas ou a lógica para interagir com essas rotas.
+*   **Próximos Passos no Frontend:** Para uma integração completa, o frontend precisará:
+    1.  Desenvolver uma interface de usuário para registro, login e ativação de licença.
+    2.  Criar um contexto de autenticação para gerenciar o estado do usuário (ex: `userId`, `isLicenseActive`).
+    3.  Modificar o fluxo do jogo para que, após o login, ele use um token para se comunicar com os futuros endpoints do jogo (Fase 3 em diante).
+
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
 * Implementar `geminiService.ts` (ou `aiServer.ts`) que contém definição de flows Genkit (ex.: `gameMasterFlow`).
