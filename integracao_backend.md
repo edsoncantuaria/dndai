@@ -54,7 +54,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 *   **[X] Criar entidades básicas**: `User`, `Character`, `GameSession`, `LicenseKey`.
 *   **[X] Adicionar utilitário de criptografia** (seu `crypto.ts` já ok).
 
-## Fase 1 — API REST mínima + Autenticação e Ativação de Licença (Revisado)
+## Fase 1 — API REST mínima + Autenticação e Ativação de Licença (Revisado e Concluído)
 
 *   **[X] Implementar endpoint de registro (`/register`):**
     *   Aceita `username`, `email`, `password`.
@@ -67,14 +67,16 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
     *   O frontend chamará este endpoint se `isLicenseActive` for `false` após o login.
     *   Aceita `userId` e `licenseKey`.
     *   Valida a chave no banco de dados: verifica se existe, se não está em uso e se a data de expiração (`expiresAt`) é futura em relação à data atual do servidor.
-    *   Se a chave for válida, associa-a ao `userId`, marca-a como `isActive: true` e salva.
-    *   Retorna sucesso ou falha na ativação.
-*   **[Próximo Passo]** Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (ser criptografada e armazenada no DB).
+    - Se a chave for válida, associa-a ao `userId`, marca-a como `isActive: true` e salva.
+    - Retorna sucesso ou falha na ativação.
+*   **[X] Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (será criptografada e armazenada no DB).**
+    -   `POST`: Salva ou atualiza a chave da API do Google, criptografando-a.
+    -   `GET`: Recupera a chave da API do Google de forma segura para ser usada nas chamadas da IA (requer autenticação adequada).
 
 ### Preparação e Status do Frontend
 
 *   **Situação Atual:** O frontend **NÃO** está atualmente integrado com a nova API de backend. Toda a lógica de criação de personagem, salvamento de jogo e chamadas de IA ainda reside no cliente (nos hooks e contextos de React).
-*   **Validação da Fase 1:** Para testar os endpoints de `/register`, `/login` e `/api/activate-license`, é necessário usar uma ferramenta de API como Postman ou `curl`. O frontend ainda não possui as telas ou a lógica para interagir com essas rotas.
+*   **Validação da Fase 1:** Para testar os endpoints de `/register`, `/login`, `/api/activate-license` e `/api/user/google-key`, é necessário usar uma ferramenta de API como Postman ou `curl`. O frontend ainda não possui as telas ou a lógica para interagir com essas rotas.
 *   **Próximos Passos no Frontend:** Para uma integração completa, o frontend precisará:
     1.  Desenvolver uma interface de usuário para registro, login e ativação de licença.
     2.  Criar um contexto de autenticação para gerenciar o estado do usuário (ex: `userId`, `isLicenseActive`).

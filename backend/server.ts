@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
-import { Connection } from 'mysql2/promise';
+import { setupUserRoutes } from './src/routes/user'; // Importar as novas rotas
 
 dotenv.config({ path: 'backend/.env' });
 
@@ -28,6 +28,7 @@ async function startServer() {
         // Configuração de Rotas
         setupAuthRoutes(app);
         setupLicenseRoutes(app);
+        setupUserRoutes(app); // Configurar as rotas de usuário
 
         // Configuração do WebSocket
         wss.on('connection', ws => {
