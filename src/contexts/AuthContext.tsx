@@ -46,9 +46,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const validateSession = async () => {
             try {
-                const session = localStorage.getItem('session');
-                if (session) {
-                    const { userId, licenseActive } = JSON.parse(session);
+                const token = localStorage.getItem('token');
+                const sessionData = localStorage.getItem('session');
+                if (token && sessionData) {
+                    const { userId, licenseActive } = JSON.parse(sessionData);
                     if (userId) {
                         setUser({ id: userId, username: '...' }); // Placeholder username
                         setIsLicenseActive(licenseActive);
@@ -60,6 +61,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             } catch (e) {
                 console.error('Session validation failed', e);
                 localStorage.removeItem('session');
+                localStorage.removeItem('token');
             } finally {
                 setIsLoading(false);
             }
@@ -72,9 +74,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
-            if (response && response.userId) {
+            if (response && response.userId && response.token) {
                 setUser({ id: response.userId, username: credentials.login }); // Use login as username for now
                 setIsLicenseActive(response.isLicenseActive);
+                localStorage.setItem('token', response.token);
                 localStorage.setItem('session', JSON.stringify({ userId: response.userId, licenseActive: response.isLicenseActive }));
                 if (response.isLicenseActive) {
                     await checkApiKey(response.userId);
@@ -152,6 +155,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLicenseActive(false);
         setApiKey('');
         localStorage.removeItem('session');
+        localStorage.removeItem('token');
         setError(null);
     };
 

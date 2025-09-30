@@ -48,7 +48,7 @@ async function startServer() {
             });
         });
 
-        const PORT = process.env.PORT || 8080;
+        const PORT = process.env.PORT || 8071;
         server.listen(PORT, () => {
             console.log(`Servidor rodando na porta ${PORT}`);
         });

@@ -62,7 +62,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 *   **[X] Implementar endpoint de login (`/login`):**
     *   Aceita `login` (pode ser username ou email) e `password`.
     *   Valida as credenciais.
-    *   Retorna `userId` e um status `isLicenseActive` (boolean) para o frontend.
+    *   Retorna um `token` JWT contendo o `userId`, além de `isLicenseActive`.
 *   **[X] Implementar endpoint de ativação de licença (`/api/activate-license`):**
     *   O frontend chamará este endpoint se `isLicenseActive` for `false` após o login.
     *   Aceita `userId` e `licenseKey`.
@@ -77,8 +77,8 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 
 *   **Situação Atual:** O frontend foi atualizado para se comunicar com a nova API de backend. Foi criado um fluxo completo de autenticação.
 *   **O que foi implementado no frontend:**
-    1.  **Contexto de Autenticação (`AuthContext`)**: Gerencia o estado do usuário (`userId`, `isAuthenticated`, `isLicenseActive`, `hasApiKey`), armazena o estado da sessão no `localStorage` e fornece funções de `login`, `register`, `logout`, `activateLicense` e `saveApiKey`.
-    2.  **Serviço de API (`authService`)**: Centraliza as chamadas `fetch` para todos os endpoints de autenticação e gerenciamento de chaves do backend.
+    1.  **Contexto de Autenticação (`AuthContext`)**: Gerencia o estado do usuário (`userId`, `isAuthenticated`, `isLicenseActive`, `hasApiKey`), armazena o token de sessão no `localStorage` e fornece funções de `login`, `register`, `logout`, `activateLicense` e `saveApiKey`.
+    2.  **Serviço de API (`authService`)**: Centraliza as chamadas `fetch` para todos os endpoints de autenticação e gerenciamento de chaves do backend, incluindo o token JWT no cabeçalho `Authorization`.
     3.  **Componentes de UI de Autenticação**:
         *   `AuthForm`: Uma tela principal para alternar entre login e registro.
         *   `LoginForm` e `RegisterForm`: Formulários para entrada de dados.
@@ -279,4 +279,5 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 
 # Observações, mudanças...
+
 

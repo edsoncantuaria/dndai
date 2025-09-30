@@ -1,8 +1,8 @@
 import { Express, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../config/data-source';
 import { User } from '../entities/User';
-import { encrypt } from '../utils/crypto';
 import { LicenseKey } from '../entities/LicenseKey';
 
 export function setupAuthRoutes(app: Express) {
@@ -71,20 +71,26 @@ export function setupAuthRoutes(app: Express) {
             if (!isMatch) {
                 return res.status(401).json({ message: "Credenciais inválidas." });
             }
+            
+            const secret = process.env.SECRET_KEY;
+            if (!secret) {
+                throw new Error('Chave secreta para JWT não configurada no servidor.');
+            }
 
             const isLicenseActive = user.licenseKey ? user.licenseKey.isActive && new Date() < user.licenseKey.expiresAt : false;
             
-            // Em uma implementação real, geraríamos um token JWT aqui.
+            const token = jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
+
             res.status(200).json({ 
                 message: "Login bem-sucedido.",
+                token,
                 userId: user.id,
                 isLicenseActive: isLicenseActive
-                // No futuro: token: "jwt_token_aqui"
             });
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro no login:", error);
-            res.status(500).json({ message: "Erro interno do servidor." });
+            res.status(500).json({ message: "Erro interno do servidor: " + error.message });
         }
     });
 }

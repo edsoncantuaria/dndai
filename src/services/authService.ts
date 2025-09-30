@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space';
 
 export interface LoginCredentials {
     login: string;
@@ -12,6 +12,14 @@ export interface RegisterDetails {
     confirmPassword?: string;
 }
 
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+}
 
 export const registerUser = async (details: RegisterDetails) => {
     const response = await fetch(`${API_URL}/register`, {
@@ -40,6 +48,7 @@ export const loginUser = async (credentials: LoginCredentials) => {
     return {
         success: true,
         userId: data.userId,
+        token: data.token,
         isLicenseActive: data.isLicenseActive,
         message: data.message,
     };
@@ -48,7 +57,7 @@ export const loginUser = async (credentials: LoginCredentials) => {
 export const activateUserLicense = async (userId: number, licenseKey: string) => {
     const response = await fetch(`${API_URL}/api/activate-license`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ userId, licenseKey }),
     });
     const data = await response.json();
@@ -62,7 +71,7 @@ export const activateUserLicense = async (userId: number, licenseKey: string) =>
 export const saveUserApiKey = async (userId: number, apiKey: string) => {
     const response = await fetch(`${API_URL}/api/user/google-key`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ userId, apiKey }),
     });
     const data = await response.json();
@@ -76,7 +85,7 @@ export const fetchApiKey = async (userId: number): Promise<string | null> => {
      try {
         const response = await fetch(`${API_URL}/api/user/google-key?userId=${userId}`, {
             method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
         });
         if (!response.ok) return null;
         const data = await response.json();
