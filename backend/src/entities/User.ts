@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn, OneToOne } from 'typeorm';
 import { Character } from './Character';
+import { LicenseKey } from './LicenseKey';
 
 @Entity('users')
 export class User {
@@ -9,14 +10,18 @@ export class User {
     @Column({ unique: true })
     username!: string;
 
+    @Column({ unique: true })
+    email!: string;
+
     @Column()
     password!: string;
 
-    @Column({ name: 'license_key' })
-    licenseKey!: string;
-
     @Column({ name: 'google_api_key_encrypted', type: 'text', nullable: true })
     googleApiKeyEncrypted!: string | null;
+
+    @OneToOne(() => LicenseKey)
+    @JoinColumn({ name: 'license_key_id' })
+    licenseKey!: LicenseKey | null;
 
     @OneToMany(() => Character, character => character.user)
     characters!: Character[];

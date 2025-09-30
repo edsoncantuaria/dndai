@@ -26,6 +26,7 @@
       webSocketServer.ts
     /routes
       auth.ts
+      license.ts
       user.ts
       admin.ts
     /utils
@@ -39,20 +40,29 @@
 
 Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Você disse que hoje não existe DB/WS — vamos migrar incrementalmente para reduzir riscos.
 
-## Fase 0 — Preparação (mínimos)
+## Fase 0 — Preparação (concluído)
 
-* **Criar repositório backend** (Node + TypeScript + ts-node).
-* **Configurar TypeORM** com MySQL local (arquivo `data-source.ts`). Manter `synchronize: true` por enquanto.
-* **Criar entidades básicas**: `User`, `Character`, `GameSession`.
-* **Adicionar utilitário de criptografia** (seu `crypto.ts` já ok)
-**Utilizar esquema de Chaves de Licenca**: é possível fazer registro e login, mas é necessário ativar o jogo com chave de licença que expira por tempo, a chave é feita diretamente no banco de dados e se expirar o é bloqueado o acesso.
+*   **[X] Criar repositório backend** (Node + TypeScript + ts-node).
+*   **[X] Configurar TypeORM** com MySQL local (arquivo `data-source.ts`). Manter `synchronize: true` por enquanto.
+*   **[X] Criar entidades básicas**: `User`, `Character`, `GameSession`, `LicenseKey`.
+*   **[X] Adicionar utilitário de criptografia** (seu `crypto.ts` já ok).
 
-## Fase 1 — API REST mínima + autenticação
+## Fase 1 — API REST mínima + Autenticação e Ativação de Licença (Revisado)
 
-* Implementar autenticação (registro/login) com JWT e rota `/api/auth`.
-* Endpoint `/api/user/me` que devolve `id` e metadados sem expor `google_api_key`.
-* Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua google_api_key (ser criptografada e armazenada no DB).
-* Testar fluxo: user salva chave via frontend -> backend armazena criptografada -> secret pode ser lido e descriptografado no backend.
+*   **[X] Implementar endpoint de registro (`/register`):**
+    *   Aceita `username`, `email`, `password`.
+    *   Valida os dados e cria um novo `User` sem licença.
+*   **[X] Implementar endpoint de login (`/login`):**
+    *   Aceita `login` (pode ser username ou email) e `password`.
+    *   Valida as credenciais.
+    *   Retorna `userId` e um status `isLicenseActive` (boolean) para o frontend.
+*   **[X] Implementar endpoint de ativação de licença (`/api/activate-license`):**
+    *   O frontend chamará este endpoint se `isLicenseActive` for `false` após o login.
+    *   Aceita `userId` e `licenseKey`.
+    *   Valida a chave no banco de dados: verifica se existe, se não está em uso e se a data de expiração (`expiresAt`) é futura em relação à data atual do servidor.
+    *   Se a chave for válida, associa-a ao `userId`, marca-a como `isActive: true` e salva.
+    *   Retorna sucesso ou falha na ativação.
+*   **[Próximo Passo]** Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (ser criptografada e armazenada no DB).
 
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
@@ -185,8 +195,8 @@ import { decrypt } from './crypto';
 export const getUserApiKey = async (userId: number): Promise<string | null> => {
   const repo = AppDataSource.getRepository(User);
   const user = await repo.findOneBy({ id: userId });
-  if (!user || !user.google_api_key) return null;
-  return decrypt(user.google_api_key);
+  if (!user || !user.googleApiKeyEncrypted) return null;
+  return decrypt(user.googleApiKeyEncrypted);
 };
 ```
 
@@ -236,10 +246,10 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 # Checklist final (executável)
 
-* [ ] Criar repo backend TS e configurar lint/tsconfig.
-* [ ] Configurar TypeORM e entidades.
-* [ ] Implementar util crypto e testes.
-* [ ] Implementar auth JWT + routes user.
+* [X] Criar repo backend TS e configurar lint/tsconfig.
+* [X] Configurar TypeORM e entidades.
+* [X] Implementar util crypto e testes.
+* [X] Implementar auth com registro/login/ativação de licença.
 * [ ] Implementar gemini/ai server (genkit flows).
 * [ ] Implementar gameService REST (sem WS) e testes.
 * [ ] Adicionar Redis e implement redisService.
@@ -249,3 +259,5 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 
 # Observações, mudanças...
+
+```

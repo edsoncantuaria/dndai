@@ -6,9 +6,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
+import { setupLicenseRoutes } from './src/routes/license';
 import { Connection } from 'mysql2/promise';
 
-dotenv.config();
+dotenv.config({ path: 'backend/.env' });
 
 const app = express();
 const server = http.createServer(app);
@@ -24,12 +25,9 @@ async function startServer() {
         await AppDataSource.initialize();
         console.log("Conexão com o banco de dados estabelecida com sucesso via TypeORM.");
 
-        // Para as rotas de autenticação existentes, ainda precisamos da conexão mysql2.
-        // Isso será refatorado nas próximas fases para usar o TypeORM completamente.
-        const dbConnection: Connection = AppDataSource.driver.master as any;
-
         // Configuração de Rotas
-        setupAuthRoutes(app, dbConnection);
+        setupAuthRoutes(app);
+        setupLicenseRoutes(app);
 
         // Configuração do WebSocket
         wss.on('connection', ws => {
