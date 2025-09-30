@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -9,10 +8,11 @@ import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
-import { translateApiString, translateSpell } from '@/utils/translator';
-import { TRANSLATIONS_SPELLS } from '@/utils/TranslatorSpells';
+import { translateApiString } from '@/utils/translator';
+import { useAuth } from '@/contexts/AuthContext';
 
-const LOCAL_STORAGE_KEY = 'rpg-de-cria-savegame-v2';
+
+const LOCAL_STORAGE_KEY_PREFIX = 'rpg-de-cria-savegame-v2-';
 const SAVE_VERSION = 2; // Version for the save file structure
 
 const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
@@ -21,11 +21,9 @@ const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalE
 
     for (const update of updates) {
         if (existingMap.has(update.id)) {
-            // Update existing entry
             const existingEntry = existingMap.get(update.id)!;
             Object.assign(existingEntry, { ...update, subLocations: update.subLocations ? mergeJournalEntries(existingEntry.subLocations || [], update.subLocations) : existingEntry.subLocations });
         } else {
-            // Add new entry
             newJournal.push(update);
             existingMap.set(update.id, update);
         }
@@ -40,11 +38,9 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
 
     for (const update of updates) {
         if (existingMap.has(update.npcId)) {
-            // Update existing relationship
             const existingRel = existingMap.get(update.npcId)!;
             Object.assign(existingRel, update);
         } else {
-            // Add new relationship
             newRelationships.push(update);
             existingMap.set(update.npcId, update);
         }
@@ -52,30 +48,20 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
     return newRelationships;
 };
 
-// Character state updates should always come from the Game Master (AI).
-// This function ensures that new data from the API is safely merged into the existing character state
-// without unintended side effects, and recalculates derived stats.
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    // Use structuredClone for a safe and performant deep copy.
     let newChar: Character = structuredClone(oldChar);
-
-    // Apply top-level updates.
     newChar = { ...newChar, ...updates };
 
-    // Ensure arrays are handled correctly. Most arrays are completely replaced if provided.
-    // The GM's response is the single source of truth for the current state.
     if (updates.inventory) {
         newChar.inventory = updates.inventory;
     }
     if (updates.spells) {
         newChar.spells = updates.spells;
     }
-     // The GM sends the full list of current conditions. Always replace.
     if (updates.conditions) {
         newChar.conditions = updates.conditions;
     }
 
-    // Smart merging for complex nested data structures that need to be preserved.
     if (updates.journal) {
         newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
     }
@@ -90,15 +76,12 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     }
 
 
-    // Ensure nested objects are merged correctly, not fully replaced.
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
 
-
-    // Recalculate derived properties after the merge.
     const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
     newChar.modifiers = newModifiers;
     newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
@@ -118,6 +101,9 @@ const INITIAL_COMBAT_STATE: CombatState = {
 
 
 export const useNewGameState = () => {
+    const { user } = useAuth();
+    const getLocalStorageKey = useCallback(() => `${LOCAL_STORAGE_KEY_PREFIX}${user?.id}`, [user]);
+    
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
     const [actionOptions, setActionOptions] = useState<(string | { text: string; action: string, skill?: string })[]>([]);
@@ -133,18 +119,11 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    const [systemLog, setSystemLog] = useState<string | null>(null);
-    
-    const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: userApiKey } = useSettingsContext();
-
-    const addLog = useCallback((newEntryData: Omit<LogEntry, 'id'>) => {
-        const newEntry = { ...newEntryData, id: uuidv4() } as LogEntry;
-        setLog(prev => [...prev, newEntry]);
-    }, []);
+    const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: settingsApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
-        return userApiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-    }, [userApiKey]);
+        return settingsApiKey;
+    }, [settingsApiKey]);
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
@@ -161,7 +140,8 @@ export const useNewGameState = () => {
         }
        
         if (response.logEntries && Array.isArray(response.logEntries)) {
-            response.logEntries.forEach(entry => addLog(entry));
+            const newLogEntries = response.logEntries.map(entry => ({ ...entry, id: uuidv4() }));
+            setLog(prev => [...prev, ...newLogEntries]);
         }
         
         if(response.playerRollRequest) {
@@ -176,7 +156,6 @@ export const useNewGameState = () => {
         
         if (response.combatState) {
             const newCombatState = response.combatState;
-            // If combat is ending, clear the roll history for all combatants
             if (combatState.isActive && !newCombatState.isActive) {
                 if (newCombatState.combatants && Array.isArray(newCombatState.combatants)) {
                     newCombatState.combatants.forEach(c => c.rollHistory = []);
@@ -191,10 +170,10 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [addLog, combatState.isActive]);
+    }, [combatState.isActive]);
 
 
-    const processPlayerAction = useCallback(async (action: string, rollResultForLog?: LogEntry['rollResult']) => {
+    const processPlayerAction = useCallback(async (action: string) => {
         if (!character) return;
         
         setIsLoading(true);
@@ -204,26 +183,17 @@ export const useNewGameState = () => {
         setPendingLootOffer(null);
         const previousActionOptions = actionOptions;
         
-        const entryId = uuidv4();
-        // Don't add a new log entry if the action is just to process the next turn
-        if (action !== "Processar o próximo turno do combate.") {
-            const newLogEntry: LogEntry = rollResultForLog
-                ? { id: entryId, type: 'roll', content: action, rollResult: rollResultForLog }
-                : { id: entryId, type: 'action', content: action };
-
-            addLog(newLogEntry);
-        }
-
+        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+        setLog(prev => [...prev, newLogEntry]);
         setActionOptions([]); 
         
-        const currentLog = [...log, { id: entryId, type: 'action', content: action }];
+        const currentLog = [...log, newLogEntry];
         
         try {
             const apiKey = getApiKey();
             if (!apiKey) {
                 throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
             }
-
             const gameUpdateInput: geminiService.GameMasterFlowInput = {
                 character,
                 playerAction: action,
@@ -238,82 +208,41 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            if (action !== "Processar o próximo turno do combate.") {
-                setLog(prev => prev.filter(entry => entry.id !== entryId));
-            }
             setActionOptions(previousActionOptions);
+            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 
         }
 
-    }, [character, combatState, selectedModel, generationConfig, getApiKey, log, actionOptions, addLog, handleApiResponse]);
+    }, [character, log, actionOptions, combatState, selectedModel, generationConfig, getApiKey, handleApiResponse]);
     
-    const nextTurn = useCallback(() => {
-        if (!combatState.isActive || isLoading) return;
-        processPlayerAction("Processar o próximo turno do combate.");
-    }, [combatState.isActive, isLoading, processPlayerAction]);
-
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
-    
+        
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
-    
-        const rollLogEntry: LogEntry['rollResult'] = {
-            ...playerRollRequest,
-            ...result,
-            description: playerRollRequest.reason,
-            success: playerRollRequest.dc !== undefined ? result.total >= playerRollRequest.dc : undefined,
-        };
-    
-        // Immediately update player's roll history in combatState
-        if (combatState.isActive) {
-            setCombatState(prev => {
-                const playerCombatantIndex = prev.combatants.findIndex(c => c.id === 'player');
-                if (playerCombatantIndex === -1 && !prev.combatants.some(c => c.id === 'player')) {
-                    // This can happen if the combatant list hasn't been updated yet.
-                    // Let's defer this to the GM's response, but for now, we'll log it.
-                    console.warn("Player combatant not found in combat state during roll result handling.");
-                    return prev;
-                }
-                const newCombatants = [...prev.combatants];
-                const playerCombatant = { ...(newCombatants[playerCombatantIndex] || {}) } as Combatant;
-
-                const newHistoryEntry: Combatant['rollHistory'][0] = {
-                    type: rollLogEntry.rollType, // Map rollType to history type
-                    total: rollLogEntry.total,
-                    rolls: rollLogEntry.rolls,
-                    description: rollLogEntry.description,
-                };
-    
-                playerCombatant.rollHistory = [...(playerCombatant.rollHistory || []), newHistoryEntry];
-                newCombatants[playerCombatantIndex] = playerCombatant;
-    
-                return { ...prev, combatants: newCombatants };
-            });
-        }
-    
+        
         setPlayerRollRequest(null);
-        processPlayerAction(actionText, rollLogEntry);
-    
-    }, [playerRollRequest, processPlayerAction, combatState.isActive]);
-    
+        processPlayerAction(actionText);
+
+    }, [playerRollRequest, processPlayerAction]);
 
     const saveGame = useCallback(() => {
+        const localStorageKey = getLocalStorageKey();
         if (character && log.length > 0) {
             try {
-                // Don't save transient states
-                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog };
-                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(gameState));
+                const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, ambientSound };
+                localStorage.setItem(localStorageKey, JSON.stringify(gameState));
             } catch (error) {
                 console.error("Falha ao salvar o jogo no localStorage:", error);
             }
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, systemLog]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, ambientSound, getLocalStorageKey]);
     
     const loadGameFromLocalStorage = useCallback(() => {
-        setIsLoading(true);
-        try {
-            const savedGame = localStorage.getItem(LOCAL_STORAGE_KEY);
+        const localStorageKey = getLocalStorageKey();
+         setIsLoading(true);
+         try {
+            const savedGame = localStorage.getItem(localStorageKey);
             if (savedGame) {
                 const parsedState = JSON.parse(savedGame);
 
@@ -329,9 +258,7 @@ export const useNewGameState = () => {
                 setLevelUpState(parsedState.levelUpState || null);
                 setShopState(parsedState.shopState || null);
                 setAmbientSound(parsedState.ambientSound || 'none');
-                setSystemLog(parsedState.systemLog || null);
                 
-                // Clear transient states that should not persist across sessions
                 setPlayerRollRequest(null);
                 setSkillCheckRequest(null);
                 setSpellCastRequest(null);
@@ -340,73 +267,11 @@ export const useNewGameState = () => {
             }
         } catch (error) {
             console.error("Falha ao carregar o jogo:", error);
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            localStorage.removeItem(localStorageKey);
         } finally {
             setIsLoading(false);
         }
-    }, []);
-
-    const forceReload = useCallback(() => {
-        // Clear all transient and potentially problematic states for a "Fresh Reset"
-        setCombatState(INITIAL_COMBAT_STATE); 
-        setPlayerRollRequest(null);
-        setSkillCheckRequest(null);
-        setSpellCastRequest(null);
-        setPendingLootOffer(null);
-        setPendingHitDiceRequest(null);
-        setApiError(null);
-        setIsLoading(false); // Ensure loading is stopped
-
-        let lastRollIndex = -1;
-        for (let i = log.length - 1; i >= 0; i--) {
-            const entry = log[i];
-            if (entry.type === 'roll' && entry.rollResult?.rollType !== 'attack' && entry.rollResult?.rollType !== 'damage') {
-                lastRollIndex = i;
-                break;
-            }
-        }
-    
-        let actionToReplay = "O mestre resume a situação atual para que eu possa continuar.";
-        if (lastRollIndex > 0) {
-            for (let i = lastRollIndex - 1; i >= 0; i--) {
-                if (log[i].type === 'action') {
-                    actionToReplay = log[i].content;
-                    break;
-                }
-            }
-            setLog(prev => prev.slice(0, lastRollIndex + 1));
-        } else {
-            setLog([]);
-        }
-    
-        // Add the thematic message
-        const warningMessage = "Helm, o Vigilante, interveio para proteger seu destino. O tempo retrocedeu a um ponto seguro para que sua jornada não seja corrompida. Seus itens e experiência foram preservados, mas não abuse da paciência de um deus, pois o fio do seu destino pode ser cortado.";
-        addLog({ type: 'system', content: warningMessage });
-    
-        // Re-submit the last known safe action to the AI to re-establish context
-        processPlayerAction(actionToReplay);
-    
-    }, [log, addLog, processPlayerAction]);
-
-
-    const clearGameState = useCallback(() => {
-        setCharacter(null);
-        setLog([]);
-        setActionOptions([]);
-        setCombatState(INITIAL_COMBAT_STATE);
-        setLevelUpState(null);
-        setShopState(null);
-        setPendingLootOffer(null);
-        setPendingHitDiceRequest(null);
-        setSkillCheckRequest(null);
-        setSpellCastRequest(null);
-        setPlayerRollRequest(null);
-        setApiError(null);
-        setAmbientSound('none');
-        setSystemLog(null);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-    }, []);
-
+    }, [getLocalStorageKey]);
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -418,9 +283,8 @@ export const useNewGameState = () => {
         return () => {
             clearTimeout(handler);
         };
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, skillCheckRequest, spellCastRequest, playerRollRequest, systemLog, isLoading, saveGame]);
+    }, [character, log, isLoading, saveGame]);
 
-    
     
     const handleSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
@@ -439,8 +303,7 @@ export const useNewGameState = () => {
     }, []);
 
     const submitSpellCast = useCallback((spell: ApiSpell, description: string) => {
-        const translatedSpellName = translateSpell(spell)?.name || spell.name;
-        const actionText = `Eu conjuro ${translatedSpellName}${description ? `: ${description}`: '.'}`;
+        const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}`: '.'}`;
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, [processPlayerAction]);
@@ -448,16 +311,22 @@ export const useNewGameState = () => {
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
         setIsLoading(true);
-        clearGameState();
+        const localStorageKey = getLocalStorageKey();
+        localStorage.removeItem(localStorageKey);
+        setCharacter(null);
+        setLog([]); 
+        setActionOptions([]);
+        setApiError(null);
+        setAmbientSound('none');
         
         const newCharacter = await characterUtils.initializeNewCharacter(info);
         
         setCharacter(newCharacter);
         setIsLoading(false);
-    }, [clearGameState]);
+    }, [getLocalStorageKey]);
 
-    const startGame = useCallback(async () => {
-        if (!character || log.length > 0 || isLoading) return Promise.resolve(undefined);
+    const startGame = useCallback(async (): Promise<boolean> => {
+        if (!character || log.length > 0 || isLoading) return Promise.resolve(true);
         
         setIsLoading(true);
         setActionOptions([]); 
@@ -473,7 +342,7 @@ export const useNewGameState = () => {
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
                 gameLog: [],
-                combatState: combatState
+                combatState
             };
             
             const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
@@ -482,7 +351,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
-            setLog([]); // Clear log on error to allow retry
+            setLog([]);
             return false;
         } finally {
             setIsLoading(false);
@@ -492,22 +361,24 @@ export const useNewGameState = () => {
     
     const checkForSavedGame = useCallback(() => {
         try {
-            return !!localStorage.getItem(LOCAL_STORAGE_KEY);
+            const localStorageKey = getLocalStorageKey();
+            return !!localStorage.getItem(localStorageKey);
         } catch (e) {
             return false;
         }
-    }, []);
+    }, [getLocalStorageKey]);
 
     const saveGameToFile = useCallback(() => {
         if (!character) return;
         try {
-            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog };
+            const localStorageKey = getLocalStorageKey();
+            const gameState = { version: SAVE_VERSION, character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound };
             const jsonString = JSON.stringify(gameState, null, 2);
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = "crônicas-de-aventuras.json";
+            a.download = `cda-save-${character.name.toLowerCase().replace(/\s/g, '_')}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -515,13 +386,14 @@ export const useNewGameState = () => {
         } catch (error) {
             console.error("Falha ao salvar o jogo em arquivo:", error);
         }
-    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, systemLog]);
+    }, [character, log, actionOptions, combatState, levelUpState, shopState, pendingLootOffer, pendingHitDiceRequest, ambientSound, getLocalStorageKey]);
 
     const loadGameFromFile = (file: File): Promise<boolean> => {
         return new Promise((resolve) => {
             setIsLoading(true);
             const reader = new FileReader();
             reader.onload = (event) => {
+                const localStorageKey = getLocalStorageKey();
                 try {
                     const text = event.target?.result as string;
                     if(text) {
@@ -539,7 +411,6 @@ export const useNewGameState = () => {
                         setLevelUpState(parsedState.levelUpState || null);
                         setShopState(parsedState.shopState || null);
                         setAmbientSound(parsedState.ambientSound || 'none');
-                        setSystemLog(parsedState.systemLog || null);
                         
                         setPlayerRollRequest(null);
                         setSkillCheckRequest(null);
@@ -547,7 +418,7 @@ export const useNewGameState = () => {
                         setPendingLootOffer(null);
                         setPendingHitDiceRequest(null);
 
-                        localStorage.setItem(LOCAL_STORAGE_KEY, text);
+                        localStorage.setItem(localStorageKey, text);
                         resolve(true);
                     } else {
                         resolve(false);
@@ -568,21 +439,30 @@ export const useNewGameState = () => {
         });
     };
 
-    const applyLevelUp = useCallback(async (selections: LevelUpSelections) => {
-        if (!character || !levelUpState || !levelUpState.isPending) return;
-        
-        setIsLoading(true);
-        
-        const updatedChar = await characterUtils.applyLevelUp(character, levelUpState, selections);
-
-        setCharacter(updatedChar);
-
-        setLevelUpState(prev => prev ? { ...prev, isPending: false, choices: {} } : null);
-        addLog({ type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` });
+    const clearGameState = useCallback(() => {
+        const localStorageKey = getLocalStorageKey();
+        setCharacter(null);
+        setLog([]);
         setActionOptions([]);
-        setIsLoading(false);
+        setCombatState(INITIAL_COMBAT_STATE);
+        setLevelUpState(null);
+        setShopState(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPlayerRollRequest(null);
+        setApiError(null);
+        setAmbientSound('none');
+        localStorage.removeItem(localStorageKey);
+    }, [getLocalStorageKey]);
 
-    }, [character, levelUpState, addLog]);
+    const useConsumable = useCallback((itemId: string) => {
+        if (!character) return;
+        const item = character.inventory.find(i => i.id === itemId);
+        if (!item) return;
+        processPlayerAction(`Eu uso meu ${item.name}.`);
+    }, [character, processPlayerAction]);
 
     const toggleEquipped = useCallback((itemId: string) => {
         if (!character) return;
@@ -592,13 +472,6 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
     }, [character, processPlayerAction]);
     
-    const useConsumable = useCallback((itemId: string) => {
-      if (!character) return;
-      const item = character.inventory.find(i => i.id === itemId);
-      if (!item) return;
-      processPlayerAction(`Eu uso meu ${item.name}.`);
-    }, [character, processPlayerAction]);
-
     const spendHitDice = useCallback((diceCount: number) => {
         if (!character) return;
         processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
@@ -663,10 +536,6 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
-        systemLog, 
-        nextTurn,
-        clearGameState,
-        forceReload,
+        clearGameState
     };
 };
-

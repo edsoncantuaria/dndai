@@ -75,21 +75,23 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 
 ### Preparação e Status do Frontend
 
-*   **Situação Atual:** O frontend **NÃO** está atualmente integrado com a nova API de backend. Toda a lógica de criação de personagem, salvamento de jogo e chamadas de IA ainda reside no cliente (nos hooks e contextos de React).
-*   **Validação da Fase 1:** Para testar os endpoints de `/register`, `/login`, `/api/activate-license` e `/api/user/google-key`, é necessário usar uma ferramenta de API como Postman ou `curl`. O frontend ainda não possui as telas ou a lógica para interagir com essas rotas.
-*   **Próximos Passos no Frontend:** Para uma integração completa, o frontend precisará:
-    1.  Desenvolver uma interface de usuário para registro, login e ativação de licença.
-    2.  Criar um contexto de autenticação para gerenciar o estado do usuário (ex: `userId`, `isLicenseActive`).
-    3.  Modificar o fluxo do jogo para que, após o login, ele use um token para se comunicar com os futuros endpoints do jogo (Fase 3 em diante).
+*   **Situação Atual:** O frontend foi atualizado para se comunicar com a nova API de backend. Foi criado um fluxo completo de autenticação.
+*   **O que foi implementado no frontend:**
+    1.  **Contexto de Autenticação (`AuthContext`)**: Gerencia o estado do usuário (`userId`, `isAuthenticated`, `isLicenseActive`, `hasApiKey`), armazena o estado da sessão no `localStorage` e fornece funções de `login`, `register`, `logout`, `activateLicense` e `saveApiKey`.
+    2.  **Serviço de API (`authService`)**: Centraliza as chamadas `fetch` para todos os endpoints de autenticação e gerenciamento de chaves do backend.
+    3.  **Componentes de UI de Autenticação**:
+        *   `AuthForm`: Uma tela principal para alternar entre login e registro.
+        *   `LoginForm` e `RegisterForm`: Formulários para entrada de dados.
+        *   `LicenseActivationForm`: Aparece após o login se o usuário não tiver uma licença ativa.
+        *   `ApiKeyForm`: Aparece após a ativação da licença se o usuário ainda não tiver configurado sua chave de API do Google.
+    4.  **Fluxo de Aplicação (`page.tsx`)**: O componente principal da aplicação agora verifica o estado de autenticação antes de renderizar o jogo. Ele guia o usuário através do login, ativação de licença e configuração da chave de API antes de permitir o acesso ao contêiner do jogo.
+*   **Próximos Passos no Frontend:** Com o fluxo de autenticação e configuração concluído, o próximo grande passo é refatorar a lógica do jogo para se comunicar via WebSockets com o backend (Fases 3, 4 e 5), em vez de executar a lógica da IA no cliente.
 
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
-* Implementar `geminiService.ts` (ou `aiServer.ts`) que contém definição de flows Genkit (ex.: `gameMasterFlow`).
-
-  * **Opção A (recomendado):** usar `@genkit-ai/express` / `genkit` para expor flows como endpoint HTTP (modo server). Assim o orchestrador chama `POST /flows/gameMasterFlow` com payload e recebe resposta.
-  * **Opção B:** incorporar `genkit` direto no backend (mesmo processo). Permite chamadas `ai.generate()` sem HTTP extra.
-* Importante: **a chave do usuário deve ser buscada no DB e passada ao plugin googleAI** por chamada dinamicamente — não coloque em env var global.
-* Inicialmente faça um flow que apenas **retorna um JSON estático** para validar a conexão do orchesrator com o AI server.
+*   **[ ] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
+*   **[ ] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
+*   **[ ] Testes de Conexão**: Inicialmente, testaremos a chamada ao flow com dados estáticos para validar que a lógica da chave de API e a chamada ao Gemini estão funcionando corretamente.
 
 ### Snippet de inicialização (exemplo simplificado com genkit express)
 
@@ -278,4 +280,3 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 # Observações, mudanças...
 
-```
