@@ -1,12 +1,12 @@
+import 'reflect-metadata';
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { Connection } from 'mysql2/promise';
-
-import { setupDatabase } from './src/config/database';
+import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
+import { Connection } from 'mysql2/promise';
 
 dotenv.config();
 
@@ -18,13 +18,15 @@ const wss = new WebSocketServer({ server });
 app.use(cors());
 app.use(express.json());
 
-let dbConnection: Connection;
-
 // Setup Inicial
 async function startServer() {
     try {
-        dbConnection = await setupDatabase();
-        console.log("Conexão com o banco de dados MySQL estabelecida com sucesso.");
+        await AppDataSource.initialize();
+        console.log("Conexão com o banco de dados estabelecida com sucesso via TypeORM.");
+
+        // Para as rotas de autenticação existentes, ainda precisamos da conexão mysql2.
+        // Isso será refatorado nas próximas fases para usar o TypeORM completamente.
+        const dbConnection: Connection = AppDataSource.driver.master as any;
 
         // Configuração de Rotas
         setupAuthRoutes(app, dbConnection);
@@ -53,7 +55,7 @@ async function startServer() {
         });
 
     } catch (error) {
-        console.error("Falha ao iniciar o servidor:", error);
+        console.error("Falha ao iniciar o servidor ou conectar ao banco de dados:", error);
         process.exit(1);
     }
 }
