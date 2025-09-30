@@ -246,3 +246,6 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
+
+
+# Observações, mudanças...
