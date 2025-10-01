@@ -264,6 +264,119 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 * **Consistência de estado**: usar locks Redis (ex.: Redlock) e persistir imediatamente alterações críticas.
 * **Escalabilidade**: se crescimento for grande, mover `activeGameStates` para Redis e separar workers para chamadas ao AI.
 
+# Fase de Testes
+
+## Testes da Fase 1: Autenticação e Configuração
+
+Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
+
+### 1. [ ] Rodar o servidor
+
+**Como fazer:**
+1.  Certifique-se de que um servidor MySQL está rodando e acessível.
+2.  No diretório `backend`, crie um arquivo chamado `.env` com o seguinte conteúdo (substitua com suas credenciais reais):
+    ```
+    DB_HOST=localhost
+    DB_USER=root
+    DB_PASSWORD=sua_senha_aqui
+    DB_DATABASE=cronicas_de_aventuras
+    SECRET_KEY=uma_chave_secreta_muito_longa_e_segura_com_pelo_menos_32_caracteres
+    ```
+3.  No terminal, na raiz do projeto, execute `npm run dev:backend`.
+
+**Ver se retorna:**
+A saída no terminal deve incluir as seguintes linhas:
+```
+Conexão com o banco de dados estabelecida com sucesso via TypeORM.
+Servidor rodando na porta 8071
+```
+
+---
+
+### 2. [ ] Tentar cadastrar um novo usuário
+
+**Como fazer:**
+Use o `curl` em um novo terminal para enviar uma requisição de registro.
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "password123"}' https://backend-5e.edsin-server.space/register
+```
+
+**Ver se retorna:**
+A resposta deve ser um JSON indicando sucesso:
+```json
+{"message":"Usuário registrado com sucesso. Faça o login para continuar."}
+```
+*Tente registrar com senhas diferentes ou com um email já existente para validar as mensagens de erro.*
+
+---
+
+### 3. [ ] Criar uma chave de licença no banco de dados
+
+**Como fazer:**
+1.  Conecte-se ao seu banco de dados MySQL.
+2.  Execute o seguinte comando SQL para inserir uma chave de teste válida. Use uma chave única e fácil de lembrar.
+    ```sql
+    INSERT INTO license_keys (`key`, `isActive`, `expiresAt`) VALUES ('MINHA-CHAVE-TESTE-123', false, '2025-12-31 23:59:59');
+    ```
+
+**Ver se retorna:**
+Confirme que a linha foi inserida com sucesso na tabela `license_keys`.
+
+---
+
+### 4. [ ] Tentar logar com o novo usuário
+
+**Como fazer:**
+Use `curl` para enviar a requisição de login.
+```bash
+curl -X POST -H "Content-Type: application/json" -d '{"login": "teste_user", "password": "password123"}' https://backend-5e.edsin-server.space/login
+```
+
+**Ver se retorna:**
+A resposta deve ser um JSON contendo o token JWT, o ID do usuário e o status da licença como `false`. **Copie os valores de `token` e `userId` para os próximos passos.**
+```json
+{
+    "message": "Login bem-sucedido.",
+    "token": "um_token_jwt_longo_aqui...",
+    "userId": 1,
+    "isLicenseActive": false
+}
+```
+
+---
+
+### 5. [ ] Ativar a licença do usuário
+
+**Como fazer:**
+Use `curl` para enviar a chave de licença para o endpoint de ativação. Substitua `<SEU_TOKEN_JWT>` e `<SEU_USER_ID>` pelos valores obtidos no passo anterior.
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <SEU_TOKEN_JWT>" -d '{"userId": <SEU_USER_ID>, "licenseKey": "MINHA-CHAVE-TESTE-123"}' https://backend-5e.edsin-server.space/api/activate-license
+```
+
+**Ver se retorna:**
+A resposta deve ser um JSON indicando sucesso:
+```json
+{"message":"Licença ativada com sucesso!"}
+```
+*Para verificar, tente fazer o login novamente (Passo 4). O valor de `isLicenseActive` agora deve ser `true`.*
+
+---
+
+### 6. [ ] Salvar a Chave da API do Google
+
+**Como fazer:**
+Use `curl` para enviar uma chave de API do Google para o endpoint de usuário. Substitua `<SEU_TOKEN_JWT>` e `<SEU_USER_ID>` novamente.
+```bash
+curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <SEU_TOKEN_JWT>" -d '{"userId": <SEU_USER_ID>, "apiKey": "SUA_CHAVE_API_GOOGLE_AQUI"}' https://backend-5e.edsin-server.space/api/user/google-key
+```
+
+**Ver se retorna:**
+A resposta deve ser um JSON indicando sucesso:
+```json
+{"message":"Chave de API do Google salva com sucesso."}
+```
+*Para verificar, você pode fazer uma requisição GET para `https://backend-5e.edsin-server.space/api/user/google-key?userId=<SEU_USER_ID>` (com o token no cabeçalho) e confirmar que ela retorna a chave correta.*
+
 # Checklist final (executável)
 
 * [X] Criar repo backend TS e configurar lint/tsconfig.
@@ -281,3 +394,6 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 # Observações, mudanças...
 
 
+
+
+    
