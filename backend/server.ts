@@ -12,8 +12,8 @@ import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
 import { gameMasterFlow, testAiConnection as testAiConnectionFlow } from './src/services/geminiService';
 import { expressHandler } from '@genkit-ai/express';
-import { getUserApiKey } from './src/utils/user-service';
 import { UserFacingError } from 'genkit/context';
+import { getUserApiKey } from './src/utils/user-service';
 
 const app: Express = express();
 const server = http.createServer(app);
@@ -39,7 +39,7 @@ async function startServer() {
         app.post(
           '/api/game-master',
           expressHandler(gameMasterFlow, {
-            context: async (req) => {
+            context: async (req: Request) => {
               const { userId } = req.body;
               if (!userId) {
                 throw new UserFacingError(
@@ -63,7 +63,7 @@ async function startServer() {
         app.post(
             '/api/test-ai',
              expressHandler(testAiConnectionFlow, {
-                context: async (req) => {
+                context: async (req: Request) => {
                     const { userId } = req.body;
                      if (!userId) {
                         throw new UserFacingError('BAD_REQUEST','userId é obrigatório.');
