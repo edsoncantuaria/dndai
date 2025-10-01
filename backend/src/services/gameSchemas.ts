@@ -31,7 +31,7 @@ const CombatantBaseSchema = z.object({
     initiative: z.number(),
     distance: z.number().optional().describe("Distância em metros ou unidades até o alvo principal."),
     isHidden: z.boolean().default(false).describe("Se o combatente está em stealth ou invisível."),
-    tempModifiers: z.record(z.string(), z.number()).default({}).describe("Modificadores temporários (vantagem, desvantagem, buffs)."),
+    tempModifiers: z.any().optional().describe("Modificadores temporários (vantagem, desvantagem, buffs) como um objeto genérico."),
     conditions: z.array(z.object({
       name: z.string(),
       durationRounds: z.number().optional(),
@@ -91,30 +91,10 @@ export const ExtendedCombatStateSchema = z.object({
   });
 
 
-
-
 const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
     newLevel: z.number(),
     choices: z.any(),
-});
-
-const ShopStateSchema = z.object({
-    isOpen: z.boolean(),
-    isHaggling: z.boolean(),
-    name: z.string(),
-    inventory: z.any(),
-    sellPrices: z.record(z.string(), z.number()),
-});
-
-const LootOfferSchema = z.object({
-    items: z.any(),
-    currency: z.object({ gp: z.number() }),
-});
-
-const UseHitDiceRequestSchema = z.object({
-    maxDice: z.number(),
-    hitDieValue: z.number(),
 });
 
 // Itens do inventário com propriedades de uso/equipamento
@@ -133,8 +113,8 @@ export const InventoryItemSchema = z.object({
     }).optional(),
     restrictions: z.array(z.string()).optional().describe("Regras ou requisitos que impedem equipar ou usar o item."),
 });
-
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
+
 
 // Expansão do ShopState para suportar compra/venda com detalhes
 export const ShopItemSchema = z.object({
@@ -147,13 +127,29 @@ export const ShopItemSchema = z.object({
     availableQuantity: z.number().optional(),
     restrictions: z.array(z.string()).optional(),
 });
-
 export type ShopItem = z.infer<typeof ShopItemSchema>;
 
-// Loot detalhado
-export const LootItemSchema = InventoryItemSchema; // reusar schema de inventário
+
+const ShopStateSchema = z.object({
+    isOpen: z.boolean(),
+    isHaggling: z.boolean(),
+    name: z.string(),
+    inventory: z.array(ShopItemSchema).optional(),
+    sellPrices: z.any().optional().describe("Um objeto mapeando IDs de item para preços de venda."),
+});
+
+
+const LootOfferSchema = z.object({
+    items: z.array(InventoryItemSchema),
+    currency: z.object({ gp: z.number() }),
+});
 export type LootItem = InventoryItem;
 
+
+const UseHitDiceRequestSchema = z.object({
+    maxDice: z.number(),
+    hitDieValue: z.number(),
+});
 
 export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
@@ -172,7 +168,7 @@ export const GameMasterResponseSchema = z.object({
         timeOfDay: z.string().optional(),
         ongoingEvents: z.array(z.string()).optional(),
     }).optional().describe("Global world state variables to track persistent environment and events."),
-    factionReputation: z.record(z.string(), z.number()).optional().describe("Tracks the player's reputation with different factions. Negative values indicate hostility."),
+    factionReputation: z.any().optional().describe("Tracks the player's reputation with different factions. Negative values indicate hostility."),
     conditions: z.array(z.object({
         name: z.string(),
         durationRounds: z.number().optional(),
@@ -206,5 +202,3 @@ export const GameMasterFlowInputSchema = z.object({
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
-
-      
