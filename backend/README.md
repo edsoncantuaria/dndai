@@ -25,7 +25,7 @@ Este é o servidor backend para o jogo, construído com Node.js, Express e MySQL
 Para testar o fluxo de ativação, você precisará inserir chaves de licença manualmente no seu banco de dados. Conecte-se ao seu banco de dados MySQL e execute o seguinte comando SQL para adicionar algumas chaves:
 
 ```sql
-INSERT INTO license_keys (key, isActive, expiresAt) VALUES
+INSERT INTO license_keys (`key`, is_active, expiresAt) VALUES
 ('CHAVE-TESTE-01', false, '2025-12-31 23:59:59'),
 ('CHAVE-TESTE-02', false, '2025-12-31 23:59:59'),
 ('CHAVE-JA-USADA', true, '2025-12-31 23:59:59'),
@@ -33,7 +33,7 @@ INSERT INTO license_keys (key, isActive, expiresAt) VALUES
 
 ```
 - `key`: A string da chave que o usuário irá digitar.
-- `isActive`: Deve ser `false` para uma nova chave.
+- `is_active`: Deve ser `false` para uma nova chave.
 - `expiresAt`: A data em que a chave expira.
 
 ## Rodando o Servidor
@@ -47,4 +47,4 @@ INSERT INTO license_keys (key, isActive, expiresAt) VALUES
     npm start
     ```
 
-O servidor iniciará na porta especificada no seu arquivo `.env` (padrão: 8080).
+O servidor iniciará na porta especificada no seu arquivo `.env` (padrão: 8071).

@@ -316,7 +316,7 @@ A resposta deve ser um JSON indicando sucesso:
 1.  Conecte-se ao seu banco de dados MySQL.
 2.  Execute o seguinte comando SQL para inserir uma chave de teste válida. Use uma chave única e fácil de lembrar.
     ```sql
-    INSERT INTO license_keys (`key`, `isActive`, `expiresAt`) VALUES ('MINHA-CHAVE-TESTE-123', false, '2025-12-31 23:59:59');
+    INSERT INTO license_keys (`key`, is_active, expiresAt) VALUES ('MINHA-CHAVE-TESTE-123', false, '2025-12-31 23:59:59');
     ```
 
 **Ver se retorna:**
