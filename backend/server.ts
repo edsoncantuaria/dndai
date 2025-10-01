@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
@@ -38,20 +39,19 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler({
-            flow: gameMasterFlow,
+          expressHandler(gameMasterFlow, {
             context: async (req: Request) => {
               const { userId } = req.body;
               if (!userId) {
                 throw new UserFacingError(
-                  400,
+                  'INVALID_ARGUMENT',
                   'userId é obrigatório.'
                 );
               }
               const apiKey = await getUserApiKey(userId);
               if (!apiKey) {
                 throw new UserFacingError(
-                  401,
+                  'UNAUTHENTICATED',
                   'A chave de API do Google do usuário não foi encontrada ou é inválida.'
                 );
               }
@@ -63,16 +63,15 @@ async function startServer() {
         // Endpoint para Teste da IA
         app.post(
             '/api/test-ai',
-             expressHandler({
-                flow: testAiConnectionFlow,
+             expressHandler(testAiConnectionFlow, {
                 context: async (req: Request) => {
                     const { userId } = req.body;
                      if (!userId) {
-                        throw new UserFacingError(400,'userId é obrigatório.');
+                        throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
                     }
                     const apiKey = await getUserApiKey(userId);
                     if (!apiKey) {
-                        throw new UserFacingError(401,'A chave de API do Google do usuário não foi encontrada ou é inválida.');
+                        throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
                     }
                     return { apiKey };
                 }
