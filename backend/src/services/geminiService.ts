@@ -19,6 +19,8 @@ const flowInput = z.object({
   generationConfig: z.any().optional(),
 });
 
+type FlowInputType = z.infer<typeof flowInput>;
+
 /**
  * Cria o prompt detalhado a ser enviado para o modelo Gemini.
  * @param input O estado do jogo e a entrada da ação do jogador.
@@ -55,7 +57,7 @@ export const gameMasterFlow = ai.defineFlow(
     inputSchema: flowInput,
     outputSchema: GameMasterResponseSchema,
   },
-  async (input) => {
+  async (input: FlowInputType) => {
     const { flowInput, userId, modelName, generationConfig } = input;
     
     // 1. Busca a chave de API específica do usuário no banco de dados.
