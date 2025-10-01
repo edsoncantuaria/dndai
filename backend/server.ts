@@ -11,7 +11,7 @@ import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
-import { gameMasterFlow, testAiConnection as testAiConnectionFlow } from './src/services/geminiService';
+import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiService';
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
@@ -40,7 +40,7 @@ async function startServer() {
         app.post(
           '/api/game-master',
           expressHandler(gameMasterFlow, {
-            context: async (req: Request) => {
+            contextProvider: async (req: Request) => {
               const { userId } = req.body;
               if (!userId) {
                 throw new UserFacingError(
@@ -64,7 +64,7 @@ async function startServer() {
         app.post(
             '/api/test-ai',
              expressHandler(testAiConnectionFlow, {
-                context: async (req: Request) => {
+                contextProvider: async (req: Request) => {
                     const { userId } = req.body;
                      if (!userId) {
                         throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
