@@ -38,19 +38,20 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler(gameMasterFlow, {
+          expressHandler({
+            flow: gameMasterFlow,
             contextProvider: async (req) => {
-              const { userId } = (req as any).input; // Use 'req.input' directly
+              const { userId } = (req as any).body.input;
               if (!userId) {
                 throw new UserFacingError(
-                  "INVALID_ARGUMENT",
+                  'INVALID_ARGUMENT',
                   'userId é obrigatório.'
                 );
               }
               const apiKey = await getUserApiKey(userId);
               if (!apiKey) {
                 throw new UserFacingError(
-                  "UNAUTHENTICATED",
+                  'UNAUTHENTICATED',
                   'A chave de API do Google do usuário não foi encontrada ou é inválida.'
                 );
               }
@@ -62,15 +63,16 @@ async function startServer() {
         // Endpoint para Teste da IA
         app.post(
             '/api/test-ai',
-             expressHandler(testAiConnectionFlow, {
+             expressHandler({
+                flow: testAiConnectionFlow,
                 contextProvider: async (req) => {
-                    const { userId } = (req as any).input; // Use 'req.input' directly
+                    const { userId } = (req as any).body.input;
                      if (!userId) {
-                        throw new UserFacingError("INVALID_ARGUMENT",'userId é obrigatório.');
+                        throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
                     }
                     const apiKey = await getUserApiKey(userId);
                     if (!apiKey) {
-                        throw new UserFacingError("UNAUTHENTICATED",'A chave de API do Google do usuário não foi encontrada ou é inválida.');
+                        throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
                     }
                     return { apiKey };
                 }
