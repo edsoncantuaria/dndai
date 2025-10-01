@@ -12,7 +12,7 @@ import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
 import { gameMasterFlow, testAiConnection as testAiConnectionFlow } from './src/services/geminiService';
 import { expressHandler } from '@genkit-ai/express';
-import { UserFacingError } from 'genkit/context';
+import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
 
 const app: Express = express();
@@ -38,19 +38,20 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler(gameMasterFlow, {
+          expressHandler({
+            flow: gameMasterFlow,
             context: async (req: Request) => {
               const { userId } = req.body;
               if (!userId) {
                 throw new UserFacingError(
-                  'BAD_REQUEST',
+                  400,
                   'userId é obrigatório.'
                 );
               }
               const apiKey = await getUserApiKey(userId);
               if (!apiKey) {
                 throw new UserFacingError(
-                  'UNAUTHENTICATED',
+                  401,
                   'A chave de API do Google do usuário não foi encontrada ou é inválida.'
                 );
               }
@@ -62,15 +63,16 @@ async function startServer() {
         // Endpoint para Teste da IA
         app.post(
             '/api/test-ai',
-             expressHandler(testAiConnectionFlow, {
+             expressHandler({
+                flow: testAiConnectionFlow,
                 context: async (req: Request) => {
                     const { userId } = req.body;
                      if (!userId) {
-                        throw new UserFacingError('BAD_REQUEST','userId é obrigatório.');
+                        throw new UserFacingError(400,'userId é obrigatório.');
                     }
                     const apiKey = await getUserApiKey(userId);
                     if (!apiKey) {
-                        throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
+                        throw new UserFacingError(401,'A chave de API do Google do usuário não foi encontrada ou é inválida.');
                     }
                     return { apiKey };
                 }
