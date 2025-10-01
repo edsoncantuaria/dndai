@@ -69,9 +69,9 @@ export const gameMasterFlow = ai.defineFlow(
 
 
 // New flow for testing AI connection
-export const testAiConnection = ai.defineFlow(
+export const testAiConnectionFlow = ai.defineFlow(
   {
-    name: 'testAiConnection',
+    name: 'testAiConnectionFlow',
     inputSchema: z.object({
         model: z.string(),
         prompt: z.string(),
@@ -87,6 +87,10 @@ export const testAiConnection = ai.defineFlow(
       apiKey: apiKey,
     });
     
-    return response.text();
+    const outputText = response.text();
+    if (!outputText) {
+      throw new Error("A IA não retornou uma resposta de texto.");
+    }
+    return outputText;
   }
 );

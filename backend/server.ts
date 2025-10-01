@@ -40,7 +40,7 @@ async function startServer() {
         app.post(
           '/api/game-master',
           expressHandler(gameMasterFlow, {
-            contextProvider: async (req: Request) => {
+            contextProvider: async (req) => {
               const { userId } = req.body;
               if (!userId) {
                 throw new UserFacingError(
@@ -64,7 +64,7 @@ async function startServer() {
         app.post(
             '/api/test-ai',
              expressHandler(testAiConnectionFlow, {
-                contextProvider: async (req: Request) => {
+                contextProvider: async (req) => {
                     const { userId } = req.body;
                      if (!userId) {
                         throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
