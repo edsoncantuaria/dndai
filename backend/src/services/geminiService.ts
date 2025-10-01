@@ -75,7 +75,6 @@ export const gameMasterFlow = ai.defineFlow(
     const userGoogleAI = googleAI({ apiKey: apiKey });
     const localAI = genkit({
       plugins: [userGoogleAI],
-      enableTracingAndMetrics: true,
     });
     
     // 3. Gera o conteúdo usando o modelo, prompt e configuração especificados.

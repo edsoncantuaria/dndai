@@ -7,5 +7,4 @@ import { googleAI } from '@genkit-ai/googleai';
 // it will be provided dynamically for each user's request.
 export const ai = genkit({
   plugins: [googleAI({ apiVersion: 'v1beta' })],
-  enableTracingAndMetrics: true,
 });
