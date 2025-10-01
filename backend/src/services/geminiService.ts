@@ -45,18 +45,16 @@ export const gameMasterFlow = ai.defineFlow(
     inputSchema: GameMasterFlowInputSchema,
     outputSchema: GameMasterResponseSchema,
   },
-  async (flowInput, { auth }) => { // O flowInput agora é o objeto direto
-    const { apiKey } = auth; // Provided by expressHandler contextProvider
+  async (flowInput, { auth: apiKey }) => { 
     
     const response = await ai.generate({
-      model: 'googleai/gemini-1.5-pro-latest',
+      model: googleAI('gemini-1.5-pro-latest', { apiKey }),
       prompt: createPrompt(flowInput),
       system: promptDnD5e,
       output: {
         format: 'json',
         schema: GameMasterResponseSchema,
       },
-      apiKey: apiKey,
     });
 
     if (!response.output) {
@@ -78,16 +76,14 @@ const TestAiInputSchema = z.object({
 export const testAiConnectionFlow = ai.defineFlow(
   {
     name: 'testAiConnectionFlow',
-    inputSchema: TestAiInputSchema, // Usando o novo schema
+    inputSchema: TestAiInputSchema, 
     outputSchema: z.string(),
   },
-  async ({model, prompt}, { auth }) => {
-    const { apiKey } = auth;
+  async ({model, prompt}, { auth: apiKey }) => {
     
     const response = await ai.generate({
-      model: `googleai/${model}`,
+      model: googleAI(`gemini-1.5-pro-latest`, { apiKey }),
       prompt: prompt,
-      apiKey: apiKey,
     });
     
     const outputText = response.text; // Corrigido para Genkit v1
