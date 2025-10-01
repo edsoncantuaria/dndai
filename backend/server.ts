@@ -40,7 +40,7 @@ async function startServer() {
           '/api/game-master',
           expressHandler(gameMasterFlow, {
             contextProvider: async (req) => {
-              const { userId } = (req.body as { input: { userId: number } }).input;
+              const { userId } = (req as any).input; // Use 'req.input' directly
               if (!userId) {
                 throw new UserFacingError(
                   "INVALID_ARGUMENT",
@@ -64,7 +64,7 @@ async function startServer() {
             '/api/test-ai',
              expressHandler(testAiConnectionFlow, {
                 contextProvider: async (req) => {
-                    const { userId } = (req.body as { input: { userId: number } }).input;
+                    const { userId } = (req as any).input; // Use 'req.input' directly
                      if (!userId) {
                         throw new UserFacingError("INVALID_ARGUMENT",'userId é obrigatório.');
                     }
