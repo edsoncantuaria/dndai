@@ -6,5 +6,5 @@ import { googleAI } from '@genkit-ai/googleai';
 // Note: We don't configure a specific apiKey here because
 // it will be provided dynamically for each user's request.
 export const ai = genkit({
-  plugins: [googleAI({ apiVersion: 'v1beta' })],
+  plugins: [googleAI()],
 });
