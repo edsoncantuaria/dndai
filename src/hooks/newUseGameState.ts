@@ -127,6 +127,49 @@ export const useNewGameState = () => {
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
+    const processPlayerAction = useCallback(async (action: string) => {
+        if (!character) return;
+        
+        setIsLoading(true);
+        setApiError(null);
+        setPlayerRollRequest(null);
+        setPendingHitDiceRequest(null);
+        setPendingLootOffer(null);
+        const previousActionOptions = actionOptions;
+        
+        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+        setLog(prev => [...prev, newLogEntry]);
+        setActionOptions([]); 
+        
+        const currentLog = [...log, newLogEntry];
+        
+        try {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+            }
+            const gameUpdateInput: geminiService.GameMasterFlowInput = {
+                character,
+                playerAction: action,
+                gameLog: currentLog,
+                combatState: combatState
+            };
+            
+            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
+            
+            handleApiResponse(response);
+
+        } catch (error: any) {
+            console.error("Erro ao processar a ação do jogador:", error);
+            setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
+            setActionOptions(previousActionOptions);
+            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+        } finally {
+            setIsLoading(false); 
+        }
+
+    }, [character, log, actionOptions, combatState, selectedModel, generationConfig, getApiKey]);
+
     const handleApiResponse = useCallback((response: geminiService.GameMasterResponse | null) => {
         if (!response) {
             throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
@@ -170,52 +213,9 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [combatState.isActive]);
+    }, [combatState.isActive, getApiKey, selectedImageModel, processPlayerAction]);
 
 
-    const processPlayerAction = useCallback(async (action: string) => {
-        if (!character) return;
-        
-        setIsLoading(true);
-        setApiError(null);
-        setPlayerRollRequest(null);
-        setPendingHitDiceRequest(null);
-        setPendingLootOffer(null);
-        const previousActionOptions = actionOptions;
-        
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
-        setActionOptions([]); 
-        
-        const currentLog = [...log, newLogEntry];
-        
-        try {
-            const apiKey = getApiKey();
-            if (!apiKey) {
-                throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
-            }
-            const gameUpdateInput: geminiService.GameMasterFlowInput = {
-                character,
-                playerAction: action,
-                gameLog: currentLog,
-                combatState: combatState
-            };
-            
-            const response = await geminiService.getGameUpdate(gameUpdateInput, selectedModel, generationConfig, apiKey);
-            
-            handleApiResponse(response);
-
-        } catch (error: any) {
-            console.error("Erro ao processar a ação do jogador:", error);
-            setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
-            setActionOptions(previousActionOptions);
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
-        } finally {
-            setIsLoading(false); 
-        }
-
-    }, [character, log, actionOptions, combatState, selectedModel, generationConfig, getApiKey, handleApiResponse]);
-    
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         
@@ -307,6 +307,22 @@ export const useNewGameState = () => {
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, [processPlayerAction]);
+
+    const applyLevelUp = useCallback(async (selections: LevelUpSelections) => {
+        if (!character || !levelUpState || !levelUpState.isPending) return;
+        
+        setIsLoading(true);
+        
+        const updatedChar = await characterUtils.applyLevelUp(character, levelUpState, selections);
+
+        setCharacter(updatedChar);
+
+        setLevelUpState(prev => prev ? { ...prev, isPending: false, choices: {} } : null);
+        setLog(prev => [...prev, { id: uuidv4(), type: 'system', content: `Parabéns! Você alcançou o nível ${levelUpState.newLevel}!` }]);
+        setActionOptions([]);
+        setIsLoading(false);
+
+    }, [character, levelUpState]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo) => {
@@ -496,6 +512,16 @@ export const useNewGameState = () => {
          setPlayerRollRequest(null);
          processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, [character, processPlayerAction]);
+
+    const nextTurn = useCallback(() => {
+        processPlayerAction("Processar próximo turno");
+    }, [processPlayerAction]);
+
+    const forceReload = useCallback(() => {
+        loadGameFromLocalStorage();
+        setIsLoading(false);
+        setApiError(null);
+    },[loadGameFromLocalStorage]);
     
     return {
         character,
@@ -536,6 +562,8 @@ export const useNewGameState = () => {
         loadGameFromLocalStorage,
         loadGameFromFile,
         saveGameToFile,
-        clearGameState
+        clearGameState,
+        nextTurn,
+        forceReload
     };
 };
