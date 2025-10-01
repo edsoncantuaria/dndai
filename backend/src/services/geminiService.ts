@@ -10,6 +10,7 @@ import { GameMasterResponseSchema, GameMasterFlowInputSchema } from './gameSchem
 import { promptDnD5e } from './promptDnD5e';
 import { ai } from '../config/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { UserFacingError } from 'genkit';
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -40,56 +41,69 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
 
 
 export const gameMasterFlow = ai.defineFlow(
-  {
-    name: 'gameMasterFlow',
-    inputSchema: GameMasterFlowInputSchema,
-    outputSchema: GameMasterResponseSchema,
-  },
-  async (flowInput, { auth: apiKey }) => { 
-    
-    const response = await ai.generate({
-      model: googleAI('gemini-1.5-pro-latest', { apiKey }),
-      prompt: createPrompt(flowInput),
-      system: promptDnD5e,
-      output: {
-        format: 'json',
-        schema: GameMasterResponseSchema,
-      },
-    });
-
-    if (!response.output) {
-      throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
+    {
+      name: 'gameMasterFlow',
+      inputSchema: GameMasterFlowInputSchema,
+      outputSchema: GameMasterResponseSchema,
+    },
+    async (flowInput, { auth }) => {
+      const apiKey = (auth as any)?.apiKey;
+      if (!apiKey) {
+        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
+      }
+      
+      const model = googleAI('gemini-1.5-pro-latest', { apiKey });
+      
+      const response = await ai.generate({
+        model,
+        prompt: createPrompt(flowInput),
+        system: promptDnD5e,
+        output: {
+          format: 'json',
+          schema: GameMasterResponseSchema,
+        },
+      });
+  
+      if (!response.output) {
+        throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
+      }
+      
+      return response.output;
     }
-    
-    return response.output;
-  }
-);
+  );
 
 
 // Schema para o input do flow de teste
 const TestAiInputSchema = z.object({
+    userId: z.number(), // Adicionado para que o contextProvider possa encontrá-lo
     model: z.string(),
     prompt: z.string(),
 });
 
 // New flow for testing AI connection
 export const testAiConnectionFlow = ai.defineFlow(
-  {
-    name: 'testAiConnectionFlow',
-    inputSchema: TestAiInputSchema, 
-    outputSchema: z.string(),
-  },
-  async ({model, prompt}, { auth: apiKey }) => {
-    
-    const response = await ai.generate({
-      model: googleAI(`gemini-1.5-pro-latest`, { apiKey }),
-      prompt: prompt,
-    });
-    
-    const outputText = response.text; // Corrigido para Genkit v1
-    if (!outputText) {
-      throw new Error("A IA não retornou uma resposta de texto.");
+    {
+      name: 'testAiConnectionFlow',
+      inputSchema: TestAiInputSchema, 
+      outputSchema: z.string(),
+    },
+    async ({model, prompt}, { auth }) => {
+      const apiKey = (auth as any)?.apiKey;
+      if (!apiKey) {
+          throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
+      }
+      
+      const aiModel = googleAI(model, { apiKey });
+      
+      const response = await ai.generate({
+        model: aiModel,
+        prompt: prompt,
+      });
+      
+      const outputText = response.text;
+      if (!outputText) {
+        throw new Error("A IA não retornou uma resposta de texto.");
+      }
+      return outputText;
     }
-    return outputText;
-  }
-);
+  );

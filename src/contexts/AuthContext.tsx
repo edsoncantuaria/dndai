@@ -15,6 +15,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLicenseActive: boolean;
     hasApiKey: boolean;
+    apiKey: string; // Expose API Key
     isLoading: boolean;
     login: (credentials: authService.LoginCredentials) => Promise<boolean>;
     register: (details: authService.RegisterDetails) => Promise<boolean>;
@@ -196,6 +197,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: !!user,
         isLicenseActive,
         hasApiKey,
+        apiKey,
         isLoading,
         login,
         register,

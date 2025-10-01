@@ -26,8 +26,8 @@ interface CharacterCreationProps {
 }
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
-    const { isLoading, character, checkForSavedGame, loadGameFromFile, getApiKey } = useGameStateContext();
-    const { user, logout } = useAuth();
+    const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
+    const { user, logout, apiKey } = useAuth();
     const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -122,7 +122,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setIsGeneratingImage(true);
         setTestImageUrl(null);
         try {
-            const apiKey = getApiKey();
             if (!apiKey) throw new Error("Chave de API não encontrada.");
             const prompt = "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.";
             const response = await generateImage(prompt, selectedImageModel, apiKey);
@@ -136,13 +135,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         } finally {
             setIsGeneratingImage(false);
         }
-    }, [getApiKey, selectedImageModel]);
+    }, [apiKey, selectedImageModel]);
 
     const handleTestTts = useCallback(async () => {
         if (!aiTestResult?.message || !aiTestResult.success) return;
         setIsGeneratingAudio(true);
         try {
-            const apiKey = getApiKey();
             if (!apiKey) throw new Error("Chave de API não encontrada.");
             const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKey);
             if (response?.media && audioRef.current) {
@@ -156,7 +154,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         } finally {
             setIsGeneratingAudio(false);
         }
-    }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
+    }, [aiTestResult, apiKey, ttsModel, ttsVoice]);
 
     const handleFileImport = async (file: File) => {
         const success = await loadGameFromFile(file);

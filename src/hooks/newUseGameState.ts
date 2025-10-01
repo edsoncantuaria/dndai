@@ -98,7 +98,7 @@ const INITIAL_COMBAT_STATE: CombatState = {
     initiativeOrder: [],
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 export const useNewGameState = () => {
     const { user } = useAuth();
@@ -119,7 +119,7 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    const { model: selectedModel, imageModel: selectedImageModel, generationConfig, apiKey: settingsApiKey } = useSettingsContext();
+    const { apiKey: settingsApiKey } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
         return settingsApiKey;
@@ -170,7 +170,7 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [combatState.isActive, getApiKey, selectedImageModel]);
+    }, [combatState.isActive, getApiKey]);
 
     const processPlayerAction = useCallback(async (action: string) => {
         if (!character || !user) return;
@@ -189,18 +189,18 @@ export const useNewGameState = () => {
         const currentLog = [...log, newLogEntry];
         
         try {
+             const gameUpdateInput = {
+                userId: user.id,
+                character,
+                playerAction: action,
+                gameLog: currentLog,
+                combatState,
+            };
+
             const response = await fetch(`${API_URL}/api/game-master`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                userId: user.id,
-                input: {
-                  character,
-                  playerAction: action,
-                  gameLog: currentLog,
-                  combatState: combatState,
-                },
-              }),
+              body: JSON.stringify(gameUpdateInput),
             });
       
             if (!response.ok) {
@@ -359,6 +359,7 @@ export const useNewGameState = () => {
                 throw new Error("Usuário não autenticado.");
             }
             const gameUpdateInput = {
+                userId: user.id,
                 character,
                 playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
                 gameLog: [],
@@ -368,7 +369,7 @@ export const useNewGameState = () => {
             const response = await fetch(`${API_URL}/api/game-master`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: user.id, input: gameUpdateInput }),
+                body: JSON.stringify(gameUpdateInput),
             });
 
             if (!response.ok) {

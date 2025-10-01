@@ -1,6 +1,6 @@
 // src/services/systemService.ts
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -18,11 +18,9 @@ export const testAiConnection = async (userId: number, model: string): Promise<s
             headers: getAuthHeaders(),
             body: JSON.stringify({ 
                 userId,
-                input: {
-                    model,
-                    prompt: "Diga olá em uma única palavra."
-                }
-             }),
+                model,
+                prompt: "Diga olá em uma única palavra."
+            }),
         });
 
         if (!response.ok) {

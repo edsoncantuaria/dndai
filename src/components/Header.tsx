@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as SystemService from '@/services/systemService';
-import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, DoorOpen } from 'lucide-react';
+import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, DoorOpen, LogOut } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -18,8 +18,8 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
-    const { character, saveGameToFile, getApiKey, isLoading, forceReload } = useGameStateContext();
-    const { user, logout } = useAuth();
+    const { character, saveGameToFile, isLoading, forceReload } = useGameStateContext();
+    const { user, logout, apiKey } = useAuth();
     const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
@@ -67,7 +67,6 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         setIsGeneratingImage(true);
         setTestImageUrl(null);
         try {
-            const apiKey = getApiKey();
             if (!apiKey) throw new Error("Chave de API não encontrada.");
             const prompt = "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.";
             const response = await generateImage(prompt, selectedImageModel, apiKey);
@@ -81,13 +80,12 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         } finally {
             setIsGeneratingImage(false);
         }
-    }, [getApiKey, selectedImageModel]);
+    }, [apiKey, selectedImageModel]);
 
     const handleTestTts = useCallback(async () => {
         if (!aiTestResult?.message || !aiTestResult.success) return;
         setIsGeneratingAudio(true);
         try {
-            const apiKey = getApiKey();
             if (!apiKey) throw new Error("Chave de API não encontrada.");
             const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKey);
             if (response?.media && audioRef.current) {
@@ -101,7 +99,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         } finally {
             setIsGeneratingAudio(false);
         }
-    }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
+    }, [aiTestResult, apiKey, ttsModel, ttsVoice]);
 
 
     if (!character) {

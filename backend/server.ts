@@ -38,45 +38,49 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler({
-            flow: gameMasterFlow,
-            contextProvider: async (req) => {
-              const { userId } = (req as any).body.input;
-              if (!userId) {
-                throw new UserFacingError(
-                  'INVALID_ARGUMENT',
-                  'userId é obrigatório.'
-                );
-              }
-              const apiKey = await getUserApiKey(userId);
-              if (!apiKey) {
-                throw new UserFacingError(
-                  'UNAUTHENTICATED',
-                  'A chave de API do Google do usuário não foi encontrada ou é inválida.'
-                );
-              }
-              return { apiKey };
-            },
-          })
+          expressHandler(
+            gameMasterFlow,
+            {
+              contextProvider: async (req) => {
+                const { userId } = req;
+                if (!userId) {
+                  throw new UserFacingError(
+                    'INVALID_ARGUMENT',
+                    'userId é obrigatório.'
+                  );
+                }
+                const apiKey = await getUserApiKey(userId);
+                if (!apiKey) {
+                  throw new UserFacingError(
+                    'UNAUTHENTICATED',
+                    'A chave de API do Google do usuário não foi encontrada ou é inválida.'
+                  );
+                }
+                return { apiKey };
+              },
+            }
+          )
         );
         
         // Endpoint para Teste da IA
         app.post(
             '/api/test-ai',
-             expressHandler({
-                flow: testAiConnectionFlow,
-                contextProvider: async (req) => {
-                    const { userId } = (req as any).body.input;
-                     if (!userId) {
-                        throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
+             expressHandler(
+                testAiConnectionFlow,
+                {
+                    contextProvider: async (req) => {
+                        const { userId } = req;
+                         if (!userId) {
+                            throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
+                        }
+                        const apiKey = await getUserApiKey(userId);
+                        if (!apiKey) {
+                            throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
+                        }
+                        return { apiKey };
                     }
-                    const apiKey = await getUserApiKey(userId);
-                    if (!apiKey) {
-                        throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
-                    }
-                    return { apiKey };
                 }
-            })
+            )
         );
 
 
