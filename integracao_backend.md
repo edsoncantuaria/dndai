@@ -108,44 +108,42 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
 ## Fase 2 — Serviço da IA isolado (Genkit flow server) (Concluído)
 
 *   **[X] Implementar `geminiService.ts` no backend.** Este serviço define o `gameMasterFlow` usando Genkit.
-*   **[X] Usar `@genkit-ai/express`**: O `server.ts` usa o `expressHandler` para expor o `gameMasterFlow` de forma segura. Um `context` provider é usado para extrair o `userId` do corpo da requisição e carregar a chave de API do usuário dinamicamente para cada chamada.
+*   **[X] Usar `@genkit-ai/express`**: O `server.ts` usa o `expressHandler` para expor o `gameMasterFlow` de forma segura. Um `contextProvider` é usado para extrair o `userId` do corpo da requisição e carregar a chave de API do usuário dinamicamente para cada chamada.
 *   **[X] Criar Endpoint de Jogo**: O `server.ts` agora tem o endpoint `/api/game-master` para receber as ações do jogo e executar o `gameMasterFlow`.
 *   **[X] Endpoint de Teste**: Foi criado um endpoint `/api/test-ai` que permite ao frontend validar a conectividade com a API do Google através do backend, garantindo que a chave de API do usuário está funcionando corretamente.
 
 ### Testes da Fase 2: Backend (Serviço de IA)
 
-1.  **[X] Preparar Dados de Teste**
+1.  **[ ] Preparar Dados de Teste**
     *   **Como fazer:**
         1.  No seu cliente de banco de dados, garanta que você tem um usuário com uma licença ativa e uma chave de API válida do Google AI Studio salva e criptografada (você já fez isso na Fase 1). Anote o `userId` desse usuário.
     *   **Ver se retorna:** Confirme que o registro do usuário no DB possui um valor no campo `google_api_key_encrypted`.
 
-2.  **[X] Testar o Endpoint `/api/game-master` com uma Ação Válida**
+2.  **[ ] Testar o Endpoint `/api/game-master` com uma Ação Válida**
     *   **Como fazer:**
         1.  Use `curl` ou uma ferramenta de API para enviar uma requisição `POST` para `http://localhost:8071/api/game-master`.
-        2.  O corpo (body) da requisição deve ser um JSON contendo `userId` e `input`. Substitua `<SEU_USER_ID>` pelo ID do seu usuário de teste.
+        2.  O corpo (body) da requisição deve ser um JSON contendo `userId` e os outros dados do `GameMasterFlowInput`. Substitua `<SEU_USER_ID>` pelo ID do seu usuário de teste.
     *   **Exemplo de `curl`:**
         ```bash
         curl -X POST -H "Content-Type: application/json" -d '{
-          "userId": <SEU_USER_ID>,
-          "input": {
-            "character": { "name": "Herói de Teste", "level": 1, "hp": { "current": 10, "max": 10 }, "attributes": { "strength": 14 } },
-            "playerAction": "A aventura começa. Onde eu estou?",
-            "gameLog": [],
-            "combatState": { "isActive": false, "round": 0, "turn": 0, "combatants": [] }
-          }
+          "userId": 1,
+          "character": { "name": "Herói de Teste", "level": 1, "hp": { "current": 10, "max": 10 }, "attributes": { "strength": 14 } },
+          "playerAction": "A aventura começa. Onde eu estou?",
+          "gameLog": [],
+          "combatState": { "isActive": false, "round": 0, "turn": 0, "combatants": [] }
         }' http://localhost:8071/api/game-master
         ```
     *   **Ver se retorna:**
         *   Uma resposta JSON bem-sucedida (status 200).
         *   O JSON retornado deve ser um objeto `GameMasterResponse` válido, contendo, no mínimo, uma `logEntries` com a narração inicial da aventura e um `actionOptions` com as próximas escolhas para o jogador.
 
-3.  **[X] Testar o Endpoint com um `userId` Inválido**
+3.  **[ ] Testar o Endpoint com um `userId` Inválido**
     *   **Como fazer:** Envie a mesma requisição do teste anterior, mas use um `userId` que não existe no banco de dados (ex: 999).
-    *   **Ver se retorna:** Uma resposta de erro (401 ou 500) e uma mensagem indicando que "A chave de API do Google do usuário não foi encontrada ou é inválida".
+    *   **Ver se retorna:** Uma resposta de erro (como `UNAUTHENTICATED`) e uma mensagem indicando que "A chave de API do Google do usuário não foi encontrada ou é inválida".
 
 ## Fase 3 — API de Personagens & Orquestrador de Jogo (Backend)
 
-*   **[X] Criar Entidades de Dados com Soft Delete**:
+*   **[ ] Criar Entidades de Dados com Soft Delete**:
     *   Adicionar as colunas `is_active` (boolean, default `true`), `deleted_at` (timestamp, nullable) e colunas de tempo de jogo (`last_played_at`, `total_play_time_seconds`) às entidades `User`, `Character` e `GameSession`.
     *   Toda operação de exclusão agora será um *soft delete*, atualizando `is_active` para `false` e preenchendo `deleted_at`.
 
