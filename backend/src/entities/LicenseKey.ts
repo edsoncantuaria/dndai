@@ -16,10 +16,16 @@ export class LicenseKey {
 
     @Column({ name: 'user_id', type: 'int', nullable: true })
     userId!: number | null;
+    
+    @Column({ default: true, name: 'is_valid' }) // Renamed from is_active to avoid confusion
+    isValid!: boolean;
 
     @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;
 
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt!: Date;
+    
+    @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+    deletedAt!: Date | null;
 }

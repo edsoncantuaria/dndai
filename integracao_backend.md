@@ -66,7 +66,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 *   **[X] Implementar endpoint de ativação de licença (`/api/activate-license`):**
     *   O frontend chamará este endpoint se `isLicenseActive` for `false` após o login.
     *   Aceita `userId` e `licenseKey`.
-    *   Valida a chave no banco de dados: verifica se existe, se não está em uso e se a data de expiração (`expiresAt`) é futura em relação à data atual do servidor.
+    *   Valida a chave no banco de dados: verifica se existe, se não está em uso e se a data de expiração (`expires_at`) é futura em relação à data atual do servidor.
     - Se a chave for válida, associa-a ao `userId`, marca-a como `isActive: true` e salva.
     - Retorna sucesso ou falha na ativação.
 *   **[X] Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (será criptografada e armazenada no DB).**
@@ -89,11 +89,11 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
-*   **[ ] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
-*   **[ ] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
+*   **[X] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
+*   **[X] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
 *   **[ ] Testes de Conexão**: Inicialmente, testaremos a chamada ao flow com dados estáticos para validar que a lógica da chave de API e a chamada ao Gemini estão funcionando corretamente.
 
-### Snippet de inicialização (exemplo simplificado com genkit express)
+### Snippet de inicialização (exemplo com genkit express)
 
 ```ts
 // aiServer.ts (exemplo com genkit/express hypotético)
@@ -113,29 +113,39 @@ startFlowServer({
 
 *(Ajuste conforme API real de genkit/express que você escolher.)*
 
-## Fase 3 — Orquestrador backend + chamadas AI (sem WebSocket)
+## Fase 3 — API de Personagens & Orquestrador de Jogo (Backend)
 
-* Implementar `gameService.ts` no backend que:
+*   **[ ] Criar Entidades de Dados com Soft Delete**:
+    *   Adicionar as colunas `is_active` (boolean, default `true`), `deleted_at` (timestamp, nullable) e colunas de tempo de jogo (`last_played_at`, `total_play_time_seconds`) às entidades `User`, `Character` e `GameSession`.
+    *   Toda operação de exclusão agora será um *soft delete*, atualizando `is_active` para `false` e preenchendo `deleted_at`.
 
-  * Lê `GameState` do DB (ou cria se não existir).
-  * Decripta `user.google_api_key` com `decrypt`.
-  * Chama o flow do AI server passando `character, gameLog, playerAction, combatState` e `userId`.
-  * Recebe `GameMasterResponse` JSON completo, atualiza `GameState` e salva no DB.
-* Expor endpoint REST `POST /api/game/action` que aceita `{ characterId, action }` e devolve `GameMasterResponse`.
-* **Teste**: do frontend faça POST para `/api/game/action` e valide roundtrip (sem WS).
+*   **[ ] Implementar Endpoints REST para Personagens**:
+    *   **`GET /api/characters`**: Retorna uma lista de todos os personagens *ativos* associados ao `userId` (obtido do token JWT). As informações retornadas devem ser suficientes para preencher os "save slots" (nome, nível, classe, etc.).
+    *   **`POST /api/characters/create`**: Recebe os dados de um novo personagem (saída do wizard de criação) e cria uma nova entrada `Character` no banco de dados associada ao `userId`.
+    *   **`DELETE /api/character/:id`**: Realiza um *soft delete* no personagem especificado. Garante que apenas o dono do personagem possa deletá-lo.
 
-## Fase 4 — Redis: cache distribuído, locks e pub/sub
+*   **[ ] Refatorar o Orquestrador do Jogo (sem WebSocket ainda)**:
+    *   **`POST /api/game/action`**: Este endpoint será o principal para o jogo.
+        *   Aceitará `{ characterId, action }`.
+        *   Carregará o `GameState` completo do personagem a partir do banco de dados (a última `GameSession` ativa).
+        *   Chamará o `gameMasterFlow` (da Fase 2) com o estado carregado.
+        *   Receberá a resposta da IA, processará as atualizações, e salvará um **novo** `GameSession` no banco de dados.
+        *   Atualizará as estatísticas do personagem (`last_played_at`, `total_play_time_seconds`).
+        *   Retornará o `GameMasterResponse` completo para o frontend.
 
-* **Por que Redis**: quando passar para WebSocket e múltiplas instâncias do backend, precisa:
+## Fase 4 — Frontend: Menu de Slots e Integração com API de Personagens
 
-  * Guardar `activeGameStates` em um cache central (Redis) para partilhar entre instâncias.
-  * Usar locks (ex.: Redlock) para evitar race conditions ao processar a mesma sessão.
-  * Usar Pub/Sub para enviar updates entre instâncias (se sua arquitetura usar múltiplas nodes WS).
-* Implementação:
+*   **[ ] Remover Lógica de `localStorage`**: Substituir todas as chamadas a `localStorage` para salvar/carregar por chamadas à nova API REST.
+*   **[ ] Criar Tela de Seleção de Personagem**:
+    *   Ao logar, o usuário verá uma nova tela (estilo Zelda/Final Fantasy) que faz uma chamada a `GET /api/characters`.
+    *   Renderizar "slots" com os dados de cada personagem retornado.
+    *   Slots vazios terão um botão "Criar Novo".
+    *   Slots preenchidos exibirão informações (Nome, Nível, etc.) e botões para "Jogar" e "Apagar".
+    *   Implementar um botão "Continuar" principal que carrega o personagem com o `last_played_at` mais recente.
 
-  * `redisService.ts` com `ioredis` ou `redis@4`.
-  * APIs: `getCachedState(characterId)`, `setCachedState(characterId, state)`, `acquireLock(key)`, `releaseLock(key)`, `publish(channel, message)`, `subscribe(channel, handler)`.
-* Inicialmente mantenha `activeGameStates` em memória local + Redis como *backup*. Depois migre para Redis como fonte primária do cache.
+*   **[ ] Integrar o Fluxo de Jogo**:
+    *   A ação "Jogar" em um slot de personagem levará o jogador à tela de jogo.
+    *   O `useGameState` do frontend será refatorado para usar o endpoint `POST /api/game/action` para cada ação do jogador, em vez de chamar o serviço Gemini diretamente.
 
 ## Fase 5 — WebSocket server + protocolo de mensagens
 
@@ -185,7 +195,7 @@ export function setupWebSocket(server: http.Server) {
 }
 ```
 
-## Fase 7 — Hardening / produção
+## Fase 6 — Hardening / produção
 
 * Mudar `synchronize: true` para usar migrations quando entrar em produção (recomendado, mas você pediu manter; se mantiver, documente riscos).
 * Políticas de rotação de secrets (env + vault).
@@ -202,71 +212,7 @@ export function setupWebSocket(server: http.Server) {
 * **GameMasterFlowInput**: Sempre envie estruturas completas, substituindo objetos vazios por placeholders não vazios quando o schema do genai exigir (ex: `{ sellPrices: { placeholder: 0 } }`).
 * **Validação**: use seu Zod schemas para validar a resposta da IA antes de aplicar ao estado do jogo.
 
-# Código essencial (trechos práticos)
-
-### decrypt + buscar api key
-
-```ts
-// utils/useService.ts
-import { AppDataSource } from '../config/data-source';
-import { User } from '../entities/User';
-import { decrypt } from './crypto';
-
-export const getUserApiKey = async (userId: number): Promise<string | null> => {
-  const repo = AppDataSource.getRepository(User);
-  const user = await repo.findOneBy({ id: userId });
-  if (!user || !user.googleApiKeyEncrypted) return null;
-  return decrypt(user.googleApiKeyEncrypted);
-};
-```
-
-### Exemplo de chamada ao flow com apiKey (no backend)
-
-```ts
-// geminiService.ts (simplificado, use genkit/express or SDK)
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
-import { getUserApiKey } from '../utils/useService';
-
-export const callGameMasterFlow = async (modelName, input, userId) => {
-  const apiKey = await getUserApiKey(userId);
-  if (!apiKey) throw new Error('user api key missing');
-
-  // dynamically init genkit with plugin
-  const ai = genkit({ plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })] });
-  const model = ai.model(modelName);
-  // generate - adjust to actual genkit API
-  const result = await ai.generate({ model, prompt: createPrompt(input), config: { /* ... */ }, output: { format: 'json', schema: GameMasterResponseSchema } });
-  return result;
-}
-```
-
-> **Nota:** dependendo da versão do genkit/SDK que usar, a assinatura pode diferir. A ideia é: *instanciar plugin googleAI com apiKey do usuário e usar ai.*
-
-
-# Observabilidade e alertas
-
-* Métricas importantes: tempo de resposta do AI, taxa de erro do AI, tempo de processamento por sessão, locks contenciosos (deadlocks).
-* Logs estruturados para cada chamada ao AI (userId, characterId, model, prompt size, response status), mas **não** inclua a API key nos logs.
-* Alertas: erros 5xx, quedas contínuas de AI, Redis indisponível, filas de processamento crescendo.
-
-# Rollout incremental (migração do frontend)
-
-1. **Modo híbrido**: manter o cliente atual e adicionar um botão “Play (Backend)” que usa o novo backend (via REST) para uma sessão/character nova. Permite testar sem quebrar todos os usuários.
-2. **Opção de Mover personagem**: botões para migrar progresso local (localStorage) para backend (chamar endpoint que cria Character + GameSession).
-3. **Beta com WebSocket**: habilitar WS para um conjunto restrito de usuários (feature flags).
-4. **Full migration**: desabilitar o modo frontend-centric e tornar backend default.
-
-# Riscos & mitigação
-
-* **Dependência da API do Google**: ter re-tries, timeouts curtos (ex.: 30s), fallback amigável (ex.: mensagem “IA indisponível, tente novamente”).
-* **Segurança do token**: JWT expirations curtas, refresh tokens, HTTPS obrigatório, validação do characterId.
-* **Consistência de estado**: usar locks Redis (ex.: Redlock) e persistir imediatamente alterações críticas.
-* **Escalabilidade**: se crescimento for grande, mover `activeGameStates` para Redis e separar workers para chamadas ao AI.
-
-# Fase de Testes
-
-## Testes da Fase 1: Backend (Autenticação e Configuração)
+# Testes da Fase 1: Backend (Autenticação e Configuração)
 
 Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
 
@@ -371,7 +317,7 @@ A resposta deve ser um JSON indicando sucesso:
 
 Esta seção descreve os testes manuais para garantir que a interface do usuário reage corretamente ao novo fluxo de autenticação.
 
-### 1. [ ] Teste de Registro e Login
+### 1. [X] Teste de Registro e Login
 **Como fazer:**
 1. Abra a aplicação no navegador. Você deve ver o formulário de autenticação.
 2. Mude para a aba de "Registro".
@@ -382,7 +328,7 @@ Esta seção descreve os testes manuais para garantir que a interface do usuári
 - Após o registro, uma mensagem de sucesso deve aparecer.
 - Após o login, a tela deve mudar para o formulário de ativação de licença.
 
-### 2. [ ] Teste de Ativação de Licença
+### 2. [X] Teste de Ativação de Licença
 **Como fazer:**
 1. Na tela de ativação, insira a chave de licença que você criou no banco de dados (`MINHA-CHAVE-TESTE-123`).
 2. Clique em "Ativar Licença".
@@ -390,7 +336,7 @@ Esta seção descreve os testes manuais para garantir que a interface do usuári
 **Ver se retorna:**
 - A aplicação deve avançar para o formulário de inserção da chave de API do Google.
 
-### 3. [ ] Teste de Inserção da Chave de API
+### 3. [X] Teste de Inserção da Chave de API
 **Como fazer:**
 1. Na tela de configuração de chave, insira uma chave de API do Google AI Studio válida.
 2. Clique em "Salvar e Jogar".
@@ -398,7 +344,7 @@ Esta seção descreve os testes manuais para garantir que a interface do usuári
 **Ver se retorna:**
 - A aplicação deve finalmente mostrar a tela principal do jogo (o `GameContainer`, com as opções de "Continuar Aventura", "Criar Novo Personagem", etc.).
 
-### 4. [ ] Teste de Logout e Persistência de Sessão
+### 4. [X] Teste de Logout e Persistência de Sessão
 **Como fazer:**
 1. Após chegar à tela principal do jogo, atualize a página.
 2. Depois, saia da aplicação usando o botão de logout (que estará no `Header` ou `AuthForm`).

@@ -26,9 +26,15 @@ export class User {
     @OneToMany(() => Character, character => character.user)
     characters!: Character[];
 
+    @Column({ default: true, name: 'is_active' })
+    isActive!: boolean;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt!: Date;
 
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt!: Date;
+
+    @Column({ name: 'deleted_at', type: 'timestamp', nullable: true })
+    deletedAt!: Date | null;
 }
