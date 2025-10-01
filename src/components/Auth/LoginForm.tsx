@@ -4,20 +4,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const LoginForm = () => {
-    const { login, isLoading, error, clearError } = useAuth(); // Adicionado clearError
+    const { login, isLoading } = useAuth();
     const [loginIdentifier, setLoginIdentifier] = useState('');
     const [password, setPassword] = useState('');
-    const [message, setMessage] = useState(''); // Estado para mensagem de sucesso
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setMessage('');
-        clearError(); // Limpa erros/mensagens anteriores
-        const success = await login({ login: loginIdentifier, password });
-        if (success) {
-            setMessage('Login bem-sucedido! Carregando sua aventura...');
-            // A transição de tela será tratada pelo AppContent
-        }
+        await login({ login: loginIdentifier, password });
     };
 
     return (
@@ -57,12 +50,6 @@ const LoginForm = () => {
                     />
                 </div>
             </div>
-
-            {(error || message) && (
-                <p className={`text-sm text-center font-semibold ${error ? 'text-red-400' : 'text-green-400'}`}>
-                    {error || message}
-                </p>
-            )}
 
             <div>
                 <button

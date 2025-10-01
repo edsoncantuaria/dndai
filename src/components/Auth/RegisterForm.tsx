@@ -4,22 +4,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const RegisterForm = () => {
-    const { register, isLoading, error, clearError } = useAuth(); // Adicionado clearError
+    const { register, isLoading } = useAuth();
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [message, setMessage] = useState('');
-
+    
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setMessage('');
-        clearError(); // Limpa erros anteriores
         const success = await register({ username, email, password, confirmPassword });
         if (success) {
-            setMessage('Registro bem-sucedido! Você pode fazer o login agora.');
-            // Limpa o formulário, exceto o email talvez, para facilitar o login
             setUsername('');
+            setEmail('');
             setPassword('');
             setConfirmPassword('');
         }
@@ -86,12 +82,6 @@ const RegisterForm = () => {
                     className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
-
-            {(error || message) && (
-                <p className={`text-sm text-center font-semibold ${error ? 'text-red-400' : 'text-green-400'}`}>
-                    {error || message}
-                </p>
-            )}
 
             <div>
                 <button

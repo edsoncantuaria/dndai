@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService';
 import { useSettingsContext } from './SettingsContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface User {
     id: number;
@@ -15,8 +16,6 @@ interface AuthContextType {
     isLicenseActive: boolean;
     hasApiKey: boolean;
     isLoading: boolean;
-    error: string | null;
-    clearError: () => void; // Adicionado para limpar erros
     login: (credentials: authService.LoginCredentials) => Promise<boolean>;
     register: (details: authService.RegisterDetails) => Promise<boolean>;
     activateLicense: (licenseKey: string) => Promise<boolean>;
@@ -30,10 +29,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const { apiKey, setApiKey } = useSettingsContext(); // Use settings context for API key
-
-    const clearError = useCallback(() => setError(null), []);
+    const { apiKey, setApiKey } = useSettingsContext();
+    const { toast } = useToast();
 
     const checkApiKey = useCallback(async (userId: number) => {
         const key = await authService.fetchApiKey(userId);
@@ -73,7 +70,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, [checkApiKey]);
 
     const login = async (credentials: authService.LoginCredentials) => {
-        setError(null);
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
@@ -82,6 +78,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setIsLicenseActive(response.isLicenseActive);
                 localStorage.setItem('token', response.token);
                 localStorage.setItem('session', JSON.stringify({ userId: response.userId, licenseActive: response.isLicenseActive }));
+                
+                toast({
+                    title: "Login bem-sucedido!",
+                    description: "Sua aventura o aguarda.",
+                });
+
                 if (response.isLicenseActive) {
                     await checkApiKey(response.userId);
                 }
@@ -89,7 +91,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
             throw new Error(response.message || 'Login falhou.');
         } catch (err: any) {
-            setError(err.message || 'Ocorreu um erro desconhecido.');
+            toast({
+                variant: "destructive",
+                title: "Erro no Login",
+                description: err.message || 'Ocorreu um erro desconhecido.',
+            });
             return false;
         } finally {
             setIsLoading(false);
@@ -97,16 +103,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const register = async (details: authService.RegisterDetails) => {
-        setError(null);
         setIsLoading(true);
         try {
             const response = await authService.registerUser(details);
             if (response.success) {
+                 toast({
+                    title: "Registro Concluído!",
+                    description: response.message,
+                });
                 return true;
             }
             throw new Error(response.message || 'Registro falhou.');
         } catch (err: any) {
-            setError(err.message || 'Ocorreu um erro desconhecido.');
+            toast({
+                variant: "destructive",
+                title: "Erro no Registro",
+                description: err.message || 'Ocorreu um erro desconhecido.',
+            });
             return false;
         } finally {
             setIsLoading(false);
@@ -115,19 +128,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const activateLicense = async (licenseKey: string) => {
         if (!user) return false;
-        setError(null);
         setIsLoading(true);
         try {
             const response = await authService.activateUserLicense(user.id, licenseKey);
             if (response.success) {
                 setIsLicenseActive(true);
                 localStorage.setItem('session', JSON.stringify({ userId: user.id, licenseActive: true }));
+                toast({
+                    title: "Licença Ativada!",
+                    description: "Sua jornada pode começar.",
+                });
                 await checkApiKey(user.id);
                 return true;
             }
             throw new Error(response.message || 'Falha na ativação da licença.');
         } catch (err: any) {
-            setError(err.message || 'Ocorreu um erro desconhecido.');
+            toast({
+                variant: "destructive",
+                title: "Erro de Ativação",
+                description: err.message || 'Ocorreu um erro desconhecido.',
+            });
             return false;
         } finally {
             setIsLoading(false);
@@ -136,17 +156,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const saveApiKey = async (newApiKey: string) => {
         if (!user) return false;
-        setError(null);
         setIsLoading(true);
         try {
             const response = await authService.saveUserApiKey(user.id, newApiKey);
             if (response.success) {
                 setApiKey(newApiKey);
+                toast({
+                    title: "Chave de API Salva!",
+                    description: "Você está pronto para jogar.",
+                });
                 return true;
             }
             throw new Error(response.message || 'Falha ao salvar a chave de API.');
         } catch (err: any) {
-            setError(err.message || 'Ocorreu um erro desconhecido.');
+            toast({
+                variant: "destructive",
+                title: "Erro ao Salvar Chave",
+                description: err.message || 'Ocorreu um erro desconhecido.',
+            });
             return false;
         } finally {
             setIsLoading(false);
@@ -159,7 +186,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setApiKey('');
         localStorage.removeItem('session');
         localStorage.removeItem('token');
-        setError(null);
+        toast({
+            description: "Você saiu da sua conta.",
+        })
     };
 
     const value: AuthContextType = {
@@ -168,8 +197,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLicenseActive,
         hasApiKey,
         isLoading,
-        error,
-        clearError,
         login,
         register,
         activateLicense,
