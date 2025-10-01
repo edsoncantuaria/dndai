@@ -1,15 +1,15 @@
+import dotenv from 'dotenv';
+dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
+
 import 'reflect-metadata';
 import express from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user'; // Importar as novas rotas
-
-dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
 const app = express();
 const server = http.createServer(app);
