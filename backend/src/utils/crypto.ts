@@ -6,6 +6,7 @@ dotenv.config({ path: 'backend/.env' });
 const ALGORITHM = 'aes-256-cbc';
 // A chave secreta DEVE ter 32 bytes (256 bits) para aes-256-cbc
 const secretKey = process.env.SECRET_KEY;
+console.log('SECRET_KEY atual:', secretKey, secretKey?.length);
 if (!secretKey || secretKey.length < 32) {
     throw new Error('SECRET_KEY é necessária no arquivo .env e deve ter pelo menos 32 caracteres.');
 }
