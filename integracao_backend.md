@@ -270,7 +270,7 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
 
-### 1. [ ] Rodar o servidor
+### 1. [X] Rodar o servidor
 
 **Como fazer:**
 1.  Certifique-se de que um servidor MySQL está rodando e acessível.
@@ -291,9 +291,12 @@ Conexão com o banco de dados estabelecida com sucesso via TypeORM.
 Servidor rodando na porta 8071
 ```
 
+Resultado:
+Conexão com o banco de dados estabelecida com sucesso via TypeORM.
+Servidor rodando na porta 8071
 ---
 
-### 2. [ ] Tentar cadastrar um novo usuário
+### 2. [X] Tentar cadastrar um novo usuário
 
 **Como fazer:**
 Use o `curl` em um novo terminal para enviar uma requisição de registro.
@@ -307,6 +310,26 @@ A resposta deve ser um JSON indicando sucesso:
 {"message":"Usuário registrado com sucesso. Faça o login para continuar."}
 ```
 *Tente registrar com senhas diferentes ou com um email já existente para validar as mensagens de erro.*
+
+Retorno:
+
+root@edsin-server:/home/edson/dndai# curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "password123"}' \
+  https://backend-5e.edsin-server.space/register
+{"message":"Usuário registrado com sucesso. Faça o login para continuar."}
+
+root@edsin-server:/home/edson/dndai# curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "password123"}' \
+  https://backend-5e.edsin-server.space/register
+{"message":"Nome de usuário já existe."}
+
+root@edsin-server:/home/edson/dndai# curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "passaword123"}' \
+  https://backend-5e.edsin-server.space/register
+{"message":"As senhas não coincidem."}
 
 ---
 
