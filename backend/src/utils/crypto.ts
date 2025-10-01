@@ -1,7 +1,4 @@
 import crypto from 'crypto';
-import dotenv from 'dotenv';
-
-dotenv.config({ path: 'backend/.env' });
 
 const ALGORITHM = 'aes-256-cbc';
 // A chave secreta DEVE ter 32 bytes (256 bits) para aes-256-cbc

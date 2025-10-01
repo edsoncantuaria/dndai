@@ -1,12 +1,9 @@
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
-import dotenv from 'dotenv';
 import { User } from '../entities/User';
 import { Character } from '../entities/Character';
 import { GameSession } from '../entities/GameSession';
 import { LicenseKey } from '../entities/LicenseKey';
-
-dotenv.config({ path: 'backend/.env' });
 
 export const AppDataSource = new DataSource({
     type: 'mysql',

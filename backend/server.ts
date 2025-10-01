@@ -9,7 +9,7 @@ import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user'; // Importar as novas rotas
 
-dotenv.config({ path: 'backend/.env' });
+dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
 const app = express();
 const server = http.createServer(app);
