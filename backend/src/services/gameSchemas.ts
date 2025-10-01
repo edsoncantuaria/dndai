@@ -138,12 +138,14 @@ const ShopStateSchema = z.object({
     sellPrices: z.any().optional().describe("Um objeto mapeando IDs de item para preços de venda."),
 });
 
+// Corrigido: LootItemSchema definido como um alias de InventoryItemSchema
+export const LootItemSchema = InventoryItemSchema;
+export type LootItem = InventoryItem;
 
 const LootOfferSchema = z.object({
-    items: z.array(InventoryItemSchema),
+    items: z.array(LootItemSchema),
     currency: z.object({ gp: z.number() }),
 });
-export type LootItem = InventoryItem;
 
 
 const UseHitDiceRequestSchema = z.object({
