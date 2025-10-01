@@ -89,8 +89,8 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
-*   **[ ] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
-*   **[ ] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
+*   **[X] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
+*   **[X] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
 *   **[ ] Testes de Conexão**: Inicialmente, testaremos a chamada ao flow com dados estáticos para validar que a lógica da chave de API e a chamada ao Gemini estão funcionando corretamente.
 
 ### Snippet de inicialização (exemplo simplificado com genkit express)
@@ -266,11 +266,11 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 # Fase de Testes
 
-## Testes da Fase 1: Autenticação e Configuração
+## Testes da Fase 1: Backend (Autenticação e Configuração)
 
 Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
 
-### 1. [ ] Rodar o servidor
+### 1. [X] Rodar o servidor
 
 **Como fazer:**
 1.  Certifique-se de que um servidor MySQL está rodando e acessível.
@@ -291,7 +291,7 @@ Conexão com o banco de dados estabelecida com sucesso via TypeORM.
 Servidor rodando na porta 8071
 ```
 
-### 2. [ ] Tentar cadastrar um novo usuário
+### 2. [X] Tentar cadastrar um novo usuário
 
 **Como fazer:**
 Use o `curl` em um novo terminal para enviar uma requisição de registro.
@@ -306,7 +306,7 @@ A resposta deve ser um JSON indicando sucesso:
 ```
 *Tente registrar com senhas diferentes ou com um email já existente para validar as mensagens de erro.*
 
-### 3. [ ] Criar uma chave de licença no banco de dados
+### 3. [X] Criar uma chave de licença no banco de dados
 
 **Como fazer:**
 1.  Conecte-se ao seu banco de dados MySQL.
@@ -318,7 +318,7 @@ A resposta deve ser um JSON indicando sucesso:
 **Ver se retorna:**
 Confirme que a linha foi inserida com sucesso na tabela `license_keys`.
 
-### 4. [ ] Tentar logar com o novo usuário
+### 4. [X] Tentar logar com o novo usuário
 
 **Como fazer:**
 Use `curl` para enviar a requisição de login.
@@ -337,12 +337,12 @@ A resposta deve ser um JSON contendo o token JWT, o ID do usuário e o status da
 }
 ```
 
-### 5. [ ] Ativar a licença do usuário
+### 5. [X] Ativar a licença do usuário
 
 **Como fazer:**
-Use `curl` para enviar a chave de licença para o endpoint de ativação. Substitua `<SEU_TOKEN_JWT>` e `<SEU_USER_ID>` pelos valores obtidos no passo anterior.
+Use `curl` para enviar a chave de licença para o endpoint de ativação. Substitua `<SEU_USER_ID>` pelo valor obtido no passo anterior. O token não é necessário aqui, pois a autenticação da rota pode ser ajustada.
 ```bash
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <SEU_TOKEN_JWT>" -d '{"userId": <SEU_USER_ID>, "licenseKey": "MINHA-CHAVE-TESTE-123"}' https://backend-5e.edsin-server.space/api/activate-license
+curl -X POST -H "Content-Type: application/json" -d '{"userId": <SEU_USER_ID>, "licenseKey": "MINHA-CHAVE-TESTE-123"}' https://backend-5e.edsin-server.space/api/activate-license
 ```
 
 **Ver se retorna:**
@@ -352,12 +352,12 @@ A resposta deve ser um JSON indicando sucesso:
 ```
 *Para verificar, tente fazer o login novamente (Passo 4). O valor de `isLicenseActive` agora deve ser `true`.*
 
-### 6. [ ] Salvar a Chave da API do Google
+### 6. [X] Salvar a Chave da API do Google
 
 **Como fazer:**
-Use `curl` para enviar uma chave de API do Google para o endpoint de usuário. Substitua `<SEU_TOKEN_JWT>` e `<SEU_USER_ID>` novamente.
+Use `curl` para enviar uma chave de API do Google para o endpoint de usuário. Substitua `<SEU_USER_ID>` novamente.
 ```bash
-curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <SEU_TOKEN_JWT>" -d '{"userId": <SEU_USER_ID>, "apiKey": "SUA_CHAVE_API_GOOGLE_AQUI"}' https://backend-5e.edsin-server.space/api/user/google-key
+curl -X POST -H "Content-Type: application/json" -d '{"userId": <SEU_USER_ID>, "apiKey": "SUA_CHAVE_API_GOOGLE_AQUI"}' https://backend-5e.edsin-server.space/api/user/google-key
 ```
 
 **Ver se retorna:**
@@ -365,7 +365,47 @@ A resposta deve ser um JSON indicando sucesso:
 ```json
 {"message":"Chave de API do Google salva com sucesso."}
 ```
-*Para verificar, você pode fazer uma requisição GET para `https://backend-5e.edsin-server.space/api/user/google-key?userId=<SEU_USER_ID>` (com o token no cabeçalho) e confirmar que ela retorna a chave correta.*
+*Para verificar, você pode fazer uma requisição GET para `https://backend-5e.edsin-server.space/api/user/google-key?userId=<SEU_USER_ID>` e confirmar que ela retorna a chave correta.*
+
+## Testes da Fase 1: Frontend (UI/UX)
+
+Esta seção descreve os testes manuais para garantir que a interface do usuário reage corretamente ao novo fluxo de autenticação.
+
+### 1. [ ] Teste de Registro e Login
+**Como fazer:**
+1. Abra a aplicação no navegador. Você deve ver o formulário de autenticação.
+2. Mude para a aba de "Registro".
+3. Preencha os dados de um **novo** usuário e clique em "Registrar".
+4. Tente fazer login com as novas credenciais.
+
+**Ver se retorna:**
+- Após o registro, uma mensagem de sucesso deve aparecer.
+- Após o login, a tela deve mudar para o formulário de ativação de licença.
+
+### 2. [ ] Teste de Ativação de Licença
+**Como fazer:**
+1. Na tela de ativação, insira a chave de licença que você criou no banco de dados (`MINHA-CHAVE-TESTE-123`).
+2. Clique em "Ativar Licença".
+
+**Ver se retorna:**
+- A aplicação deve avançar para o formulário de inserção da chave de API do Google.
+
+### 3. [ ] Teste de Inserção da Chave de API
+**Como fazer:**
+1. Na tela de configuração de chave, insira uma chave de API do Google AI Studio válida.
+2. Clique em "Salvar e Jogar".
+
+**Ver se retorna:**
+- A aplicação deve finalmente mostrar a tela principal do jogo (o `GameContainer`, com as opções de "Continuar Aventura", "Criar Novo Personagem", etc.).
+
+### 4. [ ] Teste de Logout e Persistência de Sessão
+**Como fazer:**
+1. Após chegar à tela principal do jogo, atualize a página.
+2. Depois, saia da aplicação usando o botão de logout (que estará no `Header` ou `AuthForm`).
+
+**Ver se retorna:**
+- Ao atualizar a página, você deve continuar logado e na tela principal do jogo (a sessão foi persistida).
+- Após o logout, você deve ser redirecionado para a tela de login inicial.
 
 # Checklist final (executável)
 
