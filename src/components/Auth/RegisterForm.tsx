@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 const RegisterForm = () => {
     const { register, isLoading } = useAuth();
@@ -9,11 +10,14 @@ const RegisterForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const { toast } = useToast();
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const success = await register({ username, email, password, confirmPassword });
         if (success) {
+            // A mensagem de sucesso agora é mostrada por um toast no AuthContext.
+            // Limpar o formulário é uma boa prática.
             setUsername('');
             setEmail('');
             setPassword('');
@@ -34,7 +38,7 @@ const RegisterForm = () => {
                     required
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
             <div>
@@ -49,7 +53,7 @@ const RegisterForm = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
             <div>
@@ -64,7 +68,7 @@ const RegisterForm = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
             <div>
@@ -79,7 +83,7 @@ const RegisterForm = () => {
                     required
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                    className="mt-1 w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
 

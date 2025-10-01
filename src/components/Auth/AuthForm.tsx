@@ -9,7 +9,7 @@ const AuthForm = () => {
     return (
         <div className="w-full max-w-md p-8 space-y-8 bg-stone-800/50 rounded-lg shadow-lg border border-stone-700 animate-fadeIn">
             <div className="text-center">
-                <h1 className="text-4xl font-bold text-amber-300 font-garamond">Crônicas de Aventuras</h1>
+                <h1 className="text-4xl font-bold text-amber-300 font-serif">Crônicas de Aventuras</h1>
                 <p className="mt-2 text-stone-400">
                     {isLoginView ? 'Acesse sua conta para continuar suas jornadas.' : 'Crie uma conta para começar sua saga.'}
                 </p>

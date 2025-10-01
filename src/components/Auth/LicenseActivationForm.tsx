@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const LicenseActivationForm = () => {
-    const { activateLicense, logout, isLoading, error } = useAuth();
+    const { activateLicense, logout, isLoading } = useAuth();
     const [licenseKey, setLicenseKey] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -16,7 +16,7 @@ const LicenseActivationForm = () => {
     return (
         <div className="w-full max-w-md p-8 space-y-6 bg-stone-800/50 rounded-lg shadow-lg border border-stone-700">
             <div className="text-center">
-                <h1 className="text-3xl font-bold text-amber-300 font-garamond">Ativação de Licença</h1>
+                <h1 className="text-3xl font-bold text-amber-300 font-serif">Ativação de Licença</h1>
                 <p className="mt-2 text-stone-400">
                     Sua conta foi criada, mas requer uma chave de licença para acessar a aventura.
                 </p>
@@ -35,12 +35,10 @@ const LicenseActivationForm = () => {
                             required
                             value={licenseKey}
                             onChange={(e) => setLicenseKey(e.target.value)}
-                            className="w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                            className="w-full px-3 py-2 bg-stone-900/70 border border-stone-600 rounded-md shadow-sm placeholder-stone-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         />
                     </div>
                 </div>
-
-                {error && <p className="text-sm text-red-400 text-center">{error}</p>}
 
                 <div>
                     <button
