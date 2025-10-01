@@ -9,12 +9,14 @@ import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
-import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices } from 'lucide-react';
+import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, LogOut } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import Image from 'next/image';
 import DiceTestModal from './DiceTestModal';
+import { useAuth } from '@/contexts/AuthContext';
+
 
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
@@ -25,6 +27,7 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromFile, getApiKey } = useGameStateContext();
+    const { logout } = useAuth();
     const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
@@ -44,7 +47,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
 
     useEffect(() => {
         setHasSavedGame(checkForSavedGame());
-    }, [checkForSavedGame]);
+    }, [checkForSavedGame, character]);
 
 
     useEffect(() => {
@@ -159,6 +162,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         const success = await loadGameFromFile(file);
         if (success) {
             setHasSavedGame(true);
+            // Directly continue the game after import
+            onContinueGame();
         }
     }
 
@@ -186,8 +191,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
                  <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
                     <h1 
-                      className="text-5xl md:text-7xl font-bold text-amber-50"
-                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
+                      className="text-5xl md:text-7xl font-bold text-amber-50 font-serif"
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}
                     >
                         Crônicas de Aventuras
                     </h1>
@@ -200,21 +205,28 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                         onLoadGame={onContinueGame}
                         onImportFile={handleFileImport}
                     />
-                    <div className="mt-6 flex justify-center items-center gap-4">
-                         <button
+                    <div className="mt-8 flex justify-center items-center gap-4">
+                        <button
                             onClick={handleTestAi}
                             disabled={isTestingAi}
-                            className="menu-button btn-import text-sm max-w-xs"
+                            className="flex items-center gap-2 text-stone-300 hover:text-white bg-stone-700/50 hover:bg-stone-700/80 px-4 py-2 rounded-md transition-colors text-sm font-semibold disabled:opacity-50"
                         >
-                            {isTestingAi ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <BrainCircuit className="h-5 w-5 mr-2"/>}
+                            {isTestingAi ? <Loader2 className="h-5 w-5 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300"/>}
                             {isTestingAi ? 'Testando...' : 'Testar IA'}
                         </button>
                         <button
                             onClick={() => setShowSettingsModal(true)}
-                            className="p-3 rounded-full bg-stone-700/80 hover:bg-stone-600 transition-colors"
+                            className="p-3 rounded-full bg-stone-700/50 hover:bg-stone-700/80 transition-colors"
                             title="Configurações"
                         >
-                            <Settings className="h-6 w-6 text-amber-300" />
+                            <Settings className="h-5 w-5 text-amber-300" />
+                        </button>
+                        <button
+                            onClick={logout}
+                            className="p-3 rounded-full bg-stone-700/50 hover:bg-stone-700/80 transition-colors"
+                            title="Sair da Conta"
+                        >
+                            <LogOut className="h-5 w-5 text-amber-300" />
                         </button>
                     </div>
                      {showConfirmationModal && (
