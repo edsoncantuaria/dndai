@@ -270,7 +270,7 @@ export const callGameMasterFlow = async (modelName, input, userId) => {
 
 Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
 
-### 1. [X] Rodar o servidor
+### 1. [ ] Rodar o servidor
 
 **Como fazer:**
 1.  Certifique-se de que um servidor MySQL está rodando e acessível.
@@ -291,12 +291,7 @@ Conexão com o banco de dados estabelecida com sucesso via TypeORM.
 Servidor rodando na porta 8071
 ```
 
-Resultado:
-Conexão com o banco de dados estabelecida com sucesso via TypeORM.
-Servidor rodando na porta 8071
----
-
-### 2. [X] Tentar cadastrar um novo usuário
+### 2. [ ] Tentar cadastrar um novo usuário
 
 **Como fazer:**
 Use o `curl` em um novo terminal para enviar uma requisição de registro.
@@ -311,41 +306,17 @@ A resposta deve ser um JSON indicando sucesso:
 ```
 *Tente registrar com senhas diferentes ou com um email já existente para validar as mensagens de erro.*
 
-Retorno:
-
-root@edsin-server:/home/edson/dndai# curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "password123"}' \
-  https://backend-5e.edsin-server.space/register
-{"message":"Usuário registrado com sucesso. Faça o login para continuar."}
-
-root@edsin-server:/home/edson/dndai# curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "password123"}' \
-  https://backend-5e.edsin-server.space/register
-{"message":"Nome de usuário já existe."}
-
-root@edsin-server:/home/edson/dndai# curl -X POST \
-  -H "Content-Type: application/json" \
-  -d '{"username": "teste_user", "email": "teste@email.com", "password": "password123", "confirmPassword": "passaword123"}' \
-  https://backend-5e.edsin-server.space/register
-{"message":"As senhas não coincidem."}
-
----
-
 ### 3. [ ] Criar uma chave de licença no banco de dados
 
 **Como fazer:**
 1.  Conecte-se ao seu banco de dados MySQL.
 2.  Execute o seguinte comando SQL para inserir uma chave de teste válida. Use uma chave única e fácil de lembrar.
     ```sql
-    INSERT INTO license_keys (`key`, is_active, expiresAt) VALUES ('MINHA-CHAVE-TESTE-123', false, '2025-12-31 23:59:59');
+    INSERT INTO license_keys (`key`, is_active, expires_at) VALUES ('MINHA-CHAVE-TESTE-123', false, '2025-12-31 23:59:59');
     ```
 
 **Ver se retorna:**
 Confirme que a linha foi inserida com sucesso na tabela `license_keys`.
-
----
 
 ### 4. [ ] Tentar logar com o novo usuário
 
@@ -366,8 +337,6 @@ A resposta deve ser um JSON contendo o token JWT, o ID do usuário e o status da
 }
 ```
 
----
-
 ### 5. [ ] Ativar a licença do usuário
 
 **Como fazer:**
@@ -382,8 +351,6 @@ A resposta deve ser um JSON indicando sucesso:
 {"message":"Licença ativada com sucesso!"}
 ```
 *Para verificar, tente fazer o login novamente (Passo 4). O valor de `isLicenseActive` agora deve ser `true`.*
-
----
 
 ### 6. [ ] Salvar a Chave da API do Google
 
