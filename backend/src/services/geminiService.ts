@@ -9,7 +9,6 @@ import { z } from 'zod';
 import { GameMasterResponseSchema, GameMasterFlowInputSchema } from './gameSchemas';
 import { promptDnD5e } from './promptDnD5e';
 import { ai } from '../config/genkit';
-import { defineFlow, run } from 'genkit/flow';
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -39,37 +38,55 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
 };
 
 
-export const gameMasterFlow = defineFlow(
+export const gameMasterFlow = ai.defineFlow(
   {
     name: 'gameMasterFlow',
     inputSchema: GameMasterFlowInputSchema,
     outputSchema: GameMasterResponseSchema,
   },
   async (flowInput, { auth, aistream }) => {
-
     const { apiKey } = auth; // Provided by expressHandler context
     
-    const { output } = await run('call-gemini', async () =>
-      ai.generate({
-        model: 'googleai/gemini-1.5-pro-latest',
-        prompt: createPrompt(flowInput),
-        system: promptDnD5e,
-        config: {},
-        output: {
-          format: 'json',
-          schema: GameMasterResponseSchema,
-        },
-        plugins: [
-            // Create a temporary plugin with the user's key.
-            ai.googleAI({ apiKey })
-        ]
-      })
-    );
+    const response = await ai.generate({
+      model: 'googleai/gemini-1.5-pro-latest',
+      prompt: createPrompt(flowInput),
+      system: promptDnD5e,
+      config: {},
+      output: {
+        format: 'json',
+        schema: GameMasterResponseSchema,
+      },
+      apiKey: apiKey,
+    });
 
-    if (!output) {
+    if (!response.output) {
       throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
     }
     
-    return output;
+    return response.output;
+  }
+);
+
+
+// New flow for testing AI connection
+export const testAiConnection = ai.defineFlow(
+  {
+    name: 'testAiConnection',
+    inputSchema: z.object({
+        model: z.string(),
+        prompt: z.string(),
+    }),
+    outputSchema: z.string(),
+  },
+  async ({model, prompt}, { auth }) => {
+    const { apiKey } = auth;
+    
+    const response = await ai.generate({
+      model: `googleai/${model}`,
+      prompt: prompt,
+      apiKey: apiKey,
+    });
+    
+    return response.text();
   }
 );

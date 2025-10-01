@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
-import * as GeminiService from '@/services/geminiService';
+import * as SystemService from '@/services/systemService';
 import type { ApiListItem } from '@/types';
 import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
@@ -27,8 +27,8 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
     const { isLoading, character, checkForSavedGame, loadGameFromFile, getApiKey } = useGameStateContext();
-    const { logout } = useAuth();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
+    const { user, logout } = useAuth();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
     const [hasSavedGame, setHasSavedGame] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
@@ -98,12 +98,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
     };
 
     const handleTestAi = useCallback(async () => {
+        if (!user) return;
         setIsTestingAi(true);
         setAiTestResult(null);
         setTestImageUrl(null);
         try {
-            const apiKey = getApiKey();
-            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKey);
+            const response = await SystemService.testAiConnection(user.id, selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta de texto.");
             }
@@ -116,7 +116,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel, generationConfig, getApiKey]);
+    }, [user, selectedModel]);
 
     const handleTestImageGen = useCallback(async () => {
         setIsGeneratingImage(true);

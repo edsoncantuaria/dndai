@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import * as GeminiService from '@/services/geminiService';
+import * as SystemService from '@/services/systemService';
 import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, DoorOpen } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
@@ -19,8 +19,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
     const { character, saveGameToFile, getApiKey, isLoading, forceReload } = useGameStateContext();
-    const { logout } = useAuth();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, generationConfig } = useSettingsContext();
+    const { user, logout } = useAuth();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -43,12 +43,12 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
     };
 
     const handleTestAi = useCallback(async () => {
+        if (!user) return;
         setIsTestingAi(true);
         setAiTestResult(null);
         setTestImageUrl(null);
         try {
-            const apiKey = getApiKey();
-            const response = await GeminiService.testAiConnection(selectedModel, generationConfig, apiKey);
+            const response = await SystemService.testAiConnection(user.id, selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta de texto.");
             }
@@ -61,7 +61,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
             setIsTestingAi(false);
             setShowAiTestModal(true);
         }
-    }, [selectedModel, generationConfig, getApiKey]);
+    }, [user, selectedModel]);
 
     const handleTestImageGen = useCallback(async () => {
         setIsGeneratingImage(true);
