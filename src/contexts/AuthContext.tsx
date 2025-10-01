@@ -16,6 +16,7 @@ interface AuthContextType {
     hasApiKey: boolean;
     isLoading: boolean;
     error: string | null;
+    clearError: () => void; // Adicionado para limpar erros
     login: (credentials: authService.LoginCredentials) => Promise<boolean>;
     register: (details: authService.RegisterDetails) => Promise<boolean>;
     activateLicense: (licenseKey: string) => Promise<boolean>;
@@ -31,6 +32,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { apiKey, setApiKey } = useSettingsContext(); // Use settings context for API key
+
+    const clearError = useCallback(() => setError(null), []);
 
     const checkApiKey = useCallback(async (userId: number) => {
         const key = await authService.fetchApiKey(userId);
@@ -166,6 +169,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         hasApiKey,
         isLoading,
         error,
+        clearError,
         login,
         register,
         activateLicense,
