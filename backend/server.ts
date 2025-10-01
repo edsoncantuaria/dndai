@@ -40,7 +40,7 @@ async function startServer() {
             }
 
             try {
-                const response = await gameMasterFlow.run({
+                const response = await gameMasterFlow({
                     flowInput,
                     userId,
                     modelName: modelName || 'gemini-1.5-pro-latest',
