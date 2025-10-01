@@ -38,10 +38,9 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler({
-            flow: gameMasterFlow,
-            context: async (req: Request) => {
-              const { userId } = req.body;
+          expressHandler(gameMasterFlow, {
+            contextProvider: async (req) => {
+              const { userId } = (req.body as { input: { userId: number } }).input;
               if (!userId) {
                 throw new UserFacingError(
                   "INVALID_ARGUMENT",
@@ -63,10 +62,9 @@ async function startServer() {
         // Endpoint para Teste da IA
         app.post(
             '/api/test-ai',
-             expressHandler({
-                flow: testAiConnectionFlow,
-                context: async (req: Request) => {
-                    const { userId } = req.body;
+             expressHandler(testAiConnectionFlow, {
+                contextProvider: async (req) => {
+                    const { userId } = (req.body as { input: { userId: number } }).input;
                      if (!userId) {
                         throw new UserFacingError("INVALID_ARGUMENT",'userId é obrigatório.');
                     }
