@@ -108,7 +108,7 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
 *   **[X] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
-*   **[X] Chave de API Dinâmica**: O fluxo busca a chave de API criptografada do usuário no banco de dados para cada chamada.
+*   **[X] Usar `@genkit-ai/express`**: O `server.ts` usa o `expressHandler` para expor o `gameMasterFlow` de forma segura. Um `context` provider é usado para extrair o `userId` do corpo da requisição e carregar a chave de API do usuário dinamicamente para cada chamada.
 *   **[X] Criar Endpoint de Jogo**: O `server.ts` agora tem o endpoint `/api/game-master` para receber as ações do jogo e executar o `gameMasterFlow`.
 *   **[ ] Testes de Conexão**: Testar o novo endpoint com dados estáticos para validar a chamada completa ao Gemini.
 
@@ -127,7 +127,7 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
         ```bash
         curl -X POST -H "Content-Type: application/json" -d '{
           "userId": <SEU_USER_ID>,
-          "flowInput": {
+          "input": {
             "character": { "name": "Herói de Teste", "level": 1, "hp": { "current": 10, "max": 10 }, "attributes": { "strength": 14 } },
             "playerAction": "A aventura começa. Onde eu estou?",
             "gameLog": [],
@@ -141,11 +141,11 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
 
 3.  **[ ] Testar o Endpoint com um `userId` Inválido**
     *   **Como fazer:** Envie a mesma requisição do teste anterior, mas use um `userId` que não existe no banco de dados (ex: 999).
-    *   **Ver se retorna:** Uma resposta de erro com status 500 e uma mensagem indicando que "A chave de API do Google do usuário não foi encontrada".
+    *   **Ver se retorna:** Uma resposta de erro (401 ou 500) e uma mensagem indicando que "A chave de API do Google do usuário não foi encontrada ou é inválida".
 
 ## Fase 3 — API de Personagens & Orquestrador de Jogo (Backend)
 
-*   **[ ] Criar Entidades de Dados com Soft Delete**:
+*   **[X] Criar Entidades de Dados com Soft Delete**:
     *   Adicionar as colunas `is_active` (boolean, default `true`), `deleted_at` (timestamp, nullable) e colunas de tempo de jogo (`last_played_at`, `total_play_time_seconds`) às entidades `User`, `Character` e `GameSession`.
     *   Toda operação de exclusão agora será um *soft delete*, atualizando `is_active` para `false` e preenchendo `deleted_at`.
 
@@ -248,3 +248,4 @@ export function setupWebSocket(server: http.Server) {
 
 
 # Observações, mudanças...
+
