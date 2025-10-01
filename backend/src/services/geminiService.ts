@@ -5,11 +5,12 @@
  * processing player actions and generating game state updates.
  * It dynamically uses the user's stored Google API key for each call.
  */
-import { ai, genkit, configureGenkit } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
 import { GameMasterResponseSchema, GameMasterFlowInputSchema } from '../../src/services/gameSchemas';
 import { getUserApiKey } from '../utils/user-service'; 
+import { promptDnD5e } from './promptDnD5e';
 
 // Define o schema para a entrada do fluxo, que inclui a entrada padrão do jogo e o userId.
 const flowInput = z.object({
@@ -51,11 +52,11 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
 };
 
 
-export const gameMasterFlow = ai.defineFlow(
-  {
+export const gameMasterFlow = genkit({
     name: 'gameMasterFlow',
     inputSchema: flowInput,
     outputSchema: GameMasterResponseSchema,
+    stream: false
   },
   async (input: FlowInputType) => {
     const { flowInput, userId, modelName, generationConfig } = input;
@@ -72,16 +73,14 @@ export const gameMasterFlow = ai.defineFlow(
     const userGoogleAI = googleAI({ apiKey: apiKey });
     const localAI = genkit({
       plugins: [userGoogleAI],
-      logLevel: 'debug',
       enableTracingAndMetrics: true,
     });
     
-    // 3. Obtém uma referência ao modelo de gerador específico solicitado.
-    const model = localAI.getGenerator(modelName);
-
-    // 4. Gera o conteúdo usando o modelo, prompt e configuração especificados.
-    const result = await model.generate({
+    // 3. Gera o conteúdo usando o modelo, prompt e configuração especificados.
+    const { output } = await localAI.generate({
+      model: `googleai/${modelName}`,
       prompt: createPrompt(flowInput),
+      system: promptDnD5e,
       config: generationConfig,
       output: {
         format: 'json',
@@ -90,11 +89,10 @@ export const gameMasterFlow = ai.defineFlow(
     });
 
     // 5. Analisa e retorna a resposta estruturada.
-    const response = result.output();
-    if (!response) {
+    if (!output) {
       throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
     }
     
-    return response;
+    return output;
   }
 );
