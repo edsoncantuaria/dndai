@@ -89,8 +89,8 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Voc
 
 ## Fase 2 — Serviço da IA isolado (Genkit flow server)
 
-*   **[X] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
-*   **[X] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
+*   **[ ] Implementar `geminiService.ts` no backend.** Este serviço definirá o `gameMasterFlow` usando Genkit.
+*   **[ ] Chave de API Dinâmica**: O fluxo deve buscar a chave de API do usuário (criptografada no banco de dados) para cada chamada, garantindo que as requisições sejam feitas com as credenciais do usuário.
 *   **[ ] Testes de Conexão**: Inicialmente, testaremos a chamada ao flow com dados estáticos para validar que a lógica da chave de API e a chamada ao Gemini estão funcionando corretamente.
 
 ### Snippet de inicialização (exemplo simplificado com genkit express)
