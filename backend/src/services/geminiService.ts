@@ -5,81 +5,19 @@
  * processing player actions and generating game state updates.
  * It dynamically uses the user's stored Google API key for each call.
  */
-import { genkit, configureGenkit } from 'genkit';
+import { ai, genkit, configureGenkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { GameMasterResponseSchema, GameMasterFlowInputSchema } from '../../src/services/gameSchemas'; // Corrigido para o caminho relativo correto
-import { getUserApiKey } from '../utils/user-service'; // Helper para buscar a chave do usuário
-import { NextRequest, NextResponse } from 'next/server';
+import { GameMasterResponseSchema, GameMasterFlowInputSchema } from '../../src/services/gameSchemas';
+import { getUserApiKey } from '../utils/user-service'; 
 
 // Define o schema para a entrada do fluxo, que inclui a entrada padrão do jogo e o userId.
 const flowInput = z.object({
   flowInput: GameMasterFlowInputSchema,
   userId: z.number(),
-  modelName: z.string(),
-  generationConfig: z.any(),
+  modelName: z.string().default('gemini-1.5-pro-latest'),
+  generationConfig: z.any().optional(),
 });
-
-/**
- * O fluxo principal do Mestre de Jogo.
- * Este fluxo é responsável por receber o estado do jogo, processar a ação do jogador
- * através do modelo Gemini e retornar uma atualização estruturada para o estado do jogo.
- */
-export const gameMasterFlow = genkit.defineFlow(
-  {
-    name: 'gameMasterFlow',
-    inputSchema: flowInput,
-    outputSchema: GameMasterResponseSchema,
-  },
-  async (input) => {
-    const { flowInput, userId, modelName, generationConfig } = input;
-
-    // 1. Busca a chave de API específica do usuário no banco de dados.
-    const apiKey = await getUserApiKey(userId);
-    if (!apiKey) {
-      throw new Error(
-        'A chave de API do Google do usuário não foi encontrada. Por favor, configure-a no seu perfil.'
-      );
-    }
-    
-    // 2. Inicializa o plugin do Google AI dinamicamente com a chave do usuário.
-    // Isso garante que as requisições de cada usuário sejam feitas com suas próprias credenciais.
-    configureGenkit({
-        plugins: [
-          googleAI({
-            apiKey: apiKey,
-          }),
-        ],
-        logLevel: 'debug',
-        enableTracingAndMetrics: true,
-      });
-
-    // 3. Obtém uma referência ao modelo de gerador específico solicitado.
-    const model = genkit.getGenerator(modelName);
-    if (!model) {
-      throw new Error(`Modelo ${modelName} não encontrado ou não suportado.`);
-    }
-
-    // 4. Gera o conteúdo usando o modelo, prompt e configuração especificados.
-    const result = await model.generate({
-      prompt: createPrompt(flowInput),
-      config: generationConfig,
-      output: {
-        format: 'json',
-        schema: GameMasterResponseSchema,
-      },
-    });
-
-    // 5. Analisa e retorna a resposta estruturada.
-    const response = result.output();
-    if (!response) {
-      throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
-    }
-
-    return response;
-  }
-);
-
 
 /**
  * Cria o prompt detalhado a ser enviado para o modelo Gemini.
@@ -111,23 +49,50 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
 };
 
 
-export async function POST(req: NextRequest) {
-  const { flowInput, userId, modelName, generationConfig } = await req.json();
-
-  if (!flowInput || !userId || !modelName || !generationConfig) {
-    return NextResponse.json({ error: 'Dados de entrada inválidos' }, { status: 400 });
-  }
-
-  try {
-    const response = await gameMasterFlow.run({
-      flowInput,
-      userId,
-      modelName,
-      generationConfig,
+export const gameMasterFlow = ai.defineFlow(
+  {
+    name: 'gameMasterFlow',
+    inputSchema: flowInput,
+    outputSchema: GameMasterResponseSchema,
+  },
+  async (input) => {
+    const { flowInput, userId, modelName, generationConfig } = input;
+    
+    // 1. Busca a chave de API específica do usuário no banco de dados.
+    const apiKey = await getUserApiKey(userId);
+    if (!apiKey) {
+      throw new Error(
+        'A chave de API do Google do usuário não foi encontrada. Por favor, configure-a no seu perfil.'
+      );
+    }
+    
+    // 2. Cria um plugin do Google AI dinamicamente com a chave do usuário.
+    const userGoogleAI = googleAI({ apiKey: apiKey });
+    const localAI = genkit({
+      plugins: [userGoogleAI],
+      logLevel: 'debug',
+      enableTracingAndMetrics: true,
     });
-    return NextResponse.json(response);
-  } catch (error: any) {
-    console.error('Erro ao executar o fluxo do Genkit:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    
+    // 3. Obtém uma referência ao modelo de gerador específico solicitado.
+    const model = localAI.getGenerator(modelName);
+
+    // 4. Gera o conteúdo usando o modelo, prompt e configuração especificados.
+    const result = await model.generate({
+      prompt: createPrompt(flowInput),
+      config: generationConfig,
+      output: {
+        format: 'json',
+        schema: GameMasterResponseSchema,
+      },
+    });
+
+    // 5. Analisa e retorna a resposta estruturada.
+    const response = result.output();
+    if (!response) {
+      throw new Error('A resposta da IA foi vazia ou em um formato inválido.');
+    }
+    
+    return response;
   }
-}
+);
