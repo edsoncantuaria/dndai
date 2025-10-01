@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { GameMasterResponseSchema, GameMasterFlowInputSchema } from './gameSchemas';
 import { promptDnD5e } from './promptDnD5e';
 import { ai } from '../config/genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -44,14 +45,13 @@ export const gameMasterFlow = ai.defineFlow(
     inputSchema: GameMasterFlowInputSchema,
     outputSchema: GameMasterResponseSchema,
   },
-  async (flowInput, { auth, aistream }) => {
-    const { apiKey } = auth; // Provided by expressHandler context
+  async (flowInput, { auth }) => { // O flowInput agora é o objeto direto
+    const { apiKey } = auth; // Provided by expressHandler contextProvider
     
     const response = await ai.generate({
       model: 'googleai/gemini-1.5-pro-latest',
       prompt: createPrompt(flowInput),
       system: promptDnD5e,
-      config: {},
       output: {
         format: 'json',
         schema: GameMasterResponseSchema,
@@ -68,14 +68,17 @@ export const gameMasterFlow = ai.defineFlow(
 );
 
 
+// Schema para o input do flow de teste
+const TestAiInputSchema = z.object({
+    model: z.string(),
+    prompt: z.string(),
+});
+
 // New flow for testing AI connection
 export const testAiConnectionFlow = ai.defineFlow(
   {
     name: 'testAiConnectionFlow',
-    inputSchema: z.object({
-        model: z.string(),
-        prompt: z.string(),
-    }),
+    inputSchema: TestAiInputSchema, // Usando o novo schema
     outputSchema: z.string(),
   },
   async ({model, prompt}, { auth }) => {
@@ -87,7 +90,7 @@ export const testAiConnectionFlow = ai.defineFlow(
       apiKey: apiKey,
     });
     
-    const outputText = response.text();
+    const outputText = response.text; // Corrigido para Genkit v1
     if (!outputText) {
       throw new Error("A IA não retornou uma resposta de texto.");
     }
