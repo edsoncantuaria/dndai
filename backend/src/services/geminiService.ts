@@ -8,9 +8,10 @@
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { z } from 'zod';
-import { GameMasterResponseSchema, GameMasterFlowInputSchema } from '../../src/services/gameSchemas';
-import { getUserApiKey } from '../utils/user-service'; 
+import { GameMasterResponseSchema, GameMasterFlowInputSchema } from './gameSchemas';
+import { getUserApiKey } from '../utils/user-service';
 import { promptDnD5e } from './promptDnD5e';
+import { ai } from '../config/genkit'; // Import the central AI instance
 
 // Define o schema para a entrada do fluxo, que inclui a entrada padrão do jogo e o userId.
 const flowInput = z.object({
@@ -52,11 +53,11 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
 };
 
 
-export const gameMasterFlow = genkit({
+export const gameMasterFlow = ai.defineFlow(
+  {
     name: 'gameMasterFlow',
     inputSchema: flowInput,
     outputSchema: GameMasterResponseSchema,
-    stream: false
   },
   async (input: FlowInputType) => {
     const { flowInput, userId, modelName, generationConfig } = input;
@@ -70,6 +71,7 @@ export const gameMasterFlow = genkit({
     }
     
     // 2. Cria um plugin do Google AI dinamicamente com a chave do usuário.
+    // We create a temporary Genkit instance with the user's key.
     const userGoogleAI = googleAI({ apiKey: apiKey });
     const localAI = genkit({
       plugins: [userGoogleAI],
