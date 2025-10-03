@@ -11,11 +11,11 @@ import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
-import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiService';
+import { gameMasterFlow, testAiConnectionFlow } from './src/services.old/geminiService';
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
-import { GameMasterFlowInput } from './src/services/gameSchemas';
+import { GameMasterFlowInput } from './src/services.old/gameSchemas';
 
 
 const app: Express = express();
