@@ -48,7 +48,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       return res.status(401).json({ message: 'Credenciais inválidas.' });
     }
 
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.SECRET_KEY;
     if (!secret) {
         throw new Error("Chave secreta JWT não está configurada.");
     }

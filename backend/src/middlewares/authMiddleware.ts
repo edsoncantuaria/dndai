@@ -17,7 +17,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
         return res.status(401).json({ message: "Token não fornecido." });
     }
 
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.SECRET_KEY;
     if (!secret) {
         console.error("Chave secreta JWT não está configurada no .env");
         return res.status(500).json({ message: "Erro de configuração do servidor." });
