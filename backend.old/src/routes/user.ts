@@ -2,14 +2,17 @@ import { Express, Request, Response } from 'express';
 import { AppDataSource } from '../config/data-source';
 import { User } from '../entities/User';
 import { encrypt, decrypt } from '../utils/crypto';
+import { authenticateToken } from '../middleware/authMiddleware';
+
 
 export function setupUserRoutes(app: Express) {
   // Rota para salvar/atualizar a chave da API do Google do usuário
-  app.post('/api/user/google-key', async (req: Request, res: Response) => {
-    const { userId, apiKey } = req.body;
+  app.post('/api/user/google-key', authenticateToken, async (req: Request, res: Response) => {
+    const userId = (req as any).user.userId;
+    const { apiKey } = req.body;
 
     if (!userId || !apiKey) {
-      return res.status(400).json({ message: 'UserId e apiKey são obrigatórios.' });
+      return res.status(400).json({ message: 'ApiKey é obrigatório.' });
     }
 
     const userRepository = AppDataSource.getRepository(User);
@@ -30,20 +33,20 @@ export function setupUserRoutes(app: Express) {
     }
   });
 
-  // Rota para obter a chave de API do Google (exemplo, requer autenticação adequada no futuro)
-  app.get('/api/user/google-key', async (req: Request, res: Response) => {
-    const { userId } = req.query;
+  // Rota para obter a chave de API do Google
+  app.get('/api/user/google-key', authenticateToken, async (req: Request, res: Response) => {
+    const userId = (req as any).user.userId;
 
     if (!userId) {
-      return res.status(400).json({ message: 'UserId é obrigatório.' });
+        return res.status(400).json({ message: "Autenticação falhou, ID do usuário não encontrado." });
     }
-
+    
     const userRepository = AppDataSource.getRepository(User);
     try {
       const user = await userRepository.findOne({ where: { id: Number(userId) } });
 
       if (!user || !user.googleApiKeyEncrypted) {
-        return res.status(404).json({ message: 'Usuário ou chave não encontrados.' });
+        return res.status(404).json({ message: 'Chave de API não encontrada para este usuário.' });
       }
 
       const decryptedKey = decrypt(user.googleApiKeyEncrypted);

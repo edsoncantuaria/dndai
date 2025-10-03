@@ -32,7 +32,7 @@ const CombatantBaseSchema = z.object({
     initiative: z.number(),
     distance: z.number().optional().describe("Distância em metros ou unidades até o alvo principal."),
     isHidden: z.boolean().default(false).describe("Se o combatente está em stealth ou invisível."),
-    tempModifiers: z.any().optional().describe("Modificadores temporários (vantagem, desvantagem, buffs) como um objeto genérico."),
+    tempModifiers: z.record(z.string(), z.any()).default({}).describe("Modificadores temporários (vantagem, desvantagem, buffs)."),
     conditions: z.array(z.object({
       name: z.string(),
       durationRounds: z.number().optional(),
@@ -171,7 +171,7 @@ export const GameMasterResponseSchema = z.object({
         timeOfDay: z.string().optional(),
         ongoingEvents: z.array(z.string()).optional(),
     }).optional().describe("Global world state variables to track persistent environment and events."),
-    factionReputation: z.any().optional().describe("Tracks the player's reputation with different factions. Negative values indicate hostility."),
+    factionReputation: z.record(z.string(), z.number()).optional().describe("Tracks the player's reputation with different factions. Negative values indicate hostility."),
     conditions: z.array(z.object({
         name: z.string(),
         durationRounds: z.number().optional(),

@@ -28,7 +28,7 @@ export const testAiConnection = async (model: string): Promise<string> => {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.message || 'Falha na comunicação com o servidor de IA.');
+            throw new Error(result.details || result.message || 'Falha na comunicação com o servidor de IA.');
         }
 
         return result.response || "A IA respondeu, mas sem conteúdo.";

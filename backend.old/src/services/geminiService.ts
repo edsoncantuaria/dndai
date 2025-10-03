@@ -52,12 +52,12 @@ export const gameMasterFlow = ai.defineFlow(
       if (!flowInput.apiKey) {
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
-
-      // Create a model reference with the dynamic API key
-      const model = googleAI({ apiKey: flowInput.apiKey });
+      
+      const model = googleAI.model('gemini-1.5-pro-latest');
       
       const response = await ai.generate({
-        model: model('gemini-1.5-pro-latest'),
+        model: model,
+        apiKey: flowInput.apiKey,
         prompt: createPrompt(flowInput),
         system: promptDnD5e,
         output: {
@@ -86,10 +86,11 @@ export const testAiConnectionFlow = ai.defineFlow(
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
       
-      const aiModel = googleAI({ apiKey });
+      const aiModel = googleAI.model(model as any);
       
       const response = await ai.generate({
-        model: aiModel(model),
+        model: aiModel,
+        apiKey: apiKey,
         prompt: prompt,
       });
       

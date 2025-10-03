@@ -1,4 +1,3 @@
-
 import { Express, Request, Response } from 'express';
 import { authenticateToken } from '../middleware/authMiddleware';
 import { AppDataSource } from '../config/data-source';
