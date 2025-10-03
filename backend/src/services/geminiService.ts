@@ -9,7 +9,6 @@ import { z } from 'zod';
 import { GameMasterResponseSchema, GameMasterFlowInputSchema, TestAiInputSchema } from './gameSchemas';
 import { promptDnD5e } from '../game/promptDnD5e';
 import { ai } from '../config/genkit';
-import { googleAI } from '@genkit-ai/google-genai';
 import { UserFacingError } from 'genkit';
 
 
@@ -54,10 +53,9 @@ export const gameMasterFlow = ai.defineFlow(
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
         
-      const model = googleAI('gemini-1.5-pro-latest', { apiKey: flowInput.apiKey });
-      
       const response = await ai.generate({
-        model,
+        model: 'googleai/gemini-1.5-pro-latest',
+        apiKey: flowInput.apiKey,
         prompt: createPrompt(flowInput),
         system: promptDnD5e,
         output: {
@@ -86,10 +84,9 @@ export const testAiConnectionFlow = ai.defineFlow(
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
         
-      const aiModel = googleAI(model as any, { apiKey });
-      
       const response = await ai.generate({
-        model: aiModel,
+        model: `googleai/${model}`,
+        apiKey: apiKey,
         prompt: prompt,
       });
       
