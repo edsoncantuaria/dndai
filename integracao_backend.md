@@ -13,7 +13,7 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
   2. WebSocket Server (no mesmo processo Express ou ligado via servidor HTTP) — transporte tempo-real do jogo.
   3. Serviço de Jogo (orquestrador) — carrega/salva GameState, chama o serviço de IA e emite updates.
   4. Flow Server da IA (Genkit) — expõe flows (ex.: `gameMasterFlow`) para o serviço de jogo consumir (pode ser parte do backend ou process separado).
-  5. Banco de dados MySQL (TypeORM) — persistência de Users, Characters, GameSessions, etc.
+  5. Banco de dados MySQL (Sequelize) — persistência de Users, Characters, GameSessions, etc.
   6. Redis — cache distribuído para `activeGameStates`, locks e pub/sub se for escalar múltiplas instâncias.
   7. Storage de segredos: `.env` + vault eventual (opcional).
   8. Criptografia utilitária para armazenar/descriptografar a google_api_key com seu crypto.
@@ -23,225 +23,122 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
 ```
 /backend
   /src
-    /entities          (TypeORM entities)
-    /services
-      gameService.ts        <-- orchestrador / load + save + WS handler
-      geminiService.ts      <-- inicializa genkit/flows (or separate aiServer)
-      redisService.ts
-    /ws
-      webSocketServer.ts
-    /routes
-      auth.ts
-      license.ts
-      user.ts
-      admin.ts
-    /utils
-      crypto.ts
-      logger.ts
-    server.ts
-  ormconfig.ts or data-source.ts
+    /controllers       (Lógica de requisição/resposta)
+    /services          (Lógica de negócios, interação com IA e BD)
+    /routes            (Definição dos endpoints da API)
+    /models            (Schemas do Sequelize e associações)
+    /middlewares       (Autenticação, tratamento de erros)
+    /config            (Configuração de banco de dados e Genkit)
+    server.ts          (Ponto de entrada do servidor)
+  /tests               (Testes unitários e de integração)
+  ...
 ```
 
 # Migração incremental — passos concretos (sem estimativas de tempo)
 
-Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo. Você disse que hoje não existe DB/WS — vamos migrar incrementalmente para reduzir riscos.
+Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
-## Fase 0 — Preparação (concluído)
+## Fase 0 — Reconstrução e Fundação (Concluído)
 
-*   **[X] Criar repositório backend** (Node + TypeScript + ts-node).
-*   **[X] Configurar TypeORM** com MySQL local (arquivo `data-source.ts`). Manter `synchronize: true` por enquanto.
-*   **[X] Criar entidades básicas**: `User`, `Character`, `GameSession`, `LicenseKey`.
-*   **[X] Adicionar utilitário de criptografia** (seu `crypto.ts` já ok).
+*   **[X] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
+*   **[X] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
+*   **[X] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
+*   **[X] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
+*   **[X] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
 
-## Fase 1 — API REST mínima + Autenticação e Ativação de Licença (Concluído)
+## Fase 1 — Autenticação, Licença e API de Usuário (Concluído)
 
-*   **[X] Implementar endpoint de registro (`/register`):**
-    *   Aceita `username`, `email`, `password`.
-    *   Valida os dados e cria um novo `User` sem licença.
-*   **[X] Implementar endpoint de login (`/login`):**
-    *   Aceita `login` (pode ser username ou email) e `password`.
-    - Retorna um `token` JWT contendo o `userId`, além de `isLicenseActive`.
-*   **[X] Implementar endpoint de ativação de licença (`/api/activate-license`):**
-    *   Valida a chave no banco de dados: verifica se existe, se não está em uso e se não está expirada.
-    - Se a chave for válida, associa-a ao `userId` e marca-a como `isActive: true`.
-*   **[X] Endpoint `/api/user/google-key` para o usuário salvar/atualizar sua `google_api_key` (será criptografada e armazenada no DB).**
-    -   `POST`: Salva ou atualiza a chave da API do Google, criptografando-a.
-    -   `GET`: Recupera a chave da API do Google de forma segura.
+*   **[X] Implementar Endpoints de Autenticação**:
+    *   `POST /api/auth/register`: Para registro de novos usuários.
+    *   `POST /api/auth/login`: Para autenticação e obtenção de token JWT.
+*   **[X] Implementar Endpoints de Licença**:
+    *   `POST /api/licenses/activate`: Ativa uma chave de licença para o usuário autenticado.
+    *   `GET /api/licenses/status`: Verifica o status da licença do usuário.
+*   **[X] Implementar Endpoint de Usuário**:
+    *   `GET /api/users/me`: Retorna os dados do usuário autenticado.
 
-### Testes da Fase 1: Backend (Autenticação e Configuração)
+### Testes da Fase 1: API de Autenticação e Licença
 
-Esta seção descreve os testes manuais para garantir que a Fase 1 foi implementada corretamente.
+Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) para garantir que a Fase 1 foi implementada corretamente.
 
-1.  **[X] Rodar o servidor**
-    *   **Verificação:** O servidor inicia sem erros e se conecta ao TypeORM.
+1.  **[ ] Tentar Registrar um Novo Usuário (`POST /api/auth/register`)**
+    *   **Requisição:** Enviar `username`, `email` e `password`.
+    *   **Verificação:** Receber uma resposta `201 Created` com a mensagem de sucesso. Verificar no banco de dados se o usuário foi criado com a senha hasheada.
 
-2.  **[X] Tentar cadastrar um novo usuário**
-    *   **Verificação:** O usuário é criado no banco de dados e uma mensagem de sucesso é retornada.
+2.  **[ ] Tentar Registrar com Dados Inválidos**
+    *   **Requisição:** Tentar registrar com um email já existente. Depois, tentar com um nome de usuário já existente.
+    *   **Verificação:** Receber uma resposta de erro `409 Conflict` em ambos os casos.
 
-3.  **[X] Criar uma chave de licença no banco de dados**
-    *   **Verificação:** A chave é inserida corretamente na tabela `license_keys`.
+3.  **[ ] Tentar Fazer Login (`POST /api/auth/login`)**
+    *   **Requisição:** Enviar `email` e `password` corretos.
+    *   **Verificação:** Receber uma resposta `200 OK` contendo `token` e `userId`.
 
-4.  **[X] Tentar logar com o novo usuário**
-    *   **Verificação:** O login é bem-sucedido, retorna um token, `userId` e `isLicenseActive: false`.
+4.  **[ ] Preparar uma Chave de Licença**
+    *   **Como Fazer:** Inserir manualmente uma chave de licença válida e não ativa na tabela `license_keys` do banco de dados (ex: `key: 'CHAVE-TESTE-01', is_active: false, expires_at: '2099-12-31'`).
 
-5.  **[X] Ativar a licença do usuário**
-    *   **Verificação:** A licença é ativada. Um novo login retorna `isLicenseActive: true`.
+5.  **[ ] Verificar Status da Licença (Sem Licença)**
+    *   **Requisição:** Fazer uma chamada `GET /api/licenses/status` com o token JWT do usuário.
+    *   **Verificação:** Receber uma resposta `404 Not Found` indicando que nenhuma licença foi encontrada.
 
-6.  **[X] Salvar a Chave da API do Google**
-    *   **Verificação:** A chave é criptografada e salva no banco de dados para o usuário correto.
+6.  **[ ] Ativar a Licença (`POST /api/licenses/activate`)**
+    *   **Requisição:** Enviar a chave (`'CHAVE-TESTE-01'`) no corpo da requisição, com o token JWT do usuário no cabeçalho.
+    *   **Verificação:** Receber uma resposta `200 OK`. Verificar no banco de dados se `license_keys.is_active` é `true` e se o `userId` foi associado corretamente.
 
-### Testes da Fase 1: Frontend (UI/UX)
+7.  **[ ] Verificar Status da Licença (Com Licença)**
+    *   **Requisição:** Fazer uma chamada `GET /api/licenses/status` novamente.
+    *   **Verificação:** Receber uma resposta `200 OK` com `isActive: true`.
 
-1.  **[X] Teste de Registro e Login**
-    *   **Verificação:** O usuário consegue se registrar, recebe um toast de sucesso e é redirecionado para o login. O login funciona e leva para a tela de ativação.
+## Fase 2 — API de Personagens e Início do Jogo (Concluído)
 
-2.  **[X] Teste de Ativação de Licença**
-    *   **Verificação:** O usuário insere uma chave válida, recebe um toast de sucesso e avança para a tela de chave de API.
+*   **[X] Implementar Endpoints CRUD para Personagens**:
+    *   `POST /api/characters`: Cria um novo personagem para o usuário autenticado.
+    *   `GET /api/characters`: Lista todos os personagens do usuário.
+    *   `GET /api/characters/:id`: Obtém os detalhes de um personagem específico.
+    *   `PUT /api/characters/:id`: Atualiza um personagem.
+    *   `DELETE /api/characters/:id`: Deleta um personagem.
+*   **[X] Implementar Endpoints da Sessão de Jogo**:
+    *   `POST /api/game-sessions/action`: Endpoint principal para o jogo, que recebe a ação do jogador e retorna o stream da IA.
+    *   `GET /api/game-sessions/character/:characterId`: Busca a sessão de jogo mais recente de um personagem.
 
-3.  **[X] Teste de Inserção da Chave de API**
-    *   **Verificação:** O usuário insere a chave, recebe um toast de sucesso e é levado para a tela principal de criação de personagem.
+### Testes da Fase 2: Personagens e Jogo
 
-4.  **[X] Teste de Logout e Persistência de Sessão**
-    *   **Verificação:** Atualizar a página mantém o usuário logado. O botão de logout funciona e redireciona para a tela de autenticação.
+1.  **[ ] Criar um Novo Personagem (`POST /api/characters`)**
+    *   **Requisição:** Com um token de usuário válido, enviar os dados de um personagem (nome, nível, estatísticas JSON) no corpo.
+    *   **Verificação:** Receber uma resposta `201 Created` com os dados do personagem criado. Verificar se o registro foi salvo corretamente na tabela `characters`.
 
-## Fase 2 — Serviço da IA isolado (Genkit flow server) (Concluído)
+2.  **[ ] Listar Personagens (`GET /api/characters`)**
+    *   **Requisição:** Fazer uma chamada `GET` com o token do usuário.
+    *   **Verificação:** Receber uma resposta `200 OK` com a lista de personagens pertencentes àquele usuário.
 
-*   **[X] Refatoração Completa**: A pasta `services` foi recriada para abrigar uma implementação limpa.
-*   **[X] Implementar `geminiService.ts` no backend**: Este serviço agora define o `gameMasterFlow` e `testAiConnectionFlow` de forma isolada. Eles não são mais expostos diretamente via `expressHandler`.
-*   **[X] Implementar `gameSchemas.ts`**: Define os schemas de entrada e saída para os fluxos Genkit, garantindo clareza e validação dos dados.
-*   **[X] Endpoint de Teste (`/api/test-ai`)**: Foi criado um endpoint REST padrão, protegido por token, que chama o `testAiConnectionFlow` internamente. Isso permite ao frontend validar a conectividade com a API do Google através do backend de forma segura.
+3.  **[ ] Iniciar Interação com a IA (`POST /api/game-sessions/action`)**
+    *   **Requisição:** Com um token válido, enviar um corpo contendo `character` (objeto JSON), `playerAction` (string), e `gameLog` (array).
+    *   **Verificação:** Receber uma resposta `200 OK` com o `Content-Type` de `text/plain; charset=utf-8`. O corpo da resposta deve ser um stream de chunks JSON que chegam em tempo real, representando a narração do mestre de jogo.
 
-### Testes da Fase 2: Backend (Serviço de IA)
+## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
 
-1.  **[X] Preparar Dados de Teste**
-    *   **Como fazer:**
-        1.  No seu cliente de banco de dados, garanta que você tem um usuário com uma licença ativa e uma chave de API válida do Google AI Studio salva e criptografada.
-        2.  Realize o login via API (`/login`) para obter um token JWT válido para esse usuário.
-    *   **Ver se retorna:** Um token JWT.
+*   **[ ] Refatorar `AuthContext`**: Substituir toda a lógica de `localStorage` pela nova API REST de autenticação (`/api/auth/...`) e licença (`/api/licenses/...`).
+*   **[ ] Criar Tela de Seleção de Personagem**: Após o login, o usuário será direcionado para uma tela que buscará seus personagens via `GET /api/characters` e os exibirá em "slots".
+*   **[ ] Refatorar `GameStateContext`**:
+    *   O `useGameState` deve ser completamente reescrito para interagir com a API do backend.
+    *   A função `processPlayerAction` agora fará uma requisição `fetch` para `POST /api/game-sessions/action`.
+    *   O hook deverá ser capaz de consumir e processar o stream de resposta, atualizando o estado do jogo (log, personagem, etc.) a cada chunk recebido.
 
-2.  **[X] Testar o Endpoint `/api/test-ai` com uma Chave Válida**
-    *   **Como fazer:**
-        1.  Use `curl` ou uma ferramenta de API para enviar uma requisição `POST` para `http://localhost:8071/api/test-ai`.
-        2.  Inclua o cabeçalho `Authorization: Bearer <SEU_TOKEN_JWT>`.
-        3.  O corpo (body) da requisição deve ser um JSON contendo o `model` e `prompt`.
-    *   **Exemplo de `curl`:**
-        ```bash
-        curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer <SEU_TOKEN_JWT>" -d '{
-          "model": "gemini-1.5-pro-latest",
-          "prompt": "Diga olá em uma única palavra."
-        }' http://localhost:8071/api/test-ai
-        ```
-    *   **Ver se retorna:**
-        *   Uma resposta JSON bem-sucedida (status 200) com `{ "success": true, "response": "Olá" }` (ou similar).
+## Fase 4 — WebSocket e Modo Multiplayer (Futuro)
 
-3.  **[X] Testar o Endpoint com um Token Inválido/Ausente**
-    *   **Como fazer:** Envie a mesma requisição do teste anterior, mas sem o cabeçalho de autorização ou com um token inválido.
-    *   **Ver se retorna:** Uma resposta de erro (status 401 ou 403) indicando falha na autenticação.
-
-## Fase 3 — API de Personagens & Orquestrador de Jogo (Backend) (Em andamento)
-
-*   **[X] Criar Entidades de Dados com Soft Delete**:
-    *   Adicionar as colunas `is_active` (boolean, default `true`), `deleted_at` (timestamp, nullable) e colunas de tempo de jogo (`last_played_at`, `total_play_time_seconds`) às entidades `Character` e `GameSession`.
-    *   Toda operação de exclusão agora será um *soft delete*, atualizando `is_active` para `false` e preenchendo `deleted_at`.
-
-*   **[X] Implementar Endpoints REST para Personagens**:
-    *   Criado o middleware `authenticateToken` para proteger as rotas.
-    *   **`GET /api/characters`**: Retorna uma lista de todos os personagens *ativos* associados ao `userId` (obtido do token JWT). As informações retornadas são um resumo para preencher os "slots de save".
-    *   **`POST /api/characters/create`**: Recebe os dados de um novo personagem (saída do wizard de criação) e cria uma nova entrada `Character` no banco de dados associada ao `userId`.
-    *   **`DELETE /api/character/:id`**: Realiza um *soft delete* no personagem especificado. Garante que apenas o dono do personagem possa deletá-lo.
-
-*   **[X] Implementar Orquestrador do Jogo via API REST**:
-    *   **`POST /api/game/action`**: Este é o novo endpoint principal para o jogo.
-        *   É protegido pelo middleware `authenticateToken`.
-        *   Aceita `{ characterId, action, gameLog, combatState }`.
-        *   Carrega o `GameState` completo do personagem a partir do banco de dados (o `Character` e sua última `GameSession`).
-        *   Chama o `gameMasterFlow` (da Fase 2) internamente com o estado carregado e a chave de API do usuário.
-        *   Recebe a resposta da IA, processa as atualizações e salva um **novo** `GameSession`.
-        *   Atualiza as estatísticas do personagem (`last_played_at`).
-        *   Retorna o `GameMasterResponse` completo para o frontend.
-
-## Fase 4 — Frontend: Menu de Slots e Integração com API de Personagens
-
-*   **[ ] Remover Lógica de `localStorage`**: Substituir todas as chamadas a `localStorage` para salvar/carregar por chamadas à nova API REST.
-*   **[ ] Criar Tela de Seleção de Personagem**:
-    *   Ao logar, o usuário verá uma nova tela (estilo Zelda/Final Fantasy) que faz uma chamada a `GET /api/characters`.
-    *   Renderizar "slots" com os dados de cada personagem retornado.
-    *   Slots vazios terão um botão "Criar Novo".
-    *   Slots preenchidos exibirão informações (Nome, Nível, etc.) e botões para "Jogar" e "Apagar".
-    *   Implementar um botão "Continuar" principal que carrega o personagem com o `last_played_at` mais recente.
-
-*   **[ ] Integrar o Fluxo de Jogo**:
-    *   A ação "Jogar" em um slot de personagem levará o jogador à tela de jogo.
-    *   O `useGameState` do frontend será refatorado para usar o endpoint `POST /api/game/action` para cada ação do jogador, em vez de chamar o serviço Gemini diretamente.
-
-## Fase 5 — WebSocket server + protocolo de mensagens
-
-* Implementar WebSocket server (no mesmo processo Express ou processo separado):
-
-  * Autenticação na conexão (JWT e `characterId` na query string). Validar que `characterId` pertence ao user do token.
-  * Associar ws connection com `userId` e `characterId`.
-  * Mensagens esperadas do cliente: `playerAction`, `rollResult`, `resync`, `heartbeat`.
-  * Mensagens enviadas ao cliente: `startProcessing`, `logUpdate`, `playerRollRequest`, `characterUpdate`, `combatStateUpdate`, `fullResponse`, `error`, `stopProcessing`.
-* Processamento:
-
-  * Ao receber `playerAction`, orquestrador:
-
-    1. Acquire Redis lock `lock:character:{id}`.
-    2. Carrega `GameState` (cache Redis -> DB fallback).
-    3. Envia input ao AI flow (passando userId para obter user apiKey no flow).
-    4. Recebe stream (ou resposta completa) -> publica updates via WS ao cliente (e via Redis pub/sub para outras instâncias, se necessário).
-    5. Atualiza cache DB; release lock.
-* **Reconexão**: quando cliente reconecta, servidor revalida token e re-associa, então envia `fullState`.
-
-### Exemplo mínimo WebSocket (ws)
-
-```ts
-// webSocketServer.ts (esqueleto)
-import WebSocket from 'ws';
-import jwt from 'jsonwebtoken';
-import { handleGameAction } from '../services/newGameService';
-
-export function setupWebSocket(server: http.Server) {
-  const wss = new WebSocket.Server({ server, path: '/ws' });
-
-  wss.on('connection', (ws, req) => {
-    const params = new URLSearchParams(req.url?.split('?')[1]);
-    const token = params.get('token');
-    const characterId = params.get('characterId');
-
-    const payload = jwt.verify(token, process.env.JWT_SECRET) as any;
-    const userId = payload.userId;
-
-    ws.on('message', async (msg) => {
-      const data = JSON.parse(msg.toString());
-      if (data.type === 'playerAction') {
-         await handleGameAction(data.payload, userId, characterId, (update) => ws.send(JSON.stringify(update)));
-      }
-    });
-  });
-}
-```
-
-## Fase 6 — Hardening / produção
-
-* Mudar `synchronize: true` para usar migrations quando entrar em produção (recomendado, mas você pediu manter; se mantiver, documente riscos).
-* Políticas de rotação de secrets (env + vault).
-* Rate limits para uso da API do Google por usuário (evitar abuso).
-* Monitoramento (Prometheus + Grafana) e logging (ELK / Loki) para observar latência do AI e erros.
-* Autoscaling e Redis cluster se precisar escalar.
+*   **[ ] Implementar WebSocket Server**: Adicionar um servidor WebSocket ao processo do Express para comunicação em tempo real.
+*   **[ ] Implementar Lógica de Sala**: Criar mecanismos para que os jogadores criem, entrem e saiam de salas de jogo.
+*   **[ ] Sincronizar Estado do Jogo**: O servidor transmitirá todas as atualizações de estado (narração, ações de jogadores, mudanças em combate) para todos os clientes na mesma sala.
+*   **[ ] Adaptar o Fluxo de Turnos**: Modificar a interação com a IA para gerenciar múltiplos jogadores, possivelmente com um sistema de turnos.
 
 # Checklist final (executável)
 
 * [X] Criar repo backend TS e configurar lint/tsconfig.
-* [X] Configurar TypeORM e entidades.
-* [X] Implementar util crypto e testes.
-* [X] Implementar auth com registro/login/ativação de licença.
-* [X] Implementar gemini/ai server (genkit flows).
-* [X] Implementar gameService REST (sem WS) e testes.
+* [X] Configurar Sequelize e entidades (incluindo `LicenseKey`).
+* [X] Implementar todos os `controllers`.
+* [X] Implementar todos os `services`, incluindo `iaService` com streaming.
+* [X] Implementar `authMiddleware`.
+* [X] Configurar todas as rotas da API no `server.ts`.
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
-
-
-# Observações, mudanças...
