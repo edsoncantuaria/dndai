@@ -1,7 +1,9 @@
+
 import User from './User';
 import Character from './Character';
 import GameSession from './GameSession';
 import Log from './Log';
+import LicenseKey from './LicenseKey';
 
 // Definir associações entre os modelos
 User.hasMany(Character, { foreignKey: 'userId', as: 'characters' });
@@ -16,5 +18,10 @@ GameSession.belongsTo(Character, { foreignKey: 'characterId', as: 'character' })
 User.hasMany(Log, { foreignKey: 'userId', as: 'logs' });
 Log.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
+// Associação para a licença
+User.hasOne(LicenseKey, { foreignKey: 'userId', as: 'license' });
+LicenseKey.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
+
 // Exportar todos os modelos para fácil acesso
-export { User, Character, GameSession, Log };
+export { User, Character, GameSession, Log, LicenseKey };

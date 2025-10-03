@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -11,6 +12,7 @@ import characterRoutes from './routes/characterRoutes';
 import gameSessionRoutes from './routes/gameSessionRoutes';
 import logRoutes from './routes/logRoutes';
 import userRoutes from './routes/userRoutes';
+import licenseRoutes from './routes/licenseRoutes';
 
 // Carregar variáveis de ambiente do arquivo .env
 dotenv.config();
@@ -25,11 +27,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev')); // Middleware de logging
 
 // Rotas da API
-app.use('/auth', authRoutes);
-app.use('/users', userRoutes);
-app.use('/characters', characterRoutes);
-app.use('/game-sessions', gameSessionRoutes);
-app.use('/logs', logRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/characters', characterRoutes);
+app.use('/api/game-sessions', gameSessionRoutes);
+app.use('/api/logs', logRoutes);
+app.use('/api/licenses', licenseRoutes);
+
 
 // Rota de Teste
 app.get('/', (req, res) => {
