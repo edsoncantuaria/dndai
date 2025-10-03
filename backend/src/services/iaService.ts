@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
 import Character from '../models/Character';
 import { UserFacingError } from 'genkit';
-import { defineFlow, Flow } from 'genkit/flow';
+import { defineFlow, Flow } from 'genkit';
 
 // Schema para a entrada que o controller (cliente) enviará.
 const PlayerActionInputSchema = z.object({
@@ -73,22 +73,20 @@ export const gameMasterFlow: Flow<typeof PlayerActionInputSchema, typeof GameMas
     
     const prompt = createPrompt(character.stats, flowInput.playerAction, flowInput.gameLog || [], flowInput.combatState);
 
-    const { stream, response } = await ai.generateStream({
-      prompt: prompt,
-      model: googleAI.model('gemini-1.5-pro-latest'),
-      config: {
-        temperature: 0.8,
-      },
+    const { output } = await ai.generate({
+        prompt: prompt,
+        model: googleAI.model('gemini-1.5-pro-latest'),
+        config: {
+          temperature: 0.8,
+        },
+        stream: true,
+        onChunk: (chunk) => {
+            if(chunk.content) {
+                sendChunk(chunk.content);
+            }
+        },
     });
 
-    for await (const chunk of stream) {
-        if(chunk.content) {
-            // O expressHandler gerencia o envio do chunk para o cliente.
-            sendChunk(chunk.content);
-        }
-    }
-    
-    // Retorna a resposta final completa.
-    return await response;
+    return output;
   }
 );
