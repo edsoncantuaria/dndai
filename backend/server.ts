@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
 import 'reflect-metadata';
-import express, { Express } from 'express';
+import express, { Express, Request } from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
@@ -11,7 +11,7 @@ import { AppDataSource } from './src/config/data-source';
 import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
-import { gameMasterFlow, testAiConnectionFlow } from './src/services.old/geminiService';
+import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiService';
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
@@ -44,7 +44,7 @@ async function startServer() {
           '/api/game-master',
           expressHandler(gameMasterFlow, {
             contextProvider: async (req) => {
-              const { userId } = req.input;
+              const { userId } = req;
               if (!userId) {
                 throw new UserFacingError(
                   'INVALID_ARGUMENT',
@@ -67,23 +67,17 @@ async function startServer() {
         app.post(
             '/api/test-ai',
             expressHandler(testAiConnectionFlow, {
-              contextProvider: async (req) => {
-                const { userId } = req.input;
-                if (!userId) {
-                  throw new UserFacingError(
-                    'INVALID_ARGUMENT',
-                    'userId é obrigatório.'
-                  );
-                }
-                const apiKey = await getUserApiKey(userId);
-                if (!apiKey) {
-                  throw new UserFacingError(
-                    'UNAUTHENTICATED',
-                    'A chave de API do Google do usuário não foi encontrada ou é inválida.'
-                  );
-                }
-                return { apiKey };
-              },
+                contextProvider: async (req) => {
+                    const { userId } = req;
+                    if (!userId) {
+                        throw new UserFacingError('INVALID_ARGUMENT', 'userId é obrigatório.');
+                    }
+                    const apiKey = await getUserApiKey(userId);
+                    if (!apiKey) {
+                        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API do Google do usuário não foi encontrada ou é inválida.');
+                    }
+                    return { apiKey };
+                },
             })
         );
 

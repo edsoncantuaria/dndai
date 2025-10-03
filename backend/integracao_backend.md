@@ -25,7 +25,6 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
   /src
     /entities          (TypeORM entities)
     /services
-      authService.ts
       gameService.ts        <-- orchestrador / load + save + WS handler
       geminiService.ts      <-- inicializa genkit/flows (or separate aiServer)
       redisService.ts
@@ -114,12 +113,12 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
 
 ### Testes da Fase 2: Backend (Serviço de IA)
 
-1.  **[X] Preparar Dados de Teste**
+1.  **[ ] Preparar Dados de Teste**
     *   **Como fazer:**
         1.  No seu cliente de banco de dados, garanta que você tem um usuário com uma licença ativa e uma chave de API válida do Google AI Studio salva e criptografada (você já fez isso na Fase 1). Anote o `userId` desse usuário.
     *   **Ver se retorna:** Confirme que o registro do usuário no DB possui um valor no campo `google_api_key_encrypted`.
 
-2.  **[X] Testar o Endpoint `/api/game-master` com uma Ação Válida**
+2.  **[ ] Testar o Endpoint `/api/game-master` com uma Ação Válida**
     *   **Como fazer:**
         1.  Use `curl` ou uma ferramenta de API para enviar uma requisição `POST` para `http://localhost:8071/api/game-master`.
         2.  O corpo (body) da requisição deve ser um JSON contendo `userId` e os outros dados do `GameMasterFlowInput`. Substitua `<SEU_USER_ID>` pelo ID do seu usuário de teste.
@@ -137,7 +136,7 @@ Esta seção descreve os testes manuais para garantir que a Fase 1 foi implement
         *   Uma resposta JSON bem-sucedida (status 200).
         *   O JSON retornado deve ser um objeto `GameMasterResponse` válido, contendo, no mínimo, uma `logEntries` com a narração inicial da aventura e um `actionOptions` com as próximas escolhas para o jogador.
 
-3.  **[X] Testar o Endpoint com um `userId` Inválido**
+3.  **[ ] Testar o Endpoint com um `userId` Inválido**
     *   **Como fazer:** Envie a mesma requisição do teste anterior, mas use um `userId` que não existe no banco de dados (ex: 999).
     *   **Ver se retorna:** Uma resposta de erro (como `UNAUTHENTICATED`) e uma mensagem indicando que "A chave de API do Google do usuário não foi encontrada ou é inválida".
 
@@ -249,4 +248,3 @@ export function setupWebSocket(server: http.Server) {
 # Observações, mudanças...
 
 
-```
