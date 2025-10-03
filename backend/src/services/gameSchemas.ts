@@ -201,7 +201,8 @@ export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
-  combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active.")
+  combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active."),
+  apiKey: z.string(), // API key is now part of the input schema
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
@@ -211,5 +212,5 @@ export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
 export const TestAiInputSchema = z.object({
     model: z.string(),
     prompt: z.string(),
-    apiKey: z.string(), // API key is now passed directly
+    apiKey: z.string(), // API key is now part of the input schema
 });

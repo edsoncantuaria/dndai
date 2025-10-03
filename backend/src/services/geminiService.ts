@@ -10,6 +10,8 @@ import { GameMasterResponseSchema, GameMasterFlowInputSchema, TestAiInputSchema 
 import { promptDnD5e } from '../game/promptDnD5e';
 import { ai } from '../config/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { UserFacingError } from 'genkit';
+
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -17,11 +19,12 @@ import { googleAI } from '@genkit-ai/google-genai';
  * @returns A formatted string containing the full context for the AI.
  */
 const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string => {
-    const { character, playerAction, gameLog, combatState } = input;
+    // Exclui a apiKey do objeto que será enviado para o prompt.
+    const { apiKey, ...gameContext } = input;
     
-    const characterContext = JSON.stringify(character, null, 2);
-    const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
-    const combatContextValue = combatState && combatState.isActive ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
+    const characterContext = JSON.stringify(gameContext.character, null, 2);
+    const logContext = JSON.stringify(gameContext.gameLog.slice(-15), null, 2);
+    const combatContextValue = gameContext.combatState && gameContext.combatState.isActive ? JSON.stringify(gameContext.combatState, null, 2) : "Nenhum combate ativo.";
   
     return `### Estado Atual do Personagem (JSON)
   ${characterContext}
@@ -32,7 +35,7 @@ const createPrompt = (input: z.infer<typeof GameMasterFlowInputSchema>): string 
   ### Últimos Eventos do Jogo (JSON)
   ${logContext}
   
-  A ação do jogador é: "${playerAction}"
+  A ação do jogador é: "${gameContext.playerAction}"
   
   Com base no estado atual do personagem, do combate e no histórico, continue a aventura. 
   Sempre retorne um objeto JSON válido seguindo o GameMasterResponseSchema.`;
@@ -46,9 +49,12 @@ export const gameMasterFlow = ai.defineFlow(
       outputSchema: GameMasterResponseSchema,
     },
     async (flowInput) => {
+      
+      if (!flowInput.apiKey) {
+        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
+      }
         
-      // A chave da API agora é passada diretamente ao plugin em vez de para `ai.generate`
-      const model = googleAI('gemini-1.5-pro-latest');
+      const model = googleAI('gemini-1.5-pro-latest', { apiKey: flowInput.apiKey });
       
       const response = await ai.generate({
         model,
@@ -76,7 +82,10 @@ export const testAiConnectionFlow = ai.defineFlow(
       outputSchema: z.string(),
     },
     async ({ model, prompt, apiKey }) => {
-      // Aqui, o plugin é configurado dinamicamente com a chave para o teste
+      if (!apiKey) {
+        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
+      }
+        
       const aiModel = googleAI(model as any, { apiKey });
       
       const response = await ai.generate({

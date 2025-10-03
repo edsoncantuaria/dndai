@@ -43,13 +43,14 @@ export function setupGameRoutes(app: Express) {
                 character: character.characterData,
                 playerAction: action,
                 gameLog: gameLog || [],
-                combatState: combatState || { isActive: false }
+                combatState: combatState || { isActive: false },
+                apiKey: apiKey, // Adiciona a chave de API diretamente ao input
             };
 
             // 4. Executar o fluxo da IA
-            const response = await gameMasterFlow(flowInput, { auth: { apiKey } });
+            const response = await gameMasterFlow(flowInput);
 
-            // 5. Processar e salvar o novo estado (Exemplo simples, pode ser mais complexo)
+            // 5. Processar e salvar o novo estado
             if (response.updatedCharacter) {
                 character.characterData = { ...character.characterData as object, ...response.updatedCharacter };
                 character.last_played_at = new Date();
@@ -57,11 +58,10 @@ export function setupGameRoutes(app: Express) {
                 await characterRepository.save(character);
             }
             
-            // Criar uma nova sessão de jogo com o log
             const sessionRepository = AppDataSource.getRepository(GameSession);
             const newGameSession = sessionRepository.create({
                 character: character,
-                gameState: { log: response.logEntries, combatState: response.combatState }, // Salva o log e o estado de combate
+                gameState: { log: response.logEntries, combatState: response.combatState },
             });
             await sessionRepository.save(newGameSession);
 
@@ -75,7 +75,7 @@ export function setupGameRoutes(app: Express) {
         }
     });
 
-    // Rota de teste da IA (opcional, mas útil)
+    // Rota de teste da IA
     app.post('/api/test-ai', authenticateToken, async (req: Request, res: Response) => {
         const userId = (req as any).user.userId;
         const { model, prompt } = req.body;
