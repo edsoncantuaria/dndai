@@ -61,7 +61,10 @@ export const processPlayerAction = async (req: AuthenticatedRequest, res: Respon
         const flowInput = playerActionSchema.parse(req.body);
 
         // Chamar o fluxo de IA com os dados da requisição
-        const response = await streamFlow(gameMasterFlow, flowInput);
+        const response = await streamFlow({
+          flow: gameMasterFlow,
+          input: flowInput,
+        });
 
         res.setHeader('Content-Type', 'application/json');
         res.writeHead(200);
