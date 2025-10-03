@@ -197,6 +197,7 @@ export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
 // Schema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
+  userId: z.number(), // Adicionado para que o contextProvider possa encontrá-lo
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
