@@ -15,6 +15,8 @@ import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiServi
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
+import { GameMasterFlowInput } from './src/services/gameSchemas';
+
 
 const app: Express = express();
 const server = http.createServer(app);
@@ -41,7 +43,7 @@ async function startServer() {
           '/api/game-master',
           expressHandler(gameMasterFlow, {
             contextProvider: async (req) => {
-              const { userId } = req.input;
+              const { userId } = req.input as unknown as GameMasterFlowInput;
               if (!userId) {
                 throw new UserFacingError(
                   'INVALID_ARGUMENT',
@@ -65,7 +67,7 @@ async function startServer() {
             '/api/test-ai',
             expressHandler(testAiConnectionFlow, {
               contextProvider: async (req) => {
-                const { userId } = req.input;
+                const { userId } = req.input as unknown as GameMasterFlowInput;
                 if (!userId) {
                   throw new UserFacingError(
                     'INVALID_ARGUMENT',
