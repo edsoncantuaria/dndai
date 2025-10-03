@@ -176,7 +176,7 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
   ```
 - **Resposta Esperada**:
   - **Status**: `201 Created`
-  - **Corpo**: Um objeto JSON representando o personagem criado, incluindo `id`, `userId`, `name`, `level` e `stats`.
+  - **Corpo**: Um objeto JSON representando o personagem criado, incluindo `id`, `userId`, `name`, `level` e `stats`. **Guarde a `id` do personagem para o próximo teste.**
 
 #### 2. Listar Personagens
 - **Endpoint**: `GET /api/characters`
@@ -191,23 +191,23 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 
 #### 3. Interagir com a IA (Streaming)
 - **Endpoint**: `POST /api/game-sessions/action`
-- **Ação**: Enviar um objeto de personagem completo e uma ação para a IA.
+- **Ação**: Enviar a `characterId` do personagem criado e uma ação para a IA.
 - **Exemplo com `curl` (com a flag `-N` para não bufferizar a saída)**:
   ```bash
-  # Substitua <seu_jwt_aqui>
+  # Substitua <seu_jwt_aqui> e <id_personagem_aqui>
   curl -X POST -N http://localhost:8071/api/game-sessions/action \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <seu_jwt_aqui>" \
   -d '{
-    "character": { "name": "Aragorn", "level": 1, "hp": 10 },
+    "characterId": <id_personagem_aqui>,
     "playerAction": "Eu olho ao redor da taverna.",
     "gameLog": []
   }'
   ```
 - **Resposta Esperada**:
   - **Status**: `200 OK`
-  - **Headers**: `Content-Type: text/plain; charset=utf-8`
-  - **Corpo**: Um fluxo contínuo de texto. Cada pedaço (`chunk`) que chega será uma parte da narração da IA, que deve ser processado em tempo real pelo frontend.
+  - **Headers**: `Content-Type: application/json; charset=utf-8`
+  - **Corpo**: Um fluxo contínuo de objetos JSON. Cada pedaço (`chunk`) que chega será uma parte da narração da IA, que deve ser processado em tempo real pelo frontend.
 
 ## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
 
