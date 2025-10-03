@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -101,7 +102,7 @@ const INITIAL_COMBAT_STATE: CombatState = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 export const useNewGameState = () => {
-    const { user } = useAuth();
+    const { user, apiKey } = useAuth(); // Use API key from AuthContext
     const getLocalStorageKey = useCallback(() => `${LOCAL_STORAGE_KEY_PREFIX}${user?.id}`, [user]);
     
     const [character, setCharacter] = useState<Character | null>(null);
@@ -119,11 +120,11 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    const { apiKey: settingsApiKey } = useSettingsContext();
+    const { imageModel } = useSettingsContext();
 
     const getApiKey = useCallback(() => {
-        return settingsApiKey;
-    }, [settingsApiKey]);
+        return apiKey;
+    }, [apiKey]);
 
     const clearApiError = useCallback(() => setApiError(null), []);
 
@@ -199,7 +200,7 @@ export const useNewGameState = () => {
 
             const response = await fetch(`${API_URL}/api/game-master`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: JSON.stringify(gameUpdateInput),
             });
       
@@ -368,7 +369,7 @@ export const useNewGameState = () => {
             
             const response = await fetch(`${API_URL}/api/game-master`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
                 body: JSON.stringify(gameUpdateInput),
             });
 

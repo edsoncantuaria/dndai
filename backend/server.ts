@@ -16,6 +16,17 @@ import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiServi
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
+import { configureGenkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+
+
+// Initialize Genkit with the Google AI plugin, but without a global API key.
+// The API key will be provided dynamically for each request via the contextProvider.
+configureGenkit({
+  plugins: [googleAI()],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});
 
 
 const app: Express = express();
@@ -24,8 +35,8 @@ const wss = new WebSocketServer({ server });
 
 // Middlewares
 app.use(cors());
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true, limit: '5mb' }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Setup Inicial
 async function startServer() {
@@ -44,7 +55,7 @@ async function startServer() {
             '/api/game-master',
             expressHandler(gameMasterFlow, {
                 contextProvider: async (req) => {
-                    const { userId } = req.input;
+                    const { userId } = req.input; // Correctly access userId from the input
                     if (!userId) {
                         throw new UserFacingError(
                             'INVALID_ARGUMENT',
@@ -68,7 +79,7 @@ async function startServer() {
             '/api/test-ai',
             expressHandler(testAiConnectionFlow, {
                 contextProvider: async (req) => {
-                    const { userId } = req.input;
+                    const { userId } = req.input; // Correctly access userId from the input
                     if (!userId) {
                         throw new UserFacingError('INVALID_ARGUMENT', 'userId é obrigatório.');
                     }
@@ -76,7 +87,10 @@ async function startServer() {
                     if (!apiKey) {
                         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API do Google do usuário não foi encontrada ou é inválida.');
                     }
-                    return { apiKey };
+                    // This dynamically configures the googleAI plugin for this specific flow execution
+                    return {
+                        plugins: [googleAI({ apiKey })],
+                    };
                 },
             })
         );

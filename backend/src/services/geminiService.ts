@@ -7,12 +7,12 @@
  * It dynamically uses the user's stored Google API key for each call.
  */
 import { z } from 'zod';
-import { GameMasterResponseSchema, GameMasterFlowInputSchema } from './gameSchemas';
+import { GameMasterResponseSchema, GameMasterFlowInputSchema, TestAiInputSchema } from './gameSchemas';
 import { promptDnD5e } from '../game/promptDnD5e';
 import { ai } from '../config/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { UserFacingError } from 'genkit';
-import { ActionContext } from 'genkit/context';
+import { ActionContext, UserFacingError } from 'genkit';
+
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -48,13 +48,9 @@ export const gameMasterFlow = ai.defineFlow(
       inputSchema: GameMasterFlowInputSchema,
       outputSchema: GameMasterResponseSchema,
     },
-    async (flowInput, context) => {
-      const apiKey = (context as ActionContext & {apiKey: string})?.apiKey;
-      if (!apiKey) {
-        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
-      }
-      
-      const model = googleAI('gemini-1.5-pro-latest', { apiKey });
+    async (flowInput) => {
+        
+      const model = googleAI('gemini-1.5-pro-latest');
       
       const response = await ai.generate({
         model,
@@ -74,14 +70,6 @@ export const gameMasterFlow = ai.defineFlow(
     }
   );
 
-
-// Schema para o input do flow de teste
-const TestAiInputSchema = z.object({
-    userId: z.number(),
-    model: z.string(),
-    prompt: z.string(),
-});
-
 // New flow for testing AI connection
 export const testAiConnectionFlow = ai.defineFlow(
     {
@@ -89,13 +77,8 @@ export const testAiConnectionFlow = ai.defineFlow(
       inputSchema: TestAiInputSchema, 
       outputSchema: z.string(),
     },
-    async ({model, prompt}, context) => {
-      const apiKey = (context as ActionContext & {apiKey: string})?.apiKey;
-      if (!apiKey) {
-          throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
-      }
-      
-      const aiModel = googleAI(model, { apiKey });
+    async ({model, prompt}) => {
+      const aiModel = googleAI(model as any);
       
       const response = await ai.generate({
         model: aiModel,

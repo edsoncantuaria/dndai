@@ -1,3 +1,4 @@
+
 // src/services/systemService.ts
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
@@ -17,8 +18,8 @@ export const testAiConnection = async (userId: number, model: string): Promise<s
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({ 
-                userId,
-                model,
+                userId: userId,
+                model: model,
                 prompt: "Diga olá em uma única palavra."
             }),
         });
