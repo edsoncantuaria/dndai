@@ -4,7 +4,8 @@ import { ai } from '../config/genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
 import Character from '../models/Character';
-import { UserFacingError } from 'genkit/index';
+import { UserFacingError } from 'genkit';
+import { defineFlow, Flow } from 'genkit/flow';
 
 // Schema para a entrada que o controller (cliente) enviará.
 const PlayerActionInputSchema = z.object({
@@ -15,7 +16,7 @@ const PlayerActionInputSchema = z.object({
 });
 
 
-// Schema para a saída do fluxo (embora o streaming envie pedaços, o resultado final pode ser validado)
+// Schema para a saída do fluxo
 const GameMasterOutputSchema = z.any();
 
 /**
@@ -50,7 +51,7 @@ const createPrompt = (character: any, playerAction: string, gameLog: any[], comb
 };
 
 
-export const gameMasterFlow = ai.defineFlow(
+export const gameMasterFlow: Flow<typeof PlayerActionInputSchema, typeof GameMasterOutputSchema> = defineFlow(
   {
     name: 'gameMasterFlow',
     inputSchema: PlayerActionInputSchema,
@@ -58,7 +59,8 @@ export const gameMasterFlow = ai.defineFlow(
   },
   async (flowInput, { sendChunk, context }) => {
     
-    const userId = (context as any).auth?.userId;
+    // Acessa o userId diretamente do contexto populado pelo authContext
+    const userId = context.auth?.userId;
     if (!userId) {
       throw new UserFacingError("Autenticação necessária para executar esta ação.");
     }
@@ -86,6 +88,7 @@ export const gameMasterFlow = ai.defineFlow(
         }
     }
     
+    // Retorna a resposta final completa.
     return await response;
   }
 );

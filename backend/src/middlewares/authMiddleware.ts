@@ -1,7 +1,44 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { setRequestMetadata } from 'genkit/context';
+import { ContextProvider, RequestData } from 'genkit/context';
+import { UserFacingError } from 'genkit';
+
+
+// Define um tipo para o nosso contexto de autenticação personalizado
+interface CustomAuthContext {
+  auth?: {
+    userId: number;
+  };
+}
+
+// Cria um provedor de contexto para o Genkit
+export const authContext: ContextProvider<CustomAuthContext> = async (req: RequestData) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    // Embora o authenticateToken já bloqueie, é uma boa prática ser explícito aqui.
+    throw new UserFacingError('UNAUTHENTICATED', 'Token não fornecido no contexto do Genkit.');
+  }
+
+  const secret = process.env.SECRET_KEY;
+  if (!secret) {
+    throw new Error('Chave secreta JWT não configurada no servidor.');
+  }
+
+  try {
+    const decoded: any = jwt.verify(token, secret);
+    return {
+      auth: {
+        userId: decoded.id,
+      },
+    };
+  } catch (err) {
+    throw new UserFacingError('UNAUTHENTICATED', 'Token inválido ou expirado no contexto do Genkit.');
+  }
+};
+
 
 // Estendendo a interface Request do Express para incluir o usuário
 export interface AuthenticatedRequest extends Request {
@@ -10,7 +47,7 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-// Middleware para autenticar o token JWT e configurar o contexto para o Genkit
+// Middleware para autenticar o token JWT e proteger as rotas
 export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Formato "Bearer TOKEN"
@@ -32,33 +69,6 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
         
         req.user = user as { id: number };
 
-        // Adiciona o userId ao contexto da requisição para o Genkit usar
-        setRequestMetadata({ auth: { userId: user.id } });
-        
         next();
     });
-};
-
-
-// Este middleware é para passar o contexto de autenticação para o Genkit
-// mesmo em rotas não protegidas, se o token existir.
-export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token) {
-    const secret = process.env.SECRET_KEY;
-    if (secret) {
-      jwt.verify(token, secret, (err: any, user: any) => {
-        if (user) {
-          setRequestMetadata({ auth: { userId: user.id }, source: 'authMiddleware' });
-        }
-        next();
-      });
-    } else {
-        next();
-    }
-  } else {
-    next();
-  }
 };
