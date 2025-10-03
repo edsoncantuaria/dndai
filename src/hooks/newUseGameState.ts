@@ -171,7 +171,7 @@ export const useNewGameState = () => {
         if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [combatState.isActive, getApiKey]);
+    }, [combatState.isActive]);
 
     const processPlayerAction = useCallback(async (action: string) => {
         if (!character || !user) return;
@@ -191,14 +191,13 @@ export const useNewGameState = () => {
         
         try {
              const gameUpdateInput = {
-                userId: user.id,
-                character,
-                playerAction: action,
+                characterId: (character as any).id,
+                action,
                 gameLog: currentLog,
                 combatState,
             };
 
-            const response = await fetch(`${API_URL}/api/game-master`, {
+            const response = await fetch(`${API_URL}/api/game/action`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
               body: JSON.stringify(gameUpdateInput),
@@ -336,16 +335,27 @@ export const useNewGameState = () => {
         setIsLoading(true);
         const localStorageKey = getLocalStorageKey();
         localStorage.removeItem(localStorageKey);
-        setCharacter(null);
-        setLog([]); 
-        setActionOptions([]);
-        setApiError(null);
-        setAmbientSound('none');
         
-        const newCharacter = await characterUtils.initializeNewCharacter(info);
-        
-        setCharacter(newCharacter);
-        setIsLoading(false);
+        try {
+            const response = await fetch(`${API_URL}/api/characters/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: JSON.stringify(info)
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Falha ao criar personagem no servidor.');
+            }
+
+            const newCharacter = await characterUtils.initializeNewCharacter(info);
+            (newCharacter as any).id = data.characterId; // Adiciona o ID retornado pelo backend
+            setCharacter(newCharacter);
+            
+        } catch(error: any) {
+            setApiError(error.message);
+        } finally {
+            setIsLoading(false);
+        }
     }, [getLocalStorageKey]);
 
     const startGame = useCallback(async (): Promise<boolean> => {
@@ -356,30 +366,7 @@ export const useNewGameState = () => {
         setApiError(null);
         
         try {
-            if (!user) {
-                throw new Error("Usuário não autenticado.");
-            }
-            const gameUpdateInput = {
-                userId: user.id,
-                character,
-                playerAction: "A aventura começa. Onde eu estou e o que está acontecendo?",
-                gameLog: [],
-                combatState
-            };
-            
-            const response = await fetch(`${API_URL}/api/game-master`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-                body: JSON.stringify(gameUpdateInput),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || `O servidor respondeu com o status ${response.status}`);
-            }
-
-            const responseData = await response.json();
-            handleApiResponse(responseData);
+            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
             return true;
         } catch (error: any) {
              console.error("Erro ao iniciar o jogo:", error);
@@ -390,7 +377,7 @@ export const useNewGameState = () => {
             setIsLoading(false);
         }
         
-    }, [character, log.length, isLoading, combatState, user, handleApiResponse]);
+    }, [character, log.length, isLoading, processPlayerAction]);
     
     const checkForSavedGame = useCallback(() => {
         try {

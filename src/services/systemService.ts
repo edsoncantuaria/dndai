@@ -5,34 +5,35 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+        throw new Error("Token de autenticação não encontrado.");
     }
-    return headers;
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
 }
 
-export const testAiConnection = async (userId: number, model: string): Promise<string> => {
+export const testAiConnection = async (model: string): Promise<string> => {
     try {
         const response = await fetch(`${API_URL}/api/test-ai`, {
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                userId: userId,
+            body: JSON.stringify({
                 model: model,
                 prompt: "Diga olá em uma única palavra."
             }),
         });
 
+        const result = await response.json();
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Falha na comunicação com o servidor de IA.');
+            throw new Error(result.message || 'Falha na comunicação com o servidor de IA.');
         }
 
-        const result = await response.json();
-        return result || "A IA respondeu, mas sem conteúdo.";
+        return result.response || "A IA respondeu, mas sem conteúdo.";
     } catch (error: any) {
         console.error("Erro ao testar a conexão com a IA:", error);
-        throw error; // Re-throw para ser tratado pelo UI
+        throw error;
     }
 };

@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 export interface LoginCredentials {
     login: string;

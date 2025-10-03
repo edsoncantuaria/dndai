@@ -12,16 +12,13 @@ import { setupAuthRoutes } from './src/routes/auth';
 import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
 import { setupCharacterRoutes } from './src/routes/characters';
-import { gameMasterFlow, testAiConnectionFlow } from './src/services/geminiService';
-import { expressHandler } from '@genkit-ai/express';
-import { UserFacingError } from 'genkit';
-import { getUserApiKey } from './src/utils/user-service';
+import { setupGameRoutes } from './src/routes/game'; // Rota nova
 import { configureGenkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
 
-// Initialize Genkit with the Google AI plugin, but without a global API key.
-// The API key will be provided dynamically for each request via the contextProvider.
+// Initialize Genkit with the Google AI plugin.
+// A chave de API será fornecida dinamicamente para cada chamada dentro do serviço.
 configureGenkit({
   plugins: [googleAI()],
   logLevel: 'debug',
@@ -49,51 +46,7 @@ async function startServer() {
         setupLicenseRoutes(app);
         setupUserRoutes(app);
         setupCharacterRoutes(app);
-
-        // Endpoint para o Game Master Flow do Genkit
-        app.post(
-            '/api/game-master',
-            expressHandler(gameMasterFlow, {
-                contextProvider: async (req) => {
-                    const { userId } = req.input; // Correctly access userId from the input
-                    if (!userId) {
-                        throw new UserFacingError(
-                            'INVALID_ARGUMENT',
-                            'userId é obrigatório.'
-                        );
-                    }
-                    const apiKey = await getUserApiKey(userId);
-                    if (!apiKey) {
-                        throw new UserFacingError(
-                            'UNAUTHENTICATED',
-                            'A chave de API do Google do usuário não foi encontrada ou é inválida.'
-                        );
-                    }
-                    return { apiKey };
-                },
-            })
-        );
-        
-        // Endpoint para Teste da IA
-        app.post(
-            '/api/test-ai',
-            expressHandler(testAiConnectionFlow, {
-                contextProvider: async (req) => {
-                    const { userId } = req.input; // Correctly access userId from the input
-                    if (!userId) {
-                        throw new UserFacingError('INVALID_ARGUMENT', 'userId é obrigatório.');
-                    }
-                    const apiKey = await getUserApiKey(userId);
-                    if (!apiKey) {
-                        throw new UserFacingError('UNAUTHENTICATED', 'A chave de API do Google do usuário não foi encontrada ou é inválida.');
-                    }
-                    // This dynamically configures the googleAI plugin for this specific flow execution
-                    return {
-                        plugins: [googleAI({ apiKey })],
-                    };
-                },
-            })
-        );
+        setupGameRoutes(app); // Rota de jogo adicionada
 
         // Configuração do WebSocket
         wss.on('connection', ws => {

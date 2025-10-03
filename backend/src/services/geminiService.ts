@@ -4,15 +4,12 @@
  * @fileOverview Gemini Service for the Game Master AI.
  * This service defines the Genkit flow that acts as the game master,
  * processing player actions and generating game state updates.
- * It dynamically uses the user's stored Google API key for each call.
  */
 import { z } from 'zod';
 import { GameMasterResponseSchema, GameMasterFlowInputSchema, TestAiInputSchema } from './gameSchemas';
 import { promptDnD5e } from '../game/promptDnD5e';
 import { ai } from '../config/genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { ActionContext, UserFacingError } from 'genkit';
-
 
 /**
  * Creates the detailed prompt to be sent to the Gemini model.
@@ -50,6 +47,7 @@ export const gameMasterFlow = ai.defineFlow(
     },
     async (flowInput) => {
         
+      // A chave da API agora é passada diretamente ao plugin em vez de para `ai.generate`
       const model = googleAI('gemini-1.5-pro-latest');
       
       const response = await ai.generate({
@@ -77,8 +75,9 @@ export const testAiConnectionFlow = ai.defineFlow(
       inputSchema: TestAiInputSchema, 
       outputSchema: z.string(),
     },
-    async ({model, prompt}) => {
-      const aiModel = googleAI(model as any);
+    async ({ model, prompt, apiKey }) => {
+      // Aqui, o plugin é configurado dinamicamente com a chave para o teste
+      const aiModel = googleAI(model as any, { apiKey });
       
       const response = await ai.generate({
         model: aiModel,
@@ -91,4 +90,4 @@ export const testAiConnectionFlow = ai.defineFlow(
       }
       return outputText;
     }
-  );
+);

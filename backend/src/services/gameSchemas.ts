@@ -198,7 +198,6 @@ export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
 // Schema for the data we send to the AI.
 export const GameMasterFlowInputSchema = z.object({
-  userId: z.number(),
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
@@ -210,7 +209,7 @@ export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
 
 // Schema for the AI connection test flow input
 export const TestAiInputSchema = z.object({
-    userId: z.number(),
     model: z.string(),
     prompt: z.string(),
+    apiKey: z.string(), // API key is now passed directly
 });
