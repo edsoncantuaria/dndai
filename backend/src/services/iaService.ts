@@ -50,10 +50,9 @@ const createPrompt = (input: z.infer<typeof GameMasterInputSchema>): string => {
     `;
 };
 
-// Flow<[Flow's input type], [Flow's output type], [Flow's streaming type]>
+// Flow<[Flow's input type], [Flow's output type]>
 export const gameMasterFlow: Flow<
   typeof GameMasterInputSchema,
-  any,
   any
 > = defineFlow(
   {
