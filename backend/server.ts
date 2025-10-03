@@ -42,7 +42,7 @@ async function startServer() {
             gameMasterFlow,
             {
               contextProvider: async (req) => {
-                const { userId } = req;
+                const { userId } = req.input;
                 if (!userId) {
                   throw new UserFacingError(
                     'INVALID_ARGUMENT',
@@ -69,7 +69,7 @@ async function startServer() {
                 testAiConnectionFlow,
                 {
                     contextProvider: async (req) => {
-                        const { userId } = req;
+                        const { userId } = req.input;
                          if (!userId) {
                             throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
                         }
