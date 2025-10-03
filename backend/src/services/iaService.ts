@@ -3,7 +3,6 @@
 import { ai } from '../config/genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
-import { defineFlow, type Flow } from 'genkit';
 
 // Definição do schema de entrada para o fluxo do mestre do jogo
 const GameMasterInputSchema = z.object({
@@ -17,6 +16,7 @@ const GameMasterInputSchema = z.object({
 const GameMasterOutputSchema = z.any();
 
 type GameMasterFlowInput = z.infer<typeof GameMasterInputSchema>;
+
 
 /**
  * Cria o prompt detalhado para ser enviado ao modelo Gemini.
@@ -52,17 +52,14 @@ const createPrompt = (input: GameMasterFlowInput): string => {
     `;
 };
 
-// Tipo explícito para o callback de streaming
-type StreamingCallback = (chunk: any) => void;
 
-// O fluxo agora aceita um segundo parâmetro, que é a função de streaming.
-export const gameMasterFlow: Flow<[GameMasterFlowInput, StreamingCallback?], any> = defineFlow(
+export const gameMasterFlow = ai.defineFlow(
   {
     name: 'gameMasterFlow',
     inputSchema: GameMasterInputSchema,
     outputSchema: GameMasterOutputSchema,
   },
-  async (flowInput, streamingCallback) => {
+  async (flowInput, { sendChunk }) => {
     const prompt = createPrompt(flowInput);
 
     const { stream, response } = await ai.generateStream({
@@ -74,11 +71,11 @@ export const gameMasterFlow: Flow<[GameMasterFlowInput, StreamingCallback?], any
     });
 
     for await (const chunk of stream) {
-      if (streamingCallback && chunk.content) {
-        streamingCallback(chunk.content);
-      }
+        if(chunk.content) {
+            sendChunk(chunk.content);
+        }
     }
-
+    
     return await response;
   }
 );
