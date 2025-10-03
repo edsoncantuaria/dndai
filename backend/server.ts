@@ -13,17 +13,6 @@ import { setupLicenseRoutes } from './src/routes/license';
 import { setupUserRoutes } from './src/routes/user';
 import { setupCharacterRoutes } from './src/routes/characters';
 import { setupGameRoutes } from './src/routes/game'; // Rota nova
-import { configureGenkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
-
-
-// Initialize Genkit with the Google AI plugin.
-// A chave de API será fornecida dinamicamente para cada chamada dentro do serviço.
-configureGenkit({
-  plugins: [googleAI()],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
-});
 
 
 const app: Express = express();
