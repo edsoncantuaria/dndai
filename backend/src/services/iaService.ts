@@ -16,12 +16,14 @@ const GameMasterInputSchema = z.object({
 // Definição do schema de saída (usamos z.any() para o streaming)
 const GameMasterOutputSchema = z.any();
 
+type GameMasterFlowInput = z.infer<typeof GameMasterInputSchema>;
+
 /**
  * Cria o prompt detalhado para ser enviado ao modelo Gemini.
  * @param input O estado do jogo e a ação do jogador.
  * @returns Uma string formatada contendo o contexto completo para a IA.
  */
-const createPrompt = (input: z.infer<typeof GameMasterInputSchema>): string => {
+const createPrompt = (input: GameMasterFlowInput): string => {
     const { character, playerAction, gameLog, combatState } = input;
     const characterContext = JSON.stringify(character, null, 2);
     const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
@@ -50,17 +52,17 @@ const createPrompt = (input: z.infer<typeof GameMasterInputSchema>): string => {
     `;
 };
 
-// Flow<[Flow's input type], [Flow's output type]>
-export const gameMasterFlow: Flow<
-  typeof GameMasterInputSchema,
-  any
-> = defineFlow(
+// Tipo explícito para o callback de streaming
+type StreamingCallback = (chunk: any) => void;
+
+// O fluxo agora aceita um segundo parâmetro, que é a função de streaming.
+export const gameMasterFlow: Flow<[GameMasterFlowInput, StreamingCallback?], any> = defineFlow(
   {
     name: 'gameMasterFlow',
     inputSchema: GameMasterInputSchema,
     outputSchema: GameMasterOutputSchema,
   },
-  async (flowInput, { sendChunk }) => {
+  async (flowInput, streamingCallback) => {
     const prompt = createPrompt(flowInput);
 
     const { stream, response } = await ai.generateStream({
@@ -72,7 +74,9 @@ export const gameMasterFlow: Flow<
     });
 
     for await (const chunk of stream) {
-        sendChunk(chunk.content);
+      if (streamingCallback && chunk.content) {
+        streamingCallback(chunk.content);
+      }
     }
 
     return await response;
