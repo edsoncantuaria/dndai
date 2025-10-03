@@ -61,32 +61,89 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) para garantir que a Fase 1 foi implementada corretamente.
 
-1.  **[ ] Tentar Registrar um Novo Usuário (`POST /api/auth/register`)**
-    *   **Requisição:** Enviar `username`, `email` e `password`.
-    *   **Verificação:** Receber uma resposta `201 Created` com a mensagem de sucesso. Verificar no banco de dados se o usuário foi criado com a senha hasheada.
+#### 1. Registrar um Novo Usuário
+- **Endpoint**: `POST /api/auth/register`
+- **Ação**: Enviar um JSON com `username`, `email` e `password`.
+- **Exemplo com `curl`**:
+  ```bash
+  curl -X POST http://localhost:8071/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "tester",
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+  ```
+- **Resposta Esperada (Sucesso)**:
+  - **Status**: `201 Created`
+  - **Corpo**: `{ "message": "Usuário registrado com sucesso!", "userId": <id_do_usuario> }`
 
-2.  **[ ] Tentar Registrar com Dados Inválidos**
-    *   **Requisição:** Tentar registrar com um email já existente. Depois, tentar com um nome de usuário já existente.
-    *   **Verificação:** Receber uma resposta de erro `409 Conflict` em ambos os casos.
+- **Ação (Erro)**: Tentar registrar com o mesmo email novamente.
+- **Resposta Esperada (Erro)**:
+  - **Status**: `409 Conflict`
+  - **Corpo**: `{ "message": "E-mail já cadastrado." }`
 
-3.  **[ ] Tentar Fazer Login (`POST /api/auth/login`)**
-    *   **Requisição:** Enviar `email` e `password` corretos.
-    *   **Verificação:** Receber uma resposta `200 OK` contendo `token` e `userId`.
+#### 2. Fazer Login
+- **Endpoint**: `POST /api/auth/login`
+- **Ação**: Enviar o `email` e `password` do usuário recém-criado.
+- **Exemplo com `curl`**:
+  ```bash
+  curl -X POST http://localhost:8071/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "password123"
+  }'
+  ```
+- **Resposta Esperada (Sucesso)**:
+  - **Status**: `200 OK`
+  - **Corpo**: `{ "token": "<seu_jwt_aqui>", "userId": <id_do_usuario> }`
+- **Observação**: Guarde o valor do `token` para os próximos testes.
 
-4.  **[ ] Preparar uma Chave de Licença**
-    *   **Como Fazer:** Inserir manualmente uma chave de licença válida e não ativa na tabela `license_keys` do banco de dados (ex: `key: 'CHAVE-TESTE-01', is_active: false, expires_at: '2099-12-31'`).
+#### 3. Obter Dados do Usuário Autenticado
+- **Endpoint**: `GET /api/users/me`
+- **Ação**: Fazer uma requisição `GET` com o token JWT no cabeçalho.
+- **Exemplo com `curl`**:
+  ```bash
+  # Substitua <seu_jwt_aqui> pelo token obtido no passo 2
+  curl -X GET http://localhost:8071/api/users/me \
+  -H "Authorization: Bearer <seu_jwt_aqui>"
+  ```
+- **Resposta Esperada (Sucesso)**:
+  - **Status**: `200 OK`
+  - **Corpo**: `{ "id": <id_do_usuario>, "username": "tester", "email": "test@example.com", ... }`
 
-5.  **[ ] Verificar Status da Licença (Sem Licença)**
-    *   **Requisição:** Fazer uma chamada `GET /api/licenses/status` com o token JWT do usuário.
-    *   **Verificação:** Receber uma resposta `404 Not Found` indicando que nenhuma licença foi encontrada.
+#### 4. Testar a Ativação de Licença
 
-6.  **[ ] Ativar a Licença (`POST /api/licenses/activate`)**
-    *   **Requisição:** Enviar a chave (`'CHAVE-TESTE-01'`) no corpo da requisição, com o token JWT do usuário no cabeçalho.
-    *   **Verificação:** Receber uma resposta `200 OK`. Verificar no banco de dados se `license_keys.is_active` é `true` e se o `userId` foi associado corretamente.
+**Pré-requisito**: Adicionar uma chave de licença no banco de dados manualmente.
+- Conecte-se ao seu banco de dados MySQL/MariaDB e execute:
+  ```sql
+  INSERT INTO license_keys (`key`, `is_active`, `expires_at`, `createdAt`, `updatedAt`) VALUES ('CHAVE-TESTE-01', 0, '2099-12-31 23:59:59', NOW(), NOW());
+  ```
 
-7.  **[ ] Verificar Status da Licença (Com Licença)**
-    *   **Requisição:** Fazer uma chamada `GET /api/licenses/status` novamente.
-    *   **Verificação:** Receber uma resposta `200 OK` com `isActive: true`.
+- **Ação 1: Ativar a licença**
+  - **Endpoint**: `POST /api/licenses/activate`
+  - **Exemplo com `curl`**:
+    ```bash
+    curl -X POST http://localhost:8071/api/licenses/activate \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer <seu_jwt_aqui>" \
+    -d '{ "key": "CHAVE-TESTE-01" }'
+    ```
+  - **Resposta Esperada**:
+    - **Status**: `200 OK`
+    - **Corpo**: `{ "message": "Licença ativada com sucesso!" }`
+
+- **Ação 2: Verificar o status da licença**
+  - **Endpoint**: `GET /api/licenses/status`
+  - **Exemplo com `curl`**:
+    ```bash
+    curl -X GET http://localhost:8071/api/licenses/status \
+    -H "Authorization: Bearer <seu_jwt_aqui>"
+    ```
+  - **Resposta Esperada**:
+    - **Status**: `200 OK`
+    - **Corpo**: `{ "isActive": true, "key": "CHAVE-TESTE-01", "expires_at": "2099-12-31T23:59:59.000Z" }`
 
 ## Fase 2 — API de Personagens e Início do Jogo (Concluído)
 
@@ -102,17 +159,55 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 
 ### Testes da Fase 2: Personagens e Jogo
 
-1.  **[ ] Criar um Novo Personagem (`POST /api/characters`)**
-    *   **Requisição:** Com um token de usuário válido, enviar os dados de um personagem (nome, nível, estatísticas JSON) no corpo.
-    *   **Verificação:** Receber uma resposta `201 Created` com os dados do personagem criado. Verificar se o registro foi salvo corretamente na tabela `characters`.
+#### 1. Criar um Novo Personagem
+- **Endpoint**: `POST /api/characters`
+- **Ação**: Enviar os dados de um personagem em JSON (um objeto `stats` complexo).
+- **Exemplo com `curl`**:
+  ```bash
+  # Substitua <seu_jwt_aqui>
+  curl -X POST http://localhost:8071/api/characters \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <seu_jwt_aqui>" \
+  -d '{
+    "name": "Aragorn",
+    "level": 1,
+    "stats": { "strength": 16, "dexterity": 14 }
+  }'
+  ```
+- **Resposta Esperada**:
+  - **Status**: `201 Created`
+  - **Corpo**: Um objeto JSON representando o personagem criado, incluindo `id`, `userId`, `name`, `level` e `stats`.
 
-2.  **[ ] Listar Personagens (`GET /api/characters`)**
-    *   **Requisição:** Fazer uma chamada `GET` com o token do usuário.
-    *   **Verificação:** Receber uma resposta `200 OK` com a lista de personagens pertencentes àquele usuário.
+#### 2. Listar Personagens
+- **Endpoint**: `GET /api/characters`
+- **Exemplo com `curl`**:
+  ```bash
+  curl -X GET http://localhost:8071/api/characters \
+  -H "Authorization: Bearer <seu_jwt_aqui>"
+  ```
+- **Resposta Esperada**:
+  - **Status**: `200 OK`
+  - **Corpo**: Um array contendo o(s) personagem(ns) criado(s). `[ { "id": <id_personagem>, "name": "Aragorn", ... } ]`
 
-3.  **[ ] Iniciar Interação com a IA (`POST /api/game-sessions/action`)**
-    *   **Requisição:** Com um token válido, enviar um corpo contendo `character` (objeto JSON), `playerAction` (string), e `gameLog` (array).
-    *   **Verificação:** Receber uma resposta `200 OK` com o `Content-Type` de `text/plain; charset=utf-8`. O corpo da resposta deve ser um stream de chunks JSON que chegam em tempo real, representando a narração do mestre de jogo.
+#### 3. Interagir com a IA (Streaming)
+- **Endpoint**: `POST /api/game-sessions/action`
+- **Ação**: Enviar um objeto de personagem completo e uma ação para a IA.
+- **Exemplo com `curl` (com a flag `-N` para não bufferizar a saída)**:
+  ```bash
+  # Substitua <seu_jwt_aqui>
+  curl -X POST -N http://localhost:8071/api/game-sessions/action \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <seu_jwt_aqui>" \
+  -d '{
+    "character": { "name": "Aragorn", "level": 1, "hp": 10 },
+    "playerAction": "Eu olho ao redor da taverna.",
+    "gameLog": []
+  }'
+  ```
+- **Resposta Esperada**:
+  - **Status**: `200 OK`
+  - **Headers**: `Content-Type: text/plain; charset=utf-8`
+  - **Corpo**: Um fluxo contínuo de texto. Cada pedaço (`chunk`) que chega será uma parte da narração da IA, que deve ser processado em tempo real pelo frontend.
 
 ## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
 
