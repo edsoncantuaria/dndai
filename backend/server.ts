@@ -1,3 +1,4 @@
+
 import dotenv from 'dotenv';
 dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
@@ -38,11 +39,33 @@ async function startServer() {
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
-          expressHandler(
-            gameMasterFlow,
-            {
+          expressHandler(gameMasterFlow, {
+            contextProvider: async (req) => {
+              const { userId } = req.input;
+              if (!userId) {
+                throw new UserFacingError(
+                  'INVALID_ARGUMENT',
+                  'userId é obrigatório.'
+                );
+              }
+              const apiKey = await getUserApiKey(userId);
+              if (!apiKey) {
+                throw new UserFacingError(
+                  'UNAUTHENTICATED',
+                  'A chave de API do Google do usuário não foi encontrada ou é inválida.'
+                );
+              }
+              return { apiKey };
+            },
+          })
+        );
+        
+        // Endpoint para Teste da IA
+        app.post(
+            '/api/test-ai',
+            expressHandler(testAiConnectionFlow, {
               contextProvider: async (req) => {
-                const { userId } = req;
+                const { userId } = req.input;
                 if (!userId) {
                   throw new UserFacingError(
                     'INVALID_ARGUMENT',
@@ -58,29 +81,7 @@ async function startServer() {
                 }
                 return { apiKey };
               },
-            }
-          )
-        );
-        
-        // Endpoint para Teste da IA
-        app.post(
-            '/api/test-ai',
-             expressHandler(
-                testAiConnectionFlow,
-                {
-                    contextProvider: async (req) => {
-                        const { userId } = req;
-                         if (!userId) {
-                            throw new UserFacingError('INVALID_ARGUMENT','userId é obrigatório.');
-                        }
-                        const apiKey = await getUserApiKey(userId);
-                        if (!apiKey) {
-                            throw new UserFacingError('UNAUTHENTICATED','A chave de API do Google do usuário não foi encontrada ou é inválida.');
-                        }
-                        return { apiKey };
-                    }
-                }
-            )
+            })
         );
 
 
