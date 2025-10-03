@@ -13,7 +13,7 @@ export function setupCharacterRoutes(app: Express) {
             const characterRepository = AppDataSource.getRepository(Character);
             const characters = await characterRepository.find({
                 where: { userId: userId, is_active: true },
-                select: ["id", "characterData"], // Seleciona apenas campos essenciais para os slots
+                select: ["id", "characterData", "last_played_at"], 
             });
 
             const characterSlots = characters.map(c => {
@@ -24,7 +24,7 @@ export function setupCharacterRoutes(app: Express) {
                     level: data.level,
                     characterClass: data.characterClass,
                     race: data.race,
-                    last_played_at: (c as any).last_played_at
+                    last_played_at: c.last_played_at
                 }
             });
 
