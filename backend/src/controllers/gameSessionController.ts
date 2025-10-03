@@ -60,7 +60,7 @@ export const processPlayerAction = async (req: AuthenticatedRequest, res: Respon
     try {
         const flowInput = playerActionSchema.parse(req.body);
 
-        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
         const response = await streamFlow({
