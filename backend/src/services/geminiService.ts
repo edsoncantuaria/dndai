@@ -10,6 +10,7 @@ import { GameMasterResponseSchema, GameMasterFlowInputSchema, TestAiInputSchema 
 import { promptDnD5e } from '../game/promptDnD5e';
 import { ai } from '../config/genkit';
 import { UserFacingError } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 
 
 /**
@@ -52,10 +53,12 @@ export const gameMasterFlow = ai.defineFlow(
       if (!flowInput.apiKey) {
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
+      
+      // Correctly define the model with the dynamic API key for this specific call.
+      const model = googleAI('gemini-1.5-pro-latest', { apiKey: flowInput.apiKey });
         
       const response = await ai.generate({
-        model: 'googleai/gemini-1.5-pro-latest',
-        apiKey: flowInput.apiKey,
+        model: model, // Use the dynamically created model instance
         prompt: createPrompt(flowInput),
         system: promptDnD5e,
         output: {
@@ -83,10 +86,12 @@ export const testAiConnectionFlow = ai.defineFlow(
       if (!apiKey) {
         throw new UserFacingError('UNAUTHENTICATED', 'A chave de API é necessária.');
       }
+      
+      // Correctly define the model with the dynamic API key
+      const aiModel = googleAI(model, { apiKey });
         
       const response = await ai.generate({
-        model: `googleai/${model}`,
-        apiKey: apiKey,
+        model: aiModel, // Use the dynamically created model instance
         prompt: prompt,
       });
       
