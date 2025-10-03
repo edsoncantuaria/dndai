@@ -82,7 +82,7 @@ export const processPlayerAction = async (req: AuthenticatedRequest, res: Respon
         res.setHeader('Transfer-Encoding', 'chunked');
 
         // A chamada do fluxo de streaming permanece a mesma.
-        const response = await gameMasterFlow(flowInput, (chunk) => {
+        await gameMasterFlow(flowInput, (chunk) => {
             res.write(JSON.stringify(chunk));
         });
 
@@ -92,3 +92,4 @@ export const processPlayerAction = async (req: AuthenticatedRequest, res: Respon
         next(error);
     }
 };
+
