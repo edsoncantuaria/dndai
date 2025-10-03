@@ -2,9 +2,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import GameSession from '../models/GameSession';
-import Character from '../models/Character';
 import { z } from 'zod';
-import { gameMasterFlow } from '../services/iaService';
 
 
 const gameSessionSchema = z.object({
@@ -49,47 +47,3 @@ export const getLatestSessionForCharacter = async (req: AuthenticatedRequest, re
     next(error);
   }
 };
-
-// Schema atualizado: espera characterId em vez do objeto de personagem completo.
-const playerActionSchema = z.object({
-  characterId: z.number().int().positive(),
-  playerAction: z.string(),
-  gameLog: z.array(z.any()),
-  combatState: z.any().optional(),
-});
-
-
-export const processPlayerAction = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    try {
-        const { characterId, playerAction, gameLog, combatState } = playerActionSchema.parse(req.body);
-        const userId = req.user!.id;
-        
-        // Busca o personagem no banco de dados.
-        const character = await Character.findOne({ where: { id: characterId, userId }});
-        if (!character) {
-            return res.status(404).json({ message: "Personagem não encontrado ou não pertence a este usuário." });
-        }
-        
-        // Monta o input para o fluxo da IA com os dados corretos do personagem.
-        const flowInput = {
-            character: character.stats, // Usa os dados do personagem do BD
-            playerAction,
-            gameLog,
-            combatState,
-        };
-
-        res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        res.setHeader('Transfer-Encoding', 'chunked');
-
-        // A chamada do fluxo de streaming permanece a mesma.
-        await gameMasterFlow(flowInput, (chunk) => {
-            res.write(JSON.stringify(chunk));
-        });
-
-        res.end();
-
-    } catch (error) {
-        next(error);
-    }
-};
-

@@ -1,6 +1,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { setRequestMetadata } from 'genkit/context';
 
 // Estendendo a interface Request do Express para incluir o usuário
 export interface AuthenticatedRequest extends Request {
@@ -9,6 +10,7 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+// Middleware para autenticar o token JWT e configurar o contexto para o Genkit
 export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Formato "Bearer TOKEN"
@@ -29,6 +31,34 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
         }
         
         req.user = user as { id: number };
+
+        // Adiciona o userId ao contexto da requisição para o Genkit usar
+        setRequestMetadata({ auth: { userId: user.id } });
+        
         next();
     });
+};
+
+
+// Este middleware é para passar o contexto de autenticação para o Genkit
+// mesmo em rotas não protegidas, se o token existir.
+export const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    const secret = process.env.SECRET_KEY;
+    if (secret) {
+      jwt.verify(token, secret, (err: any, user: any) => {
+        if (user) {
+          setRequestMetadata({ auth: { userId: user.id }, source: 'authMiddleware' });
+        }
+        next();
+      });
+    } else {
+        next();
+    }
+  } else {
+    next();
+  }
 };

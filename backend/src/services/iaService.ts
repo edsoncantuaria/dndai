@@ -3,28 +3,25 @@
 import { ai } from '../config/genkit';
 import { z } from 'zod';
 import { googleAI } from '@genkit-ai/google-genai';
+import Character from '../models/Character';
+import { UserFacingError } from 'genkit/index';
 
-// Definição do schema de entrada para o fluxo do mestre do jogo
-const GameMasterInputSchema = z.object({
-  character: z.any().describe('O objeto completo do estado atual do personagem.'),
-  playerAction: z.string().describe('A ação realizada pelo jogador.'),
-  gameLog: z.array(z.any()).describe('As últimas 15 entradas do log do jogo.'),
-  combatState: z.any().optional().describe('O estado atual do combate, se ativo.'),
+// Schema para a entrada que o controller (cliente) enviará.
+const PlayerActionInputSchema = z.object({
+  characterId: z.number().int().positive(),
+  playerAction: z.string(),
+  gameLog: z.array(z.any()).optional(),
+  combatState: z.any().optional(),
 });
 
-// Definição do schema de saída (usamos z.any() para o streaming)
+
+// Schema para a saída do fluxo (embora o streaming envie pedaços, o resultado final pode ser validado)
 const GameMasterOutputSchema = z.any();
-
-type GameMasterFlowInput = z.infer<typeof GameMasterInputSchema>;
-
 
 /**
  * Cria o prompt detalhado para ser enviado ao modelo Gemini.
- * @param input O estado do jogo e a ação do jogador.
- * @returns Uma string formatada contendo o contexto completo para a IA.
  */
-const createPrompt = (input: GameMasterFlowInput): string => {
-    const { character, playerAction, gameLog, combatState } = input;
+const createPrompt = (character: any, playerAction: string, gameLog: any[], combatState: any): string => {
     const characterContext = JSON.stringify(character, null, 2);
     const logContext = JSON.stringify(gameLog.slice(-15), null, 2);
     const combatContextValue = (combatState && combatState.isActive)
@@ -56,11 +53,23 @@ const createPrompt = (input: GameMasterFlowInput): string => {
 export const gameMasterFlow = ai.defineFlow(
   {
     name: 'gameMasterFlow',
-    inputSchema: GameMasterInputSchema,
+    inputSchema: PlayerActionInputSchema,
     outputSchema: GameMasterOutputSchema,
   },
-  async (flowInput, { sendChunk }) => {
-    const prompt = createPrompt(flowInput);
+  async (flowInput, { sendChunk, context }) => {
+    
+    const userId = (context as any).auth?.userId;
+    if (!userId) {
+      throw new UserFacingError("Autenticação necessária para executar esta ação.");
+    }
+    
+    // Busca o personagem no banco de dados.
+    const character = await Character.findOne({ where: { id: flowInput.characterId, userId } });
+    if (!character) {
+      throw new UserFacingError("Personagem não encontrado ou não pertence a este usuário.");
+    }
+    
+    const prompt = createPrompt(character.stats, flowInput.playerAction, flowInput.gameLog || [], flowInput.combatState);
 
     const { stream, response } = await ai.generateStream({
       prompt: prompt,
@@ -72,6 +81,7 @@ export const gameMasterFlow = ai.defineFlow(
 
     for await (const chunk of stream) {
         if(chunk.content) {
+            // O expressHandler gerencia o envio do chunk para o cliente.
             sendChunk(chunk.content);
         }
     }
@@ -79,4 +89,3 @@ export const gameMasterFlow = ai.defineFlow(
     return await response;
   }
 );
-

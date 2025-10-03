@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { sequelize } from './config/database';
 import { errorMiddleware } from './middlewares/errorMiddleware';
+import { authMiddleware } from './middlewares/authMiddleware';
 
 // Importar rotas
 import authRoutes from './routes/authRoutes';
@@ -25,6 +26,9 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('dev')); // Middleware de logging
+
+// Passa o ID do usuário autenticado para o contexto do Genkit.
+app.use(authMiddleware);
 
 // Rotas da API
 app.use('/api/auth', authRoutes);
