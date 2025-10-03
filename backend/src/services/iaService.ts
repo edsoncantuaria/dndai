@@ -62,13 +62,13 @@ export const gameMasterFlow: Flow<typeof PlayerActionInputSchema, typeof GameMas
     // Acessa o userId diretamente do contexto populado pelo authContext
     const userId = context.auth?.userId;
     if (!userId) {
-      throw new UserFacingError("Autenticação necessária para executar esta ação.");
+      throw new UserFacingError("UNAUTHENTICATED", "Autenticação necessária para executar esta ação.");
     }
     
     // Busca o personagem no banco de dados.
     const character = await Character.findOne({ where: { id: flowInput.characterId, userId } });
     if (!character) {
-      throw new UserFacingError("Personagem não encontrado ou não pertence a este usuário.");
+      throw new UserFacingError("NOT_FOUND", "Personagem não encontrado ou não pertence a este usuário.");
     }
     
     const prompt = createPrompt(character.stats, flowInput.playerAction, flowInput.gameLog || [], flowInput.combatState);
