@@ -4,7 +4,6 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import GameSession from '../models/GameSession';
 import { z } from 'zod';
 import { gameMasterFlow } from '../services/iaService';
-import { streamFlow } from 'genkit/client';
 
 const gameSessionSchema = z.object({
     characterId: z.number().int().positive(),
@@ -63,11 +62,10 @@ export const processPlayerAction = async (req: AuthenticatedRequest, res: Respon
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
-        const response = await streamFlow({
-            flow: gameMasterFlow,
-            input: flowInput,
-        });
-        
+        // Chama o fluxo de streaming diretamente.
+        const response = await gameMasterFlow(flowInput);
+
+        // Itera sobre o stream e envia cada chunk para o cliente.
         for await (const chunk of response.stream()) {
             res.write(JSON.stringify(chunk) + '\n');
         }
