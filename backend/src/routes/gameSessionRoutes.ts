@@ -18,10 +18,10 @@ router.get('/character/:characterId', gameSessionController.getLatestSessionForC
 // O 'authContext' é passado para o handler para que o fluxo do Genkit tenha acesso ao ID do usuário.
 router.post(
     '/action',
-    expressHandler({ 
-        flow: gameMasterFlow,
-        context: authContext // Passa o provedor de contexto aqui
+    expressHandler(gameMasterFlow, {
+      context: authContext,
     })
 );
 
 export default router;
+
