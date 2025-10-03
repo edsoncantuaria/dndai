@@ -2,7 +2,7 @@
 'use server';
 import { ai } from '../config/genkit';
 import { z } from 'zod';
-import { streamFlow } from 'genkit/beta/client';
+import { streamFlow, type Flow } from 'genkit/beta';
 import { UserFacingError } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 
@@ -52,7 +52,7 @@ const createPrompt = (input: z.infer<typeof GameMasterInputSchema>): string => {
 };
 
 
-export const gameMasterFlow = ai.defineFlow(
+export const gameMasterFlow: Flow<typeof GameMasterInputSchema, any, any> = ai.defineFlow(
     {
         name: 'gameMasterFlow',
         inputSchema: GameMasterInputSchema,
