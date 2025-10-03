@@ -2,9 +2,8 @@
 'use server';
 import { ai } from '../config/genkit';
 import { z } from 'zod';
-import { streamFlow, type Flow } from 'genkit/beta';
-import { UserFacingError } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
+import { defineFlow, type Flow } from 'genkit';
 
 // Definição do schema de entrada para o fluxo do mestre do jogo
 const GameMasterInputSchema = z.object({
@@ -51,30 +50,32 @@ const createPrompt = (input: z.infer<typeof GameMasterInputSchema>): string => {
     `;
 };
 
+// Flow<[Flow's input type], [Flow's output type], [Flow's streaming type]>
+export const gameMasterFlow: Flow<
+  typeof GameMasterInputSchema,
+  any,
+  any
+> = defineFlow(
+  {
+    name: 'gameMasterFlow',
+    inputSchema: GameMasterInputSchema,
+    outputSchema: GameMasterOutputSchema,
+  },
+  async (flowInput, { sendChunk }) => {
+    const prompt = createPrompt(flowInput);
 
-export const gameMasterFlow: Flow<typeof GameMasterInputSchema, any, any> = ai.defineFlow(
-    {
-        name: 'gameMasterFlow',
-        inputSchema: GameMasterInputSchema,
-        outputSchema: GameMasterOutputSchema,
-        stream: true,
-    },
-    async (flowInput, { stream }) => {
-        const prompt = createPrompt(flowInput);
-        
-        const llmResponse = await ai.generate({
-            prompt: prompt,
-            model: googleAI.model('gemini-1.5-pro-latest'),
-            stream: true,
-            config: {
-                temperature: 0.8,
-            },
-        });
+    const { stream, response } = await ai.generateStream({
+      prompt: prompt,
+      model: googleAI.model('gemini-1.5-pro-latest'),
+      config: {
+        temperature: 0.8,
+      },
+    });
 
-        for await (const chunk of llmResponse.stream) {
-            stream.chunk(chunk.content);
-        }
-        
-        return llmResponse.output();
+    for await (const chunk of stream) {
+        sendChunk(chunk.content);
     }
+
+    return await response;
+  }
 );
