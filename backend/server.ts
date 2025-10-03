@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config(); // Carrega as variáveis do arquivo .env na raiz do diretório do backend
 
 import 'reflect-metadata';
-import express, { Express, Request, Response } from 'express';
+import express, { Express } from 'express';
 import http from 'http';
 import { WebSocketServer } from 'ws';
 import cors from 'cors';
@@ -15,7 +15,7 @@ import { gameMasterFlow, testAiConnectionFlow } from './src/services.old/geminiS
 import { expressHandler } from '@genkit-ai/express';
 import { UserFacingError } from 'genkit';
 import { getUserApiKey } from './src/utils/user-service';
-import { GameMasterFlowInput } from './src/services.old/gameSchemas';
+import { setupCharacterRoutes } from './src/routes/characters';
 
 
 const app: Express = express();
@@ -37,13 +37,14 @@ async function startServer() {
         setupAuthRoutes(app);
         setupLicenseRoutes(app);
         setupUserRoutes(app);
+        setupCharacterRoutes(app);
 
         // Endpoint para o Game Master Flow do Genkit
         app.post(
           '/api/game-master',
           expressHandler(gameMasterFlow, {
             contextProvider: async (req) => {
-              const { userId } = req.input as unknown as GameMasterFlowInput;
+              const { userId } = req.input;
               if (!userId) {
                 throw new UserFacingError(
                   'INVALID_ARGUMENT',
@@ -67,7 +68,7 @@ async function startServer() {
             '/api/test-ai',
             expressHandler(testAiConnectionFlow, {
               contextProvider: async (req) => {
-                const { userId } = req.input as unknown as GameMasterFlowInput;
+                const { userId } = req.input;
                 if (!userId) {
                   throw new UserFacingError(
                     'INVALID_ARGUMENT',
