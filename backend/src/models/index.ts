@@ -1,11 +1,11 @@
 // backend/src/models/index.ts
 import { Sequelize } from 'sequelize';
 import 'dotenv/config';
-import User from './User';
-import LicenseKey from './LicenseKey';
-import Character from './Character';
-import GameSession from './GameSession';
-import Log from './Log';
+import User, { initUser } from './User';
+import LicenseKey, { initLicenseKey } from './LicenseKey';
+import Character, { initCharacter } from './Character';
+import GameSession, { initGameSession } from './GameSession';
+import Log, { initLog } from './Log';
 
 const env = process.env.NODE_ENV || 'development';
 const dbConfig = require('../config/database')[env];
@@ -22,11 +22,11 @@ const sequelize = new Sequelize(
 );
 
 // Inicializa os modelos
-User.initialize(sequelize);
-LicenseKey.initialize(sequelize);
-Character.initialize(sequelize);
-GameSession.initialize(sequelize);
-Log.initialize(sequelize);
+initUser(sequelize);
+initLicenseKey(sequelize);
+initCharacter(sequelize);
+initGameSession(sequelize);
+initLog(sequelize);
 
 // Define as associações
 User.hasMany(Character, { foreignKey: 'userId', as: 'characters' });

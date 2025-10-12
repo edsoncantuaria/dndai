@@ -10,9 +10,10 @@ class Log extends Model {
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+}
 
-  public static initialize(sequelize: Sequelize) {
-    this.init(
+export const initLog = (sequelize: Sequelize) => {
+    Log.init(
       {
         id: {
           type: DataTypes.INTEGER,
@@ -45,7 +46,6 @@ class Log extends Model {
         sequelize,
       }
     );
-  }
-}
+};
 
 export default Log;

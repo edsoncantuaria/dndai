@@ -10,9 +10,10 @@ class Character extends Model {
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+}
 
-  public static initialize(sequelize: Sequelize) {
-    this.init(
+export const initCharacter = (sequelize: Sequelize) => {
+    Character.init(
       {
         id: {
           type: DataTypes.INTEGER,
@@ -46,7 +47,6 @@ class Character extends Model {
         sequelize,
       }
     );
-  }
-}
+};
 
 export default Character;

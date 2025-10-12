@@ -15,9 +15,10 @@ class User extends Model {
   public async checkPassword(password: string): Promise<boolean> {
     return bcrypt.compare(password, this.password);
   }
+}
 
-  public static initialize(sequelize: Sequelize) {
-    this.init(
+export const initUser = (sequelize: Sequelize) => {
+    User.init(
       {
         id: {
           type: DataTypes.INTEGER,
@@ -46,13 +47,13 @@ class User extends Model {
         tableName: 'users',
         sequelize,
         hooks: {
-          beforeCreate: async (user) => {
+          beforeCreate: async (user: any) => {
             if (user.password) {
               const salt = await bcrypt.genSalt(10);
               user.password = await bcrypt.hash(user.password, salt);
             }
           },
-          beforeUpdate: async (user) => {
+          beforeUpdate: async (user: any) => {
             if (user.changed('password')) {
                 const salt = await bcrypt.genSalt(10);
                 user.password = await bcrypt.hash(user.password, salt);
@@ -61,7 +62,6 @@ class User extends Model {
         },
       }
     );
-  }
-}
+};
 
 export default User;

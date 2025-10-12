@@ -8,9 +8,10 @@ class GameSession extends Model {
   
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+}
 
-  public static initialize(sequelize: Sequelize) {
-    this.init(
+export const initGameSession = (sequelize: Sequelize) => {
+    GameSession.init(
       {
         id: {
           type: DataTypes.INTEGER,
@@ -35,7 +36,7 @@ class GameSession extends Model {
         sequelize,
       }
     );
-  }
-}
+};
+
 
 export default GameSession;

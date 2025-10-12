@@ -10,9 +10,10 @@ class LicenseKey extends Model {
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
+}
 
-  public static initialize(sequelize: Sequelize) {
-    this.init(
+export const initLicenseKey = (sequelize: Sequelize) => {
+    LicenseKey.init(
       {
         id: {
           type: DataTypes.INTEGER,
@@ -47,7 +48,6 @@ class LicenseKey extends Model {
         sequelize,
       }
     );
-  }
-}
+};
 
 export default LicenseKey;
