@@ -31,6 +31,11 @@ const startServer = async () => {
     try {
         await sequelize.authenticate();
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
+        
+        // Opcional: sincroniza os modelos com o banco de dados.
+        // Em desenvolvimento, você pode usar { force: true } para recriar as tabelas,
+        // mas isso apaga todos os dados. Use com cuidado.
+        // await sequelize.sync(); 
 
         app.listen(PORT, () => {
             console.log(`Servidor rodando em http://localhost:${PORT}`);
