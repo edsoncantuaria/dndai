@@ -1,7 +1,7 @@
-
 // backend/src/routes/narrarRoutes.ts
 import { Router } from 'express';
 import { narrar } from '../controllers/narrarController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
@@ -10,7 +10,8 @@ const router = Router();
  * POST /api/narrar/:sessionId
  * 
  * Recebe um prompt no corpo da requisição e retorna a narração da IA.
+ * Protegida por autenticação para garantir que apenas o dono da sessão possa interagir.
  */
-router.post('/:sessionId', narrar);
+router.post('/:sessionId', authMiddleware, narrar);
 
 export default router;
