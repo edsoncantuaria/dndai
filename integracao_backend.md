@@ -239,4 +239,3 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
-
