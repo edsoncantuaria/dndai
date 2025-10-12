@@ -1,7 +1,7 @@
 
 // src/services/systemService.ts
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');

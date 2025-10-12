@@ -99,7 +99,7 @@ const INITIAL_COMBAT_STATE: CombatState = {
     initiativeOrder: [],
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
 
 export const useNewGameState = () => {
     const { user, apiKey } = useAuth(); // Use API key from AuthContext
