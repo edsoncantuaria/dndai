@@ -1,23 +1,35 @@
+
+// backend/src/database/data-source.ts
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import 'dotenv/config';
 
-import { User } from '../models/User';
-import { LicenseKey } from '../models/LicenseKey';
-import { Character } from '../models/Character';
-import { GameSession } from '../models/GameSession';
-import { Log } from '../models/Log';
+import { SessaoIA } from '../entities/SessaoIA.js';
+import { SessionLog } from '../entities/SessionLog.js';
 
+/**
+ * Configuração da fonte de dados para o TypeORM.
+ * Lê as credenciais do banco de dados do arquivo .env.
+ */
 export const AppDataSource = new DataSource({
     type: 'mysql',
     host: process.env.DB_HOST || 'localhost',
-    port: 3306,
+    port: Number(process.env.DB_PORT) || 3306,
     username: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
-    synchronize: true, // Em desenvolvimento, podemos usar isso para criar tabelas automaticamente. Mude para 'false' e use migrações em produção.
-    logging: false,
-    entities: [User, LicenseKey, Character, GameSession, Log],
+    
+    /**
+     * `synchronize: true` cria o esquema do banco de dados automaticamente
+     * com base nas entidades. Ótimo para desenvolvimento, mas para produção
+     * é recomendado usar migrações (`synchronize: false`).
+     */
+    synchronize: true, 
+    logging: false, // Mude para true para ver as queries SQL no console
+    
+    // Lista de todas as entidades que o TypeORM deve gerenciar
+    entities: [SessaoIA, SessionLog], 
+    
     migrations: [],
     subscribers: [],
 });

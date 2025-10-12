@@ -61,161 +61,24 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) para garantir que a Fase 1 foi implementada corretamente.
 
-#### 1. Registrar um Novo Usuário
-- **Endpoint**: `POST /api/auth/register`
-- **Ação**: Enviar um JSON com `username`, `email` e `password`.
-- **Exemplo com `curl`**:
-  ```bash
-  curl -X POST http://localhost:8071/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "username": "tester",
-    "email": "test@example.com",
-    "password": "password123"
-  }'
-  ```
-- **Resposta Esperada (Sucesso)**:
-  - **Status**: `201 Created`
-  - **Corpo**: `{ "message": "Usuário registrado com sucesso!", "userId": <id_do_usuario> }`
+**Pré-requisito para Teste de Licença**: Para testar a ativação, adicione manualmente uma chave de licença ao seu banco de dados:
+```sql
+INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
+```
 
-- **Ação (Erro)**: Tentar registrar com o mesmo email novamente.
-- **Resposta Esperada (Erro)**:
-  - **Status**: `409 Conflict`
-  - **Corpo**: `{ "message": "E-mail já cadastrado." }`
+## Fase 2 - Refatoração do Backend de IA (Em Andamento)
 
-#### 2. Fazer Login
-- **Endpoint**: `POST /api/auth/login`
-- **Ação**: Enviar o `email` e `password` do usuário recém-criado.
-- **Exemplo com `curl`**:
-  ```bash
-  curl -X POST http://localhost:8071/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "test@example.com",
-    "password": "password123"
-  }'
-  ```
-- **Resposta Esperada (Sucesso)**:
-  - **Status**: `200 OK`
-  - **Corpo**: `{ "token": "<seu_jwt_aqui>", "userId": <id_do_usuario>, "isLicenseActive": false }`
-- **Observação**: Guarde o valor do `token` para os próximos testes.
+*   **Objetivo**: Reconstruir a lógica de interação com a IA no backend, permitindo múltiplas sessões de jogo paralelas, cada uma com sua própria chave de API e contexto de Genkit.
+*   **Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
+*   **Status Atual**: Iniciando a configuração da estrutura do projeto Node.js/Express e a camada de dados com TypeORM.
 
-#### 3. Obter Dados do Usuário Autenticado
-- **Endpoint**: `GET /api/users/me`
-- **Ação**: Fazer uma requisição `GET` com o token JWT no cabeçalho.
-- **Exemplo com `curl`**:
-  ```bash
-  # Substitua <seu_jwt_aqui> pelo token obtido no passo 2
-  curl -X GET http://localhost:8071/api/users/me \
-  -H "Authorization: Bearer <seu_jwt_aqui>"
-  ```
-- **Resposta Esperada (Sucesso)**:
-  - **Status**: `200 OK`
-  - **Corpo**: `{ "id": <id_do_usuario>, "username": "tester", "email": "test@example.com", ... }`
-
-#### 4. Testar a Ativação de Licença
-
-**Pré-requisito**: Adicionar uma chave de licença no banco de dados manualmente.
-- Conecte-se ao seu banco de dados MySQL/MariaDB e execute:
-  ```sql
-  INSERT INTO license_keys (`key`, `isActive`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('CHAVE-TESTE-01', 0, NULL, NOW(), NOW());
-  ```
-
-- **Ação 1: Ativar a licença**
-  - **Endpoint**: `POST /api/licenses/activate`
-  - **Exemplo com `curl`**:
-    ```bash
-    curl -X POST http://localhost:8071/api/licenses/activate \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer <seu_jwt_aqui>" \
-    -d '{ "key": "CHAVE-TESTE-01" }'
-    ```
-  - **Resposta Esperada**:
-    - **Status**: `200 OK`
-    - **Corpo**: `{ "message": "Licença ativada com sucesso!" }`
-
-- **Ação 2: Verificar o status da licença**
-  - **Endpoint**: `GET /api/licenses/status`
-  - **Exemplo com `curl`**:
-    ```bash
-    curl -X GET http://localhost:8071/api/licenses/status \
-    -H "Authorization: Bearer <seu_jwt_aqui>"
-    ```
-  - **Resposta Esperada**:
-    - **Status**: `200 OK`
-    - **Corpo**: `{ "isActive": true, "key": "CHAVE-TESTE-01", "expires_at": null }`
-
-## Fase 2 — API de Personagens e Início do Jogo (Em Andamento)
-
-*   **[ ] Implementar Endpoints CRUD para Personagens**:
-    *   `POST /api/characters`: Cria um novo personagem para o usuário autenticado.
-    *   `GET /api/characters`: Lista todos os personagens do usuário.
-    *   `GET /api/characters/:id`: Obtém os detalhes de um personagem específico.
-    *   `PUT /api/characters/:id`: Atualiza um personagem.
-    *   `DELETE /api/characters/:id`: Deleta um personagem.
-*   **[ ] Implementar Endpoints da Sessão de Jogo**:
-    *   `POST /api/game-sessions/action`: Endpoint principal para o jogo, que recebe a ação do jogador e retorna o stream da IA.
-    *   `GET /api/game-sessions/character/:characterId`: Busca a sessão de jogo mais recente de um personagem.
-
-### Testes da Fase 2: Personagens e Jogo
-
-#### 1. Criar um Novo Personagem
-- **Endpoint**: `POST /api/characters`
-- **Ação**: Enviar os dados de um personagem em JSON (um objeto `stats` complexo).
-- **Exemplo com `curl`**:
-  ```bash
-  # Substitua <seu_jwt_aqui>
-  curl -X POST http://localhost:8071/api/characters \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <seu_jwt_aqui>" \
-  -d '{
-    "name": "Aragorn",
-    "level": 1,
-    "stats": { "strength": 16, "dexterity": 14 }
-  }'
-  ```
-- **Resposta Esperada**:
-  - **Status**: `201 Created`
-  - **Corpo**: Um objeto JSON representando o personagem criado, incluindo `id`, `userId`, `name`, `level` e `stats`. **Guarde a `id` do personagem para o próximo teste.**
-
-#### 2. Listar Personagens
-- **Endpoint**: `GET /api/characters`
-- **Exemplo com `curl`**:
-  ```bash
-  curl -X GET http://localhost:8071/api/characters \
-  -H "Authorization: Bearer <seu_jwt_aqui>"
-  ```
-- **Resposta Esperada**:
-  - **Status**: `200 OK`
-  - **Corpo**: Um array contendo o(s) personagem(ns) criado(s). `[ { "id": <id_personagem>, "name": "Aragorn", ... } ]`
-
-#### 3. Interagir com a IA (Streaming)
-- **Endpoint**: `POST /api/game-sessions/action`
-- **Ação**: Enviar a `characterId` do personagem criado e uma ação para a IA.
-- **Exemplo com `curl` (com a flag `-N` para não bufferizar a saída)**:
-  ```bash
-  # Substitua <seu_jwt_aqui> e <id_personagem_aqui>
-  curl -X POST -N http://localhost:8071/api/game-sessions/action \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <seu_jwt_aqui>" \
-  -d '{
-    "characterId": <id_personagem_aqui>,
-    "playerAction": "Eu olho ao redor da taverna.",
-    "gameLog": []
-  }'
-  ```
-- **Resposta Esperada**:
-  - **Status**: `200 OK`
-  - **Headers**: `Content-Type: application/json; charset=utf-8`
-  - **Corpo**: Um fluxo contínuo de objetos JSON. Cada pedaço (`chunk`) que chega será uma parte da narração da IA, que deve ser processado em tempo real pelo frontend.
-
-## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
+## Fase 3 — Frontend: Conexão com o Backend (Pendente)
 
 *   **[ ] Refatorar `AuthContext`**: Substituir toda a lógica de `localStorage` pela nova API REST de autenticação (`/api/auth/...`) e licença (`/api/licenses/...`).
 *   **[ ] Criar Tela de Seleção de Personagem**: Após o login, o usuário será direcionado para uma tela que buscará seus personagens via `GET /api/characters` e os exibirá em "slots".
 *   **[ ] Refatorar `GameStateContext`**:
     *   O `useGameState` deve ser completamente reescrito para interagir com a API do backend.
-    *   A função `processPlayerAction` agora fará uma requisição `fetch` para `POST /api/game-sessions/action`.
+    *   A função `processPlayerAction` agora fará uma requisição `fetch` para `POST /api/narrar/:sessionId`.
     *   O hook deverá ser capaz de consumir e processar o stream de resposta, atualizando o estado do jogo (log, personagem, etc.) a cada chunk recebido.
 
 ## Fase 4 — WebSocket e Modo Multiplayer (Futuro)
@@ -237,4 +100,3 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
-
