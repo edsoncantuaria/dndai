@@ -3,8 +3,6 @@
 
 Sempre Atualizar integracao_backend.md com tudo que foi feito. Colocar testes e esperar retornar que todos os testes estão funcionando!
 
-Usar o backend/README.md: Este novo arquivo fornecerá instruções passo a passo para configurar e iniciar o servidor backend, incluindo a configuração do banco de dados e as variáveis de ambiente.
-
 Um backend, por mais funcional que seja, é inútil se o frontend não estiver preparado para se comunicar com ele. É crucial documentar o estado de ambos os lados para termos uma visão clara do progresso.
 
 * **Componentes principais:**
@@ -13,7 +11,7 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
   2. WebSocket Server (no mesmo processo Express ou ligado via servidor HTTP) — transporte tempo-real do jogo.
   3. Serviço de Jogo (orquestrador) — carrega/salva GameState, chama o serviço de IA e emite updates.
   4. Flow Server da IA (Genkit) — expõe flows (ex.: `gameMasterFlow`) para o serviço de jogo consumir (pode ser parte do backend ou process separado).
-  5. Banco de dados MySQL (Sequelize) — persistência de Users, Characters, GameSessions, etc.
+  5. Banco de dados MySQL (TypeORM) — persistência de Users, Characters, GameSessions, etc.
   6. Redis — cache distribuído para `activeGameStates`, locks e pub/sub se for escalar múltiplas instâncias.
   7. Storage de segredos: `.env` + vault eventual (opcional).
   8. Criptografia utilitária para armazenar/descriptografar a google_api_key com seu crypto.
@@ -26,9 +24,9 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
     /controllers       (Lógica de requisição/resposta)
     /services          (Lógica de negócios, interação com IA e BD)
     /routes            (Definição dos endpoints da API)
-    /models            (Schemas do Sequelize e associações)
+    /models            (Schemas do TypeORM e associações)
     /middlewares       (Autenticação, tratamento de erros)
-    /config            (Configuração de banco de dados e Genkit)
+    /database          (Configuração da fonte de dados - data-source)
     server.ts          (Ponto de entrada do servidor)
   /tests               (Testes unitários e de integração)
   ...
@@ -40,10 +38,10 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 ## Fase 0 — Reconstrução e Fundação (Concluído)
 
-*   **[X] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
-*   **[X] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
+*   **[X] Escolha do ORM**: Após análise e dificuldades com a configuração do Sequelize com TypeScript, optamos por utilizar o **TypeORM**, devido à sua forte tipagem, suporte nativo a TypeScript com decoradores e uma comunidade robusta.
+*   **[X] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e TypeORM.
 *   **[X] Documentação da API**: A especificação da API será mantida em um único arquivo **`openapi.yaml`** na raiz do projeto para simplificar o gerenciamento e a integração com ferramentas de visualização.
-*   **[X] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
+*   **[X] Configurar TypeORM e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey` usando decoradores do TypeORM. Configurar o `AppDataSource` para conexão com o banco de dados.
 *   **[X] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
 *   **[X] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
 *   **[ ] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
@@ -99,7 +97,7 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
   ```
 - **Resposta Esperada (Sucesso)**:
   - **Status**: `200 OK`
-  - **Corpo**: `{ "token": "<seu_jwt_aqui>", "userId": <id_do_usuario> }`
+  - **Corpo**: `{ "token": "<seu_jwt_aqui>", "userId": <id_do_usuario>, "isLicenseActive": false }`
 - **Observação**: Guarde o valor do `token` para os próximos testes.
 
 #### 3. Obter Dados do Usuário Autenticado
@@ -120,7 +118,7 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 **Pré-requisito**: Adicionar uma chave de licença no banco de dados manualmente.
 - Conecte-se ao seu banco de dados MySQL/MariaDB e execute:
   ```sql
-  INSERT INTO license_keys (`key`, `is_active`, `expires_at`, `createdAt`, `updatedAt`) VALUES ('CHAVE-TESTE-01', 0, '2099-12-31 23:59:59', NOW(), NOW());
+  INSERT INTO license_keys (`key`, `isActive`, `expiresAt`, `createdAt`, `updatedAt`) VALUES ('CHAVE-TESTE-01', 0, NULL, NOW(), NOW());
   ```
 
 - **Ação 1: Ativar a licença**
@@ -145,9 +143,9 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
     ```
   - **Resposta Esperada**:
     - **Status**: `200 OK`
-    - **Corpo**: `{ "isActive": true, "key": "CHAVE-TESTE-01", "expires_at": "2099-12-31T23:59:59.000Z" }`
+    - **Corpo**: `{ "isActive": true, "key": "CHAVE-TESTE-01", "expires_at": null }`
 
-## Fase 2 — API de Personagens e Início do Jogo (Concluído)
+## Fase 2 — API de Personagens e Início do Jogo (Em Andamento)
 
 *   **[ ] Implementar Endpoints CRUD para Personagens**:
     *   `POST /api/characters`: Cria um novo personagem para o usuário autenticado.
@@ -230,7 +228,7 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 # Checklist final (executável)
 
 * [X] Criar repo backend TS e configurar lint/tsconfig.
-* [X] Configurar Sequelize e entidades (incluindo `LicenseKey`).
+* [X] Configurar TypeORM e entidades (incluindo `LicenseKey`).
 * [X] Implementar todos os `controllers`.
 * [X] Implementar todos os `services`, incluindo `iaService` com streaming.
 * [X] Implementar `authMiddleware`.
@@ -239,3 +237,4 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
+

@@ -1,5 +1,5 @@
 // backend/src/models/GameSession.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { Character } from './Character';
 import { Log } from './Log';
 
@@ -12,6 +12,7 @@ export class GameSession {
   characterId: number;
 
   @ManyToOne(() => Character, character => character.gameSessions)
+  @JoinColumn({ name: 'characterId' })
   character: Character;
 
   @Column('json', { nullable: true })

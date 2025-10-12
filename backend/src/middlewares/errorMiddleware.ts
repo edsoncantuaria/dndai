@@ -1,16 +1,13 @@
 // backend/src/middlewares/errorMiddleware.ts
 import { Request, Response, NextFunction } from 'express';
-import { isHttpError } from 'http-errors';
 
-const errorMiddleware = (err: Error, req: Request, res: Response, next: NextFunction) => {
+const errorMiddleware = (err: any, req: Request, res: Response, next: NextFunction) => {
     console.error(err); // Log do erro para debugging
 
-    if (isHttpError(err)) {
-        return res.status(err.statusCode).json({ message: err.message });
-    }
+    const statusCode = err.status || err.statusCode || 500;
+    const message = err.message || 'Ocorreu um erro interno no servidor.';
 
-    // Erro genérico do servidor
-    return res.status(500).json({ message: 'Ocorreu um erro interno no servidor.' });
+    return res.status(statusCode).json({ message });
 };
 
 export default errorMiddleware;

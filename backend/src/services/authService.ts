@@ -27,6 +27,7 @@ export const loginUser = async (email: string, password: string): Promise<{ toke
         where: { email },
         relations: ['license']
     });
+
     if (!user) {
         throw createError(401, 'Credenciais inválidas.');
     }
@@ -37,5 +38,9 @@ export const loginUser = async (email: string, password: string): Promise<{ toke
     }
 
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '7d' });
-    return { token, userId: user.id, isLicenseActive: !!user.license?.isActive };
+    
+    // Assegura que user.license não é null antes de acessar isActive
+    const isLicenseActive = !!(user.license && user.license.isActive);
+    
+    return { token, userId: user.id, isLicenseActive };
 };

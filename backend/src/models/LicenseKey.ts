@@ -11,17 +11,17 @@ export class LicenseKey {
   key: string;
 
   @Column({ nullable: true })
-  userId: number;
+  userId: number | null;
 
   @OneToOne(() => User, user => user.license)
-  @JoinColumn()
+  @JoinColumn({ name: "userId" })
   user: User;
 
   @Column({ default: false })
   isActive: boolean;
 
-  @Column({ nullable: true })
-  expiresAt: Date;
+  @Column({ type: 'datetime', nullable: true })
+  expiresAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

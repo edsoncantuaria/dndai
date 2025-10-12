@@ -1,5 +1,5 @@
 // backend/src/models/Character.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { User } from './User';
 import { GameSession } from './GameSession';
 
@@ -12,6 +12,7 @@ export class Character {
   userId: number;
 
   @ManyToOne(() => User, user => user.characters)
+  @JoinColumn({ name: 'userId' })
   user: User;
 
   @Column()

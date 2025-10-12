@@ -2,10 +2,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '../database/data-source';
 import { User } from '../models/User';
+import createError from 'http-errors';
 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const userId = (req as any).user.id;
+        const userId = (req as any).user?.id;
+        if (!userId) {
+            throw createError(401, 'Usuário não autenticado.');
+        }
+
         const userRepository = AppDataSource.getRepository(User);
         const user = await userRepository.findOne({
             where: { id: userId },

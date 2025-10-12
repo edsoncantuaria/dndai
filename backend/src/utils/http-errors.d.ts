@@ -1,6 +1,7 @@
-// backend/src/utils/http-errors.d.ts
+// src/utils/http-errors.d.ts
 
-// This declaration file is necessary because http-errors doesn't have default TS types.
+// This declaration file is necessary because http-errors doesn't provide default TS types.
+// It helps TypeScript understand the structure of errors created by the library.
 declare module 'http-errors' {
     interface HttpError extends Error {
         status: number;
@@ -17,5 +18,6 @@ declare module 'http-errors' {
     }
 
     const createError: HttpErrorConstructor;
+
     export = createError;
 }

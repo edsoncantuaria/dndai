@@ -1,5 +1,5 @@
 // backend/src/models/Log.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
 import { GameSession } from './GameSession';
 
 @Entity('logs')
@@ -11,6 +11,7 @@ export class Log {
   sessionId: number;
 
   @ManyToOne(() => GameSession, session => session.logs)
+  @JoinColumn({ name: 'sessionId' })
   session: GameSession;
 
   @Column({
