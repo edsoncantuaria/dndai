@@ -42,6 +42,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 *   **[] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
 *   **[] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
+*   **[] Documentação da API**: A especificação da API será mantida em um único arquivo **`openapi.yaml`** na raiz do projeto para simplificar o gerenciamento e a integração com ferramentas de visualização.
 *   **[] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
 *   **[] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
 *   **[] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
