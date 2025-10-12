@@ -195,6 +195,7 @@ export const useNewGameState = () => {
                 action,
                 gameLog: currentLog,
                 combatState,
+                apiKey: getApiKey()
             };
 
             const response = await fetch(`${API_URL}/api/game/action`, {
@@ -220,7 +221,7 @@ export const useNewGameState = () => {
             setIsLoading(false); 
         }
 
-    }, [character, log, user, actionOptions, combatState, handleApiResponse]);
+    }, [character, log, user, actionOptions, combatState, handleApiResponse, getApiKey]);
     
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;

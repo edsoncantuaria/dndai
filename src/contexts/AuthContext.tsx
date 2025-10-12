@@ -26,6 +26,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
+
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
@@ -35,6 +38,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const hasApiKey = !!apiKey;
 
+    const logout = useCallback(() => {
+        setUser(null);
+        setIsLicenseActive(false);
+        localStorage.removeItem('token');
+        // A chave de API não é removida no logout, pois é uma configuração do navegador.
+        toast({
+            description: "Você saiu da sua conta.",
+        })
+    }, [toast]);
+
     // This effect is responsible for validating the session on initial load.
     useEffect(() => {
         const validateSession = async () => {
@@ -42,7 +55,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             if (token) {
                 try {
                     // Instead of trusting localStorage, verify token with backend
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api'}/users/me`, {
+                    const response = await fetch(`${API_URL}/users/me`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     
@@ -50,38 +63,35 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         const userData = await response.json();
                         setUser({ id: userData.id, username: userData.username });
 
-                        const licenseResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api'}/licenses/status`, {
+                        const licenseResponse = await fetch(`${API_URL}/licenses/status`, {
                              headers: { 'Authorization': `Bearer ${token}` }
                         });
                         if (licenseResponse.ok) {
                             const licenseData = await licenseResponse.json();
                             if (licenseData.isActive) {
                                 setIsLicenseActive(true);
-                                // Here you would ideally fetch the API key if it were stored on the backend.
-                                // For now, we rely on the SettingsContext's localStorage.
                             }
                         }
 
                     } else {
-                        // Token is invalid or expired
                         logout();
                     }
                 } catch (e) {
-                    console.error('Session validation failed', e);
+                    console.error('Falha na validação da sessão', e);
                     logout();
                 }
             }
             setIsLoading(false);
         };
         validateSession();
-    }, []);
+    }, [logout]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
             if (response && response.userId && response.token) {
-                setUser({ id: response.userId, username: credentials.login }); // Use login as username for now
+                setUser({ id: response.userId, username: credentials.login }); // Temporariamente usa o login como username
                 setIsLicenseActive(response.isLicenseActive);
                 localStorage.setItem('token', response.token);
                 
@@ -106,13 +116,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const register = async (details: authService.RegisterDetails) => {
+        if(details.password !== details.confirmPassword){
+            toast({
+                variant: "destructive",
+                title: "Erro no Registro",
+                description: "As senhas não coincidem.",
+            });
+            return false;
+        }
         setIsLoading(true);
         try {
             const response = await authService.registerUser(details);
             if (response.success) {
                  toast({
                     title: "Registro Concluído!",
-                    description: response.message,
+                    description: response.message + " Por favor, faça o login.",
                 });
                 return true;
             }
@@ -155,22 +173,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        // Since the backend doesn't store the API key, we just save it locally.
         setApiKey(newApiKey);
         toast({
             title: "Chave de API Salva!",
             description: "A chave foi salva localmente no seu navegador.",
         });
         return Promise.resolve(true);
-    };
-
-    const logout = () => {
-        setUser(null);
-        setIsLicenseActive(false);
-        localStorage.removeItem('token');
-        toast({
-            description: "Você saiu da sua conta.",
-        })
     };
 
     const value: AuthContextType = {

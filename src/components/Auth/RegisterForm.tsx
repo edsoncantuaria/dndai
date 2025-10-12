@@ -10,7 +10,6 @@ const RegisterForm = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const { toast } = useToast();
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
