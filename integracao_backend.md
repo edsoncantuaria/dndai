@@ -40,6 +40,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 ## Fase 0 — Reconstrução e Fundação (Concluído)
 
+*   **[X] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
 *   **[X] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
 *   **[X] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
 *   **[X] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
@@ -237,3 +238,4 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
+
