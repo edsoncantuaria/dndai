@@ -1,60 +1,52 @@
-import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+// backend/src/models/Character.ts
+import { Model, DataTypes, Sequelize } from 'sequelize';
 
-interface CharacterAttributes {
-  id: number;
-  userId: number;
-  name: string;
-  level: number;
-  stats: object; // Para armazenar JSON
-}
-
-interface CharacterCreationAttributes extends Optional<CharacterAttributes, 'id'> {}
-
-class Character extends Model<CharacterAttributes, CharacterCreationAttributes> implements CharacterAttributes {
+class Character extends Model {
   public id!: number;
   public userId!: number;
   public name!: string;
   public level!: number;
-  public stats!: object;
+  public stats!: any; // JSONB para armazenar a ficha completa
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-}
 
-Character.init(
-  {
-    id: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    userId: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
+  public static initialize(sequelize: Sequelize) {
+    this.init(
+      {
+        id: {
+          type: DataTypes.INTEGER,
+          autoIncrement: true,
+          primaryKey: true,
+        },
+        userId: {
+          type: DataTypes.INTEGER,
+          allowNull: false,
+          references: {
+            model: 'users',
+            key: 'id',
+          },
+        },
+        name: {
+          type: new DataTypes.STRING(128),
+          allowNull: false,
+        },
+        level: {
+            type: DataTypes.INTEGER,
+            allowNull: false,
+            defaultValue: 1,
+        },
+        stats: {
+          type: DataTypes.JSON,
+          allowNull: false,
+        },
       },
-    },
-    name: {
-      type: new DataTypes.STRING(128),
-      allowNull: false,
-    },
-    level: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
-      defaultValue: 1,
-    },
-    stats: {
-      type: DataTypes.JSON,
-      allowNull: false,
-    },
-  },
-  {
-    tableName: 'characters',
-    sequelize,
+      {
+        tableName: 'characters',
+        sequelize,
+      }
+    );
   }
-);
+}
 
 export default Character;

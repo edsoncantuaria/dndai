@@ -1,53 +1,51 @@
-import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
+// backend/src/models/Log.ts
+import { Model, DataTypes, Sequelize } from 'sequelize';
 
-interface LogAttributes {
-  id: number;
-  userId: number;
-  action: string;
-  details: object;
-}
-
-interface LogCreationAttributes extends Optional<LogAttributes, 'id'> {}
-
-class Log extends Model<LogAttributes, LogCreationAttributes> implements LogAttributes {
+class Log extends Model {
   public id!: number;
-  public userId!: number;
-  public action!: string;
-  public details!: object;
+  public sessionId!: number;
+  public type!: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
+  public content!: string;
+  public metadata!: any | null; // JSONB para dados extras, como resultados de rolagens
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-}
 
-Log.init(
-  {
-    id: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    userId: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
+  public static initialize(sequelize: Sequelize) {
+    this.init(
+      {
+        id: {
+          type: DataTypes.INTEGER,
+          autoIncrement: true,
+          primaryKey: true,
+        },
+        sessionId: {
+          type: DataTypes.INTEGER,
+          allowNull: false,
+          references: {
+            model: 'game_sessions',
+            key: 'id',
+          },
+        },
+        type: {
+          type: DataTypes.ENUM('narration', 'action', 'system', 'combat', 'insight', 'roll'),
+          allowNull: false,
+        },
+        content: {
+          type: DataTypes.TEXT,
+          allowNull: false,
+        },
+        metadata: {
+            type: DataTypes.JSON,
+            allowNull: true,
+        },
       },
-    },
-    action: {
-      type: new DataTypes.STRING(255),
-      allowNull: false,
-    },
-    details: {
-      type: DataTypes.JSON,
-      allowNull: true,
-    },
-  },
-  {
-    tableName: 'logs',
-    sequelize,
+      {
+        tableName: 'logs',
+        sequelize,
+      }
+    );
   }
-);
+}
 
 export default Log;

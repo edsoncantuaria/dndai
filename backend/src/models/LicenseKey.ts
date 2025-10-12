@@ -1,64 +1,53 @@
+// backend/src/models/LicenseKey.ts
+import { Model, DataTypes, Sequelize } from 'sequelize';
 
-import { Model, DataTypes, Optional } from 'sequelize';
-import { sequelize } from '../config/database';
-
-interface LicenseKeyAttributes {
-  id: number;
-  key: string;
-  is_active: boolean;
-  expires_at: Date;
-  userId: number | null;
-}
-
-interface LicenseKeyCreationAttributes extends Optional<LicenseKeyAttributes, 'id' | 'is_active' | 'userId'> {}
-
-class LicenseKey extends Model<LicenseKeyAttributes, LicenseKeyCreationAttributes> implements LicenseKeyAttributes {
+class LicenseKey extends Model {
   public id!: number;
   public key!: string;
-  public is_active!: boolean;
-  public expires_at!: Date;
   public userId!: number | null;
+  public isActive!: boolean;
+  public expiresAt!: Date | null;
 
   public readonly createdAt!: Date;
   public readonly updatedAt!: Date;
-}
 
-LicenseKey.init(
-  {
-    id: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    key: {
-      type: new DataTypes.STRING(255),
-      allowNull: false,
-      unique: true,
-    },
-    is_active: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    expires_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    userId: {
-      type: DataTypes.INTEGER.UNSIGNED,
-      allowNull: true,
-      references: {
-        model: 'users',
-        key: 'id',
+  public static initialize(sequelize: Sequelize) {
+    this.init(
+      {
+        id: {
+          type: DataTypes.INTEGER,
+          autoIncrement: true,
+          primaryKey: true,
+        },
+        key: {
+          type: new DataTypes.STRING(255),
+          allowNull: false,
+          unique: true,
+        },
+        userId: {
+          type: DataTypes.INTEGER,
+          allowNull: true,
+          references: {
+            model: 'users',
+            key: 'id',
+          },
+        },
+        isActive: {
+          type: DataTypes.BOOLEAN,
+          defaultValue: false,
+          allowNull: false,
+        },
+        expiresAt: {
+          type: DataTypes.DATE,
+          allowNull: true,
+        },
       },
-      onDelete: 'SET NULL',
-      onUpdate: 'CASCADE',
-    },
-  },
-  {
-    tableName: 'license_keys',
-    sequelize,
+      {
+        tableName: 'license_keys',
+        sequelize,
+      }
+    );
   }
-);
+}
 
 export default LicenseKey;
