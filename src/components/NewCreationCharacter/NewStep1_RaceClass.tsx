@@ -1,9 +1,59 @@
 // src/components/NewCreationCharacter/NewStep1_RaceClass.tsx
 import React from 'react';
-import type { ApiListItem } from '@/types';
-import { translateApiString } from '@/utils/translator';
+import type { ApiListItem, ApiTrait } from '@/types';
+import { translateApiString, translateAttribute } from '@/utils/translator';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { Dice5, ArrowRight, Loader2 } from 'lucide-react';
+import * as DndApiService from '@/services/dndApiService';
+
+interface DraconicAncestryChoiceProps {
+    hook: ReturnType<typeof useNewCharacterCreation>;
+}
+
+const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook }) => {
+    const {
+        draconicAncestry,
+        setDraconicAncestry,
+        draconicAncestryOptions,
+        raceDetails,
+        selectedAncestryDetails, // NEW: Get details from hook
+        isDraconicAncestryLoading, // NEW: Get loading state from hook
+    } = hook;
+
+    if (raceDetails?.index !== 'dragonborn') {
+        return null;
+    }
+
+    return (
+        <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
+            <h4 className="text-lg font-semibold text-stone-300 mb-2">Ancestralidade Dracônica</h4>
+            <p className="text-sm text-stone-400 mb-4">Sua linhagem determina seu tipo de dano e arma de sopro.</p>
+            {isDraconicAncestryLoading ? (
+                 <p className="text-center text-stone-400 mt-4 flex items-center justify-center"><Loader2 className="animate-spin mr-2"/> Carregando ancestralidades...</p>
+            ) : (
+                <select
+                    value={draconicAncestry}
+                    onChange={(e) => setDraconicAncestry(e.target.value)}
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                    <option value="" disabled>Escolha sua linhagem...</option>
+                    {draconicAncestryOptions.map(opt => (
+                        <option key={opt.index} value={opt.index}>
+                            {translateApiString(opt.name.replace('Draconic Ancestry: ', ''))}
+                        </option>
+                    ))}
+                </select>
+            )}
+            {selectedAncestryDetails && (
+                <div className="mt-4 p-3 bg-stone-800/50 rounded-md text-sm text-stone-300 space-y-1">
+                    <p><strong className="text-amber-300">Resistência a Dano:</strong> {translateApiString(selectedAncestryDetails.trait_specific.damage_type.name)}</p>
+                    <p><strong className="text-amber-300">Arma de Sopro:</strong> {translateApiString(selectedAncestryDetails.trait_specific.breath_weapon.damage?.[0].damage_type.name)} ({selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.size} pés em {selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.type === 'line' ? 'linha' : 'cone'})</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -11,6 +61,35 @@ interface Props {
     classes: ApiListItem[];
     nextStep: () => void;
 }
+
+const TraitChoice: React.FC<{
+    trait: ApiTrait;
+    hook: ReturnType<typeof useNewCharacterCreation>;
+}> = ({ trait, hook }) => {
+    const { traitSelections, handleTraitSelection } = hook;
+    const choice = trait.trait_specific?.subfeature_options;
+    if (!choice) return null;
+
+    const selection = traitSelections[trait.index];
+
+    return (
+        <div className="mt-2 pl-4 border-l-2 border-stone-600">
+            <label className="text-sm font-semibold text-stone-300">{choice.desc}</label>
+            <select
+                value={selection || ''}
+                onChange={(e) => handleTraitSelection(trait.index, e.target.value)}
+                className="w-full mt-1 bg-stone-700/80 border border-stone-600 rounded-md p-2 text-sm text-stone-200"
+            >
+                <option value="" disabled>Selecione uma opção...</option>
+                {choice.from.options.map((opt: any) => (
+                    <option key={opt.item.index} value={opt.item.index}>
+                        {translateApiString(opt.item.name)}
+                    </option>
+                ))}
+            </select>
+        </div>
+    );
+};
 
 const NewStep1_RaceClass: React.FC<Props> = ({
     hook,
@@ -26,10 +105,12 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         handleSubraceChange,
         handleClassChange,
         raceDetails,
+        traitChoiceDetails,
         isSpellsLoading,
         handleRandomizeRaceAndClass,
     } = hook;
-    const canProceed = race && characterClass;
+    
+    const canProceed = race && characterClass && traitChoiceDetails.every(t => !t.trait_specific?.subfeature_options || hook.traitSelections[t.index]) && (race !== 'dragonborn' || hook.draconicAncestry);
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -47,7 +128,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
             
             <div>
                 <h4 className="text-lg font-semibold text-stone-300 mb-4">Raça</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {races.map(r => (
                         <button
                             key={r.index}
@@ -61,10 +142,12 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                 </div>
             </div>
 
+            <DraconicAncestryChoice hook={hook} />
+
             {raceDetails?.subraces?.length > 0 && (
                 <div className="animate-fadeIn">
                     <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça (Opcional)</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                         {raceDetails.subraces.map((sr: ApiListItem) => (
                             <button
                                 key={sr.index}
@@ -79,9 +162,20 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                 </div>
             )}
             
+            {traitChoiceDetails.length > 0 && traitChoiceDetails.filter(t => t.index !== 'draconic-ancestry').map(trait => (
+                <div key={trait.index} className="animate-fadeIn p-3 bg-stone-900/40 rounded-md border border-stone-700">
+                     <p className="font-semibold text-stone-300">{translateApiString(trait.name)}</p>
+                    <p className="text-xs text-stone-400 italic">{trait.desc[0]}</p>
+                    {trait.trait_specific?.subfeature_options && (
+                        <TraitChoice trait={trait} hook={hook} />
+                    )}
+                </div>
+            ))}
+
+
             <div>
                 <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
-                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {classes.map(c => (
                         <button
                             key={c.index}
@@ -103,7 +197,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {isSpellsLoading ? <Loader2 className="mr-3 animate-spin" /> : <ArrowRight className="h-6 w-6 mr-3"/>}
-                    {isSpellsLoading ? 'Carregando...' : 'Avançar'}
+                    {isSpellsLoading ? 'Carregando...' : (canProceed ? 'Avançar' : 'Faça suas escolhas')}
                 </button>
             </div>
         </div>

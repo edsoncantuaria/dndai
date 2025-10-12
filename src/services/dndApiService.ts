@@ -1,6 +1,8 @@
 // services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { customFeats } from '../data/feats';
+import backgroundsData from '../data/backgrounds.json';
+
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
@@ -12,6 +14,7 @@ const localContent = new Map<string, any>();
 
 // Load custom content into the map
 customFeats.forEach(feat => localContent.set(`/feats/${feat.index}`, feat));
+backgroundsData.results.forEach(bg => localContent.set(`/backgrounds/${bg.index}`, bg));
 
 
 // Simple delay function to avoid hitting rate limits
@@ -51,20 +54,37 @@ export const getClasses = () => fetchFromApi<{ results: ApiListItem[] }>('/class
 export const getAlignments = () => fetchFromApi<{ results: ApiListItem[] }>('/alignments');
 export const getSkills = () => fetchFromApi<{ results: ApiListItem[] }>('/skills');
 export const getLanguages = () => fetchFromApi<{ results: ApiListItem[] }>('/languages');
-export const getBackgrounds = () => fetchFromApi<{ results: ApiListItem[] }>('/backgrounds');
+
+// Modified to serve local data
+export const getBackgrounds = async (): Promise<{ results: ApiListItem[] } | null> => {
+    return Promise.resolve({
+        results: backgroundsData.results.map(bg => ({
+            index: bg.index,
+            name: bg.name,
+            url: `/api/backgrounds/${bg.index}`
+        }))
+    });
+};
+
 export const getFeats = () => fetchFromApi<{ results: ApiListItem[] }>('/feats');
 
 export const getRaceDetails = (index: string) => fetchFromApi<ApiRace>(`/races/${index}`);
 export const getSubraceDetails = (index: string) => fetchFromApi<ApiSubrace>(`/subraces/${index}`);
 export const getClassDetails = (index: string) => fetchFromApi<ApiClass>(`/classes/${index}`);
 export const getSubclassDetails = (index: string) => fetchFromApi<ApiSubclass>(`/subclasses/${index}`);
+
+// Modified to serve local data
 export const getBackgroundDetails = (index: string) => fetchFromApi<ApiBackground>(`/backgrounds/${index}`);
+
 export const getClassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/classes/${index}/levels`);
 export const getSubclassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/subclasses/${index}/levels`);
+
 export const getSpellsForClass = (index: string) => fetchFromApi<{ results: ApiListItem[] }>(`/classes/${index}/spells`);
+
 export const getEquipmentForCategory = (index: string) => fetchFromApi<{ equipment: ApiListItem[] }>(`/equipment-categories/${index}`);
 
 export const getSpellDetails = (index: string) => fetchFromApi<ApiSpell>(`/spells/${index}`);
+
 export const getTraitDetails = (index: string) => fetchFromApi<ApiTrait>(`/traits/${index}`);
 export const getEquipmentDetails = (index: string) => fetchFromApi<Partial<InventoryItem>>(`/equipment/${index}`);
 export const getConditionDetails = (index: string) => fetchFromApi<ApiCondition>(`/conditions/${index}`);

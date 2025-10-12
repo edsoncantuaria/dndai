@@ -111,7 +111,6 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         <div ref={wizardRef} className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn max-h-[90vh] overflow-y-auto">
             <header className="flex justify-between items-center border-b border-stone-700 pb-4 mb-6">
                 <h2 className="text-2xl font-bold font-garamond text-amber-300 text-shadow-amber">Criação de Personagem</h2>
-                 {/* O botão de voltar foi removido daqui para ser gerenciado pela HomePage */}
             </header>
 
             <NewStepper currentStep={currentStep} totalSteps={totalSteps} highestStep={highestStep} goToStep={goToStep} />

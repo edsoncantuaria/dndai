@@ -10,6 +10,30 @@ export interface PlayerRollRequest {
     disadvantage?: boolean;
 }
 
+export type ImageLogEntryContent = {
+    status: 'generating' | 'failed' | 'done';
+    url?: string;
+    prompt?: string;
+};
+
+
+export interface GameMasterResponse {
+    logEntries?: LogEntry[];
+    actionOptions?: (string | { text: string; action: string })[];
+    updatedCharacter?: Partial<Character>;
+    combatState?: CombatState;
+    levelUpState?: LevelUpState;
+    shopState?: ShopState;
+    lootOffer?: LootOffer;
+    useHitDiceRequest?: UseHitDiceRequest;
+    ambientSound?: string;
+    imagePrompt?: string;
+    systemLog?: string;
+    worldState?: { [key: string]: any };
+    modularRules?: string[];
+}
+
+
 export interface ApiListItem {
     index: string;
     name: string;
@@ -24,6 +48,7 @@ export interface ApiRace {
         ability_score: ApiListItem;
         bonus: number;
     }[];
+    ability_bonus_options?: ProficiencyChoice;
     alignment: string;
     age: string;
     size: string;
@@ -35,8 +60,8 @@ export interface ApiRace {
     language_options?: {
         choose: number;
         from: {
-            option_set_type: string;
-            options: any[];
+             option_set_type: string;
+             options: any[];
         }
     };
     traits: ApiListItem[];
@@ -139,13 +164,19 @@ export interface ApiEquipmentOption {
 
 export interface NewCharacterInfo {
     name: string;
+    sex: 'Masculino' | 'Feminino' | 'Outro';
+    hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
+    beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
+    skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
     race: string;
     subrace: string | null;
+    draconicAncestry?: string;
     characterClass: string;
     background: string;
     alignment: string;
     attributes: Attributes;
     proficiencies: Proficiency[];
+    traits: ApiListItem[];
     languages: string[];
     inventory: InventoryItem[];
     spells: string[];
@@ -194,6 +225,11 @@ export interface InventoryItem {
     };
     str_minimum?: number;
     stealth_disadvantage?: boolean;
+    // New properties
+    consumable?: boolean;
+    usable?: boolean;
+    recoverable?: boolean;
+    restrictions?: string[];
 }
 
 export interface ShopItem extends InventoryItem {
@@ -203,13 +239,25 @@ export interface ShopItem extends InventoryItem {
     };
 }
 
+export interface LootOffer {
+    items: InventoryItem[];
+    currency: {
+        gp: number;
+    }
+}
+
 export interface Character {
     name: string;
+    sex: 'Masculino' | 'Feminino' | 'Outro';
+    hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
+    beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
+    skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
     level: number;
     xp: number;
     xpToNextLevel: number;
     race: string;
     subrace: string | null;
+    draconicAncestry?: string;
     characterClass: string;
     subclass: string | null;
     hitDie: number;
@@ -219,7 +267,9 @@ export interface Character {
     modifiers: Attributes;
     proficiencyBonus: number;
     proficiencies: Proficiency[];
+    traits: ApiListItem[];
     languages: string[];
+    damage_resistances: string[];
     hp: {
         current: number;
         max: number;
@@ -263,11 +313,13 @@ export interface Character {
     speed: number;
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
+    factionReputation?: Record<string, number>;
+    worldState?: { [key: string]: any };
 }
 
 export interface LogEntry {
     id: string;
-    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
+    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
     content: string;
     rollResult?: {
         description: string;
@@ -277,18 +329,44 @@ export interface LogEntry {
         rolls: number[];
         success?: boolean;
         dc?: number;
-        rollType: 'check' | 'save' | 'attack' | 'damage';
+        rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative';
         advantage?: boolean;
         disadvantage?: boolean;
     };
-}
+};
 
 export interface Combatant {
     id: string;
     name: string;
+    isPlayer?: boolean; // New optional property
     hp?: number;
     maxHp?: number;
+    armorClass?: number;
     initiative: number;
+    initiativeRoll?: number;
+    isDead: boolean;
+    hasMoved: boolean;
+    hasActed: boolean;
+    actionPoints: number;
+    bonusActionPoints: number;
+    readyWeapon?: string;
+    readySpell?: string;
+    conditions: ApiCondition[];
+    rollHistory: {
+        type: 'initiative' | 'attack' | 'check' | 'save' | 'damage';
+        total: number;
+        rolls: number[];
+        timestamp?: string;
+        rollType: string;
+        dice: string;
+        description: string;
+        modifier?: number;
+        advantage?: boolean;
+        disadvantage?: boolean;
+        success?: boolean;
+    }[];
+    tempModifiers?: any;
+    distance?: number;
 }
 
 export interface CombatState {
@@ -296,6 +374,9 @@ export interface CombatState {
     round: number;
     turn: number;
     combatants: Combatant[];
+    initiativeOrder?: string[] | {id: string, initiative: number}[];
+    log?: LogEntry[];
+    globalConditions?: any[];
 }
 
 export interface ApiClassLevel {
@@ -328,11 +409,16 @@ export interface ApiSpell {
     attack_type?: string;
     damage?: {
         damage_type: ApiListItem;
+        damage_at_character_level?: Record<string, string>;
         [key: string]: any;
     };
     school: ApiListItem;
     classes: ApiListItem[];
     subclasses: ApiListItem[];
+    dc?: {
+        dc_type: ApiListItem;
+        dc_success: string;
+    }
 }
 
 export interface ApiTrait {
@@ -343,9 +429,31 @@ export interface ApiTrait {
     desc: string[];
     proficiencies: Proficiency[];
     proficiency_choices?: ProficiencyChoice;
+    parent?: ApiListItem;
     trait_specific?: {
         spell_options?: ProficiencyChoice;
-        subfeature_options?: ProficiencyChoice;
+        subtrait_options?: ProficiencyChoice;
+        damage_type?: ApiListItem;
+        breath_weapon?: {
+            name: string;
+            desc: string;
+            area_of_effect: {
+                size: number;
+                type: string;
+            };
+            usage: {
+                type: string;
+                times: number;
+            };
+            dc: {
+                dc_type: ApiListItem;
+                success_type: string;
+            };
+            damage: {
+                damage_type: ApiListItem;
+                damage_at_character_level: Record<string, string>;
+            }[];
+        };
         [key: string]: any;
     }
 }
@@ -379,21 +487,6 @@ export interface LevelUpSelections {
     featureChoices?: { id: string; selections: string[] }[];
     subclass?: string;
     hpIncrease?: number;
-}
-
-export interface ShopState {
-    isOpen: boolean;
-    isHaggling: boolean;
-    name: string;
-    inventory: ShopItem[];
-    sellPrices: Record<string, number>; // maps item ID to sell price
-}
-
-export interface LootOffer {
-    items: InventoryItem[];
-    currency: {
-        gp: number;
-    }
 }
 
 export interface UseHitDiceRequest {

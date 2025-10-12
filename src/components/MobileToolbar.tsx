@@ -7,10 +7,11 @@ interface MobileToolbarProps {
     setActiveTab: (tab: Tab) => void;
     children: React.ReactNode;
     tabConfig: Record<Tab, { label: string, icon: React.ReactNode }>;
+    isOpen: boolean;
+    setIsOpen: (isOpen: boolean) => void;
 }
 
-const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, children, tabConfig }) => {
-    const [isOpen, setIsOpen] = useState(false);
+const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, children, tabConfig, isOpen, setIsOpen }) => {
 
     const toggleOpen = (tab?: Tab) => {
         if (tab && tab === activeTab && isOpen) {
@@ -22,6 +23,9 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, 
             setIsOpen(false);
         }
     };
+
+    // Ajusta a ordem para uma progressão mais lógica na barra de ferramentas móvel
+    const mobileTabOrder: Tab[] = ['character', 'inventory', 'spells', 'journal', 'relationships', 'progression'];
 
     return (
         <>
@@ -44,17 +48,20 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, 
 
             {/* Toolbar */}
             <div className="fixed bottom-0 left-0 right-0 bg-stone-900/90 backdrop-blur-sm border-t border-stone-700 grid grid-cols-6 items-center md:hidden z-50 h-16">
-                 {Object.entries(tabConfig).map(([key, {label, icon}]) => (
-                    <button 
-                        key={key} 
-                        onClick={() => toggleOpen(key as Tab)} 
-                        className={`flex flex-col items-center justify-center p-1 text-xs transition-colors ${activeTab === key && isOpen ? 'text-amber-400' : 'text-stone-400 hover:text-amber-500'}`}
-                        title={label}
-                    >
-                        {icon}
-                        <span className="mt-1">{label}</span>
-                    </button>
-                 ))}
+                 {mobileTabOrder.map((key) => {
+                    const { label, icon } = tabConfig[key];
+                    return (
+                        <button 
+                            key={key} 
+                            onClick={() => toggleOpen(key as Tab)} 
+                            className={`flex flex-col items-center justify-center p-1 text-xs transition-colors ${activeTab === key && isOpen ? 'text-amber-400' : 'text-stone-400 hover:text-amber-500'}`}
+                            title={label}
+                        >
+                            {icon}
+                            <span className="mt-1">{label}</span>
+                        </button>
+                    )
+                 })}
             </div>
         </>
     );

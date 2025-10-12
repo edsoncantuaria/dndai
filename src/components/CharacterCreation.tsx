@@ -9,11 +9,12 @@ import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
-import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2 } from 'lucide-react';
+import { BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { generateImage } from '@/ai/flows/generateImage';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import Image from 'next/image';
+import DiceTestModal from './DiceTestModal';
 
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
@@ -37,6 +38,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
     const [testImageUrl, setTestImageUrl] = useState<string | null>(null);
     const [isGeneratingImage, setIsGeneratingImage] = useState(false);
     const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+    const [showDiceTestModal, setShowDiceTestModal] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
 
@@ -153,6 +155,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         }
     }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
 
+    const handleFileImport = async (file: File) => {
+        const success = await loadGameFromFile(file);
+        if (success) {
+            setHasSavedGame(true);
+        }
+    }
+
 
     // Data Fetching State
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -178,7 +187,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                  <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
                     <h1 
                       className="text-5xl md:text-7xl font-bold text-amber-50"
-                      style={{ textShadow: '0 0 15px rgba(239, 68, 68, 0.4), 0 0 5px rgba(239, 68, 68, 0.6)' }}
+                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}
                     >
                         Crônicas de Aventuras
                     </h1>
@@ -189,7 +198,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                         hasSavedGame={hasSavedGame}
                         onNewGame={handleNewGame}
                         onLoadGame={onContinueGame}
-                        onImportFile={loadGameFromFile}
+                        onImportFile={handleFileImport}
                     />
                     <div className="mt-6 flex justify-center items-center gap-4">
                          <button
@@ -237,14 +246,18 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                                 {aiTestResult.success && (
                                     <div className="space-y-4">
                                          {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                            <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
                                                 {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
                                                 Gerar Imagem
                                             </button>
-                                            <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                            <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
                                                  {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
                                                 Ouvir Áudio
+                                            </button>
+                                            <button onClick={() => setShowDiceTestModal(true)} className="sm:col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
+                                                <Dices className="h-5 w-5" />
+                                                Testar Dados
                                             </button>
                                         </div>
                                     </div>
@@ -253,6 +266,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
                         </ActionModal>
                      )}
                      <audio ref={audioRef} className="hidden" />
+                     {showDiceTestModal && <DiceTestModal isOpen={showDiceTestModal} onClose={() => setShowDiceTestModal(false)} />}
                      <SettingsModal 
                         isOpen={showSettingsModal}
                         onClose={() => setShowSettingsModal(false)}

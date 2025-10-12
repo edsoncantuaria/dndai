@@ -1,3 +1,4 @@
+import type { ApiSpell } from '@/types';
 
 export const TRANSLATIONS_SPELLS: Record<string, any> = {
   "Acid Arrow": {
@@ -3890,27 +3891,30 @@ export const TRANSLATIONS_SPELLS: Record<string, any> = {
     "casting_time": "1 ação"
   }
 };
+      
 
-export const translateSpell = (spell: any): any => {
-    const translatedSpell = TRANSLATIONS_SPELLS[spell.name];
-    if (translatedSpell) {
-        return {
-            ...spell,
-            name: translatedSpell.name,
-            desc: translatedSpell.desc,
-            higher_level: translatedSpell.higher_level,
-            material: translatedSpell.material,
-            duration: translatedSpell.duration,
-            casting_time: translatedSpell.casting_time,
-            attack_type: translatedSpell.attack_type,
-            damage: {
-                ...spell.damage,
-                damage_type: {
-                    ...spell.damage?.damage_type,
-                    name: translatedSpell.damage_type,
-                },
-            },
-        };
+      
+
+// A more robust translation function that handles nested properties
+export const translateSpell = (spell: ApiSpell): ApiSpell => {
+    if (!spell) return spell;
+
+    const translatedSpell = { ...spell };
+
+    const spellTranslation = TRANSLATIONS_SPELLS[spell.name];
+
+    translatedSpell.name = spellTranslation?.name || spell.name;
+    translatedSpell.desc = spellTranslation?.desc || spell.desc;
+    translatedSpell.higher_level = spellTranslation?.higher_level || spell.higher_level;
+    translatedSpell.material = spellTranslation?.material || spell.material;
+
+    if (translatedSpell.school?.name) {
+        translatedSpell.school.name = translatedSpell.school.name;
     }
-    return spell;
+
+    if (translatedSpell.damage?.damage_type?.name) {
+        translatedSpell.damage.damage_type.name = translatedSpell.damage.damage_type.name;
+    }
+
+    return translatedSpell;
 };

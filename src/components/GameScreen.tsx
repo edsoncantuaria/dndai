@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import Header from './Header';
 import ActionOptions from './ActionOptions';
@@ -5,7 +7,7 @@ import Inventory from './Inventory';
 import CharacterSheet from './CharacterSheet';
 import Spellbook from './Spellbook';
 import MobileToolbar from './MobileToolbar';
-import CombatTracker from './CombatTracker';
+import NewCombatTracker from './NewCombatTracker'; // Importar o novo componente
 import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
@@ -15,13 +17,19 @@ import NewNarrativeLog from './NewNarrativeLog';
 import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
 import AmbientPlayer from './AmbientPlayer';
+import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
-import SpellCastModal from './ui/SpellCastModal'; // Importa o novo modal de magia
+import SpellCastModal from './ui/SpellCastModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
-const GameScreen: React.FC = () => {
+interface GameScreenProps {
+    returnToMenu: () => void;
+}
+
+const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
         combatState, 
@@ -29,22 +37,28 @@ const GameScreen: React.FC = () => {
         shopState, 
         apiError, 
         clearApiError,
+        playerRollRequest,
+        setPlayerRollRequest,
+        handleRollResult,
         skillCheckRequest,
         setSkillCheckRequest,
         handleSkillCheckSubmit,
-        spellCastRequest,      // Novo estado do hook
-        setSpellCastRequest,   // Novo estado do hook
-        submitSpellCast,       // Nova função do hook
+        spellCastRequest,
+        setSpellCastRequest,
+        submitSpellCast,
     } = useGameStateContext();
+
+    const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const handleModalAction = () => setIsMobileSheetOpen(false);
 
     const renderSidebarContent = () => {
         switch (activeTab) {
             case 'character':
-                return <CharacterSheet />;
+                return <CharacterSheet onModalAction={handleModalAction} />;
             case 'inventory':
                 return <Inventory />;
             case 'spells':
-                return <Spellbook />;
+                return <Spellbook onModalAction={handleModalAction} />;
             case 'progression':
                 return <ProgressionTab />;
             case 'relationships':
@@ -52,16 +66,16 @@ const GameScreen: React.FC = () => {
             case 'journal':
                 return <NewJournal />;
             default:
-                return <CharacterSheet />;
+                return <CharacterSheet onModalAction={handleModalAction} />;
         }
     };
 
     const tabConfig: Record<Tab, { label: string, icon: React.ReactNode }> = {
+        relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
+        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
         character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
         spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
-        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
-        relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
 
@@ -71,6 +85,13 @@ const GameScreen: React.FC = () => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
+                {playerRollRequest && (
+                    <DiceRollModal 
+                        request={playerRollRequest}
+                        onRoll={handleRollResult}
+                        onClose={() => setPlayerRollRequest(null)}
+                    />
+                )}
                 {skillCheckRequest && (
                     <SkillCheckModal
                         skillName={skillCheckRequest.skillName}
@@ -78,7 +99,6 @@ const GameScreen: React.FC = () => {
                         onClose={() => setSkillCheckRequest(null)}
                     />
                 )}
-                {/* Renderiza o novo modal de magia */}
                 {spellCastRequest && (
                     <SpellCastModal
                         spell={spellCastRequest.spell}
@@ -88,13 +108,15 @@ const GameScreen: React.FC = () => {
                 )}
                 <AmbientPlayer /> 
 
-                <Header />
+                <Header returnToMenu={returnToMenu} />
                 
-                {combatState.isActive && <CombatTracker />}
+                <NewCombatTracker /> 
 
-                <div className="flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden">
+                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden", "md:mb-0 mb-16")}>
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                        <div className="flex-grow p-4 overflow-y-auto h-0 pb-40 md:pb-4">
+                        <div className={cn(
+                            "flex-grow p-4 overflow-y-auto h-0"
+                        )}>
                             <NewNarrativeLog />
                         </div>
                         <ActionOptions />
@@ -124,6 +146,8 @@ const GameScreen: React.FC = () => {
                     activeTab={activeTab}
                     setActiveTab={setActiveTab}
                     tabConfig={tabConfig}
+                    isOpen={isMobileSheetOpen}
+                    setIsOpen={setIsMobileSheetOpen}
                 >
                     {renderSidebarContent()}
                 </MobileToolbar>

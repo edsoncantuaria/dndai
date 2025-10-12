@@ -15,7 +15,7 @@ const statusMap: Record<Relationship['status'], { label: string, color: string }
 const AffinityBar: React.FC<{ affinity: number }> = ({ affinity }) => {
     const percentage = ((affinity + 100) / 200) * 100;
     
-    let color = 'bg-yellow-500';
+    let color = 'bg-yellow-500'; // Neutro
     if (affinity <= -50) color = 'bg-red-600';
     else if (affinity < 0) color = 'bg-orange-500';
     else if (affinity >= 50) color = 'bg-green-500';
@@ -42,7 +42,7 @@ const QuestItem: React.FC<{ quest: Quest }> = ({ quest }) => {
     const isCompleted = quest.status === 'completed';
     return (
         <div className={`pl-4 border-l-2 ${isCompleted ? 'border-green-700' : 'border-amber-600'}`}>
-            <h5 className={`font-semibold ${isCompleted ? 'text-green-400' : 'text-amber-300'}`}>{quest.title}</h5>
+            <h5 className={`font-semibold ${isCompleted ? 'text-green-400 line-through' : 'text-amber-300'}`}>{quest.title}</h5>
             {!isCompleted && quest.objectives.length > 0 && (
                  <ul className="list-disc list-inside text-sm text-stone-300 pl-2 mt-1 space-y-1">
                     {quest.objectives.map((obj, i) => (
@@ -60,48 +60,69 @@ const NewRelationships: React.FC = () => {
     if (!character || !character.relationships || character.relationships.length === 0) {
         return (
             <div className="p-4 space-y-4">
-                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                     <Users />
-                    Relacionamentos
+                    Relacionamentos e Missões
                 </h3>
                 <div className="text-center text-stone-400 italic p-8 bg-stone-800/50 rounded-lg">
                     <p>Você ainda não formou nenhum relacionamento significativo.</p>
-                    <p className="text-sm">Suas interações com as pessoas neste mundo serão refletidas aqui.</p>
+                    <p className="text-sm">Suas interações com as pessoas neste mundo serão refletidas aqui, assim como as missões que você receber.</p>
                 </div>
             </div>
         );
     }
+    
+    const activeQuests = character.relationships.flatMap(r => r.quests.filter(q => q.status === 'active'));
+    const completedQuests = character.relationships.flatMap(r => r.quests.filter(q => q.status === 'completed'));
+
 
     return (
-        <div className="p-4 space-y-4">
-            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
+        <div className="p-4 space-y-6">
+            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                 <Users />
-                Relacionamentos
+                Relacionamentos e Missões
             </h3>
-            <div className="space-y-4">
-                {character.relationships.map(rel => (
-                    <div key={rel.npcId} className="bg-stone-800/70 p-4 rounded-lg border border-stone-700 space-y-3 animate-fadeIn">
-                        <div>
-                            <div className="flex justify-between items-baseline">
-                                <h4 className="font-semibold text-stone-200 text-lg">{rel.name}</h4>
-                                <span className={`px-2 py-1 text-xs font-bold rounded-full text-white/90 ${statusMap[rel.status].color}`}>{statusMap[rel.status].label}</span>
-                            </div>
-                            <p className="text-sm text-stone-400 italic">{rel.description}</p>
-                        </div>
-                        
-                        <AffinityBar affinity={rel.affinity} />
-                        
-                        {rel.quests && rel.quests.length > 0 && (
-                            <div>
-                                <h5 className="font-bold text-stone-300 text-sm mb-2 border-t border-stone-700 pt-3">Missões Associadas</h5>
-                                <div className="space-y-3">
-                                    {rel.quests.map(q => <QuestItem key={q.id} quest={q} />)}
-                                </div>
-                            </div>
-                        )}
+
+            {/* Active Quests Section */}
+            <div>
+                <h4 className="text-md font-semibold text-amber-200 border-b border-stone-700 pb-1 mb-3">Missões Ativas</h4>
+                {activeQuests.length > 0 ? (
+                    <div className="space-y-4">
+                        {activeQuests.map(q => <QuestItem key={q.id} quest={q} />)}
                     </div>
-                ))}
+                ) : (
+                    <p className="text-sm text-stone-400 italic">Você não tem missões ativas.</p>
+                )}
             </div>
+
+            {/* Relationships Section */}
+            <div>
+                <h4 className="text-md font-semibold text-stone-300 border-b border-stone-700 pb-1 mb-3">Personagens Conhecidos</h4>
+                <div className="space-y-4">
+                    {character.relationships.map(rel => (
+                        <div key={rel.npcId} className="bg-stone-800/70 p-4 rounded-lg border border-stone-700 space-y-3">
+                            <div>
+                                <div className="flex justify-between items-baseline">
+                                    <h5 className="font-semibold text-stone-200 text-lg">{rel.name}</h5>
+                                    <span className={`px-2 py-1 text-xs font-bold rounded-full text-white/90 ${statusMap[rel.status].color}`}>{statusMap[rel.status].label}</span>
+                                </div>
+                                <p className="text-sm text-stone-400 italic">{rel.description}</p>
+                            </div>
+                            <AffinityBar affinity={rel.affinity} />
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+             {/* Completed Quests Section */}
+            {completedQuests.length > 0 && (
+                <div>
+                    <h4 className="text-md font-semibold text-green-400 border-b border-stone-700 pb-1 mb-3">Missões Concluídas</h4>
+                    <div className="space-y-3 opacity-70">
+                        {completedQuests.map(q => <QuestItem key={q.id} quest={q} />)}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

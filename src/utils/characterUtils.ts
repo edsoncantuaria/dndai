@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -134,26 +134,49 @@ export const getSpellsKnown = (
 };
 
 
+const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
+    'draconic-ancestry-black': 'acid',
+    'draconic-ancestry-blue': 'lightning',
+    'draconic-ancestry-brass': 'fire',
+    'draconic-ancestry-bronze': 'lightning',
+    'draconic-ancestry-copper': 'acid',
+    'draconic-ancestry-gold': 'fire',
+    'draconic-ancestry-green': 'poison',
+    'draconic-ancestry-red': 'fire',
+    'draconic-ancestry-silver': 'cold',
+    'draconic-ancestry-white': 'cold',
+};
+
 export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Character> => {
     const modifiers = calculateModifiers(info.attributes);
     const proficiencyBonus = getProficiencyBonus(1);
     const maxHp = calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
 
-    const [classLevelsData, subclassLevelsData, raceDetails] = await Promise.all([
+    const [classLevelsData, subclassLevelsData] = await Promise.all([
         DndApiService.getClassLevels(info.characterClass.toLowerCase()),
         info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
-        DndApiService.getRaceDetails(info.race.toLowerCase()),
     ]);
     
     const startingGold = 15; // TODO: Derive from background
+    
+    const damage_resistances: string[] = [];
+    if(info.draconicAncestry && DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]){
+        damage_resistances.push(DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]);
+    }
+
 
     const newCharacter: Character = {
         name: info.name,
+        sex: info.sex,
+        hairStyle: info.hairStyle,
+        beardStyle: info.beardStyle,
+        skinColor: info.skinColor,
         level: 1,
         xp: 0,
         xpToNextLevel: getXpThreshold(1),
         race: info.race,
         subrace: info.subrace,
+        draconicAncestry: info.draconicAncestry,
         characterClass: info.characterClass,
         subclass: info.subclass,
         hitDie: info.hitDie,
@@ -163,7 +186,9 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         modifiers,
         proficiencyBonus,
         proficiencies: info.proficiencies,
+        traits: info.traits, // Added traits here
         languages: info.languages,
+        damage_resistances,
         hp: { current: maxHp, max: maxHp, temp: 0 },
         ac: calculateAC(info.inventory, modifiers),
         inventory: info.inventory.map(item => ({...item, id: uuidv4(), equipped: false })),
@@ -174,19 +199,25 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         spells: info.spells,
         feats: info.feats as Feat[],
         backstory: info.backstory,
+        storySoFar: '',
         personalityTraits: info.personalityTraits,
         ideal: info.ideal,
         bond: info.bond,
         flaw: info.flaw,
-        speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: [],
         relationships: [],
         journal: [],
         currentRegion: 'Desconhecida',
         hitDice: { current: 1, total: 1 },
+        speed: (await DndApiService.getRaceDetails(info.race.toLowerCase()))?.speed || 30,
         classLevelsData: classLevelsData || [],
         subclassLevelsData: subclassLevelsData || [],
+        factionReputation: {},
+        worldState: {
+            timeOfDay: 'Manhã',
+            weather: 'Céu Limpo'
+        },
     };
     
     // Populate initial spell slots if any
@@ -237,7 +268,7 @@ export const SKILL_ATTRIBUTE_MAP: Record<string, keyof Attributes> = {
 
 export const ALL_SKILLS = Object.keys(SKILL_ATTRIBUTE_MAP);
 
-export const applyLevelUp = async (character: Character, levelUpState: any, selections: LevelUpSelections): Promise<Character> => {
+export const applyLevelUp = async (character: Character, levelUpState: any, selections: any): Promise<Character> => {
     // This is a placeholder for a much more complex function.
     // In a real scenario, this would involve:
     // - Increasing HP (either by rolling or taking average)

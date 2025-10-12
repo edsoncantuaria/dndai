@@ -11,7 +11,7 @@ interface NewStepperProps {
 const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highestStep, goToStep }) => {
     return (
         <div className="flex items-center justify-center w-full mb-8">
-            <div className="flex items-center">
+            <div className="flex items-center justify-center flex-wrap gap-y-2">
                 {Array.from({ length: totalSteps }).map((_, index) => {
                     const step = index + 1;
                     const isCompleted = step < highestStep;
@@ -37,7 +37,7 @@ const NewStepper: React.FC<NewStepperProps> = ({ currentStep, totalSteps, highes
                             </div>
                             {step < totalSteps && (
                                 <div
-                                    className={`flex-auto border-t-2 transition-all duration-300 mx-2 w-8 sm:w-12 ${
+                                    className={`flex-auto border-t-2 transition-all duration-300 mx-1 w-4 sm:w-6 md:w-8 ${
                                         step < currentStep ? 'border-amber-500' : 'border-stone-700'
                                     }`}
                                 ></div>

@@ -119,9 +119,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 </header>
                 <main className="p-6 space-y-6 overflow-y-auto">
                      <div>
-                        <label htmlFor="api-key-input" className="block text-stone-300 font-semibold mb-2 flex items-center gap-2">
-                           <KeyRound className="h-4 w-4"/> Chave de API do Google AI
-                        </label>
+                        <div className="flex justify-between items-center mb-2">
+                           <label htmlFor="api-key-input" className="text-stone-300 font-semibold flex items-center gap-2">
+                              <KeyRound className="h-4 w-4"/> Chave de API do Google AI
+                           </label>
+                           <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
+                              Como Obter?
+                           </a>
+                        </div>
                          <input
                             id="api-key-input"
                             type="password"

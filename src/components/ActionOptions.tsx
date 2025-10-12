@@ -1,9 +1,8 @@
 'use client';
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import { PlayerRollRequest } from '@/types';
-import SkillCheckModal from './ui/SkillCheckModal';
+import type { PlayerRollRequest } from '@/types';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -115,11 +114,64 @@ const ActionOptions: React.FC = () => {
         pendingLootOffer, 
         pendingHitDiceRequest, 
         handleSkillCheck,
+        playerRollRequest,
+        combatState,
+        character,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
+    
+    const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
+
+    const isPlayerTurn = useMemo(() => {
+        if (!combatState.isActive || !combatState.initiativeOrder || !character) {
+            return !combatState.isActive;
+        }
+        if (combatState.initiativeOrder.length === 0) return false;
+
+        const currentTurnId = getCombatantId(combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length]);
+        const playerCombatant = combatState.combatants.find(c => c.name === character.name);
+        
+        return playerCombatant ? currentTurnId === playerCombatant.id : false;
+
+    }, [combatState, character]);
+    
+    // Actions are available if it is the player's turn and the game is not otherwise locked.
+    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
+
+    const handleActionClick = (action: any) => {
+        processPlayerAction(action);
+        setIsOpen(false); // Close mobile modal on action
+    };
+
+    const handleSkillClick = (skill: string) => {
+        handleSkillCheck(skill);
+        setIsOpen(false); // Close mobile modal on skill check
+    };
+    
+    const handleCustomSubmit = (action: string) => {
+        processPlayerAction(action);
+        setIsOpen(false);
+    };
 
     const renderActionContent = () => {
+        if (combatState.isActive && !isPlayerTurn) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 rounded-md">
+                    Aguardando turno de outros combatentes...
+                </div>
+            );
+        }
+
+        if(playerRollRequest) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400">
+                    <Loader2 className="animate-spin" />
+                    <span className="ml-2">Aguardando sua rolagem de dados...</span>
+                </div>
+            );
+        }
+
         if (pendingLootOffer) {
             return <LootOfferDisplay />;
         }
@@ -127,18 +179,21 @@ const ActionOptions: React.FC = () => {
         if (pendingHitDiceRequest) {
             return <HitDiceRoller />;
         }
+        
+        if (isLoading) {
+            return (
+                <div className="flex items-center justify-center p-4 text-stone-400">
+                    <Loader2 className="animate-spin" />
+                    <span className="ml-2">Aguardando o mestre...</span>
+                </div>
+            );
+        }
 
         const hasSuggestedActions = actionOptions.length > 0;
     
         return (
             <div className="w-full">
-                 {isLoading && (
-                    <div className="flex items-center justify-center p-4 text-stone-400">
-                        <Loader2 className="animate-spin" />
-                        <span className="ml-2">Aguardando o mestre...</span>
-                    </div>
-                )}
-                {!isLoading && hasSuggestedActions && (
+                {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
                              if (typeof action === 'object' && action !== null && 'skill' in action) {
@@ -146,8 +201,8 @@ const ActionOptions: React.FC = () => {
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => handleSkillCheck(skillAction.skill)}
-                                        disabled={isLoading}
+                                        onClick={() => handleSkillClick(skillAction.skill)}
+                                        disabled={isActionLocked}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                     >
@@ -168,8 +223,8 @@ const ActionOptions: React.FC = () => {
                             return (
                                 <button
                                     key={index}
-                                    onClick={() => processPlayerAction(actionValue)}
-                                    disabled={isLoading}
+                                    onClick={() => handleActionClick(actionValue)}
+                                    disabled={isActionLocked}
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                 >
@@ -179,18 +234,23 @@ const ActionOptions: React.FC = () => {
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={processPlayerAction} disabled={isLoading} />
-                 {!isLoading && !hasSuggestedActions && (
+                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
+                 {!hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
             </div>
         );
     }
     
+    // In combat, button is always visible on mobile, but disabled when not player's turn
+    const isMobileCombatButtonVisible = combatState.isActive;
+    const isMobileCombatButtonEnabled = isPlayerTurn && !isLoading;
+    const isMobileNonCombatButtonVisible = !combatState.isActive;
+    
     return (
         <>
             {/* Desktop: Static Panel */}
-            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30">
+            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 overflow-y-auto">
                  {renderActionContent()}
             </div>
 
@@ -202,19 +262,21 @@ const ActionOptions: React.FC = () => {
                         onClick={() => setIsOpen(false)}
                     />
                 )}
-                <div className="fixed bottom-20 right-4 z-30">
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        disabled={isLoading}
-                        className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
-                        aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
-                    >
-                        {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
-                    </button>
-                </div>
+                {(isMobileCombatButtonVisible || isMobileNonCombatButtonVisible) && (
+                    <div className="fixed bottom-20 right-4 z-30">
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            disabled={!isMobileCombatButtonEnabled && combatState.isActive}
+                            className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                            aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
+                        >
+                            {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
+                        </button>
+                    </div>
+                )}
                 
                 {isOpen && (
-                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp">
+                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[calc(100vh-12rem)] overflow-y-auto">
                         {renderActionContent()}
                     </div>
                 )}

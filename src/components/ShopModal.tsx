@@ -24,24 +24,27 @@ const ShopModal: React.FC = () => {
             {shopState.inventory.length === 0 ? (
                 <p className="text-stone-400 italic text-center py-4">O mercador não tem nada para vender no momento.</p>
             ) : (
-                shopState.inventory.map(item => (
-                    <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
-                        <div>
-                            <h4 className="font-semibold text-stone-200">{translateEquipment(item).name}</h4>
-                            <p className="text-xs text-stone-400">Quantidade: {item.quantity === Infinity ? 'Infinita' : item.quantity}</p>
+                shopState.inventory.map(item => {
+                    const translatedItem = translateEquipment(item);
+                    return (
+                        <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
+                            <div>
+                                <h4 className="font-semibold text-stone-200">{translatedItem.name}</h4>
+                                <p className="text-xs text-stone-400">Quantidade: {item.quantity === Infinity ? 'Infinita' : item.quantity}</p>
+                            </div>
+                            <div className="text-right">
+                                 <p className="font-mono text-amber-400 font-bold">{item.cost.quantity} {item.cost.unit}</p>
+                                 <button
+                                    onClick={() => buyItem(item as any, item.cost.quantity)}
+                                    disabled={isInteractionDisabled || character.currency.gp < item.cost.quantity}
+                                    className="mt-1 bg-green-700 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Comprar
+                                </button>
+                            </div>
                         </div>
-                        <div className="text-right">
-                             <p className="font-mono text-amber-400 font-bold">{item.cost.quantity} {item.cost.unit}</p>
-                             <button
-                                onClick={() => buyItem(item as any, item.cost.quantity)}
-                                disabled={isInteractionDisabled || character.currency.gp < item.cost.quantity}
-                                className="mt-1 bg-green-700 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Comprar
-                            </button>
-                        </div>
-                    </div>
-                ))
+                    )
+                })
             )}
         </div>
     );
@@ -53,10 +56,11 @@ const ShopModal: React.FC = () => {
             ) : (
                 character.inventory.map(item => {
                     const sellPrice = shopState.sellPrices[item.id] || Math.floor((item.cost?.quantity || 2) / 2);
+                    const translatedItem = translateEquipment(item);
                      return (
                          <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
                             <div className="max-w-[60%]">
-                                <h4 className="font-semibold text-stone-200 truncate">{translateEquipment(item).name} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
+                                <h4 className="font-semibold text-stone-200 truncate">{translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
                                 <p className="text-xs text-stone-400">Valor Base: {item.cost?.quantity || '-'} {item.cost?.unit || ''}</p>
                             </div>
                             <div className="text-right">

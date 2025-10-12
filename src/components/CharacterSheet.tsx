@@ -1,11 +1,10 @@
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { translateAttribute, translateApiString, translateCondition, translateEquipment } from '../utils/translator';
+import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
 import { Attributes, Proficiency } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5 } from 'lucide-react';
-import SkillCheckModal from './ui/SkillCheckModal';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -38,25 +37,30 @@ const DeathSavesTracker: React.FC = () => {
     )
 }
 
-const SkillItem: React.FC<{ skillName: string, characterProfs: Proficiency[], modifiers: Attributes, profBonus: number }> = ({ skillName, characterProfs, modifiers, profBonus }) => {
-    const { isLoading, character, setSkillCheckRequest } = useGameStateContext();
+const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillName, onUse }) => {
+    const { isLoading, character, setSkillCheckRequest, playerRollRequest } = useGameStateContext();
     
     if (!character) return null;
     
     const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-    const modifier = modifiers[attribute] + (isProficient ? profBonus : 0);
+    const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
+
+    const handleSkillUse = () => {
+        if (onUse) onUse();
+        setSkillCheckRequest({ skillName });
+    }
     
     return (
         <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
                  <div className={`w-3 h-3 rounded-full border-2 ${isProficient ? 'bg-amber-400 border-amber-300' : 'bg-stone-600 border-stone-500'}`} title={isProficient ? 'Proficiente' : 'Não Proficiente'}></div>
                 <span className="text-stone-300">{translateApiString(`Skill: ${skillName}`)}</span>
-                <span className="text-xs text-stone-500">({translateAttribute(attribute).substring(0,3)})</span>
+                <span className="text-xs text-stone-500">({translateAttribute(attribute).substring(0, 3)})</span>
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={() => setSkillCheckRequest({ skillName })} disabled={isLoading} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={handleSkillUse} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>
@@ -83,12 +87,12 @@ const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }>
     );
 };
 
-const CharacterSheet: React.FC = () => {
+const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalAction }) => {
     const { character, processPlayerAction, isLoading, combatState } = useGameStateContext();
 
     if (!character) return null;
 
-    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice } = character;
+    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
     const equippedItems = character.inventory.filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
 
@@ -99,11 +103,11 @@ const CharacterSheet: React.FC = () => {
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Informações Básicas</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-stone-800/50 p-3 rounded-md">
-                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{character.race}{character.subrace && ` (${character.subrace})`}</span></div>
-                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{character.characterClass}</span></div>
-                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass || 'Nenhuma'}</span></div>
-                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{character.background}</span></div>
-                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{character.alignment}</span></div>
+                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{translateApiString(character.race)}{character.subrace && ` (${translateApiString(character.subrace)})`}</span></div>
+                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{translateApiString(character.characterClass)}</span></div>
+                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass ? translateApiString(character.subclass) : 'Nenhuma'}</span></div>
+                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{translateApiString(character.background)}</span></div>
+                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{translateApiString(character.alignment)}</span></div>
                 </div>
             </div>
 
@@ -139,6 +143,25 @@ const CharacterSheet: React.FC = () => {
                     </div>
                 </div>
             )}
+             {damage_resistances && damage_resistances.length > 0 && (
+                <div>
+                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Resistências a Dano</h3>
+                    <div className="flex flex-wrap gap-2">
+                        {damage_resistances.map(res => (
+                            <span key={res} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                {translateApiString(res)}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+             )}
+             {traits && traits.length > 0 && (
+                <CollapsibleSection title="Características Raciais">
+                    <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm bg-stone-800/50 p-3 rounded-md">
+                        {traits.map(trait => <li key={trait.index}>{translateApiString(trait.name)}</li>)}
+                    </ul>
+                </CollapsibleSection>
+            )}
 
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
@@ -147,9 +170,7 @@ const CharacterSheet: React.FC = () => {
                         <SkillItem 
                             key={skill}
                             skillName={skill}
-                            characterProfs={character.proficiencies}
-                            modifiers={character.modifiers}
-                            profBonus={character.proficiencyBonus}
+                            onUse={onModalAction}
                         />
                     ))}
                 </div>
@@ -212,26 +233,25 @@ const CharacterSheet: React.FC = () => {
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Equipamento Vestido</h3>
                 {equippedItems.length > 0 ? (
                     <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm">
-                        {equippedItems.map(item => <li key={item.id}>{translateEquipment(item).name}</li>)}
+                        {equippedItems.map(item => <li key={item.id}>{translateApiString(item.name)}</li>)}
                     </ul>
                 ) : (
                     <p className="text-stone-400 italic text-sm">Nenhum item equipado.</p>
                 )}
             </div>
             
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Outras Proficiências</h3>
-                <div className="flex flex-wrap gap-2">
+             <CollapsibleSection title="Outras Proficiências">
+                <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
                     {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                        <span key={prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                        <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                             {translateApiString(prof.name)}
                         </span>
                     ))}
                 </div>
-            </div>
+            </CollapsibleSection>
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                <p className="text-stone-300">{languages.join(', ')}</p>
+                <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>
             </div>
             <CollapsibleSection title="Personalidade">
                 <div className="space-y-1">

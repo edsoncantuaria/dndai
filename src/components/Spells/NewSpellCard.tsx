@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
 import { translateMagicSchool, translateApiString } from '@/utils/translator';
 import { ChevronDown, Sparkles } from 'lucide-react';
+import { translateSpell } from '@/utils/TranslatorSpells';
 
 interface NewSpellCardProps {
     spell: ApiSpell;
@@ -28,17 +29,16 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
     defaultExpanded = false 
 }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+    const translatedSpell = translateSpell(spell);
 
-    if (!spell || !spell.school) {
+    if (!translatedSpell || !translatedSpell.school) {
         return null;
     }
     
-    const translatedName = translateApiString(spell.name);
-
     const handleCastClick = (e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent card from expanding/collapsing
         if (onCast && canCast && !isActionLoading) {
-            onCast(spell);
+            onCast(spell); // Pass the original spell object
         }
     };
 
@@ -46,7 +46,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
         <>
             <div className="flex justify-between items-start w-full">
                 <div className="flex-grow">
-                    <h4 className="font-semibold text-stone-200 group-hover:text-amber-300 transition-colors" title={spell.name}>{translatedName}</h4>
+                    <h4 className="font-semibold text-stone-200 group-hover:text-amber-300 transition-colors" title={spell.name}>{translatedSpell.name}</h4>
                     <p className="text-xs text-stone-400">{spell.level === 0 ? 'Truque' : `Nível ${spell.level}`} de {translateMagicSchool(spell.school.name)}</p>
                 </div>
                 <div className="flex items-center pl-2">
@@ -55,6 +55,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             onClick={handleCastClick}
                             disabled={!canCast || isActionLoading}
                             className="mr-2 p-1.5 rounded-md bg-amber-700/80 hover:bg-amber-600/80 text-stone-100 font-semibold text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Conjurar Magia"
                         >
                             <Sparkles className="h-4 w-4" />
                         </button>
@@ -68,15 +69,15 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
             {isExpanded && (
                 <div className="mt-2 text-sm text-stone-300 space-y-2 pt-2 border-t border-stone-600/50">
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                        <p><strong className="font-semibold text-stone-400">Tempo:</strong> {spell.casting_time}</p>
-                        <p><strong className="font-semibold text-stone-400">Alcance:</strong> {spell.range}</p>
-                        <p><strong className="font-semibold text-stone-400">Componentes:</strong> {spell.components.join(', ')}</p>
-                        <p><strong className="font-semibold text-stone-400">Duração:</strong> {spell.duration}</p>
+                        <p><strong className="font-semibold text-stone-400">Tempo:</strong> {translatedSpell.casting_time}</p>
+                        <p><strong className="font-semibold text-stone-400">Alcance:</strong> {translatedSpell.range}</p>
+                        <p><strong className="font-semibold text-stone-400">Componentes:</strong> {translatedSpell.components.join(', ')}</p>
+                        <p><strong className="font-semibold text-stone-400">Duração:</strong> {translatedSpell.duration}</p>
                     </div>
-                    {spell.material && <p className="text-xs text-stone-500 italic"><strong className="text-stone-400">Material:</strong> {spell.material}</p>}
+                    {translatedSpell.material && <p className="text-xs text-stone-500 italic"><strong className="text-stone-400">Material:</strong> {translatedSpell.material}</p>}
                     <div className="text-stone-400 text-sm italic space-y-1 pt-2">
-                        {spell.desc.map((d, i) => <p key={i}>{d}</p>)}
-                        {spell.higher_level && spell.higher_level.length > 0 && <p className="mt-2"><strong className="text-stone-300">Em Níveis Superiores:</strong> {spell.higher_level.join(' ')}</p>}
+                        {translatedSpell.desc.map((d: string, i: number) => <p key={i}>{d}</p>)}
+                        {translatedSpell.higher_level && translatedSpell.higher_level.length > 0 && <p className="mt-2"><strong className="text-stone-300">Em Níveis Superiores:</strong> {translatedSpell.higher_level.join(' ')}</p>}
                     </div>
                 </div>
             )}
@@ -92,7 +93,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                         checked={isSelected}
                         disabled={isDisabled}
                         onChange={onToggleSelect}
-                        className={`form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded mt-1 transition-all ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`form-checkbox h-5 w-5 text-amber-500 bg-stone-900 border-stone-600 rounded focus:ring-amber-500 focus:ring-offset-stone-800 transition-all ${isDisabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
                     />
                     <div className="flex-grow">
                         {cardContent}

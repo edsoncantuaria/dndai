@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import type { LogEntry as LogEntryType } from '../types';
+import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker, Image as ImageIcon } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { useSettingsContext } from '../contexts/SettingsContext';
@@ -11,12 +11,12 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
-    const { ttsModel, apiKey: userApiKey } = useSettingsContext();
+    const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
     const handlePlay = async () => {
-        if (audioData) {
-            audioRef.current?.play();
+        if (audioData && audioRef.current) {
+            audioRef.current.play();
             setIsPlaying(true);
             return;
         }
@@ -25,17 +25,14 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
             const apiKeyToUse = getApiKey();
             if (!apiKeyToUse) {
                 console.warn("Chave de API não encontrada para TTS, pulando.");
-                throw new Error("Chave de API não encontrada.");
+                return; 
             }
-            const response = await textToSpeech(text, ttsModel, apiKeyToUse);
+            const response = await textToSpeech(text, ttsModel, ttsVoice, apiKeyToUse);
             if (response?.media) {
                 setAudioData(response.media);
-            } else {
-                throw new Error("Falha ao gerar áudio.");
             }
         } catch (error) {
             console.error("Error generating speech silently:", error);
-            // Don't show an error to the user, just stop loading.
         } finally {
             setIsLoading(false);
         }
@@ -48,6 +45,13 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
             setIsPlaying(true);
         }
     }, [audioData]);
+
+    useEffect(() => {
+        if (audioRef.current) {
+            audioRef.current.muted = isMuted;
+            audioRef.current.volume = volume;
+        }
+    }, [isMuted, volume]);
 
     const handleAudioEnded = () => {
         setIsPlaying(false);
@@ -137,7 +141,7 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
         case 'narration':
             content = (
                 <div className="flex items-start">
-                    <p className="text-stone-300 font-garamond text-lg italic leading-relaxed flex-grow">{entry.content}</p>
+                    <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">{entry.content}</p>
                     <AudioPlayer text={entry.content} />
                 </div>
             );
@@ -163,13 +167,16 @@ const LogEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
              content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'image':
+            const imageContent = entry.content as ImageLogEntryContent;
             content = (
                 <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                    {entry.content.startsWith('data:image') ? (
-                        <Image src={entry.content} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
+                    {imageContent.status === 'done' && imageContent.url ? (
+                        <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
                     ) : (
                         <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                            <ImageIcon className="h-12 w-12 mr-2"/> Gerando imagem...
+                            <ImageIcon className="h-12 w-12 mr-2"/> 
+                            {imageContent.status === 'generating' && 'Gerando imagem...'}
+                            {imageContent.status === 'failed' && 'Falha ao gerar imagem.'}
                         </div>
                     )}
                 </div>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect } from 'react';
@@ -12,35 +13,34 @@ interface GameProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
   onContinueGame: () => void;
+  returnToMenu: () => void;
   gameStage: GameStage;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, gameStage }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, returnToMenu, gameStage }: GameProps) {
     const gameStateHook = useGameStateContext();
 
-    // Este useEffect agora SÓ inicia o jogo quando o estágio 'playing' é ativado
-    // e o log de aventura está vazio.
     useEffect(() => {
         if (
             gameStage === 'playing' &&
             gameStateHook.character && 
-            gameStateHook.log.length === 0 && 
+            gameStateHook.log.length > 0 &&
             !gameStateHook.isLoading
         ) {
-            gameStateHook.startGame();
+            // This path is for continuing a saved game.
+            // The `startGame` logic isn't needed here as the log already exists.
         }
     }, [
-        gameStage, // A dependência principal que controla o fluxo
+        gameStage,
         gameStateHook.character, 
         gameStateHook.log.length, 
-        gameStateHook.isLoading, 
-        gameStateHook.startGame
+        gameStateHook.isLoading
     ]);
 
-    // Se o personagem existe e estamos no estágio de jogo, mostra a tela principal ou o carregamento.
+    // If the character exists and we are in the 'playing' stage
     if (gameStateHook.character && gameStage === 'playing') {
-        // Se a narração inicial ainda não chegou (log está vazio), mostra um loader.
-        if (gameStateHook.log.length === 0) {
+        // If the initial narration hasn't arrived yet (log is empty), show a loader.
+        if (gameStateHook.log.length === 0 && gameStateHook.isLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
                     <Loader2 className="h-12 w-12 animate-spin mb-4" />
@@ -49,10 +49,10 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
                 </div>
             )
         }
-        return <GameScreen />;
+        return <GameScreen returnToMenu={returnToMenu} />;
     }
 
-    // Caso contrário, mostra a tela de menu/criação.
+    // Otherwise, show the menu/creation screen.
     return (
         <CharacterCreation 
             startNewGameFlow={startNewGameFlow}

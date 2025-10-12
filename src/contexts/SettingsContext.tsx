@@ -25,9 +25,9 @@ export const AVAILABLE_TTS_MODELS = [
 ];
 
 export const AVAILABLE_IMAGE_MODELS = [
-    "gemini-2.5-flash-image-preview",
     "imagen-4.0-fast-generate-001",
-    "image-generation-002"
+    "gemini-2.5-flash-image-preview",
+    "imagen-3.0-generate-002",
 ];
 
 // NEW: Lista completa de vozes nativas do Gemini

@@ -46,7 +46,7 @@ const LootDisplay: React.FC = () => {
 
 
 const Inventory: React.FC = () => {
-    const { character, toggleEquipped } = useGameStateContext();
+    const { character, toggleEquipped, useConsumable, isLoading, combatState, playerRollRequest } = useGameStateContext();
 
     if (!character) return null;
 
@@ -56,6 +56,9 @@ const Inventory: React.FC = () => {
     let progressBarColor = 'bg-green-600';
     if (loadPercentage > 90) progressBarColor = 'bg-red-600';
     else if (loadPercentage > 75) progressBarColor = 'bg-yellow-500';
+    
+    const isPlayerTurn = combatState.isActive ? combatState.combatants[combatState.turn]?.id === 'player' : true;
+    const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
     return (
         <div className="p-4 space-y-4">
@@ -82,7 +85,13 @@ const Inventory: React.FC = () => {
             ) : (
                 <div className="space-y-2">
                     {character.inventory.map((item) => (
-                        <ItemCard key={item.id} item={translateEquipment(item)} onToggleEquip={toggleEquipped} />
+                        <ItemCard 
+                            key={item.id} 
+                            item={item} 
+                            onToggleEquip={toggleEquipped}
+                            onUseConsumable={useConsumable}
+                            actionDisabled={actionDisabled}
+                        />
                     ))}
                 </div>
             )}
