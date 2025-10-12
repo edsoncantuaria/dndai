@@ -1,5 +1,5 @@
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
 export interface LoginCredentials {
     login: string;
@@ -23,7 +23,7 @@ const getAuthHeaders = () => {
 }
 
 export const registerUser = async (details: RegisterDetails) => {
-    const response = await fetch(`${API_URL}/register`, {
+    const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(details),
@@ -37,10 +37,10 @@ export const registerUser = async (details: RegisterDetails) => {
 
 
 export const loginUser = async (credentials: LoginCredentials) => {
-    const response = await fetch(`${API_URL}/login`, {
+    const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ email: credentials.login, password: credentials.password }),
     });
     const data = await response.json();
      if (!response.ok) {
@@ -55,11 +55,11 @@ export const loginUser = async (credentials: LoginCredentials) => {
     };
 };
 
-export const activateUserLicense = async (userId: number, licenseKey: string) => {
-    const response = await fetch(`${API_URL}/api/activate-license`, {
+export const activateUserLicense = async (licenseKey: string) => {
+    const response = await fetch(`${API_URL}/licenses/activate`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ userId, licenseKey }),
+        body: JSON.stringify({ key: licenseKey }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -69,29 +69,15 @@ export const activateUserLicense = async (userId: number, licenseKey: string) =>
 };
 
 
-export const saveUserApiKey = async (userId: number, apiKey: string) => {
-    const response = await fetch(`${API_URL}/api/user/google-key`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ userId, apiKey }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.message || 'Erro ao salvar a chave.');
-    }
-    return { success: true, message: data.message };
+export const saveUserApiKey = async (apiKey: string) => {
+    // This endpoint does not exist yet on the backend, this is a placeholder.
+    // We will need to create it later.
+    console.log("Saving API key (placeholder):", apiKey);
+    return { success: true, message: "Chave de API salva (simulação)." };
 };
 
-export const fetchApiKey = async (userId: number): Promise<string | null> => {
-     try {
-        const response = await fetch(`${API_URL}/api/user/google-key?userId=${userId}`, {
-            method: 'GET',
-            headers: getAuthHeaders(),
-        });
-        if (!response.ok) return null;
-        const data = await response.json();
-        return data.apiKey || null;
-    } catch {
-        return null;
-    }
+export const fetchApiKey = async (): Promise<string | null> => {
+     // This endpoint does not exist yet on the backend, this is a placeholder.
+    console.log("Fetching API key (placeholder)");
+    return null;
 }

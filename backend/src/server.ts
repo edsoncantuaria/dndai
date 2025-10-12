@@ -1,7 +1,8 @@
+import 'reflect-metadata';
 import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { sequelize } from './models';
+import { AppDataSource } from './database/data-source';
 import authRoutes from './routes/authRoutes';
 import userRoutes from './routes/userRoutes';
 import licenseRoutes from './routes/licenseRoutes';
@@ -29,14 +30,9 @@ app.use(errorMiddleware);
 
 const startServer = async () => {
     try {
-        await sequelize.authenticate();
+        await AppDataSource.initialize();
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
         
-        // Opcional: sincroniza os modelos com o banco de dados.
-        // Em desenvolvimento, você pode usar { force: true } para recriar as tabelas,
-        // mas isso apaga todos os dados. Use com cuidado.
-        // await sequelize.sync(); 
-
         app.listen(PORT, () => {
             console.log(`Servidor rodando em http://localhost:${PORT}`);
         });

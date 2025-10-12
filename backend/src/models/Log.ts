@@ -1,51 +1,33 @@
 // backend/src/models/Log.ts
-import { Model, DataTypes, Sequelize } from 'sequelize';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { GameSession } from './GameSession';
 
-class Log extends Model {
-  public id!: number;
-  public sessionId!: number;
-  public type!: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
-  public content!: string;
-  public metadata!: any | null; // JSONB para dados extras, como resultados de rolagens
+@Entity('logs')
+export class Log {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  @Column()
+  sessionId: number;
+
+  @ManyToOne(() => GameSession, session => session.logs)
+  session: GameSession;
+
+  @Column({
+    type: 'enum',
+    enum: ['narration', 'action', 'system', 'combat', 'insight', 'roll'],
+  })
+  type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
+
+  @Column('text')
+  content: string;
+
+  @Column('json', { nullable: true })
+  metadata: any;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
-
-export const initLog = (sequelize: Sequelize) => {
-    Log.init(
-      {
-        id: {
-          type: DataTypes.INTEGER,
-          autoIncrement: true,
-          primaryKey: true,
-        },
-        sessionId: {
-          type: DataTypes.INTEGER,
-          allowNull: false,
-          references: {
-            model: 'game_sessions',
-            key: 'id',
-          },
-        },
-        type: {
-          type: DataTypes.ENUM('narration', 'action', 'system', 'combat', 'insight', 'roll'),
-          allowNull: false,
-        },
-        content: {
-          type: DataTypes.TEXT,
-          allowNull: false,
-        },
-        metadata: {
-            type: DataTypes.JSON,
-            allowNull: true,
-        },
-      },
-      {
-        tableName: 'logs',
-        sequelize,
-      }
-    );
-};
-
-export default Log;

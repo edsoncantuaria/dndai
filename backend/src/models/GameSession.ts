@@ -1,42 +1,28 @@
 // backend/src/models/GameSession.ts
-import { Model, DataTypes, Sequelize } from 'sequelize';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Character } from './Character';
+import { Log } from './Log';
 
-class GameSession extends Model {
-  public id!: number;
-  public characterId!: number;
-  public worldState!: any; // JSONB
+@Entity('game_sessions')
+export class GameSession {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  characterId: number;
+
+  @ManyToOne(() => Character, character => character.gameSessions)
+  character: Character;
+
+  @Column('json', { nullable: true })
+  worldState: any;
   
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  @OneToMany(() => Log, log => log.session)
+  logs: Log[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
-
-export const initGameSession = (sequelize: Sequelize) => {
-    GameSession.init(
-      {
-        id: {
-          type: DataTypes.INTEGER,
-          autoIncrement: true,
-          primaryKey: true,
-        },
-        characterId: {
-          type: DataTypes.INTEGER,
-          allowNull: false,
-          references: {
-            model: 'characters',
-            key: 'id',
-          },
-        },
-        worldState: {
-          type: DataTypes.JSON,
-          allowNull: true, // Pode começar nulo
-        },
-      },
-      {
-        tableName: 'game_sessions',
-        sequelize,
-      }
-    );
-};
-
-
-export default GameSession;

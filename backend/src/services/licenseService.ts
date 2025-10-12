@@ -1,9 +1,11 @@
 // backend/src/services/licenseService.ts
-import { LicenseKey, User } from '../models';
+import { AppDataSource } from '../database/data-source';
+import { LicenseKey } from '../models/LicenseKey';
 import createError from 'http-errors';
 
 export const activateLicense = async (userId: number, key: string): Promise<void> => {
-    const license = await LicenseKey.findOne({ where: { key } });
+    const licenseRepository = AppDataSource.getRepository(LicenseKey);
+    const license = await licenseRepository.findOne({ where: { key } });
 
     if (!license) {
         throw createError(404, 'Chave de licença inválida.');
@@ -18,14 +20,15 @@ export const activateLicense = async (userId: number, key: string): Promise<void
     // Opcional: definir data de expiração
     // license.expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 ano
 
-    await license.save();
+    await licenseRepository.save(license);
 };
 
-export const getLicenseStatus = async (userId: number): Promise<{ isActive: boolean; key: string; expires_at: Date | null }> => {
-    const license = await LicenseKey.findOne({ where: { userId } });
+export const getLicenseStatus = async (userId: number): Promise<{ isActive: boolean; key: string | null; expires_at: Date | null }> => {
+    const licenseRepository = AppDataSource.getRepository(LicenseKey);
+    const license = await licenseRepository.findOne({ where: { userId } });
 
-    if (!license || !license.isActive) {
-        throw createError(404, 'Nenhuma licença ativa encontrada para este usuário.');
+    if (!license) {
+        return { isActive: false, key: null, expires_at: null };
     }
 
     return {

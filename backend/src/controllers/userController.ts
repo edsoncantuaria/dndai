@@ -1,13 +1,15 @@
 // backend/src/controllers/userController.ts
 import { Request, Response, NextFunction } from 'express';
-import { User } from '../models';
+import { AppDataSource } from '../database/data-source';
+import { User } from '../models/User';
 
 export const getMe = async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // O ID do usuário é anexado ao objeto req pelo authMiddleware
         const userId = (req as any).user.id;
-        const user = await User.findByPk(userId, {
-            attributes: { exclude: ['password'] } // Nunca retorne a senha
+        const userRepository = AppDataSource.getRepository(User);
+        const user = await userRepository.findOne({
+            where: { id: userId },
+            select: ['id', 'username', 'email', 'createdAt', 'updatedAt']
         });
 
         if (!user) {

@@ -1,52 +1,34 @@
 // backend/src/models/Character.ts
-import { Model, DataTypes, Sequelize } from 'sequelize';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { User } from './User';
+import { GameSession } from './GameSession';
 
-class Character extends Model {
-  public id!: number;
-  public userId!: number;
-  public name!: string;
-  public level!: number;
-  public stats!: any; // JSONB para armazenar a ficha completa
+@Entity('characters')
+export class Character {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  @Column()
+  userId: number;
+
+  @ManyToOne(() => User, user => user.characters)
+  user: User;
+
+  @Column()
+  name: string;
+
+  @Column({ default: 1 })
+  level: number;
+
+  @Column('json')
+  stats: any;
+
+  @OneToMany(() => GameSession, session => session.character)
+  gameSessions: GameSession[];
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
-
-export const initCharacter = (sequelize: Sequelize) => {
-    Character.init(
-      {
-        id: {
-          type: DataTypes.INTEGER,
-          autoIncrement: true,
-          primaryKey: true,
-        },
-        userId: {
-          type: DataTypes.INTEGER,
-          allowNull: false,
-          references: {
-            model: 'users',
-            key: 'id',
-          },
-        },
-        name: {
-          type: new DataTypes.STRING(128),
-          allowNull: false,
-        },
-        level: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-            defaultValue: 1,
-        },
-        stats: {
-          type: DataTypes.JSON,
-          allowNull: false,
-        },
-      },
-      {
-        tableName: 'characters',
-        sequelize,
-      }
-    );
-};
-
-export default Character;

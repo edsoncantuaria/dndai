@@ -1,53 +1,31 @@
 // backend/src/models/LicenseKey.ts
-import { Model, DataTypes, Sequelize } from 'sequelize';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { User } from './User';
 
-class LicenseKey extends Model {
-  public id!: number;
-  public key!: string;
-  public userId!: number | null;
-  public isActive!: boolean;
-  public expiresAt!: Date | null;
+@Entity('license_keys')
+export class LicenseKey {
+  @PrimaryGeneratedColumn()
+  id: number;
 
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  @Column({ unique: true })
+  key: string;
+
+  @Column({ nullable: true })
+  userId: number;
+
+  @OneToOne(() => User, user => user.license)
+  @JoinColumn()
+  user: User;
+
+  @Column({ default: false })
+  isActive: boolean;
+
+  @Column({ nullable: true })
+  expiresAt: Date;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
-
-export const initLicenseKey = (sequelize: Sequelize) => {
-    LicenseKey.init(
-      {
-        id: {
-          type: DataTypes.INTEGER,
-          autoIncrement: true,
-          primaryKey: true,
-        },
-        key: {
-          type: new DataTypes.STRING(255),
-          allowNull: false,
-          unique: true,
-        },
-        userId: {
-          type: DataTypes.INTEGER,
-          allowNull: true,
-          references: {
-            model: 'users',
-            key: 'id',
-          },
-        },
-        isActive: {
-          type: DataTypes.BOOLEAN,
-          defaultValue: false,
-          allowNull: false,
-        },
-        expiresAt: {
-          type: DataTypes.DATE,
-          allowNull: true,
-        },
-      },
-      {
-        tableName: 'license_keys',
-        sequelize,
-      }
-    );
-};
-
-export default LicenseKey;
