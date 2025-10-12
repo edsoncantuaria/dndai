@@ -6,6 +6,8 @@ import 'dotenv/config';
 
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
+import { User } from '../entities/User.js';
+import { LicenseKey } from '../entities/LicenseKey.js';
 
 /**
  * Configuração da fonte de dados para o TypeORM.
@@ -28,7 +30,7 @@ export const AppDataSource = new DataSource({
     logging: false, // Mude para true para ver as queries SQL no console
     
     // Lista de todas as entidades que o TypeORM deve gerenciar
-    entities: [SessaoIA, SessionLog], 
+    entities: [SessaoIA, SessionLog, User, LicenseKey], 
     
     migrations: [],
     subscribers: [],

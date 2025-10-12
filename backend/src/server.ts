@@ -8,8 +8,11 @@ import { AppDataSource } from './database/data-source.js';
 import errorMiddleware from './middlewares/errorMiddleware.js';
 
 // Importa as rotas
+import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import licenseRoutes from './routes/licenseRoutes.js';
 import narrarRoutes from './routes/narrarRoutes.js';
-// Futuramente: import sessoesRoutes from './routes/sessoesRoutes.js';
+import sessoesRoutes from './routes/sessoesRoutes.js';
 
 const app = express();
 
@@ -20,8 +23,11 @@ app.use(express.json()); // Permite que o Express entenda JSON no corpo das requ
 const PORT = process.env.PORT || 8071;
 
 // Rotas da API
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/licenses', licenseRoutes);
 app.use('/api/narrar', narrarRoutes);
-// Futuramente: app.use('/api/sessoes', sessoesRoutes);
+app.use('/api/sessoes', sessoesRoutes);
 
 
 // Rota simples para verificar a saúde do servidor
