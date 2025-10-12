@@ -38,7 +38,7 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
 
 Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
-## Fase 0 — Reconstrução e Fundação (Concluído)
+## Fase 0 — Reconstrução e Fundação
 
 *   **[] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
 *   **[] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
