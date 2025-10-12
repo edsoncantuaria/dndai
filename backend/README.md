@@ -10,8 +10,8 @@ Este é o servidor backend para o jogo "Crônicas de Aventuras". Ele é constru�
     ```
 
 2.  **Configure o Banco de Dados**:
-    - Crie um arquivo `.env` na raiz do diretório `backend`.
-    - Adicione as seguintes variáveis, substituindo pelos seus dados:
+    - Na pasta `backend`, renomeie o arquivo `.env.example` para `.env`.
+    - Abra o novo arquivo `.env` e substitua os valores de exemplo pelas suas credenciais do banco de dados MySQL/MariaDB:
       ```
       DB_HOST=localhost
       DB_USER=seu_usuario
@@ -27,7 +27,7 @@ Este é o servidor backend para o jogo "Crônicas de Aventuras". Ele é constru�
     ```
 
 4.  **Inicie o Servidor de Desenvolvimento**:
-    O servidor iniciará em modo de desenvolvimento com `ts-node-dev`, reiniciando automaticamente a cada alteração.
+    O servidor iniciará em modo de desenvolvimento com `nodemon` e `ts-node`, reiniciando automaticamente a cada alteração.
     ```bash
     npm run dev
     ```
