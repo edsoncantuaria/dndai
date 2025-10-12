@@ -38,7 +38,7 @@ package-lock.json
 next-env.d.ts
 
 .genkit/*
-.env*
+.env
 
 # firebase
 firebase-debug.log
