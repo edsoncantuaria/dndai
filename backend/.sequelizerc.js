@@ -1,0 +1,12 @@
+// backend/.sequelizerc.js
+const path = require('path');
+
+// Carrega o ts-node para que o CLI possa ler arquivos .ts
+require('ts-node/register');
+
+module.exports = {
+  'config': path.resolve('src', 'config', 'database.ts'),
+  'models-path': path.resolve('src', 'models'),
+  'seeders-path': path.resolve('src', 'database', 'seeders'),
+  'migrations-path': path.resolve('src', 'database', 'migrations'),
+};
