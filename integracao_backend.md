@@ -40,22 +40,22 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 
 ## Fase 0 — Reconstrução e Fundação (Concluído)
 
-*   **[X] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
-*   **[X] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
-*   **[X] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
-*   **[X] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
-*   **[X] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
-*   **[X] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
+*   **[] Escolha do ORM**: Após análise, optamos por utilizar o **Sequelize** como ORM para este projeto, devido à sua maturidade, forte suporte da comunidade e por já estar integrado à estrutura inicial do novo backend. As migrações do banco de dados serão gerenciadas com o `sequelize-cli`.
+*   **[] Estruturar o novo Backend**: Criar a estrutura de pastas com Express, TypeScript e Sequelize.
+*   **[] Configurar Sequelize e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey`. Configurar as associações e a conexão com o banco de dados.
+*   **[] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
+*   **[] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
+*   **[] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
 
 ## Fase 1 — Autenticação, Licença e API de Usuário (Concluído)
 
-*   **[X] Implementar Endpoints de Autenticação**:
+*   **[] Implementar Endpoints de Autenticação**:
     *   `POST /api/auth/register`: Para registro de novos usuários.
     *   `POST /api/auth/login`: Para autenticação e obtenção de token JWT.
-*   **[X] Implementar Endpoints de Licença**:
+*   **[] Implementar Endpoints de Licença**:
     *   `POST /api/licenses/activate`: Ativa uma chave de licença para o usuário autenticado.
     *   `GET /api/licenses/status`: Verifica o status da licença do usuário.
-*   **[X] Implementar Endpoint de Usuário**:
+*   **[] Implementar Endpoint de Usuário**:
     *   `GET /api/users/me`: Retorna os dados do usuário autenticado.
 
 ### Testes da Fase 1: API de Autenticação e Licença
@@ -148,13 +148,13 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 
 ## Fase 2 — API de Personagens e Início do Jogo (Concluído)
 
-*   **[X] Implementar Endpoints CRUD para Personagens**:
+*   **[] Implementar Endpoints CRUD para Personagens**:
     *   `POST /api/characters`: Cria um novo personagem para o usuário autenticado.
     *   `GET /api/characters`: Lista todos os personagens do usuário.
     *   `GET /api/characters/:id`: Obtém os detalhes de um personagem específico.
     *   `PUT /api/characters/:id`: Atualiza um personagem.
     *   `DELETE /api/characters/:id`: Deleta um personagem.
-*   **[X] Implementar Endpoints da Sessão de Jogo**:
+*   **[] Implementar Endpoints da Sessão de Jogo**:
     *   `POST /api/game-sessions/action`: Endpoint principal para o jogo, que recebe a ação do jogador e retorna o stream da IA.
     *   `GET /api/game-sessions/character/:characterId`: Busca a sessão de jogo mais recente de um personagem.
 
