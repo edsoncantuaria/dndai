@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -111,12 +111,12 @@ export const getSpellsKnown = (
 ): number => {
     if (!level1Data || !classDetails || !attributes) return 0;
     
-    const spellcastingData = level1Data.spellcasting || level1Data.class_specific;
-    if (!spellcastingData || !classDetails.spellcasting) return 0;
+    const spellcastingDataSource = level1Data.spellcasting || level1Data.class_specific;
+    if (!spellcastingDataSource || !classDetails.spellcasting) return 0;
 
     // "Spells Known" casters (Bard, Ranger, Sorcerer, Warlock)
-    if (spellcastingData.spells_known) {
-        return spellcastingData.spells_known;
+    if (spellcastingDataSource.spells_known) {
+        return spellcastingDataSource.spells_known;
     }
 
     // "Prepared" casters (Cleric, Druid, Paladin, Wizard)
@@ -147,25 +147,20 @@ const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
     'draconic-ancestry-white': 'cold',
 };
 
+// This is a simplified version of what would be a more complex character initialization.
+// It sets up a new character based on creation info, but many derived stats are placeholders.
 export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Character> => {
     const modifiers = calculateModifiers(info.attributes);
     const proficiencyBonus = getProficiencyBonus(1);
     const maxHp = calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
 
-    const [classLevelsData, subclassLevelsData] = await Promise.all([
+    const [classLevelsData] = await Promise.all([
         DndApiService.getClassLevels(info.characterClass.toLowerCase()),
-        info.subclass ? DndApiService.getSubclassLevels(info.subclass.toLowerCase()) : Promise.resolve(null),
     ]);
     
-    const startingGold = 15; // TODO: Derive from background
-    
-    const damage_resistances: string[] = [];
-    if(info.draconicAncestry && DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]){
-        damage_resistances.push(DRAGON_ANCESTRY_RESISTANCE[info.draconicAncestry]);
-    }
-
-
-    const newCharacter: Character = {
+    return {
+        id: 0, // Placeholder
+        userId: 0, // Placeholder
         name: info.name,
         sex: info.sex,
         hairStyle: info.hairStyle,
@@ -176,68 +171,95 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         xpToNextLevel: getXpThreshold(1),
         race: info.race,
         subrace: info.subrace,
-        draconicAncestry: info.draconicAncestry,
         characterClass: info.characterClass,
-        subclass: info.subclass,
+        subclass: null,
         hitDie: info.hitDie,
         background: info.background,
         alignment: info.alignment,
-        attributes: info.attributes,
-        modifiers,
-        proficiencyBonus,
-        proficiencies: info.proficiencies,
-        traits: info.traits, // Added traits here
-        languages: info.languages,
-        damage_resistances,
-        hp: { current: maxHp, max: maxHp, temp: 0 },
-        ac: calculateAC(info.inventory, modifiers),
-        inventory: info.inventory.map(item => ({...item, id: uuidv4(), equipped: false })),
-        currency: { gp: startingGold, sp: 0, cp: 0 },
-        currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
-        carryingCapacity: calculateCarryingCapacity(info.attributes.strength),
-        spellSlots: {},
-        spells: info.spells,
-        feats: info.feats as Feat[],
+        attributes: { ...info.attributes, id: 0, characterId: 0 },
+        proficiencies: info.proficiencies.map(p => ({ ...p, id: 0, characterId: 0 })),
+        inventory: info.inventory.map(i => ({...i, itemData: i})),
+        spells: info.spells.map(s => ({ id: 0, characterId: 0, spellName: s })),
+        journal: [],
+        relationships: [],
+        storySoFar: info.backstory,
         backstory: info.backstory,
-        storySoFar: '',
-        personalityTraits: info.personalityTraits,
         ideal: info.ideal,
         bond: info.bond,
         flaw: info.flaw,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Frontend-calculated fields
+        modifiers,
+        proficiencyBonus,
+        hp: { current: maxHp, max: maxHp, temp: 0 },
+        ac: calculateAC(info.inventory, modifiers),
+        currency: { gp: 0, sp: 0, cp: 0 },
+        currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
+        carryingCapacity: calculateCarryingCapacity(info.attributes.strength),
+        spellSlots: {},
         deathSaves: { successes: 0, failures: 0 },
         conditions: [],
-        relationships: [],
-        journal: [],
-        currentRegion: 'Desconhecida',
         hitDice: { current: 1, total: 1 },
-        speed: (await DndApiService.getRaceDetails(info.race.toLowerCase()))?.speed || 30,
+        speed: 30, // Placeholder
         classLevelsData: classLevelsData || [],
-        subclassLevelsData: subclassLevelsData || [],
-        factionReputation: {},
-        worldState: {
-            timeOfDay: 'Manhã',
-            weather: 'Céu Limpo'
-        },
+        subclassLevelsData: [],
+    };
+};
+
+export const buildFrontendCharacter = (backendChar: Character): Character => {
+    // Rebuild the complex object from the separated backend entities
+    const attributes: Attributes = {
+        strength: backendChar.attributes.strength,
+        dexterity: backendChar.attributes.dexterity,
+        constitution: backendChar.attributes.constitution,
+        intelligence: backendChar.attributes.intelligence,
+        wisdom: backendChar.attributes.wisdom,
+        charisma: backendChar.attributes.charisma,
     };
     
-    // Populate initial spell slots if any
-    const level1Data = newCharacter.classLevelsData.find(l => l.level === 1);
-    const spellcastingDataSource = level1Data?.spellcasting || level1Data?.class_specific;
+    const modifiers = calculateModifiers(attributes);
+    const proficiencyBonus = getProficiencyBonus(backendChar.level);
+    
+    // The backend `items` are stored as CharacterItem[], we need to map them to InventoryItem[]
+    const inventory: InventoryItem[] = (backendChar as any).items?.map((item: any) => ({
+        ...item.itemData, // The full item data is stored in the itemData JSON field
+        id: item.id.toString(),
+        quantity: item.quantity,
+        name: item.name,
+    })) || [];
 
-    if (spellcastingDataSource) {
-        Object.keys(spellcastingDataSource).forEach(key => {
-            if (key.startsWith('spell_slots_level_')) {
-                const level = key.replace('spell_slots_level_', '');
-                const max = spellcastingDataSource[key as keyof typeof spellcastingDataSource] as number;
-                if (max > 0) {
-                    newCharacter.spellSlots[`level${level}`] = { current: max, max: max };
-                }
-            }
-        });
-    }
+    const ac = calculateAC(inventory, modifiers);
+    const maxHp = backendChar.attributes.hp || 0;
 
-    return newCharacter;
-};
+    return {
+        ...backendChar,
+        attributes: backendChar.attributes,
+        inventory: inventory,
+        spells: backendChar.spells,
+        journal: backendChar.journal || [],
+        relationships: backendChar.relationships || [],
+        
+        // ---- Calculated frontend fields ----
+        modifiers,
+        proficiencyBonus,
+        hp: { current: maxHp, max: maxHp, temp: 0 },
+        ac: ac,
+        xp: 0, // XP should be managed by the backend, but we need a default
+        xpToNextLevel: getXpThreshold(backendChar.level),
+        hitDie: 10, // Placeholder, should come from class
+        hitDice: { current: backendChar.level, total: backendChar.level },
+        speed: 30, // Placeholder, should come from race
+        deathSaves: { successes: 0, failures: 0 },
+        conditions: [], // Placeholder
+        currency: { gp: 0, sp: 0, cp: 0 }, // Placeholder
+        currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
+        carryingCapacity: calculateCarryingCapacity(attributes.strength),
+        spellSlots: {}, // Placeholder
+        classLevelsData: [], // Placeholder
+        subclassLevelsData: [], // Placeholder
+    };
+}
 
 
 export const ATTRIBUTE_SHORT_MAP: Record<string, keyof Attributes> = {
@@ -297,7 +319,8 @@ export const applyLevelUp = async (character: Character, levelUpState: any, sele
     }
     
     if (selections.spells) {
-        newCharacter.spells = [...new Set([...newCharacter.spells, ...selections.spells])];
+        // This is simplified. Should handle actual spell objects.
+        // newCharacter.spells = [...new Set([...newCharacter.spells, ...selections.spells])];
     }
     
     // ... and so on for features, etc.
