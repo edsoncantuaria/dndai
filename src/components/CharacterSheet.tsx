@@ -263,7 +263,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             )}
             <CollapsibleSection title="Personalidade">
                 <div className="space-y-1">
-                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {character.personalityTraits.join(' ')}</p>
+                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {(character.personalityTraits || []).join(' ')}</p>
                     <p className="text-sm text-stone-400"><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
                     <p className="text-sm text-stone-400"><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
                     <p className="text-sm text-stone-400"><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
