@@ -31,8 +31,7 @@ Esta é a regra mais importante. Você não rola dados para o jogador. Você sol
 ## 2. Estrutura de Saída Obrigatória (JSON: \`GameMasterResponseSchema\`)
 
 Sua resposta DEVE ser um único e válido objeto JSON.
-
-\`\`\`json
+O formato é o seguinte:
 {
   "logEntries": [{ "type": "narration", "content": "Sua narração aqui..." }],
   "actionOptions": ["Opção de ação 1", { "text": "Opção com perícia", "action": "internal_action", "skill": "Perception" }],
@@ -43,7 +42,7 @@ Sua resposta DEVE ser um único e válido objeto JSON.
   "systemLog": "Sua justificativa para DCs, cálculos de dano, etc.",
   "imagePrompt": "Um prompt para gerar uma imagem da cena, se for um momento impactante."
 }
-\`\`\`
+
 **Regras Cruciais para a Resposta:**
 - **Idioma e Formato**: TODA a sua saída de texto (narração, opções, etc.) deve ser em **Português do Brasil**, claro e bem escrito. O JSON deve ser estritamente válido.
 - **`logEntries`**: Use para descrever o mundo, as ações dos NPCs e as consequências das ações do jogador. Use \`type: "roll"\` para descrever rolagens de NPCs e monstros.
