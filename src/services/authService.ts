@@ -51,11 +51,8 @@ export const loginUser = async (credentials: LoginCredentials) => {
     }
     return {
         success: true,
-        userId: data.userId,
-        username: data.username,
+        user: data.user,
         token: data.token,
-        isLicenseActive: data.isLicenseActive,
-        settings: data.settings,
         message: data.message,
     };
 };

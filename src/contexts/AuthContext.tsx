@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 interface User {
     id: number;
     username: string;
+    licenseKey?: { isActivated: boolean };
 }
 
 interface AuthContextType {
@@ -59,14 +60,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     });
                     
                     if (response.ok) {
-                        const userData = await response.json();
-                        setUser({ id: userData.id, username: userData.username });
-
-                        if (userData.licenseKey?.isActivated) {
-                            setIsLicenseActive(true);
-                        }
-                        if (userData.settings) {
-                           loadSettings(userData.settings);
+                        const userData: User = await response.json();
+                        setUser(userData);
+                        setIsLicenseActive(userData.licenseKey?.isActivated || false);
+                        
+                        if ((userData as any).settings) {
+                           loadSettings((userData as any).settings);
                         }
 
                     } else {
@@ -86,13 +85,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
-            if (response && response.userId && response.token) {
-                setUser({ id: response.userId, username: response.username }); 
-                setIsLicenseActive(response.isLicenseActive);
+            if (response && response.user && response.token) {
+                const userData: User = response.user;
+                setUser(userData);
+                setIsLicenseActive(userData.licenseKey?.isActivated || false);
                 localStorage.setItem('token', response.token);
                 
-                if (response.settings) {
-                    loadSettings(response.settings);
+                if ((userData as any).settings) {
+                    loadSettings((userData as any).settings);
                 }
 
                 toast({

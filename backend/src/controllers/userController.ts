@@ -13,9 +13,10 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
         }
 
         const userRepository = AppDataSource.getRepository(User);
+        // Garante que a relação com a chave de licença seja carregada
         const user = await userRepository.findOne({ 
             where: { id: userId },
-            relations: ["licenseKey"] // Carrega a relação com a licença
+            relations: ["licenseKey"] 
         });
 
         if (!user) {

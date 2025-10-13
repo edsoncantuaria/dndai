@@ -62,7 +62,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     try {
         const userRepository = AppDataSource.getRepository(User);
-        const user = await userRepository.findOne({ where: { email }, relations: ["licenseKey"] });
+        const user = await userRepository.findOne({ 
+            where: { email }, 
+            relations: ["licenseKey"] 
+        });
 
         if (!user) {
             return next(createError(404, 'Usuário não encontrado.'));
@@ -78,14 +81,14 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             process.env.JWT_SECRET || 'your_default_secret',
             { expiresIn: '7d' }
         );
+        
+        const { password: userPassword, ...userResponse } = user;
+
 
         res.status(200).json({
             message: 'Login bem-sucedido!',
             token,
-            userId: user.id,
-            username: user.username, // Adiciona o username
-            isLicenseActive: user.licenseKey?.isActivated || false,
-            settings: user.settings || defaultSettings, // Envia as configurações do usuário
+            user: userResponse,
         });
 
     } catch (error) {
