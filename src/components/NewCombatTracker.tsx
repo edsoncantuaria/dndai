@@ -11,30 +11,25 @@ const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(true);
 
-    const getCombatantId = (entry: any): string => {
-        if (!entry) return '';
-        // If it's a string, it's a direct ID
-        if (typeof entry === 'string') return entry;
-        // If it's an object with an `id` property (from initiativeOrder)
-        if (entry.id) return entry.id;
-        // If it's a full combatant object
-        if (entry.name && character && entry.name === character.name) return character.name;
-        
-        return entry.name || ''; // Fallback
+    const getCombatantId = (combatantOrId: any): string => {
+        if (!combatantOrId) return '';
+        if (typeof combatantOrId === 'string') return combatantOrId;
+        return combatantOrId.id || combatantOrId.name || '';
     };
     
     const allCombatants = useMemo<Combatant[]>(() => {
-        if (!combatState.isActive || !character) {
-            return [];
-        }
+        if (!combatState.isActive || !character) return [];
 
         const combatantMap = new Map<string, Combatant>();
 
+        // Ensure player is always in the map, using character data as the base
         const playerCombatant: Combatant = {
-            id: character.name,
+            id: character.name, // Use name as a reliable ID for the player
             name: character.name,
             hp: { current: character.hp.current, max: character.hp.max },
-            initiative: 0,
+            ac: character.ac.value,
+            isPlayer: true,
+            initiative: 0, // Placeholder, will be updated
             isDead: character.hp.current <= 0,
             hasMoved: false,
             hasActed: false,
@@ -42,53 +37,37 @@ const NewCombatTracker: React.FC = () => {
             bonusActionPoints: 1,
             conditions: character.conditions.map(c => c.name),
             rollHistory: [],
-            isPlayer: true,
-            ac: character.ac.value,
         };
         combatantMap.set(playerCombatant.id, playerCombatant);
         
         (combatState.combatants || []).forEach(apiCombatant => {
             if (!apiCombatant || !apiCombatant.name) return;
-            const isPlayerFromApi = apiCombatant.name === character.name;
             const id = getCombatantId(apiCombatant);
             if (!id) return;
+            
+            const existing = combatantMap.get(id) || {};
 
-            const existingCombatant = combatantMap.get(id);
-
-            let currentHp = apiCombatant.hp as any;
-            if (typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null) {
-                currentHp = (apiCombatant.hp as any).current;
-            }
-
-            let maxHp = apiCombatant.hp as any;
-            if (typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null) {
-                maxHp = (apiCombatant.hp as any).max;
-            }
+            let currentHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.current : apiCombatant.hp;
+            let maxHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.max : apiCombatant.maxHp;
 
             const mergedCombatant: Combatant = {
-                ...(existingCombatant || {}),
+                ...existing,
                 ...apiCombatant,
                 id,
-                isPlayer: isPlayerFromApi,
-                hp: {
-                    current: typeof currentHp === 'number' ? currentHp : (existingCombatant?.hp?.current || 1),
-                    max: typeof maxHp === 'number' ? maxHp : (existingCombatant?.hp?.max || 1)
+                isPlayer: id === character.name,
+                 hp: {
+                    current: typeof currentHp === 'number' ? currentHp : (existing?.hp?.current ?? 1),
+                    max: typeof maxHp === 'number' ? maxHp : (existing?.hp?.max || 1)
                 },
-                ac: apiCombatant.ac ?? (existingCombatant?.ac || 10),
-                actionPoints: apiCombatant.actionPoints ?? (existingCombatant?.actionPoints || 1),
-                bonusActionPoints: apiCombatant.bonusActionPoints ?? (existingCombatant?.bonusActionPoints || 1),
+                ac: apiCombatant.ac ?? existing.ac ?? 10,
                 isDead: apiCombatant.isDead ?? (currentHp !== undefined && currentHp <= 0),
             };
             
             combatantMap.set(id, mergedCombatant);
         });
+        
+        const validCombatants = Array.from(combatantMap.values());
 
-        if (!combatantMap.has(character.name)) {
-            combatantMap.set(character.name, playerCombatant);
-        }
-
-        const validCombatants = Array.from(combatantMap.values()).filter(c => c && c.id && c.name);
-    
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
              return validCombatants.sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
