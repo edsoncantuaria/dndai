@@ -40,20 +40,20 @@ O novo backend será uma API RESTful construída com Express.js, responsável po
 
 ## **Fases da Implementação**
 
-### **Fase 2.1: Estrutura e Gerenciamento de Sessões (Em Andamento)**
+### **Fase 2.1: Estrutura e Gerenciamento de Sessões (Concluído)**
 
-*   **[ ] Configurar o Projeto Node.js**:
+*   **[X] Configurar o Projeto Node.js**:
     *   Ajustar `package.json` com as dependências: `express`, `dotenv`, `typeorm`, `mysql2`, `@google/generative-ai`, `genkit`.
     *   Criar `tsconfig.json` para o projeto TypeScript.
     *   Criar `.env.example` com as variáveis de ambiente necessárias (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `PORT`).
 
-*   **[ ] Implementar Camada de Dados com TypeORM**:
+*   **[X] Implementar Camada de Dados com TypeORM**:
     *   Criar `data-source.ts` para a configuração da conexão com o MySQL.
     *   Definir as entidades `SessaoIA` e `SessionLog` em `src/entities/`.
         *   `SessaoIA`: `id`, `nome`, `apiKey`, `createdAt`, `updatedAt`.
         *   `SessionLog`: `id`, `sessionId`, `prompt`, `response`, `timestamp`.
 
-*   **[ ] Criar Endpoints CRUD para Sessões**:
+*   **[X] Criar Endpoints CRUD para Sessões**:
     *   Definir rotas em `src/routes/` e lógica nos `src/controllers/` para:
         *   `POST /api/sessoes`: Criar uma nova sessão de jogo.
         *   `GET /api/sessoes/:id`: Obter detalhes de uma sessão (incluindo seus logs).

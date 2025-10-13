@@ -5,7 +5,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-// Todas as rotas de sessão são protegidas e exigem autenticação
+// Todas as rotas de sessão são protegidas por autenticação
 router.use(authMiddleware);
 
 router.post('/', createSessao);
