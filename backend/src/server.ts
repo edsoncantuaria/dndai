@@ -12,15 +12,28 @@ import userRoutes from './routes/userRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
 import narrarRoutes from './routes/narrarRoutes.js';
 import sessoesRoutes from './routes/sessoesRoutes.js';
-import characterRoutes from './routes/characterRoutes.js'; // Nova rota de personagens
+import characterRoutes from './routes/characterRoutes.js';
 
 const app = express();
 
-// Middlewares essenciais
-app.use(cors()); // Habilita o Cross-Origin Resource Sharing
-app.use(express.json({ limit: '10mb' })); // Aumenta o limite para aceitar a ficha de personagem
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Configuração do CORS
+const allowedOrigins = ['http://localhost:9002', 'https://rpg.edsin-server.space'];
+const corsOptions: cors.CorsOptions = {
+    origin: (origin, callback) => {
+        // Permitir requisições sem 'origin' (ex: Postman, apps mobile) ou da lista de permissões
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    optionsSuccessStatus: 200 // Para compatibilidade com navegadores legados
+};
 
+// Middlewares essenciais
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 const PORT = process.env.PORT || 8071;
 
@@ -30,8 +43,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/licenses', licenseRoutes);
 app.use('/api/narrar', narrarRoutes);
 app.use('/api/sessoes', sessoesRoutes);
-app.use('/api/characters', characterRoutes); // Adiciona a nova rota
-
+app.use('/api/characters', characterRoutes);
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {
