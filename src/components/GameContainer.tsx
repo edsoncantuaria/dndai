@@ -90,15 +90,13 @@ const GameContainer = () => {
     const handleNewGameFromVault = async (char: Character) => {
         setIsLoadingData(true);
         try {
-            // A API agora lida com sessões existentes, então podemos chamar sem medo.
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
                 const loadedData = await loadGameSession(newSessionResponse.sessao.id);
                 if (loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
-                    // Explicitamente inicia o jogo se for uma nova sessão (sem logs)
-                    if(loadedData.logs.length === 0) {
+                    if (loadedData.logs.length === 0) {
                         startGame();
                     }
                 }
@@ -118,18 +116,15 @@ const GameContainer = () => {
     const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
         const loadedData = await loadGameSession(sessionId);
-        setIsLoadingData(false); 
-    
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
-            if (loadedData.logs.length === 0) {
-                startGame();
-            }
         } else {
+            // Handle error case if loading fails, maybe show a toast
             setGameStage('session_list');
         }
-    }, [loadGameSession, setPlayMenuMusic, startGame]);
+        setIsLoadingData(false);
+    }, [loadGameSession, setPlayMenuMusic]);
 
 
     const returnToMenu = useCallback(() => {

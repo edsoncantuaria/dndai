@@ -184,11 +184,9 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => {
         let parsedItemData = {};
         try {
-            // Check if itemData is a string and needs parsing
             if (typeof item.itemData === 'string') {
                 parsedItemData = JSON.parse(item.itemData);
             } else if (typeof item.itemData === 'object' && item.itemData !== null) {
-                // If it's already an object, use it directly
                 parsedItemData = item.itemData;
             }
         } catch (e) {
@@ -232,22 +230,19 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         }
     }
 
-    return {
+    const fullCharacter: Character = {
         ...backendChar,
-        attributes: attributes,
-        inventory: inventory,
-        // Ensure spells is always an array
+        attributes,
+        inventory,
         spells: backendChar.spells || [],
-        // Ensure nested quest data is included
         relationships: (backendChar.relationships || []).map((r: any) => ({
             ...r,
             quests: r.quests || []
         })),
-        // ---- Calculated and processed frontend fields ----
         modifiers,
         proficiencyBonus,
         hp: { current: backendChar.attributes.hp || maxHp, max: maxHp, temp: 0 },
-        ac: ac,
+        ac,
         xp: backendChar.xp || 0,
         xpToNextLevel: getXpThreshold(backendChar.level),
         hitDie: classDetails?.hit_die || 8,
@@ -255,16 +250,19 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
-        currency: { gp: backendChar.currency?.gp || 0, sp: 0, cp: 0 }, // Assume gp from backend
+        currency: { gp: backendChar.currency?.gp || 15, sp: 0, cp: 0 },
         currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),
-        traits: traits,
-        languages: languages,
-        classLevelsData: classLevelsData,
-        subclassLevelsData: subclassLevelsData,
-        spellSlots: spellSlots,
+        traits,
+        languages,
+        classLevelsData,
+        subclassLevelsData,
+        spellSlots,
         personalityTraits: backendChar.personalityTraits || [],
+        subclassFlavor: backendChar.subclassFlavor || null,
     };
+
+    return fullCharacter;
 }
 
 
