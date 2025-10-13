@@ -44,7 +44,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     
     const isProficient = (character.proficiencies || []).some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-    const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? character.proficiencyBonus : 0);
+    const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
 
     const handleSkillUse = () => {
         if (onUse) onUse();
@@ -178,45 +178,43 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </div>
             
-            {currency && hitDice && (
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                            <span className="text-xs font-bold text-stone-400">Iniciativa</span>
-                            <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                            <span className="text-xs font-bold text-stone-400">Deslocamento</span>
-                            <p className="font-bold text-2xl text-stone-200">{character.speed} <span className="text-base">ft</span></p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md">
-                            <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
-                            <p className="font-bold text-lg text-stone-200">{hitDice.current} / {hitDice.total} <span className="text-sm text-stone-400">d{character.hitDie}</span></p>
-                        </div>
-                        <div className="bg-stone-800/50 p-2 rounded-md">
-                            <span className="text-xs font-bold text-stone-400">Moedas</span>
-                            <div className="flex gap-2 items-baseline">
-                                <div className="text-amber-400 font-mono">
-                                    <span className="font-bold text-lg">{currency.gp}</span>
-                                    <span className="text-sm">gp</span>
-                                </div>
-                                <div className="text-slate-400 font-mono">
-                                    <span className="font-bold text-lg">{currency.sp}</span>
-                                    <span className="text-sm">sp</span>
-                                </div>
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
+                <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                        <span className="text-xs font-bold text-stone-400">Iniciativa</span>
+                        <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
+                    </div>
+                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                        <span className="text-xs font-bold text-stone-400">Deslocamento</span>
+                        <p className="font-bold text-2xl text-stone-200">{character.speed || 0} <span className="text-base">ft</span></p>
+                    </div>
+                    <div className="bg-stone-800/50 p-2 rounded-md">
+                        <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
+                        <p className="font-bold text-lg text-stone-200">{(hitDice || { current: 0 }).current} / {(hitDice || { total: 0 }).total} <span className="text-sm text-stone-400">d{character.hitDie || 0}</span></p>
+                    </div>
+                    <div className="bg-stone-800/50 p-2 rounded-md">
+                        <span className="text-xs font-bold text-stone-400">Moedas</span>
+                        <div className="flex gap-2 items-baseline">
+                            <div className="text-amber-400 font-mono">
+                                <span className="font-bold text-lg">{(currency || { gp: 0 }).gp}</span>
+                                <span className="text-sm">gp</span>
+                            </div>
+                            <div className="text-slate-400 font-mono">
+                                <span className="font-bold text-lg">{(currency || { sp: 0 }).sp}</span>
+                                <span className="text-sm">sp</span>
                             </div>
                         </div>
                     </div>
                 </div>
-            )}
+            </div>
 
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Ações de Descanso</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <button
                         onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
-                        disabled={isLoading || combatState.isActive}
+                        disabled={isLoading || (combatState && combatState.isActive)}
                         className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         <Coffee className="h-4 w-4" />
@@ -224,7 +222,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     </button>
                     <button
                         onClick={() => processPlayerAction("Tentar fazer um descanso longo.")}
-                        disabled={isLoading || combatState.isActive}
+                        disabled={isLoading || (combatState && combatState.isActive)}
                         className="text-center w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         <BedDouble className="h-4 w-4" />

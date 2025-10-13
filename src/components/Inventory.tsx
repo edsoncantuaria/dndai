@@ -50,14 +50,15 @@ const Inventory: React.FC = () => {
 
     if (!character) return null;
 
-    const { currentWeight, carryingCapacity } = character;
+    const currentWeight = character.currentWeight ?? 0;
+    const carryingCapacity = character.carryingCapacity ?? 0;
     const loadPercentage = carryingCapacity > 0 ? (currentWeight / carryingCapacity) * 100 : 0;
 
     let progressBarColor = 'bg-green-600';
     if (loadPercentage > 90) progressBarColor = 'bg-red-600';
     else if (loadPercentage > 75) progressBarColor = 'bg-yellow-500';
     
-    const isPlayerTurn = combatState.isActive ? combatState.combatants[combatState.turn]?.id === 'player' : true;
+    const isPlayerTurn = combatState?.isActive ? combatState.combatants[combatState.turn]?.id === 'player' : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
     return (
@@ -80,7 +81,7 @@ const Inventory: React.FC = () => {
                 </div>
              </div>
 
-            {character.inventory.length === 0 ? (
+            {(character.inventory || []).length === 0 ? (
                 <p className="text-stone-400 italic text-center py-4 bg-stone-800/40 rounded-md">Sua bolsa está vazia.</p>
             ) : (
                 <div className="space-y-2">
