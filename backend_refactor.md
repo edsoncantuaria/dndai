@@ -60,16 +60,16 @@ O novo backend será uma API RESTful construída com Express.js, responsável po
         *   `PUT /api/sessoes/:id`: Atualizar uma sessão (ex: mudar o nome ou a chave).
         *   `DELETE /api/sessoes/:id`: Deletar uma sessão.
 
-### **Fase 2.2: Integração com Genkit e Narração**
+### **Fase 2.2: Integração com Genkit e Narração (Concluído)**
 
-*   **[ ] Criar `aiService.ts`**:
+*   **[X] Criar `aiService.ts`**:
     *   Implementar um `Map` para cachear as instâncias de Genkit.
     *   Criar uma função `getOrCreateAiInstance(sessionId, apiKey)` que:
         1.  Verifica se uma instância para o `sessionId` já existe no cache.
         2.  Se sim, a retorna.
         3.  Se não, cria uma nova instância do Genkit usando a `apiKey` fornecida, a armazena no cache com a `sessionId` como chave e a retorna.
 
-*   **[ ] Implementar o Endpoint de Narração**:
+*   **[X] Implementar o Endpoint de Narração**:
     *   Criar `narrarController.ts` e `narrarRoutes.ts`.
     *   O endpoint `POST /api/narrar/:sessionId` deverá:
         1.  Receber o `prompt` do jogador no corpo da requisição.
@@ -79,12 +79,79 @@ O novo backend será uma API RESTful construída com Express.js, responsável po
         5.  Salvar o `prompt` e a `response` na tabela `session_logs`.
         6.  Retornar a `response` para o frontend.
 
-### **Fase 2.3: Testes e Documentação Final**
+### **Fase 2.3: Testes e Documentação Final (Em Andamento)**
 
-*   **[ ] Atualizar README.md**:
-    *   Adicionar instruções detalhadas de como clonar, instalar dependências, configurar o `.env` e rodar o servidor.
-    *   Incluir exemplos de como usar o `curl` ou Postman para testar todos os endpoints (`/api/sessoes` e `/api/narrar/:sessionId`).
-*   **[ ] Tratamento de Erros**: Garantir que todos os endpoints tenham um tratamento de erro robusto, retornando mensagens claras em caso de falha (ex: sessão não encontrada, chave de API inválida).
+*   **[X] Atualizar `README.md` do Backend**: Instruções detalhadas sobre como rodar o servidor e usar a API.
+*   **[X] Testar Endpoints via `curl`**: Adicionar exemplos práticos para testar a criação de sessão e o fluxo de narração.
+*   **[ ] Tratamento de Erros Aprimorado**: Garantir que todos os endpoints tenham um tratamento de erro robusto e mensagens claras.
+
+---
+
+## Testando a API (Fase 2.1 e 2.2)
+
+Você pode usar `curl` ou uma ferramenta como Postman/Insomnia para testar os endpoints. **Lembre-se de substituir `seu_token_jwt_aqui` por um token válido obtido no login.**
+
+#### **1. Criar uma nova sessão de jogo (`POST /api/sessoes`)**
+
+```bash
+curl -X POST http://localhost:8071/api/sessoes \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer seu_token_jwt_aqui" \
+-d '{
+  "nome": "A Caverna do Dragão Esquecido",
+  "apiKey": "SUA_CHAVE_DE_API_DO_GOOGLE_AI"
+}'
+```
+**Resposta Esperada:**
+```json
+{
+    "message": "Sessão criada com sucesso!",
+    "sessao": {
+        "nome": "A Caverna do Dragão Esquecido",
+        "apiKey": "SUA_CHAVE_DE_API_DO_GOOGLE_AI",
+        "userId": 1,
+        "logs": [],
+        "id": 1,
+        "createdAt": "...",
+        "updatedAt": "..."
+    }
+}
+```
+> Anote o `"id"` da sessão criada (ex: `1`).
+
+#### **2. Enviar um prompt para a IA narrar (`POST /api/narrar/:sessionId`)**
+
+Use o `id` da sessão da etapa anterior.
+
+```bash
+# Substitua :sessionId pelo seu ID (ex: 1)
+curl -X POST http://localhost:8071/api/narrar/1 \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer seu_token_jwt_aqui" \
+-d '{
+  "prompt": "Eu entro na taverna com uma cara amarrada, sento no balcão e peço a bebida mais forte que tiverem."
+}'
+```
+**Resposta Esperada:**
+```json
+{
+    "response": "O taverneiro, um homem corpulento com um olho de vidro, te encara por um instante antes de pegar uma garrafa escura de debaixo do balcão. Ele serve um líquido âmbar em um copo sujo e o desliza em sua direção. 'Por sua conta e risco, forasteiro', ele resmunga. O cheiro de álcool forte e algo vagamente medicinal preenche o ar. O que você faz?"
+}
+```
+
+#### **3. Obter detalhes da sessão (com logs) (`GET /api/sessoes/:id`)**
+```bash
+# Substitua :id pelo seu ID de sessão
+curl -X GET http://localhost:8071/api/sessoes/1 \
+-H "Authorization: Bearer seu_token_jwt_aqui"
+```
+
+#### **4. Deletar a sessão (`DELETE /api/sessoes/:id`)**
+```bash
+# Substitua :id pelo seu ID de sessão
+curl -X DELETE http://localhost:8071/api/sessoes/1 \
+-H "Authorization: Bearer seu_token_jwt_aqui"
+```
 
 ---
 
