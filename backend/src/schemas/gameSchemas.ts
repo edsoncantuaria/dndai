@@ -24,22 +24,34 @@ const LogEntrySchema = z.object({
 }).describe("An entry in the game's adventure log.");
 
 
-const CombatantSchema = z.object({
+const FullCombatantSchema = z.object({
     id: z.string(),
     name: z.string(),
     hp: z.object({ current: z.number(), max: z.number() }),
     ac: z.number().optional(),
     initiative: z.number().optional(),
+    initiativeRoll: z.number().optional().describe("The raw d20 roll for initiative."),
     isPlayer: z.boolean().optional(),
     conditions: z.array(z.string()).optional(),
     distance: z.number().optional().describe("Distância em metros do jogador."),
+    hasMoved: z.boolean().default(false),
+    hasActed: z.boolean().default(false),
+    actionPoints: z.number().default(1),
+    bonusActionPoints: z.number().default(1),
+    isDead: z.boolean().default(false),
+    readyAction: z.string().optional(),
+    readyWeapon: z.string().optional(),
+    readySpell: z.string().optional(),
+    tempModifiers: z.record(z.any()).optional(),
+    rollHistory: z.array(z.any()).optional(),
 });
 
 export const CombatStateSchema = z.object({
     isActive: z.boolean().describe("Se o combate está ativo."),
     round: z.number().describe("Número do round atual."),
     turn: z.number().describe("Índice do combatente que está na vez de agir."),
-    combatants: z.array(CombatantSchema).describe("Lista de todos os combatentes envolvidos."),
+    combatants: z.array(FullCombatantSchema).describe("Lista de todos os combatentes envolvidos."),
+    initiativeOrder: z.array(z.string()).optional().describe("IDs dos combatentes em ordem de iniciativa."),
     log: z.array(z.string()).optional().describe("Log de eventos significativos do combate."),
 }).describe("O estado completo do combate.");
 

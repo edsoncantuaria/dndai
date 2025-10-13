@@ -48,5 +48,3 @@ export async function runGameMasterTurn(
         throw new Error('Falha na comunicação com a Inteligência Artificial.');
     }
 }
-
-    
