@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -209,13 +209,15 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
 
 export const buildFrontendCharacter = (backendChar: Character): Character => {
     // Rebuild the complex object from the separated backend entities
-    const attributes: Attributes = {
+    const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
         dexterity: backendChar.attributes.dexterity,
         constitution: backendChar.attributes.constitution,
         intelligence: backendChar.attributes.intelligence,
         wisdom: backendChar.attributes.wisdom,
         charisma: backendChar.attributes.charisma,
+        id: backendChar.attributes.id,
+        characterId: backendChar.attributes.characterId,
     };
     
     const modifiers = calculateModifiers(attributes);
@@ -234,7 +236,7 @@ export const buildFrontendCharacter = (backendChar: Character): Character => {
 
     return {
         ...backendChar,
-        attributes: backendChar.attributes,
+        attributes: attributes,
         inventory: inventory,
         spells: backendChar.spells,
         journal: backendChar.journal || [],
@@ -249,9 +251,9 @@ export const buildFrontendCharacter = (backendChar: Character): Character => {
         xpToNextLevel: getXpThreshold(backendChar.level),
         hitDie: 10, // Placeholder, should come from class
         hitDice: { current: backendChar.level, total: backendChar.level },
-        speed: 30, // Placeholder, should come from race
+        speed: 30, // Placeholder
         deathSaves: { successes: 0, failures: 0 },
-        conditions: [], // Placeholder
+        conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
         currency: { gp: 0, sp: 0, cp: 0 }, // Placeholder
         currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),

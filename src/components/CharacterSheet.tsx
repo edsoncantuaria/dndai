@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
-import { Attributes, Proficiency, ApiTrait } from '../types';
+import type { Attributes } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints } from 'lucide-react';
 
@@ -96,8 +96,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     const initiativeBonus = modifiers?.dexterity ?? 0;
     
     // Filtra para exibir apenas os 6 atributos principais
-    const coreAttributes = Object.entries(attributes).filter(([key]) => characterUtils.ATTRIBUTE_SHORT_MAP[key.substring(0,3)] || ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(key)) as [keyof Attributes, number][];
-
+    const coreAttributeKeys: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
     const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
 
@@ -175,13 +174,16 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             
             {/* Attributes */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {coreAttributes.map(([key, value]) => (
-                    <div key={key} className="bg-stone-800/50 p-3 rounded-lg text-center">
-                        <div className="font-bold text-lg text-amber-300">{translateAttribute(key)}</div>
-                        <div className="text-3xl font-bold text-stone-100 my-1">{value}</div>
-                        <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
-                    </div>
-                ))}
+                {coreAttributeKeys.map((key) => {
+                    const value = attributes[key as keyof typeof attributes];
+                    return (
+                        <div key={key} className="bg-stone-800/50 p-3 rounded-lg text-center">
+                            <div className="font-bold text-lg text-amber-300">{translateAttribute(key)}</div>
+                            <div className="text-3xl font-bold text-stone-100 my-1">{String(value)}</div>
+                            <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
+                        </div>
+                    );
+                })}
             </div>
 
             <CollapsibleSection title="Perícias">
@@ -246,7 +248,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     {languages && (
                         <div>
                             <h4 className="font-semibold text-stone-300">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{(languages || []).map(lang => translateApiString(lang.name)).join(', ')}</p>
+                            <p className="text-sm text-stone-300">{(languages || []).map(lang => translateApiString(lang)).join(', ')}</p>
                         </div>
                     )}
                  </div>
