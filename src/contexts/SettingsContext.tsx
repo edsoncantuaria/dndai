@@ -6,17 +6,17 @@ export const AVAILABLE_MODELS = [
     "gemini-2.5-flash",
     "gemini-2.5-pro",
     "gemini-1.5-pro",
-    "gemini-1.5-flash-8b",   
-    "gemini-2.0-flash-lite", 
+    "gemini-1.5-flash-8b",
+    "gemini-2.0-flash-lite",
     "gemini-1.0-pro",
-    "gemini-1.5-flash",     
+    "gemini-1.5-flash",
     "gemma-3-27b-it",
     "gemma-7b-it",
 ];
 
 export const AVAILABLE_TTS_MODELS = [
     "gemini-2.5-flash-native-audio-preview-09-2025",
-    "gemini-2.5-pro-preview-tts",   
+    "gemini-2.5-pro-preview-tts",
     "gemini-2.5-flash-preview-tts",
     "gemini-live-2.5-flash-preview",
     "gemini-2.0-flash-live-001",
@@ -32,10 +32,10 @@ export const AVAILABLE_IMAGE_MODELS = [
 
 // NEW: Lista completa de vozes nativas do Gemini
 export const AVAILABLE_TTS_VOICES = [
-    "Charon", "Puck", "Zephyr", "Kore", "Fenrir", "Leda", "Orus", "Aoede", 
-    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba", 
-    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar", 
-    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", 
+    "Charon", "Puck", "Zephyr", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
+    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
+    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
+    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
     "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
 ];
 
@@ -118,18 +118,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const getApiKey = useCallback(() => {
         return apiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     }, [apiKey]);
-
-    // Load API Key from localStorage on initial mount
-    useEffect(() => {
-        try {
-            const savedApiKey = localStorage.getItem(LOCAL_STORAGE_API_KEY);
-            if (savedApiKey) {
-                setApiKey(savedApiKey);
-            }
-        } catch (error) {
-            console.error("Failed to load API key from localStorage:", error);
-        }
-    }, []);
     
     // Persist API Key to localStorage when it changes
     useEffect(() => {
@@ -167,13 +155,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, isLoaded]);
 
-    const value = { 
+    const value = {
         isLoaded, loadSettings,
-        model, setModel, 
-        ttsModel, setTtsModel, 
-        imageModel, setImageModel, 
-        apiKey, setApiKey, 
-        generationConfig, setGenerationConfig, 
+        model, setModel,
+        ttsModel, setTtsModel,
+        imageModel, setImageModel,
+        apiKey, setApiKey,
+        generationConfig, setGenerationConfig,
         ttsVoice, setTtsVoice,
         volume, setVolume,
         isMuted, setIsMuted,
@@ -195,3 +183,5 @@ export const useSettingsContext = () => {
     }
     return context;
 };
+
+    

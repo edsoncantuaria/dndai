@@ -27,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
-
+const LOCAL_STORAGE_API_KEY = 'rpg-de-cria-api-key';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -48,6 +48,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             description: "Você saiu da sua conta.",
         })
     }, [toast]);
+    
+    // This effect is responsible for checking localStorage for the api key on initial load
+    useEffect(() => {
+        try {
+            const savedApiKey = localStorage.getItem(LOCAL_STORAGE_API_KEY);
+            if (savedApiKey) {
+                setApiKey(savedApiKey);
+            }
+        } catch (error) {
+            console.error("Failed to load API key from localStorage:", error);
+        }
+    }, [setApiKey]);
+
 
     // This effect is responsible for validating the session on initial load.
     useEffect(() => {
@@ -59,12 +72,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     const response = await fetch(`${API_URL}/users/me`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
-                    
+
                     if (response.ok) {
                         const userData: User = await response.json();
                         setUser(userData);
                         setIsLicenseActive(userData.licenseKey?.isActivated || false);
-                        
+
                         if ((userData as any).settings) {
                            loadSettings((userData as any).settings);
                         }
@@ -91,7 +104,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setUser(userData);
                 setIsLicenseActive(userData.licenseKey?.isActivated || false);
                 localStorage.setItem('token', response.token);
-                
+
                 if ((userData as any).settings) {
                     loadSettings((userData as any).settings);
                 }
@@ -205,3 +218,5 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
+
+    

@@ -16,13 +16,15 @@ type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_char
 
 
 const GameContainer = () => {
-    const { 
-        character, 
-        loadGameSession, 
+    const {
+        character,
+        log,
+        loadGameSession,
         clearGameState,
         createCharacter,
         deleteCharacter,
         deleteSession,
+        startGame,
     } = useGameStateContext();
 
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
@@ -35,7 +37,7 @@ const GameContainer = () => {
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
-    
+
     // --- Data Fetching ---
     const fetchInitialData = useCallback(async () => {
         setIsLoadingData(true);
@@ -72,7 +74,7 @@ const GameContainer = () => {
             audio.loop = true;
             menuAudioRef.current = audio;
         }
-        
+
         const audio = menuAudioRef.current;
         const shouldPlay = playMenuMusic && (gameStage !== 'playing');
         audio.volume = isMuted ? 0 : volume;
@@ -83,16 +85,23 @@ const GameContainer = () => {
             audio.pause();
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
+    
+    // --- Auto-start new game ---
+    useEffect(() => {
+        if (gameStage === 'playing' && character && log.length === 0) {
+            startGame();
+        }
+    }, [gameStage, character, log, startGame]);
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
         const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
         if (newSession) {
-            await fetchInitialData(); 
+            await fetchInitialData();
             handleContinueGame(newSession.sessao.id);
         }
     };
-    
+
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
@@ -103,7 +112,7 @@ const GameContainer = () => {
         setGameStage('playing');
         setPlayMenuMusic(false);
     }, [loadGameSession, setPlayMenuMusic]);
-    
+
     const returnToMenu = useCallback(() => {
         clearGameState();
         setGameStage('session_list');
@@ -134,7 +143,7 @@ const GameContainer = () => {
             </div>
         );
     }
-    
+
     if (gameStage === 'playing' && character) {
          return (
             <Game
@@ -145,7 +154,7 @@ const GameContainer = () => {
             />
         );
     }
-    
+
     if (gameStage === 'character_vault') {
         return (
             <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
@@ -186,16 +195,16 @@ const GameContainer = () => {
             </div>
         );
     }
-    
+
     if(gameStage === 'creating_character') {
-        return <Game 
-            startNewGameFlow={() => {}} 
-            onCharacterCreated={handleCharacterCreated} 
-            returnToMenu={returnToMenu} 
-            gameStage={gameStage} 
+        return <Game
+            startNewGameFlow={() => {}}
+            onCharacterCreated={handleCharacterCreated}
+            returnToMenu={returnToMenu}
+            gameStage={gameStage}
         />;
     }
-    
+
     // Default to session list
     return (
          <>
