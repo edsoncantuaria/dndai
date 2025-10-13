@@ -236,11 +236,17 @@ export const useNewGameState = () => {
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
+                // Mapeia os logs do backend para o formato do frontend
+                const formattedLogs = (sessionDetails.logs || []).map(log => ({
+                    ...log,
+                    content: log.response, // Mapeia 'response' para 'content'
+                }));
+
                 setCharacter(fullCharacter);
-                setLog(sessionDetails.logs || []);
+                setLog(formattedLogs); // Usa os logs formatados
                 setSessionId(id);
                 
-                return { character: fullCharacter, logs: sessionDetails.logs || [] };
+                return { character: fullCharacter, logs: formattedLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }

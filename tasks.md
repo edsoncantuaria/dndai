@@ -2,6 +2,12 @@
 
 Este documento descreve os próximos grandes recursos e melhorias arquitetônicas planejadas para o projeto, com o objetivo de evoluir a plataforma.
 
+**Nota sobre a Estrutura de Diretórios:**
+- **Caminho do Frontend:** `/home/user/studio/`
+- **Caminho do Backend:** `/home/user/studio/backend`
+
+---
+
 ## TASK-1: Streaming de Respostas da IA via Cloud Function
 
 - **Problema:** Atualmente, o frontend espera que o backend processe toda a resposta do Genkit/Gemini antes de exibi-la. Em narrações longas, isso pode causar uma pausa perceptível (1-3 segundos), quebrando a imersão.
