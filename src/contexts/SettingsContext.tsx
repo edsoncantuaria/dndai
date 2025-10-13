@@ -98,7 +98,7 @@ const saveSettingsToDB = async (settings: Partial<any>) => {
     if (!token) return;
 
     try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api'}/users/me/settings`, {
+        await fetch(`https://backend-5e.edsin-server.space/api/users/me/settings`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',

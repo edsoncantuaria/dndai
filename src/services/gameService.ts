@@ -1,7 +1,7 @@
 // src/services/gameService.ts
 import type { NewCharacterInfo, CombatState, SessaoIA, Character } from "@/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
+const API_URL = 'https://backend-5e.edsin-server.space/api';
 
 const getAuthHeaders = () => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -119,5 +119,5 @@ export const processPlayerAction = async (sessionId: number, prompt: string, com
         const errorData = await response.json();
         throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
     }
-    return await response.json();
+    return response; // Return the whole response for streaming
 };
