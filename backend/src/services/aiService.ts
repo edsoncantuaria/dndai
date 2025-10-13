@@ -91,11 +91,14 @@ export const streamGameMasterTurn = async (
         });
 
         return { textStream: stream, responsePromise: response };
-    } catch(error) {
+    } catch(error: any) {
         console.error("Error initiating stream in streamGameMasterTurn:", error);
         // Ensure we always return a valid object, even on error, to prevent crashes upstream.
         // Create an empty async iterator for textStream.
         const emptyAsyncIterator = (async function* () {})();
-        return { textStream: emptyAsyncIterator, responsePromise: Promise.resolve({} as any) };
+        return { 
+            textStream: emptyAsyncIterator, 
+            responsePromise: Promise.reject(error) // Propagate the error in the promise
+        };
     }
 };
