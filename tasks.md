@@ -11,46 +11,28 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 ## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Em Planejamento)
 
 - **Problema:** O frontend atual ainda opera com muitas lógicas do design original (estado gerenciado no cliente, `localStorage`), o que o impede de aproveitar todo o potencial do novo backend (banco de dados persistente, gerenciamento de sessões, personagens reutilizáveis). A interface e o fluxo de dados não refletem a nova arquitetura de servidor.
-- **Objetivo:** Refatorar completamente a aplicação frontend para se tornar um cliente puro do backend, onde o servidor é a única fonte da verdade para o estado do jogo. O backend também será aprimorado para ser mais robusto, seguro e testável. Isso resultará em uma experiência mais rápida, estável e escalável.
-- **Solução Proposta:** Uma reestruturação faseada, componente por componente, para substituir a lógica local por chamadas de API e adotar melhores práticas de arquitetura em ambas as pontas da aplicação.
+- **Filosofia Central:** O backend é a única fonte da verdade. O frontend deve ser uma interface reativa e performática que busca e envia dados ao servidor, utilizando o cache de forma inteligente para uma experiência de usuário fluida.
+- **Objetivo:** Refatorar completamente a aplicação para alinhar o frontend e o backend, adotando as melhores práticas de arquitetura para criar uma plataforma rápida, estável, imersiva e pronta para futuras expansões.
 
-### Fase 1.1: Melhorias na Arquitetura do Backend
+### Fase 1.1: Fundação da Arquitetura (Backend & Frontend)
 
-*   **[ ] Implementar Validação de Dados com Zod:**
+*   **[ ] Implementar Validação de Dados com Zod (Backend):**
     *   **Tarefa:** Em cada controller do backend (ex: `characterController.ts`), usar o Zod para criar schemas que validam o `req.body` de todas as requisições `POST` e `PUT`.
     *   **Justificativa:** Garante que dados malformados ou maliciosos nunca cheguem à nossa lógica de negócios ou ao banco de dados, tornando a API mais segura e previsível.
 
-*   **[ ] Criar Camada de Serviço (Service Layer):**
+*   **[ ] Criar Camada de Serviço (Service Layer) (Backend):**
     *   **Tarefa:** Criar novos serviços (ex: `characterService.ts`, `sessionService.ts`) na pasta `backend/src/services`. Mover a lógica de banco de dados (TypeORM) e as interações complexas dos controllers para esses serviços.
     *   **Justificativa:** Desacopla a lógica da API (Express) da lógica de negócios. Os controllers se tornam mais simples (apenas validam e chamam serviços), e a lógica principal pode ser reutilizada e testada de forma isolada.
 
-*   **[ ] Adotar Logs Estruturados:**
-    *   **Tarefa:** Substituir os `console.log` e `console.error` por uma biblioteca de logging estruturado (como `pino` ou `winston`), configurando-a para produzir saídas em JSON.
-    *   **Justificativa:** Essencial para a depuração em um ambiente de produção. Permite filtrar e pesquisar logs por sessão, usuário, tipo de erro, etc., tornando a identificação de problemas muito mais eficiente.
-
-*   **[ ] Implementar Cache no Servidor com Redis:**
-    *   **Tarefa:** Adicionar o Redis ao ecossistema do backend. Criar um `redisService` para gerenciar a conexão e as operações de cache.
-    *   **Justificativa:** Reduzir drasticamente a latência em chamadas repetidas (ex: buscar dados da D&D 5e API), diminuindo a carga no banco de dados e em serviços externos e acelerando a resposta da API.
-
-*   **[ ] Escrever Testes de Integração e Unidade:**
-    *   **Tarefa:** Configurar um ambiente de testes com `Jest` e `Supertest`. Escrever testes unitários para a camada de serviço e testes de integração para os principais endpoints da API.
-    *   **Justificativa:** Aumenta a confiabilidade do backend, permitindo futuras modificações com a segurança de que as funcionalidades existentes não foram quebradas.
-
-### Fase 1.2: Refatoração do Gerenciamento de Estado no Frontend
-
-*   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor:**
-    *   **Tarefa:** Integrar uma biblioteca como `React Query` ou `SWR` ao projeto (adicionar ao `package.json`). Envolver o `_app.tsx` com o provider da biblioteca.
+*   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor (Frontend):**
+    *   **Tarefa:** Integrar uma biblioteca como `React Query` ou `SWR`. Envolver a aplicação com o provider da biblioteca para gerenciar todas as chamadas de API.
     *   **Justificativa:** Automatiza o cache, a revalidação e a sincronização dos dados do servidor, eliminando a necessidade de gerenciar manualmente estados de `isLoading` e `error` e tornando a UI mais rápida e responsiva.
 
-*   **[ ] Criar um Contexto de Sessão Focado (`SessionContext`):**
-    *   **Tarefa:** Criar um novo `SessionContext` que armazena apenas o `sessionId` ativo e o `characterId` associado. O antigo `GameStateContext` será descontinuado.
-    *   **Justificativa:** Simplifica o estado global. Os componentes usarão o `sessionId` para buscar seus próprios dados de forma independente via React Query, melhorando a performance e a modularidade.
-
-*   **[ ] Centralizar o Acesso à API (`apiClient.ts`):**
+*   **[ ] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
     *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
-    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação em um único lugar.
+    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação.
 
-### Fase 1.3: Reconstrução dos Componentes e Fluxos de UI
+### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
 *   **[ ] Refatorar Menus e Navegação (`GameContainer`):**
     *   **Tarefa:** A tela principal passará a usar React Query para buscar e exibir a lista de sessões de jogo do usuário (`/api/sessoes`). O `GameContainer` deixará de gerenciar o estado do jogo.
@@ -61,33 +43,54 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Justificativa:** Completa a visão de personagens reutilizáveis, uma das principais vantagens do novo backend.
 
 *   **[ ] Adaptar Componentes de Jogo (Ficha, Inventário, etc.):**
-    *   **Tarefa:** Modificar `CharacterSheet`, `Inventory`, `NewJournal`, etc., para que eles usem hooks do React Query para buscar seus dados específicos, baseando-se no `characterId` obtido do `SessionContext`. As ações do usuário (equipar, usar item) se tornarão "mutações" do React Query que chamam a API.
-    *   **Justificativa:** Transforma os componentes em visualizadores de dados reativos e independentes.
+    *   **Tarefa:** Modificar `CharacterSheet`, `Inventory`, `NewJournal`, etc., para que eles usem hooks do React Query para buscar seus dados específicos, baseando-se no `characterId` ativo. As ações do usuário (equipar, usar item) se tornarão "mutações" do React Query.
+    *   **Justificativa:** Transforma os componentes em visualizadores de dados reativos e independentes, melhorando a performance e a organização.
 
-### Fase 1.4: Otimização da Experiência do Frontend
+### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
-*   **[ ] Implementar Code Splitting:**
-    *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados e não essenciais (como o wizard de criação de personagem) apenas quando o usuário interagir com eles.
-    *   **Justificativa:** Reduz o tamanho do bundle inicial, fazendo com que a aplicação carregue muito mais rápido para o usuário.
+*   **[ ] Reimaginar o Menu Principal:**
+    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira. O objetivo é criar uma imersão imediata.
 
-*   **[ ] Dividir Componentes Grandes:**
-    *   **Tarefa:** Analisar componentes complexos como `CharacterSheet` e `NewCharacterCreation` e dividi-los em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
-    *   **Justificativa:** Melhora a legibilidade, a manutenção e a performance, permitindo que apenas as partes necessárias da UI sejam re-renderizadas.
+*   **[ ] Implementar Sistema de Descanso Completo (Curto/Longo):**
+    *   **Backend:** Gerenciar a recuperação de recursos (Dados de Vida, magias) e o tempo de jogo.
+    *   **Frontend:** Criar modais interativos para que o jogador possa rolar seus dados de vida durante um descanso curto.
 
-*   **[ ] Otimizar Carregamento de Fontes e Imagens:**
-    *   **Tarefa:** Revisar o uso do `next/image` para garantir que as imagens estejam sendo otimizadas corretamente. Assegurar que as fontes do Google estão sendo carregadas da forma mais eficiente, conforme as práticas recomendadas pelo Next.js.
-    *   **Justificativa:** Melhora as métricas de performance (Core Web Vitals) e a velocidade de carregamento percebida pelo usuário.
+*   **[ ] Adicionar Suporte a Talentos (Feats):**
+    *   **Backend:** Modelar a entidade `Feat` e associá-la ao personagem.
+    *   **Frontend:** Adicionar uma seção para talentos na ficha de personagem e garantir que as opções de talentos apareçam na tela de "Subir de Nível".
 
+*   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
+    *   **Backend:** Permitir que a IA conceda "Inspiração" e o inclua no estado do personagem.
+    *   **Frontend:** Exibir um ícone de inspiração e modificar o modal de dados para rolar 2d20 e usar o resultado apropriado quando uma ação tiver vantagem ou desvantagem.
+
+### Fase 1.4: Otimização e Qualidade de Vida
+
+*   **[ ] Implementar Cache no Servidor com Redis (Backend):**
+    *   **Tarefa:** Adicionar o Redis para cachear chamadas repetidas, especialmente para a D&D 5e API.
+    *   **Justificativa:** Acelerar drasticamente a criação de personagens e a consulta de informações, reduzindo a dependência de APIs externas.
+
+*   **[ ] Implementar Code Splitting (Frontend):**
+    *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados (como o wizard de criação de personagem) apenas quando forem necessários.
+    *   **Justificativa:** Reduzir o tamanho do bundle inicial, fazendo a aplicação carregar muito mais rápido.
+
+*   **[ ] Escrever Testes de Integração e Unidade (Backend):**
+    *   **Tarefa:** Configurar `Jest` e `Supertest` para testar a camada de serviço e os endpoints da API.
+    *   **Justificativa:** Aumentar a confiabilidade do backend e permitir futuras modificações com segurança.
 
 ---
 
-## TASK-2: Streaming Avançado e Multiplayer (Pausado)
+### Metas de Longo Prazo (Pós-Reestruturação)
 
--   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
--   **Sub-tarefas Planejadas:**
-    *   **[ ]** Migrar a lógica de IA para uma Cloud Function para escalabilidade.
-    *   **[ ]** Implementar um servidor WebSocket no backend Express.
-    *   **[ ]** Criar sistema de salas de jogo (criação, entrada, saída).
-    *   **[ ]** Sincronizar o estado do jogo entre múltiplos clientes via WebSockets.
-    *   **[ ]** Adaptar a UI e o fluxo de turnos para uma experiência cooperativa.
+*   **[ ] Mapa do Mundo Interativo:**
+    *   **Visão:** Substituir a lista de diário por um mapa visual da região. Locais descobertos se tornam ícones clicáveis que revelam anotações.
+    *   **Ressalva:** A geração de imagens de mapa de forma procedural e consistente é um desafio técnico. A viabilidade precisa ser investigada antes da implementação.
+
+*   **[ ] TASK-2: Streaming Avançado e Modo Multiplayer (Pausado)**
+    *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
+    *   **Sub-tarefas Planejadas:**
+        *   **[ ]** Migrar a lógica de IA para uma Cloud Function para escalabilidade.
+        *   **[ ]** Implementar um servidor WebSocket no backend Express.
+        *   **[ ]** Criar sistema de salas de jogo (criação, entrada, saída).
+        *   **[ ]** Sincronizar o estado do jogo entre múltiplos clientes via WebSockets.
+        *   **[ ]** Adaptar a UI e o fluxo de turnos para uma experiência cooperativa.
 ---
