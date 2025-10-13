@@ -7,7 +7,7 @@ export interface PlayerRollRequest {
     dice: string;
     modifier: number;
     dc?: number;
-    rollType: 'check' | 'save' | 'attack' | 'damage';
+    rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative';
     advantage?: boolean;
     disadvantage?: boolean;
 }
@@ -21,7 +21,7 @@ export type ImageLogEntryContent = {
 
 export interface GameMasterResponse {
     logEntries?: LogEntry[];
-    actionOptions?: (string | { text: string; action: string })[];
+    actionOptions?: (string | { text: string; action: string, skill?: string })[];
     updatedCharacter?: Partial<Character>;
     combatState?: CombatState;
     levelUpState?: LevelUpState;
@@ -32,7 +32,6 @@ export interface GameMasterResponse {
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
-    modularRules?: string[];
 }
 
 
@@ -183,13 +182,10 @@ export interface NewCharacterInfo {
     inventory: InventoryItem[];
     spells: string[];
     backstory: string;
-    personalityTraits: string[];
     ideal: string;
     bond: string;
     flaw: string;
-    feats: Feat[];
-    hitDie: number;
-    subclass: string | null;
+    level: number; // Adicionado para consistência
 }
 
 export interface InventoryItem {
@@ -228,6 +224,7 @@ export interface InventoryItem {
     usable?: boolean;
     recoverable?: boolean;
     restrictions?: string[];
+    itemData?: any; // Para compatibilidade com o backend
 }
 
 export interface ShopItem extends InventoryItem {
@@ -246,79 +243,80 @@ export interface LootOffer {
 
 export interface Character {
     id: number;
+    userId: number;
     name: string;
-    sex: 'Masculino' | 'Feminino' | 'Outro';
-    hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
-    beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
-    skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
-    level: number;
-    xp: number;
-    xpToNextLevel: number;
     race: string;
     subrace: string | null;
-    draconicAncestry?: string;
     characterClass: string;
-    subclass: string | null;
-    hitDie: number;
+    level: number;
     background: string;
     alignment: string;
-    attributes: Attributes;
-    modifiers: Attributes;
-    proficiencyBonus: number;
-    proficiencies: Proficiency[];
-    traits: ApiListItem[];
-    languages: string[];
-    damage_resistances: string[];
-    hp: {
-        current: number;
-        max: number;
-        temp: number;
-    };
-    ac: {
-        value: number;
-        source: string;
-    };
-    inventory: InventoryItem[];
-    currency: {
-        gp: number;
-        sp: number;
-        cp: number;
-    };
-    currentWeight: number;
-    carryingCapacity: number;
-    spellSlots: {
-        [key: string]: { current: number; max: number };
-    };
-    spells: string[];
-    feats: Feat[];
     backstory: string;
-    storySoFar?: string;
-    personalityTraits: string[];
     ideal: string;
     bond: string;
     flaw: string;
-    deathSaves: {
-        successes: number;
-        failures: number;
-    };
-    conditions: ApiCondition[];
-    relationships: Relationship[];
-    journal: JournalEntryLocation[];
-    currentRegion: string;
-    hitDice: {
-        current: number;
-        total: number;
-    };
+    sex: string;
+    hairStyle: string;
+    beardStyle: string;
+    skinColor: string;
+    attributes: CharacterAttributes; // Relação OneToOne
+    proficiencies: CharacterProficiency[]; // Relação OneToMany
+    inventory: InventoryItem[]; // Relação OneToMany mapeada de `items`
+    spells: CharacterSpell[]; // Relação OneToMany
+    journal: JournalEntry[]; // Relação OneToMany
+    relationships: Relationship[]; // Relação OneToMany
+    storySoFar?: string;
+    factionReputation?: Record<string, number>;
+    worldState?: Record<string, any>;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt?: string;
+
+    // Campos que podem ser calculados ou precisam ser mantidos no estado do frontend
+    modifiers: Attributes;
+    proficiencyBonus: number;
+    hp: { current: number, max: number, temp: number };
+    ac: { value: number, source: string };
+    xp: number;
+    xpToNextLevel: number;
+    hitDie: number;
+    hitDice: { current: number, total: number };
     speed: number;
+    deathSaves: { successes: number; failures: number };
+    conditions: ApiCondition[];
+    currency: { gp: number, sp: number, cp: number };
+    currentWeight: number;
+    carryingCapacity: number;
+    spellSlots: { [key: string]: { current: number; max: number } };
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
-    factionReputation?: Record<string, number>;
-    worldState?: { [key: string]: any };
+}
+
+export interface CharacterAttributes extends Attributes {
+    id: number;
+    characterId: number;
+    hp?: number; // Para compatibilidade com o backend
+    ac?: number; // Para compatibilidade com o backend
+    conditions?: any[]; // Para compatibilidade com o backend
+}
+
+export interface CharacterProficiency {
+    id: number;
+    characterId: number;
+    name: string;
+    type: string;
+    url?: string; // Para compatibilidade
+}
+
+export interface CharacterSpell {
+    id: number;
+    characterId: number;
+    spellName: string;
 }
 
 export interface LogEntry {
     id: string;
-    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
+    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
     content: any; // Can be string or ImageLogEntryContent
     rollResult?: {
         description: string;
@@ -332,40 +330,25 @@ export interface LogEntry {
         advantage?: boolean;
         disadvantage?: boolean;
     };
+    response?: string; // Para compatibilidade com o backend
+    prompt?: string; // Para compatibilidade com o backend
+    timestamp?: string; // Para compatibilidade com o backend
 };
 
 export interface Combatant {
     id: string;
     name: string;
+    hp?: { current: number; max: number; };
+    ac?: number;
+    initiative?: number;
     isPlayer?: boolean;
-    hp?: number;
-    maxHp?: number;
-    armorClass?: number;
-    initiative: number;
-    initiativeRoll?: number;
-    isDead: boolean;
-    hasMoved: boolean;
-    hasActed: boolean;
-    actionPoints: number;
-    bonusActionPoints: number;
-    readyWeapon?: string;
-    readySpell?: string;
-    conditions: ApiCondition[];
-    rollHistory: {
-        type: 'initiative' | 'attack' | 'check' | 'save' | 'damage';
-        total: number;
-        rolls: number[];
-        timestamp?: string;
-        rollType: string;
-        dice: string;
-        description: string;
-        modifier?: number;
-        advantage?: boolean;
-        disadvantage?: boolean;
-        success?: boolean;
-    }[];
-    tempModifiers?: any;
+    conditions?: string[];
     distance?: number;
+    rollHistory?: any[]; // Adicionado para compatibilidade
+    actionPoints?: number; // Adicionado para compatibilidade
+    bonusActionPoints?: number; // Adicionado para compatibilidade
+    isDead?: boolean; // Adicionado para compatibilidade
+    tempModifiers?: any; // Adicionado para compatibilidade
 }
 
 export interface CombatState {
@@ -373,8 +356,8 @@ export interface CombatState {
     round: number;
     turn: number;
     combatants: Combatant[];
-    initiativeOrder?: string[] | { id: string, initiative: number }[];
-    log?: LogEntry[];
+    initiativeOrder?: (string | { id: string; initiative: number; })[];
+    log?: any[];
     globalConditions?: any[];
 }
 
@@ -522,9 +505,12 @@ export interface Quest {
     title: string;
     status: 'active' | 'completed' | 'failed';
     objectives: string[];
+    relationshipId?: number;
 }
 
 export interface Relationship {
+    id: number;
+    characterId: number;
     npcId: string;
     name: string;
     description: string;
@@ -533,13 +519,15 @@ export interface Relationship {
     quests: Quest[];
 }
 
-export interface JournalEntryLocation {
+export interface JournalEntry {
     id: string;
+    characterId: number;
     name: string;
     region: string;
     summary: string;
     looted: boolean;
-    subLocations?: JournalEntryLocation[];
+    subLocations?: JournalEntry[];
+    parentLocation?: JournalEntry;
 }
 
 export interface ApiSubclass {
@@ -583,6 +571,6 @@ export interface SessaoIA {
     characterId: number | null;
     character?: Character; // Relação opcional
     logs?: LogEntry[]; // Relação opcional
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: string;
+    updatedAt: string;
 }

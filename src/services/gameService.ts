@@ -1,5 +1,5 @@
 // src/services/gameService.ts
-import type { NewCharacterInfo } from "@/types";
+import type { NewCharacterInfo, CombatState } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
@@ -56,11 +56,11 @@ export const deleteCharacterById = async (characterId: number) => {
 
 // --- Session Management ---
 
-export const createGameSession = async (nome: string, characterId: number, apiKey: string) => {
+export const createGameSession = async (nome: string, characterId: number) => {
     const response = await fetch(`${API_URL}/sessoes`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ nome, characterId, apiKey }),
+        body: JSON.stringify({ nome, characterId }),
     });
     if (!response.ok) {
         const errorData = await response.json();
@@ -108,11 +108,11 @@ export const deleteSessionById = async (sessionId: number) => {
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string) => {
+export const processPlayerAction = async (sessionId: number, prompt: string, combatState?: CombatState) => {
     const response = await fetch(`${API_URL}/narrar/${sessionId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, combatState }),
     });
 
     if (!response.ok) {

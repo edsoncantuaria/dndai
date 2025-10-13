@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 
 // Helper functions for merging state
-const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
+const mergeJournalEntries = (existing: JournalEntry[], updates: JournalEntry[]): JournalEntry[] => {
     const newJournal = [...existing];
     const existingMap = new Map(newJournal.map(entry => [entry.id, entry]));
     for (const update of updates) {
@@ -54,6 +54,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     if (updates.factionReputation) newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
     if (updates.worldState) newChar.worldState = { ...(oldChar.worldState || {}), ...updates.worldState };
     
+    newChar.attributes = { ...oldChar.attributes, ...updates.attributes };
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
@@ -113,21 +114,30 @@ export const useNewGameState = () => {
 
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
-
-        if (response.response) { // This handles the simple narration response
-            setLog(prev => [...prev, { id: uuidv4(), type: 'narration', content: response.response }]);
+        
+        if (response.logEntries && Array.isArray(response.logEntries)) {
+            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+            setLog(prev => [...prev, ...newLogEntries]);
         }
 
-        // The new architecture will require specific API calls to update these states.
-        // For now, we mainly focus on narration. Future work will expand this.
         if (response.updatedCharacter) {
              setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
         }
+
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
             setActionOptions([]); 
+            return; 
         }
-
+        
+        if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
+        if (response.combatState) setCombatState(response.combatState);
+        if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
+        if (response.shopState) setShopState(response.shopState);
+        if (response.lootOffer) setPendingLootOffer(response.lootOffer);
+        if (response.useHitDiceRequest) setPendingHitDiceRequest(response.useHitDiceRequest);
+        if (response.ambientSound) setAmbientSound(response.ambientSound);
+        
     }, []);
     
     const processPlayerAction = useCallback(async (action: string) => {
@@ -135,12 +145,15 @@ export const useNewGameState = () => {
         
         setIsLoading(true);
         setApiError(null);
+        setPendingHitDiceRequest(null);
+        setPendingLootOffer(null);
         
         const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
         setLog(prev => [...prev, newLogEntry]);
+        setActionOptions([]); 
         
         try {
-            const responseData = await GameService.processPlayerAction(sessionId, action);
+            const responseData = await GameService.processPlayerAction(sessionId, action, combatState);
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
@@ -149,14 +162,15 @@ export const useNewGameState = () => {
         } finally {
             setIsLoading(false); 
         }
-    }, [sessionId, handleApiResponse]);
+    }, [sessionId, combatState, handleApiResponse]);
     
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
         setIsLoading(true);
         setApiError(null);
         try {
-            const newCharacter = await characterUtils.initializeNewCharacter(info);
-            const savedCharacterResponse = await GameService.createNewCharacter(newCharacter);
+            // A lógica de `initializeNewCharacter` agora é mais simples, pois o backend fará o trabalho pesado
+            const preparedInfo: NewCharacterInfo = { ...info, level: 1 };
+            const savedCharacterResponse = await GameService.createNewCharacter(preparedInfo);
             return savedCharacterResponse.character;
         } catch (error: any) {
             setApiError(error.message || 'Falha ao criar o personagem no servidor.');
@@ -199,12 +213,15 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<boolean> => {
-        if (!character || !sessionId || log.length > 0 || isLoading) return Promise.resolve(true);
+        if (!character || !sessionId || isLoading) return Promise.resolve(true);
 
-        // This action now simply triggers the initial narration from the backend.
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        // If the log is empty, it's the very start of the game.
+        if (log.length === 0) {
+            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        }
+        
         return true;
-    }, [character, sessionId, log.length, isLoading, processPlayerAction]);
+    }, [character, sessionId, log, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number) => {
         setIsLoading(true);
@@ -212,7 +229,8 @@ export const useNewGameState = () => {
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
             if (sessionDetails && sessionDetails.character) {
-                setCharacter(sessionDetails.character);
+                const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
+                setCharacter(fullCharacter);
                 setLog(sessionDetails.logs || []);
                 setSessionId(id);
             } else {

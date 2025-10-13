@@ -72,34 +72,34 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 *   **[X] Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
 *   **[X] Status Atual**: Concluído. A API de narração está funcionando.
 
-## Fase 3 — Plataforma de Personagens (Concluído)
+## Fase 3 — Plataforma de Personagens e Dados Persistentes (Concluído)
 
-*   **[X] Objetivo**: Desacoplar Personagens das Sessões de Jogo, criando um sistema de "cofre de personagens" onde os heróis são reutilizáveis. Isso permite que um mesmo personagem participe de múltiplas aventuras e evolua de forma persistente.
+*   **[X] Objetivo**: Desacoplar os dados do personagem do JSON monolítico, criando uma estrutura de banco de dados relacional e otimizada para performance e escalabilidade.
 *   **[X] Backend**:
-    *   **[X]** Criada a nova entidade `Character` para armazenar os dados dos personagens de forma independente e vinculada ao `User`.
+    *   **[X]** Criadas as entidades `Character`, `CharacterAttributes`, `CharacterItem`, `CharacterProficiency`, `CharacterSpell`, `JournalEntry`, `Relationship`, e `Quest`.
     *   **[X]** Adicionada a relação entre `SessaoIA` e `Character`.
-    *   **[X]** Criados os endpoints CRUD (`/api/characters`) para gerenciar o "cofre" de personagens do usuário.
-    *   **[X]** Atualizado o endpoint de criação de sessão (`/api/sessoes`) para aceitar um `characterId`.
-    *   **[X]** Implementado *soft delete* em todas as entidades para maior segurança dos dados.
-    *   **[X]** Adicionados campos (`storySoFar`, `factionReputation`, `worldState`) à entidade `Character` para permitir uma narrativa persistente e um mundo reativo.
-*   **[X] Frontend**:
-    *   **[X]** Refatorado o `GameContainer` para exibir uma lista de sessões de jogo existentes.
-    *   **[X]** Criada uma nova tela de "Seleção de Personagem" (o cofre).
-    *   **[X]** Modificado o fluxo de criação de personagem para apenas salvar o herói no cofre.
-    *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints.
-    *   **[X]** Implementada a exibição do `storySoFar`, `factionReputation` e `worldState` na ficha do personagem e na tela de progresso.
+    *   **[X]** Criados os endpoints CRUD (`/api/characters`) para gerenciar o "cofre" de personagens.
+    *   **[X]** Atualizado o endpoint de criação de sessão (`/api/sessoes`) para aceitar um `characterId` e verificar sessões existentes.
+    *   **[X]** Implementado *soft delete* em todas as entidades.
+    *   **[X]** Adicionados campos (`storySoFar`, `factionReputation`, `worldState`) à entidade `Character`.
+    *   **[X]** Refatorado o controller de criação de personagem (`createCharacter`) para salvar os dados de forma transacional nas novas tabelas.
+*   **[ ] Frontend**:
+    *   **[ ]** Refatorar o `GameContainer` para exibir uma lista de sessões de jogo existentes.
+    *   **[ ]** Criar uma nova tela de "Seleção de Personagem" (o cofre).
+    *   **[ ]** Modificar o fluxo de criação de personagem para apenas salvar o herói no cofre.
+    - **[ ]** Atualizar o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints `/api/characters`.
 
-## Fase 4 — Integração da Lógica de Jogo e Otimização (Concluído)
+## Fase 4 — Integração da Lógica de Jogo e Otimização (Em Andamento)
 
-*   **[X] Objetivo**: Unificar a lógica do jogo com a nova estrutura de banco de dados e otimizar a comunicação com a IA para reduzir o consumo de tokens e aumentar a velocidade.
+*   **[X] Objetivo**: Unificar a lógica do jogo com a nova estrutura de banco de dados e otimizar a comunicação com a IA.
 *   **[X] Backend**:
     *   **[X]** Refatorado o `gameSchemas.ts` para ser a fonte da verdade da estrutura de dados do jogo.
     *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas otimizados.
     *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado, construir resumos de personagem e de log, e implementar a persistência de estado após a resposta da IA.
-*   **[X] Frontend**:
-    *   **[X]** Atualizado o `types.ts` para corresponder aos novos schemas.
-    *   **[X]** Ajustado `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo (`GameMasterFlowInput`, `GameMasterResponse`).
-    *   **[X]** Garantido que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
+*   **[ ] Frontend**:
+    *   **[ ]** Atualizar `types.ts` para corresponder aos novos schemas do backend.
+    *   **[ ]** Ajustar `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo.
+    *   **[ ]** Garantir que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
 
 ## Fase 5 — WebSocket e Modo Multiplayer (Futuro)
 
