@@ -221,22 +221,21 @@ export const useNewGameState = () => {
         
     }, [character, sessionId, log, isLoading, processPlayerAction]);
 
-    const loadGameSession = useCallback(async (id: number) => {
+    const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
-                setCharacter(fullCharacter);
-                setLog(sessionDetails.logs || []);
-                setSessionId(id);
+                return { character: fullCharacter, logs: sessionDetails.logs || [] };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
         } catch(err: any) {
             setApiError(err.message);
             clearGameState();
+            return null;
         } finally {
             setIsLoading(false);
         }
@@ -359,5 +358,11 @@ export const useNewGameState = () => {
         clearGameState,
         nextTurn,
         loadGameSession,
+        // State setters
+        setCharacter,
+        setLog,
+        setSessionId
     };
 };
+
+    

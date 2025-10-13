@@ -26,6 +26,9 @@ const GameContainer = () => {
         deleteCharacter,
         deleteSession,
         startGame,
+        setCharacter,
+        setLog,
+        setSessionId,
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -110,10 +113,16 @@ const GameContainer = () => {
     }
 
     const handleContinueGame = useCallback(async (sessionId: number) => {
-        await loadGameSession(sessionId);
-        setGameStage('playing');
-        setPlayMenuMusic(false);
-    }, [loadGameSession, setPlayMenuMusic]);
+        const loadedData = await loadGameSession(sessionId);
+        if (loadedData) {
+            setCharacter(loadedData.character);
+            setLog(loadedData.logs);
+            setSessionId(sessionId);
+            setGameStage('playing');
+            setPlayMenuMusic(false);
+        }
+    }, [loadGameSession, setPlayMenuMusic, setCharacter, setLog, setSessionId]);
+
 
     const returnToMenu = useCallback(() => {
         clearGameState();
@@ -295,3 +304,5 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
+
+    
