@@ -21,7 +21,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         // Garante que o usuário só possa acessar sua própria sessão
         const sessao = await sessaoRepository.findOne({ 
-            where: { id: Number(sessionId), userId: userId }
+            where: { id: Number(sessionId), userId: userId! }
         });
 
         if (!sessao) {

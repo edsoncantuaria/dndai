@@ -21,7 +21,7 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
         const novaSessao = new SessaoIA();
         novaSessao.nome = nome;
         novaSessao.apiKey = apiKey;
-        novaSessao.userId = userId!;
+        novaSessao.userId = userId!; // Atribui o ID do usuário autenticado
         novaSessao.logs = [];
 
         const sessaoSalva = await sessaoRepository.save(novaSessao);
@@ -38,7 +38,7 @@ export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunc
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const sessoes = await sessaoRepository.find({ where: { userId, deletedAt: IsNull() } });
+        const sessoes = await sessaoRepository.find({ where: { userId: userId!, deletedAt: IsNull() } });
         res.status(200).json(sessoes);
     } catch (error) {
         next(error);
@@ -53,7 +53,7 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         const sessao = await sessaoRepository.findOne({
-            where: { id: Number(id), userId: userId, deletedAt: IsNull() },
+            where: { id: Number(id), userId: userId!, deletedAt: IsNull() },
             relations: ['logs'] // Inclui os logs associados
         });
 
@@ -74,7 +74,7 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const result = await sessaoRepository.softDelete({ id: Number(id), userId: userId });
+        const result = await sessaoRepository.softDelete({ id: Number(id), userId: userId! });
 
         if (result.affected === 0) {
             return next(createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.'));
