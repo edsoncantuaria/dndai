@@ -189,7 +189,7 @@ export interface NewCharacterInfo {
     feats: Feat[];
     hitDie: number;
     subclass: string | null;
-    level: number;
+    level?: number;
 }
 
 export interface InventoryItem {
@@ -275,6 +275,8 @@ export interface Character {
     createdAt: string;
     updatedAt: string;
     deletedAt?: string;
+    personalityTraits: string[];
+    draconicAncestry?: string;
 
     // Campos que podem ser calculados ou precisam ser mantidos no estado do frontend
     modifiers: Attributes;
@@ -294,6 +296,8 @@ export interface Character {
     spellSlots: { [key: string]: { current: number; max: number } };
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
+    traits: ApiListItem[];
+    languages: string[];
 }
 
 export interface CharacterAttributes extends Attributes {
@@ -309,6 +313,7 @@ export interface CharacterProficiency {
     characterId: number;
     name: string;
     type: string;
+    index: string;
     url?: string; // Para compatibilidade
 }
 
@@ -353,6 +358,12 @@ export interface Combatant {
     bonusActionPoints?: number; // Adicionado para compatibilidade
     isDead?: boolean; // Adicionado para compatibilidade
     tempModifiers?: any; // Adicionado para compatibilidade
+    maxHp?: number; // compatibilidade
+    initiativeRoll?: number; // compatibilidade
+    hasMoved?: boolean; // compatibilidade
+    hasActed?: boolean; // compatibilidade
+    readyWeapon?: string; // compatibilidade
+    readySpell?: string; // compatibilidade
 }
 
 export interface CombatState {

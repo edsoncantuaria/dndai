@@ -1,5 +1,5 @@
 // utils/characterUtils.ts
-import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition } from "../types";
+import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -147,70 +147,19 @@ const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
     'draconic-ancestry-white': 'cold',
 };
 
-// This is a simplified version of what would be a more complex character initialization.
-// It sets up a new character based on creation info, but many derived stats are placeholders.
-export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Character> => {
-    const modifiers = calculateModifiers(info.attributes);
-    const proficiencyBonus = getProficiencyBonus(1);
-    const maxHp = calculateMaxHpAtLevel1(info.hitDie, modifiers.constitution);
-
-    const [classLevelsData] = await Promise.all([
-        DndApiService.getClassLevels(info.characterClass.toLowerCase()),
+export const buildFrontendCharacter = async (backendChar: any): Promise<Character> => {
+    // 1. Fetch full details for race, class, and subclass
+    const [raceDetails, classDetails, subraceDetails] = await Promise.all([
+        DndApiService.getRaceDetails(backendChar.race.toLowerCase()),
+        DndApiService.getClassDetails(backendChar.characterClass.toLowerCase()),
+        backendChar.subrace ? DndApiService.getSubraceDetails(backendChar.subrace.toLowerCase()) : Promise.resolve(null)
     ]);
     
-    return {
-        id: 0, // Placeholder
-        userId: 0, // Placeholder
-        name: info.name,
-        sex: info.sex,
-        hairStyle: info.hairStyle,
-        beardStyle: info.beardStyle,
-        skinColor: info.skinColor,
-        level: 1,
-        xp: 0,
-        xpToNextLevel: getXpThreshold(1),
-        race: info.race,
-        subrace: info.subrace,
-        characterClass: info.characterClass,
-        subclass: null,
-        hitDie: info.hitDie,
-        background: info.background,
-        alignment: info.alignment,
-        attributes: { ...info.attributes, id: 0, characterId: 0 },
-        proficiencies: info.proficiencies.map(p => ({ ...p, id: 0, characterId: 0 })),
-        inventory: info.inventory.map(i => ({...i, itemData: i})),
-        spells: info.spells.map(s => ({ id: 0, characterId: 0, spellName: s })),
-        journal: [],
-        relationships: [],
-        storySoFar: info.backstory,
-        backstory: info.backstory,
-        ideal: info.ideal,
-        bond: info.bond,
-        flaw: info.flaw,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        // Frontend-calculated fields
-        modifiers,
-        proficiencyBonus,
-        hp: { current: maxHp, max: maxHp, temp: 0 },
-        ac: calculateAC(info.inventory, modifiers),
-        currency: { gp: 0, sp: 0, cp: 0 },
-        currentWeight: info.inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
-        carryingCapacity: calculateCarryingCapacity(info.attributes.strength),
-        spellSlots: {},
-        deathSaves: { successes: 0, failures: 0 },
-        conditions: [],
-        traits: info.traits,
-        hitDice: { current: 1, total: 1 },
-        speed: 30, // Placeholder
-        languages: info.languages,
-        classLevelsData: classLevelsData || [],
-        subclassLevelsData: [],
-    };
-};
-
-export const buildFrontendCharacter = (backendChar: any): Character => {
-    // Rebuild the complex object from the separated backend entities
+    // Fetch level data
+    const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
+    const subclassLevelsData = subclassDetails ? (await DndApiService.getSubclassLevels(subclassDetails.index) || []) : [];
+    
+    // 2. Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
         dexterity: backendChar.attributes.dexterity,
@@ -225,51 +174,72 @@ export const buildFrontendCharacter = (backendChar: any): Character => {
     const modifiers = calculateModifiers(attributes);
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
-    // The backend `items` are stored as CharacterItem[], we need to map them to InventoryItem[]
-    const inventory: InventoryItem[] = backendChar.items?.map((item: any) => {
-        return {
-            ...(item.itemData || {}),
-            id: item.id.toString(),
-            quantity: item.quantity,
-            name: item.name,
-        };
-    }) || [];
-
-    const ac = calculateAC(inventory, modifiers);
-    const maxHp = backendChar.attributes.hp || 0;
+    const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => ({
+        ...(item.itemData || {}),
+        id: item.id.toString(),
+        quantity: item.quantity,
+        name: item.name,
+    }));
     
-    // The backend stores traits as an array of objects, each containing an 'item'.
-    const traits: ApiListItem[] = (backendChar.traits || []).map((t: any) => t.item).filter(Boolean);
-    const languages: string[] = (backendChar.proficiencies || []).filter((p: any) => p.type === 'language').map((p: any) => p.name);
+    const ac = calculateAC(inventory, modifiers);
+    const maxHp = backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
+
+    const traits: ApiListItem[] = raceDetails?.traits || [];
+    if (subraceDetails && (subraceDetails as ApiSubrace).racial_traits) {
+        traits.push(...(subraceDetails as ApiSubrace).racial_traits);
+    }
+    
+    const languages: string[] = raceDetails?.languages.map(l => l.name) || [];
+
+    // 3. Calculate Spell Slots
+    const spellSlots: Character['spellSlots'] = {};
+    const levelData = classLevelsData.find(l => l.level === backendChar.level);
+    if (levelData?.spellcasting) {
+        for (let i = 1; i <= 9; i++) {
+            const slotKey = `spell_slots_level_${i}` as keyof typeof levelData.spellcasting;
+            if (levelData.spellcasting[slotKey]) {
+                const currentSlots = (backendChar.spellSlots && backendChar.spellSlots[`level${i}`]) 
+                    ? backendChar.spellSlots[`level${i}`].current 
+                    : levelData.spellcasting[slotKey];
+                
+                spellSlots[`level${i}`] = {
+                    max: levelData.spellcasting[slotKey],
+                    current: currentSlots,
+                };
+            }
+        }
+    }
 
     return {
         ...backendChar,
         attributes: attributes,
         inventory: inventory,
-        spells: backendChar.spells,
-        journal: backendChar.journal || [],
-        relationships: backendChar.relationships || [],
-        traits: traits, // Assign the correctly mapped traits
-        languages: languages,
-        
-        // ---- Calculated frontend fields ----
+        // Ensure nested quest data is included
+        relationships: (backendChar.relationships || []).map((r: any) => ({
+            ...r,
+            quests: r.quests || []
+        })),
+        // ---- Calculated and processed frontend fields ----
         modifiers,
         proficiencyBonus,
-        hp: { current: maxHp, max: maxHp, temp: 0 },
+        hp: { current: backendChar.attributes.hp || maxHp, max: maxHp, temp: 0 },
         ac: ac,
-        xp: 0, // XP should be managed by the backend, but we need a default
+        xp: backendChar.xp || 0,
         xpToNextLevel: getXpThreshold(backendChar.level),
-        hitDie: 10, // Placeholder, should come from class
+        hitDie: classDetails?.hit_die || 8,
         hitDice: { current: backendChar.level, total: backendChar.level },
-        speed: 30, // Placeholder
+        speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
-        currency: { gp: 0, sp: 0, cp: 0 }, // Placeholder
+        currency: { gp: backendChar.currency?.gp || 0, sp: 0, cp: 0 }, // Assume gp from backend
         currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),
-        spellSlots: {}, // Placeholder
-        classLevelsData: [], // Placeholder
-        subclassLevelsData: [], // Placeholder
+        traits: traits,
+        languages: languages,
+        classLevelsData: classLevelsData,
+        subclassLevelsData: subclassLevelsData,
+        spellSlots: spellSlots,
+        personalityTraits: backendChar.personalityTraits || [],
     };
 }
 

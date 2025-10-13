@@ -95,8 +95,11 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     const { attributes, modifiers, proficiencies, languages, conditions, hitDice, traits } = character;
     const initiativeBonus = modifiers?.dexterity ?? 0;
     
-    // Filtra para exibir apenas os 6 atributos principais
-    const coreAttributeKeys: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+    // Filtra para exibir apenas os 6 atributos principais, garantindo que não são nulos.
+    const coreAttributeKeys = (Object.keys(attributes) as Array<keyof Attributes>).filter(
+        key => typeof attributes[key] === 'number' && key !== 'id' && key !== 'characterId' && key !== 'hp' && key !== 'ac'
+    );
+    
 
     const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
 
@@ -223,14 +226,14 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </CollapsibleSection>
             
-             <CollapsibleSection title="Características e Proficiências">
+            <CollapsibleSection title="Características e Proficiências">
                  <div className="space-y-3 bg-stone-800/50 p-3 rounded-md text-sm">
                     {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).length > 0 && (
                         <div>
                             <h4 className="font-semibold text-stone-300">Proficiências</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                                    <span key={prof.id} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                    <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                                         {translateApiString(prof.name)}
                                     </span>
                                 ))}
@@ -241,7 +244,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                         <div>
                              <h4 className="font-semibold text-stone-300 mt-2">Traços Raciais</h4>
                             <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm mt-1">
-                                {traits.map((trait: any) => (
+                                {traits.map((trait: ApiListItem) => (
                                     <li key={trait.index}>{translateApiString(trait.name)}</li>
                                 ))}
                             </ul>
@@ -281,5 +284,3 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
-
-    

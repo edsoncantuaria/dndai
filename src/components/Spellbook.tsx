@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import * as DndApiService from '../services/dndApiService';
-import type { ApiSpell } from '../types';
+import type { ApiSpell, CharacterSpell } from '../types';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import NewSpellCard from './Spells/NewSpellCard';
 import { Book, Loader2 } from 'lucide-react';
@@ -25,7 +25,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             };
             setIsSpellsLoading(true);
             
-            const spellList = character.spells.map(s => ({ index: s, name: s, url: '' }));
+            const spellList = character.spells.map(s => ({ index: s.spellName, name: s.spellName, url: '' }));
 
             const results = await fetchDetailsInChunks(
                 spellList,
@@ -72,8 +72,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
         .map(key => parseInt(key.replace('level', '')))
         .sort((a, b) => a - b);
         
-    const isPlayerTurn = combatState.isActive ? combatState.combatants[combatState.turn]?.id === 'player' : true;
-
+    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
 
     return (
         <div className="p-4 space-y-4">
@@ -89,6 +88,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                         {spellSlotLevels.map(level => {
                             const slotKey = `level${level}` as keyof typeof character.spellSlots;
                             const slots = character.spellSlots[slotKey];
+                            if (!slots || slots.max === 0) return null;
                             return (
                                 <div key={level} className="text-center">
                                     <div className="text-xs text-stone-400">Nível {level}</div>

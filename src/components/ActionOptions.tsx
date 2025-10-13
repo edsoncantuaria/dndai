@@ -121,20 +121,27 @@ const ActionOptions: React.FC = () => {
 
     const [isOpen, setIsOpen] = useState(false);
     
-    const getCombatantId = (entry: any): string => typeof entry === 'string' ? entry : entry.id;
-
+    const getCombatantId = (entry: any): string => {
+        if (!entry) return '';
+        return typeof entry === 'string' ? entry : (entry.id || entry.name || '');
+    };
+    
     const isPlayerTurn = useMemo(() => {
-        if (!combatState.isActive || !combatState.initiativeOrder || !character) {
-            return !combatState.isActive;
+        if (!combatState.isActive || !character) {
+            return !combatState.isActive; 
         }
-        if (combatState.initiativeOrder.length === 0) return false;
-
-        const currentTurnId = getCombatantId(combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length]);
-        const playerCombatant = combatState.combatants.find(c => c.name === character.name);
-        
-        return playerCombatant ? currentTurnId === playerCombatant.id : false;
-
+        if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
+            return false;
+        }
+    
+        const currentCombatantEntry = combatState.initiativeOrder[combatState.turn % combatState.initiativeOrder.length];
+        const currentCombatantId = getCombatantId(currentCombatantEntry);
+    
+        const playerCombatant = combatState.combatants.find(c => c.isPlayer);
+        return playerCombatant ? currentCombatantId === getCombatantId(playerCombatant) : false;
+    
     }, [combatState, character]);
+
     
     // Actions are available if it is the player's turn and the game is not otherwise locked.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
@@ -286,3 +293,5 @@ const ActionOptions: React.FC = () => {
 };
 
 export default ActionOptions;
+
+    

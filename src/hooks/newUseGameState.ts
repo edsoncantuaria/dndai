@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest, Combatant, SessaoIA } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import * as GameService from '../services/gameService';
 import { v4 as uuidv4 } from 'uuid';
@@ -170,7 +170,6 @@ export const useNewGameState = () => {
         try {
             const savedCharacterResponse = await GameService.createNewCharacter(info);
             if(savedCharacterResponse.character) {
-                // This now returns the backend object, not a full frontend character
                 return savedCharacterResponse.character;
             }
             return null;
@@ -215,19 +214,15 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (currentLog: LogEntry[]): Promise<void> => {
-        if (!character || !sessionId || isLoading) return;
-    
-        if (currentLog.length > 0) {
-            return; 
+        if (!character || !sessionId || isLoading || currentLog.length > 0) {
+            return;
         }
     
         try {
             await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        } catch (error) {
-            console.error("Falha ao iniciar a nova aventura:", error);
-            // O erro já é tratado em processPlayerAction
+        } catch (error: any) {
+             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
         }
-        
     }, [character, sessionId, isLoading, processPlayerAction]);
 
 

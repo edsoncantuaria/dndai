@@ -913,7 +913,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     const buildCharacter = (): NewCharacterInfo | null => {
         if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
-
+    
         const allProficiencies: Proficiency[] = [
             ...Array.from(allFixedProficiencies.values()),
             ...Object.values(proficiencySelections).flat().map(profIndex => {
@@ -932,13 +932,13 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
         const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0]?.toLowerCase().includes("gold")));
-
-        // Collect traits and selected trait choices.
-        const finalTraits: ApiListItem[] = [...traitChoiceDetails];
-        if (selectedAncestryDetails) {
-            finalTraits.push(selectedAncestryDetails);
-        }
-
+    
+        // Collect traits from both race and subrace, ensuring no duplicates.
+        const finalTraitsMap = new Map<string, ApiListItem>();
+        (raceDetails.traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
+        (subraceDetails?.racial_traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
+        const finalTraits = Array.from(finalTraitsMap.values());
+    
         return {
             name,
             sex,
@@ -953,7 +953,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             alignment: alignment,
             attributes: finalAttributes,
             proficiencies: allProficiencies,
-            traits: finalTraits,
+            traits: finalTraits, // Pass the combined list of traits
             languages: finalLanguages,
             inventory: inventoryWithoutGold,
             spells: allSpells,
@@ -965,6 +965,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             feats: [],
             hitDie: classDetails.hit_die,
             subclass: null, 
+            level: 1
         };
     };
 
