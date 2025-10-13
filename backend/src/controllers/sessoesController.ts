@@ -37,8 +37,8 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
             return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: existingSession });
         }
 
-
-        const user = await userRepository.findOne({ where: { id: userId! } });
+        // Busca o usuário para obter a chave de API das configurações
+        const user = await userRepository.findOneBy({ id: userId! });
         if (!user?.settings?.apiKey) {
             return next(createError(400, 'Nenhuma chave de API encontrada nas suas configurações. Adicione uma antes de criar a sessão.'));
         }

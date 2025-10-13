@@ -184,7 +184,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             return next(createError(404, 'Sessão de IA ou personagem não encontrado.'));
         }
 
-        const user = await userRepository.findOne({ where: { id: userId! }, relations: ["settings"] });
+        const user = await userRepository.findOneBy({ id: userId! });
         
         let apiKey = sessao.apiKey;
         if (!apiKey && user?.settings?.apiKey) {

@@ -8,9 +8,9 @@ import createError from 'http-errors';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "gemini-2.5-flash",
-    ttsModel: "gemini-2.5-flash-native-audio-preview-09-2025",
-    imageModel: "imagen-4.0-fast-generate-001",
+    model: "gemini-1.5-flash",
+    ttsModel: "gemini-1.5-flash-native-audio",
+    imageModel: "imagen-3",
     ttsVoice: "Charon",
     generationConfig: {
         temperature: 1,
@@ -63,7 +63,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     try {
         const userRepository = AppDataSource.getRepository(User);
         const user = await userRepository.findOne({ 
-            where: { email }, 
+            where: { email },
             relations: ["licenseKey"] 
         });
 
