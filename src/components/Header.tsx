@@ -44,27 +44,6 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         }
     };
 
-    const handleTestAi = useCallback(async () => {
-        if (!user) return;
-        setIsTestingAi(true);
-        setAiTestResult(null);
-        setTestImageUrl(null);
-        try {
-            // Note: This service function might not exist yet in the refactored gameService
-            const response = await GameService.testAiConnection(selectedModel);
-            if (!response) {
-                 throw new Error("A IA não retornou uma resposta de texto.");
-            }
-            setAiTestResult({ title: 'Diagnóstico da IA', message: response, success: true });
-        } catch (error: any) {
-            const errorMessage = error.message || "Ocorreu um erro desconhecido ao testar a conexão com a IA.";
-            setAiTestResult({ title: 'Erro de Conexão', message: errorMessage, success: false });
-            console.error(error);
-        } finally {
-            setIsTestingAi(false);
-            setShowAiTestModal(true);
-        }
-    }, [user, selectedModel]);
 
     const handleTestImageGen = useCallback(async () => {
         setIsGeneratingImage(true);
@@ -128,14 +107,6 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             <div className="flex justify-between items-baseline">
                                 <h2 className="font-bold text-lg text-stone-100 truncate">{name}</h2>
                                 <div className="md:hidden flex items-center gap-1.5">
-                                     <button 
-                                        onClick={handleTestAi}
-                                        disabled={isInteractionDisabled}
-                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                                        title="Testar Conexão com a IA"
-                                    >
-                                        {isTestingAi ? <Loader2 className="h-4 w-4 text-amber-300 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-amber-300" />}
-                                    </button>
                                      
                                     <button
                                         onClick={() => setShowSettingsModal(true)}
@@ -163,14 +134,6 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 
                     {/* Desktop Action Buttons */}
                     <div className="hidden md:flex items-center justify-end gap-2">
-                         <button 
-                            onClick={handleTestAi}
-                            disabled={isInteractionDisabled}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Testar Conexão com a IA"
-                        >
-                            {isTestingAi ? <Loader2 className="h-5 w-5 text-amber-300 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300" />}
-                        </button>
                         <button
                             onClick={() => setShowSettingsModal(true)}
                             disabled={isInteractionDisabled}

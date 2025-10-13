@@ -121,31 +121,3 @@ export const processPlayerAction = async (sessionId: number, prompt: string, com
     }
     return await response.json();
 };
-
-export const testAiConnection = async (model: string): Promise<string> => {
-    // This function might need to be adjusted or removed if the backend
-    // handles the API key securely and doesn't expose a direct test endpoint.
-    // For now, we assume it exists for diagnostics.
-    try {
-        // This is a placeholder endpoint. The backend would need a route like '/system/test-ai'
-        const response = await fetch(`${API_URL}/narrar/test`, { 
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ 
-                prompt: "Diga olá em uma única palavra.",
-                model: model 
-            }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.details || result.message || 'Falha na comunicação com o servidor de IA.');
-        }
-
-        return result.response || "A IA respondeu, mas sem conteúdo.";
-    } catch (error: any) {
-        console.error("Erro ao testar a conexão com a IA:", error);
-        throw error;
-    }
-};

@@ -34,7 +34,8 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
 
         if (existingSession) {
             // Se a sessão já existe, retorna os dados dela para continuar
-            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: existingSession });
+            const { apiKey, ...sessaoParaRetorno } = existingSession;
+            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: sessaoParaRetorno });
         }
 
         // Busca o usuário para obter a chave de API das configurações
