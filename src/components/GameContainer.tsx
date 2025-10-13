@@ -96,6 +96,7 @@ const GameContainer = () => {
                 if (loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
+                    // Check if it's a truly new session (no logs) to kickstart the game
                     if (loadedData.logs.length === 0) {
                         startGame();
                     }

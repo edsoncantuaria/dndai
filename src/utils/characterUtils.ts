@@ -1,4 +1,4 @@
-// utils/characterUtils.ts
+// src/utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
@@ -182,22 +182,13 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
     const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => {
-        let parsedItemData = {};
-        try {
-            if (typeof item.itemData === 'string') {
-                parsedItemData = JSON.parse(item.itemData);
-            } else if (typeof item.itemData === 'object' && item.itemData !== null) {
-                parsedItemData = item.itemData;
-            }
-        } catch (e) {
-            console.error("Failed to parse itemData:", item.itemData, e);
-        }
-
+        const itemData = item.itemData || {}; // Ensure itemData is an object
         return {
-            ...parsedItemData,
-            id: item.id.toString(),
+            ...itemData,
+            id: item.id?.toString() || uuidv4(),
             quantity: item.quantity,
             name: item.name,
+            equipped: itemData.equipped || false
         };
     });
     
