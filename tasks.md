@@ -28,6 +28,14 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Substituir os `console.log` e `console.error` por uma biblioteca de logging estruturado (como `pino` ou `winston`), configurando-a para produzir saídas em JSON.
     *   **Justificativa:** Essencial para a depuração em um ambiente de produção. Permite filtrar e pesquisar logs por sessão, usuário, tipo de erro, etc., tornando a identificação de problemas muito mais eficiente.
 
+*   **[ ] Implementar Cache no Servidor com Redis:**
+    *   **Tarefa:** Adicionar o Redis ao ecossistema do backend. Criar um `redisService` para gerenciar a conexão e as operações de cache.
+    *   **Justificativa:** Reduzir drasticamente a latência em chamadas repetidas (ex: buscar dados da D&D 5e API), diminuindo a carga no banco de dados e em serviços externos e acelerando a resposta da API.
+
+*   **[ ] Escrever Testes de Integração e Unidade:**
+    *   **Tarefa:** Configurar um ambiente de testes com `Jest` e `Supertest`. Escrever testes unitários para a camada de serviço e testes de integração para os principais endpoints da API.
+    *   **Justificativa:** Aumenta a confiabilidade do backend, permitindo futuras modificações com a segurança de que as funcionalidades existentes não foram quebradas.
+
 ### Fase 1.2: Refatoração do Gerenciamento de Estado no Frontend
 
 *   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor:**
@@ -56,15 +64,20 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Modificar `CharacterSheet`, `Inventory`, `NewJournal`, etc., para que eles usem hooks do React Query para buscar seus dados específicos, baseando-se no `characterId` obtido do `SessionContext`. As ações do usuário (equipar, usar item) se tornarão "mutações" do React Query que chamam a API.
     *   **Justificativa:** Transforma os componentes em visualizadores de dados reativos e independentes.
 
-### Fase 1.4: Otimização da Experiência de Jogo
+### Fase 1.4: Otimização da Experiência do Frontend
 
-*   **[ ] Implementar Streaming de Respostas via HTTP:**
-    *   **Tarefa:** Modificar o `narrarController` no backend para usar a `streamGameMasterTurn` e enviar a resposta em pedaços (`res.write(chunk)`). No frontend, adaptar o `gameService` para ler esse stream de resposta com a `ReadableStream` API.
-    *   **Justificativa:** Melhora drasticamente a percepção de velocidade. O jogador verá o texto da IA aparecendo em tempo real, em vez de esperar por uma resposta completa, aumentando a imersão.
+*   **[ ] Implementar Code Splitting:**
+    *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados e não essenciais (como o wizard de criação de personagem) apenas quando o usuário interagir com eles.
+    *   **Justificativa:** Reduz o tamanho do bundle inicial, fazendo com que a aplicação carregue muito mais rápido para o usuário.
 
 *   **[ ] Dividir Componentes Grandes:**
     *   **Tarefa:** Analisar componentes complexos como `CharacterSheet` e `NewCharacterCreation` e dividi-los em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
     *   **Justificativa:** Melhora a legibilidade, a manutenção e a performance, permitindo que apenas as partes necessárias da UI sejam re-renderizadas.
+
+*   **[ ] Otimizar Carregamento de Fontes e Imagens:**
+    *   **Tarefa:** Revisar o uso do `next/image` para garantir que as imagens estejam sendo otimizadas corretamente. Assegurar que as fontes do Google estão sendo carregadas da forma mais eficiente, conforme as práticas recomendadas pelo Next.js.
+    *   **Justificativa:** Melhora as métricas de performance (Core Web Vitals) e a velocidade de carregamento percebida pelo usuário.
+
 
 ---
 
