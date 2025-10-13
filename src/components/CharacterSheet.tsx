@@ -42,7 +42,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     
     if (!character) return null;
     
-    const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
+    const isProficient = (character.proficiencies || []).some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? character.proficiencyBonus : 0);
 
