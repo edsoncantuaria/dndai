@@ -83,23 +83,23 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
     *   **[X]** Implementado *soft delete* em todas as entidades.
     *   **[X]** Adicionados campos (`storySoFar`, `factionReputation`, `worldState`) à entidade `Character`.
     *   **[X]** Refatorado o controller de criação de personagem (`createCharacter`) para salvar os dados de forma transacional nas novas tabelas.
-*   **[ ] Frontend**:
-    *   **[ ]** Refatorar o `GameContainer` para exibir uma lista de sessões de jogo existentes.
-    *   **[ ]** Criar uma nova tela de "Seleção de Personagem" (o cofre).
-    *   **[ ]** Modificar o fluxo de criação de personagem para apenas salvar o herói no cofre.
-    - **[ ]** Atualizar o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints `/api/characters`.
+*   **[X] Frontend**:
+    *   **[X]** Refatorado o `GameContainer` para exibir uma lista de sessões de jogo existentes.
+    *   **[X]** Criada uma nova tela de "Seleção de Personagem" (o cofre).
+    *   **[X]** Modificado o fluxo de criação de personagem para apenas salvar o herói no cofre.
+    *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints `/api/characters` e gerenciar o novo fluxo.
 
-## Fase 4 — Integração da Lógica de Jogo e Otimização (Em Andamento)
+## Fase 4 — Integração da Lógica de Jogo e Otimização (Concluído)
 
 *   **[X] Objetivo**: Unificar a lógica do jogo com a nova estrutura de banco de dados e otimizar a comunicação com a IA.
 *   **[X] Backend**:
     *   **[X]** Refatorado o `gameSchemas.ts` para ser a fonte da verdade da estrutura de dados do jogo.
     *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas otimizados.
     *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado, construir resumos de personagem e de log, e implementar a persistência de estado após a resposta da IA.
-*   **[ ] Frontend**:
-    *   **[ ]** Atualizar `types.ts` para corresponder aos novos schemas do backend.
-    *   **[ ]** Ajustar `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo.
-    *   **[ ]** Garantir que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
+*   **[X] Frontend**:
+    *   **[X]** Atualizado `types.ts` para corresponder aos novos schemas do backend.
+    *   **[X]** Ajustado `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo.
+    *   **[X]** Realizadas correções nos componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) para renderizar corretamente com base no novo estado.
 
 ## Fase 5 — WebSocket e Modo Multiplayer (Futuro)
 
@@ -119,8 +119,8 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 * [X] Adicionar campos de persistência (`storySoFar`, `reputation`) à entidade `Character`.
 * [X] Unificar a lógica de jogo com os schemas de dados e o prompt da IA.
 * [X] Otimizar a carga enviada para a IA (resumos de personagem e log).
+* [X] Integrar completamente o frontend com a nova arquitetura de backend.
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
-
