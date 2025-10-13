@@ -19,7 +19,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
 
     useEffect(() => {
         const fetchSpells = async () => {
-            if (!character || character.spells.length === 0) {
+            if (!character || !character.spells || character.spells.length === 0) {
                 setSpellDetails([]);
                 return;
             };
@@ -68,7 +68,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
         return a.localeCompare(b, undefined, { numeric: true });
     });
     
-    const spellSlotLevels = Object.keys(character.spellSlots)
+    const spellSlotLevels = Object.keys(character.spellSlots || {})
         .map(key => parseInt(key.replace('level', '')))
         .sort((a, b) => a - b);
         
@@ -107,7 +107,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                     <Loader2 className="animate-spin" />
                     <span className="ml-2">{loadingProgress || 'Consultando grimório...'}</span>
                 </div>
-            ) : character.spells.length === 0 ? (
+            ) : (!character.spells || character.spells.length === 0) ? (
                 <p className="text-stone-400 italic">Você não conhece nenhuma magia.</p>
             ) : (
                 <div className="space-y-4">
