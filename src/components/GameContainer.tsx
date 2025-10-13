@@ -1,49 +1,71 @@
-
 'use client';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2 } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import * as GameService from '@/services/gameService';
-import { Loader2, Plus, Play } from 'lucide-react';
+import type { Character, SessaoIA } from '@/types';
+import ActionModal from './ui/ActionModal';
+import { Loader2 } from 'lucide-react';
+import CharacterCreation from './CharacterCreation';
 
-type GameStage = 'menu' | 'creating' | 'created' | 'playing' | 'loading';
+
+type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+
 
 const GameContainer = () => {
-    const { character, startGame, clearGameState, loadGameSession, loadSessionId } = useGameStateContext();
+    const { 
+        character, 
+        loadGameSession, 
+        clearGameState,
+        createCharacter,
+        deleteCharacter,
+        deleteSession,
+    } = useGameStateContext();
+
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
+    const [sessions, setSessions] = useState<SessaoIA[]>([]);
+    const [characters, setCharacters] = useState<Character[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
-    const menuAudioRef = useRef<HTMLAudioElement | null>(null);
-    const [sessions, setSessions] = useState<{id: number, nome: string}[]>([]);
+    const [isLoadingData, setIsLoadingData] = useState(true);
+    const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+    const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
 
-    const fetchSessions = useCallback(async () => {
+    const menuAudioRef = useRef<HTMLAudioElement | null>(null);
+    
+    // --- Data Fetching ---
+    const fetchInitialData = useCallback(async () => {
+        setIsLoadingData(true);
         try {
-            const userSessions = await GameService.getGameSessions();
-            setSessions(userSessions);
-        } catch(err) {
-            console.error("Falha ao buscar sessões:", err);
-            setSessions([]);
+            const [userSessions, userCharacters] = await Promise.all([
+                GameService.getGameSessions(),
+                GameService.getCharacters()
+            ]);
+            setSessions(userSessions || []);
+            setCharacters(userCharacters || []);
+        } catch (err) {
+            console.error("Falha ao buscar dados iniciais:", err);
+        } finally {
+            setIsLoadingData(false);
         }
     }, []);
 
     useEffect(() => {
-        if (gameStage === 'loading') {
-            fetchSessions().then(() => {
-                const activeSessionId = loadSessionId();
-                if (activeSessionId) {
-                    onContinueGame(activeSessionId);
-                } else {
-                    setGameStage('menu');
-                }
-            });
-        } else if (gameStage === 'menu') {
-            fetchSessions();
+        if (gameStage === 'loading' || gameStage === 'session_list' || gameStage === 'character_vault') {
+            fetchInitialData();
         }
-    }, [gameStage, fetchSessions, loadSessionId]);
+    }, [gameStage, fetchInitialData]);
 
+    useEffect(() => {
+        if (!isLoadingData && gameStage === 'loading') {
+            setGameStage('session_list');
+        }
+    }, [isLoadingData, gameStage]);
+
+    // --- Audio Management ---
     useEffect(() => {
         if (!menuAudioRef.current) {
             const audio = new Audio('/audios/index/inicio.mp3');
@@ -52,7 +74,7 @@ const GameContainer = () => {
         }
         
         const audio = menuAudioRef.current;
-        const shouldPlay = playMenuMusic && (gameStage === 'menu' || gameStage === 'creating' || gameStage === 'created');
+        const shouldPlay = playMenuMusic && (gameStage !== 'playing');
         audio.volume = isMuted ? 0 : volume;
 
         if (shouldPlay && audio.paused) {
@@ -62,23 +84,21 @@ const GameContainer = () => {
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
-    const startNewGameFlow = useCallback(() => setGameStage('creating'), []);
-    const onCharacterCreated = useCallback(() => {
-        setGameStage('created');
-        setPlayMenuMusic(false);
-    }, [setPlayMenuMusic]);
-    
-    const onPlay = useCallback(async () => {
-        setGameStage('playing');
-        setPlayMenuMusic(false);
-        const success = await startGame();
-        if (!success) {
-            setGameStage('created');
-            setPlayMenuMusic(true);
+    // --- Navigation and Actions ---
+    const handleNewGameFromVault = async (char: Character) => {
+        const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
+        if (newSession) {
+            await fetchInitialData(); 
+            handleContinueGame(newSession.sessao.id);
         }
-    }, [startGame, setPlayMenuMusic]);
+    };
     
-    const onContinueGame = useCallback((sessionId: number) => {
+    const handleCharacterCreated = () => {
+        setGameStage('character_vault');
+        fetchInitialData(); // Refresh character list
+    }
+
+    const handleContinueGame = useCallback((sessionId: number) => {
         loadGameSession(sessionId);
         setGameStage('playing');
         setPlayMenuMusic(false);
@@ -86,85 +106,162 @@ const GameContainer = () => {
     
     const returnToMenu = useCallback(() => {
         clearGameState();
-        setGameStage('menu');
+        setGameStage('session_list');
         setPlayMenuMusic(true);
     }, [clearGameState, setPlayMenuMusic]);
 
-    if (gameStage === 'loading') {
+    const confirmDeleteCharacter = useCallback(async () => {
+        if (!characterToDelete) return;
+        await deleteCharacter(characterToDelete.id);
+        setCharacterToDelete(null);
+        fetchInitialData(); // Refresh list
+    }, [characterToDelete, deleteCharacter, fetchInitialData]);
+
+    const confirmDeleteSession = useCallback(async () => {
+        if (!sessionToDelete) return;
+        await deleteSession(sessionToDelete.id);
+        setSessionToDelete(null);
+        fetchInitialData(); // Refresh list
+    }, [sessionToDelete, deleteSession, fetchInitialData]);
+
+    // --- Render Logic ---
+
+    if (gameStage === 'loading' || isLoadingData) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4 text-lg">Carregando suas aventuras...</p>
+                <p className="mt-4 text-lg">Carregando suas crônicas...</p>
             </div>
         );
     }
     
-    if (gameStage === 'created') {
-        return (
-            <>
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                    <h2 className="text-3xl font-bold text-amber-300 font-garamond animate-fadeIn">Personagem Criado!</h2>
-                    <p className="text-stone-400 mt-2 animate-fadeIn" style={{ animationDelay: '200ms' }}>Seu herói está pronto para a aventura.</p>
-                    <div className="flex items-center gap-4 mt-8">
-                        <button
-                            onClick={onPlay}
-                            className="menu-button btn-new animate-fadeIn"
-                            style={{ animationDelay: '400ms' }}
-                        >
-                            Continuar
-                        </button>
-                        <button
-                            onClick={() => setShowSettingsModal(true)}
-                            className="p-3 rounded-full bg-stone-700/80 hover:bg-stone-600 transition-colors animate-fadeIn"
-                            style={{ animationDelay: '500ms' }}
-                            title="Configurações"
-                        >
-                            <Settings className="h-6 w-6 text-amber-300" />
-                        </button>
-                    </div>
-                </div>
-                <SettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} />
-            </>
+    if (gameStage === 'playing' && character) {
+         return (
+            <Game
+                startNewGameFlow={() => setGameStage('character_vault')}
+                onCharacterCreated={handleCharacterCreated}
+                returnToMenu={returnToMenu}
+                gameStage={gameStage}
+            />
         );
     }
     
-    if (gameStage === 'menu') {
+    if (gameStage === 'character_vault') {
         return (
-             <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center">
-                 <header className="mb-8 animate-fadeIn" style={{ animationDelay: '200ms' }}>
-                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}>
+            <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+                <header className="mb-8">
+                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Cofre de Heróis</h1>
+                    <p className="text-stone-400 mt-2">Escolha um herói para uma nova aventura ou crie um novo campeão.</p>
+                </header>
+                <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
+                    {characters.length > 0 ? (
+                        characters.map(char => (
+                            <div key={char.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
+                                <div>
+                                    <p className="font-bold text-lg text-stone-200">{char.name}</p>
+                                    <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                     <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
+                                        <Play className="h-6 w-6 text-white" />
+                                    </button>
+                                     <button onClick={() => setCharacterToDelete(char)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
+                                        <Trash2 className="h-6 w-6 text-white" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-stone-400 italic py-8">Nenhum herói foi forjado ainda.</p>
+                    )}
+                </main>
+                <footer className="mt-6 flex items-center justify-center gap-4">
+                     <button onClick={() => setGameStage('creating_character')} className="menu-button btn-new">
+                        <User className="mr-2 h-6 w-6"/> Criar Novo Herói
+                    </button>
+                     <button onClick={() => setGameStage('session_list')} className="text-stone-300 hover:text-amber-300 underline">
+                        Voltar para Sessões
+                    </button>
+                </footer>
+            </div>
+        );
+    }
+    
+    if(gameStage === 'creating_character') {
+        return <Game 
+            startNewGameFlow={() => {}} 
+            onCharacterCreated={handleCharacterCreated} 
+            returnToMenu={returnToMenu} 
+            gameStage={gameStage} 
+        />;
+    }
+    
+    // Default to session list
+    return (
+         <>
+             <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+                 <header className="mb-8" style={{ animationDelay: '200ms' }}>
+                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Sessões de Jogo
                     </h1>
                 </header>
-                <main className="w-full animate-fadeIn" style={{ animationDelay: '400ms' }}>
+                <main className="w-full" style={{ animationDelay: '400ms' }}>
                     <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
                         {sessions.length > 0 ? (
                             sessions.map(session => (
-                                <button key={session.id} onClick={() => onContinueGame(session.id)} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
-                                    <span className="font-bold text-lg text-stone-200">{session.nome}</span>
-                                    <Play className="h-6 w-6 text-amber-400" />
-                                </button>
+                                <div key={session.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
+                                    <div>
+                                        <span className="font-bold text-lg text-stone-200">{session.nome}</span>
+                                        <p className="text-sm text-stone-400">Herói: {session.character?.name} ({session.character?.characterClass} Nível {session.character?.level})</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => handleContinueGame(session.id)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Continuar Aventura">
+                                            <Play className="h-6 w-6 text-white" />
+                                        </button>
+                                        <button onClick={() => setSessionToDelete(session)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Sessão">
+                                            <Trash2 className="h-6 w-6 text-white" />
+                                        </button>
+                                    </div>
+                                </div>
                             ))
                         ) : (
-                            <p className="text-stone-400 italic">Nenhuma aventura salva encontrada.</p>
+                            <p className="text-stone-400 italic py-4">Nenhuma aventura em andamento.</p>
                         )}
                     </div>
-                     <button onClick={startNewGameFlow} className="menu-button btn-new mt-6">
+                     <button onClick={() => setGameStage('character_vault')} className="menu-button btn-new mt-6">
                         <Plus className="mr-2 h-6 w-6"/> Nova Aventura
                     </button>
                 </main>
              </div>
-        )
-    }
+              {characterToDelete && (
+                <ActionModal
+                    isOpen={!!characterToDelete}
+                    title={`Deletar ${characterToDelete.name}?`}
+                    onClose={() => setCharacterToDelete(null)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setCharacterToDelete(null), variant: 'secondary' },
+                        { text: "Confirmar Deleção", onClick: confirmDeleteCharacter, variant: 'destructive' }
+                    ]}
+                >
+                    <p className="text-stone-300">Esta ação é irreversível e irá apagar o personagem permanentemente. Tem certeza?</p>
+                </ActionModal>
+            )}
 
-    return (
-        <Game
-            startNewGameFlow={startNewGameFlow}
-            onCharacterCreated={onCharacterCreated}
-            returnToMenu={returnToMenu}
-            gameStage={gameStage}
-        />
-    );
+            {sessionToDelete && (
+                 <ActionModal
+                    isOpen={!!sessionToDelete}
+                    title={`Deletar Sessão "${sessionToDelete.nome}"?`}
+                    onClose={() => setSessionToDelete(null)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setSessionToDelete(null), variant: 'secondary' },
+                        { text: "Confirmar Deleção", onClick: confirmDeleteSession, variant: 'destructive' }
+                    ]}
+                >
+                    <p className="text-stone-300">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
+                </ActionModal>
+            )}
+         </>
+    )
 };
 
 export default GameContainer;

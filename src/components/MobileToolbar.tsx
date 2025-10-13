@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -24,7 +25,6 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, 
         }
     };
 
-    // Ajusta a ordem para uma progressão mais lógica na barra de ferramentas móvel
     const mobileTabOrder: Tab[] = ['character', 'inventory', 'spells', 'journal', 'relationships', 'progression'];
 
     return (

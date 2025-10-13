@@ -1,24 +1,21 @@
-
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Combatant } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Combatant, SessaoIA } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import * as DndApiService from '../services/dndApiService';
 import * as GameService from '../services/gameService';
 import { v4 as uuidv4 } from 'uuid';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { generateImage } from '@/ai/flows/generateImage';
 import { translateApiString } from '@/utils/translator';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Key for storing the active session ID for a logged-in user
+const LOCAL_STORAGE_KEY_PREFIX = 'rpg-de-cria-active-session-id-';
 
-const LOCAL_STORAGE_KEY_PREFIX = 'rpg-de-cria-active-session-';
-
+// Helper functions for merging state
 const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
     const newJournal = [...existing];
     const existingMap = new Map(newJournal.map(entry => [entry.id, entry]));
-
     for (const update of updates) {
         if (existingMap.has(update.id)) {
             const existingEntry = existingMap.get(update.id)!;
@@ -29,13 +26,11 @@ const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalE
         }
     }
     return newJournal;
-}
-
+};
 
 const mergeRelationships = (existing: Relationship[], updates: Relationship[]): Relationship[] => {
     const newRelationships = [...existing];
     const existingMap = new Map(newRelationships.map(rel => [rel.npcId, rel]));
-
     for (const update of updates) {
         if (existingMap.has(update.npcId)) {
             const existingRel = existingMap.get(update.npcId)!;
@@ -49,39 +44,24 @@ const mergeRelationships = (existing: Relationship[], updates: Relationship[]): 
 };
 
 const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): Character => {
-    let newChar: Character = structuredClone(oldChar);
-    newChar = { ...newChar, ...updates };
+    let newChar: Character = { ...oldChar, ...updates };
 
-    if (updates.inventory) {
-        newChar.inventory = updates.inventory;
-    }
-    if (updates.spells) {
-        newChar.spells = updates.spells;
-    }
-    if (updates.conditions) {
-        newChar.conditions = updates.conditions;
-    }
-
-    if (updates.journal) {
-        newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
-    }
-    if (updates.relationships) {
-        newChar.relationships = mergeRelationships(oldChar.relationships || [], updates.relationships);
-    }
-    if (updates.factionReputation) {
-        newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
-    }
-    if (updates.worldState) {
-        newChar.worldState = { ...(oldChar.worldState || {}), ...updates.worldState };
-    }
-
-
+    // Deep merge for nested objects and arrays
+    if (updates.inventory) newChar.inventory = updates.inventory;
+    if (updates.spells) newChar.spells = updates.spells;
+    if (updates.conditions) newChar.conditions = updates.conditions;
+    if (updates.journal) newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
+    if (updates.relationships) newChar.relationships = mergeRelationships(oldChar.relationships || [], updates.relationships);
+    if (updates.factionReputation) newChar.factionReputation = { ...(oldChar.factionReputation || {}), ...updates.factionReputation };
+    if (updates.worldState) newChar.worldState = { ...(oldChar.worldState || {}), ...updates.worldState };
+    
     newChar.hp = { ...oldChar.hp, ...updates.hp };
     newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
 
+    // Recalculate derived properties
     const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
     newChar.modifiers = newModifiers;
     newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
@@ -99,10 +79,9 @@ const INITIAL_COMBAT_STATE: CombatState = {
     initiativeOrder: [],
 };
 
-
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { imageModel, apiKey: settingsApiKey } = useSettingsContext();
+    const { getApiKey } = useSettingsContext();
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
@@ -119,12 +98,11 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    const getApiKey = useCallback(() => settingsApiKey, [settingsApiKey]);
     const getLocalStorageKey = useCallback(() => `${LOCAL_STORAGE_KEY_PREFIX}${user?.id}`, [user]);
-
+    
     const clearApiError = useCallback(() => setApiError(null), []);
 
-    const saveSession = useCallback((id: number | null) => {
+    const saveSessionId = useCallback((id: number | null) => {
         if (!user) return;
         const localStorageKey = getLocalStorageKey();
         if (id !== null) {
@@ -134,60 +112,147 @@ export const useNewGameState = () => {
         }
     }, [user, getLocalStorageKey]);
 
-    const loadSessionId = useCallback(() => {
+    const loadSessionId = useCallback((): number | null => {
         if (!user) return null;
         const localStorageKey = getLocalStorageKey();
         const savedId = localStorage.getItem(localStorageKey);
         return savedId ? parseInt(savedId, 10) : null;
     }, [user, getLocalStorageKey]);
 
+    const clearGameState = useCallback(() => {
+        setCharacter(null);
+        setSessionId(null);
+        setLog([]);
+        setActionOptions([]);
+        setCombatState(INITIAL_COMBAT_STATE);
+        setApiError(null);
+        saveSessionId(null);
+    }, [saveSessionId]);
+
+
     const handleApiResponse = useCallback((response: any | null) => {
-        if (!response) {
-            throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+        if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+
+        if (response.response) { // This handles the simple narration response
+            setLog(prev => [...prev, { id: uuidv4(), type: 'narration', content: response.response }]);
         }
 
-        // The backend response for narration now comes as { response: "text" }
-        // We need to parse this into our logEntry format.
-        if (response.response) {
-             setLog(prev => [...prev, { id: uuidv4(), type: 'narration', content: response.response }]);
+        // The new architecture will require specific API calls to update these states.
+        // For now, we mainly focus on narration. Future work will expand this.
+        if (response.updatedCharacter) {
+             setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
+        }
+        if(response.playerRollRequest) {
+            setPlayerRollRequest(response.playerRollRequest);
+            setActionOptions([]); 
         }
 
-        // The new backend doesn't send these complex state objects directly in the narrar response.
-        // This logic needs to be re-evaluated. For now, we only handle the narrative log.
-        
     }, []);
     
     const processPlayerAction = useCallback(async (action: string) => {
-        if (!character || !sessionId) return;
+        if (!sessionId) return;
         
         setIsLoading(true);
         setApiError(null);
-        setPlayerRollRequest(null);
-        setPendingHitDiceRequest(null);
-        setPendingLootOffer(null);
         
         const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
         setLog(prev => [...prev, newLogEntry]);
-        setActionOptions([]); 
         
         try {
-            const apiKey = getApiKey();
-            if (!apiKey) {
-                throw new Error("Chave de API não configurada.");
-            }
-            const responseData = await GameService.processPlayerAction(sessionId, action, apiKey);
+            const responseData = await GameService.processPlayerAction(sessionId, action);
             handleApiResponse(responseData);
-
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
-            setApiError(error.message || "Ocorreu um erro desconhecido ao contatar o Mestre.");
+            setApiError(error.message || "Ocorreu um erro desconhecido.");
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 
         }
-
-    }, [character, sessionId, handleApiResponse, getApiKey]);
+    }, [sessionId, handleApiResponse]);
     
+    const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
+        setIsLoading(true);
+        setApiError(null);
+        try {
+            const newCharacter = await characterUtils.initializeNewCharacter(info);
+            const savedCharacterResponse = await GameService.createNewCharacter(newCharacter);
+            return savedCharacterResponse.character;
+        } catch (error: any) {
+            setApiError(error.message || 'Falha ao criar o personagem no servidor.');
+            return null;
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const deleteCharacter = useCallback(async (characterId: number): Promise<boolean> => {
+        setIsLoading(true);
+        setApiError(null);
+        try {
+            await GameService.deleteCharacterById(characterId);
+            return true;
+        } catch (error: any) {
+            setApiError(error.message || 'Falha ao deletar o personagem.');
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const deleteSession = useCallback(async (sessionIdToDelete: number): Promise<boolean> => {
+        setIsLoading(true);
+        setApiError(null);
+        try {
+            await GameService.deleteSessionById(sessionIdToDelete);
+            if(sessionId === sessionIdToDelete) {
+                clearGameState();
+            }
+            return true;
+        } catch (error: any) {
+            setApiError(error.message || 'Falha ao deletar a sessão.');
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [sessionId, clearGameState]);
+
+
+    const startGame = useCallback(async (): Promise<boolean> => {
+        if (!character || !sessionId || log.length > 0 || isLoading) return Promise.resolve(true);
+        
+        setIsLoading(true);
+        setApiError(null);
+        
+        try {
+            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+            return true;
+        } catch (error: any) {
+             console.error("Erro ao iniciar o jogo:", error);
+            setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura.");
+            return false;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [character, sessionId, log.length, isLoading, processPlayerAction]);
+
+    const loadGameSession = useCallback(async (id: number) => {
+        setIsLoading(true);
+        setApiError(null);
+        try {
+            const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
+            setCharacter(sessionDetails.character);
+            setLog(sessionDetails.logs || []);
+            setSessionId(id);
+            saveSessionId(id);
+        } catch(err: any) {
+            setApiError(err.message);
+            clearGameState();
+        } finally {
+            setIsLoading(false);
+        }
+    }, [saveSessionId, clearGameState]);
+
+
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
@@ -210,94 +275,6 @@ export const useNewGameState = () => {
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, [processPlayerAction]);
-
-    const createCharacter = useCallback(async (info: NewCharacterInfo) => {
-        setIsLoading(true);
-        setApiError(null);
-        const apiKey = getApiKey();
-        if (!apiKey) {
-            setApiError("Chave de API não configurada. Por favor, vá para as configurações.");
-            setIsLoading(false);
-            return null;
-        }
-
-        try {
-            const newCharacter = await characterUtils.initializeNewCharacter(info);
-            // Instead of just setting the character, we create a session
-            const sessionData = await GameService.createGameSession(newCharacter.name, apiKey);
-            setSessionId(sessionData.sessao.id);
-            setCharacter(newCharacter);
-            setLog([]); // Start with a fresh log
-            saveSession(sessionData.sessao.id); // Save the new session ID
-            return newCharacter;
-
-        } catch (error: any) {
-            setApiError(error.message || 'Falha ao criar a sessão de jogo.');
-            return null;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [getApiKey, saveSession]);
-
-    const startGame = useCallback(async (): Promise<boolean> => {
-        if (!character || log.length > 0 || isLoading) return Promise.resolve(true);
-        
-        setIsLoading(true);
-        setApiError(null);
-        
-        try {
-            // The initial prompt is now sent to the backend
-            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-            return true;
-        } catch (error: any) {
-             console.error("Erro ao iniciar o jogo:", error);
-            setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
-        
-    }, [character, log.length, isLoading, processPlayerAction]);
-
-    const loadGameSession = useCallback(async (id: number) => {
-        setIsLoading(true);
-        setApiError(null);
-        try {
-            const sessionDetails = await GameService.getSessionDetails(id);
-            // The backend needs to be updated to store the character sheet within the session.
-            // For now, we'll have to rely on local storage for the character sheet itself,
-            // but use the backend for logs. This is a temporary hybrid approach.
-            
-            const localStorageKey = getLocalStorageKey();
-            const localDataStr = localStorage.getItem(localStorageKey);
-            if (localDataStr) {
-                const localData = JSON.parse(localDataStr);
-                setCharacter(localData.character); // Load character from local for now
-            } else {
-                 throw new Error("Não foi possível encontrar os dados do personagem localmente. O salvamento pode estar corrompido.");
-            }
-
-            setLog(sessionDetails.logs || []);
-            setSessionId(id);
-            saveSession(id);
-        } catch(err: any) {
-            setApiError(err.message);
-            clearGameState();
-        } finally {
-            setIsLoading(false);
-        }
-    }, [getLocalStorageKey, saveSession]);
-
-    const clearGameState = useCallback(() => {
-        const localStorageKey = getLocalStorageKey();
-        setCharacter(null);
-        setSessionId(null);
-        setLog([]);
-        setActionOptions([]);
-        setCombatState(INITIAL_COMBAT_STATE);
-        setApiError(null);
-        localStorage.removeItem(localStorageKey);
-    }, [getLocalStorageKey]);
 
     const applyLevelUp = useCallback(async (selections: any) => {
         if (!character || !levelUpState || !levelUpState.isPending) return;
@@ -385,6 +362,8 @@ export const useNewGameState = () => {
         clearApiError,
         getApiKey,
         createCharacter,
+        deleteCharacter,
+        deleteSession,
         startGame,
         processPlayerAction,
         applyLevelUp,
@@ -398,6 +377,6 @@ export const useNewGameState = () => {
         nextTurn,
         forceReload,
         loadGameSession,
-        loadSessionId, // Exposing this to check for active sessions
+        loadSessionId, 
     };
 };

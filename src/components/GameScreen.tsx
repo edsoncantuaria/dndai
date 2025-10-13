@@ -71,11 +71,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     };
 
     const tabConfig: Record<Tab, { label: string, icon: React.ReactNode }> = {
-        relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
-        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
         character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
         spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
+        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
+        relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
 
@@ -124,15 +124,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     
                     <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
                         <div className="flex-none border-b border-stone-700 flex justify-around">
-                            {Object.entries(tabConfig).map(([key, {label, icon}]) => (
+                            {(Object.keys(tabConfig) as Tab[]).map((key) => (
                                 <button 
                                     key={key} 
-                                    onClick={() => setActiveTab(key as Tab)} 
+                                    onClick={() => setActiveTab(key)} 
                                     className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
-                                    title={label}
+                                    title={tabConfig[key].label}
                                 >
-                                    {icon}
-                                    <span>{label}</span>
+                                    {tabConfig[key].icon}
+                                    <span className="hidden lg:inline">{tabConfig[key].label}</span>
                                 </button>
                             ))}
                         </div>

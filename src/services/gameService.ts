@@ -1,9 +1,10 @@
 // src/services/gameService.ts
+import type { NewCharacterInfo } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
         throw new Error("Token de autenticação não encontrado.");
     }
@@ -11,37 +12,55 @@ const getAuthHeaders = () => {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
     };
-}
-
-export const testAiConnection = async (model: string): Promise<string> => {
-    try {
-        const response = await fetch(`${API_URL}/test-ai`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({
-                model: model,
-                prompt: "Diga olá em uma única palavra."
-            }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.details || result.message || 'Falha na comunicação com o servidor de IA.');
-        }
-
-        return result.response || "A IA respondeu, mas sem conteúdo.";
-    } catch (error: any) {
-        console.error("Erro ao testar a conexão com a IA:", error);
-        throw error;
-    }
 };
 
-export const createGameSession = async (nome: string, apiKey: string) => {
+// --- Character Management ---
+
+export const getCharacters = async () => {
+    const response = await fetch(`${API_URL}/characters`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao buscar os personagens.');
+    }
+    return await response.json();
+};
+
+export const createNewCharacter = async (characterData: NewCharacterInfo) => {
+     const response = await fetch(`${API_URL}/characters`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(characterData),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao criar o personagem.');
+    }
+    return await response.json();
+};
+
+export const deleteCharacterById = async (characterId: number) => {
+     const response = await fetch(`${API_URL}/characters/${characterId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao deletar o personagem.');
+    }
+    return await response.json();
+};
+
+
+// --- Session Management ---
+
+export const createGameSession = async (nome: string, characterId: number) => {
     const response = await fetch(`${API_URL}/sessoes`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ nome, apiKey }),
+        body: JSON.stringify({ nome, characterId }),
     });
     if (!response.ok) {
         const errorData = await response.json();
@@ -74,11 +93,26 @@ export const getSessionDetails = async (sessionId: number) => {
     return await response.json();
 };
 
-export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string) => {
+export const deleteSessionById = async (sessionId: number) => {
+     const response = await fetch(`${API_URL}/sessoes/${sessionId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao deletar a sessão.');
+    }
+    return await response.json();
+};
+
+
+// --- Gameplay Actions ---
+
+export const processPlayerAction = async (sessionId: number, prompt: string) => {
     const response = await fetch(`${API_URL}/narrar/${sessionId}`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt, apiKey }),
+        body: JSON.stringify({ prompt }),
     });
 
     if (!response.ok) {
@@ -86,4 +120,28 @@ export const processPlayerAction = async (sessionId: number, prompt: string, api
         throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
     }
     return await response.json();
+};
+
+export const testAiConnection = async (model: string): Promise<string> => {
+    // This function might need to be adjusted or removed if the backend
+    // handles the API key securely and doesn't expose a direct test endpoint.
+    // For now, we assume it exists for diagnostics.
+    try {
+        const response = await fetch(`${API_URL}/system/test-ai`, { // Assuming a new endpoint
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ model }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.details || result.message || 'Falha na comunicação com o servidor de IA.');
+        }
+
+        return result.response || "A IA respondeu, mas sem conteúdo.";
+    } catch (error: any) {
+        console.error("Erro ao testar a conexão com a IA:", error);
+        throw error;
+    }
 };
