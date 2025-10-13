@@ -45,6 +45,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Adaptar Componentes de Jogo (Ficha, Inventário, etc.):**
     *   **Tarefa:** Modificar `CharacterSheet`, `Inventory`, `NewJournal`, etc., para que eles usem hooks do React Query para buscar seus dados específicos, baseando-se no `characterId` ativo. As ações do usuário (equipar, usar item) se tornarão "mutações" do React Query.
     *   **Justificativa:** Transforma os componentes em visualizadores de dados reativos e independentes, melhorando a performance e a organização.
+    
+*   **[ ] Componentizar a UI (Frontend):**
+    *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
+    *   **Justificativa:** Melhora a organização do código, a performance de renderização (com `React.memo`) e a manutenibilidade.
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
@@ -63,6 +67,18 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Backend:** Permitir que a IA conceda "Inspiração" e o inclua no estado do personagem.
     *   **Frontend:** Exibir um ícone de inspiração e modificar o modal de dados para rolar 2d20 e usar o resultado apropriado quando uma ação tiver vantagem ou desvantagem.
 
+*   **[ ] Ações Estruturadas em Combate (Backend + Frontend):**
+    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos no turno.
+
+*   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
+    *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.), tratá-las como parte do inventário e calcular seu peso para uma gestão de carga mais realista.
+
+*   **[ ] Revisão do Sistema de Log e "Modo História" (Frontend):**
+    *   **Visão:** Adicionar filtros ao log de aventura (Tudo, Narração, Combate) e criar um "Modo História" que oculte a UI para uma leitura imersiva.
+
+*   **[ ] Melhorias Visuais nos Status e Condições (Frontend):**
+    *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições (Atordoado, Enfeitiçado) e vinhetas sutis na tela para dar feedback visual sobre o estado do personagem.
+
 ### Fase 1.4: Otimização e Qualidade de Vida
 
 *   **[ ] Implementar Cache no Servidor com Redis (Backend):**
@@ -72,6 +88,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Implementar Code Splitting (Frontend):**
     *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados (como o wizard de criação de personagem) apenas quando forem necessários.
     *   **Justificativa:** Reduzir o tamanho do bundle inicial, fazendo a aplicação carregar muito mais rápido.
+    
+*   **[ ] Otimizar Imagens e Fontes (Frontend):**
+    *   **Tarefa:** Revisar o uso do componente `next/image` e o carregamento das fontes do Google para garantir a máxima performance segundo as recomendações do Next.js.
+    *   **Justificativa:** Melhorar os Core Web Vitals e o tempo de carregamento da página.
 
 *   **[ ] Escrever Testes de Integração e Unidade (Backend):**
     *   **Tarefa:** Configurar `Jest` e `Supertest` para testar a camada de serviço e os endpoints da API.
