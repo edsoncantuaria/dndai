@@ -24,10 +24,12 @@ const allowedOrigins = [
 
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        if (!origin) { // Allow requests with no origin (like mobile apps or curl requests)
+        // Permite requisições sem origem (como apps mobile ou curl)
+        if (!origin) {
             return callback(null, true);
         }
-        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.cloudworkstations.dev')) {
+        // Permite origens da lista estática e qualquer subdomínio dos ambientes de desenvolvimento
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.cloudworkstations.dev') || origin.endsWith('.webcontainer-api.io')) {
             return callback(null, true);
         }
         
