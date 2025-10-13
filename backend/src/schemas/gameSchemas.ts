@@ -44,11 +44,30 @@ export const CombatStateSchema = z.object({
 }).describe("O estado completo do combate.");
 
 
-const LevelUpStateSchema = z.object({
+export const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
     newLevel: z.number(),
     choices: z.any(),
 });
+
+export const ShopStateSchema = z.object({
+    isOpen: z.boolean(),
+    isHaggling: z.boolean(),
+    name: z.string(),
+    inventory: z.any(),
+    sellPrices: z.record(z.string(), z.number()),
+});
+
+export const LootOfferSchema = z.object({
+    items: z.any(),
+    currency: z.object({ gp: z.number() }),
+});
+
+export const UseHitDiceRequestSchema = z.object({
+    maxDice: z.number(),
+    hitDieValue: z.number(),
+});
+
 
 // Itens do inventário com propriedades de uso/equipamento
 export const InventoryItemSchema = z.object({
@@ -130,6 +149,10 @@ export const GameMasterResponseSchema = z.object({
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night')."),
     imagePrompt: z.string().optional().describe("A prompt for the image generation model to create a scene."),
     systemLog: z.string().optional().describe("Optional log for the GM to explain decisions (DC choice, NPC rolls, etc.)."),
+    levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
+    shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
+    lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
+    useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
