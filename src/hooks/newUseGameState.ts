@@ -168,10 +168,10 @@ export const useNewGameState = () => {
         setIsLoading(true);
         setApiError(null);
         try {
-            const preparedInfo: NewCharacterInfo = { ...info, level: 1 };
-            const savedCharacterResponse = await GameService.createNewCharacter(preparedInfo);
+            const savedCharacterResponse = await GameService.createNewCharacter(info);
             if(savedCharacterResponse.character) {
-                return characterUtils.buildFrontendCharacter(savedCharacterResponse.character);
+                // This now just returns the backend object to be used in the vault.
+                return savedCharacterResponse.character;
             }
             return null;
         } catch (error: any) {
@@ -215,31 +215,14 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId || isLoading || log.length > 0) return;
+        if (!character || !sessionId || isLoading) return;
         
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        // Only send the starting prompt if the log is empty
+        if (log.length === 0) {
+            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        }
         
     }, [character, sessionId, log, isLoading, processPlayerAction]);
-
-    const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
-        setIsLoading(true);
-        setApiError(null);
-        try {
-            const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
-            if (sessionDetails && sessionDetails.character) {
-                const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
-                return { character: fullCharacter, logs: sessionDetails.logs || [] };
-            } else {
-                throw new Error("Dados da sessão ou do personagem estão faltando.");
-            }
-        } catch(err: any) {
-            setApiError(err.message);
-            clearGameState();
-            return null;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [clearGameState]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
@@ -357,12 +340,9 @@ export const useNewGameState = () => {
         sellItem,
         clearGameState,
         nextTurn,
-        loadGameSession,
         // State setters
         setCharacter,
         setLog,
         setSessionId
     };
 };
-
-    

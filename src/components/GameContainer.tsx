@@ -1,3 +1,4 @@
+// src/components/GameContainer.tsx
 'use client';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
@@ -11,6 +12,7 @@ import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 import CharacterCreation from './CharacterCreation';
 import { useAuth } from '@/contexts/AuthContext';
+import * as characterUtils from '@/utils/characterUtils';
 
 
 type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
@@ -20,7 +22,6 @@ const GameContainer = () => {
     const {
         character,
         log,
-        loadGameSession,
         clearGameState,
         createCharacter,
         deleteCharacter,
@@ -28,7 +29,7 @@ const GameContainer = () => {
         startGame,
         setCharacter,
         setLog,
-        setSessionId,
+        setSessionId
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -90,38 +91,49 @@ const GameContainer = () => {
             audio.pause();
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
-    
-    // --- Auto-start new game ---
-    useEffect(() => {
-        if (gameStage === 'playing' && character && log.length === 0) {
-            startGame();
-        }
-    }, [gameStage, character, log, startGame]);
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
-        if (newSession && newSession.sessao) {
-            await fetchInitialData();
-            handleContinueGame(newSession.sessao.id);
+        try {
+            const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
+            if (newSessionResponse && newSessionResponse.sessao) {
+                await fetchInitialData();
+                await handleContinueGame(newSessionResponse.sessao.id, true); // Pass a flag for new game
+            }
+        } catch (error) {
+            console.error("Failed to create new game session:", error);
         }
     };
-
+    
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
     }
 
-    const handleContinueGame = useCallback(async (sessionId: number) => {
-        const loadedData = await loadGameSession(sessionId);
-        if (loadedData) {
-            setCharacter(loadedData.character);
-            setLog(loadedData.logs);
-            setSessionId(sessionId);
-            setGameStage('playing');
-            setPlayMenuMusic(false);
+    const handleContinueGame = useCallback(async (sessionId: number, isNewGame: boolean = false) => {
+        setIsLoadingData(true);
+        try {
+            const sessionDetails = await GameService.getSessionDetails(sessionId);
+            if (sessionDetails && sessionDetails.character) {
+                const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
+                setCharacter(fullCharacter);
+                setLog(sessionDetails.logs || []);
+                setSessionId(sessionId);
+                setGameStage('playing');
+                setPlayMenuMusic(false);
+
+                if (isNewGame && (!sessionDetails.logs || sessionDetails.logs.length === 0)) {
+                    startGame();
+                }
+            } else {
+                throw new Error("Dados da sessão ou do personagem estão faltando.");
+            }
+        } catch (error: any) {
+            console.error("Failed to continue game:", error);
+        } finally {
+            setIsLoadingData(false);
         }
-    }, [loadGameSession, setPlayMenuMusic, setCharacter, setLog, setSessionId]);
+    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, startGame]);
 
 
     const returnToMenu = useCallback(() => {
@@ -304,5 +316,3 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
-
-    
