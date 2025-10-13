@@ -11,7 +11,7 @@ import { User } from '../entities/User.js';
 
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { nome, characterId, apiKey } = req.body; // apiKey is now expected from the frontend
+    const { nome, characterId, apiKey } = req.body;
     const userId = req.user?.userId;
 
     if (!nome || !characterId) {
@@ -29,13 +29,15 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
             return next(createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.'));
         }
 
-        // Get user to retrieve apiKey if not provided in request
-        const user = await userRepository.findOneBy({ id: userId! });
-        const keyToUse = apiKey || user?.settings?.apiKey;
-
-        if (!keyToUse) {
-            return next(createError(400, 'Nenhuma chave de API encontrada para criar a sessão.'));
+        // Garante que a chave de API seja fornecida.
+        if (!apiKey) {
+            const user = await userRepository.findOne({ where: { id: userId! } });
+            if (!user?.settings?.apiKey) {
+                return next(createError(400, 'Nenhuma chave de API encontrada para criar a sessão. Forneça uma nas configurações.'));
+            }
         }
+        const keyToUse = apiKey || (await userRepository.findOneBy({ id: userId! }))?.settings?.apiKey;
+
 
         const novaSessao = new SessaoIA();
         novaSessao.nome = nome;

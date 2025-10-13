@@ -80,7 +80,7 @@ const INITIAL_COMBAT_STATE: CombatState = {
 
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { getApiKey } = useSettingsContext();
+    const { apiKey } = useSettingsContext();
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [character, setCharacter] = useState<Character | null>(null);
     const [log, setLog] = useState<LogEntry[]>([]);
@@ -97,6 +97,8 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
+    const getApiKey = useCallback(() => apiKey, [apiKey]);
+
     const clearApiError = useCallback(() => setApiError(null), []);
 
     const clearGameState = useCallback(() => {
@@ -198,20 +200,10 @@ export const useNewGameState = () => {
 
     const startGame = useCallback(async (): Promise<boolean> => {
         if (!character || !sessionId || log.length > 0 || isLoading) return Promise.resolve(true);
-        
-        setIsLoading(true);
-        setApiError(null);
-        
-        try {
-            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-            return true;
-        } catch (error: any) {
-             console.error("Erro ao iniciar o jogo:", error);
-            setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura.");
-            return false;
-        } finally {
-            setIsLoading(false);
-        }
+
+        // This action now simply triggers the initial narration from the backend.
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        return true;
     }, [character, sessionId, log.length, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number) => {
@@ -219,9 +211,13 @@ export const useNewGameState = () => {
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
-            setCharacter(sessionDetails.character);
-            setLog(sessionDetails.logs || []);
-            setSessionId(id);
+            if (sessionDetails && sessionDetails.character) {
+                setCharacter(sessionDetails.character);
+                setLog(sessionDetails.logs || []);
+                setSessionId(id);
+            } else {
+                throw new Error("Dados da sessão ou do personagem estão faltando.");
+            }
         } catch(err: any) {
             setApiError(err.message);
             clearGameState();

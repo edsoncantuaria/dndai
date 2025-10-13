@@ -110,9 +110,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [isMuted, setIsMuted] = useState(false);
     const [playMenuMusic, setPlayMenuMusic] = useState(true);
 
-    const getApiKey = useCallback(() => {
-        return apiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
-    }, [apiKey]);
+    const getApiKey = useCallback(() => apiKey, [apiKey]);
     
     // Function to load settings from AuthContext
     const loadSettings = useCallback((settings: any) => {

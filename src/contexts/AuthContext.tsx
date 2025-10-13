@@ -55,12 +55,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const validateSession = async () => {
             const token = localStorage.getItem('token');
-            // Try to load API key from localStorage on initial load as a fallback
             const localApiKey = localStorage.getItem('apiKey');
-            if (localApiKey) {
-                setApiKey(localApiKey);
-            }
-
+            
             if (token) {
                 try {
                     const response = await fetch(`${API_URL}/users/me`, {
@@ -74,13 +70,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                         if (userData.settings) {
                            loadSettings(userData.settings);
-                           // Explicitly set API key from saved DB settings if it exists
                            if (userData.settings.apiKey) {
                                setApiKey(userData.settings.apiKey);
                            } else if (localApiKey) {
-                               // If not in DB, but in local storage, save it to DB
                                saveSettingsToDB({ apiKey: localApiKey });
+                               setApiKey(localApiKey);
                            }
+                        } else if (localApiKey) {
+                            // If no settings in DB, but key is in local storage, save it.
+                            saveSettingsToDB({ apiKey: localApiKey });
+                            setApiKey(localApiKey);
                         }
 
                     } else {
