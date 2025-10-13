@@ -6,6 +6,7 @@ import { SessionLog } from '../entities/SessionLog.js';
 import { getOrCreateAiInstance } from '../services/aiService.js';
 import createError from 'http-errors';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
+import { googleAI } from '@genkit-ai/google-genai';
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
@@ -34,6 +35,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const ai = getOrCreateAiInstance(sessao.id, sessao.apiKey);
 
         const result = await ai.generate({
+            model: googleAI.model('gemini-1.5-pro'),
             prompt: prompt,
         });
 
