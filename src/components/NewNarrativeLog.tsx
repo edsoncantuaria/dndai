@@ -1,4 +1,4 @@
-
+// src/components/NewNarrativeLog.tsx
 'use client';
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -143,19 +143,21 @@ const getActionIcon = (content: string) => {
 };
 
 
-const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntryType, index: number }) {
+const LogEntry = React.memo(function LogEntry({ entry, isStreaming }: { entry: LogEntryType, isStreaming: boolean }) {
     let content;
     switch(entry.type) {
         case 'narration':
             content = (
                 <div className="flex items-start">
-                    <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">{entry.content}</p>
-                    <AudioPlayer text={entry.content} />
+                    <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">
+                        {entry.content}
+                        {isStreaming && <span className="animate-pulse">_</span>}
+                    </p>
+                    {!isStreaming && <AudioPlayer text={entry.content as string} />}
                 </div>
             );
             break;
         case 'action':
-             // Hide internal processing actions from the log
             if (typeof entry.content === 'string' && entry.content.startsWith("Processar")) {
                 content = null;
             } else {
@@ -204,7 +206,7 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
     }
     if(content === null) return null;
 
-    return <div className="animate-fadeIn" style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, animationDuration: '400ms' }}>{content}</div>;
+    return <div className={!isStreaming ? "animate-fadeIn" : ""}>{content}</div>;
 });
 
 const NpcRollDisplay: React.FC = () => {
@@ -270,7 +272,7 @@ const NpcRollDisplay: React.FC = () => {
 };
 
 const NewNarrativeLog: React.FC = () => {
-    const { log } = useGameStateContext();
+    const { log, isLoading } = useGameStateContext();
     const logEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -285,11 +287,14 @@ const NewNarrativeLog: React.FC = () => {
         );
     }
     
+    const lastEntry = log[log.length - 1];
+    const isStreaming = isLoading && lastEntry?.type === 'narration';
+    
     return (
         <div className="space-y-4">
             <NpcRollDisplay />
             {log.map((entry, index) => (
-                <LogEntry key={entry.id} entry={entry} index={log.length - 1 - index} />
+                <LogEntry key={entry.id} entry={entry} isStreaming={isStreaming && index === log.length - 1} />
             ))}
             <div ref={logEndRef} />
         </div>

@@ -120,11 +120,13 @@ export const useNewGameState = () => {
 
 
     const handleApiResponse = useCallback((response: any | null) => {
-        if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+        if (!response) return; // Can be null if only text was streamed
         
+        // Don't re-add log entries that were already streamed
         if (response.logEntries && Array.isArray(response.logEntries)) {
-            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
-            setLog(prev => [...prev, ...newLogEntries]);
+            // This is now mainly for non-streaming fallback
+             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+             setLog(prev => [...prev, ...newLogEntries]);
         }
 
         if (response.updatedCharacter) {
@@ -155,17 +157,37 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
-        setActionOptions([]); 
+        const actionLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+        const streamingLogEntry: LogEntry = { id: uuidv4(), type: 'narration', content: '' };
+        
+        setLog(prev => [...prev, actionLogEntry, streamingLogEntry]);
+        setActionOptions([]);
         
         try {
-            const responseData = await GameService.processPlayerAction(sessionId, action, combatState);
-            handleApiResponse(responseData);
+            const finalPayload = await GameService.processPlayerAction(
+                sessionId, 
+                action, 
+                combatState,
+                (textChunk) => {
+                    setLog(prevLog => {
+                        const newLog = [...prevLog];
+                        const lastEntry = newLog[newLog.length - 1];
+                        if (lastEntry && lastEntry.id === streamingLogEntry.id) {
+                            lastEntry.content += textChunk;
+                        }
+                        return newLog;
+                    });
+                }
+            );
+
+            // Once streaming is done, process the final JSON payload
+            handleApiResponse(finalPayload);
+
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            // Rollback the optimistic UI updates
+            setLog(prev => prev.filter(entry => entry.id !== actionLogEntry.id && entry.id !== streamingLogEntry.id));
         } finally {
             setIsLoading(false); 
         }

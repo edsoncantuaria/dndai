@@ -164,7 +164,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const { prompt: playerAction, combatState: currentCombatState, stream } = req.body; // Check for stream flag
+    const { prompt: playerAction, combatState: currentCombatState, stream } = req.body;
     const userId = req.user?.userId;
 
     if (!playerAction) {
@@ -196,21 +196,19 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             return next(createError(400, 'A chave de API não está configurada para este usuário.'));
         }
 
-        // Constrói um objeto de personagem otimizado para a IA
         const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character);
         if (!optimizedCharacter) {
             return next(createError(404, 'Falha ao carregar os dados completos do personagem.'));
         }
         
-        // Otimiza o histórico, enviando apenas o essencial
         const recentLogs = await logRepository.find({
             where: { sessaoId: sessao.id },
             order: { timestamp: 'DESC' },
             take: 15,
         });
-        const gameLogSummary = recentLogs.reverse().map((log: SessionLog) => {
-             return `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`;
-        }).join('\n');
+        const gameLogSummary = recentLogs.reverse().map((log: SessionLog) => 
+             `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`
+        ).join('\n');
         
         const gameMasterFlowInput = {
             character: optimizedCharacter,
@@ -219,7 +217,6 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             combatState: currentCombatState,
         };
 
-        // Salva a ação do jogador no log ANTES da resposta da IA
         const playerLog = new SessionLog();
         playerLog.sessaoId = sessao.id;
         playerLog.prompt = playerAction;
@@ -228,72 +225,48 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         await logRepository.save(playerLog);
 
 
-        // Check if client requests streaming
         if (stream) {
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             res.setHeader('Transfer-Encoding', 'chunked');
 
-            const { response, textStream } = await streamGameMasterTurn(
+            const { textStream, responsePromise } = await streamGameMasterTurn(
                 gameMasterFlowInput,
                 apiKey,
                 user?.settings?.model || "gemini-2.5-flash"
             );
             
-            // Stream the text part first
+            let fullText = '';
             for await (const chunk of textStream) {
-                res.write(chunk);
+                res.write(chunk.text);
+                fullText += chunk.text;
             }
             
-            const finalAiResponse = await response;
+            // Now, get the full structured response
+            const finalAiResponse = (await responsePromise).output as GameMasterResponse;
+
             if (!finalAiResponse) {
                 throw new Error("A IA não conseguiu formular a parte final da resposta.");
             }
-
-            const finalLogEntry = {
-                type: 'narration',
-                content: finalAiResponse.llmResponse,
-            };
-
-            // Save the streamed narration as a single log entry
-            const narrationLog = new SessionLog();
-            narrationLog.sessaoId = sessao.id;
-            narrationLog.prompt = JSON.stringify(gameMasterFlowInput);
-            narrationLog.response = finalAiResponse.llmResponse || '';
-            narrationLog.type = 'narration';
-            await logRepository.save(narrationLog);
             
-            // Save other log entry types
-            if (finalAiResponse.logEntries && finalAiResponse.logEntries.length > 0) {
-                 for (const entry of finalAiResponse.logEntries) {
-                    const newLog = new SessionLog();
-                    newLog.sessaoId = sessao.id;
-                    newLog.prompt = JSON.stringify(gameMasterFlowInput);
-                    newLog.response = entry.content;
-                    newLog.type = entry.type;
-                    newLog.rollResult = entry.rollResult;
-                    await logRepository.save(newLog);
-                }
-            }
-            
-            // Persist character updates
-            if (finalAiResponse.updatedCharacter) {
-                await persistCharacterUpdates(sessao.character.id, finalAiResponse.updatedCharacter);
-            }
+            // Save log entries and persist character updates
+            if (finalAiResponse.logEntries) {
+                for (const entry of finalAiResponse.logEntries) {
+                   const newLog = new SessionLog();
+                   newLog.sessaoId = sessao.id;
+                   newLog.prompt = JSON.stringify(gameMasterFlowInput);
+                   newLog.response = entry.content;
+                   newLog.type = entry.type;
+                   newLog.rollResult = entry.rollResult;
+                   await logRepository.save(newLog);
+               }
+           }
+           
+           if (finalAiResponse.updatedCharacter) {
+               await persistCharacterUpdates(sessao.character.id, finalAiResponse.updatedCharacter);
+           }
 
-            // Send the final JSON payload as the last chunk
-            const finalPayload: Partial<GameMasterResponse> = {
-                actionOptions: finalAiResponse.actionOptions,
-                updatedCharacter: finalAiResponse.updatedCharacter,
-                combatState: finalAiResponse.combatState,
-                playerRollRequest: finalAiResponse.playerRollRequest,
-                ambientSound: finalAiResponse.ambientSound,
-                imagePrompt: finalAiResponse.imagePrompt,
-                systemLog: finalAiResponse.systemLog,
-                levelUpState: finalAiResponse.levelUpState,
-                shopState: finalAiResponse.shopState,
-                lootOffer: finalAiResponse.lootOffer,
-                useHitDiceRequest: finalAiResponse.useHitDiceRequest,
-            };
+            // Exclude logEntries from the final payload as they were streamed
+            const { logEntries, ...finalPayload } = finalAiResponse;
 
             // Use a unique separator to distinguish text from the final JSON
             res.write(`\n--END_OF_STREAM--\n`);
@@ -316,7 +289,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
                 for (const entry of aiResponse.logEntries) {
                     const newLog = new SessionLog();
                     newLog.sessaoId = sessao.id;
-                    newLog.prompt = JSON.stringify(gameMasterFlowInput); // Log do input para debug
+                    newLog.prompt = JSON.stringify(gameMasterFlowInput);
                     newLog.response = entry.content;
                     newLog.type = entry.type;
                     newLog.rollResult = entry.rollResult;
@@ -324,7 +297,6 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
                 }
             }
             
-            // Persiste as atualizações do personagem, se houver
             if (aiResponse.updatedCharacter) {
                 await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
             }
