@@ -2,7 +2,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn, DeleteDateColumn } from 'typeorm';
 import { LicenseKey } from './LicenseKey.js';
 import { SessaoIA } from './SessaoIA.js';
-import { Character } from './Character.js'; // Importa a nova entidade
+import { Character } from './Character.js';
 
 @Entity('users')
 export class User {
@@ -22,7 +22,7 @@ export class User {
     licenseKeyId: number;
 
     @Column({ type: 'json', nullable: true })
-    settings: Record<string, any>; // Coluna para armazenar as configurações
+    settings: Record<string, any>;
 
     @OneToOne(() => LicenseKey)
     @JoinColumn({ name: 'licenseKeyId' })
@@ -31,7 +31,7 @@ export class User {
     @OneToMany(() => SessaoIA, (sessao) => sessao.user)
     sessoes: SessaoIA[];
 
-    @OneToMany(() => Character, (character) => character.user) // Adiciona a relação com Personagens
+    @OneToMany(() => Character, (character) => character.user)
     characters: Character[];
 
     @CreateDateColumn()

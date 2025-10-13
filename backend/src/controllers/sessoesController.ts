@@ -9,9 +9,34 @@ import { IsNull } from 'typeorm';
 import { Character } from '../entities/Character.js';
 import { User } from '../entities/User.js';
 
+// Função auxiliar para reconstruir o objeto completo do personagem
+const buildFullCharacterObject = async (character: Character) => {
+    const fullCharacter = await AppDataSource.getRepository(Character).findOne({
+        where: { id: character.id },
+        relations: [
+            "attributes",
+            "proficiencies",
+            "items",
+            "spells",
+        ],
+    });
+    if (!fullCharacter) return character;
+    
+    // Transforma as entidades de volta para o formato que o frontend espera
+    const characterData = {
+        ...fullCharacter,
+        attributes: fullCharacter.attributes,
+        proficiencies: fullCharacter.proficiencies,
+        inventory: fullCharacter.items.map(item => item.itemData), // Pega o JSON do item
+        spells: fullCharacter.spells.map(s => s.spellName),
+    };
+    delete (characterData as any).items;
+    return characterData;
+};
+
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { nome, characterId, apiKey } = req.body;
+    const { nome, characterId } = req.body; // apiKey removido do body
     const userId = req.user?.userId;
 
     if (!nome || !characterId) {
@@ -29,28 +54,22 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
             return next(createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.'));
         }
 
-        // Garante que a chave de API seja fornecida.
-        if (!apiKey) {
-            const user = await userRepository.findOne({ where: { id: userId! } });
-            if (!user?.settings?.apiKey) {
-                return next(createError(400, 'Nenhuma chave de API encontrada para criar a sessão. Forneça uma nas configurações.'));
-            }
+        const user = await userRepository.findOne({ where: { id: userId! } });
+        if (!user?.settings?.apiKey) {
+            return next(createError(400, 'Nenhuma chave de API encontrada nas suas configurações. Adicione uma antes de criar a sessão.'));
         }
-        const keyToUse = apiKey || (await userRepository.findOneBy({ id: userId! }))?.settings?.apiKey;
-
+        const keyToUse = user.settings.apiKey;
 
         const novaSessao = new SessaoIA();
         novaSessao.nome = nome;
         novaSessao.character = character;
         novaSessao.userId = userId!;
-        novaSessao.apiKey = keyToUse;
+        novaSessao.apiKey = keyToUse; // Salva a chave do usuário na sessão
         novaSessao.logs = [];
 
         const sessaoSalva = await sessaoRepository.save(novaSessao);
 
-        // Retorna a sessão sem dados sensíveis como a chave de API
         const { apiKey: sensitiveApiKey, ...sessaoParaRetorno } = sessaoSalva;
-
 
         res.status(201).json({ message: 'Sessão criada com sucesso!', sessao: sessaoParaRetorno });
     } catch (error) {
@@ -67,7 +86,7 @@ export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunc
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         const sessoes = await sessaoRepository.find({
             where: { userId: userId!, deletedAt: IsNull() },
-            relations: ['character'], // Inclui os dados básicos do personagem
+            relations: ['character'], 
             select: {
                 id: true,
                 nome: true,
@@ -97,14 +116,18 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         const sessao = await sessaoRepository.findOne({
             where: { id: Number(id), userId: userId!, deletedAt: IsNull() },
-            relations: ['logs', 'character'] // Inclui os logs e os dados completos do personagem
+            relations: ['logs', 'character'] 
         });
 
         if (!sessao) {
             return next(createError(404, 'Sessão não encontrada ou você não tem permissão.'));
         }
+
+        // Reconstroi o objeto do personagem completo
+        if (sessao.character) {
+            sessao.character = await buildFullCharacterObject(sessao.character) as Character;
+        }
         
-        // Remove a chave de API antes de enviar a resposta
         const { apiKey, ...sessaoSegura } = sessao;
 
         res.status(200).json(sessaoSegura);

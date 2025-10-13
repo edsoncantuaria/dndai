@@ -1,15 +1,16 @@
 // backend/src/entities/Character.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne } from 'typeorm';
 import { User } from './User.js';
 import { SessaoIA } from './SessaoIA.js';
+import { CharacterAttributes } from './CharacterAttributes.js';
+import { CharacterProficiency } from './CharacterProficiency.js';
+import { CharacterItem } from './CharacterItem.js';
+import { CharacterSpell } from './CharacterSpell.js';
 
 @Entity('characters')
 export class Character {
     @PrimaryGeneratedColumn()
     id: number;
-
-    @Column({ type: 'varchar', length: 100 })
-    name: string;
 
     @Column({ type: 'int' })
     userId: number;
@@ -18,30 +19,76 @@ export class Character {
     @JoinColumn({ name: 'userId' })
     user: User;
 
-    @Column({ type: 'json' })
-    characterData: any; // Armazenará o objeto completo da ficha do personagem
+    @Column({ type: 'varchar', length: 100 })
+    name: string;
+    
+    @Column({ type: 'varchar', length: 50 })
+    race: string;
+    
+    @Column({ type: 'varchar', length: 50, nullable: true })
+    subrace: string | null;
+
+    @Column({ type: 'varchar', length: 50 })
+    characterClass: string;
 
     @Column({ type: 'int', default: 1 })
     level: number;
 
     @Column({ type: 'varchar', length: 50 })
-    characterClass: string;
+    background: string;
 
     @Column({ type: 'varchar', length: 50 })
-    race: string;
+    alignment: string;
+    
+    @Column({ type: 'text', nullable: true })
+    backstory: string;
+
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    ideal: string;
+
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    bond: string;
+
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    flaw: string;
+    
+    @Column({ type: 'varchar', length: 20, nullable: true })
+    sex: string;
+
+    @Column({ type: 'varchar', length: 20, nullable: true })
+    hairStyle: string;
+
+    @Column({ type: 'varchar', length: 20, nullable: true })
+    beardStyle: string;
+
+    @Column({ type: 'varchar', length: 20, nullable: true })
+    skinColor: string;
+    
+    // Relações com as novas entidades
+    @OneToOne(() => CharacterAttributes, attributes => attributes.character, { cascade: true })
+    attributes: CharacterAttributes;
+
+    @OneToMany(() => CharacterProficiency, proficiency => proficiency.character, { cascade: true })
+    proficiencies: CharacterProficiency[];
+
+    @OneToMany(() => CharacterItem, item => item.character, { cascade: true })
+    items: CharacterItem[];
+    
+    @OneToMany(() => CharacterSpell, spell => spell.character, { cascade: true })
+    spells: CharacterSpell[];
 
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];
     
-    // Novas colunas para persistência de narrativa e estado do mundo
+    // Campos de narrativa persistente que permanecem aqui
     @Column({ type: 'text', nullable: true })
-    storySoFar: string; // "Crônicas da Aventura" do personagem
+    storySoFar: string; 
 
     @Column({ type: 'json', nullable: true })
-    factionReputation: Record<string, number>; // ex: {"Harpers": 10, "Zhentarim": -5}
+    factionReputation: Record<string, number>;
 
     @Column({ type: 'json', nullable: true })
-    worldState: Record<string, any>; // ex: {"tyrant_deposed": true}
+    worldState: Record<string, any>; 
 
 
     @CreateDateColumn()

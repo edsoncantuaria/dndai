@@ -5,6 +5,43 @@ import { Character } from '../entities/Character.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import createError from 'http-errors';
 import { IsNull } from 'typeorm';
+import { CharacterAttributes } from '../entities/CharacterAttributes.js';
+import { CharacterProficiency } from '../entities/CharacterProficiency.js';
+import { CharacterItem } from '../entities/CharacterItem.js';
+import { CharacterSpell } from '../entities/CharacterSpell.js';
+
+// Função auxiliar para reconstruir o objeto completo do personagem
+const buildFullCharacterObject = async (character: Character) => {
+    // Isso é necessário porque o find não carrega relações aninhadas profundamente por padrão
+    const fullCharacter = await AppDataSource.getRepository(Character).findOne({
+        where: { id: character.id },
+        relations: [
+            "attributes",
+            "proficiencies",
+            "items",
+            "spells",
+            "sessoes",
+            "sessoes.character"
+        ],
+    });
+    if (!fullCharacter) return character; // Retorna o básico se não encontrar
+    
+    // Transforma as entidades de volta para o formato que o frontend espera
+    const characterData = {
+        ...fullCharacter,
+        attributes: fullCharacter.attributes,
+        proficiencies: fullCharacter.proficiencies,
+        inventory: fullCharacter.items,
+        spells: fullCharacter.spells.map(s => s.spellName), // Apenas os nomes/índices
+    };
+
+    // Remove as propriedades de relação para evitar redundância
+    delete (characterData as any).items;
+    // 'spells' já foi remapeado
+
+    return characterData;
+};
+
 
 // Criar um novo personagem
 export const createCharacter = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -15,21 +52,80 @@ export const createCharacter = async (req: AuthRequest, res: Response, next: Nex
         return next(createError(400, 'Dados do personagem são inválidos.'));
     }
 
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
     try {
-        const characterRepository = AppDataSource.getRepository(Character);
-        const novoPersonagem = new Character();
-        novoPersonagem.userId = userId!;
-        novoPersonagem.name = characterData.name;
-        novoPersonagem.characterClass = characterData.characterClass;
-        novoPersonagem.race = characterData.race;
-        novoPersonagem.level = characterData.level;
-        novoPersonagem.characterData = characterData; // Salva o objeto completo
+        // 1. Criar e salvar a entidade Character principal
+        const newCharacter = new Character();
+        newCharacter.userId = userId!;
+        newCharacter.name = characterData.name;
+        newCharacter.race = characterData.race;
+        newCharacter.subrace = characterData.subrace;
+        newCharacter.characterClass = characterData.characterClass;
+        newCharacter.level = characterData.level;
+        newCharacter.background = characterData.background;
+        newCharacter.alignment = characterData.alignment;
+        newCharacter.backstory = characterData.backstory;
+        newCharacter.ideal = characterData.ideal;
+        newCharacter.bond = characterData.bond;
+        newCharacter.flaw = characterData.flaw;
+        newCharacter.sex = characterData.sex;
+        newCharacter.hairStyle = characterData.hairStyle;
+        newCharacter.beardStyle = characterData.beardStyle;
+        newCharacter.skinColor = characterData.skinColor;
+        
+        const savedCharacter = await queryRunner.manager.save(newCharacter);
 
-        const personagemSalvo = await characterRepository.save(novoPersonagem);
+        // 2. Criar e salvar CharacterAttributes
+        const attributes = new CharacterAttributes();
+        Object.assign(attributes, characterData.attributes);
+        attributes.character = savedCharacter;
+        await queryRunner.manager.save(attributes);
 
-        res.status(201).json({ message: 'Personagem criado com sucesso!', character: personagemSalvo });
+        // 3. Criar e salvar CharacterProficiency (array)
+        const proficiencies = characterData.proficiencies.map((p: any) => {
+            const prof = new CharacterProficiency();
+            prof.character = savedCharacter;
+            prof.name = p.name;
+            prof.type = p.url?.includes('skill') ? 'skill' : (p.url?.includes('language') ? 'language' : 'other');
+            return prof;
+        });
+        await queryRunner.manager.save(proficiencies);
+
+        // 4. Criar e salvar CharacterItem (inventário)
+        const items = characterData.inventory.map((item: any) => {
+            const charItem = new CharacterItem();
+            charItem.character = savedCharacter;
+            charItem.name = item.name;
+            charItem.quantity = item.quantity;
+            charItem.itemData = item; // Armazena o objeto completo do item para referência
+            return charItem;
+        });
+        await queryRunner.manager.save(items);
+
+        // 5. Criar e salvar CharacterSpell (magias)
+        const spells = characterData.spells.map((spellName: string) => {
+            const charSpell = new CharacterSpell();
+            charSpell.character = savedCharacter;
+            charSpell.spellName = spellName;
+            return charSpell;
+        });
+        await queryRunner.manager.save(spells);
+        
+        // Se tudo deu certo, commita a transação
+        await queryRunner.commitTransaction();
+
+        res.status(201).json({ message: 'Personagem criado com sucesso!', character: savedCharacter });
+
     } catch (error) {
+        // Se algo der errado, desfaz tudo
+        await queryRunner.rollbackTransaction();
         next(error);
+    } finally {
+        // Libera o query runner
+        await queryRunner.release();
     }
 };
 
@@ -39,10 +135,9 @@ export const getCharacters = async (req: AuthRequest, res: Response, next: NextF
 
     try {
         const characterRepository = AppDataSource.getRepository(Character);
-        // Seleciona apenas os campos necessários para a lista de personagens
         const characters = await characterRepository.find({
             where: { userId: userId!, deletedAt: IsNull() },
-            select: ["id", "name", "race", "characterClass", "level", "createdAt"]
+            select: ["id", "name", "race", "characterClass", "level", "createdAt"] // Campos para a lista
         });
         res.status(200).json(characters);
     } catch (error) {
@@ -65,7 +160,10 @@ export const getCharacterById = async (req: AuthRequest, res: Response, next: Ne
             return next(createError(404, 'Personagem não encontrado ou você não tem permissão.'));
         }
 
-        res.status(200).json(character);
+        // Reconstroi o objeto completo para enviar ao frontend
+        const fullCharacterData = await buildFullCharacterObject(character);
+        res.status(200).json(fullCharacterData);
+
     } catch (error) {
         next(error);
     }
