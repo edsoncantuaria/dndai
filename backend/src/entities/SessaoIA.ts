@@ -14,9 +14,6 @@ export class SessaoIA {
     @Column({ type: 'varchar', length: 255 })
     apiKey: string;
     
-    @Column({ type: 'int' })
-    userId: number;
-
     @ManyToOne(() => User, user => user.sessoes, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'userId' })
     user: User;

@@ -11,7 +11,7 @@ export class SessionLog {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @ManyToOne(() => SessaoIA, sessao => sessao.logs)
+    @ManyToOne(() => SessaoIA, sessao => sessao.logs, { onDelete: 'CASCADE' })
     @JoinColumn({ name: "sessaoId" })
     sessao: SessaoIA;
 
