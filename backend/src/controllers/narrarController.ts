@@ -7,6 +7,7 @@ import { getOrCreateAiInstance } from '../services/aiService.js';
 import createError from 'http-errors';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import { googleAI } from '@genkit-ai/google-genai';
+import { User } from '../entities/User.js';
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
@@ -19,6 +20,8 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+        const userRepository = AppDataSource.getRepository(User);
+
         // Garante que o usuário só possa acessar sua própria sessão
         const sessao = await sessaoRepository.findOne({ 
             where: { id: Number(sessionId), userId: userId! }
@@ -28,11 +31,15 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             return next(createError(404, 'Sessão de IA não encontrada ou você não tem permissão para acessá-la.'));
         }
 
-        if (!sessao.apiKey) {
-            return next(createError(400, 'A chave de API para esta sessão não está configurada.'));
+        // Busca o usuário e sua chave de API mais recente
+        const user = await userRepository.findOne({ where: { id: userId! }});
+        if (!user?.settings?.apiKey) {
+            return next(createError(400, 'A chave de API não está configurada nas suas configurações de usuário.'));
         }
+        
+        const apiKey = user.settings.apiKey;
 
-        const ai = getOrCreateAiInstance(sessao.id, sessao.apiKey);
+        const ai = getOrCreateAiInstance(sessao.id, apiKey);
 
         const result = await ai.generate({
             model: googleAI.model('gemini-2.5-flash'),
