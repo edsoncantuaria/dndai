@@ -27,7 +27,6 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             setIsSpellsLoading(true);
             
             const spellList = character.spells
-                .filter(s => s && s.spellName) // Filtra para garantir que o spellName existe
                 .map(s => ({ index: s.spellName, name: s.spellName, url: '' }));
 
             if (spellList.length === 0) {

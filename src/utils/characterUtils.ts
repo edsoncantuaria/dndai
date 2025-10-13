@@ -1,4 +1,3 @@
-
 // utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
@@ -150,7 +149,7 @@ const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
 
 export const buildFrontendCharacter = async (backendChar: any): Promise<Character> => {
     // 1. Fetch full details for race, class, and subclass
-    let subraceDetails: ApiSubrace | null = null;
+    let subclassDetails: ApiSubrace | null = null;
     
     const [raceDetails, classDetails] = await Promise.all([
         DndApiService.getRaceDetails(backendChar.race.toLowerCase()),
@@ -160,18 +159,12 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     // Check if there is a subrace and fetch its details if so.
     if (backendChar.subrace) {
         const subraceIndex = backendChar.subrace.toLowerCase().replace(/\s+/g, '-');
-        subraceDetails = await DndApiService.getSubraceDetails(subraceIndex);
+        subclassDetails = await DndApiService.getSubraceDetails(subraceIndex);
     }
     
     // Fetch level data
     const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    let subclassLevelsData: ApiClassLevel[] = [];
-    if (subraceDetails && subraceDetails.index) {
-        const levels = await DndApiService.getSubclassLevels(subraceDetails.index);
-        if (levels) {
-            subclassLevelsData = levels;
-        }
-    }
+    const subclassLevelsData = subclassDetails ? (await DndApiService.getSubclassLevels(subclassDetails.index) || []) : [];
     
     // 2. Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
@@ -188,19 +181,34 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const modifiers = calculateModifiers(attributes);
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
-    const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => ({
-        ...(item.itemData || {}),
-        id: item.id.toString(),
-        quantity: item.quantity,
-        name: item.name,
-    }));
+    const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => {
+        let parsedItemData = {};
+        try {
+            // Check if itemData is a string and needs parsing
+            if (typeof item.itemData === 'string') {
+                parsedItemData = JSON.parse(item.itemData);
+            } else if (typeof item.itemData === 'object' && item.itemData !== null) {
+                // If it's already an object, use it directly
+                parsedItemData = item.itemData;
+            }
+        } catch (e) {
+            console.error("Failed to parse itemData:", item.itemData, e);
+        }
+
+        return {
+            ...parsedItemData,
+            id: item.id.toString(),
+            quantity: item.quantity,
+            name: item.name,
+        };
+    });
     
     const ac = calculateAC(inventory, modifiers);
     const maxHp = backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
 
     const traits: ApiListItem[] = raceDetails?.traits || [];
-    if (subraceDetails && (subraceDetails as ApiSubrace).racial_traits) {
-        traits.push(...(subraceDetails as ApiSubrace).racial_traits);
+    if (subclassDetails && subclassDetails.racial_traits) {
+        traits.push(...subclassDetails.racial_traits);
     }
     
     const languages: string[] = raceDetails?.languages.map(l => l.name) || [];
@@ -228,6 +236,8 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         ...backendChar,
         attributes: attributes,
         inventory: inventory,
+        // Ensure spells is always an array
+        spells: backendChar.spells || [],
         // Ensure nested quest data is included
         relationships: (backendChar.relationships || []).map((r: any) => ({
             ...r,
