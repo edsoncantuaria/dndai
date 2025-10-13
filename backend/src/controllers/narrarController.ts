@@ -45,9 +45,9 @@ const buildOptimizedCharacterForAI = async (character: Character | null) => {
             ac: fullCharacter.attributes.ac,
             conditions: fullCharacter.attributes.conditions,
         },
-        proficiencies: fullCharacter.proficiencies.map(p => p.name),
-        inventory: fullCharacter.items.map(item => item.itemData), // Sending full item data for context
-        spells: fullCharacter.spells.map(s => s.spellName),
+        proficiencies: fullCharacter.proficiencies.map((p: CharacterProficiency) => p.name),
+        inventory: fullCharacter.items.map((item: CharacterItem) => item.itemData), // Sending full item data for context
+        spells: fullCharacter.spells.map((s: CharacterSpell) => s.spellName),
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         storySoFar: fullCharacter.storySoFar,
@@ -184,8 +184,12 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             return next(createError(404, 'Sessão de IA ou personagem não encontrado.'));
         }
 
-        const user = await userRepository.findOne({ where: { id: userId! } });
-        const apiKey = sessao.apiKey || user?.settings?.apiKey;
+        const user = await userRepository.findOne({ where: { id: userId! }, relations: ["settings"] });
+        
+        let apiKey = sessao.apiKey;
+        if (!apiKey && user?.settings?.apiKey) {
+            apiKey = user.settings.apiKey;
+        }
 
         if (!apiKey) {
             return next(createError(400, 'A chave de API não está configurada para este usuário.'));
@@ -204,7 +208,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             order: { timestamp: 'DESC' },
             take: 10,
         });
-        const gameLogSummary = recentLogs.reverse().map(log => {
+        const gameLogSummary = recentLogs.reverse().map((log: SessionLog) => {
              return `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`;
         }).join('\n');
         
@@ -218,7 +222,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const aiResponse = await runGameMasterTurn(
             gameMasterFlowInput,
             apiKey,
-            user?.settings?.model || "gemini-2.5-flash"
+            user?.settings?.model || "gemini-1.5-flash"
         );
 
 
