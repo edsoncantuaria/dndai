@@ -351,6 +351,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setFlaw('');
             setChosenClassSpells([]); // Also reset class spells if race changes
             setChosenLanguages([]);
+            setTraitChoiceDetails([]); // Ensure racial trait choices are cleared
+            setDraconicAncestryOptions([]); // Clear dragonborn options
         } else if (type === 'class') {
             setChosenClassSpells([]);
         } else if (type === 'background') {
