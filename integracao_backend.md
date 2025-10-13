@@ -72,14 +72,16 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 *   **[X] Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
 *   **[X] Status Atual**: Concluído. A API de narração está funcionando.
 
-## Fase 3 — Arquitetura de Personagens e Sessões (Em Andamento)
+## Fase 3 — Plataforma de Personagens (Em Andamento)
 
-*   **[X] Objetivo**: Desacoplar Personagens das Sessões de Jogo, criando um sistema de "cofre de personagens" onde os heróis são reutilizáveis.
+*   **[X] Objetivo**: Desacoplar Personagens das Sessões de Jogo, criando um sistema de "cofre de personagens" onde os heróis são reutilizáveis. Isso permite que um mesmo personagem participe de múltiplas aventuras e evolua de forma persistente.
 *   **[X] Backend**:
     *   **[X]** Criada a nova entidade `Character` para armazenar os dados dos personagens de forma independente e vinculada ao `User`.
     *   **[X]** Adicionada a relação entre `SessaoIA` e `Character`.
     *   **[X]** Criados os endpoints CRUD (`/api/characters`) para gerenciar o "cofre" de personagens do usuário.
     *   **[X]** Atualizado o endpoint de criação de sessão (`/api/sessoes`) para aceitar um `characterId`.
+    *   **[X]** Implementado *soft delete* em todas as entidades para maior segurança dos dados.
+    *   **[X]** Adicionados campos (`storySoFar`, `factionReputation`, `worldState`) à entidade `Character` para permitir uma narrativa persistente e um mundo reativo.
 *   **[ ] Frontend**:
     *   **[ ]** Refatorar o `GameContainer` para exibir uma lista de sessões de jogo existentes.
     *   **[ ]** Criar uma nova tela de "Seleção de Personagem" (o cofre).
@@ -103,7 +105,10 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 * [X] Implementar `authMiddleware`.
 * [X] Configurar todas as rotas da API no `server.ts`.
 * [X] Adicionar a entidade `Character` e seus endpoints.
+* [X] Adicionar campos de persistência (`storySoFar`, `reputation`) à entidade `Character`.
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
+
+```

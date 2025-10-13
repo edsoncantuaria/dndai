@@ -32,6 +32,17 @@ export class Character {
 
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];
+    
+    // Novas colunas para persistência de narrativa e estado do mundo
+    @Column({ type: 'text', nullable: true })
+    storySoFar: string; // "Crônicas da Aventura" do personagem
+
+    @Column({ type: 'json', nullable: true })
+    factionReputation: Record<string, number>; // ex: {"Harpers": 10, "Zhentarim": -5}
+
+    @Column({ type: 'json', nullable: true })
+    worldState: Record<string, any>; // ex: {"tyrant_deposed": true}
+
 
     @CreateDateColumn()
     createdAt: Date;
