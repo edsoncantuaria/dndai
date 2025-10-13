@@ -9,8 +9,6 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { translateApiString } from '@/utils/translator';
 import { useAuth } from '@/contexts/AuthContext';
 
-// Key for storing the active session ID for a logged-in user
-const LOCAL_STORAGE_KEY_PREFIX = 'rpg-de-cria-active-session-id-';
 
 // Helper functions for merging state
 const mergeJournalEntries = (existing: JournalEntryLocation[], updates: JournalEntryLocation[]): JournalEntryLocation[] => {
@@ -98,26 +96,7 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     
-    const getLocalStorageKey = useCallback(() => `${LOCAL_STORAGE_KEY_PREFIX}${user?.id}`, [user]);
-    
     const clearApiError = useCallback(() => setApiError(null), []);
-
-    const saveSessionId = useCallback((id: number | null) => {
-        if (!user) return;
-        const localStorageKey = getLocalStorageKey();
-        if (id !== null) {
-            localStorage.setItem(localStorageKey, id.toString());
-        } else {
-            localStorage.removeItem(localStorageKey);
-        }
-    }, [user, getLocalStorageKey]);
-
-    const loadSessionId = useCallback((): number | null => {
-        if (!user) return null;
-        const localStorageKey = getLocalStorageKey();
-        const savedId = localStorage.getItem(localStorageKey);
-        return savedId ? parseInt(savedId, 10) : null;
-    }, [user, getLocalStorageKey]);
 
     const clearGameState = useCallback(() => {
         setCharacter(null);
@@ -126,8 +105,7 @@ export const useNewGameState = () => {
         setActionOptions([]);
         setCombatState(INITIAL_COMBAT_STATE);
         setApiError(null);
-        saveSessionId(null);
-    }, [saveSessionId]);
+    }, []);
 
 
     const handleApiResponse = useCallback((response: any | null) => {
@@ -243,14 +221,13 @@ export const useNewGameState = () => {
             setCharacter(sessionDetails.character);
             setLog(sessionDetails.logs || []);
             setSessionId(id);
-            saveSessionId(id);
         } catch(err: any) {
             setApiError(err.message);
             clearGameState();
         } finally {
             setIsLoading(false);
         }
-    }, [saveSessionId, clearGameState]);
+    }, [clearGameState]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
@@ -306,6 +283,7 @@ export const useNewGameState = () => {
         processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
     }, [character, processPlayerAction]);
 
+
     const takeLoot = useCallback((takeAll: boolean) => {
          if (!character || !pendingLootOffer) return;
          setPlayerRollRequest(null);
@@ -327,15 +305,6 @@ export const useNewGameState = () => {
     }, [character, processPlayerAction]);
 
     const nextTurn = useCallback(() => processPlayerAction("Processar próximo turno"), [processPlayerAction]);
-    
-    const forceReload = useCallback(() => {
-        const id = loadSessionId();
-        if (id) {
-            loadGameSession(id);
-        }
-        setIsLoading(false);
-        setApiError(null);
-    },[loadSessionId, loadGameSession]);
     
     return {
         character,
@@ -376,8 +345,6 @@ export const useNewGameState = () => {
         sellItem,
         clearGameState,
         nextTurn,
-        forceReload,
         loadGameSession,
-        loadSessionId, 
     };
 };

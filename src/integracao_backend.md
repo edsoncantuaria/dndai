@@ -1,3 +1,4 @@
+
 * **Objetivo:** mover toda a lógica do jogo para o backend, fazer o backend conversar com o Genkit/Google Gemini usando a API key criptografada do usuário, e enviar atualizações em tempo real ao frontend por WebSocket.
 
 Sempre Atualizar integracao_backend.md com tudo que foi feito. Colocar testes e esperar retornar que todos os testes estão funcionando!
@@ -71,7 +72,7 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 *   **[X] Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
 *   **[X] Status Atual**: Concluído. A API de narração está funcionando.
 
-## Fase 3 — Plataforma de Personagens (Em Andamento)
+## Fase 3 — Plataforma de Personagens (Concluído)
 
 *   **[X] Objetivo**: Desacoplar Personagens das Sessões de Jogo, criando um sistema de "cofre de personagens" onde os heróis são reutilizáveis. Isso permite que um mesmo personagem participe de múltiplas aventuras e evolua de forma persistente.
 *   **[X] Backend**:
@@ -81,12 +82,12 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
     *   **[X]** Atualizado o endpoint de criação de sessão (`/api/sessoes`) para aceitar um `characterId`.
     *   **[X]** Implementado *soft delete* em todas as entidades para maior segurança dos dados.
     *   **[X]** Adicionados campos (`storySoFar`, `factionReputation`, `worldState`) à entidade `Character` para permitir uma narrativa persistente e um mundo reativo.
-*   **[ ] Frontend**:
-    *   **[X]** Refatorar o `GameContainer` para exibir uma lista de sessões de jogo existentes.
-    *   **[X]** Criar uma nova tela de "Seleção de Personagem" (o cofre).
-    *   **[X]** Modificar o fluxo de criação de personagem para apenas salvar o herói no cofre.
-    *   **[X]** Atualizar o `gameService.ts` para interagir com os novos endpoints.
-    *   **[ ]** Implementar a exibição do `storySoFar` e `factionReputation` na ficha do personagem.
+*   **[X] Frontend**:
+    *   **[X]** Refatorado o `GameContainer` para exibir uma lista de sessões de jogo existentes.
+    *   **[X]** Criada uma nova tela de "Seleção de Personagem" (o cofre).
+    *   **[X]** Modificado o fluxo de criação de personagem para apenas salvar o herói no cofre.
+    *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints.
+    *   **[X]** Implementada a exibição do `storySoFar`, `factionReputation` e `worldState` na ficha do personagem e na tela de progresso.
 
 
 ## Fase 4 — WebSocket e Modo Multiplayer (Futuro)
