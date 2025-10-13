@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -114,6 +115,9 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
 }
 
 const getActionIcon = (content: string) => {
+    if (typeof content !== 'string') {
+        return <ChevronsRight className="text-amber-400 font-bold h-4 w-4" aria-hidden="true" />;
+    }
     const lowerContent = content.toLowerCase();
 
     if (lowerContent.includes('conjuro') || lowerContent.includes('magia')) {
@@ -175,6 +179,26 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
         case 'insight':
              content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
+        case 'image':
+            const imageContent = entry.content as any;
+            content = (
+                <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
+                    {imageContent.status === 'done' && imageContent.url ? (
+                        <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
+                    ) : (
+                        <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                            {imageContent.status === 'generating' && 
+                                <>
+                                    <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
+                                    <span>Gerando imagem...</span>
+                                </>
+                            }
+                            {imageContent.status === 'failed' && 'Falha ao gerar imagem.'}
+                        </div>
+                    )}
+                </div>
+            );
+            break;
         default:
             content = null;
     }
