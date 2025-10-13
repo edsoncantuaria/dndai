@@ -6,56 +6,139 @@ import { SessionLog } from '../entities/SessionLog.js';
 import { getOrCreateAiInstance } from '../services/aiService.js';
 import createError from 'http-errors';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
-import { googleAI } from '@genkit-ai/google-genai';
 import { User } from '../entities/User.js';
+import { Character } from '../entities/Character.js';
+import { GameMasterFlowInputSchema, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
+import { promptDnD5e } from '../game/prompt5e.js';
+import { genkit } from 'genkit';
+
+
+// Função auxiliar para reconstruir o objeto completo do personagem para a IA
+const buildFullCharacterObjectForAI = async (character: Character | null) => {
+    if (!character) return null;
+
+    const fullCharacter = await AppDataSource.getRepository(Character).findOne({
+        where: { id: character.id },
+        relations: [
+            "attributes",
+            "proficiencies",
+            "items",
+            "spells",
+            "journal",
+            "journal.subLocations",
+            "relationships",
+ "relationships.quests",
+        ],
+    });
+
+    if (!fullCharacter) return null;
+
+    const characterData = {
+        ...fullCharacter,
+        attributes: fullCharacter.attributes,
+        proficiencies: fullCharacter.proficiencies,
+        inventory: fullCharacter.items.map(item => item.itemData),
+        spells: fullCharacter.spells.map(s => s.spellName),
+        journal: fullCharacter.journal,
+        relationships: fullCharacter.relationships,
+    };
+    
+    delete (characterData as any).items; // Clean up redundant property
+    return characterData;
+};
+
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const { prompt } = req.body;
+    const { prompt: playerAction, combatState: currentCombatState } = req.body;
     const userId = req.user?.userId;
 
-    if (!prompt) {
-        return next(createError(400, 'O prompt do jogador é obrigatório.'));
+    if (!playerAction) {
+        return next(createError(400, 'A ação do jogador é obrigatória.'));
     }
 
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const logRepository = AppDataSource.getRepository(SessionLog);
+    const userRepository = AppDataSource.getRepository(User);
+
     try {
-        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const userRepository = AppDataSource.getRepository(User);
-
-        // Garante que o usuário só possa acessar sua própria sessão
         const sessao = await sessaoRepository.findOne({ 
-            where: { id: Number(sessionId), userId: userId! }
+            where: { id: Number(sessionId), userId: userId! },
+            relations: ["character"]
         });
 
-        if (!sessao) {
-            return next(createError(404, 'Sessão de IA não encontrada ou você não tem permissão para acessá-la.'));
+        if (!sessao || !sessao.character) {
+            return next(createError(404, 'Sessão de IA ou personagem não encontrado.'));
         }
 
-        // Busca o usuário e sua chave de API mais recente
-        const user = await userRepository.findOne({ where: { id: userId! }});
+        const user = await userRepository.findOne({ where: { id: userId! } });
         if (!user?.settings?.apiKey) {
-            return next(createError(400, 'A chave de API não está configurada nas suas configurações de usuário.'));
+            return next(createError(400, 'A chave de API não está configurada para este usuário.'));
+        }
+
+        // Construir o estado completo do personagem
+        const fullCharacterObject = await buildFullCharacterObjectForAI(sessao.character);
+        if (!fullCharacterObject) {
+            return next(createError(404, 'Falha ao carregar os dados completos do personagem.'));
         }
         
-        const apiKey = user.settings.apiKey;
-
-        const ai = getOrCreateAiInstance(sessao.id, apiKey);
-
-        const result = await ai.generate({
-            model: googleAI.model('gemini-2.5-flash'),
-            prompt: prompt,
+        // Obter os últimos logs para dar contexto à IA
+        const recentLogs = await logRepository.find({
+            where: { sessaoId: sessao.id },
+            order: { timestamp: 'DESC' },
+            take: 15,
         });
 
-        const aiResponse = result.text;
+        const gameMasterFlowInput = {
+            character: fullCharacterObject,
+            playerAction: playerAction,
+            gameLog: recentLogs.reverse().map(log => ({type: log.type, content: log.response})), // Formato para IA
+            combatState: currentCombatState,
+        };
 
-        const logRepository = AppDataSource.getRepository(SessionLog);
-        const newLog = new SessionLog();
-        newLog.sessao = sessao;
-        newLog.prompt = prompt;
-        newLog.response = aiResponse;
-        await logRepository.save(newLog);
+        const ai = getOrCreateAiInstance(sessao.id, user.settings.apiKey);
         
-        res.status(200).json({ response: aiResponse });
+        const prompt = ai.definePrompt(
+          {
+            name: "gameMasterPrompt",
+            input: { schema: GameMasterFlowInputSchema },
+            output: { schema: GameMasterResponseSchema },
+            prompt: promptDnD5e,
+          },
+        );
+
+        const result = await prompt(gameMasterFlowInput);
+        const aiResponse = result.output;
+
+        if (!aiResponse) {
+             return next(createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.'));
+        }
+        
+        // --- Salvar Log da Ação do Jogador e Resposta da IA ---
+        const playerLog = new SessionLog();
+        playerLog.sessao = sessao;
+        playerLog.prompt = playerAction;
+        playerLog.response = `(Ação do Jogador) ${playerAction}`;
+        playerLog.type = 'action';
+        await logRepository.save(playerLog);
+        
+        if (aiResponse.logEntries) {
+            for (const entry of aiResponse.logEntries) {
+                const newLog = new SessionLog();
+                newLog.sessao = sessao;
+                newLog.prompt = JSON.stringify(gameMasterFlowInput);
+                newLog.response = entry.content;
+                newLog.type = entry.type;
+                newLog.rollResult = entry.rollResult;
+                await logRepository.save(newLog);
+            }
+        }
+        
+        // TODO: Persistir `updatedCharacter`, `combatState`, etc. no banco de dados.
+        // Esta parte é crucial e complexa, envolvendo a atualização de múltiplas entidades
+        // e será implementada na próxima fase de "Atualização de Estado do Jogo".
+        
+        res.status(200).json(aiResponse);
 
     } catch (error) {
         console.error(`Erro ao processar narração para sessão ${sessionId}:`, error);

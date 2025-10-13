@@ -1,8 +1,10 @@
 // types.ts
+// Este arquivo será eventualmente substituído por tipos gerados diretamente
+// a partir dos schemas Zod do backend para garantir consistência.
 
 export interface PlayerRollRequest {
     reason: string;
-    dice: string; // Ex: "1d20", "2d6"
+    dice: string;
     modifier: number;
     dc?: number;
     rollType: 'check' | 'save' | 'attack' | 'damage';
@@ -190,7 +192,6 @@ export interface NewCharacterInfo {
     subclass: string | null;
 }
 
-
 export interface InventoryItem {
     id: string;
     index: string;
@@ -203,7 +204,6 @@ export interface InventoryItem {
     };
     weight?: number;
     desc?: string[];
-    // Weapon properties
     weapon_category?: string;
     weapon_range?: string;
     category_range?: string;
@@ -216,7 +216,6 @@ export interface InventoryItem {
         damage_type: ApiListItem;
     };
     properties?: ApiListItem[];
-    // Armor properties
     armor_category?: string;
     armor_class?: {
         base: number;
@@ -225,7 +224,6 @@ export interface InventoryItem {
     };
     str_minimum?: number;
     stealth_disadvantage?: boolean;
-    // New properties
     consumable?: boolean;
     usable?: boolean;
     recoverable?: boolean;
@@ -247,6 +245,7 @@ export interface LootOffer {
 }
 
 export interface Character {
+    id: number;
     name: string;
     sex: 'Masculino' | 'Feminino' | 'Outro';
     hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
@@ -320,7 +319,7 @@ export interface Character {
 export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
-    content: string;
+    content: any; // Can be string or ImageLogEntryContent
     rollResult?: {
         description: string;
         dice: string;
@@ -338,7 +337,7 @@ export interface LogEntry {
 export interface Combatant {
     id: string;
     name: string;
-    isPlayer?: boolean; // New optional property
+    isPlayer?: boolean;
     hp?: number;
     maxHp?: number;
     armorClass?: number;
@@ -374,10 +373,11 @@ export interface CombatState {
     round: number;
     turn: number;
     combatants: Combatant[];
-    initiativeOrder?: string[] | {id: string, initiative: number}[];
+    initiativeOrder?: string[] | { id: string, initiative: number }[];
     log?: LogEntry[];
     globalConditions?: any[];
 }
+
 
 export interface ApiClassLevel {
     level: number;
@@ -520,7 +520,7 @@ export interface ApiFeature {
 export interface Quest {
     id: string;
     title: string;
-    status: 'active' | 'completed';
+    status: 'active' | 'completed' | 'failed';
     objectives: string[];
 }
 
@@ -574,3 +574,15 @@ export type Attributes = {
     wisdom: number;
     charisma: number;
 };
+
+// Nova interface para representar uma sessão de jogo
+export interface SessaoIA {
+    id: number;
+    nome: string;
+    userId: number;
+    characterId: number | null;
+    character?: Character; // Relação opcional
+    logs?: LogEntry[]; // Relação opcional
+    createdAt: Date;
+    updatedAt: Date;
+}

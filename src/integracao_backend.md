@@ -1,4 +1,3 @@
-
 * **Objetivo:** mover toda a lógica do jogo para o backend, fazer o backend conversar com o Genkit/Google Gemini usando a API key criptografada do usuário, e enviar atualizações em tempo real ao frontend por WebSocket.
 
 Sempre Atualizar integracao_backend.md com tudo que foi feito. Colocar testes e esperar retornar que todos os testes estão funcionando!
@@ -89,8 +88,20 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
     *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints.
     *   **[X]** Implementada a exibição do `storySoFar`, `factionReputation` e `worldState` na ficha do personagem e na tela de progresso.
 
+## Fase 4 — Integração da Lógica de Jogo (Em Andamento)
 
-## Fase 4 — WebSocket e Modo Multiplayer (Futuro)
+*   **[X] Objetivo**: Unificar a lógica de jogo, os schemas de dados e o prompt da IA com a nova estrutura de banco de dados otimizada.
+*   **[X] Backend**:
+    *   **[X]** Refatorado o `gameSchemas.ts` para ser a fonte da verdade da estrutura de dados do jogo.
+    *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas.
+    *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado e lidar com o fluxo de jogo completo (leitura do estado, chamada à IA, persistência das atualizações).
+*   **[ ] Frontend**:
+    *   **[ ]** Atualizar o `types.ts` para corresponder aos novos schemas.
+    *   **[ ]** Ajustar `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo (`GameMasterFlowInput`, `GameMasterResponse`).
+    *   **[ ]** Garantir que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
+
+
+## Fase 5 — WebSocket e Modo Multiplayer (Futuro)
 
 *   **[ ] Implementar WebSocket Server**: Adicionar um servidor WebSocket ao processo do Express para comunicação em tempo real.
 *   **[ ] Implementar Lógica de Sala**: Criar mecanismos para que os jogadores criem, entrem e saiam de salas de jogo.
@@ -107,6 +118,7 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 * [X] Configurar todas as rotas da API no `server.ts`.
 * [X] Adicionar a entidade `Character` e seus endpoints.
 * [X] Adicionar campos de persistência (`storySoFar`, `reputation`) à entidade `Character`.
+* [X] Unificar a lógica de jogo com os schemas de dados e o prompt da IA.
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
