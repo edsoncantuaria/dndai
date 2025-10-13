@@ -1,3 +1,4 @@
+
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -248,7 +249,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                  <CollapsibleSection title="Outras Proficiências">
                     <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
                         {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                            <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                            <span key={(prof as any).id || prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                                 {translateApiString(prof.name)}
                             </span>
                         ))}
@@ -282,5 +283,3 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
-
-    
