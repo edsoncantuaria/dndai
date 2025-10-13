@@ -8,9 +8,9 @@ import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck } fro
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
-    if (!character || character.hp.current > 0) return null;
+    if (!character || !character.hp || character.hp.current > 0) return null;
 
-    const { successes, failures } = character.deathSaves;
+    const { successes, failures } = character.deathSaves || { successes: 0, failures: 0 };
 
     return (
         <div className="bg-red-900/40 p-3 rounded-lg border border-red-700/60">
