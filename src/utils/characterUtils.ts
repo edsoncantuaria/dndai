@@ -1,3 +1,4 @@
+
 // utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
@@ -158,12 +159,19 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     
     // Check if there is a subrace and fetch its details if so.
     if (backendChar.subrace) {
-        subraceDetails = await DndApiService.getSubraceDetails(backendChar.subrace.toLowerCase());
+        const subraceIndex = backendChar.subrace.toLowerCase().replace(/\s+/g, '-');
+        subraceDetails = await DndApiService.getSubraceDetails(subraceIndex);
     }
     
     // Fetch level data
     const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const subclassLevelsData = subraceDetails ? (await DndApiService.getSubclassLevels(subraceDetails.index) || []) : [];
+    let subclassLevelsData: ApiClassLevel[] = [];
+    if (subraceDetails && subraceDetails.index) {
+        const levels = await DndApiService.getSubclassLevels(subraceDetails.index);
+        if (levels) {
+            subclassLevelsData = levels;
+        }
+    }
     
     // 2. Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
