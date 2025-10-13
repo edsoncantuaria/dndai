@@ -1,51 +1,31 @@
 // backend/src/services/aiService.ts
-import { genkit, type GenkitOptions } from 'genkit';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
-import { GameMasterFlowInput, GameMasterFlowInputSchema, GameMasterResponse, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
+import { GameMasterFlowInput, GameMasterResponse, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
 import { promptDnD5e } from '../game/prompt5e.js';
 import { z } from 'zod';
 
 
-// Schema for the final structured data payload in a streaming response
-const StreamingGameMasterResponseSchema = z.object({
-    logEntries: GameMasterResponseSchema.shape.logEntries,
-    actionOptions: GameMasterResponseSchema.shape.actionOptions,
-    updatedCharacter: GameMasterResponseSchema.shape.updatedCharacter,
-    combatState: GameMasterResponseSchema.shape.combatState,
-    playerRollRequest: GameMasterResponseSchema.shape.playerRollRequest,
-    ambientSound: GameMasterResponseSchema.shape.ambientSound,
-    imagePrompt: GameMasterResponseSchema.shape.imagePrompt,
-    systemLog: GameMasterResponseSchema.shape.systemLog,
-    levelUpState: GameMasterResponseSchema.shape.levelUpState,
-    shopState: GameMasterResponseSchema.shape.shopState,
-    lootOffer: GameMasterResponseSchema.shape.lootOffer,
-    useHitDiceRequest: GameMasterResponseSchema.shape.useHitDiceRequest,
-});
-
-type StreamingGameMasterResponse = z.infer<typeof StreamingGameMasterResponseSchema>;
-
-
-const gameMasterFlow = (apiKey: string, model: string) => {
-    // Configure Genkit with the dynamic API key
+// Standard non-streaming call
+export const runGameMasterTurn = async (
+    input: GameMasterFlowInput,
+    apiKey: string,
+    model: string
+): Promise<GameMasterResponse | null> => {
     const dynamicAi = genkit({
-        plugins: [
-            googleAI({ apiKey, apiVersion: "v1beta" }),
-        ],
+        plugins: [googleAI({ apiKey, apiVersion: "v1beta" })],
     });
 
-    return dynamicAi.defineFlow(
+    const flow = dynamicAi.defineFlow(
         {
             name: 'gameMasterFlow',
-            inputSchema: GameMasterFlowInputSchema,
+            inputSchema: z.any(),
             outputSchema: GameMasterResponseSchema,
         },
         async (input) => {
-            const { stream, response } = await dynamicAi.generate({
+            const result = await dynamicAi.generate({
                 model: `googleai/${model}`,
-                prompt: {
-                    system: promptDnD5e,
-                    user: JSON.stringify(input),
-                },
+                prompt: `${promptDnD5e}\n\n${JSON.stringify(input)}`,
                 config: {
                     temperature: 1,
                     topP: 0.95,
@@ -56,31 +36,17 @@ const gameMasterFlow = (apiKey: string, model: string) => {
                     format: 'json',
                     schema: GameMasterResponseSchema,
                 },
-                stream: true,
             });
-            
-            // This part is tricky with streaming JSON. We'll handle JSON parsing on the client.
-            // For now, let's assume the non-streaming path returns the full object.
-            // The streaming implementation will be in a separate function.
-            const result = await response;
             return result.output as GameMasterResponse;
         }
     );
-};
 
-// Standard non-streaming call
-export const runGameMasterTurn = async (
-    input: GameMasterFlowInput,
-    apiKey: string,
-    model: string
-): Promise<GameMasterResponse | null> => {
     try {
-        const flow = gameMasterFlow(apiKey, model);
         const response = await flow(input);
         return response;
     } catch (error) {
         console.error("Error in runGameMasterTurn:", error);
-        throw error; // Re-throw to be caught by the error middleware
+        throw error;
     }
 };
 
@@ -93,30 +59,27 @@ export const streamGameMasterTurn = async (
     const dynamicAi = genkit({
         plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
     });
-    
-    // Create a prompt that specifically asks for the narrative text first,
-    // then the JSON object. This helps in separating the stream.
+
     const streamingPrompt = `
-        Responda em duas partes separadas por um marcador único '###JSON_PAYLOAD###'.
-        1.  Primeiro, escreva a entrada de log de narração principal (logEntries com type: 'narration').
-        2.  Depois do marcador, forneça o objeto JSON completo (GameMasterResponse), incluindo a narração que você já escreveu na primeira parte.
+        Responda em duas partes separadas por um marcador único '--END_OF_STREAM--'.
+        1.  Primeiro, escreva APENAS a narração principal (o texto que vai para a 'content' do primeiro 'logEntry' do tipo 'narration'). Não inclua o JSON, apenas o texto puro da história.
+        2.  Depois do marcador, forneça o objeto JSON completo e válido (GameMasterResponse), que deve incluir a narração que você já escreveu na primeira parte, além de todas as outras atualizações de estado.
 
         Exemplo de formato de resposta:
-        A porta range e se abre...
+        A porta range e se abre, revelando uma escadaria empoeirada que desce para a escuridão. O cheiro de mofo e terra úmida sobe para encontrá-lo.
 
-        ###JSON_PAYLOAD###
+        --END_OF_STREAM--
         {
-            "logEntries": [{ "type": "narration", "content": "A porta range e se abre..." }],
-            "actionOptions": ["Entrar", "Esperar"]
+            "logEntries": [{ "type": "narration", "content": "A porta range e se abre, revelando uma escadaria empoeirada que desce para a escuridão. O cheiro de mofo e terra úmida sobe para encontrá-lo." }],
+            "actionOptions": ["Descer as escadas com cautela", "Procurar por armadilhas na entrada"]
         }
     `;
 
+    const fullPrompt = `${promptDnD5e}\n\n${JSON.stringify({ ...input, streaming_instructions: streamingPrompt })}`;
+
     const { stream, response } = await dynamicAi.generate({
         model: `googleai/${model}`,
-        prompt: {
-            system: promptDnD5e,
-            user: JSON.stringify({ ...input, streaming_instructions: streamingPrompt }),
-        },
+        prompt: fullPrompt,
         config: {
             temperature: 1,
             topP: 0.95,
