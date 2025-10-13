@@ -19,6 +19,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@genkit-ai/google-genai": "^1.1.2",
     "@google/generative-ai": "^0.15.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
