@@ -11,6 +11,7 @@ import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
@@ -20,15 +21,15 @@ const GameContainer = () => {
     const {
         character,
         log,
+        loadGameSession,
         clearGameState,
+        createCharacter,
         deleteCharacter,
         deleteSession,
         startGame,
-        setCharacter,
-        setLog,
-        setSessionId
     } = useGameStateContext();
 
+    const { user } = useAuth();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
@@ -39,14 +40,6 @@ const GameContainer = () => {
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
-    
-    // This effect will trigger the game start logic ONLY when the stage is set to 'playing'.
-    useEffect(() => {
-        if (gameStage === 'playing' && character && character.id) {
-            startGame(log || []);
-        }
-    }, [gameStage, character, startGame, log]);
-
 
     // --- Data Fetching ---
     const fetchInitialData = useCallback(async () => {
@@ -99,30 +92,24 @@ const GameContainer = () => {
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
         setIsLoadingData(true);
-        clearGameState();
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
-                const sessionDetails = await GameService.getSessionDetails(newSessionResponse.sessao.id);
-                if (sessionDetails && sessionDetails.character) {
-                    const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character);
-                    setCharacter(fullCharacter);
-                    setLog(sessionDetails.logs || []);
-                    setSessionId(sessionDetails.id);
+                await fetchInitialData();
+                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
+                if(loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
-                } else {
-                     throw new Error("Falha ao carregar detalhes da nova sessão.");
+                    startGame(loadedData.logs); // Start the game if it's a new session with no logs
                 }
             }
         } catch (error) {
-            console.error("Falha ao criar e iniciar nova sessão:", error);
-            // You might want to set an error state to show in the UI
+            console.error("Failed to start new game session:", error);
         } finally {
             setIsLoadingData(false);
         }
     };
-    
+
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
@@ -130,25 +117,20 @@ const GameContainer = () => {
 
     const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
-        clearGameState();
-        try {
-            const sessionDetails = await GameService.getSessionDetails(sessionId);
-            if (sessionDetails && sessionDetails.character) {
-                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character);
-                setCharacter(fullCharacter);
-                setLog(sessionDetails.logs || []);
-                setSessionId(sessionId);
-                setGameStage('playing');
-                setPlayMenuMusic(false);
-            } else {
-                throw new Error("Dados da sessão ou do personagem estão faltando.");
+        const loadedData = await loadGameSession(sessionId);
+        if (loadedData) {
+            setGameStage('playing');
+            setPlayMenuMusic(false);
+             // Ensure game starts if log is empty
+            if (loadedData.logs.length === 0) {
+                startGame(loadedData.logs);
             }
-        } catch (error: any) {
-            console.error("Falha ao continuar o jogo:", error);
-        } finally {
-            setIsLoadingData(false);
+        } else {
+             // Handle case where session fails to load
+            setGameStage('session_list');
         }
-    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, clearGameState]);
+        setIsLoadingData(false);
+    }, [loadGameSession, setPlayMenuMusic, startGame]);
 
 
     const returnToMenu = useCallback(() => {
@@ -183,7 +165,7 @@ const GameContainer = () => {
             );
         }
 
-        if (gameStage === 'playing') {
+        if (gameStage === 'playing' && character) {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}
@@ -212,7 +194,7 @@ const GameContainer = () => {
                                         <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
                                             <Play className="h-6 w-6 text-white" />
                                         </button>
-                                        <button onClick={() => setCharacterToDelete(char)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
+                                        <button onClick={() => setCharacterToDelete(char as Character)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
                                             <Trash2 className="h-6 w-6 text-white" />
                                         </button>
                                     </div>

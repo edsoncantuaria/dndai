@@ -225,6 +225,32 @@ export const useNewGameState = () => {
         }
     }, [character, sessionId, isLoading, processPlayerAction]);
 
+    const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
+        clearGameState(); // Clear previous state before loading new one
+        setIsLoading(true);
+        setApiError(null);
+        try {
+            const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
+            if (sessionDetails && sessionDetails.character) {
+                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character);
+                
+                setCharacter(fullCharacter);
+                setLog(sessionDetails.logs || []);
+                setSessionId(id);
+                
+                return { character: fullCharacter, logs: sessionDetails.logs || [] };
+            } else {
+                throw new Error("Dados da sessão ou do personagem estão faltando.");
+            }
+        } catch(err: any) {
+            setApiError(err.message);
+            clearGameState();
+            return null;
+        } finally {
+            setIsLoading(false);
+        }
+    }, [clearGameState]);
+
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
@@ -341,6 +367,7 @@ export const useNewGameState = () => {
         sellItem,
         clearGameState,
         nextTurn,
+        loadGameSession,
         // State setters
         setCharacter,
         setLog,
