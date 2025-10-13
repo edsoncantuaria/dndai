@@ -109,6 +109,13 @@ export const useNewGameState = () => {
         setActionOptions([]);
         setCombatState(INITIAL_COMBAT_STATE);
         setApiError(null);
+        setLevelUpState(null);
+        setShopState(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPlayerRollRequest(null);
     }, []);
 
 

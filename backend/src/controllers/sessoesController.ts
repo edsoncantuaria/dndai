@@ -101,6 +101,7 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+        // Garante que as relações essenciais sejam sempre carregadas
         const sessao = await sessaoRepository.findOne({
             where: { id: Number(id), userId: userId!, deletedAt: IsNull() },
             relations: ['logs', 'character'] 

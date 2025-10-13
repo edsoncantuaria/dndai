@@ -118,18 +118,19 @@ const GameContainer = () => {
     const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
         const loadedData = await loadGameSession(sessionId);
+        setIsLoadingData(false); // Stop loading after attempt
+    
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
-             // Ensure game starts if log is empty
+            // Ensure game starts if log is empty
             if (loadedData.logs.length === 0) {
                 startGame(loadedData.logs);
             }
         } else {
-             // Handle case where session fails to load
+            // Handle case where session fails to load
             setGameStage('session_list');
         }
-        setIsLoadingData(false);
     }, [loadGameSession, setPlayMenuMusic, startGame]);
 
 

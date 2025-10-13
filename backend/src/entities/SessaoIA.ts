@@ -29,7 +29,7 @@ export class SessaoIA {
     @JoinColumn({ name: 'characterId' })
     character: Character | null;
 
-    @OneToMany(() => SessionLog, log => log.sessao, { cascade: true })
+    @OneToMany(() => SessionLog, log => log.sessao, { cascade: true, eager: true })
     logs: SessionLog[];
 
     @CreateDateColumn()
