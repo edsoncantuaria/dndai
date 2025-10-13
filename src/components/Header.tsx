@@ -203,10 +203,12 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                     </div>
                     <div className="text-center flex items-center gap-2">
                         <Shield className="h-5 w-5 text-blue-500" />
-                        <div>
-                            <div className="text-xs text-blue-400 font-semibold">CA</div>
-                            <div className="font-mono font-bold text-lg text-stone-200">{character.ac.value}</div>
-                        </div>
+                        {character.ac && (
+                            <div>
+                                <div className="text-xs text-blue-400 font-semibold">CA</div>
+                                <div className="font-mono font-bold text-lg text-stone-200">{character.ac.value}</div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
