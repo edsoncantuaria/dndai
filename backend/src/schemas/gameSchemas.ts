@@ -59,17 +59,17 @@ export const InventoryItemSchema = z.object({
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 
 // Define o tipo recursivo para JournalEntry primeiro
-type JournalEntry = {
+type JournalEntryType = {
     id: string;
     name: string;
     region: string;
     summary: string;
     looted: boolean;
-    subLocations?: JournalEntry[];
+    subLocations?: JournalEntryType[];
 };
 
 // Agora, defina o schema Zod e anote-o com o tipo
-const JournalEntrySchema: ZodType<JournalEntry> = z.object({
+const JournalEntrySchema: ZodType<JournalEntryType> = z.object({
     id: z.string(),
     name: z.string(),
     region: z.string(),

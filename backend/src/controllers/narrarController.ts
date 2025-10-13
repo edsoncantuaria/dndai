@@ -214,7 +214,8 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
 
         const aiResponse = await runGameMasterTurn(
             gameMasterFlowInput,
-            user.settings.apiKey
+            user.settings.apiKey,
+            user.settings.model // Passa o modelo do usuário
         );
 
 
