@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
-import type { Attributes } from '../types';
+import type { Attributes, Proficiency } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -237,18 +237,20 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             </div>
                         </div>
                     )}
-                     {traits && traits.length > 0 && (
+                    {(character.traits && (character.traits as any[]).length > 0) && (
                         <div>
-                             <h4 className="font-semibold text-stone-300">Traços Raciais</h4>
+                            <h4 className="font-semibold text-stone-300 mt-2">Traços Raciais</h4>
                             <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm mt-1">
-                                {traits.map(trait => <li key={trait.index}>{translateApiString(trait.name)}</li>)}
+                                {(character.traits as any[]).map(trait => (
+                                    <li key={trait.item.index}>{translateApiString(trait.item.name)}</li>
+                                ))}
                             </ul>
                         </div>
                     )}
                     {languages && (
                         <div>
-                            <h4 className="font-semibold text-stone-300">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{(languages || []).map(lang => translateApiString(lang)).join(', ')}</p>
+                            <h4 className="font-semibold text-stone-300 mt-2">Idiomas</h4>
+                            <p className="text-sm text-stone-300">{(languages as any[]).map(lang => translateApiString(lang.name)).join(', ')}</p>
                         </div>
                     )}
                  </div>
