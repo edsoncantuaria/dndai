@@ -70,15 +70,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                         if (userData.settings) {
                            loadSettings(userData.settings);
+                           // Prioritize DB key, then local storage key
                            if (userData.settings.apiKey) {
                                setApiKey(userData.settings.apiKey);
                            } else if (localApiKey) {
-                               saveSettingsToDB({ apiKey: localApiKey });
+                               // DB has settings but no API key, but local storage does. Sync it.
+                               await saveSettingsToDB({ ...userData.settings, apiKey: localApiKey });
                                setApiKey(localApiKey);
                            }
                         } else if (localApiKey) {
-                            // If no settings in DB, but key is in local storage, save it.
-                            saveSettingsToDB({ apiKey: localApiKey });
+                            // No settings in DB, but key is in local storage. Create settings object and save it.
+                            await saveSettingsToDB({ apiKey: localApiKey });
                             setApiKey(localApiKey);
                         }
 

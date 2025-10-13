@@ -45,18 +45,11 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
 
     try {
         const userRepository = AppDataSource.getRepository(User);
-        const user = await userRepository.findOneBy({ id: userId });
+        // Atualiza diretamente com as novas configurações, sobrescrevendo as antigas.
+        // Isso garante que a fonte da verdade seja sempre o que o cliente envia.
+        await userRepository.update(userId, { settings: newSettings });
         
-        if (!user) {
-            return next(createError(404, 'Usuário não encontrado.'));
-        }
-        
-        // Junta as configurações antigas com as novas para não sobrescrever tudo
-        const updatedSettings = { ...(user.settings || {}), ...newSettings };
-
-        await userRepository.update(userId, { settings: updatedSettings });
-        
-        res.status(200).json({ message: 'Configurações atualizadas com sucesso!', settings: updatedSettings });
+        res.status(200).json({ message: 'Configurações atualizadas com sucesso!', settings: newSettings });
 
     } catch (error) {
         next(error);
