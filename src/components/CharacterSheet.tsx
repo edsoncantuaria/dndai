@@ -3,9 +3,9 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
-import { Attributes, Proficiency } from '../types';
+import { Attributes, Proficiency, ApiTrait } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -14,7 +14,7 @@ const DeathSavesTracker: React.FC = () => {
     const { successes, failures } = character.deathSaves || { successes: 0, failures: 0 };
 
     return (
-        <div className="bg-red-900/40 p-3 rounded-lg border border-red-700/60">
+        <div className="bg-red-900/40 p-3 rounded-lg border border-red-700/60 mt-4">
             <h3 className="text-lg font-bold font-garamond text-red-300 mb-2">Testes de Morte</h3>
             <div className="flex justify-around">
                 <div className="text-center">
@@ -69,13 +69,13 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     )
 }
 
-const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode }> = ({ title, children }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
+const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
+    const [isExpanded, setIsExpanded] = useState(defaultOpen);
     return (
-        <div>
+        <div className="border-t border-stone-700 pt-3">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex justify-between items-center"
+                className="w-full flex justify-between items-center text-left"
                 aria-expanded={isExpanded}
             >
                 <h3 className="text-lg font-bold font-garamond text-amber-300 text-shadow-amber">{title}</h3>
@@ -99,33 +99,50 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 
     return (
         <div className="p-4 space-y-4">
-            <DeathSavesTracker />
+            <div className="text-center mb-4">
+                <h2 className="text-2xl font-bold font-garamond text-stone-100">{character.name}</h2>
+                <p className="text-sm text-stone-400">{translateApiString(character.race)} {translateApiString(character.characterClass)} de Nível {character.level}</p>
+            </div>
+
+            {/* Combat Stats Grid */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+                 <div className="bg-red-900/30 p-2 rounded-md border border-red-800">
+                    <div className="text-xs font-bold text-red-200 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> VIDA</div>
+                    <div className="font-bold text-xl text-stone-100">{character.hp.current} / {character.hp.max}</div>
+                </div>
+                 <div className="bg-blue-900/30 p-2 rounded-md border border-blue-800">
+                    <div className="text-xs font-bold text-blue-200 flex items-center justify-center gap-1"><ShieldCheck className="h-3 w-3"/> CA</div>
+                    <div className="font-bold text-xl text-stone-100">{character.ac.value}</div>
+                </div>
+                 <div className="bg-green-900/30 p-2 rounded-md border border-green-800">
+                    <div className="text-xs font-bold text-green-200 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> INICIATIVA</div>
+                    <div className="font-bold text-xl text-stone-100">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
+                </div>
+            </div>
             
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Informações Básicas</h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm bg-stone-800/50 p-3 rounded-md">
-                    <div className="text-stone-400">Raça: <span className="font-semibold text-stone-200">{translateApiString(character.race)}{character.subrace && ` (${translateApiString(character.subrace)})`}</span></div>
-                    <div className="text-stone-400">Classe: <span className="font-semibold text-stone-200">{translateApiString(character.characterClass)}</span></div>
-                    <div className="text-stone-400">Subclasse: <span className="font-semibold text-stone-200">{character.subclass ? translateApiString(character.subclass) : 'Nenhuma'}</span></div>
-                    <div className="text-stone-400">Antecedente: <span className="font-semibold text-stone-200">{translateApiString(character.background)}</span></div>
-                    <div className="text-stone-400 col-span-2">Alinhamento: <span className="font-semibold text-stone-200">{translateApiString(character.alignment)}</span></div>
+            <div className="grid grid-cols-2 gap-2 text-center">
+                 <div className="bg-stone-800/50 p-2 rounded-md">
+                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Footprints className="h-3 w-3" /> Deslocamento</div>
+                    <p className="font-bold text-lg text-stone-200">{character.speed ?? 0}m</p>
+                </div>
+                <div className="bg-stone-800/50 p-2 rounded-md">
+                    <div className="text-xs font-bold text-stone-400">Bônus de Prof.</div>
+                    <p className="font-bold text-lg text-amber-300">+{character.proficiencyBonus}</p>
                 </div>
             </div>
 
-            {attributes && modifiers && (
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Atributos</h3>
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                        {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
-                            <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
-                                <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
-                                <div className="font-bold text-lg text-stone-200">{attributes[attr] || 10}</div>
-                                <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
-                            </div>
-                        ))}
+            <DeathSavesTracker />
+
+            {/* Attributes & Skills */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
+                    <div key={attr} className="bg-stone-800/50 p-3 rounded-lg text-center">
+                        <div className="font-bold text-lg text-amber-300">{translateAttribute(attr)}</div>
+                        <div className="text-3xl font-bold text-stone-100 my-1">{attributes[attr]}</div>
+                        <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
                     </div>
-                </div>
-            )}
+                ))}
+            </div>
 
             {conditions && conditions.length > 0 && (
                 <div>
@@ -148,28 +165,8 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     </div>
                 </div>
             )}
-             {damage_resistances && damage_resistances.length > 0 && (
-                <div>
-                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Resistências a Dano</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {damage_resistances.map(res => (
-                            <span key={res} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                {translateApiString(res)}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-             )}
-             {traits && traits.length > 0 && (
-                <CollapsibleSection title="Características Raciais">
-                    <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm bg-stone-800/50 p-3 rounded-md">
-                        {traits.map(trait => <li key={trait.index}>{translateApiString(trait.name)}</li>)}
-                    </ul>
-                </CollapsibleSection>
-            )}
-
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Perícias</h3>
+            
+            <CollapsibleSection title="Perícias">
                 <div className="bg-stone-800/50 p-3 rounded-md space-y-1 divide-y divide-stone-700/50">
                     {characterUtils.ALL_SKILLS.map(skill => (
                         <SkillItem 
@@ -179,42 +176,10 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                         />
                     ))}
                 </div>
-            </div>
-            
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                        <span className="text-xs font-bold text-stone-400">Iniciativa</span>
-                        <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                        <span className="text-xs font-bold text-stone-400">Deslocamento</span>
-                        <p className="font-bold text-2xl text-stone-200">{character.speed ?? 0} <span className="text-base">ft</span></p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md">
-                        <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
-                        <p className="font-bold text-lg text-stone-200">{(hitDice || { current: 0 }).current} / {(hitDice || { total: 0 }).total} <span className="text-sm text-stone-400">d{character.hitDie || 0}</span></p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md">
-                        <span className="text-xs font-bold text-stone-400">Moedas</span>
-                        <div className="flex gap-2 items-baseline">
-                            <div className="text-amber-400 font-mono">
-                                <span className="font-bold text-lg">{(currency || { gp: 0 }).gp}</span>
-                                <span className="text-sm">gp</span>
-                            </div>
-                            <div className="text-slate-400 font-mono">
-                                <span className="font-bold text-lg">{(currency || { sp: 0 }).sp}</span>
-                                <span className="text-sm">sp</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            </CollapsibleSection>
 
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Ações de Descanso</h3>
-                <div className="grid grid-cols-2 gap-2">
+            <CollapsibleSection title="Ações de Descanso">
+                 <div className="grid grid-cols-2 gap-2">
                     <button
                         onClick={() => processPlayerAction("Tentar fazer um descanso curto.")}
                         disabled={isLoading || (combatState && combatState.isActive)}
@@ -232,47 +197,56 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                         Descanso Longo
                     </button>
                 </div>
-            </div>
-
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Equipamento Vestido</h3>
-                {equippedItems.length > 0 ? (
-                    <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm">
-                        {equippedItems.map(item => <li key={item.id}>{translateApiString(item.name)}</li>)}
-                    </ul>
-                ) : (
-                    <p className="text-stone-400 italic text-sm">Nenhum item equipado.</p>
-                )}
-            </div>
-            
-            {proficiencies && (
-                 <CollapsibleSection title="Outras Proficiências">
-                    <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
-                        {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                            <span key={(prof as any).id || prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                {translateApiString(prof.name)}
-                            </span>
-                        ))}
-                    </div>
-                </CollapsibleSection>
-            )}
-            {languages && (
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                    <p className="text-stone-300">{(languages || []).map(translateApiString).join(', ')}</p>
-                </div>
-            )}
-            <CollapsibleSection title="Personalidade">
-                <div className="space-y-1">
-                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {(character.personalityTraits || []).join(' ')}</p>
-                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
-                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
-                    <p className="text-sm text-stone-400"><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
+                 <div className="bg-stone-800/50 p-2 rounded-md text-center mt-2">
+                    <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
+                    <p className="font-bold text-lg text-stone-200">{(hitDice || { current: 0 }).current} / {(hitDice || { total: 0 }).total} <span className="text-sm text-stone-400">d{character.hitDie || 0}</span></p>
                 </div>
             </CollapsibleSection>
-            <CollapsibleSection title="História de Fundo">
+            
+             <CollapsibleSection title="Características e Traços">
+                 <div className="space-y-3 bg-stone-800/50 p-3 rounded-md">
+                     {damage_resistances && damage_resistances.length > 0 && (
+                        <div>
+                             <h4 className="font-semibold text-stone-300">Resistências a Dano</h4>
+                            <div className="flex flex-wrap gap-2 mt-1">
+                                {damage_resistances.map(res => (
+                                    <span key={res} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                        {translateApiString(res)}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                     )}
+                     {traits && traits.length > 0 && (
+                        <div>
+                             <h4 className="font-semibold text-stone-300">Traços Raciais</h4>
+                            <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm mt-1">
+                                {traits.map(trait => <li key={trait.index}>{translateApiString(trait.name)}</li>)}
+                            </ul>
+                        </div>
+                    )}
+                    {languages && (
+                        <div>
+                            <h4 className="font-semibold text-stone-300">Idiomas</h4>
+                            <p className="text-sm text-stone-300">{(languages || []).map(translateApiString).join(', ')}</p>
+                        </div>
+                    )}
+                 </div>
+            </CollapsibleSection>
+            
+            <CollapsibleSection title="Personalidade">
+                <div className="space-y-1 bg-stone-800/50 p-3 rounded-md text-sm text-stone-400">
+                    <p><strong className="text-stone-300">Traços:</strong> {(character.personalityTraits || []).join(' ')}</p>
+                    <p><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
+                    <p><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
+                    <p><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
+                </div>
+            </CollapsibleSection>
+
+            <CollapsibleSection title="História">
                 <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.backstory}</p>
             </CollapsibleSection>
+
             {character.storySoFar && (
                 <CollapsibleSection title="Crônicas da Aventura">
                     <p className="text-sm text-stone-400 whitespace-pre-wrap bg-stone-800/50 p-3 rounded-md border border-stone-700">{character.storySoFar}</p>
@@ -283,3 +257,5 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
+
+    

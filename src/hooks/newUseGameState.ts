@@ -1,8 +1,9 @@
+
 // src/hooks/newUseGameState.ts
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest, Combatant, SessaoIA } from '../types';
+import { useState, useCallback } from 'react';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import * as GameService from '../services/gameService';
 import { v4 as uuidv4 } from 'uuid';
@@ -170,7 +171,6 @@ export const useNewGameState = () => {
         try {
             const savedCharacterResponse = await GameService.createNewCharacter(info);
             if(savedCharacterResponse.character) {
-                // This now just returns the backend object to be used in the vault.
                 return savedCharacterResponse.character;
             }
             return null;
@@ -217,7 +217,6 @@ export const useNewGameState = () => {
     const startGame = useCallback(async (): Promise<void> => {
         if (!character || !sessionId || isLoading) return;
         
-        // Only send the starting prompt if the log is empty
         if (log.length === 0) {
             await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         }
@@ -346,3 +345,5 @@ export const useNewGameState = () => {
         setSessionId
     };
 };
+
+    

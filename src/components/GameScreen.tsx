@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState } from 'react';
@@ -32,7 +33,6 @@ interface GameScreenProps {
 const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
-        combatState, 
         levelUpState, 
         shopState, 
         apiError, 
@@ -157,3 +157,5 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
+
+    

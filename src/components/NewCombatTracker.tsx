@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -10,6 +11,14 @@ const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(true);
 
+    const getCombatantId = (entry: any): string => {
+        if (!entry) return '';
+        if (typeof entry === 'string') return entry;
+        if (entry.id) return entry.id;
+        if (entry.name && character && entry.name === character.name) return character.name;
+        return entry.name || ''; // Fallback
+    };
+    
     const allCombatants = useMemo<Combatant[]>(() => {
         if (!combatState.isActive || !character) {
             return [];
@@ -17,53 +26,51 @@ const NewCombatTracker: React.FC = () => {
 
         const combatantMap = new Map<string, Combatant>();
 
-        // Create player combatant from the main character state. This is the source of truth.
         const playerCombatant: Combatant = {
-            id: character.name, // Use the character name as a reliable ID for the player
+            id: character.name,
             name: character.name,
-            hp: character.hp.current,
-            maxHp: character.hp.max,
-            initiative: 0, // Will be updated by API data
+            hp: { current: character.hp.current, max: character.hp.max },
+            initiative: 0,
             isDead: character.hp.current <= 0,
-            hasMoved: false, // State managed by AI
-            hasActed: false, // State managed by AI
-            actionPoints: 1, // Default, will be updated
-            bonusActionPoints: 1, // Default, will be updated
-            conditions: character.conditions,
+            hasMoved: false,
+            hasActed: false,
+            actionPoints: 1,
+            bonusActionPoints: 1,
+            conditions: character.conditions.map(c => c.name),
             rollHistory: [],
             isPlayer: true,
-            armorClass: character.ac.value,
+            ac: character.ac.value,
         };
         combatantMap.set(playerCombatant.id, playerCombatant);
         
-        // Process combatants from the API, merging with player data
         (combatState.combatants || []).forEach(apiCombatant => {
             if (!apiCombatant || !apiCombatant.name) return;
             const isPlayerFromApi = apiCombatant.name === character.name;
-            const id = isPlayerFromApi ? character.name : apiCombatant.id;
+            const id = getCombatantId(apiCombatant);
+            if (!id) return;
 
             const existingCombatant = combatantMap.get(id);
 
-            // Safely get HP values, handling both {current, max} and direct number formats
-            let currentHp = apiCombatant.hp;
+            let currentHp = apiCombatant.hp as any;
             if (typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null) {
                 currentHp = (apiCombatant.hp as any).current;
             }
 
-            let maxHp = apiCombatant.maxHp;
+            let maxHp = apiCombatant.hp as any;
             if (typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null) {
                 maxHp = (apiCombatant.hp as any).max;
             }
 
-
             const mergedCombatant: Combatant = {
-                ...existingCombatant, // Start with base (player) or empty object
-                ...apiCombatant, // Apply API data
-                id, // Ensure consistent ID
+                ...(existingCombatant || {}),
+                ...apiCombatant,
+                id,
                 isPlayer: isPlayerFromApi,
-                hp: typeof currentHp === 'number' ? currentHp : (existingCombatant?.hp || 1),
-                maxHp: typeof maxHp === 'number' ? maxHp : (existingCombatant?.maxHp || 1),
-                armorClass: apiCombatant.armorClass ?? (existingCombatant?.armorClass || 10),
+                hp: {
+                    current: typeof currentHp === 'number' ? currentHp : (existingCombatant?.hp?.current || 1),
+                    max: typeof maxHp === 'number' ? maxHp : (existingCombatant?.hp?.max || 1)
+                },
+                ac: apiCombatant.ac ?? (existingCombatant?.ac || 10),
                 actionPoints: apiCombatant.actionPoints ?? (existingCombatant?.actionPoints || 1),
                 bonusActionPoints: apiCombatant.bonusActionPoints ?? (existingCombatant?.bonusActionPoints || 1),
                 isDead: apiCombatant.isDead ?? (currentHp !== undefined && currentHp <= 0),
@@ -72,23 +79,16 @@ const NewCombatTracker: React.FC = () => {
             combatantMap.set(id, mergedCombatant);
         });
 
-        // Ensure the player is always in the list if combat is active
         if (!combatantMap.has(character.name)) {
             combatantMap.set(character.name, playerCombatant);
         }
 
         const validCombatants = Array.from(combatantMap.values()).filter(c => c && c.id && c.name);
-
+    
         if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) {
              return validCombatants.sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
         }
     
-        const getCombatantId = (entry: any): string => {
-            if (typeof entry === 'string') return entry;
-            if (entry.id.toLowerCase().includes('player') || entry.name === character.name) return character.name;
-            return entry.id;
-        }
-
         return combatState.initiativeOrder
             .map(orderEntry => {
                 const id = getCombatantId(orderEntry);
@@ -105,22 +105,16 @@ const NewCombatTracker: React.FC = () => {
     const { round, turn, initiativeOrder } = combatState;
     if (!initiativeOrder || initiativeOrder.length === 0) return null;
     
-    const getCombatantId = (entry: any): string => {
-        if (typeof entry === 'string') return entry;
-        if (entry.id.toLowerCase().includes('player') || entry.name === character!.name) return character!.name;
-        return entry.id;
-    }
-    
     const currentCombatantIndex = turn % initiativeOrder.length;
     const currentCombatantId = getCombatantId(initiativeOrder[currentCombatantIndex]);
-    const currentCombatant = allCombatants.find(c => c.id === currentCombatantId);
+    const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
     
     const upcomingCombatants = [];
     if (allCombatants.length > 1) {
         for (let i = 1; i < allCombatants.length; i++) {
             const nextIndex = (currentCombatantIndex + i) % allCombatants.length;
             const nextCombatant = allCombatants[nextIndex];
-            if (nextCombatant && !nextCombatant.isDead) { // Filter out defeated combatants from upcoming list
+            if (nextCombatant && !nextCombatant.isDead) {
                 upcomingCombatants.push(nextCombatant);
             }
         }
@@ -141,7 +135,7 @@ const NewCombatTracker: React.FC = () => {
                 </h3>
 
                 <div className="flex items-center gap-4">
-                  { !isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant} /> }
+                  { !isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant as Combatant} /> }
                   <span className="font-mono text-lg text-red-300">Round {round}</span>
                   <ChevronDown className={`h-6 w-6 transition-transform text-red-300 hover:text-white ${isExpanded ? 'rotate-180' : ''}`} />
                 </div>
@@ -154,7 +148,7 @@ const NewCombatTracker: React.FC = () => {
                             <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
                             <CombatantCard
                                 key={currentCombatant.id}
-                                combatant={currentCombatant}
+                                combatant={currentCombatant as Combatant}
                                 isCurrentTurn={true}
                                 isPlayer={!!currentCombatant.isPlayer}
                             />
@@ -169,7 +163,7 @@ const NewCombatTracker: React.FC = () => {
                                     combatant ? (
                                         <CombatantCard
                                             key={combatant.id}
-                                            combatant={combatant}
+                                            combatant={combatant as Combatant}
                                             isCurrentTurn={false}
                                             isPlayer={!!combatant.isPlayer}
                                         />
@@ -196,3 +190,5 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
+
+    

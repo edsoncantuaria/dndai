@@ -1,3 +1,4 @@
+
 // src/components/GameContainer.tsx
 'use client';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -10,7 +11,6 @@ import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
-import CharacterCreation from './CharacterCreation';
 import { useAuth } from '@/contexts/AuthContext';
 import * as characterUtils from '@/utils/characterUtils';
 
@@ -21,9 +21,7 @@ type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_char
 const GameContainer = () => {
     const {
         character,
-        log,
         clearGameState,
-        createCharacter,
         deleteCharacter,
         deleteSession,
         startGame,
@@ -98,7 +96,7 @@ const GameContainer = () => {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
                 await fetchInitialData();
-                await handleContinueGame(newSessionResponse.sessao.id, true); // Pass a flag for new game
+                await handleContinueGame(newSessionResponse.sessao.id);
             }
         } catch (error) {
             console.error("Failed to create new game session:", error);
@@ -110,8 +108,9 @@ const GameContainer = () => {
         fetchInitialData(); // Refresh character list
     }
 
-    const handleContinueGame = useCallback(async (sessionId: number, isNewGame: boolean = false) => {
+    const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
+        clearGameState();
         try {
             const sessionDetails = await GameService.getSessionDetails(sessionId);
             if (sessionDetails && sessionDetails.character) {
@@ -122,7 +121,8 @@ const GameContainer = () => {
                 setGameStage('playing');
                 setPlayMenuMusic(false);
 
-                if (isNewGame && (!sessionDetails.logs || sessionDetails.logs.length === 0)) {
+                // If the log is empty, it's a new session, so start the game flow.
+                if (!sessionDetails.logs || sessionDetails.logs.length === 0) {
                     startGame();
                 }
             } else {
@@ -133,7 +133,7 @@ const GameContainer = () => {
         } finally {
             setIsLoadingData(false);
         }
-    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, startGame]);
+    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, startGame, clearGameState]);
 
 
     const returnToMenu = useCallback(() => {
@@ -168,10 +168,9 @@ const GameContainer = () => {
             );
         }
 
-        if (gameStage === 'playing' && character) {
+        if (gameStage === 'playing') {
             return (
                 <Game
-                    startNewGameFlow={() => setGameStage('character_vault')}
                     onCharacterCreated={handleCharacterCreated}
                     returnToMenu={returnToMenu}
                     gameStage={gameStage}
@@ -222,7 +221,6 @@ const GameContainer = () => {
 
         if(gameStage === 'creating_character') {
             return <Game
-                startNewGameFlow={() => {}}
                 onCharacterCreated={handleCharacterCreated}
                 returnToMenu={returnToMenu}
                 gameStage={gameStage}
@@ -316,3 +314,5 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
+
+    
