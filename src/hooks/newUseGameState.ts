@@ -327,6 +327,7 @@ export const useNewGameState = () => {
     }, [character, processPlayerAction]);
 
     const nextTurn = useCallback(() => processPlayerAction("Processar próximo turno"), [processPlayerAction]);
+    
     const forceReload = useCallback(() => {
         const id = loadSessionId();
         if (id) {

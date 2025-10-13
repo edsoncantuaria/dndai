@@ -127,10 +127,14 @@ export const testAiConnection = async (model: string): Promise<string> => {
     // handles the API key securely and doesn't expose a direct test endpoint.
     // For now, we assume it exists for diagnostics.
     try {
-        const response = await fetch(`${API_URL}/system/test-ai`, { // Assuming a new endpoint
+        // This is a placeholder endpoint. The backend would need a route like '/system/test-ai'
+        const response = await fetch(`${API_URL}/narrar/test`, { 
             method: 'POST',
             headers: getAuthHeaders(),
-            body: JSON.stringify({ model }),
+            body: JSON.stringify({ 
+                prompt: "Diga olá em uma única palavra.",
+                model: model 
+            }),
         });
 
         const result = await response.json();
@@ -145,3 +149,5 @@ export const testAiConnection = async (model: string): Promise<string> => {
         throw error;
     }
 };
+
+    

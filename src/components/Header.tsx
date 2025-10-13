@@ -21,7 +21,8 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
     const { character, isLoading } = useGameStateContext();
     const { user, logout } = useAuth();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, apiKey } = useSettingsContext();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, apiKey: userApiKey } = useSettingsContext();
+    const getApiKey = useCallback(() => userApiKey, [userApiKey]);
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -49,6 +50,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         setAiTestResult(null);
         setTestImageUrl(null);
         try {
+            // Note: This service function might not exist yet in the refactored gameService
             const response = await GameService.testAiConnection(selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta de texto.");
@@ -68,27 +70,29 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         setIsGeneratingImage(true);
         setTestImageUrl(null);
         try {
-            if (!apiKey) throw new Error("Chave de API não encontrada.");
+            const apiKeyToUse = getApiKey();
+            if (!apiKeyToUse) throw new Error("Chave de API não encontrada.");
             const prompt = "Dungeons and Dragons 5e style art, digital painting, cinematic lighting: A lone adventurer stands on a cliff overlooking a vast, misty valley at sunrise. A dragon circles in the distant sky. The scene should be inspiring, epic, and full of potential.";
-            const response = await generateImage(prompt, selectedImageModel, apiKey);
+            const response = await generateImage(prompt, selectedImageModel, apiKeyToUse);
             if (response?.imageUrl) {
                 setTestImageUrl(response.imageUrl);
             } else {
                 throw new Error("A geração de imagem falhou ou retornou um resultado vazio.");
             }
         } catch (error: any) {
-             setAiTestResult(prev => ({...prev!, message: `Erro na geração de imagem: ${error.message}`}));
+             setAiTestResult(prev => ({...(prev || {title: 'Erro', message: '', success: false}), message: `Erro na geração de imagem: ${error.message}`}));
         } finally {
             setIsGeneratingImage(false);
         }
-    }, [apiKey, selectedImageModel]);
+    }, [getApiKey, selectedImageModel]);
 
     const handleTestTts = useCallback(async () => {
         if (!aiTestResult?.message || !aiTestResult.success) return;
         setIsGeneratingAudio(true);
         try {
-            if (!apiKey) throw new Error("Chave de API não encontrada.");
-            const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKey);
+            const apiKeyToUse = getApiKey();
+            if (!apiKeyToUse) throw new Error("Chave de API não encontrada.");
+            const response = await textToSpeech(aiTestResult.message, ttsModel, ttsVoice, apiKeyToUse);
             if (response?.media && audioRef.current) {
                 audioRef.current.src = response.media;
                 audioRef.current.play();
@@ -96,11 +100,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                 throw new Error("A geração de áudio falhou.");
             }
         } catch (error: any) {
-             setAiTestResult(prev => ({...prev!, message: `Erro no TTS: ${error.message}`}));
+             setAiTestResult(prev => ({...(prev || {title: 'Erro', message: '', success: false}), message: `Erro no TTS: ${error.message}`}));
         } finally {
             setIsGeneratingAudio(false);
         }
-    }, [aiTestResult, apiKey, ttsModel, ttsVoice]);
+    }, [aiTestResult, getApiKey, ttsModel, ttsVoice]);
 
 
     if (!character) {
@@ -266,3 +270,5 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 };
 
 export default Header;
+
+    
