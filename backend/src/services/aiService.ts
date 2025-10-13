@@ -77,8 +77,6 @@ export const streamGameMasterTurn = async (
 
     const fullPrompt = `${promptDnD5e}\n\n${JSON.stringify({ ...input, streaming_instructions: streamingPrompt })}`;
 
-    // This call is synchronous and should not be awaited inside a try/catch here.
-    // It returns the stream and promise object immediately. The controller will handle the promise rejection.
     const { stream, response } = await dynamicAi.generate({
         model: `googleai/${model}`,
         prompt: fullPrompt,
@@ -91,6 +89,5 @@ export const streamGameMasterTurn = async (
         stream: true,
     });
 
-    return { textStream: stream, responsePromise: response };
+    return { stream, responsePromise: response };
 };
-

@@ -229,16 +229,14 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             res.setHeader('Transfer-Encoding', 'chunked');
 
-            const { textStream, responsePromise } = await streamGameMasterTurn(
+            const { stream, responsePromise } = await streamGameMasterTurn(
                 gameMasterFlowInput,
                 apiKey,
                 user?.settings?.model || "gemini-2.5-flash"
             );
             
-            let fullText = '';
-            for await (const chunk of textStream) {
+            for await (const chunk of stream) {
                 res.write(chunk.text);
-                fullText += chunk.text;
             }
             
             // Now, get the full structured response
