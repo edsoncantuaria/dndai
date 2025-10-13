@@ -36,21 +36,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB } = useSettingsContext();
     const { toast } = useToast();
 
+    // Recalculate hasApiKey whenever apiKey changes.
     const hasApiKey = !!apiKey;
 
     const logout = useCallback(() => {
         setUser(null);
         setIsLicenseActive(false);
         setApiKey('');
-        localStorage.removeItem('token');
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('token');
+            localStorage.removeItem('apiKey'); // Also clear the local API key on logout
+        }
         toast({
             description: "Você saiu da sua conta.",
-        })
+        });
     }, [toast, setApiKey]);
     
     useEffect(() => {
         const validateSession = async () => {
             const token = localStorage.getItem('token');
+            // Try to load API key from localStorage on initial load as a fallback
+            const localApiKey = localStorage.getItem('apiKey');
+            if (localApiKey) {
+                setApiKey(localApiKey);
+            }
+
             if (token) {
                 try {
                     const response = await fetch(`${API_URL}/users/me`, {
@@ -64,9 +74,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                         if (userData.settings) {
                            loadSettings(userData.settings);
-                           // Explicitly set API key from saved settings
+                           // Explicitly set API key from saved DB settings if it exists
                            if (userData.settings.apiKey) {
                                setApiKey(userData.settings.apiKey);
+                           } else if (localApiKey) {
+                               // If not in DB, but in local storage, save it to DB
+                               saveSettingsToDB({ apiKey: localApiKey });
                            }
                         }
 
@@ -81,7 +94,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
         };
         validateSession();
-    }, [logout, loadSettings, setApiKey]);
+    }, [logout, loadSettings, setApiKey, saveSettingsToDB]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
@@ -97,6 +110,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     loadSettings(userData.settings);
                     if (userData.settings.apiKey) {
                         setApiKey(userData.settings.apiKey);
+                        localStorage.setItem('apiKey', userData.settings.apiKey); // Sync to localStorage
                     }
                 }
 
@@ -181,6 +195,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const saveApiKey = async (newApiKey: string) => {
         setApiKey(newApiKey);
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('apiKey', newApiKey);
+        }
         await saveSettingsToDB({ apiKey: newApiKey });
         toast({
             title: "Chave de API Salva!",

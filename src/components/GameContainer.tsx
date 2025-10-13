@@ -28,8 +28,8 @@ const GameContainer = () => {
         startGame,
     } = useGameStateContext();
 
-    const { apiKey } = useAuth();
-    const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
+    const { user } = useAuth();
+    const { playMenuMusic, setPlayMenuMusic, volume, isMuted, apiKey } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -142,80 +142,80 @@ const GameContainer = () => {
 
     // --- Render Logic ---
 
-    if (gameStage === 'loading' || isLoadingData) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4 text-lg">Carregando suas crônicas...</p>
-            </div>
-        );
-    }
+    const renderContent = () => {
+        if (gameStage === 'loading' || isLoadingData) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
+                    <Loader2 className="h-12 w-12 animate-spin" />
+                    <p className="mt-4 text-lg">Carregando suas crônicas...</p>
+                </div>
+            );
+        }
 
-    if (gameStage === 'playing' && character) {
-         return (
-            <Game
-                startNewGameFlow={() => setGameStage('character_vault')}
+        if (gameStage === 'playing' && character) {
+            return (
+                <Game
+                    startNewGameFlow={() => setGameStage('character_vault')}
+                    onCharacterCreated={handleCharacterCreated}
+                    returnToMenu={returnToMenu}
+                    gameStage={gameStage}
+                />
+            );
+        }
+
+        if (gameStage === 'character_vault') {
+            return (
+                <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+                    <header className="mb-8">
+                        <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Cofre de Heróis</h1>
+                        <p className="text-stone-400 mt-2">Escolha um herói para uma nova aventura ou crie um novo campeão.</p>
+                    </header>
+                    <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
+                        {characters.length > 0 ? (
+                            characters.map(char => (
+                                <div key={char.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
+                                    <div>
+                                        <p className="font-bold text-lg text-stone-200">{char.name}</p>
+                                        <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
+                                            <Play className="h-6 w-6 text-white" />
+                                        </button>
+                                        <button onClick={() => setCharacterToDelete(char)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
+                                            <Trash2 className="h-6 w-6 text-white" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-stone-400 italic py-8">Nenhum herói foi forjado ainda.</p>
+                        )}
+                    </main>
+                    <footer className="mt-6 flex items-center justify-center gap-4">
+                        <button onClick={() => setGameStage('creating_character')} className="menu-button btn-new">
+                            <User className="mr-2 h-6 w-6"/> Criar Novo Herói
+                        </button>
+                        <button onClick={() => setGameStage('session_list')} className="text-stone-300 hover:text-amber-300 underline">
+                            Voltar para Sessões
+                        </button>
+                    </footer>
+                </div>
+            );
+        }
+
+        if(gameStage === 'creating_character') {
+            return <Game
+                startNewGameFlow={() => {}}
                 onCharacterCreated={handleCharacterCreated}
                 returnToMenu={returnToMenu}
                 gameStage={gameStage}
-            />
-        );
-    }
+            />;
+        }
 
-    if (gameStage === 'character_vault') {
+        // Default: session list
         return (
-            <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
-                <header className="mb-8">
-                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Cofre de Heróis</h1>
-                    <p className="text-stone-400 mt-2">Escolha um herói para uma nova aventura ou crie um novo campeão.</p>
-                </header>
-                <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
-                    {characters.length > 0 ? (
-                        characters.map(char => (
-                            <div key={char.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
-                                <div>
-                                    <p className="font-bold text-lg text-stone-200">{char.name}</p>
-                                    <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                     <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
-                                        <Play className="h-6 w-6 text-white" />
-                                    </button>
-                                     <button onClick={() => setCharacterToDelete(char)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
-                                        <Trash2 className="h-6 w-6 text-white" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-stone-400 italic py-8">Nenhum herói foi forjado ainda.</p>
-                    )}
-                </main>
-                <footer className="mt-6 flex items-center justify-center gap-4">
-                     <button onClick={() => setGameStage('creating_character')} className="menu-button btn-new">
-                        <User className="mr-2 h-6 w-6"/> Criar Novo Herói
-                    </button>
-                     <button onClick={() => setGameStage('session_list')} className="text-stone-300 hover:text-amber-300 underline">
-                        Voltar para Sessões
-                    </button>
-                </footer>
-            </div>
-        );
-    }
-
-    if(gameStage === 'creating_character') {
-        return <Game
-            startNewGameFlow={() => {}}
-            onCharacterCreated={handleCharacterCreated}
-            returnToMenu={returnToMenu}
-            gameStage={gameStage}
-        />;
-    }
-
-    // Default to session list
-    return (
-         <>
-             <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+            <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
                 <button 
                     onClick={() => setShowSettingsModal(true)} 
                     className="absolute top-0 right-0 p-3 text-stone-400 hover:text-amber-300 transition-colors"
@@ -223,8 +223,7 @@ const GameContainer = () => {
                 >
                     <Settings className="h-7 w-7"/>
                 </button>
-
-                 <header className="mb-8" style={{ animationDelay: '200ms' }}>
+                <header className="mb-8" style={{ animationDelay: '200ms' }}>
                     <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Sessões de Jogo
                     </h1>
@@ -252,12 +251,19 @@ const GameContainer = () => {
                             <p className="text-stone-400 italic py-4">Nenhuma aventura em andamento.</p>
                         )}
                     </div>
-                     <button onClick={() => setGameStage('character_vault')} className="menu-button btn-new mt-6">
+                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-new mt-6">
                         <Plus className="mr-2 h-6 w-6"/> Nova Aventura
                     </button>
                 </main>
-             </div>
-              {characterToDelete && (
+            </div>
+        );
+    }
+
+    return (
+        <>
+            {renderContent()}
+
+            {characterToDelete && (
                 <ActionModal
                     isOpen={!!characterToDelete}
                     title={`Deletar ${characterToDelete.name}?`}
@@ -272,7 +278,7 @@ const GameContainer = () => {
             )}
 
             {sessionToDelete && (
-                 <ActionModal
+                <ActionModal
                     isOpen={!!sessionToDelete}
                     title={`Deletar Sessão "${sessionToDelete.nome}"?`}
                     onClose={() => setSessionToDelete(null)}
@@ -286,7 +292,7 @@ const GameContainer = () => {
             )}
 
             {showApiKeyModal && (
-                 <ActionModal
+                <ActionModal
                     isOpen={showApiKeyModal}
                     title="Chave de API Necessária"
                     onClose={() => setShowApiKeyModal(false)}
@@ -303,8 +309,8 @@ const GameContainer = () => {
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
             />
-         </>
-    )
+        </>
+    );
 };
 
 export default GameContainer;
