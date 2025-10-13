@@ -149,15 +149,21 @@ const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
 
 export const buildFrontendCharacter = async (backendChar: any): Promise<Character> => {
     // 1. Fetch full details for race, class, and subclass
-    const [raceDetails, classDetails, subraceDetails] = await Promise.all([
+    let subraceDetails: ApiSubrace | null = null;
+    
+    const [raceDetails, classDetails] = await Promise.all([
         DndApiService.getRaceDetails(backendChar.race.toLowerCase()),
         DndApiService.getClassDetails(backendChar.characterClass.toLowerCase()),
-        backendChar.subrace ? DndApiService.getSubraceDetails(backendChar.subrace.toLowerCase()) : Promise.resolve(null)
     ]);
+    
+    // Check if there is a subrace and fetch its details if so.
+    if (backendChar.subrace) {
+        subraceDetails = await DndApiService.getSubraceDetails(backendChar.subrace.toLowerCase());
+    }
     
     // Fetch level data
     const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const subclassLevelsData = subclassDetails ? (await DndApiService.getSubclassLevels(subclassDetails.index) || []) : [];
+    const subclassLevelsData = subraceDetails ? (await DndApiService.getSubclassLevels(subraceDetails.index) || []) : [];
     
     // 2. Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
@@ -203,8 +209,8 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
                     : levelData.spellcasting[slotKey];
                 
                 spellSlots[`level${i}`] = {
-                    max: levelData.spellcasting[slotKey],
-                    current: currentSlots,
+                    max: levelData.spellcasting[slotKey] as number,
+                    current: currentSlots as number,
                 };
             }
         }
