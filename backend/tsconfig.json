@@ -1,24 +1,24 @@
 
 {
   "compilerOptions": {
-    "target": "ES2022", // Alvo moderno para compatibilidade com Node.js 20+
-    "module": "NodeNext", // Usa o sistema de módulos ESM do Node.js
+    "target": "ESNext",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "rootDir": "./src", // Todos os arquivos fonte estão em 'src'
-    "outDir": "./dist", // Onde o JavaScript compilado será salvo
-    "esModuleInterop": true, // Permite compatibilidade entre módulos CommonJS e ESM
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true, // Habilita todas as verificações de tipo estrito
-    "skipLibCheck": true, // Pula a verificação de tipos de arquivos de declaração (.d.ts)
-    "experimentalDecorators": true, // Necessário para o TypeORM
-    "emitDecoratorMetadata": true, // Necessário para o TypeORM e reflect-metadata
-    "sourceMap": true // Gera source maps para facilitar o debug
+    "strict": true,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "sourceMap": true
   },
   "include": [
-    "src/**/*" // Inclui todos os arquivos dentro da pasta 'src'
+    "src/**/*"
   ],
   "exclude": [
-    "node_modules", // Exclui a pasta de dependências
-    "**/*.spec.ts" // Exclui arquivos de teste
+    "node_modules",
+    "**/*.spec.ts"
   ]
 }
