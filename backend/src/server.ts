@@ -17,7 +17,11 @@ import characterRoutes from './routes/characterRoutes.js';
 const app = express();
 
 // Configuração do CORS
-const allowedOrigins = ['http://localhost:9002', 'https://rpg.edsin-server.space'];
+const allowedOrigins = [
+    'http://localhost:9002', 
+    'https://rpg.edsin-server.space',
+    'https://6000-firebase-studio-1758579208514.cluster-udxxdyopu5c7cwhhtg6mmadhvs.cloudworkstations.dev'
+];
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
         // Permitir requisições sem 'origin' (ex: Postman, apps mobile) ou da lista de permissões
