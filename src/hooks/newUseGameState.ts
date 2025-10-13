@@ -1,8 +1,7 @@
-
 // src/hooks/newUseGameState.ts
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import * as GameService from '../services/gameService';
@@ -171,6 +170,7 @@ export const useNewGameState = () => {
         try {
             const savedCharacterResponse = await GameService.createNewCharacter(info);
             if(savedCharacterResponse.character) {
+                // This now returns the backend object, not a full frontend character
                 return savedCharacterResponse.character;
             }
             return null;
@@ -214,14 +214,15 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
 
-    const startGame = useCallback(async (): Promise<void> => {
+    const startGame = useCallback(async (currentLog: LogEntry[]): Promise<void> => {
         if (!character || !sessionId || isLoading) return;
         
-        if (log.length === 0) {
+        // Only send the starting prompt if the log is empty
+        if (currentLog.length === 0) {
             await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         }
         
-    }, [character, sessionId, log, isLoading, processPlayerAction]);
+    }, [character, sessionId, isLoading, processPlayerAction]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
@@ -345,5 +346,3 @@ export const useNewGameState = () => {
         setSessionId
     };
 };
-
-    
