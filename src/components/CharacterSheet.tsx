@@ -1,3 +1,4 @@
+
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -233,7 +234,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             <h4 className="font-semibold text-stone-300">Proficiências</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                                    <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                    <span key={prof.id} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                                         {translateApiString(prof.name)}
                                     </span>
                                 ))}
