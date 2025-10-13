@@ -107,7 +107,6 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         raceDetails,
         classDetails,
         traitChoiceDetails,
-        isSpellsLoading,
         handleRandomizeRaceAndClass,
         subclassFlavor,
     } = hook;
@@ -198,11 +197,11 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                 <button
                     type="button"
                     onClick={nextStep}
-                    disabled={!canProceed || isSpellsLoading}
+                    disabled={!canProceed}
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {isSpellsLoading ? <Loader2 className="mr-3 animate-spin" /> : <ArrowRight className="h-6 w-6 mr-3"/>}
-                    {isSpellsLoading ? 'Carregando...' : (canProceed ? 'Avançar' : 'Faça suas escolhas')}
+                    <ArrowRight className="h-6 w-6 mr-3"/>
+                    {canProceed ? 'Avançar' : 'Faça suas escolhas'}
                 </button>
             </div>
         </div>

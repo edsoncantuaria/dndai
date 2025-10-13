@@ -747,45 +747,51 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setClassDetails(null);
         setClassLevels(null);
         setClassSpellOptions([]);
-        setSubclassSpells([]); // Limpa as magias de subclasse
-        setSubclassFlavor(null); // Limpa o flavor da subclasse
+        setSubclassSpells([]);
+        setSubclassFlavor(null);
         resetSelections('class');
     
         if (newClassIndex) {
             setIsEquipmentLoading(true);
-            setIsSpellsLoading(true);
-            setSpellsLoadingProgress('Carregando detalhes da classe...');
-            
-            const [details, levels, spellsResponse] = await Promise.all([
-                DndApiService.getClassDetails(newClassIndex),
-                DndApiService.getClassLevels(newClassIndex),
-                DndApiService.getSpellsForClass(newClassIndex)
-            ]);
+    
+            // Fetch primary class data without blocking
+            const detailsPromise = DndApiService.getClassDetails(newClassIndex);
+            const levelsPromise = DndApiService.getClassLevels(newClassIndex);
+    
+            const [details, levels] = await Promise.all([detailsPromise, levelsPromise]);
     
             setClassDetails(details);
             setClassLevels(levels);
+            setIsEquipmentLoading(false);
     
+            // Fetch subclass flavor immediately
             if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
                 setSubclassFlavor(subClassDetails?.subclass_flavor || null);
-                if (subClassDetails?.spells) {
-                    const subclassSpellItems = subClassDetails.spells.map(s => s.spell);
-                    const subclassSpellDetails = await fetchDetailsInChunks(subclassSpellItems, DndApiService.getSpellDetails, ()=>{});
-                    setSubclassSpells(subclassSpellDetails.filter((s): s is ApiSpell => s !== null));
-                }
             }
     
-            if (details?.spellcasting && spellsResponse?.results) {
-                 const spellDetails = await fetchDetailsInChunks(
-                    spellsResponse.results,
-                    DndApiService.getSpellDetails,
-                    (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
-                );
-                setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
+            // Start fetching spells in the background
+            if (details?.spellcasting) {
+                setIsSpellsLoading(true);
+                setSpellsLoadingProgress('Carregando magias...');
+    
+                DndApiService.getSpellsForClass(newClassIndex).then(spellsResponse => {
+                    if (spellsResponse?.results) {
+                        fetchDetailsInChunks(
+                            spellsResponse.results,
+                            DndApiService.getSpellDetails,
+                            (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`)
+                        ).then(spellDetails => {
+                            setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
+                            setIsSpellsLoading(false);
+                            setSpellsLoadingProgress(null);
+                        });
+                    } else {
+                        setIsSpellsLoading(false);
+                        setSpellsLoadingProgress(null);
+                    }
+                });
             }
-            setIsSpellsLoading(false);
-            setSpellsLoadingProgress(null);
-            setIsEquipmentLoading(false);
         }
     }, [resetSelections]);
 
