@@ -52,6 +52,14 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
+*   **[ ] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
+    *   **Visão (Backend):** Tornar o `prompt5e.ts` extremamente rigoroso. A IA **nunca** deve rolar dados pelo jogador ou presumir resultados. O fluxo `Intenção -> Pedido de Rolagem (com DC claro) -> Resultado -> Consequência` deve ser obrigatório para ataques, perícias e testes de resistência.
+    *   **Visão (Frontend):** O `DiceRollModal` deve exibir claramente o alvo (DC) para criar suspense. A agência do jogador sobre os dados é a alma da experiência.
+
+*   **[ ] Implementar Sistema de Perícias Passivas:**
+    *   **Visão (Backend):** Calcular a `Percepção Passiva` (e outras, como Investigação ou Intuição) e incluí-la no prompt da IA. Instruir a IA a usar esse valor como um gatilho narrativo (ex: "Se a Percepção Passiva do personagem for > 14, narre que ele nota a fresta solta na parede").
+    *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
+
 *   **[ ] Reimaginar o Menu Principal:**
     *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira. O objetivo é criar uma imersão imediata.
 
