@@ -37,6 +37,7 @@ const GameContainer = () => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
+    const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -98,8 +99,7 @@ const GameContainer = () => {
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
         if (!apiKey) {
-            // This should ideally be handled by a toast or a more robust UI element
-            alert("Por favor, configure sua chave de API nas configurações antes de iniciar uma nova aventura.");
+            setShowApiKeyModal(true);
             return;
         }
         const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id, apiKey);
@@ -216,6 +216,14 @@ const GameContainer = () => {
     return (
          <>
              <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+                <button 
+                    onClick={() => setShowSettingsModal(true)} 
+                    className="absolute top-0 right-0 p-3 text-stone-400 hover:text-amber-300 transition-colors"
+                    title="Configurações"
+                >
+                    <Settings className="h-7 w-7"/>
+                </button>
+
                  <header className="mb-8" style={{ animationDelay: '200ms' }}>
                     <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Sessões de Jogo
@@ -276,6 +284,25 @@ const GameContainer = () => {
                     <p className="text-stone-300">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
                 </ActionModal>
             )}
+
+            {showApiKeyModal && (
+                 <ActionModal
+                    isOpen={showApiKeyModal}
+                    title="Chave de API Necessária"
+                    onClose={() => setShowApiKeyModal(false)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setShowApiKeyModal(false), variant: 'secondary' },
+                        { text: "Ir para Configurações", onClick: () => { setShowApiKeyModal(false); setShowSettingsModal(true); }, variant: 'primary' }
+                    ]}
+                >
+                    <p className="text-stone-300">Para iniciar uma nova aventura, você precisa primeiro adicionar sua chave de API do Google AI nas configurações.</p>
+                </ActionModal>
+            )}
+
+            <SettingsModal
+                isOpen={showSettingsModal}
+                onClose={() => setShowSettingsModal(false)}
+            />
          </>
     )
 };
