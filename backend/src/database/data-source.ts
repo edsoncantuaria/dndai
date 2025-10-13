@@ -1,4 +1,3 @@
-
 // backend/src/database/data-source.ts
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
@@ -8,6 +7,7 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { LicenseKey } from '../entities/LicenseKey.js';
+import { Character } from '../entities/Character.js'; // Importa a nova entidade
 
 /**
  * Configuração da fonte de dados para o TypeORM.
@@ -30,7 +30,7 @@ export const AppDataSource = new DataSource({
     logging: false, // Mude para true para ver as queries SQL no console
     
     // Lista de todas as entidades que o TypeORM deve gerenciar
-    entities: [SessaoIA, SessionLog, User, LicenseKey], 
+    entities: [SessaoIA, SessionLog, User, LicenseKey, Character], // Adiciona a nova entidade
     
     migrations: [],
     subscribers: [],

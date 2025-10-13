@@ -68,18 +68,24 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 
 ## Fase 2 - Refatoração do Backend de IA (Concluído)
 
-*   **Objetivo**: Reconstruir a lógica de interação com a IA no backend, permitindo múltiplas sessões de jogo paralelas, cada uma com sua própria chave de API e contexto de Genkit.
-*   **Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
-*   **Status Atual**: Concluído. A API de narração está funcionando.
+*   **[X] Objetivo**: Reconstruir a lógica de interação com a IA no backend, permitindo múltiplas sessões de jogo paralelas, cada uma com sua própria chave de API e contexto de Genkit.
+*   **[X] Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
+*   **[X] Status Atual**: Concluído. A API de narração está funcionando.
 
-## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
+## Fase 3 — Arquitetura de Personagens e Sessões (Em Andamento)
 
-*   **[X] Refatorar `AuthContext`**: Substituir toda a lógica de `localStorage` pela nova API REST de autenticação (`/api/auth/...`) e licença (`/api/licenses/...`).
-*   **[ ] Criar Tela de Seleção de Personagem**: Após o login, o usuário será direcionado para uma tela que buscará seus personagens via `GET /api/characters` e os exibirá em "slots".
-*   **[ ] Refatorar `GameStateContext`**:
-    *   O `useGameState` deve ser completamente reescrito para interagir com a API do backend.
-    *   A função `processPlayerAction` agora fará uma requisição `fetch` para `POST /api/narrar/:sessionId`.
-    *   O hook deverá ser capaz de consumir e processar o stream de resposta, atualizando o estado do jogo (log, personagem, etc.) a cada chunk recebido.
+*   **[X] Objetivo**: Desacoplar Personagens das Sessões de Jogo, criando um sistema de "cofre de personagens" onde os heróis são reutilizáveis.
+*   **[X] Backend**:
+    *   **[X]** Criada a nova entidade `Character` para armazenar os dados dos personagens de forma independente e vinculada ao `User`.
+    *   **[X]** Adicionada a relação entre `SessaoIA` e `Character`.
+    *   **[X]** Criados os endpoints CRUD (`/api/characters`) para gerenciar o "cofre" de personagens do usuário.
+    *   **[X]** Atualizado o endpoint de criação de sessão (`/api/sessoes`) para aceitar um `characterId`.
+*   **[ ] Frontend**:
+    *   **[ ]** Refatorar o `GameContainer` para exibir uma lista de sessões de jogo existentes.
+    *   **[ ]** Criar uma nova tela de "Seleção de Personagem" (o cofre).
+    *   **[ ]** Modificar o fluxo de criação de personagem para apenas salvar o herói no cofre.
+    *   **[ ]** Atualizar o `gameService.ts` para interagir com os novos endpoints `/api/characters`.
+
 
 ## Fase 4 — WebSocket e Modo Multiplayer (Futuro)
 
@@ -96,6 +102,7 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 * [X] Implementar todos os `services`, incluindo `iaService` com streaming.
 * [X] Implementar `authMiddleware`.
 * [X] Configurar todas as rotas da API no `server.ts`.
+* [X] Adicionar a entidade `Character` e seus endpoints.
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.

@@ -2,13 +2,14 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn, DeleteDateColumn } from 'typeorm';
 import { LicenseKey } from './LicenseKey.js';
 import { SessaoIA } from './SessaoIA.js';
+import { Character } from './Character.js'; // Importa a nova entidade
 
 @Entity('users')
 export class User {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ type: 'varchar', length: 50 })
+    @Column({ type: 'varchar', length: 50, unique: true })
     username: string;
 
     @Column({ type: 'varchar', unique: true, length: 100 })
@@ -26,6 +27,9 @@ export class User {
 
     @OneToMany(() => SessaoIA, (sessao) => sessao.user)
     sessoes: SessaoIA[];
+
+    @OneToMany(() => Character, (character) => character.user) // Adiciona a relação com Personagens
+    characters: Character[];
 
     @CreateDateColumn()
     createdAt: Date;
