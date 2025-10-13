@@ -11,11 +11,8 @@ export class SessionLog {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
-    sessaoId: number;
-
     @ManyToOne(() => SessaoIA, sessao => sessao.logs)
-    @JoinColumn({ name: "sessaoId" })
+    @JoinColumn({ name: "sessaoId" }) // TypeORM usará isso para criar a coluna sessaoId
     sessao: SessaoIA;
 
     @Column('text')
