@@ -12,7 +12,7 @@ export class SessionLog {
     id: number;
 
     @ManyToOne(() => SessaoIA, sessao => sessao.logs)
-    @JoinColumn({ name: "sessaoId" }) // TypeORM usará isso para criar a coluna sessaoId
+    @JoinColumn({ name: "sessaoId" })
     sessao: SessaoIA;
 
     @Column('text')
