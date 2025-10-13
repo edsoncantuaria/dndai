@@ -18,18 +18,20 @@ const app = express();
 
 // Configuração do CORS
 const allowedOrigins = [
-    'http://localhost:9002', 
+    'http://localhost:9002',
     'https://rpg.edsin-server.space',
-    'https://6000-firebase-studio-1758579208514.cluster-udxxdyopu5c7cwhhtg6mmadhvs.cloudworkstations.dev'
 ];
+
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        // Permitir requisições sem 'origin' (ex: Postman, apps mobile) ou da lista de permissões
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
+        if (!origin) { // Allow requests with no origin (like mobile apps or curl requests)
+            return callback(null, true);
         }
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.cloudworkstations.dev')) {
+            return callback(null, true);
+        }
+        
+        return callback(new Error('Not allowed by CORS'));
     },
     optionsSuccessStatus: 200 // Para compatibilidade com navegadores legados
 };
