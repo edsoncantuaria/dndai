@@ -61,31 +61,44 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
 
 *   **[ ] Reimaginar o Menu Principal:**
-    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira. O objetivo é criar uma imersão imediata.
+    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira, criando uma imersão imediata.
+
+*   **[ ] Ficha de Personagem Interativa:**
+    *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
+    *   **Impacto:** Aumenta a agência do jogador e a clareza sobre o estado do seu personagem.
+
+*   **[ ] Aba Dedicada para "Relacionamentos e Missões":**
+    *   **Visão:** Criar uma nova aba com "cards" para cada NPC, mostrando afinidade, e listando as missões ativas e concluídas associadas a eles.
+    *   **Impacto:** Organiza a informação social do jogo, tornando o progresso das quests e as relações com NPCs mais claras e significativas.
+
+*   **[ ] Linha do Tempo da Progressão do Personagem:**
+    *   **Visão:** Criar uma aba de "Progresso" que mostre visualmente as habilidades e talentos ganhos em cada nível, além de um painel para reputação com as facções do mundo.
+    *   **Impacto:** Dá ao jogador um forte senso de jornada e evolução do seu herói.
+
+*   **[ ] Sistema de Comércio e Lojas Aprofundado:**
+    *   **Visão:** Uma UI de loja dedicada com abas para "Comprar" e "Vender", e uma mecânica de "Barganha" baseada em testes de perícia.
+    *   **Impacto:** Transforma uma simples troca de texto em uma parte divertida e estratégica do jogo.
 
 *   **[ ] Implementar Sistema de Descanso Completo (Curto/Longo):**
-    *   **Backend:** Gerenciar a recuperação de recursos (Dados de Vida, magias) e o tempo de jogo.
-    *   **Frontend:** Criar modais interativos para que o jogador possa rolar seus dados de vida durante um descanso curto.
+    *   **Visão:** Gerenciar a recuperação de recursos no backend e criar modais interativos no frontend para que o jogador role seus dados de vida durante um descanso curto.
 
 *   **[ ] Adicionar Suporte a Talentos (Feats):**
-    *   **Backend:** Modelar a entidade `Feat` e associá-la ao personagem.
-    *   **Frontend:** Adicionar uma seção para talentos na ficha de personagem e garantir que as opções de talentos apareçam na tela de "Subir de Nível".
+    *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
 
 *   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
-    *   **Backend:** Permitir que a IA conceda "Inspiração" e o inclua no estado do personagem.
-    *   **Frontend:** Exibir um ícone de inspiração e modificar o modal de dados para rolar 2d20 e usar o resultado apropriado quando uma ação tiver vantagem ou desvantagem.
+    *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
 
 *   **[ ] Ações Estruturadas em Combate (Backend + Frontend):**
-    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos no turno.
+    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
-    *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.), tratá-las como parte do inventário e calcular seu peso para uma gestão de carga mais realista.
+    *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
 
 *   **[ ] Revisão do Sistema de Log e "Modo História" (Frontend):**
     *   **Visão:** Adicionar filtros ao log de aventura (Tudo, Narração, Combate) e criar um "Modo História" que oculte a UI para uma leitura imersiva.
 
 *   **[ ] Melhorias Visuais nos Status e Condições (Frontend):**
-    *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições (Atordoado, Enfeitiçado) e vinhetas sutis na tela para dar feedback visual sobre o estado do personagem.
+    *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições e vinhetas na tela para dar feedback visual sobre o estado do personagem.
 
 ### Fase 1.4: Otimização e Qualidade de Vida
 
