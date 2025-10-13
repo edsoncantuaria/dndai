@@ -44,7 +44,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     
     const isProficient = character.proficiencies.some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-    const modifier = character.modifiers[attribute] + (isProficient ? character.proficiencyBonus : 0);
+    const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? character.proficiencyBonus : 0);
 
     const handleSkillUse = () => {
         if (onUse) onUse();
@@ -94,7 +94,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 
     const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
     const equippedItems = (character.inventory || []).filter(i => i.equipped);
-    const initiativeBonus = modifiers.dexterity;
+    const initiativeBonus = modifiers?.dexterity || 0;
 
     return (
         <div className="p-4 space-y-4">
@@ -111,20 +111,22 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </div>
 
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Atributos</h3>
-                <div className="grid grid-cols-3 gap-2 text-center">
-                    {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
-                        <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
-                            <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
-                            <div className="font-bold text-lg text-stone-200">{attributes[attr]}</div>
-                            <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
-                        </div>
-                    ))}
+            {attributes && modifiers && (
+                <div>
+                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Atributos</h3>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                        {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
+                            <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
+                                <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
+                                <div className="font-bold text-lg text-stone-200">{attributes[attr]}</div>
+                                <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
-            {conditions.length > 0 && (
+            {conditions && conditions.length > 0 && (
                 <div>
                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Condições Ativas</h3>
                     <div className="flex flex-wrap gap-2">
@@ -176,36 +178,38 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </div>
             
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
-                <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                        <span className="text-xs font-bold text-stone-400">Iniciativa</span>
-                        <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md text-center">
-                        <span className="text-xs font-bold text-stone-400">Deslocamento</span>
-                        <p className="font-bold text-2xl text-stone-200">{character.speed} <span className="text-base">ft</span></p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md">
-                        <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
-                        <p className="font-bold text-lg text-stone-200">{hitDice.current} / {hitDice.total} <span className="text-sm text-stone-400">d{character.hitDie}</span></p>
-                    </div>
-                    <div className="bg-stone-800/50 p-2 rounded-md">
-                        <span className="text-xs font-bold text-stone-400">Moedas</span>
-                        <div className="flex gap-2 items-baseline">
-                            <div className="text-amber-400 font-mono">
-                                <span className="font-bold text-lg">{currency.gp}</span>
-                                <span className="text-sm">gp</span>
-                            </div>
-                            <div className="text-slate-400 font-mono">
-                                <span className="font-bold text-lg">{currency.sp}</span>
-                                <span className="text-sm">sp</span>
+            {currency && hitDice && (
+                <div>
+                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Combate & Recursos</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                            <span className="text-xs font-bold text-stone-400">Iniciativa</span>
+                            <p className="font-bold text-2xl text-stone-200">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</p>
+                        </div>
+                        <div className="bg-stone-800/50 p-2 rounded-md text-center">
+                            <span className="text-xs font-bold text-stone-400">Deslocamento</span>
+                            <p className="font-bold text-2xl text-stone-200">{character.speed} <span className="text-base">ft</span></p>
+                        </div>
+                        <div className="bg-stone-800/50 p-2 rounded-md">
+                            <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
+                            <p className="font-bold text-lg text-stone-200">{hitDice.current} / {hitDice.total} <span className="text-sm text-stone-400">d{character.hitDie}</span></p>
+                        </div>
+                        <div className="bg-stone-800/50 p-2 rounded-md">
+                            <span className="text-xs font-bold text-stone-400">Moedas</span>
+                            <div className="flex gap-2 items-baseline">
+                                <div className="text-amber-400 font-mono">
+                                    <span className="font-bold text-lg">{currency.gp}</span>
+                                    <span className="text-sm">gp</span>
+                                </div>
+                                <div className="text-slate-400 font-mono">
+                                    <span className="font-bold text-lg">{currency.sp}</span>
+                                    <span className="text-sm">sp</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <div>
                 <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Ações de Descanso</h3>
@@ -240,19 +244,23 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 )}
             </div>
             
-             <CollapsibleSection title="Outras Proficiências">
-                <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
-                    {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                        <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                            {translateApiString(prof.name)}
-                        </span>
-                    ))}
+            {proficiencies && (
+                 <CollapsibleSection title="Outras Proficiências">
+                    <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
+                        {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
+                            <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                {translateApiString(prof.name)}
+                            </span>
+                        ))}
+                    </div>
+                </CollapsibleSection>
+            )}
+            {languages && (
+                <div>
+                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
+                    <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>
                 </div>
-            </CollapsibleSection>
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>
-            </div>
+            )}
             <CollapsibleSection title="Personalidade">
                 <div className="space-y-1">
                     <p className="text-sm text-stone-400"><strong className="text-stone-300">Traços:</strong> {character.personalityTraits.join(' ')}</p>
