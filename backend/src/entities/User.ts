@@ -8,20 +8,20 @@ export class User {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ unique: true, length: 50 })
+    @Column({ type: 'varchar', unique: true, length: 50 })
     username: string;
 
-    @Column({ unique: true, length: 100 })
+    @Column({ type: 'varchar', unique: true, length: 100 })
     email: string;
 
-    @Column({ length: 255 })
+    @Column({ type: 'varchar', length: 255 })
     password: string;
 
-    @Column({ nullable: true })
+    @Column({ type: 'int', nullable: true })
     licenseKeyId: number;
 
     @OneToOne(() => LicenseKey)
-    @JoinColumn()
+    @JoinColumn({ name: 'licenseKeyId' })
     licenseKey: LicenseKey;
 
     @OneToMany(() => SessaoIA, (sessao) => sessao.user)

@@ -1,4 +1,3 @@
-
 // backend/src/entities/SessionLog.ts
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from "typeorm";
 import { SessaoIA } from "./SessaoIA.js";

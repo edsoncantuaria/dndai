@@ -8,13 +8,13 @@ export class SessaoIA {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ length: 100 })
+    @Column({ type: 'varchar', length: 100 })
     nome: string;
 
     @Column({ type: 'varchar', length: 255 })
     apiKey: string;
     
-    @Column()
+    @Column({ type: 'int' })
     userId: number;
 
     @ManyToOne(() => User, user => user.sessoes, { onDelete: 'CASCADE' })

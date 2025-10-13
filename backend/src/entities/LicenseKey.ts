@@ -1,18 +1,17 @@
 // backend/src/entities/LicenseKey.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne } from 'typeorm';
-import { User } from './User.js';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity('license_keys')
 export class LicenseKey {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ unique: true, length: 255 })
+    @Column({ type: 'varchar', unique: true, length: 255 })
     key: string;
 
-    @Column({ default: false })
+    @Column({ type: 'boolean', default: false })
     isActivated: boolean;
 
-    @Column({ nullable: true })
+    @Column({ type: 'int', nullable: true })
     activatedByUserId: number;
 }
