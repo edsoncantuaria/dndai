@@ -26,8 +26,10 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             };
             setIsSpellsLoading(true);
             
+            // Filtra magias inválidas antes de mapear
             const spellList = character.spells
-                .map(s => ({ index: s.spellName, name: s.spellName, url: '' }));
+                .filter(s => s && s.spellName) 
+                .map(s => ({ index: s.spellName.toLowerCase().replace(/ /g, '-'), name: s.spellName, url: '' }));
 
             if (spellList.length === 0) {
                 setIsSpellsLoading(false);
