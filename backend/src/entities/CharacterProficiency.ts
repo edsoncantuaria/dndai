@@ -7,7 +7,7 @@ export class CharacterProficiency {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     characterId: number;
 
     @ManyToOne(() => Character, character => character.proficiencies, { onDelete: 'CASCADE' })

@@ -7,7 +7,7 @@ export class CharacterAttributes {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     characterId: number;
 
     @OneToOne(() => Character, character => character.attributes, { onDelete: 'CASCADE' })

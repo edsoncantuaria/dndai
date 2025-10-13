@@ -7,7 +7,7 @@ export class CharacterSpell {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     characterId: number;
 
     @ManyToOne(() => Character, character => character.spells, { onDelete: 'CASCADE' })

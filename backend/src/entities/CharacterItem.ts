@@ -7,7 +7,7 @@ export class CharacterItem {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
+    @Column({ type: 'int' })
     characterId: number;
 
     @ManyToOne(() => Character, character => character.items, { onDelete: 'CASCADE' })
