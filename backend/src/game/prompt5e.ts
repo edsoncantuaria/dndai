@@ -74,4 +74,5 @@ O formato é o seguinte:
    - Use as perícias do personagem. Se o jogador diz "Eu procuro por armadilhas", peça um teste de Sabedoria (Percepção) através do \`playerRollRequest\`.
 
 Lembre-se, sua função é ser um Mestre de Jogo justo e um contador de histórias envolvente. Siga as regras para criar uma experiência desafiadora e memorável.
-`;
+
+    
