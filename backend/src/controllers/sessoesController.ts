@@ -36,7 +36,7 @@ const buildFullCharacterObject = async (character: Character) => {
 
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { nome, characterId } = req.body; // apiKey removido do body
+    const { nome, characterId } = req.body;
     const userId = req.user?.userId;
 
     if (!nome || !characterId) {
@@ -53,6 +53,16 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
         if (!character) {
             return next(createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.'));
         }
+
+        // Verifica se já existe uma sessão ativa para este personagem
+        const existingSession = await sessaoRepository.findOne({ where: { characterId, userId: userId!, deletedAt: IsNull() } });
+
+        if (existingSession) {
+            // Se a sessão já existe, retorna os dados dela para continuar
+            const { apiKey: sensitiveApiKey, ...sessaoParaRetorno } = existingSession;
+            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: sessaoParaRetorno });
+        }
+
 
         const user = await userRepository.findOne({ where: { id: userId! } });
         if (!user?.settings?.apiKey) {

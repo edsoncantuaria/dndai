@@ -252,7 +252,7 @@ const GameContainer = () => {
                         )}
                     </div>
                     <button onClick={() => setGameStage('character_vault')} className="menu-button btn-new mt-6">
-                        <Plus className="mr-2 h-6 w-6"/> Nova Aventura
+                        <Plus className="mr-2 h-6 w-6"/> Escolher Herói
                     </button>
                 </main>
             </div>
