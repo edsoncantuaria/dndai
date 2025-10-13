@@ -1,4 +1,3 @@
-
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -93,15 +92,34 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 
     if (!character) return null;
 
-    const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
-    const equippedItems = (character.inventory || []).filter(i => i.equipped);
+    const { attributes, modifiers, proficiencies, languages, conditions, hitDice, traits } = character;
     const initiativeBonus = modifiers?.dexterity ?? 0;
+    
+    // Filtra para exibir apenas os 6 atributos principais
+    const coreAttributes = Object.entries(attributes).filter(([key]) => characterUtils.ATTRIBUTE_SHORT_MAP[key.substring(0,3)] || ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].includes(key)) as [keyof Attributes, number][];
+
+
+    const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
 
     return (
         <div className="p-4 space-y-4">
             <div className="text-center mb-4">
                 <h2 className="text-2xl font-bold font-garamond text-stone-100">{character.name}</h2>
                 <p className="text-sm text-stone-400">{translateApiString(character.race)} {translateApiString(character.characterClass)} de Nível {character.level}</p>
+            </div>
+            
+            {/* XP Bar */}
+             <div className="mb-4">
+                <div className="flex justify-between text-xs mb-1">
+                    <span className="font-semibold text-stone-300">XP</span>
+                    <span className="font-mono text-stone-400">{character.xp} / {character.xpToNextLevel}</span>
+                </div>
+                <div className="w-full bg-stone-700 rounded-full h-2 border border-stone-600 overflow-hidden relative">
+                    <div 
+                        className="bg-purple-600 h-full rounded-full transition-all duration-300" 
+                        style={{ width: `${xpPercentage}%`}}
+                    ></div>
+                </div>
             </div>
 
             {/* Combat Stats Grid */}
@@ -133,17 +151,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 
             <DeathSavesTracker />
 
-            {/* Attributes & Skills */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
-                    <div key={attr} className="bg-stone-800/50 p-3 rounded-lg text-center">
-                        <div className="font-bold text-lg text-amber-300">{translateAttribute(attr)}</div>
-                        <div className="text-3xl font-bold text-stone-100 my-1">{attributes[attr]}</div>
-                        <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
-                    </div>
-                ))}
-            </div>
-
             {conditions && conditions.length > 0 && (
                 <div>
                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Condições Ativas</h3>
@@ -166,6 +173,17 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             )}
             
+            {/* Attributes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {coreAttributes.map(([key, value]) => (
+                    <div key={key} className="bg-stone-800/50 p-3 rounded-lg text-center">
+                        <div className="font-bold text-lg text-amber-300">{translateAttribute(key)}</div>
+                        <div className="text-3xl font-bold text-stone-100 my-1">{value}</div>
+                        <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
+                    </div>
+                ))}
+            </div>
+
             <CollapsibleSection title="Perícias">
                 <div className="bg-stone-800/50 p-3 rounded-md space-y-1 divide-y divide-stone-700/50">
                     {characterUtils.ALL_SKILLS.map(skill => (
@@ -203,20 +221,20 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </CollapsibleSection>
             
-             <CollapsibleSection title="Características e Traços">
-                 <div className="space-y-3 bg-stone-800/50 p-3 rounded-md">
-                     {damage_resistances && damage_resistances.length > 0 && (
+             <CollapsibleSection title="Características e Proficiências">
+                 <div className="space-y-3 bg-stone-800/50 p-3 rounded-md text-sm">
+                    {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).length > 0 && (
                         <div>
-                             <h4 className="font-semibold text-stone-300">Resistências a Dano</h4>
+                            <h4 className="font-semibold text-stone-300">Proficiências</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
-                                {damage_resistances.map(res => (
-                                    <span key={res} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                        {translateApiString(res)}
+                                {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
+                                    <span key={prof.id} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                        {translateApiString(prof.name)}
                                     </span>
                                 ))}
                             </div>
                         </div>
-                     )}
+                    )}
                      {traits && traits.length > 0 && (
                         <div>
                              <h4 className="font-semibold text-stone-300">Traços Raciais</h4>
@@ -228,7 +246,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     {languages && (
                         <div>
                             <h4 className="font-semibold text-stone-300">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{(languages || []).map(translateApiString).join(', ')}</p>
+                            <p className="text-sm text-stone-300">{(languages || []).map(lang => translateApiString(lang.name)).join(', ')}</p>
                         </div>
                     )}
                  </div>
@@ -236,7 +254,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             
             <CollapsibleSection title="Personalidade">
                 <div className="space-y-1 bg-stone-800/50 p-3 rounded-md text-sm text-stone-400">
-                    <p><strong className="text-stone-300">Traços:</strong> {(character.personalityTraits || []).join(' ')}</p>
                     <p><strong className="text-stone-300">Ideal:</strong> {character.ideal}</p>
                     <p><strong className="text-stone-300">Vínculo:</strong> {character.bond}</p>
                     <p><strong className="text-stone-300">Defeito:</strong> {character.flaw}</p>
@@ -257,5 +274,3 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
-
-    

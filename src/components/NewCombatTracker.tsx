@@ -13,9 +13,13 @@ const NewCombatTracker: React.FC = () => {
 
     const getCombatantId = (entry: any): string => {
         if (!entry) return '';
+        // If it's a string, it's a direct ID
         if (typeof entry === 'string') return entry;
+        // If it's an object with an `id` property (from initiativeOrder)
         if (entry.id) return entry.id;
+        // If it's a full combatant object
         if (entry.name && character && entry.name === character.name) return character.name;
+        
         return entry.name || ''; // Fallback
     };
     

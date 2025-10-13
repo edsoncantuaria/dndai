@@ -1,4 +1,3 @@
-
 // src/components/GameContainer.tsx
 'use client';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -11,7 +10,6 @@ import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
 import * as characterUtils from '@/utils/characterUtils';
 
 
@@ -20,7 +18,6 @@ type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_char
 
 const GameContainer = () => {
     const {
-        character,
         clearGameState,
         deleteCharacter,
         deleteSession,
@@ -30,7 +27,6 @@ const GameContainer = () => {
         setSessionId
     } = useGameStateContext();
 
-    const { user } = useAuth();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
@@ -95,11 +91,23 @@ const GameContainer = () => {
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
-                await fetchInitialData();
-                await handleContinueGame(newSessionResponse.sessao.id);
+                // Now we have a session, load its data directly
+                const sessionDetails = await GameService.getSessionDetails(newSessionResponse.sessao.id);
+                 if (sessionDetails && sessionDetails.character) {
+                    const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
+                    setCharacter(fullCharacter);
+                    setLog(sessionDetails.logs || []);
+                    setSessionId(sessionDetails.id);
+                    setGameStage('playing');
+                    setPlayMenuMusic(false);
+                    // Crucially, call startGame now that state is set
+                    startGame();
+                } else {
+                     throw new Error("Falha ao carregar detalhes da nova sessão.");
+                }
             }
         } catch (error) {
-            console.error("Failed to create new game session:", error);
+            console.error("Falha ao criar e iniciar nova sessão:", error);
         }
     };
     
@@ -120,20 +128,15 @@ const GameContainer = () => {
                 setSessionId(sessionId);
                 setGameStage('playing');
                 setPlayMenuMusic(false);
-
-                // If the log is empty, it's a new session, so start the game flow.
-                if (!sessionDetails.logs || sessionDetails.logs.length === 0) {
-                    startGame();
-                }
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
         } catch (error: any) {
-            console.error("Failed to continue game:", error);
+            console.error("Falha ao continuar o jogo:", error);
         } finally {
             setIsLoadingData(false);
         }
-    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, startGame, clearGameState]);
+    }, [setCharacter, setLog, setSessionId, setPlayMenuMusic, clearGameState]);
 
 
     const returnToMenu = useCallback(() => {
@@ -314,5 +317,3 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
-
-    
