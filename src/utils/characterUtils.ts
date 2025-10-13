@@ -200,14 +200,16 @@ export const initializeNewCharacter = async (info: NewCharacterInfo): Promise<Ch
         spellSlots: {},
         deathSaves: { successes: 0, failures: 0 },
         conditions: [],
+        traits: info.traits,
         hitDice: { current: 1, total: 1 },
         speed: 30, // Placeholder
+        languages: info.languages,
         classLevelsData: classLevelsData || [],
         subclassLevelsData: [],
     };
 };
 
-export const buildFrontendCharacter = (backendChar: Character): Character => {
+export const buildFrontendCharacter = (backendChar: any): Character => {
     // Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
@@ -224,15 +226,21 @@ export const buildFrontendCharacter = (backendChar: Character): Character => {
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
     // The backend `items` are stored as CharacterItem[], we need to map them to InventoryItem[]
-    const inventory: InventoryItem[] = (backendChar as any).items?.map((item: any) => ({
-        ...item.itemData, // The full item data is stored in the itemData JSON field
-        id: item.id.toString(),
-        quantity: item.quantity,
-        name: item.name,
-    })) || [];
+    const inventory: InventoryItem[] = backendChar.items?.map((item: any) => {
+        return {
+            ...(item.itemData || {}),
+            id: item.id.toString(),
+            quantity: item.quantity,
+            name: item.name,
+        };
+    }) || [];
 
     const ac = calculateAC(inventory, modifiers);
     const maxHp = backendChar.attributes.hp || 0;
+    
+    // The backend stores traits as an array of objects, each containing an 'item'.
+    const traits: ApiListItem[] = (backendChar.traits || []).map((t: any) => t.item).filter(Boolean);
+    const languages: string[] = (backendChar.proficiencies || []).filter((p: any) => p.type === 'language').map((p: any) => p.name);
 
     return {
         ...backendChar,
@@ -241,6 +249,8 @@ export const buildFrontendCharacter = (backendChar: Character): Character => {
         spells: backendChar.spells,
         journal: backendChar.journal || [],
         relationships: backendChar.relationships || [],
+        traits: traits, // Assign the correctly mapped traits
+        languages: languages,
         
         // ---- Calculated frontend fields ----
         modifiers,

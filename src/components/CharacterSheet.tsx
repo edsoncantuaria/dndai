@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
-import type { Attributes, Proficiency } from '../types';
+import type { Attributes, Proficiency, ApiTrait } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight } from 'lucide-react';
 
@@ -237,20 +237,20 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             </div>
                         </div>
                     )}
-                    {(character.traits && (character.traits as any[]).length > 0) && (
+                    {traits && traits.length > 0 && (
                         <div>
-                            <h4 className="font-semibold text-stone-300 mt-2">Traços Raciais</h4>
+                             <h4 className="font-semibold text-stone-300 mt-2">Traços Raciais</h4>
                             <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm mt-1">
-                                {(character.traits as any[]).map(trait => (
-                                    <li key={trait.item.index}>{translateApiString(trait.item.name)}</li>
+                                {traits.map((trait: any) => (
+                                    <li key={trait.index}>{translateApiString(trait.name)}</li>
                                 ))}
                             </ul>
                         </div>
                     )}
-                    {languages && (
+                    {languages && languages.length > 0 && (
                         <div>
                             <h4 className="font-semibold text-stone-300 mt-2">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{(languages as any[]).map(lang => translateApiString(lang.name)).join(', ')}</p>
+                            <p className="text-sm text-stone-300">{languages.join(', ')}</p>
                         </div>
                     )}
                  </div>
