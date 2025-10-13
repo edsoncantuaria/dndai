@@ -220,26 +220,21 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
 
-    const startGame = useCallback(async (currentLog: LogEntry[]): Promise<void> => {
-        if (!character || !sessionId || isLoading || currentLog.length > 0) {
-            return;
-        }
-    
-        try {
-            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        } catch (error: any) {
-             setApiError(error.message || "O Mestre não conseguiu preparar a sua aventura. Por favor, tente recarregar.");
-        }
+    const startGame = useCallback(async (): Promise<void> => {
+        if (!character || !sessionId || isLoading) return;
+        
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        
     }, [character, sessionId, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
-        clearGameState(); // Clear previous state before loading new one
+        clearGameState();
         setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
             if (sessionDetails && sessionDetails.character) {
-                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character);
+                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
                 setCharacter(fullCharacter);
                 setLog(sessionDetails.logs || []);

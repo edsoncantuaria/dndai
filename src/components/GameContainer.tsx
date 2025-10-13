@@ -10,7 +10,6 @@ import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
-import * as characterUtils from '@/utils/characterUtils';
 import { useAuth } from '@/contexts/AuthContext';
 
 
@@ -20,13 +19,11 @@ type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_char
 const GameContainer = () => {
     const {
         character,
-        log,
         loadGameSession,
         clearGameState,
-        createCharacter,
         deleteCharacter,
         deleteSession,
-        startGame,
+        startGame, // Agora só prepara o estado
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -93,14 +90,17 @@ const GameContainer = () => {
     const handleNewGameFromVault = async (char: Character) => {
         setIsLoadingData(true);
         try {
+            // A API agora lida com sessões existentes, então podemos chamar sem medo.
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
-                await fetchInitialData();
                 const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if(loadedData) {
+                if (loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
-                    startGame(loadedData.logs); // Start the game if it's a new session with no logs
+                    // Explicitamente inicia o jogo se for uma nova sessão (sem logs)
+                    if(loadedData.logs.length === 0) {
+                        startGame();
+                    }
                 }
             }
         } catch (error) {
@@ -109,7 +109,7 @@ const GameContainer = () => {
             setIsLoadingData(false);
         }
     };
-
+    
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
@@ -118,17 +118,15 @@ const GameContainer = () => {
     const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
         const loadedData = await loadGameSession(sessionId);
-        setIsLoadingData(false); // Stop loading after attempt
+        setIsLoadingData(false); 
     
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
-            // Ensure game starts if log is empty
             if (loadedData.logs.length === 0) {
-                startGame(loadedData.logs);
+                startGame();
             }
         } else {
-            // Handle case where session fails to load
             setGameStage('session_list');
         }
     }, [loadGameSession, setPlayMenuMusic, startGame]);
@@ -192,7 +190,7 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
+                                        <button onClick={() => handleNewGameFromVault(char as Character)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
                                             <Play className="h-6 w-6 text-white" />
                                         </button>
                                         <button onClick={() => setCharacterToDelete(char as Character)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">

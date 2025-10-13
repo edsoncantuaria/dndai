@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -57,5 +56,3 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage }: Ga
     // Fallback or menu state handled by GameContainer
     return null; 
 };
-
-    
