@@ -3,13 +3,11 @@ import { Response, NextFunction } from 'express';
 import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
-import { getOrCreateAiInstance } from '../services/aiService.js';
+import { runGameMasterTurn } from '../services/aiService.js';
 import createError from 'http-errors';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
-import { GameMasterFlowInputSchema, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
-import { promptDnD5e } from '../game/prompt5e.js';
 import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
@@ -214,19 +212,11 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             combatState: currentCombatState,
         };
 
-        const ai = getOrCreateAiInstance(sessao.id, user.settings.apiKey);
-        
-        const prompt = ai.definePrompt(
-          {
-            name: "gameMasterPrompt",
-            input: { schema: GameMasterFlowInputSchema },
-            output: { schema: GameMasterResponseSchema },
-            prompt: promptDnD5e,
-          },
+        const aiResponse = await runGameMasterTurn(
+            gameMasterFlowInput,
+            user.settings.apiKey
         );
 
-        const result = await prompt(gameMasterFlowInput);
-        const aiResponse = result.output;
 
         if (!aiResponse) {
              return next(createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.'));
@@ -263,3 +253,5 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         next(error);
     }
 };
+
+    

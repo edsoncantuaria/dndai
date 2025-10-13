@@ -9,13 +9,10 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
-import { JournalEntry } from '../entities/JournalEntry.js';
-import { Relationship } from '../entities/Relationship.js';
-import { Quest } from '../entities/Quest.js';
 
 
 // Função auxiliar para reconstruir o objeto completo do personagem
-const buildFullCharacterObject = async (character: Character) => {
+export const buildFullCharacterObject = async (character: Character) => {
     // Isso é necessário porque o find não carrega relações aninhadas profundamente por padrão
     const fullCharacter = await AppDataSource.getRepository(Character).findOne({
         where: { id: character.id },
@@ -204,3 +201,5 @@ export const deleteCharacter = async (req: AuthRequest, res: Response, next: Nex
         next(error);
     }
 };
+
+    

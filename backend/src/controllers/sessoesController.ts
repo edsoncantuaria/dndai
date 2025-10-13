@@ -4,40 +4,10 @@ import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import createError from 'http-errors';
-import { clearAiInstanceFromCache } from '../services/aiService.js';
 import { IsNull } from 'typeorm';
 import { Character } from '../entities/Character.js';
 import { User } from '../entities/User.js';
-
-// Função auxiliar para reconstruir o objeto completo do personagem
-const buildFullCharacterObject = async (character: Character) => {
-    const fullCharacter = await AppDataSource.getRepository(Character).findOne({
-        where: { id: character.id },
-        relations: [
-            "attributes",
-            "proficiencies",
-            "items",
-            "spells",
-            "journal", // Adicionado
-            "relationships", // Adicionado
-            "relationships.quests" // Adicionado
-        ],
-    });
-    if (!fullCharacter) return character;
-    
-    // Transforma as entidades de volta para o formato que o frontend espera
-    const characterData = {
-        ...fullCharacter,
-        attributes: fullCharacter.attributes,
-        proficiencies: fullCharacter.proficiencies,
-        inventory: fullCharacter.items.map(item => item.itemData), // Pega o JSON do item
-        spells: fullCharacter.spells.map(s => s.spellName),
-        journal: fullCharacter.journal,
-        relationships: fullCharacter.relationships,
-    };
-    delete (characterData as any).items;
-    return characterData;
-};
+import { buildFullCharacterObject } from './characterController.js'; // Importação centralizada
 
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -165,8 +135,6 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
             return next(createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.'));
         }
         
-        clearAiInstanceFromCache(Number(id));
-
         res.status(200).json({ message: 'Sessão movida para a lixeira com sucesso.' });
     } catch (error) {
         next(error);
