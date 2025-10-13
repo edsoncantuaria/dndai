@@ -96,10 +96,10 @@ Você pode usar `curl` ou uma ferramenta como Postman/Insomnia para testar os en
 ```bash
 curl -X POST http://localhost:8071/api/sessoes \
 -H "Content-Type: application/json" \
--H "Authorization: Bearer seu_token_jwt_aqui" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc2MDMxNjEzMiwiZXhwIjoxNzYwOTIwOTMyfQ.9wkNEKUo5IEAb08s9UPw__S-CSL44QxHErDAUnQj_Z4" \
 -d '{
   "nome": "A Caverna do Dragão Esquecido",
-  "apiKey": "SUA_CHAVE_DE_API_DO_GOOGLE_AI"
+  "apiKey": "AIzaSyAw86MghYbJK5rJojL8OrDfQFhIr6RmFxA"
 }'
 ```
 **Resposta Esperada:**
@@ -127,7 +127,7 @@ Use o `id` da sessão da etapa anterior.
 # Substitua :sessionId pelo seu ID (ex: 1)
 curl -X POST http://localhost:8071/api/narrar/1 \
 -H "Content-Type: application/json" \
--H "Authorization: Bearer seu_token_jwt_aqui" \
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc2MDMxNjEzMiwiZXhwIjoxNzYwOTIwOTMyfQ.9wkNEKUo5IEAb08s9UPw__S-CSL44QxHErDAUnQj_Z4" \
 -d '{
   "prompt": "Eu entro na taverna com uma cara amarrada, sento no balcão e peço a bebida mais forte que tiverem."
 }'
@@ -143,14 +143,14 @@ curl -X POST http://localhost:8071/api/narrar/1 \
 ```bash
 # Substitua :id pelo seu ID de sessão
 curl -X GET http://localhost:8071/api/sessoes/1 \
--H "Authorization: Bearer seu_token_jwt_aqui"
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc2MDMxNjEzMiwiZXhwIjoxNzYwOTIwOTMyfQ.9wkNEKUo5IEAb08s9UPw__S-CSL44QxHErDAUnQj_Z4"
 ```
 
 #### **4. Deletar a sessão (`DELETE /api/sessoes/:id`)**
 ```bash
 # Substitua :id pelo seu ID de sessão
 curl -X DELETE http://localhost:8071/api/sessoes/1 \
--H "Authorization: Bearer seu_token_jwt_aqui"
+-H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsImlhdCI6MTc2MDMxNjEzMiwiZXhwIjoxNzYwOTIwOTMyfQ.9wkNEKUo5IEAb08s9UPw__S-CSL44QxHErDAUnQj_Z4"
 ```
 
 ---

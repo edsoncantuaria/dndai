@@ -35,7 +35,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const ai = getOrCreateAiInstance(sessao.id, sessao.apiKey);
 
         const result = await ai.generate({
-            model: googleAI.model('gemini-1.5-pro'),
+            model: googleAI.model('gemini-2.5-flash'),
             prompt: prompt,
         });
 
