@@ -173,6 +173,7 @@ export interface NewCharacterInfo {
     subrace: string | null;
     draconicAncestry?: string;
     characterClass: string;
+    subclassFlavor: string | null;
     background: string;
     alignment: string;
     attributes: Attributes;
@@ -298,6 +299,7 @@ export interface Character {
     subclassLevelsData?: ApiClassLevel[];
     traits: ApiListItem[];
     languages: string[];
+    subclassFlavor: string | null;
 }
 
 export interface CharacterAttributes extends Attributes {

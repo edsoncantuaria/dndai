@@ -949,6 +949,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             subrace: subraceDetails?.name || null,
             draconicAncestry: draconicAncestry || undefined,
             characterClass: classDetails.name,
+            subclassFlavor: classDetails.subclasses[0]?.name || null,
             background: backgroundDetails.name,
             alignment: alignment,
             attributes: finalAttributes,

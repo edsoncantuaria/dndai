@@ -34,6 +34,9 @@ export class Character {
     @Column({ type: 'varchar', length: 50 })
     characterClass: string;
 
+    @Column({ type: 'varchar', length: 100, nullable: true })
+    subclassFlavor: string;
+
     @Column({ type: 'int', default: 1 })
     level: number;
 
@@ -109,5 +112,3 @@ export class Character {
     @DeleteDateColumn()
     deletedAt?: Date;
 }
-
-    

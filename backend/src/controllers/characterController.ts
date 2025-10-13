@@ -69,6 +69,7 @@ export const createCharacter = async (req: AuthRequest, res: Response, next: Nex
         newCharacter.race = characterData.race;
         newCharacter.subrace = characterData.subrace;
         newCharacter.characterClass = characterData.characterClass;
+        newCharacter.subclassFlavor = characterData.subclassFlavor; // Novo campo
         newCharacter.level = characterData.level;
         newCharacter.background = characterData.background;
         newCharacter.alignment = characterData.alignment;
@@ -201,5 +202,3 @@ export const deleteCharacter = async (req: AuthRequest, res: Response, next: Nex
         next(error);
     }
 };
-
-    
