@@ -36,6 +36,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings } = useSettingsContext();
     const { toast } = useToast();
 
+    // The presence of the API key is determined by the SettingsContext, which loads it from localStorage.
     const hasApiKey = !!apiKey;
 
     const logout = useCallback(() => {
@@ -173,12 +174,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        setApiKey(newApiKey);
+        setApiKey(newApiKey); // This will trigger the useEffect in SettingsContext to save to localStorage
         toast({
             title: "Chave de API Salva!",
-            description: "A chave foi salva localmente no seu navegador.",
+            description: "Sua aventura pode começar agora.",
         });
-        return Promise.resolve(true);
+        return true;
     };
 
     const value: AuthContextType = {
