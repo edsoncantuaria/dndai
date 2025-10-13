@@ -1,10 +1,10 @@
 // src/services/authService.ts
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
 export interface LoginCredentials {
     login: string;
-    password?: string; // Futuramente pode ser token
+    password?: string;
 }
 
 export interface RegisterDetails {

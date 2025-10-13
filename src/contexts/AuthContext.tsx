@@ -26,7 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

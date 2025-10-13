@@ -44,7 +44,7 @@ Vou descrever um caminho seguro em *fases*, do mínimo invasivo ao completo.
 *   **[X] Configurar TypeORM e Modelos**: Definir os modelos `User`, `Character`, `GameSession`, `Log`, e `LicenseKey` usando decoradores do TypeORM. Configurar o `AppDataSource` para conexão com o banco de dados.
 *   **[X] Implementar Middlewares Essenciais**: Criar `authMiddleware` para validação de JWT e `errorMiddleware` para tratamento de erros global.
 *   **[X] Configurar Rotas e Controllers Iniciais**: Criar a estrutura para as rotas da API (`auth`, `users`, `characters`, etc.) e seus respectivos controllers.
-*   **[ ] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
+*   **[X] Integrar Serviço de IA (Genkit)**: Isolar a lógica do Genkit em `iaService.ts`, garantindo que ele seja chamado pelos controllers, e implementar o streaming de respostas corretamente.
 
 ## Fase 1 — Autenticação, Licença e API de Usuário (Concluído)
 
@@ -66,15 +66,15 @@ Esta seção descreve os testes manuais (usando Postman, Insomnia ou `curl`) par
 INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 ```
 
-## Fase 2 - Refatoração do Backend de IA (Em Andamento)
+## Fase 2 - Refatoração do Backend de IA (Concluído)
 
 *   **Objetivo**: Reconstruir a lógica de interação com a IA no backend, permitindo múltiplas sessões de jogo paralelas, cada uma com sua própria chave de API e contexto de Genkit.
 *   **Documento de Planejamento**: Todos os detalhes e o passo a passo desta fase estão no novo arquivo mestre: **[backend_refactor.md](./backend_refactor.md)**.
-*   **Status Atual**: Iniciando a configuração da estrutura do projeto Node.js/Express e a camada de dados com TypeORM.
+*   **Status Atual**: Concluído. A API de narração está funcionando.
 
-## Fase 3 — Frontend: Conexão com o Backend (Pendente)
+## Fase 3 — Frontend: Conexão com o Backend (Em Andamento)
 
-*   **[ ] Refatorar `AuthContext`**: Substituir toda a lógica de `localStorage` pela nova API REST de autenticação (`/api/auth/...`) e licença (`/api/licenses/...`).
+*   **[X] Refatorar `AuthContext`**: Substituir toda a lógica de `localStorage` pela nova API REST de autenticação (`/api/auth/...`) e licença (`/api/licenses/...`).
 *   **[ ] Criar Tela de Seleção de Personagem**: Após o login, o usuário será direcionado para uma tela que buscará seus personagens via `GET /api/characters` e os exibirá em "slots".
 *   **[ ] Refatorar `GameStateContext`**:
     *   O `useGameState` deve ser completamente reescrito para interagir com a API do backend.

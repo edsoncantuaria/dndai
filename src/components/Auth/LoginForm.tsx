@@ -17,14 +17,14 @@ const LoginForm = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
             <div>
                 <label htmlFor="login-identifier" className="block text-sm font-medium text-stone-300">
-                    Usuário ou Email
+                    Email
                 </label>
                 <div className="mt-1">
                     <input
                         id="login-identifier"
                         name="login"
-                        type="text"
-                        autoComplete="username"
+                        type="email"
+                        autoComplete="email"
                         required
                         value={loginIdentifier}
                         onChange={(e) => setLoginIdentifier(e.target.value)}

@@ -79,17 +79,25 @@ O novo backend será uma API RESTful construída com Express.js, responsável po
         5.  Salvar o `prompt` e a `response` na tabela `session_logs`.
         6.  Retornar a `response` para o frontend.
 
-### **Fase 2.3: Testes e Documentação Final (Em Andamento)**
+### **Fase 2.3: Testes e Documentação Final (Concluído)**
 
 *   **[X] Atualizar `README.md` do Backend**: Instruções detalhadas sobre como rodar o servidor e usar a API.
 *   **[X] Testar Endpoints via `curl`**: Adicionar exemplos práticos para testar a criação de sessão e o fluxo de narração.
-*   **[ ] Tratamento de Erros Aprimorado**: Garantir que todos os endpoints tenham um tratamento de erro robusto e mensagens claras.
+*   **[X] Tratamento de Erros Aprimorado**: Garantir que todos os endpoints tenham um tratamento de erro robusto e mensagens claras.
 
 ---
 
 ## Testando a API (Fase 2.1 e 2.2)
 
 Você pode usar `curl` ou uma ferramenta como Postman/Insomnia para testar os endpoints. **Lembre-se de substituir `seu_token_jwt_aqui` por um token válido obtido no login.**
+
+### Pré-requisitos de Teste
+
+Para testar a ativação de licença, você precisa primeiro adicionar uma chave válida no seu banco de dados MySQL.
+
+```sql
+INSERT INTO license_keys (`key`) VALUES ('SUA-CHAVE-DE-TESTE');
+```
 
 #### **1. Criar uma nova sessão de jogo (`POST /api/sessoes`)**
 
