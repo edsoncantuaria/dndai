@@ -582,12 +582,19 @@ export type Attributes = {
 
 // Nova interface para representar uma sessão de jogo
 export interface SessaoIA {
+  id: number;
+  nome: string;
+  userId: number;
+  characterId: number | null;
+  character?: {
     id: number;
-    nome: string;
-    userId: number;
-    characterId: number | null;
-    character?: Character; // Relação opcional
-    logs?: LogEntry[]; // Relação opcional
-    createdAt: string;
-    updatedAt: string;
+    name: string;
+    level: number;
+    characterClass: string;
+    subclassFlavor: string;
+    race: string;
+  };
+  logs?: LogEntry[];
+  createdAt: string;
+  updatedAt: string;
 }

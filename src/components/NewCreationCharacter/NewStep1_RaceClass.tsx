@@ -105,12 +105,14 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         handleSubraceChange,
         handleClassChange,
         raceDetails,
+        classDetails,
         traitChoiceDetails,
         isSpellsLoading,
         handleRandomizeRaceAndClass,
     } = hook;
     
     const canProceed = race && characterClass && traitChoiceDetails.every(t => !t.trait_specific?.subfeature_options || hook.traitSelections[t.index]) && (race !== 'dragonborn' || hook.draconicAncestry);
+    const subclassFlavor = classDetails?.subclasses?.[0]?.name ? `(${translateApiString(classDetails.subclasses[0].subclass_flavor)})` : '';
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -183,7 +185,8 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                             onClick={() => handleClassChange(c.index)}
                             className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${characterClass === c.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                         >
-                            <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
+                             <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
+                             {characterClass === c.index && subclassFlavor && <span className="block text-xs text-amber-300">{subclassFlavor}</span>}
                         </button>
                     ))}
                 </div>

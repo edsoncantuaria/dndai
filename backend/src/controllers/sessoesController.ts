@@ -82,6 +82,7 @@ export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunc
                     name: true,
                     level: true,
                     characterClass: true,
+                    subclassFlavor: true, // Adicionado para exibição na lista
                     race: true,
                 }
             }

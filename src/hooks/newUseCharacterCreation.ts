@@ -98,6 +98,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
     const [traitChoiceDetails, setTraitChoiceDetails] = useState<ApiTrait[]>([]);
+    const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]); // Armazena magias de subclasse
     
     // --- MEMOIZED DERIVED STATE ---
 
@@ -745,6 +746,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setClassDetails(null);
         setClassLevels(null);
         setClassSpellOptions([]);
+        setSubclassSpells([]); // Limpa as magias de subclasse
         resetSelections('class');
 
         if (newClassIndex) {
@@ -760,6 +762,17 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
             setClassDetails(details);
             setClassLevels(levels);
+
+            // Buscar magias da subclasse inicial
+            if (details?.subclasses.length > 0) {
+                const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
+                if (subClassDetails?.spells) {
+                    const subclassSpellItems = subClassDetails.spells.map(s => s.spell);
+                    const subclassSpellDetails = await fetchDetailsInChunks(subclassSpellItems, DndApiService.getSpellDetails, ()=>{});
+                    setSubclassSpells(subclassSpellDetails.filter((s): s is ApiSpell => s !== null));
+                }
+            }
+
 
             if (details?.spellcasting && spellsResponse?.results) {
                  const spellDetails = await fetchDetailsInChunks(
@@ -927,7 +940,11 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         
         const finalLanguages = [...baseLanguages, ...chosenLanguages.filter(l => l)];
         
-        const allSpells = [...new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()])];
+        const allSpells = [...new Set([
+            ...chosenClassSpells,
+            ...Object.values(chosenRacialSpells).flat(),
+            ...subclassSpells.map(s => s.index) // Adiciona magias da subclasse
+        ])];
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
