@@ -924,7 +924,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     }, [classDetails, classLevels, classSpellOptions, cantripsKnown, spellsKnown, racialSpellTraits]);
 
-    const buildCharacter = async (): Promise<NewCharacterInfo | null> => {
+    const buildCharacter = (): NewCharacterInfo | null => {
         if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
     
         const allProficiencies: Proficiency[] = [
@@ -956,7 +956,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         (subraceDetails?.racial_traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
         const finalTraits = Array.from(finalTraitsMap.values());
         
-        const subClassDetails = classDetails.subclasses?.[0] ? await DndApiService.getSubclassDetails(classDetails.subclasses[0].index) : null;
+        const subClassDetails = classDetails.subclasses?.[0] ? DndApiService.getSubclassDetails(classDetails.subclasses[0].index) : null;
     
         return {
             name,
@@ -968,7 +968,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             subrace: subraceDetails?.name || null,
             draconicAncestry: draconicAncestry || undefined,
             characterClass: classDetails.name,
-            subclassFlavor: subClassDetails?.subclass_flavor || null,
+            subclassFlavor: classDetails.subclasses[0]?.name || null,
             background: backgroundDetails.name,
             alignment: alignment,
             attributes: finalAttributes,

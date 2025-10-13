@@ -1,3 +1,4 @@
+// src/components/NewCreationCharacter/NewCharacterCreation.tsx
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
