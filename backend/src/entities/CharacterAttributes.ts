@@ -7,7 +7,7 @@ export class CharacterAttributes {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ type: 'int' })
+    @Column({ type: 'int', unique: true })
     characterId: number;
 
     @OneToOne(() => Character, character => character.attributes, { onDelete: 'CASCADE' })
@@ -31,4 +31,13 @@ export class CharacterAttributes {
 
     @Column({ type: 'int' })
     charisma: number;
+    
+    @Column({ type: 'int', default: 10 })
+    hp: number;
+
+    @Column({ type: 'int', default: 10 })
+    ac: number;
+
+    @Column({ type: 'json', nullable: true })
+    conditions: any[];
 }

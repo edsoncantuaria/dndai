@@ -182,10 +182,14 @@ export interface NewCharacterInfo {
     inventory: InventoryItem[];
     spells: string[];
     backstory: string;
+    personalityTraits: string[];
     ideal: string;
     bond: string;
     flaw: string;
-    level: number; // Adicionado para consistência
+    feats: Feat[];
+    hitDie: number;
+    subclass: string | null;
+    level: number;
 }
 
 export interface InventoryItem {

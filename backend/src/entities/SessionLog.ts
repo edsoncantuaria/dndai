@@ -24,6 +24,12 @@ export class SessionLog {
     @Column({ type: 'text' })
     response: string;
 
+    @Column({ type: 'varchar', length: 20, default: 'narration' })
+    type: string;
+
+    @Column({ type: 'json', nullable: true })
+    rollResult: any;
+
     @CreateDateColumn()
     timestamp: Date;
 

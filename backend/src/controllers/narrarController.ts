@@ -233,7 +233,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         }
         
         const playerLog = new SessionLog();
-        playerLog.sessao = sessao;
+        playerLog.sessaoId = sessao.id;
         playerLog.prompt = playerAction;
         playerLog.response = playerAction;
         playerLog.type = 'action';
@@ -242,7 +242,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
                 const newLog = new SessionLog();
-                newLog.sessao = sessao;
+                newLog.sessaoId = sessao.id;
                 newLog.prompt = JSON.stringify(gameMasterFlowInput); // Log do input para debug
                 newLog.response = entry.content;
                 newLog.type = entry.type;
