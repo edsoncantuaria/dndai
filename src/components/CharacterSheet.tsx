@@ -93,7 +93,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     if (!character) return null;
 
     const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
-    const equippedItems = character.inventory.filter(i => i.equipped);
+    const equippedItems = (character.inventory || []).filter(i => i.equipped);
     const initiativeBonus = modifiers.dexterity;
 
     return (
