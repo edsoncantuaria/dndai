@@ -45,7 +45,7 @@ const ProgressionTab: React.FC = () => {
             <div className="space-y-3 pt-4 border-t border-stone-700">
                 <h4 className="text-md font-semibold text-amber-200 border-b border-stone-700 pb-1">Linha de Progressão</h4>
                 {allLevels.map(level => {
-                    const classLevelData = character.classLevelsData.find(l => l.level === level);
+                    const classLevelData = character.classLevelsData?.find(l => l.level === level);
                     const subclassLevelData = character.subclassLevelsData?.find(l => l.level === level);
                     
                     if (!classLevelData) return null;
