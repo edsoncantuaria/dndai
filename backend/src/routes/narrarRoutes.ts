@@ -10,9 +10,7 @@ const router = Router();
  * POST /api/narrar/:sessionId
  * 
  * Recebe um prompt no corpo da requisição e retorna a narração da IA.
+ * Pode operar em modo normal (JSON) ou streaming. Para streaming,
+ * inclua `"stream": true` no corpo da requisição.
+ * 
  * Protegida por autenticação para garantir que apenas o dono da sessão possa interagir.
- */
-router.post('/:sessionId', authMiddleware, narrar);
-
-export default router;
-

@@ -3,7 +3,7 @@ import { Response, NextFunction } from 'express';
 import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
-import { runGameMasterTurn } from '../services/aiService.js';
+import { runGameMasterTurn, streamGameMasterTurn } from '../services/aiService.js';
 import createError from 'http-errors';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import { User } from '../entities/User.js';
@@ -15,6 +15,7 @@ import { CharacterSpell } from '../entities/CharacterSpell.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
+import { GameMasterResponse } from '../schemas/gameSchemas.js';
 
 
 // Constrói um objeto de personagem otimizado para a IA, focando no que é relevante para a jogabilidade.
@@ -163,7 +164,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const { prompt: playerAction, combatState: currentCombatState } = req.body;
+    const { prompt: playerAction, combatState: currentCombatState, stream } = req.body; // Check for stream flag
     const userId = req.user?.userId;
 
     if (!playerAction) {
@@ -195,7 +196,6 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             return next(createError(400, 'A chave de API não está configurada para este usuário.'));
         }
 
-
         // Constrói um objeto de personagem otimizado para a IA
         const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character);
         if (!optimizedCharacter) {
@@ -206,7 +206,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const recentLogs = await logRepository.find({
             where: { sessaoId: sessao.id },
             order: { timestamp: 'DESC' },
-            take: 10,
+            take: 15,
         });
         const gameLogSummary = recentLogs.reverse().map((log: SessionLog) => {
              return `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`;
@@ -219,47 +219,121 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             combatState: currentCombatState,
         };
 
-        const aiResponse = await runGameMasterTurn(
-            gameMasterFlowInput,
-            apiKey,
-            user?.settings?.model || "gemini-2.5-flash"
-        );
-
-
-        if (!aiResponse) {
-             return next(createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.'));
-        }
-        
+        // Salva a ação do jogador no log ANTES da resposta da IA
         const playerLog = new SessionLog();
         playerLog.sessaoId = sessao.id;
         playerLog.prompt = playerAction;
         playerLog.response = playerAction;
         playerLog.type = 'action';
         await logRepository.save(playerLog);
-        
-        if (aiResponse.logEntries) {
-            for (const entry of aiResponse.logEntries) {
-                const newLog = new SessionLog();
-                newLog.sessaoId = sessao.id;
-                newLog.prompt = JSON.stringify(gameMasterFlowInput); // Log do input para debug
-                newLog.response = entry.content;
-                newLog.type = entry.type;
-                newLog.rollResult = entry.rollResult;
-                await logRepository.save(newLog);
+
+
+        // Check if client requests streaming
+        if (stream) {
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            res.setHeader('Transfer-Encoding', 'chunked');
+
+            const { response, textStream } = await streamGameMasterTurn(
+                gameMasterFlowInput,
+                apiKey,
+                user?.settings?.model || "gemini-2.5-flash"
+            );
+            
+            // Stream the text part first
+            for await (const chunk of textStream) {
+                res.write(chunk);
             }
+            
+            const finalAiResponse = await response;
+            if (!finalAiResponse) {
+                throw new Error("A IA não conseguiu formular a parte final da resposta.");
+            }
+
+            const finalLogEntry = {
+                type: 'narration',
+                content: finalAiResponse.llmResponse,
+            };
+
+            // Save the streamed narration as a single log entry
+            const narrationLog = new SessionLog();
+            narrationLog.sessaoId = sessao.id;
+            narrationLog.prompt = JSON.stringify(gameMasterFlowInput);
+            narrationLog.response = finalAiResponse.llmResponse || '';
+            narrationLog.type = 'narration';
+            await logRepository.save(narrationLog);
+            
+            // Save other log entry types
+            if (finalAiResponse.logEntries && finalAiResponse.logEntries.length > 0) {
+                 for (const entry of finalAiResponse.logEntries) {
+                    const newLog = new SessionLog();
+                    newLog.sessaoId = sessao.id;
+                    newLog.prompt = JSON.stringify(gameMasterFlowInput);
+                    newLog.response = entry.content;
+                    newLog.type = entry.type;
+                    newLog.rollResult = entry.rollResult;
+                    await logRepository.save(newLog);
+                }
+            }
+            
+            // Persist character updates
+            if (finalAiResponse.updatedCharacter) {
+                await persistCharacterUpdates(sessao.character.id, finalAiResponse.updatedCharacter);
+            }
+
+            // Send the final JSON payload as the last chunk
+            const finalPayload: Partial<GameMasterResponse> = {
+                actionOptions: finalAiResponse.actionOptions,
+                updatedCharacter: finalAiResponse.updatedCharacter,
+                combatState: finalAiResponse.combatState,
+                playerRollRequest: finalAiResponse.playerRollRequest,
+                ambientSound: finalAiResponse.ambientSound,
+                imagePrompt: finalAiResponse.imagePrompt,
+                systemLog: finalAiResponse.systemLog,
+                levelUpState: finalAiResponse.levelUpState,
+                shopState: finalAiResponse.shopState,
+                lootOffer: finalAiResponse.lootOffer,
+                useHitDiceRequest: finalAiResponse.useHitDiceRequest,
+            };
+
+            // Use a unique separator to distinguish text from the final JSON
+            res.write(`\n--END_OF_STREAM--\n`);
+            res.write(JSON.stringify(finalPayload));
+            res.end();
+
+        } else {
+            // Original non-streaming behavior
+            const aiResponse = await runGameMasterTurn(
+                gameMasterFlowInput,
+                apiKey,
+                user?.settings?.model || "gemini-2.5-flash"
+            );
+
+            if (!aiResponse) {
+                 return next(createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.'));
+            }
+            
+            if (aiResponse.logEntries) {
+                for (const entry of aiResponse.logEntries) {
+                    const newLog = new SessionLog();
+                    newLog.sessaoId = sessao.id;
+                    newLog.prompt = JSON.stringify(gameMasterFlowInput); // Log do input para debug
+                    newLog.response = entry.content;
+                    newLog.type = entry.type;
+                    newLog.rollResult = entry.rollResult;
+                    await logRepository.save(newLog);
+                }
+            }
+            
+            // Persiste as atualizações do personagem, se houver
+            if (aiResponse.updatedCharacter) {
+                await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
+            }
+            
+            res.status(200).json(aiResponse);
         }
-        
-        // Persiste as atualizações do personagem, se houver
-        if (aiResponse.updatedCharacter) {
-            await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
-        }
-        
-        res.status(200).json(aiResponse);
 
     } catch (error) {
         console.error(`Erro ao processar narração para sessão ${sessionId}:`, error);
         next(error);
     }
 };
-
-    
