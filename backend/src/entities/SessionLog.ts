@@ -12,9 +12,6 @@ export class SessionLog {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column()
-    sessaoId: number;
-
     @ManyToOne(() => SessaoIA, sessao => sessao.logs)
     @JoinColumn({ name: "sessaoId" })
     sessao: SessaoIA;

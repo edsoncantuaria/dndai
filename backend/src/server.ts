@@ -1,4 +1,3 @@
-
 // backend/src/server.ts
 import 'reflect-metadata'; // Necessário para o TypeORM
 import 'dotenv/config'; // Carrega as variáveis do .env para process.env
