@@ -35,8 +35,8 @@ export const buildFullCharacterObject = async (character: Character) => {
         ...fullCharacter,
         attributes: fullCharacter.attributes,
         proficiencies: fullCharacter.proficiencies,
-        inventory: fullCharacter.items.map(item => item.itemData), // Corrigido para pegar o JSON
-        spells: fullCharacter.spells.map(s => s.spellName),
+        inventory: fullCharacter.items.map((item: CharacterItem) => item.itemData), // Corrigido para pegar o JSON
+        spells: fullCharacter.spells.map((s: CharacterSpell) => s.spellName),
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
     };
