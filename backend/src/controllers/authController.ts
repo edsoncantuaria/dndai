@@ -9,7 +9,7 @@ import createError from 'http-errors';
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     const { username, email, password } = req.body;
 
-    if (!username || !email || !password) {
+    if (!username || !email || !password || username.trim() === '') {
         return next(createError(400, 'Todos os campos são obrigatórios.'));
     }
 
