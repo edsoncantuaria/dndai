@@ -3,15 +3,9 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "gemini-2.5-flash",
-    "gemini-2.5-pro",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash-8b",
-    "gemini-2.0-flash-lite",
-    "gemini-1.0-pro",
     "gemini-1.5-flash",
-    "gemma-3-27b-it",
-    "gemma-7b-it",
+    "gemini-1.5-pro",
+    "gemini-1.0-pro",
 ];
 
 export const AVAILABLE_TTS_MODELS = [
@@ -49,6 +43,7 @@ export interface GenerationConfig {
 interface SettingsContextType {
     isLoaded: boolean;
     loadSettings: (settings: any) => void;
+    getSettingsObject: () => any;
     model: string;
     setModel: (model: string) => void;
     ttsModel: string;
@@ -68,7 +63,7 @@ interface SettingsContextType {
     playMenuMusic: boolean;
     setPlayMenuMusic: (play: boolean) => void;
     getApiKey: () => string | undefined;
-    saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey'>>) => Promise<void>;
+    saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject'>>) => Promise<void>;
 }
 
 export const defaultGenerationConfig: GenerationConfig = {
@@ -76,6 +71,18 @@ export const defaultGenerationConfig: GenerationConfig = {
     topP: 0.95,
     topK: 64,
     maxOutputTokens: 8192,
+};
+
+const defaultSettings = {
+    model: AVAILABLE_MODELS[0],
+    ttsModel: AVAILABLE_TTS_MODELS[0],
+    imageModel: AVAILABLE_IMAGE_MODELS[0],
+    ttsVoice: AVAILABLE_TTS_VOICES[0],
+    apiKey: '',
+    generationConfig: defaultGenerationConfig,
+    volume: 0.3,
+    isMuted: false,
+    playMenuMusic: true,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -100,19 +107,49 @@ const saveSettingsToDB = async (settings: Partial<any>) => {
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [isLoaded, setIsLoaded] = useState(false);
-    const [model, setModel] = useState<string>(AVAILABLE_MODELS[0]);
-    const [ttsModel, setTtsModel] = useState<string>(AVAILABLE_TTS_MODELS[0]);
-    const [imageModel, setImageModel] = useState<string>(AVAILABLE_IMAGE_MODELS[0]);
-    const [ttsVoice, setTtsVoice] = useState<string>(AVAILABLE_TTS_VOICES[0]);
-    const [apiKey, setApiKey] = useState<string>('');
-    const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultGenerationConfig);
-    const [volume, setVolume] = useState(0.3);
-    const [isMuted, setIsMuted] = useState(false);
-    const [playMenuMusic, setPlayMenuMusic] = useState(true);
+    const [model, setModel] = useState<string>(defaultSettings.model);
+    const [ttsModel, setTtsModel] = useState<string>(defaultSettings.ttsModel);
+    const [imageModel, setImageModel] = useState<string>(defaultSettings.imageModel);
+    const [ttsVoice, setTtsVoice] = useState<string>(defaultSettings.ttsVoice);
+    const [apiKey, setApiKey] = useState<string>(defaultSettings.apiKey);
+    const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultSettings.generationConfig);
+    const [volume, setVolume] = useState(defaultSettings.volume);
+    const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
+    const [playMenuMusic, setPlayMenuMusic] = useState(defaultSettings.playMenuMusic);
 
     const getApiKey = useCallback(() => apiKey, [apiKey]);
     
-    // Function to load settings from AuthContext
+    // Load from localStorage on initial mount
+    useEffect(() => {
+        try {
+            const localSettings = localStorage.getItem('userSettings');
+            if (localSettings) {
+                const settings = JSON.parse(localSettings);
+                loadSettings(settings);
+            }
+        } catch (error) {
+            console.warn("Could not load settings from localStorage", error);
+        } finally {
+            setIsLoaded(true);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const getSettingsObject = useCallback(() => {
+        return {
+            model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey
+        }
+    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey]);
+
+    // Save to localStorage whenever a setting changes
+    useEffect(() => {
+        if (isLoaded) {
+            const settingsToSave = getSettingsObject();
+            localStorage.setItem('userSettings', JSON.stringify(settingsToSave));
+        }
+    }, [getSettingsObject, isLoaded]);
+    
+    // Function to load settings from AuthContext or localStorage
     const loadSettings = useCallback((settings: any) => {
         if (settings) {
             if (settings.model && AVAILABLE_MODELS.includes(settings.model)) setModel(settings.model);
@@ -123,22 +160,21 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
-            if (settings.apiKey) setApiKey(settings.apiKey); // Load apiKey from DB settings
+            if (settings.apiKey) setApiKey(settings.apiKey);
         }
-        setIsLoaded(true);
     }, []);
 
-    // Save settings to DB when they change
+    // Save settings to DB when they change (debounced)
     useEffect(() => {
         if(isLoaded) {
-            const settingsToSave = { model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey };
+            const settingsToSave = getSettingsObject();
             const handler = setTimeout(() => saveSettingsToDB(settingsToSave), 1500); // Debounce DB saves
             return () => clearTimeout(handler);
         }
-    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, isLoaded]);
+    }, [getSettingsObject, isLoaded]);
 
     const value = {
-        isLoaded, loadSettings,
+        isLoaded, loadSettings, getSettingsObject,
         model, setModel,
         ttsModel, setTtsModel,
         imageModel, setImageModel,

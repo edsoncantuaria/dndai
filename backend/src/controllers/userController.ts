@@ -45,8 +45,8 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
 
     try {
         const userRepository = AppDataSource.getRepository(User);
-        // Atualiza diretamente com as novas configurações, sobrescrevendo as antigas.
-        // Isso garante que a fonte da verdade seja sempre o que o cliente envia.
+        
+        // Overwrite the settings object completely to ensure sync
         await userRepository.update(userId, { settings: newSettings });
         
         res.status(200).json({ message: 'Configurações atualizadas com sucesso!', settings: newSettings });

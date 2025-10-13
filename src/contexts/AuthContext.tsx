@@ -33,7 +33,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const { apiKey, setApiKey, loadSettings, saveSettingsToDB } = useSettingsContext();
+    const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
     // Recalculate hasApiKey whenever apiKey changes.
@@ -45,7 +45,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setApiKey('');
         if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
-            localStorage.removeItem('apiKey'); // Also clear the local API key on logout
         }
         toast({
             description: "Você saiu da sua conta.",
@@ -55,8 +54,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     useEffect(() => {
         const validateSession = async () => {
             const token = localStorage.getItem('token');
-            const localApiKey = localStorage.getItem('apiKey');
-            
             if (token) {
                 try {
                     const response = await fetch(`${API_URL}/users/me`, {
@@ -68,23 +65,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         setUser(userData);
                         setIsLicenseActive(userData.licenseKey?.isActivated || false);
 
+                        // If user has settings in DB, load them.
                         if (userData.settings) {
                            loadSettings(userData.settings);
-                           // Prioritize DB key, then local storage key
-                           if (userData.settings.apiKey) {
-                               setApiKey(userData.settings.apiKey);
-                           } else if (localApiKey) {
-                               // DB has settings but no API key, but local storage does. Sync it.
-                               await saveSettingsToDB({ ...userData.settings, apiKey: localApiKey });
-                               setApiKey(localApiKey);
-                           }
-                        } else if (localApiKey) {
-                            // No settings in DB, but key is in local storage. Create settings object and save it.
-                            await saveSettingsToDB({ apiKey: localApiKey });
-                            setApiKey(localApiKey);
+                        } else if (isSettingsLoaded) {
+                           // If user has NO settings in DB, but settings ARE loaded in the context (from localStorage),
+                           // then this is the first login on this machine, and we should sync local to DB.
+                           await saveSettingsToDB(getSettingsObject());
                         }
-
                     } else {
+                        // Token is invalid
                         logout();
                     }
                 } catch (e) {
@@ -95,7 +85,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
         };
         validateSession();
-    }, [logout, loadSettings, setApiKey, saveSettingsToDB]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSettingsLoaded]); // Depend on isSettingsLoaded to ensure we sync only after context is ready.
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
@@ -109,10 +100,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
                 if (userData.settings) {
                     loadSettings(userData.settings);
-                    if (userData.settings.apiKey) {
-                        setApiKey(userData.settings.apiKey);
-                        localStorage.setItem('apiKey', userData.settings.apiKey); // Sync to localStorage
-                    }
+                } else {
+                    // New user or user without settings, sync local settings (if any) to DB
+                    await saveSettingsToDB(getSettingsObject());
                 }
 
                 toast({
@@ -195,11 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        setApiKey(newApiKey);
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('apiKey', newApiKey);
-        }
-        await saveSettingsToDB({ apiKey: newApiKey });
+        setApiKey(newApiKey); // This will trigger the useEffect in SettingsContext to save to DB
         toast({
             title: "Chave de API Salva!",
             description: "Sua chave foi salva em sua conta.",
