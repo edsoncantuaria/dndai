@@ -8,8 +8,8 @@ import createError from 'http-errors';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "gemini-1.5-flash",
-    ttsModel: "gemini-1.5-flash-native-audio",
+    model: "gemini-2.5-flash",
+    ttsModel: "gemini-2.5-flash-native-audio",
     imageModel: "imagen-3",
     ttsVoice: "Charon",
     generationConfig: {
