@@ -67,6 +67,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
     const [backgroundDetails, setBackgroundDetails] = useState<ApiBackground | null>(null);
     const [classLevels, setClassLevels] = useState<ApiClassLevel[] | null>(null);
+    const [subclassFlavor, setSubclassFlavor] = useState<string | null>(null);
     
     // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
@@ -747,8 +748,9 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setClassLevels(null);
         setClassSpellOptions([]);
         setSubclassSpells([]); // Limpa as magias de subclasse
+        setSubclassFlavor(null); // Limpa o flavor da subclasse
         resetSelections('class');
-
+    
         if (newClassIndex) {
             setIsEquipmentLoading(true);
             setIsSpellsLoading(true);
@@ -759,21 +761,20 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 DndApiService.getClassLevels(newClassIndex),
                 DndApiService.getSpellsForClass(newClassIndex)
             ]);
-
+    
             setClassDetails(details);
             setClassLevels(levels);
-
-            // Buscar magias da subclasse inicial
-            if (details?.subclasses.length > 0) {
+    
+            if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
+                setSubclassFlavor(subClassDetails?.subclass_flavor || null);
                 if (subClassDetails?.spells) {
                     const subclassSpellItems = subClassDetails.spells.map(s => s.spell);
                     const subclassSpellDetails = await fetchDetailsInChunks(subclassSpellItems, DndApiService.getSpellDetails, ()=>{});
                     setSubclassSpells(subclassSpellDetails.filter((s): s is ApiSpell => s !== null));
                 }
             }
-
-
+    
             if (details?.spellcasting && spellsResponse?.results) {
                  const spellDetails = await fetchDetailsInChunks(
                     spellsResponse.results,
@@ -956,8 +957,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         (subraceDetails?.racial_traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
         const finalTraits = Array.from(finalTraitsMap.values());
         
-        const subClassDetails = classDetails.subclasses?.[0] ? DndApiService.getSubclassDetails(classDetails.subclasses[0].index) : null;
-    
         return {
             name,
             sex,
@@ -968,7 +967,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             subrace: subraceDetails?.name || null,
             draconicAncestry: draconicAncestry || undefined,
             characterClass: classDetails.name,
-            subclassFlavor: classDetails.subclasses[0]?.name || null,
+            subclassFlavor: subclassFlavor || null,
             background: backgroundDetails.name,
             alignment: alignment,
             attributes: finalAttributes,
@@ -1019,6 +1018,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         classDetails,
         backgroundDetails,
         classLevels,
+        subclassFlavor,
         racialBonuses,
         finalAttributes,
         baseLanguages,
