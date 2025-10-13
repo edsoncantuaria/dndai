@@ -3,9 +3,15 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "gemini-1.5-flash",
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
     "gemini-1.5-pro",
+    "gemini-1.5-flash-8b",
+    "gemini-2.0-flash-lite",
     "gemini-1.0-pro",
+    "gemini-1.5-flash",
+    "gemma-3-27b-it",
+    "gemma-7b-it",
 ];
 
 export const AVAILABLE_TTS_MODELS = [

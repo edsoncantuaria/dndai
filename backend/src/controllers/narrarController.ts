@@ -222,7 +222,7 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const aiResponse = await runGameMasterTurn(
             gameMasterFlowInput,
             apiKey,
-            user?.settings?.model || "gemini-1.5-flash"
+            user?.settings?.model || "gemini-2.5-flash"
         );
 
 
