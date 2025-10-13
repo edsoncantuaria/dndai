@@ -8,12 +8,12 @@ export class JournalEntry {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ type: 'int' })
-    characterId: number;
+    @Column({ type: 'int', nullable: true })
+    characterId: number | null;
 
-    @ManyToOne(() => Character, character => character.journal, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Character, character => character.journal, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn({ name: 'characterId' })
-    character: Character;
+    character: Character | null;
 
     @Column({ type: 'varchar', length: 150 })
     name: string;
@@ -33,5 +33,3 @@ export class JournalEntry {
     @TreeParent({ onDelete: 'CASCADE' })
     parentLocation: JournalEntry;
 }
-
-    

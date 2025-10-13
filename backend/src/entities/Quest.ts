@@ -7,12 +7,12 @@ export class Quest {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
-    @Column({ type: 'int' })
-    relationshipId: number;
+    @Column({ type: 'int', nullable: true })
+    relationshipId: number | null;
 
-    @ManyToOne(() => Relationship, relationship => relationship.quests, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Relationship, relationship => relationship.quests, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn({ name: 'relationshipId' })
-    relationship: Relationship;
+    relationship: Relationship | null;
 
     @Column({ type: 'varchar', length: 255 })
     title: string;
@@ -27,5 +27,3 @@ export class Quest {
     @Column({ type: 'json' }) // Armazena os objetivos como um array de strings
     objectives: string[];
 }
-
-    

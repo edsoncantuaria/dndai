@@ -86,8 +86,6 @@ const CharacterAISchema = z.object({
     race: z.string(),
     characterClass: z.string(),
     level: z.number(),
-    hp: z.object({ current: z.number(), max: z.number(), temp: z.number() }),
-    ac: z.object({ value: z.number(), source: z.string() }),
     attributes: z.object({
         strength: z.number(),
         dexterity: z.number(),
@@ -95,6 +93,9 @@ const CharacterAISchema = z.object({
         intelligence: z.number(),
         wisdom: z.number(),
         charisma: z.number(),
+        hp: z.number(),
+        ac: z.number(),
+        conditions: z.array(z.string()).optional(),
     }),
     proficiencies: z.array(z.string()),
     inventory: z.array(InventoryItemSchema),
@@ -104,15 +105,13 @@ const CharacterAISchema = z.object({
     storySoFar: z.string().optional(),
     worldState: z.record(z.any()).optional(),
     factionReputation: z.record(z.number()).optional(),
-    conditions: z.array(z.any()).optional(),
 });
 
 export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
-    updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action. E.g., { hp: { current: 25 }, inventory: [...] }"),
+    updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action. E.g., { attributes: { hp: 25 }, inventory: [...] }"),
     combatState: CombatStateSchema.optional().describe("The complete state of combat, if it is active."),
-    levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
     playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice, this object MUST be populated."),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night')."),
     imagePrompt: z.string().optional().describe("A prompt for the image generation model to create a scene."),

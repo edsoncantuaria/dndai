@@ -89,18 +89,17 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
     *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints.
     *   **[X]** Implementada a exibição do `storySoFar`, `factionReputation` e `worldState` na ficha do personagem e na tela de progresso.
 
-## Fase 4 — Integração da Lógica de Jogo e Otimização (Em Andamento)
+## Fase 4 — Integração da Lógica de Jogo e Otimização (Concluído)
 
 *   **[X] Objetivo**: Unificar a lógica do jogo com a nova estrutura de banco de dados e otimizar a comunicação com a IA para reduzir o consumo de tokens e aumentar a velocidade.
 *   **[X] Backend**:
     *   **[X]** Refatorado o `gameSchemas.ts` para ser a fonte da verdade da estrutura de dados do jogo.
     *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas otimizados.
     *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado, construir resumos de personagem e de log, e implementar a persistência de estado após a resposta da IA.
-*   **[ ] Frontend**:
-    *   **[ ]** Atualizar o `types.ts` para corresponder aos novos schemas.
-    *   **[ ]** Ajustar `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo (`GameMasterFlowInput`, `GameMasterResponse`).
-    *   **[ ]** Garantir que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
-
+*   **[X] Frontend**:
+    *   **[X]** Atualizado o `types.ts` para corresponder aos novos schemas.
+    *   **[X]** Ajustado `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo (`GameMasterFlowInput`, `GameMasterResponse`).
+    *   **[X]** Garantido que todos os componentes da interface (`CombatTracker`, `CharacterSheet`, etc.) renderizem corretamente com base no novo estado.
 
 ## Fase 5 — WebSocket e Modo Multiplayer (Futuro)
 
@@ -124,3 +123,4 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
 * [ ] Planejar rollout progressivo com feature-flag.
+

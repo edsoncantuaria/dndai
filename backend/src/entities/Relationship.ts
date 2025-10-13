@@ -8,12 +8,12 @@ export class Relationship {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ type: 'int' })
-    characterId: number;
+    @Column({ type: 'int', nullable: true })
+    characterId: number | null;
 
-    @ManyToOne(() => Character, character => character.relationships, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Character, character => character.relationships, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn({ name: 'characterId' })
-    character: Character;
+    character: Character | null;
 
     @Column({ type: 'varchar', length: 100 })
     npcId: string;
@@ -37,5 +37,3 @@ export class Relationship {
     @OneToMany(() => Quest, quest => quest.relationship, { cascade: true })
     quests: Quest[];
 }
-
-    

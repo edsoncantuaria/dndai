@@ -25,7 +25,7 @@ const buildOptimizedCharacterForAI = async (character: Character | null) => {
 
     const fullCharacter = await AppDataSource.getRepository(Character).findOne({
         where: { id: character.id },
-        relations: ["attributes", "proficiencies", "items", "spells", "journal", "journal.subLocations", "relationships", "relationships.quests"],
+        relations: ["attributes", "proficiencies", "items", "spells", "journal", "relationships", "relationships.quests"],
     });
 
     if (!fullCharacter) return null;
@@ -36,8 +36,6 @@ const buildOptimizedCharacterForAI = async (character: Character | null) => {
         race: fullCharacter.race,
         characterClass: fullCharacter.characterClass,
         level: fullCharacter.level,
-        hp: fullCharacter.attributes.hp,
-        ac: fullCharacter.attributes.ac,
         attributes: {
             strength: fullCharacter.attributes.strength,
             dexterity: fullCharacter.attributes.dexterity,
@@ -45,16 +43,18 @@ const buildOptimizedCharacterForAI = async (character: Character | null) => {
             intelligence: fullCharacter.attributes.intelligence,
             wisdom: fullCharacter.attributes.wisdom,
             charisma: fullCharacter.attributes.charisma,
+            hp: fullCharacter.attributes.hp,
+            ac: fullCharacter.attributes.ac,
+            conditions: fullCharacter.attributes.conditions,
         },
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
-        inventory: fullCharacter.items.map(item => ({ name: item.name, quantity: item.quantity, equipped: item.itemData.equipped })),
+        inventory: fullCharacter.items.map(item => item.itemData), // Sending full item data for context
         spells: fullCharacter.spells.map(s => s.spellName),
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         storySoFar: fullCharacter.storySoFar,
         worldState: fullCharacter.worldState,
         factionReputation: fullCharacter.factionReputation,
-        conditions: fullCharacter.attributes.conditions,
     };
 };
 
@@ -70,7 +70,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         if (!character) throw new Error("Personagem não encontrado para atualização.");
 
         // Atualiza campos diretos do personagem
-        const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation', 'currentRegion'];
+        const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation'];
         for (const field of directFields) {
             if (updates[field] !== undefined) {
                 (character as any)[field] = updates[field];
@@ -111,9 +111,47 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
             });
             await spellRepo.save(newSpells);
         }
+        
+        // Atualiza Journal
+        if(updates.journal) {
+            const journalRepo = queryRunner.manager.getRepository(JournalEntry);
+            // This is a simple overwrite. A more complex system might merge entries.
+            await journalRepo.delete({ characterId });
+            const newJournalEntries = updates.journal.map((entryData: any) => {
+                const newEntry = new JournalEntry();
+                Object.assign(newEntry, entryData);
+                newEntry.characterId = characterId;
+                return newEntry;
+            });
+            await journalRepo.save(newJournalEntries);
+        }
 
-        // ... Lógica para atualizar Journal, Relationships, Quests de forma granular
-        // (Por simplicidade, isso pode ser implementado em fases posteriores)
+        // Atualiza Relationships e Quests
+        if(updates.relationships) {
+            const relationshipRepo = queryRunner.manager.getRepository(Relationship);
+            const questRepo = queryRunner.manager.getRepository(Quest);
+
+            // Simple overwrite for relationships too.
+            await relationshipRepo.delete({ characterId });
+            for (const relData of updates.relationships) {
+                const newRel = new Relationship();
+                Object.assign(newRel, relData);
+                newRel.characterId = characterId;
+                delete (newRel as any).quests; // remove quests before saving relationship
+                const savedRel = await relationshipRepo.save(newRel);
+                
+                if (relData.quests) {
+                    const newQuests = relData.quests.map((questData: any) => {
+                        const newQuest = new Quest();
+                        Object.assign(newQuest, questData);
+                        newQuest.relationshipId = savedRel.id;
+                        return newQuest;
+                    });
+                    await questRepo.save(newQuests);
+                }
+            }
+        }
+
 
         await queryRunner.commitTransaction();
     } catch (error) {

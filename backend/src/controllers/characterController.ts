@@ -9,6 +9,10 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
+import { JournalEntry } from '../entities/JournalEntry.js';
+import { Relationship } from '../entities/Relationship.js';
+import { Quest } from '../entities/Quest.js';
+
 
 // Função auxiliar para reconstruir o objeto completo do personagem
 const buildFullCharacterObject = async (character: Character) => {
@@ -157,7 +161,16 @@ export const getCharacterById = async (req: AuthRequest, res: Response, next: Ne
     try {
         const characterRepository = AppDataSource.getRepository(Character);
         const character = await characterRepository.findOne({
-            where: { id: Number(id), userId: userId!, deletedAt: IsNull() }
+            where: { id: Number(id), userId: userId!, deletedAt: IsNull() },
+            relations: [
+                "attributes",
+                "proficiencies",
+                "items",
+                "spells",
+                "journal",
+                "relationships",
+                "relationships.quests",
+            ],
         });
 
         if (!character) {
@@ -191,5 +204,3 @@ export const deleteCharacter = async (req: AuthRequest, res: Response, next: Nex
         next(error);
     }
 };
-
-    
