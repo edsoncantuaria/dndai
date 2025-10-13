@@ -194,10 +194,12 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                 <div className="flex items-center gap-4 justify-center mt-3">
                     <div className="text-center flex items-center gap-2">
                         <Heart className="h-5 w-5 text-red-500" />
-                        <div>
-                            <div className="text-xs text-red-400 font-semibold">VIDA</div>
-                            <div className="font-mono font-bold text-lg text-stone-200">{hp.current} / {hp.max}</div>
-                        </div>
+                        {hp && (
+                            <div>
+                                <div className="text-xs text-red-400 font-semibold">VIDA</div>
+                                <div className="font-mono font-bold text-lg text-stone-200">{hp.current} / {hp.max}</div>
+                            </div>
+                        )}
                     </div>
                     <div className="text-center flex items-center gap-2">
                         <Shield className="h-5 w-5 text-blue-500" />
@@ -270,5 +272,3 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 };
 
 export default Header;
-
-    
