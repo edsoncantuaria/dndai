@@ -18,6 +18,9 @@ const buildFullCharacterObject = async (character: Character) => {
             "proficiencies",
             "items",
             "spells",
+            "journal", // Adicionado
+            "relationships", // Adicionado
+            "relationships.quests" // Adicionado
         ],
     });
     if (!fullCharacter) return character;
@@ -29,6 +32,8 @@ const buildFullCharacterObject = async (character: Character) => {
         proficiencies: fullCharacter.proficiencies,
         inventory: fullCharacter.items.map(item => item.itemData), // Pega o JSON do item
         spells: fullCharacter.spells.map(s => s.spellName),
+        journal: fullCharacter.journal,
+        relationships: fullCharacter.relationships,
     };
     delete (characterData as any).items;
     return characterData;
@@ -167,3 +172,5 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
         next(error);
     }
 };
+
+    

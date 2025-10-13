@@ -6,6 +6,9 @@ import { CharacterAttributes } from './CharacterAttributes.js';
 import { CharacterProficiency } from './CharacterProficiency.js';
 import { CharacterItem } from './CharacterItem.js';
 import { CharacterSpell } from './CharacterSpell.js';
+import { JournalEntry } from './JournalEntry.js';
+import { Relationship } from './Relationship.js';
+
 
 @Entity('characters')
 export class Character {
@@ -80,6 +83,12 @@ export class Character {
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];
     
+    @OneToMany(() => JournalEntry, journal => journal.character, { cascade: true })
+    journal: JournalEntry[];
+
+    @OneToMany(() => Relationship, relationship => relationship.character, { cascade: true })
+    relationships: Relationship[];
+    
     // Campos de narrativa persistente que permanecem aqui
     @Column({ type: 'text', nullable: true })
     storySoFar: string; 
@@ -100,3 +109,5 @@ export class Character {
     @DeleteDateColumn()
     deletedAt?: Date;
 }
+
+    

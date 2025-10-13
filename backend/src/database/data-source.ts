@@ -12,6 +12,10 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
+import { JournalEntry } from '../entities/JournalEntry.js';
+import { Quest } from '../entities/Quest.js';
+import { Relationship } from '../entities/Relationship.js';
+
 
 /**
  * Configuração da fonte de dados para o TypeORM.
@@ -43,9 +47,14 @@ export const AppDataSource = new DataSource({
         CharacterAttributes,
         CharacterProficiency,
         CharacterItem,
-        CharacterSpell
+        CharacterSpell,
+        JournalEntry,
+        Quest,
+        Relationship,
     ], 
     
     migrations: [],
     subscribers: [],
 });
+
+    

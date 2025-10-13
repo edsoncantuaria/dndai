@@ -21,7 +21,10 @@ const buildFullCharacterObject = async (character: Character) => {
             "items",
             "spells",
             "sessoes",
-            "sessoes.character"
+            "sessoes.character",
+            "journal",
+            "relationships",
+            "relationships.quests",
         ],
     });
     if (!fullCharacter) return character; // Retorna o básico se não encontrar
@@ -31,14 +34,15 @@ const buildFullCharacterObject = async (character: Character) => {
         ...fullCharacter,
         attributes: fullCharacter.attributes,
         proficiencies: fullCharacter.proficiencies,
-        inventory: fullCharacter.items,
-        spells: fullCharacter.spells.map(s => s.spellName), // Apenas os nomes/índices
+        inventory: fullCharacter.items.map(item => item.itemData), // Corrigido para pegar o JSON
+        spells: fullCharacter.spells.map(s => s.spellName),
+        journal: fullCharacter.journal,
+        relationships: fullCharacter.relationships,
     };
 
     // Remove as propriedades de relação para evitar redundância
     delete (characterData as any).items;
-    // 'spells' já foi remapeado
-
+    
     return characterData;
 };
 
@@ -187,3 +191,5 @@ export const deleteCharacter = async (req: AuthRequest, res: Response, next: Nex
         next(error);
     }
 };
+
+    
