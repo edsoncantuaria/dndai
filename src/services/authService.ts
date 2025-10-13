@@ -15,12 +15,14 @@ export interface RegisterDetails {
 }
 
 const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) {
+        throw new Error("Token de autenticação não encontrado.");
     }
-    return headers;
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+    };
 }
 
 export const registerUser = async (details: RegisterDetails) => {
@@ -50,8 +52,10 @@ export const loginUser = async (credentials: LoginCredentials) => {
     return {
         success: true,
         userId: data.userId,
+        username: data.username,
         token: data.token,
         isLicenseActive: data.isLicenseActive,
+        settings: data.settings,
         message: data.message,
     };
 };
@@ -68,17 +72,3 @@ export const activateUserLicense = async (licenseKey: string) => {
     }
     return { success: true, message: data.message };
 };
-
-
-export const saveUserApiKey = async (apiKey: string) => {
-    // This endpoint does not exist yet on the backend, this is a placeholder.
-    // We will need to create it later.
-    console.log("Saving API key (placeholder):", apiKey);
-    return { success: true, message: "Chave de API salva (simulação)." };
-};
-
-export const fetchApiKey = async (): Promise<string | null> => {
-     // This endpoint does not exist yet on the backend, this is a placeholder.
-    console.log("Fetching API key (placeholder)");
-    return null;
-}

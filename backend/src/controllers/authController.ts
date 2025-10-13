@@ -6,6 +6,23 @@ import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import createError from 'http-errors';
 
+// Configurações padrão para novos usuários
+const defaultSettings = {
+    model: "gemini-2.5-flash",
+    ttsModel: "gemini-2.5-flash-native-audio-preview-09-2025",
+    imageModel: "imagen-4.0-fast-generate-001",
+    ttsVoice: "Charon",
+    generationConfig: {
+        temperature: 1,
+        topP: 0.95,
+        topK: 64,
+        maxOutputTokens: 8192,
+    },
+    volume: 0.3,
+    isMuted: false,
+    playMenuMusic: true,
+};
+
 export const register = async (req: Request, res: Response, next: NextFunction) => {
     const { username, email, password } = req.body;
 
@@ -26,6 +43,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         user.username = username;
         user.email = email;
         user.password = hashedPassword;
+        user.settings = defaultSettings; // Atribui as configurações padrão no registro
 
         await userRepository.save(user);
 
@@ -65,7 +83,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             message: 'Login bem-sucedido!',
             token,
             userId: user.id,
-            isLicenseActive: user.licenseKey?.isActivated || false
+            username: user.username, // Adiciona o username
+            isLicenseActive: user.licenseKey?.isActivated || false,
+            settings: user.settings || defaultSettings, // Envia as configurações do usuário
         });
 
     } catch (error) {

@@ -21,6 +21,9 @@ export class User {
     @Column({ type: 'int', nullable: true })
     licenseKeyId: number;
 
+    @Column({ type: 'json', nullable: true })
+    settings: Record<string, any>; // Coluna para armazenar as configurações
+
     @OneToOne(() => LicenseKey)
     @JoinColumn({ name: 'licenseKeyId' })
     licenseKey: LicenseKey;

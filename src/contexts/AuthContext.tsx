@@ -15,7 +15,6 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLicenseActive: boolean;
     hasApiKey: boolean;
-    apiKey: string; // Expose API Key
     isLoading: boolean;
     login: (credentials: authService.LoginCredentials) => Promise<boolean>;
     register: (details: authService.RegisterDetails) => Promise<boolean>;
@@ -33,7 +32,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const { apiKey, setApiKey } = useSettingsContext();
+    const { apiKey, setApiKey, loadSettings } = useSettingsContext();
     const { toast } = useToast();
 
     const hasApiKey = !!apiKey;
@@ -63,14 +62,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         const userData = await response.json();
                         setUser({ id: userData.id, username: userData.username });
 
-                        const licenseResponse = await fetch(`${API_URL}/licenses/status`, {
-                             headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (licenseResponse.ok) {
-                            const licenseData = await licenseResponse.json();
-                            if (licenseData.isActive) {
-                                setIsLicenseActive(true);
-                            }
+                        if (userData.licenseKey?.isActivated) {
+                            setIsLicenseActive(true);
+                        }
+                        if (userData.settings) {
+                           loadSettings(userData.settings);
                         }
 
                     } else {
@@ -84,17 +80,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
         };
         validateSession();
-    }, [logout]);
+    }, [logout, loadSettings]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
             if (response && response.userId && response.token) {
-                setUser({ id: response.userId, username: credentials.login }); // Temporariamente usa o login como username
+                setUser({ id: response.userId, username: response.username }); 
                 setIsLicenseActive(response.isLicenseActive);
                 localStorage.setItem('token', response.token);
                 
+                if (response.settings) {
+                    loadSettings(response.settings);
+                }
+
                 toast({
                     title: "Login bem-sucedido!",
                     description: "Sua aventura o aguarda.",
@@ -186,7 +186,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: !!user,
         isLicenseActive,
         hasApiKey,
-        apiKey,
         isLoading,
         login,
         register,

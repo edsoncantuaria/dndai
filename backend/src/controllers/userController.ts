@@ -13,7 +13,10 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
         }
 
         const userRepository = AppDataSource.getRepository(User);
-        const user = await userRepository.findOne({ where: { id: userId } });
+        const user = await userRepository.findOne({ 
+            where: { id: userId },
+            relations: ["licenseKey"] // Carrega a relação com a licença
+        });
 
         if (!user) {
             return next(createError(404, 'Usuário não encontrado.'));
@@ -27,3 +30,34 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
         next(error);
     }
 };
+
+export const updateSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    const newSettings = req.body;
+
+    if (!userId) {
+        return next(createError(401, 'Não autorizado.'));
+    }
+    if (!newSettings || typeof newSettings !== 'object') {
+        return next(createError(400, 'Corpo da requisição de configurações inválido.'));
+    }
+
+    try {
+        const userRepository = AppDataSource.getRepository(User);
+        const user = await userRepository.findOneBy({ id: userId });
+        
+        if (!user) {
+            return next(createError(404, 'Usuário não encontrado.'));
+        }
+        
+        // Junta as configurações antigas com as novas para não sobrescrever tudo
+        const updatedSettings = { ...(user.settings || {}), ...newSettings };
+
+        await userRepository.update(userId, { settings: updatedSettings });
+        
+        res.status(200).json({ message: 'Configurações atualizadas com sucesso!', settings: updatedSettings });
+
+    } catch (error) {
+        next(error);
+    }
+}
