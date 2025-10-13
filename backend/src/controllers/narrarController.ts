@@ -185,9 +185,12 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         }
 
         const user = await userRepository.findOne({ where: { id: userId! } });
-        if (!user?.settings?.apiKey) {
+        const apiKey = sessao.apiKey || user?.settings?.apiKey;
+
+        if (!apiKey) {
             return next(createError(400, 'A chave de API não está configurada para este usuário.'));
         }
+
 
         // Constrói um objeto de personagem otimizado para a IA
         const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character);
@@ -214,8 +217,8 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
 
         const aiResponse = await runGameMasterTurn(
             gameMasterFlowInput,
-            user.settings.apiKey,
-            user.settings.model // Passa o modelo do usuário
+            apiKey,
+            user?.settings?.model || "gemini-1.5-flash"
         );
 
 
@@ -254,5 +257,3 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         next(error);
     }
 };
-
-    

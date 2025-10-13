@@ -34,8 +34,7 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
 
         if (existingSession) {
             // Se a sessão já existe, retorna os dados dela para continuar
-            const { apiKey: sensitiveApiKey, ...sessaoParaRetorno } = existingSession;
-            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: sessaoParaRetorno });
+            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: existingSession });
         }
 
 
@@ -54,7 +53,8 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
 
         const sessaoSalva = await sessaoRepository.save(novaSessao);
 
-        const { apiKey: sensitiveApiKey, ...sessaoParaRetorno } = sessaoSalva;
+        // Remove a chave de api da resposta por segurança
+        const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
 
         res.status(201).json({ message: 'Sessão criada com sucesso!', sessao: sessaoParaRetorno });
     } catch (error) {
@@ -140,5 +140,3 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
         next(error);
     }
 };
-
-    

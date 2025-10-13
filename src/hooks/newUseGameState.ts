@@ -216,10 +216,16 @@ export const useNewGameState = () => {
 
     const startGame = useCallback(async (currentLog: LogEntry[]): Promise<void> => {
         if (!character || !sessionId || isLoading) return;
-        
-        // Only send the starting prompt if the log is empty
-        if (currentLog.length === 0) {
+    
+        if (currentLog.length > 0) {
+            return; 
+        }
+    
+        try {
             await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        } catch (error) {
+            console.error("Falha ao iniciar a nova aventura:", error);
+            // O erro já é tratado em processPlayerAction
         }
         
     }, [character, sessionId, isLoading, processPlayerAction]);
