@@ -1,3 +1,4 @@
+
 * **Objetivo:** mover toda a lógica do jogo para o backend, fazer o backend conversar com o Genkit/Google Gemini usando a API key criptografada do usuário, e enviar atualizações em tempo real ao frontend por WebSocket.
 
 Sempre Atualizar integracao_backend.md com tudo que foi feito. Colocar testes e esperar retornar que todos os testes estão funcionando!
@@ -9,7 +10,7 @@ Um backend, por mais funcional que seja, é inútil se o frontend não estiver p
   1. Backend HTTP (Express) — API REST (autenticação, gerenciamento de usuário, endpoints administrativos).
   2. WebSocket Server (no mesmo processo Express ou ligado via servidor HTTP) — transporte tempo-real do jogo.
   3. Serviço de Jogo (orquestrador) — carrega/salva GameState, chama o serviço de IA e emite updates.
-  4. Flow Server da IA (Genkit) — expõe flows (ex.: `gameMasterFlow`) para o serviço de jogo consumir (pode ser parte do backend ou process separado).
+  4. Flow Server da IA (Genkit) — expõe flows (ex.: `gameMasterFlow`) para o serviço de jogo consumir (pode ser parte do backend ou process separated).
   5. Banco de dados MySQL (TypeORM) — persistência de Users, Characters, GameSessions, etc.
   6. Redis — cache distribuído para `activeGameStates`, locks e pub/sub se for escalar múltiplas instâncias.
   7. Storage de segredos: `.env` + vault eventual (opcional).
@@ -88,13 +89,13 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
     *   **[X]** Atualizado o `gameService.ts` e `newUseGameState.ts` para interagir com os novos endpoints.
     *   **[X]** Implementada a exibição do `storySoFar`, `factionReputation` e `worldState` na ficha do personagem e na tela de progresso.
 
-## Fase 4 — Integração da Lógica de Jogo (Em Andamento)
+## Fase 4 — Integração da Lógica de Jogo e Otimização (Em Andamento)
 
-*   **[X] Objetivo**: Unificar a lógica de jogo, os schemas de dados e o prompt da IA com a nova estrutura de banco de dados otimizada.
+*   **[X] Objetivo**: Unificar a lógica do jogo com a nova estrutura de banco de dados e otimizar a comunicação com a IA para reduzir o consumo de tokens e aumentar a velocidade.
 *   **[X] Backend**:
     *   **[X]** Refatorado o `gameSchemas.ts` para ser a fonte da verdade da estrutura de dados do jogo.
-    *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas.
-    *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado e lidar com o fluxo de jogo completo (leitura do estado, chamada à IA, persistência das atualizações).
+    *   **[X]** Atualizado o `prompt5e.ts` para entender e responder com base nos novos schemas otimizados.
+    *   **[X]** Refatorado o `narrarController.ts` para usar o prompt atualizado, construir resumos de personagem e de log, e implementar a persistência de estado após a resposta da IA.
 *   **[ ] Frontend**:
     *   **[ ]** Atualizar o `types.ts` para corresponder aos novos schemas.
     *   **[ ]** Ajustar `newUseGameState.ts` para enviar e receber os novos objetos de estado de jogo (`GameMasterFlowInput`, `GameMasterResponse`).
@@ -111,14 +112,14 @@ INSERT INTO license_keys (`key`) VALUES ('CHAVE-TESTE-01');
 # Checklist final (executável)
 
 * [X] Criar repo backend TS e configurar lint/tsconfig.
-* [X] Configurar TypeORM e entidades (incluindo `LicenseKey`).
+* [X] Configurar TypeORM e entidades (incluindo `LicenseKey`, `Character` e sub-entidades).
 * [X] Implementar todos os `controllers`.
-* [X] Implementar todos os `services`, incluindo `iaService` com streaming.
+* [X] Implementar todos os `services`, incluindo `iaService` com cache.
 * [X] Implementar `authMiddleware`.
 * [X] Configurar todas as rotas da API no `server.ts`.
-* [X] Adicionar a entidade `Character` e seus endpoints.
 * [X] Adicionar campos de persistência (`storySoFar`, `reputation`) à entidade `Character`.
 * [X] Unificar a lógica de jogo com os schemas de dados e o prompt da IA.
+* [X] Otimizar a carga enviada para a IA (resumos de personagem e log).
 * [ ] Adicionar Redis e implement redisService.
 * [ ] Implementar WebSocket server e integração com gameService + Redis locks.
 * [ ] Adicionar monitoramento e alertas.
