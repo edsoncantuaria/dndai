@@ -22,10 +22,10 @@ export class SessaoIA {
     @JoinColumn({ name: 'userId' })
     user: User;
 
-    @Column({ type: 'int' })
+    @Column({ type: 'int', nullable: true }) // Permite que a coluna seja nula
     characterId: number;
     
-    @ManyToOne(() => Character, character => character.sessoes, { onDelete: 'CASCADE' })
+    @ManyToOne(() => Character, character => character.sessoes, { onDelete: 'CASCADE', nullable: true })
     @JoinColumn({ name: "characterId" })
     character: Character;
 
