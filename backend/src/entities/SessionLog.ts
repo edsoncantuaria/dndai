@@ -1,5 +1,5 @@
 // backend/src/entities/SessionLog.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn, DeleteDateColumn, UpdateDateColumn } from "typeorm";
 import { SessaoIA } from "./SessaoIA.js";
 
 /**
@@ -10,6 +10,9 @@ import { SessaoIA } from "./SessaoIA.js";
 export class SessionLog {
     @PrimaryGeneratedColumn()
     id: number;
+
+    @Column()
+    sessaoId: number;
 
     @ManyToOne(() => SessaoIA, sessao => sessao.logs)
     @JoinColumn({ name: "sessaoId" })
@@ -23,4 +26,10 @@ export class SessionLog {
 
     @CreateDateColumn()
     timestamp: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 }

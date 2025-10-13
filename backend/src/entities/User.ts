@@ -1,5 +1,5 @@
 // backend/src/entities/User.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn, DeleteDateColumn } from 'typeorm';
 import { LicenseKey } from './LicenseKey.js';
 import { SessaoIA } from './SessaoIA.js';
 
@@ -8,7 +8,7 @@ export class User {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Column({ type: 'varchar', length: 50, unique: true })
+    @Column({ type: 'varchar', length: 50 })
     username: string;
 
     @Column({ type: 'varchar', unique: true, length: 100 })
@@ -32,4 +32,7 @@ export class User {
 
     @UpdateDateColumn()
     updatedAt: Date;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 }

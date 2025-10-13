@@ -1,5 +1,5 @@
 // backend/src/entities/SessaoIA.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, DeleteDateColumn } from "typeorm";
 import { SessionLog } from "./SessionLog.js";
 import { User } from "./User.js";
 
@@ -29,4 +29,7 @@ export class SessaoIA {
 
     @UpdateDateColumn()
     updatedAt: Date;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 }

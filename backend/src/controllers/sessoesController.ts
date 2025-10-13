@@ -5,6 +5,7 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import createError from 'http-errors';
 import { clearAiInstanceFromCache } from '../services/aiService.js';
+import { IsNull } from 'typeorm';
 
 // Criar uma nova sessão
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -37,7 +38,7 @@ export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunc
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const sessoes = await sessaoRepository.find({ where: { userId } });
+        const sessoes = await sessaoRepository.find({ where: { userId, deletedAt: IsNull() } });
         res.status(200).json(sessoes);
     } catch (error) {
         next(error);
@@ -52,7 +53,7 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         const sessao = await sessaoRepository.findOne({
-            where: { id: Number(id), userId: userId },
+            where: { id: Number(id), userId: userId, deletedAt: IsNull() },
             relations: ['logs'] // Inclui os logs associados
         });
 
@@ -66,23 +67,22 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
-// Deletar uma sessão
+// Deletar uma sessão (agora usando soft delete)
 export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;
 
     try {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const result = await sessaoRepository.delete({ id: Number(id), userId: userId });
+        const result = await sessaoRepository.softDelete({ id: Number(id), userId: userId });
 
         if (result.affected === 0) {
             return next(createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.'));
         }
         
-        // Limpa a instância de IA do cache para liberar memória
         clearAiInstanceFromCache(Number(id));
 
-        res.status(200).json({ message: 'Sessão deletada com sucesso.' });
+        res.status(200).json({ message: 'Sessão movida para a lixeira com sucesso.' });
     } catch (error) {
         next(error);
     }

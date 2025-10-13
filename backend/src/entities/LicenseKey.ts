@@ -1,5 +1,5 @@
 // backend/src/entities/LicenseKey.ts
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn } from 'typeorm';
 
 @Entity('license_keys')
 export class LicenseKey {
@@ -14,4 +14,13 @@ export class LicenseKey {
 
     @Column({ type: 'int', nullable: true })
     activatedByUserId: number;
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @UpdateDateColumn()
+    updatedAt: Date;
+
+    @DeleteDateColumn()
+    deletedAt?: Date;
 }
