@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntryLocation, PlayerRollRequest, Combatant, SessaoIA } from '../types';
+import type { Character, NewCharacterInfo, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, InventoryItem, ShopItem, Feat, LevelUpSelections, ApiSpell, Relationship, JournalEntry, PlayerRollRequest, Combatant, SessaoIA } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import * as GameService from '../services/gameService';
 import { v4 as uuidv4 } from 'uuid';
@@ -168,10 +168,12 @@ export const useNewGameState = () => {
         setIsLoading(true);
         setApiError(null);
         try {
-            // A lógica de `initializeNewCharacter` agora é mais simples, pois o backend fará o trabalho pesado
             const preparedInfo: NewCharacterInfo = { ...info, level: 1 };
             const savedCharacterResponse = await GameService.createNewCharacter(preparedInfo);
-            return savedCharacterResponse.character;
+            if(savedCharacterResponse.character) {
+                return characterUtils.buildFrontendCharacter(savedCharacterResponse.character);
+            }
+            return null;
         } catch (error: any) {
             setApiError(error.message || 'Falha ao criar o personagem no servidor.');
             return null;
@@ -212,15 +214,11 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
 
-    const startGame = useCallback(async (): Promise<boolean> => {
-        if (!character || !sessionId || isLoading) return Promise.resolve(true);
-
-        // If the log is empty, it's the very start of the game.
-        if (log.length === 0) {
-            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        }
+    const startGame = useCallback(async (): Promise<void> => {
+        if (!character || !sessionId || isLoading || log.length > 0) return;
         
-        return true;
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
+        
     }, [character, sessionId, log, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number) => {

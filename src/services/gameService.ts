@@ -1,5 +1,5 @@
 // src/services/gameService.ts
-import type { NewCharacterInfo, CombatState } from "@/types";
+import type { NewCharacterInfo, CombatState, SessaoIA, Character } from "@/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
@@ -16,7 +16,7 @@ const getAuthHeaders = () => {
 
 // --- Character Management ---
 
-export const getCharacters = async () => {
+export const getCharacters = async (): Promise<Character[]> => {
     const response = await fetch(`${API_URL}/characters`, {
         method: 'GET',
         headers: getAuthHeaders(),
@@ -69,7 +69,7 @@ export const createGameSession = async (nome: string, characterId: number) => {
     return await response.json();
 };
 
-export const getGameSessions = async () => {
+export const getGameSessions = async (): Promise<SessaoIA[]> => {
     const response = await fetch(`${API_URL}/sessoes`, {
         method: 'GET',
         headers: getAuthHeaders(),
@@ -81,7 +81,7 @@ export const getGameSessions = async () => {
     return await response.json();
 };
 
-export const getSessionDetails = async (sessionId: number) => {
+export const getSessionDetails = async (sessionId: number): Promise<SessaoIA> => {
     const response = await fetch(`${API_URL}/sessoes/${sessionId}`, {
         method: 'GET',
         headers: getAuthHeaders(),

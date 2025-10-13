@@ -5,10 +5,6 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import CharacterCreation from '@/components/CharacterCreation';
 import GameScreen from '@/components/GameScreen';
 import { Loader2 } from 'lucide-react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import * as DndApiService from '@/services/dndApiService';
-import type { ApiListItem } from '@/types';
-
 
 export type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
 
@@ -49,5 +45,3 @@ export default function Game({ startNewGameFlow, onCharacterCreated, returnToMen
     // Fallback or menu state handled by GameContainer
     return null; 
 };
-
-    
