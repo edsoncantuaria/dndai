@@ -1,7 +1,8 @@
+
 'use client';
 import React, { useState, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import * as SystemService from '@/services/systemService';
+import * as GameService from '@/services/gameService';
 import { User, Heart, Shield, Save, BrainCircuit, Loader2, Settings, Image as ImageIcon, Volume2, Dices, DoorOpen, LogOut } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
@@ -18,9 +19,9 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
-    const { character, saveGameToFile, isLoading, forceReload } = useGameStateContext();
-    const { user, logout, apiKey } = useAuth();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
+    const { character, isLoading } = useGameStateContext();
+    const { user, logout } = useAuth();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, apiKey } = useSettingsContext();
     const [isTestingAi, setIsTestingAi] = useState(false);
     const [aiTestResult, setAiTestResult] = useState<{ title: string, message: string, success: boolean } | null>(null);
     const [showAiTestModal, setShowAiTestModal] = useState(false);
@@ -48,7 +49,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
         setAiTestResult(null);
         setTestImageUrl(null);
         try {
-            const response = await SystemService.testAiConnection(user.id, selectedModel);
+            const response = await GameService.testAiConnection(selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta de texto.");
             }
@@ -131,14 +132,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                                     >
                                         {isTestingAi ? <Loader2 className="h-4 w-4 text-amber-300 animate-spin" /> : <BrainCircuit className="h-4 w-4 text-amber-300" />}
                                     </button>
-                                     <button 
-                                        onClick={saveGameToFile}
-                                        disabled={isInteractionDisabled}
-                                        className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                                        title="Salvar Jogo (Download)"
-                                    >
-                                        <Save className="h-4 w-4 text-amber-300" />
-                                    </button>
+                                     
                                     <button
                                         onClick={() => setShowSettingsModal(true)}
                                         disabled={isInteractionDisabled}
@@ -172,22 +166,6 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             title="Testar Conexão com a IA"
                         >
                             {isTestingAi ? <Loader2 className="h-5 w-5 text-amber-300 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300" />}
-                        </button>
-                        <button 
-                            onClick={forceReload}
-                            disabled={isInteractionDisabled}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Restaurar Jogo / Descongelar"
-                        >
-                            <LogOut className="h-5 w-5 text-amber-300" />
-                        </button>
-                        <button 
-                            onClick={saveGameToFile}
-                            disabled={isInteractionDisabled}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Salvar Jogo (Download)"
-                        >
-                            <Save className="h-5 w-5 text-amber-300" />
                         </button>
                         <button
                             onClick={() => setShowSettingsModal(true)}

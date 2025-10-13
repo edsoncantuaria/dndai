@@ -1,7 +1,6 @@
+// src/services/gameService.ts
 
-// src/services/systemService.ts
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
 
 const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
@@ -16,7 +15,7 @@ const getAuthHeaders = () => {
 
 export const testAiConnection = async (model: string): Promise<string> => {
     try {
-        const response = await fetch(`${API_URL}/api/test-ai`, {
+        const response = await fetch(`${API_URL}/test-ai`, {
             method: 'POST',
             headers: getAuthHeaders(),
             body: JSON.stringify({
@@ -36,4 +35,55 @@ export const testAiConnection = async (model: string): Promise<string> => {
         console.error("Erro ao testar a conexão com a IA:", error);
         throw error;
     }
+};
+
+export const createGameSession = async (nome: string, apiKey: string) => {
+    const response = await fetch(`${API_URL}/sessoes`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ nome, apiKey }),
+    });
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao criar a sessão de jogo.');
+    }
+    return await response.json();
+};
+
+export const getGameSessions = async () => {
+    const response = await fetch(`${API_URL}/sessoes`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+    });
+     if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao buscar as sessões de jogo.');
+    }
+    return await response.json();
+};
+
+export const getSessionDetails = async (sessionId: number) => {
+    const response = await fetch(`${API_URL}/sessoes/${sessionId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+    });
+     if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Falha ao buscar os detalhes da sessão.');
+    }
+    return await response.json();
+};
+
+export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string) => {
+    const response = await fetch(`${API_URL}/narrar/${sessionId}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ prompt, apiKey }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
+    }
+    return await response.json();
 };

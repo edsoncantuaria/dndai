@@ -1,11 +1,11 @@
+
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as DndApiService from '@/services/dndApiService';
-import * as SystemService from '@/services/systemService';
+import * as GameService from '@/services/gameService';
 import type { ApiListItem } from '@/types';
-import CharacterCreationMenu from './creation/CharacterCreationMenu';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
@@ -21,17 +21,14 @@ import { useAuth } from '@/contexts/AuthContext';
 interface CharacterCreationProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
-  onContinueGame: () => void;
   isCreating: boolean;
 }
 
-const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, onContinueGame, isCreating }) => {
-    const { isLoading, character, checkForSavedGame, loadGameFromFile } = useGameStateContext();
-    const { user, logout, apiKey } = useAuth();
-    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice } = useSettingsContext();
-    const [hasSavedGame, setHasSavedGame] = useState(false);
+const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow, onCharacterCreated, isCreating }) => {
+    const { isLoading } = useGameStateContext();
+    const { user, logout } = useAuth();
+    const { model: selectedModel, imageModel: selectedImageModel, ttsModel, ttsVoice, apiKey } = useSettingsContext();
     const [formError, setFormError] = useState<string | null>(null);
-    const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     
     // State for AI Test
@@ -44,25 +41,30 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
     const [showDiceTestModal, setShowDiceTestModal] = useState(false);
     const audioRef = useRef<HTMLAudioElement>(null);
 
-
-    useEffect(() => {
-        setHasSavedGame(checkForSavedGame());
-    }, [checkForSavedGame, character]);
-
+    // Data Fetching State
+    const [isDataLoading, setIsDataLoading] = useState(true);
+    const [races, setRaces] = useState<ApiListItem[]>([]);
+    const [classes, setClasses] = useState<ApiListItem[]>([]);
+    const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
+    const [alignments, setAlignments] = useState<ApiListItem[]>([]);
+    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
 
     useEffect(() => {
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
-                const racesData = await DndApiService.getRaces();
+                const [racesData, classesData, backgroundsData, alignmentsData, languagesData] = await Promise.all([
+                    DndApiService.getRaces(),
+                    DndApiService.getClasses(),
+                    DndApiService.getBackgrounds(),
+                    DndApiService.getAlignments(),
+                    DndApiService.getLanguages(),
+                ]);
+
                 setRaces(racesData?.results || []);
-                const classesData = await DndApiService.getClasses();
                 setClasses(classesData?.results || []);
-                const backgroundsData = await DndApiService.getBackgrounds();
                 setBackgrounds(backgroundsData?.results || []);
-                const alignmentsData = await DndApiService.getAlignments();
                 setAlignments(alignmentsData?.results || []);
-                const languagesData = await DndApiService.getLanguages();
                 setAllLanguages(languagesData?.results || []);
             } catch (error) {
                 console.error("Failed to load initial creation data:", error);
@@ -74,18 +76,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         loadInitialData();
     }, []);
 
-    const handleNewGame = () => {
-        if (hasSavedGame) {
-             setShowConfirmationModal(true);
-        } else {
-            startNewGameFlow();
-        }
-    };
-
-    const confirmNewGame = () => {
-        startNewGameFlow();
-        setShowConfirmationModal(false);
-    }
 
     const closeAiTestModal = () => {
         setShowAiTestModal(false);
@@ -103,7 +93,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         setAiTestResult(null);
         setTestImageUrl(null);
         try {
-            const response = await SystemService.testAiConnection(user.id, selectedModel);
+            const response = await GameService.testAiConnection(selectedModel);
             if (!response) {
                  throw new Error("A IA não retornou uma resposta de texto.");
             }
@@ -156,26 +146,17 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
         }
     }, [aiTestResult, apiKey, ttsModel, ttsVoice]);
 
-    const handleFileImport = async (file: File) => {
-        const success = await loadGameFromFile(file);
-        if (success) {
-            setHasSavedGame(true);
-            // Directly continue the game after import
-            onContinueGame();
-        }
+
+    if (isDataLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
+                <Loader2 className="h-12 w-12 animate-spin" />
+                <p className="mt-4">Carregando tomos antigos...</p>
+            </div>
+        );
     }
-
-
-    // Data Fetching State
-    const [isDataLoading, setIsDataLoading] = useState(true);
-    const [races, setRaces] = useState<ApiListItem[]>([]);
-    const [classes, setClasses] = useState<ApiListItem[]>([]);
-    const [backgrounds, setBackgrounds] = useState<ApiListItem[]>([]);
-    const [alignments, setAlignments] = useState<ApiListItem[]>([]);
-    const [allLanguages, setAllLanguages] = useState<ApiListItem[]>([]);
     
-    // --- Render Logic ---
-    if (isLoading && !character) { 
+    if (isLoading) { 
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                 <Loader2 className="h-12 w-12 animate-spin" />
@@ -185,117 +166,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
     }
     
     if (!isCreating) {
-        return (
-            <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center text-center">
-                 <header className="mb-12 animate-fadeIn" style={{ animationDelay: '200ms' }}>
-                    <h1 
-                      className="text-5xl md:text-7xl font-bold text-amber-50 font-serif"
-                      style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}
-                    >
-                        Crônicas de Aventuras
-                    </h1>
-                    <p className="text-stone-400 mt-2 text-lg">Um RPG de texto gerado por IA</p>
-                </header>
-                <main className="w-full animate-fadeIn" style={{ animationDelay: '400ms' }}>
-                    <CharacterCreationMenu
-                        hasSavedGame={hasSavedGame}
-                        onNewGame={handleNewGame}
-                        onLoadGame={onContinueGame}
-                        onImportFile={handleFileImport}
-                    />
-                    <div className="mt-8 flex justify-center items-center gap-4">
-                        <button
-                            onClick={handleTestAi}
-                            disabled={isTestingAi}
-                            className="flex items-center gap-2 text-stone-300 hover:text-white bg-stone-700/50 hover:bg-stone-700/80 px-4 py-2 rounded-md transition-colors text-sm font-semibold disabled:opacity-50"
-                        >
-                            {isTestingAi ? <Loader2 className="h-5 w-5 animate-spin" /> : <BrainCircuit className="h-5 w-5 text-amber-300"/>}
-                            {isTestingAi ? 'Testando...' : 'Testar IA'}
-                        </button>
-                        <button
-                            onClick={() => setShowSettingsModal(true)}
-                            className="p-3 rounded-full bg-stone-700/50 hover:bg-stone-700/80 transition-colors"
-                            title="Configurações"
-                        >
-                            <Settings className="h-5 w-5 text-amber-300" />
-                        </button>
-                        <button
-                            onClick={logout}
-                            className="p-3 rounded-full bg-stone-700/50 hover:bg-stone-700/80 transition-colors"
-                            title="Sair da Conta"
-                        >
-                            <LogOut className="h-5 w-5 text-amber-300" />
-                        </button>
-                    </div>
-                     {showConfirmationModal && (
-                        <ActionModal
-                            isOpen={showConfirmationModal}
-                            title="Iniciar Novo Jogo?"
-                            onClose={() => setShowConfirmationModal(false)}
-                            actions={[
-                                { text: "Não, voltar", onClick: () => setShowConfirmationModal(false), variant: 'secondary'},
-                                { text: "Sim, começar de novo", onClick: confirmNewGame, variant: 'destructive'}
-                            ]}
-                        >
-                            <p className="text-stone-300">Tem certeza que deseja iniciar um novo jogo? Todo o progresso salvo será perdido permanentemente.</p>
-                        </ActionModal>
-                     )}
-                     {showAiTestModal && aiTestResult && (
-                        <ActionModal
-                            isOpen={showAiTestModal}
-                            title={aiTestResult.title}
-                            onClose={closeAiTestModal}
-                            actions={[
-                                { text: "Fechar", onClick: closeAiTestModal, variant: 'primary'}
-                            ]}
-                        >
-                            <div className="space-y-4">
-                                <p className={`whitespace-pre-wrap p-3 rounded-md border ${aiTestResult.success ? 'bg-stone-800 border-stone-700' : 'bg-red-900/40 border-red-700'} text-stone-300`}>
-                                    {aiTestResult.message}
-                                </p>
-                                {aiTestResult.success && (
-                                    <div className="space-y-4">
-                                         {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                            <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
-                                                {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
-                                                Gerar Imagem
-                                            </button>
-                                            <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
-                                                 {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
-                                                Ouvir Áudio
-                                            </button>
-                                            <button onClick={() => setShowDiceTestModal(true)} className="sm:col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
-                                                <Dices className="h-5 w-5" />
-                                                Testar Dados
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </ActionModal>
-                     )}
-                     <audio ref={audioRef} className="hidden" />
-                     {showDiceTestModal && <DiceTestModal isOpen={showDiceTestModal} onClose={() => setShowDiceTestModal(false)} />}
-                     <SettingsModal 
-                        isOpen={showSettingsModal}
-                        onClose={() => setShowSettingsModal(false)}
-                     />
-                </main>
-            </div>
-        );
-    }
-
-     if (isDataLoading) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando tomos antigos...</p>
-            </div>
-        );
+        // This view is now handled by GameContainer
+        return null; 
     }
 
     return (
+      <>
         <NewCharacterCreation
             races={races}
             classes={classes}
@@ -304,6 +180,47 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ startNewGameFlow,
             allLanguages={allLanguages}
             onCharacterCreated={onCharacterCreated}
         />
+        {/* Modals are kept here as they relate to creation-time testing */}
+        {showAiTestModal && aiTestResult && (
+            <ActionModal
+                isOpen={showAiTestModal}
+                title={aiTestResult.title}
+                onClose={closeAiTestModal}
+                actions={[ { text: "Fechar", onClick: closeAiTestModal, variant: 'primary'} ]}
+            >
+                <div className="space-y-4">
+                    <p className={`whitespace-pre-wrap p-3 rounded-md border ${aiTestResult.success ? 'bg-stone-800 border-stone-700' : 'bg-red-900/40 border-red-700'} text-stone-300`}>
+                        {aiTestResult.message}
+                    </p>
+                    {aiTestResult.success && (
+                        <div className="space-y-4">
+                            {testImageUrl && <Image src={testImageUrl} alt="Imagem de teste gerada" width={512} height={288} className="rounded-md border-2 border-amber-600/50 w-full h-auto" />}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                <button onClick={handleTestImageGen} disabled={isGeneratingImage} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                    {isGeneratingImage ? <Loader2 className="animate-spin h-5 w-5"/> : <ImageIcon className="h-5 w-5" />}
+                                    Gerar Imagem
+                                </button>
+                                <button onClick={handleTestTts} disabled={isGeneratingAudio} className="flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors disabled:opacity-50">
+                                        {isGeneratingAudio ? <Loader2 className="animate-spin h-5 w-5"/> : <Volume2 className="h-5 w-5" />}
+                                    Ouvir Áudio
+                                </button>
+                                <button onClick={() => setShowDiceTestModal(true)} className="sm:col-span-2 lg:col-span-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-md bg-stone-700 hover:bg-stone-600 text-stone-200 transition-colors">
+                                    <Dices className="h-5 w-5" />
+                                    Testar Dados
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </ActionModal>
+        )}
+        <audio ref={audioRef} className="hidden" />
+        {showDiceTestModal && <DiceTestModal isOpen={showDiceTestModal} onClose={() => setShowDiceTestModal(false)} />}
+        <SettingsModal 
+            isOpen={showSettingsModal}
+            onClose={() => setShowSettingsModal(false)}
+        />
+      </>
     );
 };
 

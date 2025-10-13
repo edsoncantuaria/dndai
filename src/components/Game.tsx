@@ -7,35 +7,17 @@ import CharacterCreation from '@/components/CharacterCreation';
 import GameScreen from '@/components/GameScreen';
 import { Loader2 } from 'lucide-react';
 
-type GameStage = 'menu' | 'creating' | 'created' | 'playing';
+export type GameStage = 'menu' | 'creating' | 'created' | 'playing' | 'loading';
 
 interface GameProps {
   startNewGameFlow: () => void;
   onCharacterCreated: () => void;
-  onContinueGame: () => void;
   returnToMenu: () => void;
   gameStage: GameStage;
 }
 
-export default function Game({ startNewGameFlow, onCharacterCreated, onContinueGame, returnToMenu, gameStage }: GameProps) {
+export default function Game({ startNewGameFlow, onCharacterCreated, returnToMenu, gameStage }: GameProps) {
     const gameStateHook = useGameStateContext();
-
-    useEffect(() => {
-        if (
-            gameStage === 'playing' &&
-            gameStateHook.character && 
-            gameStateHook.log.length > 0 &&
-            !gameStateHook.isLoading
-        ) {
-            // This path is for continuing a saved game.
-            // The `startGame` logic isn't needed here as the log already exists.
-        }
-    }, [
-        gameStage,
-        gameStateHook.character, 
-        gameStateHook.log.length, 
-        gameStateHook.isLoading
-    ]);
 
     // If the character exists and we are in the 'playing' stage
     if (gameStateHook.character && gameStage === 'playing') {
@@ -57,7 +39,6 @@ export default function Game({ startNewGameFlow, onCharacterCreated, onContinueG
         <CharacterCreation 
             startNewGameFlow={startNewGameFlow}
             onCharacterCreated={onCharacterCreated} 
-            onContinueGame={onContinueGame}
             isCreating={gameStage === 'creating'}
         />
     );
