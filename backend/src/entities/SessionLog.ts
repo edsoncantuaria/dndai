@@ -11,14 +11,17 @@ export class SessionLog {
     @PrimaryGeneratedColumn()
     id: number;
 
+    @Column({ type: 'int' })
+    sessaoId: number;
+
     @ManyToOne(() => SessaoIA, sessao => sessao.logs, { onDelete: 'CASCADE' })
     @JoinColumn({ name: "sessaoId" })
     sessao: SessaoIA;
 
-    @Column('text')
+    @Column({ type: 'text' })
     prompt: string;
 
-    @Column('text')
+    @Column({ type: 'text' })
     response: string;
 
     @CreateDateColumn()
