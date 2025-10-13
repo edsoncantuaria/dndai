@@ -14,3 +14,7 @@ const router = Router();
  * inclua `"stream": true` no corpo da requisição.
  * 
  * Protegida por autenticação para garantir que apenas o dono da sessão possa interagir.
+ */
+router.post('/:sessionId', authMiddleware, narrar);
+
+export default router;
