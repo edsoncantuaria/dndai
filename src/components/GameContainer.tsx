@@ -10,6 +10,7 @@ import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 import CharacterCreation from './CharacterCreation';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
@@ -27,6 +28,7 @@ const GameContainer = () => {
         startGame,
     } = useGameStateContext();
 
+    const { apiKey } = useAuth();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
@@ -95,8 +97,13 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
-        if (newSession) {
+        if (!apiKey) {
+            // This should ideally be handled by a toast or a more robust UI element
+            alert("Por favor, configure sua chave de API nas configurações antes de iniciar uma nova aventura.");
+            return;
+        }
+        const newSession = await GameService.createGameSession(`Aventura de ${char.name}`, char.id, apiKey);
+        if (newSession && newSession.sessao) {
             await fetchInitialData();
             handleContinueGame(newSession.sessao.id);
         }
@@ -107,8 +114,8 @@ const GameContainer = () => {
         fetchInitialData(); // Refresh character list
     }
 
-    const handleContinueGame = useCallback((sessionId: number) => {
-        loadGameSession(sessionId);
+    const handleContinueGame = useCallback(async (sessionId: number) => {
+        await loadGameSession(sessionId);
         setGameStage('playing');
         setPlayMenuMusic(false);
     }, [loadGameSession, setPlayMenuMusic]);
@@ -274,5 +281,3 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
-
-    

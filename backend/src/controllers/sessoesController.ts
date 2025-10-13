@@ -7,10 +7,11 @@ import createError from 'http-errors';
 import { clearAiInstanceFromCache } from '../services/aiService.js';
 import { IsNull } from 'typeorm';
 import { Character } from '../entities/Character.js';
+import { User } from '../entities/User.js';
 
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { nome, characterId } = req.body;
+    const { nome, characterId, apiKey } = req.body; // apiKey is now expected from the frontend
     const userId = req.user?.userId;
 
     if (!nome || !characterId) {
@@ -20,6 +21,7 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
     try {
         const characterRepository = AppDataSource.getRepository(Character);
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+        const userRepository = AppDataSource.getRepository(User);
 
         // Verifica se o personagem pertence ao usuário logado
         const character = await characterRepository.findOne({ where: { id: characterId, userId: userId! } });
@@ -27,17 +29,26 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
             return next(createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.'));
         }
 
+        // Get user to retrieve apiKey if not provided in request
+        const user = await userRepository.findOneBy({ id: userId! });
+        const keyToUse = apiKey || user?.settings?.apiKey;
+
+        if (!keyToUse) {
+            return next(createError(400, 'Nenhuma chave de API encontrada para criar a sessão.'));
+        }
+
         const novaSessao = new SessaoIA();
         novaSessao.nome = nome;
         novaSessao.character = character;
         novaSessao.userId = userId!;
-        novaSessao.apiKey = "TEMP_API_KEY_PLACEHOLDER"; // A API key agora pode vir do usuário ou de outro lugar
+        novaSessao.apiKey = keyToUse;
         novaSessao.logs = [];
 
         const sessaoSalva = await sessaoRepository.save(novaSessao);
 
         // Retorna a sessão sem dados sensíveis como a chave de API
-        const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
+        const { apiKey: sensitiveApiKey, ...sessaoParaRetorno } = sessaoSalva;
+
 
         res.status(201).json({ message: 'Sessão criada com sucesso!', sessao: sessaoParaRetorno });
     } catch (error) {

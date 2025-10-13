@@ -9,6 +9,7 @@ interface User {
     id: number;
     username: string;
     licenseKey?: { isActivated: boolean };
+    settings?: any;
 }
 
 interface AuthContextType {
@@ -27,48 +28,31 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api';
-const LOCAL_STORAGE_API_KEY = 'rpg-de-cria-api-key';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const { apiKey, setApiKey, loadSettings } = useSettingsContext();
+    const { apiKey, setApiKey, loadSettings, saveSettingsToDB } = useSettingsContext();
     const { toast } = useToast();
 
-    // The presence of the API key is determined by the SettingsContext, which loads it from localStorage.
     const hasApiKey = !!apiKey;
 
     const logout = useCallback(() => {
         setUser(null);
         setIsLicenseActive(false);
+        setApiKey('');
         localStorage.removeItem('token');
-        // A chave de API não é removida no logout, pois é uma configuração do navegador.
         toast({
             description: "Você saiu da sua conta.",
         })
-    }, [toast]);
+    }, [toast, setApiKey]);
     
-    // This effect is responsible for checking localStorage for the api key on initial load
-    useEffect(() => {
-        try {
-            const savedApiKey = localStorage.getItem(LOCAL_STORAGE_API_KEY);
-            if (savedApiKey) {
-                setApiKey(savedApiKey);
-            }
-        } catch (error) {
-            console.error("Failed to load API key from localStorage:", error);
-        }
-    }, [setApiKey]);
-
-
-    // This effect is responsible for validating the session on initial load.
     useEffect(() => {
         const validateSession = async () => {
             const token = localStorage.getItem('token');
             if (token) {
                 try {
-                    // Instead of trusting localStorage, verify token with backend
                     const response = await fetch(`${API_URL}/users/me`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
@@ -78,8 +62,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                         setUser(userData);
                         setIsLicenseActive(userData.licenseKey?.isActivated || false);
 
-                        if ((userData as any).settings) {
-                           loadSettings((userData as any).settings);
+                        if (userData.settings) {
+                           loadSettings(userData.settings);
+                           // Explicitly set API key from saved settings
+                           if (userData.settings.apiKey) {
+                               setApiKey(userData.settings.apiKey);
+                           }
                         }
 
                     } else {
@@ -93,7 +81,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             setIsLoading(false);
         };
         validateSession();
-    }, [logout, loadSettings]);
+    }, [logout, loadSettings, setApiKey]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
@@ -105,8 +93,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 setIsLicenseActive(userData.licenseKey?.isActivated || false);
                 localStorage.setItem('token', response.token);
 
-                if ((userData as any).settings) {
-                    loadSettings((userData as any).settings);
+                if (userData.settings) {
+                    loadSettings(userData.settings);
+                    if (userData.settings.apiKey) {
+                        setApiKey(userData.settings.apiKey);
+                    }
                 }
 
                 toast({
@@ -171,6 +162,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     title: "Licença Ativada!",
                     description: "Sua jornada pode começar.",
                 });
+                // Update user state to reflect license activation
+                setUser(prev => prev ? { ...prev, licenseKey: { isActivated: true } } : null);
                 return true;
             }
             throw new Error(response.message || 'Falha na ativação da licença.');
@@ -187,10 +180,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        setApiKey(newApiKey); // This will trigger the useEffect in SettingsContext to save to localStorage
+        setApiKey(newApiKey);
+        await saveSettingsToDB({ apiKey: newApiKey });
         toast({
             title: "Chave de API Salva!",
-            description: "Sua aventura pode começar agora.",
+            description: "Sua chave foi salva em sua conta.",
         });
         return true;
     };
@@ -218,5 +212,3 @@ export const useAuth = (): AuthContextType => {
     }
     return context;
 };
-
-    

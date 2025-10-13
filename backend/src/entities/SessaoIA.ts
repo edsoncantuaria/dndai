@@ -12,7 +12,7 @@ export class SessaoIA {
     @Column({ type: 'varchar', length: 100 })
     nome: string;
 
-    @Column({ type: 'varchar', length: 255 })
+    @Column({ type: 'varchar', length: 255, nullable: true }) // Permitir que seja nulo
     apiKey: string;
     
     @Column({ type: 'int' })

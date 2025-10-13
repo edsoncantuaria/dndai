@@ -46,9 +46,6 @@ export interface GenerationConfig {
     maxOutputTokens: number;
 }
 
-
-const LOCAL_STORAGE_API_KEY = 'rpg-de-cria-api-key';
-
 interface SettingsContextType {
     isLoaded: boolean;
     loadSettings: (settings: any) => void;
@@ -71,6 +68,7 @@ interface SettingsContextType {
     playMenuMusic: boolean;
     setPlayMenuMusic: (play: boolean) => void;
     getApiKey: () => string | undefined;
+    saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey'>>) => Promise<void>;
 }
 
 export const defaultGenerationConfig: GenerationConfig = {
@@ -82,12 +80,9 @@ export const defaultGenerationConfig: GenerationConfig = {
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
-const saveSettingsToDB = async (settings: Partial<SettingsContextType>) => {
-    const token = localStorage.getItem('token');
-    if (!token) return; // Don't save if not logged in
-
-    // Don't save API key to DB
-    const { apiKey, ...settingsToSave } = settings;
+const saveSettingsToDB = async (settings: Partial<any>) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
 
     try {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071/api'}/users/me/settings`, {
@@ -96,7 +91,7 @@ const saveSettingsToDB = async (settings: Partial<SettingsContextType>) => {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(settingsToSave),
+            body: JSON.stringify(settings),
         });
     } catch (error) {
         console.error("Failed to save settings to DB:", error);
@@ -119,18 +114,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         return apiKey || process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
     }, [apiKey]);
     
-    // Persist API Key to localStorage when it changes
-    useEffect(() => {
-        if (isLoaded && apiKey) { // Only save after initial load and if there is a key
-            try {
-                localStorage.setItem(LOCAL_STORAGE_API_KEY, apiKey);
-            } catch (error) {
-                console.error("Failed to save API key to localStorage:", error);
-            }
-        }
-    }, [apiKey, isLoaded]);
-
-
     // Function to load settings from AuthContext
     const loadSettings = useCallback((settings: any) => {
         if (settings) {
@@ -142,6 +125,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
+            if (settings.apiKey) setApiKey(settings.apiKey); // Load apiKey from DB settings
         }
         setIsLoaded(true);
     }, []);
@@ -149,11 +133,11 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Save settings to DB when they change
     useEffect(() => {
         if(isLoaded) {
-            const settingsToSave = { model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic };
-            const handler = setTimeout(() => saveSettingsToDB(settingsToSave), 1000); // Debounce DB saves
+            const settingsToSave = { model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey };
+            const handler = setTimeout(() => saveSettingsToDB(settingsToSave), 1500); // Debounce DB saves
             return () => clearTimeout(handler);
         }
-    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, isLoaded]);
+    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, isLoaded]);
 
     const value = {
         isLoaded, loadSettings,
@@ -167,6 +151,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,
         getApiKey,
+        saveSettingsToDB,
     };
 
     return (
@@ -183,5 +168,3 @@ export const useSettingsContext = () => {
     }
     return context;
 };
-
-    

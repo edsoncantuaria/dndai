@@ -56,11 +56,11 @@ export const deleteCharacterById = async (characterId: number) => {
 
 // --- Session Management ---
 
-export const createGameSession = async (nome: string, characterId: number) => {
+export const createGameSession = async (nome: string, characterId: number, apiKey: string) => {
     const response = await fetch(`${API_URL}/sessoes`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ nome, characterId }),
+        body: JSON.stringify({ nome, characterId, apiKey }),
     });
     if (!response.ok) {
         const errorData = await response.json();
@@ -149,5 +149,3 @@ export const testAiConnection = async (model: string): Promise<string> => {
         throw error;
     }
 };
-
-    
