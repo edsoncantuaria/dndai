@@ -23,11 +23,10 @@ export class SessaoIA {
     user: User;
 
     @Column({ type: 'int', nullable: true }) // Permite que a coluna seja nula
-    characterId: number;
+    characterId: number | null;
     
-    @ManyToOne(() => Character, character => character.sessoes, { onDelete: 'CASCADE', nullable: true })
-    @JoinColumn({ name: "characterId" })
-    character: Character;
+    // A relação ManyToOne foi removida para evitar a constraint de FK na inicialização.
+    // O character será carregado separadamente quando necessário.
 
     @OneToMany(() => SessionLog, log => log.sessao, { cascade: true })
     logs: SessionLog[];
