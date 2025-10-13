@@ -1,5 +1,5 @@
 'use client';
-import { z } from 'zod';
+import { z, type ZodType } from 'zod';
 
 // Schema for PlayerRollRequest
 export const PlayerRollRequestSchema = z.object({
@@ -58,6 +58,27 @@ export const InventoryItemSchema = z.object({
 });
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 
+// Define o tipo recursivo para JournalEntry primeiro
+type JournalEntry = {
+    id: string;
+    name: string;
+    region: string;
+    summary: string;
+    looted: boolean;
+    subLocations?: JournalEntry[];
+};
+
+// Agora, defina o schema Zod e anote-o com o tipo
+const JournalEntrySchema: ZodType<JournalEntry> = z.object({
+    id: z.string(),
+    name: z.string(),
+    region: z.string(),
+    summary: z.string(),
+    looted: z.boolean(),
+    subLocations: z.array(z.lazy(() => JournalEntrySchema)).optional(),
+});
+
+
 const QuestSchema = z.object({
     id: z.string(),
     title: z.string(),
@@ -71,14 +92,7 @@ const RelationshipSchema = z.object({
     affinity: z.number(),
     quests: z.array(QuestSchema).optional(),
 });
-const JournalEntrySchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    region: z.string(),
-    summary: z.string(),
-    looted: z.boolean(),
-    subLocations: z.array(z.lazy(() => JournalEntrySchema)).optional(),
-});
+
 
 // Esquema otimizado do personagem enviado para a IA
 const CharacterAISchema = z.object({

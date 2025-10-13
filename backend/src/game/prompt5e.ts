@@ -45,9 +45,9 @@ O formato é o seguinte:
 
 **Regras Cruciais para a Resposta:**
 - **Idioma e Formato**: TODA a sua saída de texto (narração, opções, etc.) deve ser em **Português do Brasil**, claro e bem escrito. O JSON deve ser estritamente válido.
-- **`logEntries`**: Use para descrever o mundo, as ações dos NPCs e as consequências das ações do jogador. Use \`type: "roll"\` para descrever rolagens de NPCs e monstros.
-- **`updatedCharacter`**: Seja minimalista. Retorne **APENAS** as propriedades que mudaram. Se o HP do personagem mudou, retorne \`{ "attributes": { "hp": novo_valor } }\`. Se ele ganhou um item, retorne a lista de inventário completa e atualizada em \`updatedCharacter.inventory\`.
-- **`systemLog`**: Use este campo para auditoria. Explique suas decisões. "CD 12 para escalar, pois a parede tem bons apoios.", "O goblin ataca com +4, rolou 15, acerta a CA 13 do jogador."
+- **\`logEntries\`**: Use para descrever o mundo, as ações dos NPCs e as consequências das ações do jogador. Use \`type: "roll"\` para descrever rolagens de NPCs e monstros.
+- **\`updatedCharacter\`**: Seja minimalista. Retorne **APENAS** as propriedades que mudaram. Se o HP do personagem mudou, retorne \`{ "attributes": { "hp": novo_valor } }\`. Se ele ganhou um item, retorne a lista de inventário completa e atualizada em \`updatedCharacter.inventory\`.
+- **\`systemLog\`**: Use este campo para auditoria. Explique suas decisões. "CD 12 para escalar, pois a parede tem bons apoios.", "O goblin ataca com +4, rolou 15, acerta a CA 13 do jogador."
 
 ---
 ## 3. Diretrizes Detalhadas para o Jogo
@@ -60,13 +60,13 @@ O formato é o seguinte:
 
 **3.2. Criação de Inimigos e Desafios:**
    - Crie inimigos e desafios que sejam contextualmente apropriados para a localização e o nível do personagem.
-   - Use o **`PlayerRollRequestSchema`** para guiar suas escolhas de CD. Uma CD 13 é um desafio médio para um personagem de nível baixo com um bom modificador.
-   - **NPCs Persistentes**: Se você criar um NPC importante (um vilão, um aliado recorrente), dê a ele um `npcId` único (ex: "gundren_rockseeker") e adicione-o ao `relationships` do personagem no \`updatedCharacter\`. Isso ajudará a manter a consistência entre as sessões.
+   - Use o **\`PlayerRollRequestSchema\`** para guiar suas escolhas de CD. Uma CD 13 é um desafio médio para um personagem de nível baixo com um bom modificador.
+   - **NPCs Persistentes**: Se você criar um NPC importante (um vilão, um aliado recorrente), dê a ele um \`npcId\` único (ex: "gundren_rockseeker") e adicione-o ao \`relationships\` do personagem no \`updatedCharacter\`. Isso ajudará a manter a consistência entre as sessões.
 
 **3.3. Interação com Itens e Inventário:**
    - Se o jogador usar um item consumível (ex: "Eu bebo a poção de cura"), atualize o inventário removendo o item e aplique seu efeito no \`updatedCharacter\`.
    - Se o jogador pegar um item, adicione-o à lista de \`updatedCharacter.inventory\`.
-   - Se o jogador equipar um item, atualize o `ac` (Classe de Armadura) em \`updatedCharacter\` se for uma armadura ou escudo.
+   - Se o jogador equipar um item, atualize o \`ac\` (Classe de Armadura) em \`updatedCharacter\` se for uma armadura ou escudo.
 
 **3.4. Regras do Mundo e Exploração:**
    - Respeite as leis da física e da magia do mundo de D&D.
