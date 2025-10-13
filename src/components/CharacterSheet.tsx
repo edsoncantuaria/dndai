@@ -42,7 +42,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     
     if (!character) return null;
     
-    const isProficient = (character.proficiencies || []).some(p => p.name.toLowerCase().includes(skillName.toLowerCase()));
+    const isProficient = (character.proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
 
@@ -94,7 +94,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 
     const { attributes, modifiers, proficiencies, languages, conditions, currency, hitDice, traits, damage_resistances } = character;
     const equippedItems = (character.inventory || []).filter(i => i.equipped);
-    const initiativeBonus = modifiers?.dexterity || 0;
+    const initiativeBonus = modifiers?.dexterity ?? 0;
 
     return (
         <div className="p-4 space-y-4">
@@ -118,7 +118,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                         {(Object.keys(attributes) as Array<keyof Attributes>).map(attr => (
                             <div key={attr} className="bg-stone-800/50 p-2 rounded-md">
                                 <div className="text-xs font-bold text-stone-400">{translateAttribute(attr).substring(0, 3).toUpperCase()}</div>
-                                <div className="font-bold text-lg text-stone-200">{attributes[attr]}</div>
+                                <div className="font-bold text-lg text-stone-200">{attributes[attr] || 10}</div>
                                 <div className="text-sm text-amber-400">{modifiers[attr] >= 0 ? `+${modifiers[attr]}` : modifiers[attr]}</div>
                             </div>
                         ))}
@@ -136,10 +136,12 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                                     <AlertTriangle className="h-3 w-3" />
                                     {translateCondition(condition.name)}
                                 </span>
+                                {condition.desc && (
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
                                     <h4 className="font-bold text-red-400 mb-1">{translateCondition(condition.name)}</h4>
-                                    {condition.desc.map((d, i) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
+                                    {condition.desc.map((d: string, i: number) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
                                 </div>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -187,7 +189,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     </div>
                     <div className="bg-stone-800/50 p-2 rounded-md text-center">
                         <span className="text-xs font-bold text-stone-400">Deslocamento</span>
-                        <p className="font-bold text-2xl text-stone-200">{character.speed || 0} <span className="text-base">ft</span></p>
+                        <p className="font-bold text-2xl text-stone-200">{character.speed ?? 0} <span className="text-base">ft</span></p>
                     </div>
                     <div className="bg-stone-800/50 p-2 rounded-md">
                         <span className="text-xs font-bold text-stone-400">Dados de Vida</span>
@@ -245,7 +247,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             {proficiencies && (
                  <CollapsibleSection title="Outras Proficiências">
                     <div className="flex flex-wrap gap-2 bg-stone-800/50 p-3 rounded-md">
-                        {proficiencies.filter(p => !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
+                        {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
                             <span key={prof.index} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                                 {translateApiString(prof.name)}
                             </span>
@@ -256,7 +258,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
             {languages && (
                 <div>
                     <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Idiomas</h3>
-                    <p className="text-stone-300">{languages.map(translateApiString).join(', ')}</p>
+                    <p className="text-stone-300">{(languages || []).map(translateApiString).join(', ')}</p>
                 </div>
             )}
             <CollapsibleSection title="Personalidade">
@@ -280,3 +282,5 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
+
+    
