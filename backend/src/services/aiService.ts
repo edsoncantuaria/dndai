@@ -34,7 +34,6 @@ export async function runGameMasterTurn(
         // Configura o Genkit dinamicamente com a chave e modelo do usuário.
         const dynamicGenkitOptions: GenkitOptions = {
             plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
-            logLevel: 'info',
             enableTracingAndMetrics: process.env.NODE_ENV === 'development',
         };
 
