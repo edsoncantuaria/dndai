@@ -26,6 +26,7 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 ### Fase 3: Integração com o Jogo (Concluído)
 
 -   **[X] Mesclar Dados (Antecedentes):** O serviço do backend (`dndApiRoutes.ts`) foi modificado para que, ao receber uma requisição por "backgrounds", ele busque na fonte estática e mescle com os antecedentes homebrew públicos do banco de dados antes de retornar ao frontend.
+-   **[X] Mesclagem Generalizada:** A lógica de mesclagem foi expandida para todos os tipos de conteúdo relevantes (`races`, `classes`, `spells`, `items`, etc.), garantindo que o conteúdo homebrew apareça de forma integrada em toda a aplicação.
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
 
@@ -36,12 +37,13 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
         -   **[X] Estrutura básica do formulário.**
         -   **[X] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
         -   **[X] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
-    -   **[Em Andamento] Próximo Passo: Implementar para Itens.**
+    -   **[X] Implementado para Itens.**
         -   **[X] Estrutura básica do formulário (Nome, Descrição).**
         -   **[X] Adicionar campos para Categoria, Peso e Custo.**
+    -   **[X] Refatoração:** Os formulários foram extraídos para componentes separados, melhorando a organização do código.
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
--   **[ ] Sistema de Dependências:**
+-   **[Em Andamento] Sistema de Dependências:**
     -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente. Ao criar uma magia, poderá selecionar um item (existente ou customizado) como componente material.
     -   **[X] Implementado para Traços dentro da criação de Raças.**
     -   **[Em Andamento] Próximo Passo: Implementar para Componentes Materiais em Magias.**
