@@ -106,7 +106,7 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
          <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
             <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
             <div className={`font-mono ${resultColor}`}>
-                <span>Rolagem: {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`) : ''} = <span className="font-bold text-lg">{total}</span>. </span>
+                <span>Rolagem: {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier || 0)}`) : ''} = <span className="font-bold text-lg">{total}</span>. </span>
                 {dc !== undefined && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
                 <span className={`font-bold`}>{outcomeText}</span>
             </div>
@@ -214,58 +214,22 @@ const NpcRollDisplay: React.FC = () => {
         if (!combatState.isActive || !combatState.initiativeOrder || combatState.initiativeOrder.length === 0) return null;
 
         const order = combatState.initiativeOrder.map(entry => {
-            const id = typeof entry === 'object' ? entry.id : entry;
-            const combatant = combatState.combatants.find(c => c.id === id || c.name === id); // Handle player name as ID
+            const id = typeof entry === 'object' ? (entry as any).id : entry as string;
+            const combatant = combatState.combatants.find(c => c.id === id || c.name === id);
             const name = combatant?.name || (id === character?.name ? character.name : id);
-            const initiative = typeof entry === 'object' ? entry.initiative : combatant?.initiative;
+            const initiative = typeof entry === 'object' ? (entry as any).initiative : combatant?.initiative;
             return `${name} (${initiative ?? '?'})`;
         }).join(', ');
 
         return `A ordem de iniciativa é: ${order}.`;
     }, [combatState, character]);
-
-    const lastNpcRolls = useMemo(() => {
-        if (!combatState.isActive || !combatState.combatants) return [];
-        const lastTurnIndex = (combatState.turn - 1 + combatState.combatants.length) % combatState.combatants.length;
-        if (!combatState.initiativeOrder || combatState.initiativeOrder.length === 0) return [];
-        
-        const lastCombatantId = typeof combatState.initiativeOrder[lastTurnIndex] === 'object' 
-            ? (combatState.initiativeOrder[lastTurnIndex] as {id: string}).id
-            : combatState.initiativeOrder[lastTurnIndex] as string;
-
-        if (!lastCombatantId) return [];
-        const lastCombatant = combatState.combatants.find(c => c.id === lastCombatantId);
-        
-        if (!lastCombatant || lastCombatant.isPlayer) return [];
-
-        return lastCombatant.rollHistory?.slice().reverse()
-            .filter(r => r.type === 'attack' || r.type === 'damage')
-            .map(r => {
-                const targetAc = (r as any).targetAc ? ` vs CA ${(r as any).targetAc}` : '';
-                const successText = r.success === true ? 'Acertou!' : r.success === false ? 'Errou!' : '';
-                const rollsDisplay = r.rolls && r.rolls.length > 0 ? `(${r.rolls.join(', ')}${r.modifier ? `+${r.modifier}`: ''})`: '';
-                return `${lastCombatant.name} ${r.description || r.type}: ${r.total} ${rollsDisplay}${targetAc}. ${successText}`;
-            }) || [];
-
-    }, [combatState]);
     
-    if (!combatState.isActive) return null;
+    if (!combatState.isActive || !initiativeString) return null;
     
     return (
-        <>
-            {initiativeString && (
-                <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm font-semibold">
-                    <p className="text-stone-300 font-mono">{initiativeString}</p>
-                </div>
-            )}
-             {lastNpcRolls.length > 0 && (
-                 <div className="bg-red-900/30 p-3 my-2 rounded-md border border-red-700/50 text-sm space-y-1">
-                    {lastNpcRolls.map((rollString, index) => (
-                        <p key={index} className="text-red-200 font-mono">{rollString}</p>
-                    ))}
-                </div>
-            )}
-        </>
+        <div className="bg-stone-900/60 p-3 my-2 rounded-md border border-stone-700 text-sm font-semibold">
+            <p className="text-stone-300 font-mono">{initiativeString}</p>
+        </div>
     );
 };
 
