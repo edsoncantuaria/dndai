@@ -52,7 +52,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[X] Componentizar a UI (Frontend):**
     *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
     *   **Justificativa:** Melhora a organização do código, a performance de renderização (com `React.memo`) e a manutenibilidade.
-    *   **Status:** Concluído.
+    *   **Status:** Em Andamento. Os componentes `CharacterSheet` e `NewCharacterCreation` foram refatorados.
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
@@ -96,7 +96,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
     *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
-    *   **Status:** Concluído.
+    *   **Status:** Fundações concluídas. A lógica completa de gerenciamento de turnos ainda está em desenvolvimento.
 
 *   **[X] Reimaginar Inventário e Grimório:**
     *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
@@ -105,9 +105,9 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
-    *   **Status:** Concluído.
+    *   **Status:** Concluído. A seleção de talentos para Humano Variante e a persistência no banco de dados estão funcionais.
 
-*   **[X] Implementar Sistema de Vantagem/Desvantagem:**
+*   **[X] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
     *   **Status:** Concluído.
 
@@ -133,7 +133,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Adicionar o Redis para cachear chamadas repetidas, especialmente para a D&D 5e API.
     *   **Justificativa:** Acelerar drasticamente a criação de personagens e a consulta de informações, reduzindo a dependência de APIs externas.
     
-*   **[ ] Otimizar Imagens e Fontes (Frontend):**
+*   **[Em Andamento] Otimizar Imagens e Fontes (Frontend):**
     *   **Tarefa:** Revisar o uso do componente `next/image` e o carregamento das fontes do Google para garantir a máxima performance segundo as recomendações do Next.js.
     *   **Justificativa:** Melhorar os Core Web Vitals e o tempo de carregamento da página.
 
@@ -152,3 +152,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
+
+
+
