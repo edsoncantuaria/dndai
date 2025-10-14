@@ -30,27 +30,27 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
 
--   **[X] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
-    -   **[X] Implementado para Raças.**
-    -   **[X] Implementado para Antecedentes.**
-    -   **[X] Implementado para Magias.**
-        -   **[X] Estrutura básica do formulário.**
-        -   **[X] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
-        -   **[X] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
-    -   **[X] Implementado para Itens.**
-        -   **[X] Estrutura básica do formulário (Nome, Descrição).**
-        -   **[X] Adicionar campos para Categoria, Peso e Custo.**
-    -   **[X] Refatoração:** Os formulários foram extraídos para componentes separados, melhorando a organização do código.
-    -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
+O objetivo desta fase é criar uma interface de formulário guiada para cada tipo de conteúdo, eliminando a necessidade de escrever JSON manualmente e reduzindo a possibilidade de erros.
 
--   **[X] Sistema de Dependências:**
-    -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente. Ao criar uma magia, poderá selecionar um item (existente ou customizado) como componente material.
-    -   **[X] Implementado para Traços dentro da criação de Raças.**
-    -   **[X] Implementado para Componentes Materiais em Magias.**
-        -   **[X] Criada a estrutura básica para os componentes `ItemSelector.tsx` e `ItemCreator.tsx`.**
-        -   **[X] Implementada a lógica de busca e exibição de itens no `ItemSelector`.**
-        -   **[X] Implementada a lógica de criação de itens no modal `ItemCreator`.**
-        -   **[X] Conectado o `ItemSelector` ao `SpellForm` para substituir o campo de texto do componente material.**
+#### **Status dos Editores:**
+
+-   **[✅ Concluído] Raças:** Incluindo a criação de traços customizados e o suporte a sub-raças.
+-   **[✅ Concluído] Antecedentes:** Formulário completo para a criação de antecedentes.
+-   **[✅ Concluído] Magias:** Incluindo mecânicas de dano, escalonamento e seleção de componentes materiais.
+-   **[✅ Concluído] Itens:** Com campos para categoria, custo, peso e propriedades.
+-   **[✅ Concluído] Talentos (Feats):** Implementado através do "Criador de Traços".
+-   **[⬜️ A Fazer] Classes:** Próximo passo. Criar o formulário para definir características de classe, proficiências, dado de vida, etc.
+-   **[⬜️ A Fazer] Subclasses:** Formulário para especializações de classe, incluindo novas habilidades e magias.
+-   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
+
+**Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade a ser integrada diretamente no formulário de criação de `Raças`.
+
+#### **Sistema de Dependências (Em Andamento):**
+
+A visão é permitir que um conteúdo homebrew referencie outro, criando um ecossistema conectado.
+
+-   **[✅ Concluído] Traços em Raças:** Ao criar uma raça, é possível criar e associar novos traços.
+-   **[✅ Concluído] Componentes Materiais em Magias:** Ao criar uma magia, é possível selecionar um item existente ou criar um novo para servir como componente.
 
 ## 3. Estrutura de Dados
 
