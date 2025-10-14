@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Plus, Trash2 } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
+import { translateApiString, translateMagicSchool } from '@/utils/translator';
 import TraitSelector from './TraitSelector';
 import type { ApiListItem } from '@/types';
 import * as characterUtils from '@/utils/characterUtils';
@@ -326,7 +326,7 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
                     <select value={spellData.school.index} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
-                        {magicSchools.map(s => <option key={s.index} value={s.index}>{translateApiString(s.name)}</option>)}
+                        {magicSchools.map(s => <option key={s.index} value={s.index}>{translateMagicSchool(s.name)}</option>)}
                     </select>
                 </div>
                  <div>
@@ -357,22 +357,20 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
                 </div>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                {spellData.attack_type && (
-                     <>
-                         <div>
-                            <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
-                            <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
-                                {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-stone-300 mb-1">Dado de Dano</label>
-                            <input type="text" value={spellData.damage.damage_dice} onChange={e => handleDamageChange('damage_dice', e.target.value)} placeholder="Ex: 3d8" className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"/>
-                        </div>
-                     </>
-                )}
-            </div>
+            {spellData.attack_type && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                     <div>
+                        <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
+                        <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                            {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-stone-300 mb-1">Dado de Dano</label>
+                        <input type="text" value={spellData.damage.damage_dice} onChange={e => handleDamageChange('damage_dice', e.target.value)} placeholder="Ex: 3d8" className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"/>
+                    </div>
+                </div>
+            )}
 
             <div className="space-y-2">
                  <label className="block text-sm font-medium text-stone-300">Componentes</label>
