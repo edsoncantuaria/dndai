@@ -53,7 +53,7 @@ app.use('/api/licenses', licenseRoutes);
 app.use('/api/narrar', narrarRoutes);
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
-app.use('/api/dnd', dndApiRoutes); // Nova rota
+app.use('/api/dnds', dndApiRoutes); // Rota corrigida
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {

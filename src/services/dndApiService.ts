@@ -1,7 +1,7 @@
 // src/services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 
-const API_BASE = '/api/dnd'; // Aponta para o nosso backend agora
+const API_BASE = '/api/dnds'; // Aponta para o nosso backend agora
 
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
     try {
