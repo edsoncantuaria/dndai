@@ -5,6 +5,7 @@ import * as DndApiService from '@/services/dndApiService';
 import { translateApiString, translateMagicSchool } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
+import ItemSelector from '../ItemSelector';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -113,7 +114,9 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
 
     const addScalingEntry = (type: 'character' | 'slot') => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
-        const newScaling = {...spellData.damage[key], ['']: ''};
+        const currentEntries = Object.keys(spellData.damage[key] || {});
+        const newKey = (currentEntries.length + 1).toString();
+        const newScaling = {...(spellData.damage[key] || {}), [newKey]: ''};
         handleDamageChange(key, newScaling);
     };
     
@@ -195,8 +198,10 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
             </div>
             {spellData.components.includes('M') && (
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Componente Material</label>
-                    <input type="text" value={spellData.material} onChange={e => handleFieldChange('material', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                    <ItemSelector
+                        selectedItem={spellData.material}
+                        onItemSelect={(itemName) => handleFieldChange('material', itemName)}
+                    />
                 </div>
             )}
             

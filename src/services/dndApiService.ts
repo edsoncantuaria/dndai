@@ -37,7 +37,8 @@ export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/cla
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
 export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
     // Check if the background is a homebrew one (UUID) vs official (string index)
-    if (index.includes('-') && index.length > 20) { // Simple check for UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(index)) {
         const data = await apiClient<any>(`/homebrew/${index}`);
         return data.content as ApiBackground;
     }
