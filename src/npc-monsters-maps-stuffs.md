@@ -24,7 +24,7 @@ Para suportar essa visão, novas tabelas (entidades TypeORM) serão criadas:
 
 - **`Quest` (Missões)**:
   - **Função**: Armazenará as missões dadas pelos NPCs.
-  - **Campos Principais**: `title`, `status` ('active', 'completed', 'failed'), `objectives` (uma lista de tarefas claras).
+  - **Campos Principais**: `title`, `status` (ativa, completa, falha), `objectives` (uma lista de tarefas).
   - **Relação**: Será vinculada a uma entidade `Relationship`, mostrando qual NPC deu a missão.
 
 - **`JournalEntry` (Locais/Diário)**:
@@ -62,20 +62,18 @@ Com a base arquitetônica definida, podemos expandir a visão para mecânicas ma
 ## 4. Fases da Implementação
 
 -   **[✅ Concluído] Fase 1: Fundação do Banco de Dados**:
-    *   Definir e criar as entidades `Relationship`, `Quest` e `JournalEntry` no TypeORM.
-    *   Estabelecer as relações entre elas e a entidade `Character`.
+    *   **Status:** As entidades `Relationship`, `Quest` e `JournalEntry` foram definidas no TypeORM e integradas ao banco de dados do backend.
 
 -   **[✅ Concluído] Fase 2: Integração com a IA**:
-    *   Atualizar o prompt em `prompt5e.ts` com as novas regras de criação e persistência de entidades.
-    *   Modificar os schemas de entrada (`GameMasterFlowInputSchema`) e saída (`GameMasterResponseSchema`) para incluir os novos dados de `journal` e `relationships`.
+    *   **Status:** O prompt da IA (`prompt5e.ts` e seus módulos) foi atualizado para instruir o Mestre a criar, gerenciar e consultar essas novas entidades persistentes. Os schemas de entrada e saída da IA agora incluem dados de diário, relacionamentos e missões.
 
 -   **[✅ Concluído] Fase 3: Exibição no Frontend**:
-    *   Implementar os componentes `NewJournal.tsx` e `NewRelationships.tsx` para exibir os dados de forma clara e organizada.
-    *   Garantir que a UI seja atualizada em tempo real quando novas informações forem recebidas do backend.
+    *   **Status:** Os componentes `NewJournal.tsx` e `NewRelationships.tsx` foram implementados, exibindo os dados de NPCs, locais e missões de forma organizada para o jogador.
 
 -   **[🚧 Em Andamento] Fase 4: Mecânicas Avançadas**:
-    *   **[✅ Concluído]** Aprimorar a IA para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações (ex: "Você reencontra Barthen, o ferreiro, que ainda parece grato por você ter salvo sua filha.").
-    *   **[⬜️ A Fazer]** Implementar a lógica para monstros únicos vs. genéricos (respawn).
+    *   **Status:** O trabalho nas mecânicas avançadas começou.
+    *   **[✅ Concluído]** A IA foi aprimorada para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações.
+    *   **[⬜️ A Fazer]** Implementar a lógica de backend e de IA para diferenciar monstros únicos de monstros genéricos (que podem reaparecer).
     *   **[⬜️ A Fazer]** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
 
 Este documento servirá como um guia vivo, sendo atualizado à medida que cada fase for concluída, nos aproximando de um mundo de RPG digital verdadeiramente dinâmico e persistente.
