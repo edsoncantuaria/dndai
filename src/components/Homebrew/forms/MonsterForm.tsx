@@ -7,6 +7,7 @@ import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
+import ActionCreator from '../ActionCreator';
 
 
 interface Props {
@@ -47,13 +48,15 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
         condition_immunities: [] as { index: string, name: string }[],
         senses: { passive_perception: 10 } as Record<string, any>,
         languages: '',
-        actions: [] as any[], // Adicionado para as ações
+        actions: [] as any[],
     });
     
     const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
     const [conditions, setConditions] = useState<ApiListItem[]>([]);
     const [skills, setSkills] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isActionCreatorOpen, setIsActionCreatorOpen] = useState(false);
+
 
     useEffect(() => {
         const fullData = {
@@ -138,9 +141,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
         handleFieldChange('proficiencies', newProfs);
     };
 
-    const handleAddAction = () => {
-        // Placeholder, will open a modal later
-        const newAction = { name: `Nova Ação ${monsterData.actions.length + 1}`, desc: 'Descrição...' };
+    const handleActionCreated = (newAction: any) => {
         handleFieldChange('actions', [...monsterData.actions, newAction]);
     };
 
@@ -333,7 +334,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
             <div className="pt-4 border-t border-stone-700/50">
                 <div className="flex justify-between items-center mb-4">
                     <h4 className="text-lg font-bold text-amber-300">Ações</h4>
-                    <button type="button" onClick={handleAddAction} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                    <button type="button" onClick={() => setIsActionCreatorOpen(true)} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
                         <Plus className="h-4 w-4" /> Adicionar Ação
                     </button>
                 </div>
@@ -354,6 +355,12 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
                     )}
                 </div>
             </div>
+
+            <ActionCreator 
+                isOpen={isActionCreatorOpen}
+                onClose={() => setIsActionCreatorOpen(false)}
+                onActionCreated={handleActionCreated}
+            />
 
         </div>
     );
