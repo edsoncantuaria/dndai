@@ -36,6 +36,9 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
         -   **[X] Estrutura básica do formulário.**
         -   **[X] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
         -   **[X] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
+    -   **[Em Andamento] Próximo Passo: Implementar para Itens.**
+        -   **[X] Estrutura básica do formulário (Nome, Descrição).**
+        -   **[X] Adicionar campos para Categoria, Peso e Custo.**
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
 -   **[ ] Sistema de Dependências:**

@@ -28,6 +28,7 @@ export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/trai
 export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');
 export const getDamageTypes = () => apiClient<{ results: ApiListItem[] }>('/dnds/damage-types');
 export const getEquipment = () => apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+export const getEquipmentCategories = () => apiClient<{ results: ApiListItem[] }>('/dnds/equipment-categories');
 
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
