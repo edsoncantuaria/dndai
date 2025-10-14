@@ -52,6 +52,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Componentizar a UI (Frontend):**
     *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
     *   **Justificativa:** Melhora a organização do código, a performance de renderização (com `React.memo`) e a manutenibilidade.
+    *   **Status:** Em andamento. O componente `CharacterSheet` foi refatorado.
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
@@ -106,19 +107,16 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
     *   **Status:** Concluído.
 
-*   **[X] Implementar Sistema de Vantagem/Desvantagem:**
-    *   **Visão:** Permitir que a IA solicite rolagens com Vantagem ou Desvantagem, com a UI de rolagem de dados se adaptando para refletir isso.
+*   **[X] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
+    *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
     *   **Status:** Concluído.
-
-*   **[ ] Implementar Sistema de Inspiração:**
-    *   **Visão:** Permitir que a IA conceda "Inspiração" ao jogador por boa interpretação, que pode ser gasta para ganhar Vantagem em uma rolagem.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
 
 *   **[X] Revisão do Sistema de Log e "Modo História" (Frontend):**
     *   **Visão:** Adicionar filtros ao log de aventura (Tudo, Narração, Combate) e criar um "Modo História" que oculte a UI para uma leitura imersiva.
-    *   **Status:** Em andamento. A base para exibição de rolagens de NPC foi implementada. A filtragem e o "Modo História" são os próximos passos.
+    *   **Status:** Concluído.
 
 *   **[ ] Melhorias Visuais nos Status e Condições (Frontend):**
     *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições e vinhetas na tela para dar feedback visual sobre o estado do personagem.
@@ -153,4 +151,4 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
 
-    
+

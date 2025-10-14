@@ -1,4 +1,3 @@
-
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -6,68 +5,8 @@ import { translateAttribute, translateApiString, translateCondition } from '../u
 import type { Attributes, Proficiency, ApiTrait } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight, Eye, Brain, Search } from 'lucide-react';
-
-const DeathSavesTracker: React.FC = () => {
-    const { character } = useGameStateContext();
-    if (!character || !character.hp || character.hp.current > 0) return null;
-
-    const { successes, failures } = character.deathSaves || { successes: 0, failures: 0 };
-
-    return (
-        <div className="bg-red-900/40 p-3 rounded-lg border border-red-700/60 mt-4">
-            <h3 className="text-lg font-bold font-garamond text-red-300 mb-2">Testes de Morte</h3>
-            <div className="flex justify-around">
-                <div className="text-center">
-                    <span className="text-sm text-stone-300">Sucessos</span>
-                    <div className="flex gap-2 mt-1">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className={`h-4 w-4 rounded-full border-2 ${i < successes ? 'bg-green-500 border-green-400' : 'bg-stone-700 border-stone-600'}`}></div>
-                        ))}
-                    </div>
-                </div>
-                <div className="text-center">
-                    <span className="text-sm text-stone-300">Falhas</span>
-                    <div className="flex gap-2 mt-1">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <div key={i} className={`h-4 w-4 rounded-full border-2 ${i < failures ? 'bg-red-600 border-red-500' : 'bg-stone-700 border-stone-600'}`}></div>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillName, onUse }) => {
-    const { isLoading, character, handleSkillCheck, playerRollRequest } = useGameStateContext();
-    
-    if (!character) return null;
-    
-    const isProficient = (character.proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
-    const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-    const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
-
-    const handleSkillUse = () => {
-        if (onUse) onUse();
-        handleSkillCheck(skillName);
-    }
-    
-    return (
-        <div className="flex items-center justify-between text-sm py-1">
-            <div className="flex items-center gap-2">
-                 <div className={`w-3 h-3 rounded-full border-2 ${isProficient ? 'bg-amber-400 border-amber-300' : 'bg-stone-600 border-stone-500'}`} title={isProficient ? 'Proficiente' : 'Não Proficiente'}></div>
-                <span className="text-stone-300">{translateApiString(`Skill: ${skillName}`)}</span>
-                <span className="text-xs text-stone-500">({translateAttribute(attribute).substring(0, 3)})</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={handleSkillUse} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
-                    <Dice5 className="h-3 w-3"/> Usar
-                </button>
-            </div>
-        </div>
-    )
-}
+import DeathSavesTracker from './CharacterSheet/DeathSavesTracker';
+import SkillItem from './CharacterSheet/SkillItem';
 
 const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultOpen);
@@ -296,5 +235,3 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
-
-
