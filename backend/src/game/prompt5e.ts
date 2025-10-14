@@ -91,12 +91,13 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 
 ---
 
-## Regras de Recursos
+## Regras de Recursos e Mecânicas Customizadas
 - **Fonte da Verdade:** o objeto \`character\` recebido é a única referência.
 - **Cura:** nunca ultrapassa \`attributes.hp\`.
 - **Consumíveis:** usar uma poção ou item reduz a quantidade em inventário.
 - **Magias:** gastar um espaço de magia deve atualizar os recursos.
 - **Sempre valide:** se o personagem não tiver o recurso, narre a falha.
+- **Mecânicas Homebrew:** No futuro, você poderá encontrar propriedades não-padrão nas características de um personagem (em `character.features` ou `character.feats`). Se uma mecânica não estiver documentada aqui, você **deve ignorá-la**. Se estiver documentada, siga a regra.
 
 ---
 
