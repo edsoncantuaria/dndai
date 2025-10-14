@@ -98,6 +98,7 @@ const GameContainer = () => {
                 if (loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
+                    // Crucial fix: start the game if it's a brand new session with no logs.
                     if(loadedData.logs.length === 0) {
                         startGame();
                     }
