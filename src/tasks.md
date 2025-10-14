@@ -15,27 +15,41 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 ### Fases da Implementação:
 
 *   **[⬜️ A Fazer] Fase 1: Ciclo Dinâmico de Dia/Noite, Clima e Calendário**
-    *   **Tarefa:** Instruir a IA para atualizar proativamente o `worldState` (hora do dia, clima e data) após ações como descanso, viagem ou eventos narrativos significativos. O estado do clima (chovendo, neve, tempestade) deve ser salvo no banco de dados como parte da sessão para garantir persistência.
-    *   **Tarefa:** Fazer com que as mudanças climáticas e a data tenham efeitos mecânicos e narrativos (ex: desvantagem em Percepção durante uma nevasca, festivais em certas épocas do ano, NPCs que reagem à passagem do tempo).
-    *   **Tarefa:** Exibir a data e o clima atuais na interface do jogador através do `WorldStatePanel`.
+    *   **Backend:**
+        *   **[⬜️ A Fazer] Tarefa:** Aprimorar o prompt da IA para que, após ações de descanso, viagem ou eventos narrativos significativos, ela atualize proativamente os campos `timeOfDay`, `weather` e um novo campo `currentDate` dentro do `worldState`.
+        *   **[⬜️ A Fazer] Tarefa:** Garantir que o `narrarService` e o `characterService` persistam corretamente o objeto `worldState` completo no banco de dados a cada atualização.
+        *   **[⬜️ A Fazer] Tarefa:** Ensinar à IA como as mudanças de clima e horário devem impactar a narrativa e as mecânicas (ex: desvantagem em Percepção durante uma nevasca, necessidade de tochas à noite).
+    *   **Frontend:**
+        *   **[⬜️ A Fazer] Tarefa:** Criar ou expandir o componente `WorldStatePanel.tsx` para exibir a data atual, a hora do dia e o clima, usando ícones representativos.
+        *   **[⬜️ A Fazer] Tarefa:** Garantir que o `GameStateContext` receba e atualize corretamente o estado do mundo vindo do backend.
 
 *   **[⬜️ A Fazer] Fase 2: NPCs com Agência e Rotinas**
-    *   **Tarefa:** Criar um mecanismo para que a IA processe o que NPCs importantes fazem "fora da tela" enquanto o jogador está ocupado.
-    *   **Tarefa:** Aprimorar o prompt da IA para que ela narre as mudanças na vida dos NPCs quando o jogador os reencontrar, refletindo a passagem do tempo.
+    *   **Backend:**
+        *   **[⬜️ A Fazer] Tarefa:** Criar um mecanismo (talvez um novo `turnService`) que possa ser chamado para simular a passagem de tempo para NPCs importantes quando o jogador não está interagindo com eles.
+        *   **[⬜️ A Fazer] Tarefa:** Aprimorar o prompt da IA para que, ao reencontrar um NPC, ela consulte o estado atual dele e narre as mudanças ocorridas (ex: "Barthen, o ferreiro, parece cansado. Ele diz que passou a noite toda forjando uma nova espada").
+    *   **Frontend:**
+        *   **[⬜️ A Fazer] Tarefa:** Aprimorar o componente `NewRelationships.tsx` para talvez exibir um status ou uma nota sobre a última atividade conhecida de um NPC, atualizada quando a IA fornece essa informação.
 
 *   **[⬜️ A Fazer] Fase 3: Sistema de Notícias e Rumores**
-    *   **Tarefa:** Implementar uma nova entidade no backend (ex: `WorldNews`) para registrar feitos heróicos ou eventos mundiais importantes causados pelo jogador.
-    *   **Tarefa:** Ensinar a IA a consultar essas "notícias" e transformá-las em rumores que podem ser ouvidos em tavernas e cidades, aumentando a sensação de impacto do jogador no mundo.
+    *   **Backend:**
+        *   **[⬜️ A Fazer] Tarefa:** Instruir a IA a identificar eventos de grande impacto causados pelo jogador (derrotar um monstro lendário, salvar uma cidade) e marcá-los em um novo campo, talvez `majorEvents`, dentro do `worldState` ou em uma nova entidade.
+        *   **[⬜️ A Fazer] Tarefa:** Ensinar a IA a consultar esses "eventos" e transformá-los em rumores que podem ser ouvidos em tavernas e cidades.
+    *   **Frontend:**
+        *   **[⬜️ A Fazer] Tarefa:** Exibir os rumores como parte da narração normal no `NewNarrativeLog.tsx`. Opcionalmente, criar uma nova aba ou seção no "Diário" para registrar os rumores mais importantes ouvidos pelo jogador.
 
 *   **[⬜️ A Fazer] Fase 4: Reputação com Facções e Guildas**
-    *   **Tarefa:** Instruir a IA para rastrear a reputação do jogador com as facções do mundo (ex: Guilda dos Ladrões, Guarda da Cidade, Aliança dos Lordes).
-    *   **Tarefa:** Salvar a reputação (um valor numérico ou um status como "Odiado", "Neutro", "Amado") no banco de dados como parte da entidade `Character` (no campo `factionReputation`).
-    *   **Tarefa:** Garantir que a IA use essa reputação para modular diálogos, preços em lojas e a disponibilidade de missões.
+    *   **Backend:**
+        *   **[⬜️ A Fazer] Tarefa:** Instruir a IA a rastrear e atualizar a reputação do jogador com facções do mundo (ex: Guilda dos Ladrões, Guarda da Cidade) no campo `factionReputation` da entidade `Character`.
+        *   **[⬜️ A Fazer] Tarefa:** Garantir que a IA use essa reputação para modular diálogos, preços em lojas e a disponibilidade de missões.
+    *   **Frontend:**
+        *   **[⬜️ A Fazer] Tarefa:** Implementar um componente no `ProgressionTab.tsx` ou em uma nova aba "Facções" para exibir a reputação do jogador com as diferentes guildas encontradas.
 
 *   **[⬜️ A Fazer] Fase 5: Mapa do Mundo Interativo**
-    *   **Tarefa:** Desenvolver um componente de UI no frontend que renderize um mapa.
-    *   **Tarefa:** Usar os dados da entidade `JournalEntry` (locais descobertos) para popular o mapa dinamicamente, permitindo que o jogador visualize sua jornada e planeje seus próximos passos.
-
+    *   **Backend:**
+        *   **[⬜️ A Fazer] Tarefa:** Ensinar a IA a associar coordenadas (mesmo que relativas, como `x, y`) a cada novo `JournalEntry` (local) que ela cria, salvando-as no banco de dados.
+    *   **Frontend:**
+        *   **[⬜️ A Fazer] Tarefa:** Desenvolver um novo componente de UI (`InteractiveMap.tsx`) que renderize um mapa (2D ou isométrico).
+        *   **[⬜️ A Fazer] Tarefa:** Popular o mapa dinamicamente com marcadores para cada local salvo no `character.journal`, permitindo que o jogador clique neles para ver detalhes.
 
 ---
 
@@ -50,4 +64,4 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 - **Problema:** O frontend operava com lógicas antigas de estado no cliente, não aproveitando o potencial do novo backend.
 - **Objetivo:** Refatorar completamente a aplicação para alinhar frontend e backend, adotando as melhores práticas de arquitetura para criar uma plataforma rápida, estável e imersiva.
-- **Status:** Concluído. Todas as fases, da 1.1 à 1.4 (com exceção dos testes de integração), foram implementadas com sucesso, resultando em uma arquitetura robusta e uma experiência de usuário significativamente melhorada.
+- **Status:** Concluído. Todas as fases, da 1.1 à 1.4, foram implementadas com sucesso, resultando em uma arquitetura robusta e uma experiência de usuário significativamente melhorada.
