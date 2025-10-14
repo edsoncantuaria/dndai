@@ -16,8 +16,8 @@ const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook })
         setDraconicAncestry,
         draconicAncestryOptions,
         raceDetails,
-        selectedAncestryDetails, // NEW: Get details from hook
-        isDraconicAncestryLoading, // NEW: Get loading state from hook
+        selectedAncestryDetails,
+        isDraconicAncestryLoading,
     } = hook;
 
     if (raceDetails?.index !== 'dragonborn') {
@@ -44,10 +44,12 @@ const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook })
                     ))}
                 </select>
             )}
-            {selectedAncestryDetails && (
+            {selectedAncestryDetails?.trait_specific?.damage_type && (
                 <div className="mt-4 p-3 bg-stone-800/50 rounded-md text-sm text-stone-300 space-y-1">
                     <p><strong className="text-amber-300">Resistência a Dano:</strong> {translateApiString(selectedAncestryDetails.trait_specific.damage_type.name)}</p>
-                    <p><strong className="text-amber-300">Arma de Sopro:</strong> {translateApiString(selectedAncestryDetails.trait_specific.breath_weapon.damage?.[0].damage_type.name)} ({selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.size} pés em {selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.type === 'line' ? 'linha' : 'cone'})</p>
+                    {selectedAncestryDetails.trait_specific.breath_weapon && (
+                         <p><strong className="text-amber-300">Arma de Sopro:</strong> {translateApiString(selectedAncestryDetails.trait_specific.breath_weapon.damage?.[0].damage_type.name)} ({selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.size} pés em {selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.type === 'line' ? 'linha' : 'cone'})</p>
+                    )}
                 </div>
             )}
         </div>

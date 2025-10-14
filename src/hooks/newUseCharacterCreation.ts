@@ -515,24 +515,24 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (!draconicAncestry) {
                 setSelectedAncestryDetails(null);
                 return;
-            };
+            }
 
             const details = await DndApiService.getTraitDetails(draconicAncestry);
             setSelectedAncestryDetails(details);
 
-            if (details?.trait_specific?.breath_weapon) {
+            if (details?.trait_specific?.breath_weapon && details.trait_specific.damage_type) {
                 const bw = details.trait_specific.breath_weapon;
                 const breathWeaponSpell: ApiSpell = {
                     index: `breath-weapon-${details.trait_specific.damage_type.index}`,
                     name: `Arma de Sopro (${translateApiString(details.trait_specific.damage_type.name)})`,
                     desc: [bw.desc],
                     higher_level: [],
-                    range: `${bw.area_of_effect.size} pés ${bw.area_of_effect.type === 'line' ? 'linha' : 'cone'}`,
+                    range: `${bw.area_of_effect.size} pés em ${bw.area_of_effect.type === 'line' ? 'linha' : 'cone'}`,
                     components: [],
                     material: '',
                     ritual: false,
                     duration: 'Instantânea',
-                    casting_time: bw.usage.type,
+                    casting_time: bw.usage?.type || '1 Ação',
                     level: 0, 
                     school: { name: 'Evocação', index: 'evocation', url:'' },
                     classes: [],
