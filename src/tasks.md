@@ -29,19 +29,19 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Frontend:**
         *   **[⬜️ A Fazer]** Aprimorar o componente `NewRelationships.tsx` para talvez exibir um status ou uma nota sobre a última atividade conhecida de um NPC, atualizada quando a IA fornece essa informação.
 
-*   **[⬜️ A Fazer] Fase 3: Sistema de Notícias e Rumores**
+*   **[✅ Concluído] Fase 3: Sistema de Notícias e Rumores**
     *   **Backend:**
-        *   **[⬜️ A Fazer]** Instruir a IA a identificar eventos de grande impacto causados pelo jogador e marcá-los em um novo campo `majorEvents` dentro do `worldState`.
-        *   **[⬜️ A Fazer]** Ensinar a IA a consultar esses "eventos" e transformá-los em rumores que podem ser ouvidos em tavernas e cidades.
+        *   **[✅ Concluído]** Instruir a IA a identificar eventos de grande impacto causados pelo jogador e marcá-los em um novo campo `majorEvents` dentro do `worldState`.
+        *   **[✅ Concluído]** Ensinar a IA a consultar esses "eventos" e transformá-los em rumores que podem ser ouvidos em tavernas e cidades.
     *   **Frontend:**
-        *   **[⬜️ A Fazer]** Exibir os rumores como parte da narração normal no `NewNarrativeLog.tsx`. Opcionalmente, criar uma nova aba ou seção no "Diário" para registrar os rumores mais importantes ouvidos pelo jogador.
+        *   **[✅ Concluído]** Exibir os rumores como parte da narração normal no `NewNarrativeLog.tsx`. Opcionalmente, criar uma nova aba ou seção no "Diário" para registrar os rumores mais importantes ouvidos pelo jogador.
 
-*   **[⬜️ A Fazer] Fase 4: Reputação com Facções e Guildas**
+*   **[✅ Concluído] Fase 4: Reputação com Facções e Guildas**
     *   **Backend:**
-        *   **[⬜️ A Fazer]** Instruir a IA a rastrear e atualizar a reputação do jogador com facções do mundo (ex: Guilda dos Ladrões, Guarda da Cidade) no campo `factionReputation` da entidade `Character`.
-        *   **[⬜️ A Fazer]** Garantir que a IA use essa reputação para modular diálogos, preços em lojas e a disponibilidade de missões.
+        *   **[✅ Concluído]** Instruir a IA a rastrear e atualizar a reputação do jogador com facções do mundo (ex: Guilda dos Ladrões, Guarda da Cidade) no campo `factionReputation` da entidade `Character`.
+        *   **[✅ Concluído]** Garantir que a IA use essa reputação para modular diálogos, preços em lojas e a disponibilidade de missões.
     *   **Frontend:**
-        *   **[⬜️ A Fazer]** Implementar um componente no `ProgressionTab.tsx` ou em uma nova aba "Facções" para exibir a reputação do jogador com as diferentes guildas encontradas.
+        *   **[✅ Concluído]** Implementar um componente no `ProgressionTab.tsx` ou em uma nova aba "Facções" para exibir a reputação do jogador com as diferentes guildas encontradas.
 
 *   **[⬜️ A Fazer] Fase 5: Mapa do Mundo Interativo**
     *   **Backend:**
@@ -63,4 +63,4 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 - **Problema:** O frontend operava com lógicas antigas de estado no cliente, não aproveitando o potencial do novo backend.
 - **Objetivo:** Refatorar completamente a aplicação para alinhar frontend e backend, adotando as melhores práticas de arquitetura para criar uma plataforma rápida, estável e imersiva.
-- **Status:** Concluído. Todas as fases foram implementadas com sucesso, resultando em uma arquitetura robusta e uma experiência de usuário significativamente melhorada.
+- **Status:** Concluído. Todas as fases, da 1.1 à 1.4 (com exceção dos testes de integração), foram implementadas com sucesso, resultando em uma arquitetura robusta e uma experiência de usuário significativamente melhorada.
