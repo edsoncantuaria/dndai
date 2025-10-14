@@ -8,8 +8,9 @@ import { Heart, Shield } from 'lucide-react';
 const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) => {
     if (!combatant) return null;
 
-    const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
-    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '';
+    const currentHp = typeof combatant.hp === 'object' ? combatant.hp.current : (typeof combatant.hp === 'number' ? combatant.hp : '?');
+    const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : combatant.maxHp ?? '';
+
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
 
@@ -22,10 +23,10 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
             </div>
             <div className="flex items-center gap-1.5 text-blue-300">
                 <Shield className="h-4 w-4" />
-                <span>CA {combatant.armorClass ?? '?'}</span>
+                <span>CA {combatant.ac ?? '?'}</span>
             </div>
             {combatant.conditions && combatant.conditions.length > 0 && (
-                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.map(c => translateCondition(c.name)).join(', ')}>
+                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.map(c => translateCondition(c)).join(', ')}>
                     <span>⚠️</span>
                 </div>
             )}

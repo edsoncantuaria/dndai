@@ -350,18 +350,18 @@ export interface LogEntry {
 export interface Combatant {
     id: string;
     name: string;
-    hp?: { current: number; max: number; };
+    hp?: { current: number; max: number; } | number; // Updated to allow both object and number
+    maxHp?: number; // compatibilidade
     ac?: number;
     initiative?: number;
     isPlayer?: boolean;
-    conditions?: string[];
+    conditions?: string[]; // Array of condition names
     distance?: number;
     rollHistory?: any[]; // Adicionado para compatibilidade
     actionPoints?: number; // Adicionado para compatibilidade
     bonusActionPoints?: number; // Adicionado para compatibilidade
     isDead?: boolean; // Adicionado para compatibilidade
     tempModifiers?: any; // Adicionado para compatibilidade
-    maxHp?: number; // compatibilidade
     initiativeRoll?: number; // compatibilidade
     hasMoved?: boolean; // compatibilidade
     hasActed?: boolean; // compatibilidade
@@ -433,7 +433,7 @@ export interface ApiTrait {
     parent?: ApiListItem;
     trait_specific?: {
         spell_options?: ProficiencyChoice;
-        subtrait_options?: ProficiencyChoice;
+        subfeature_options?: ProficiencyChoice;
         damage_type?: ApiListItem;
         breath_weapon?: {
             name: string;

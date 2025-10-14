@@ -97,15 +97,15 @@ const Inventory: React.FC = () => {
                          <h4 className="font-semibold text-stone-300 text-sm mb-2 flex items-center gap-2"><Coins /> Moedas</h4>
                          <div className="flex justify-around text-center">
                             <div>
-                                <p className="font-mono font-bold text-lg text-yellow-500">{character.currency.gp}</p>
+                                <p className="font-mono font-bold text-lg text-yellow-500">{character.currency.gp || 0}</p>
                                 <p className="text-xs text-stone-500">Ouro</p>
                             </div>
                             <div>
-                                <p className="font-mono font-bold text-lg text-slate-400">{character.currency.sp}</p>
+                                <p className="font-mono font-bold text-lg text-slate-400">{character.currency.sp || 0}</p>
                                 <p className="text-xs text-stone-500">Prata</p>
                             </div>
                             <div>
-                                <p className="font-mono font-bold text-lg text-orange-400">{character.currency.cp}</p>
+                                <p className="font-mono font-bold text-lg text-orange-400">{character.currency.cp || 0}</p>
                                 <p className="text-xs text-stone-500">Cobre</p>
                             </div>
                         </div>

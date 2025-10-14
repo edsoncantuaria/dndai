@@ -52,8 +52,8 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     const borderColor = isCurrentTurn ? 'border-amber-400 shadow-lg shadow-amber-900/50' : isPlayer ? 'border-blue-500/70' : 'border-stone-700';
     const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
 
-    const currentHp = typeof combatant.hp === 'number' ? combatant.hp : '?';
-    const maxHp = typeof combatant.maxHp === 'number' ? combatant.maxHp : '?';
+    const currentHp = typeof combatant.hp === 'object' ? combatant.hp.current : (typeof combatant.hp === 'number' ? combatant.hp : '?');
+    const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : combatant.maxHp ?? '?';
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
 
@@ -66,9 +66,9 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                     <div>
                         <h4 className={`font-bold text-lg ${isCurrentTurn ? 'text-white' : 'text-stone-200'}`}>{combatant.name}</h4>
                         <div className="flex flex-wrap gap-1 mt-1">
-                            {combatant.conditions?.map((cond, i) => (
-                                <span key={i} className={`px-1.5 py-0.5 text-xs font-semibold rounded-full ${statusColorMap[cond.name] || 'bg-stone-600/50 text-stone-300'}`}>
-                                    {translateCondition(cond.name)}
+                            {(combatant.conditions || []).map((cond, i) => (
+                                <span key={i} className={`px-1.5 py-0.5 text-xs font-semibold rounded-full ${statusColorMap[cond] || 'bg-stone-600/50 text-stone-300'}`}>
+                                    {translateCondition(cond)}
                                 </span>
                             ))}
                         </div>
@@ -101,11 +101,11 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints ?? 1}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints ?? 1 > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints ?? 1}</div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-lime-400 flex items-center justify-center gap-1"><PlusSquare className="h-3 w-3"/> Bônus</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints ?? 1}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints ?? 1 > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints ?? 1}</div>
                 </div>
             </div>
              {combatant.distance !== undefined && !isPlayer && (
