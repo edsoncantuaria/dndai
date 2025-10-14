@@ -96,7 +96,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     const { attributes, modifiers, proficiencies, languages, conditions, hitDice, traits } = character;
     const initiativeBonus = modifiers?.dexterity ?? 0;
     
-    // Filtra para exibir apenas os 6 atributos principais, garantindo que não são nulos.
     const coreAttributeKeys = (Object.keys(attributes) as Array<keyof Attributes>).filter(
         key => typeof attributes[key] === 'number' && key !== 'id' && key !== 'characterId' && key !== 'hp' && key !== 'ac'
     );
@@ -111,7 +110,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 <p className="text-sm text-stone-400">{translateApiString(character.race)} {translateApiString(character.characterClass)} de Nível {character.level}</p>
             </div>
             
-            {/* XP Bar */}
              <div className="mb-4">
                 <div className="flex justify-between text-xs mb-1">
                     <span className="font-semibold text-stone-300">XP</span>
@@ -125,7 +123,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </div>
 
-            {/* Combat Stats Grid */}
             <div className="grid grid-cols-3 gap-2 text-center">
                  <div className="bg-red-900/30 p-2 rounded-md border border-red-800">
                     <div className="text-xs font-bold text-red-200 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> VIDA</div>
@@ -176,7 +173,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             )}
             
-            {/* Attributes */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                 {coreAttributeKeys.map((key) => {
                     const value = attributes[key as keyof typeof attributes];
@@ -234,7 +230,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             <h4 className="font-semibold text-stone-300">Proficiências</h4>
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
-                                    <span key={prof.id} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
+                                    <span key={prof.index || prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
                                         {translateApiString(prof.name)}
                                     </span>
                                 ))}
@@ -254,7 +250,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     {languages && languages.length > 0 && (
                         <div>
                             <h4 className="font-semibold text-stone-300 mt-2">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{languages.join(', ')}</p>
+                            <p className="text-sm text-stone-300">{languages.map(translateApiString).join(', ')}</p>
                         </div>
                     )}
                  </div>

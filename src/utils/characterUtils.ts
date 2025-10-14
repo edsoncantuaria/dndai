@@ -15,12 +15,10 @@ export const PROFICIENCY_BONUS: Record<number, number> = {
 };
 
 
-// NEW: Centralized single modifier calculation
 export const calculateModifier = (score: number): number => {
     return Math.floor((score - 10) / 2);
 };
 
-// UPDATED: Use the new single calculator
 export const calculateModifiers = (attributes: Attributes): Attributes => {
     const modifiers: Partial<Attributes> = {};
     for (const key in attributes) {
@@ -38,12 +36,10 @@ export const getXpThreshold = (level: number): number => {
     return XP_THRESHOLDS[level] || Infinity;
 };
 
-// NEW: Centralized carrying capacity calculation
 export const calculateCarryingCapacity = (strength: number): number => {
     return strength * 15;
 };
 
-// NEW: Centralized HP calculation for level 1
 export const calculateMaxHpAtLevel1 = (hitDie: number, constitutionModifier: number): number => {
     return hitDie + constitutionModifier;
 };
@@ -102,7 +98,6 @@ export const getCantripsKnown = (level1Data?: ApiClassLevel): number => {
     return spellcasting?.cantrips_known || 0;
 };
 
-// NEW: Centralized logic for spells known calculation
 export const getSpellsKnown = (
     level: number,
     level1Data?: ApiClassLevel,
@@ -114,22 +109,18 @@ export const getSpellsKnown = (
     const spellcastingDataSource = level1Data.spellcasting || level1Data.class_specific;
     if (!spellcastingDataSource || !classDetails.spellcasting) return 0;
 
-    // "Spells Known" casters (Bard, Ranger, Sorcerer, Warlock)
     if (spellcastingDataSource.spells_known) {
         return spellcastingDataSource.spells_known;
     }
 
-    // "Prepared" casters (Cleric, Druid, Paladin, Wizard)
     const abilityShort = classDetails.spellcasting.spellcasting_ability.index;
     const ability = ATTRIBUTE_SHORT_MAP[abilityShort] as keyof Attributes;
     const modifier = calculateModifier(attributes[ability]);
 
-    // Wizard at level 1 adds 6 spells to their spellbook.
     if (classDetails.index === 'wizard' && level === 1) {
         return 6;
     }
 
-    // Cleric, Druid, Paladin (at level 2+), Wizard (after level 1) prepare `modifier + level`
     return Math.max(1, modifier + level);
 };
 
@@ -148,25 +139,21 @@ const DRAGON_ANCESTRY_RESISTANCE: Record<string, string> = {
 };
 
 export const buildFrontendCharacter = async (backendChar: any): Promise<Character> => {
-    // 1. Fetch full details for race, class, and subclass
-    let subclassDetails: ApiSubrace | null = null;
+    let subraceDetails: ApiSubrace | null = null;
     
     const [raceDetails, classDetails] = await Promise.all([
         DndApiService.getRaceDetails(backendChar.race.toLowerCase()),
         DndApiService.getClassDetails(backendChar.characterClass.toLowerCase()),
     ]);
     
-    // Check if there is a subrace and fetch its details if so.
     if (backendChar.subrace) {
         const subraceIndex = backendChar.subrace.toLowerCase().replace(/\s+/g, '-');
-        subclassDetails = await DndApiService.getSubraceDetails(subraceIndex);
+        subraceDetails = await DndApiService.getSubraceDetails(subraceIndex);
     }
     
-    // Fetch level data
     const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const subclassLevelsData = subclassDetails ? (await DndApiService.getSubclassLevels(subclassDetails.index) || []) : [];
+    const subclassLevelsData = subraceDetails ? (await DndApiService.getSubclassLevels(subraceDetails.index) || []) : [];
     
-    // 2. Rebuild the complex object from the separated backend entities
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
         dexterity: backendChar.attributes.dexterity,
@@ -184,11 +171,9 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => {
         let parsedItemData = {};
         try {
-            // Check if itemData is a string and needs parsing
             if (typeof item.itemData === 'string') {
                 parsedItemData = JSON.parse(item.itemData);
             } else if (typeof item.itemData === 'object' && item.itemData !== null) {
-                // If it's already an object, use it directly
                 parsedItemData = item.itemData;
             }
         } catch (e) {
@@ -206,14 +191,25 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const ac = calculateAC(inventory, modifiers);
     const maxHp = backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
 
-    const traits: ApiListItem[] = raceDetails?.traits || [];
-    if (subclassDetails && subclassDetails.racial_traits) {
-        traits.push(...subclassDetails.racial_traits);
+    const traits: ApiListItem[] = [...(raceDetails?.traits || [])];
+    if (subraceDetails && subraceDetails.racial_traits) {
+        traits.push(...subraceDetails.racial_traits);
     }
     
-    const languages: string[] = raceDetails?.languages.map(l => l.name) || [];
+    const baseLanguages = new Set(raceDetails?.languages.map(l => l.name) || []);
+    if(subraceDetails && subraceDetails.languages) {
+        subraceDetails.languages.forEach(l => baseLanguages.add(l.name));
+    }
+    // Assumes languages are stored as a simple array of strings on the character object
+    const characterLanguages = new Set(backendChar.languages || []); 
+    const languages = Array.from(new Set([...baseLanguages, ...characterLanguages]));
 
-    // 3. Calculate Spell Slots
+
+    const proficiencies = backendChar.proficiencies.map((p: any) => ({
+        index: p.name.toLowerCase().replace(/ /g, '-'),
+        ...p
+    }));
+
     const spellSlots: Character['spellSlots'] = {};
     const levelData = classLevelsData.find(l => l.level === backendChar.level);
     if (levelData?.spellcasting) {
@@ -235,8 +231,10 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     return {
         ...backendChar,
         attributes: attributes,
-        inventory: inventory, // Use the corrected inventory
+        inventory: inventory,
         spells: backendChar.spells || [],
+        proficiencies,
+        languages,
         relationships: (backendChar.relationships || []).map((r: any) => ({
             ...r,
             quests: r.quests || []
@@ -252,11 +250,10 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
-        currency: { gp: backendChar.currency?.gp || 0, sp: 0, cp: 0 },
+        currency: { gp: backendChar.currency?.gp || 15, sp: 0, cp: 0 }, // Default gold if none
         currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),
         traits: traits,
-        languages: languages,
         classLevelsData: classLevelsData,
         subclassLevelsData: subclassLevelsData,
         spellSlots: spellSlots,
@@ -294,16 +291,9 @@ export const SKILL_ATTRIBUTE_MAP: Record<string, keyof Attributes> = {
 export const ALL_SKILLS = Object.keys(SKILL_ATTRIBUTE_MAP);
 
 export const applyLevelUp = async (character: Character, levelUpState: any, selections: any): Promise<Character> => {
-    // This is a placeholder for a much more complex function.
-    // In a real scenario, this would involve:
-    // - Increasing HP (either by rolling or taking average)
-    // - Adding new features from class/subclass
-    // - Handling Ability Score Increases or Feats
-    // - Updating spell slots and known/prepared spells
     console.log("Applying level up with selections:", selections);
     const newCharacter = { ...character };
 
-    // Placeholder Logic:
     newCharacter.level = levelUpState.newLevel;
     newCharacter.xpToNextLevel = getXpThreshold(newCharacter.level);
     newCharacter.proficiencyBonus = getProficiencyBonus(newCharacter.level);
@@ -325,8 +315,6 @@ export const applyLevelUp = async (character: Character, levelUpState: any, sele
         // This is simplified. Should handle actual spell objects.
         // newCharacter.spells = [...new Set([...newCharacter.spells, ...selections.spells])];
     }
-    
-    // ... and so on for features, etc.
     
     return newCharacter;
 };
