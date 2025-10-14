@@ -1,3 +1,4 @@
+
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -211,26 +212,25 @@ const ActionOptions: React.FC = () => {
                 {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
-                             if (typeof action === 'object' && action !== null && 'skill' in action) {
-                                const skillAction = action as { text: string; skill: string };
+                             if (typeof action === 'object' && action !== null && 'skill' in action && action.skill) {
                                 return (
                                     <button
                                         key={index}
-                                        onClick={() => handleSkillClick(skillAction.skill)}
+                                        onClick={() => handleSkillClick(action.skill!)}
                                         disabled={isActionLocked}
                                         className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                         style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                     >
-                                        {skillAction.text}
+                                        {action.text}
                                     </button>
                                 );
                             }
 
                             const actionText = (typeof action === 'object' && action !== null) 
-                                ? (action as any).text || (action as any).description 
+                                ? action.text
                                 : action;
                             const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
-                                ? (action as any).action 
+                                ? action.action
                                 : action;
                             
                             if (!actionText || typeof actionText !== 'string') return null;

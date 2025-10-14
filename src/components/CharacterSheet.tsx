@@ -39,7 +39,7 @@ const DeathSavesTracker: React.FC = () => {
 }
 
 const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillName, onUse }) => {
-    const { isLoading, character, setSkillCheckRequest, playerRollRequest } = useGameStateContext();
+    const { isLoading, character, handleSkillCheck, playerRollRequest } = useGameStateContext();
     
     if (!character) return null;
     
@@ -49,7 +49,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
 
     const handleSkillUse = () => {
         if (onUse) onUse();
-        setSkillCheckRequest({ skillName });
+        handleSkillCheck(skillName);
     }
     
     return (
@@ -106,7 +106,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     // --- Passive Skills Calculation ---
     const calculatePassiveScore = (skillName: string, attribute: keyof Attributes) => {
         const isProficient = (proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
-        return 10 + (modifiers ? modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
+        return 10 + (modifiers ? modifiers[attribute] : 0) + (character.proficiencyBonus || 0);
     };
 
     const passivePerception = calculatePassiveScore('perception', 'wisdom');
@@ -296,4 +296,5 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
 };
 
 export default CharacterSheet;
+
 
