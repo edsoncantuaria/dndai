@@ -37,7 +37,6 @@ Para suportar essa visão, novas tabelas (entidades TypeORM) serão criadas:
 O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
 
 - **Obrigação de Persistir**: A IA será instruída a, sempre que criar um NPC importante, um monstro único ou um local notável, incluí-lo em uma estrutura específica na sua resposta JSON (`updatedCharacter.relationships`, `updatedCharacter.journal`).
-- **Gerenciamento de Missões**: A IA deve criar e atualizar missões na entidade `Quest`. Ao dar uma missão, deve definir `status: 'active'` e listar os `objectives`. Ao reconhecer a conclusão de um objetivo, deve atualizar a lista ou marcar a missão como `'completed'`.
 - **Consulta de Estado**: Ao iniciar uma narração, a IA receberá o estado atual dos NPCs e locais conhecidos (ex: "Lembre-se, o ferreiro de Phandalin, Barthen, é amigável com o jogador (afinidade: 25) e a 'Caverna do Eco da Onda' já foi saqueada.").
 - **Diretrizes de Escalonamento**: A IA será instruída a criar novos desafios (NPCs hostis e monstros) com um nível de poder (CR) apropriado ao nível atual do personagem do jogador.
 
@@ -50,16 +49,7 @@ O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
 5.  **Persistência (Backend)**: O `narrarService` recebe a resposta e salva as novas entradas de diário ou relacionamentos no banco de dados, vinculadas ao personagem da sessão.
 6.  **Atualização da UI**: O frontend recebe o estado atualizado e exibe os novos locais e NPCs nas abas de "Diário" e "Relacionamentos".
 
-## 3. Aprofundando o Conceito de "Mundo Vivo"
-
-Com a base arquitetônica definida, podemos expandir a visão para mecânicas mais complexas que aprofundam a imersão:
-
-- **Facções e Reputação Global**: Além de relacionamentos individuais, o personagem terá uma reputação com facções (ex: "A Aliança dos Lordes", "A Guilda dos Ladrões de Phandalin"). Ações que agradam ou desagradam uma facção ajustarão essa reputação, afetando preços de lojas, disponibilidade de missões e a hostilidade de NPCs membros daquela facção.
-- **Estado do Mundo e Eventos Dinâmicos**: O mundo reagirá às ações do jogador de forma macro. Derrotar o líder de um bando de orcs pode reduzir os ataques nas estradas por um tempo. Ignorar uma praga em uma fazenda pode fazer com que a comida se torne escassa e cara na cidade vizinha. Esses estados (`"orc_threat": "low"`, `"food_supply": "scarce"`) serão salvos e enviados à IA para contextualizar a narração.
-- **Ciclo de Vida de NPCs e Monstros**: Os NPCs poderão ter rotinas (na taverna à noite, na forja de dia) e os monstros genéricos (goblins, lobos) poderão reaparecer (respawn) em suas áreas após um tempo, mantendo o mundo desafiador. Monstros únicos derrotados, no entanto, permanecem mortos.
-- **Inventário e Economia dos NPCs**: Para criar um mundo mais realista, NPCs importantes (como mercadores e ferreiros) terão seu próprio inventário persistente. Se os jogadores comprarem todas as poções de um alquimista, ele ficará sem estoque até que possa criar ou adquirir mais (o que pode, por si só, gerar uma nova missão).
-
-## 4. Fases da Implementação
+## 3. Fases da Implementação
 
 -   **[✅ Concluído] Fase 1: Fundação do Banco de Dados**:
     *   **Status:** As entidades `Relationship`, `Quest` e `JournalEntry` foram definidas no TypeORM e integradas ao banco de dados do backend.
@@ -70,11 +60,11 @@ Com a base arquitetônica definida, podemos expandir a visão para mecânicas ma
 -   **[✅ Concluído] Fase 3: Exibição no Frontend**:
     *   **Status:** Os componentes `NewJournal.tsx` e `NewRelationships.tsx` foram implementados, exibindo os dados de NPCs, locais e missões de forma organizada para o jogador.
 
--   **[🚧 Em Andamento] Fase 4: Mecânicas Avançadas**:
-    *   **Status:** O trabalho nas mecânicas avançadas começou.
+-   **[✅ Concluído] Fase 4: Mecânicas Avançadas (Fundação)**:
+    *   **Status:** O trabalho inicial nas mecânicas avançadas foi concluído.
     *   **[✅ Concluído]** A IA foi aprimorada para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações.
-    *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado (HP, condições, ações), preparando o terreno para diferenciar monstros.
-    *   **[⬜️ A Fazer]** Implementar a lógica de backend e de IA para diferenciar monstros únicos de monstros genéricos (que podem reaparecer).
-    *   **[⬜️ A Fazer]** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
+    *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado, preparando o terreno para diferenciar monstros.
 
-Este documento servirá como um guia vivo, sendo atualizado à medida que cada fase for concluída, nos aproximando de um mundo de RPG digital verdadeiramente dinâmico e persistente.
+-   **[⬜️ A Fazer] Fase 5: Próximos Passos**:
+    *   **Tarefa:** Implementar a lógica de backend e de IA para diferenciar monstros únicos de monstros genéricos (que podem reaparecer).
+    *   **Tarefa:** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
