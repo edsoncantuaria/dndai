@@ -3,7 +3,7 @@ import redisClient from '../database/redis-client.js';
 import fetch from 'node-fetch'; // Usando node-fetch no backend
 import 'dotenv/config';
 
-const API_BASE = 'https://www.dnd5eapi.co/api/2014'; // Garante que não há uma barra no final
+const API_BASE = 'https://www.dnd5eapi.co/api/2014';
 const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
 
 /**
@@ -12,8 +12,12 @@ const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
  * @returns Os dados da API ou null em caso de erro.
  */
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
-    // Garante que o endpoint comece com uma barra
-    const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    // Garante que o endpoint comece com uma barra e remove duplicação de /api
+    let safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    if (safeEndpoint.startsWith('/api/')) {
+        safeEndpoint = safeEndpoint.substring(4);
+    }
+    
     const cacheKey = `dnd5e:${safeEndpoint}`;
 
     // 1. Tenta buscar do cache primeiro
