@@ -50,13 +50,15 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Subclasses:**
     -   Estrutura básica com seleção de classe original, nome e descrição.
     -   Adição de características de subclasse por nível.
--   **[🚧 Em Andamento] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
+-   **[🚧 Em Andamento] Monstros:**
+    - **[✅ Concluído]** Estrutura inicial do formulário (Nome, Tamanho, Tipo, Alinhamento).
+    - **[Em Andamento]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
+    - **[⬜️ A Fazer]** Implementação de perícias, resistências, sentidos e idiomas.
+    - **[⬜️ A Fazer]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
 #### **Sistema de Dependências (Concluído):**
-
-A visão é permitir que um conteúdo homebrew referencie outro, criando um ecossistema conectado.
 
 -   **[✅ Concluído] Traços em Raças:** Ao criar uma raça, é possível criar e associar novos traços.
 -   **[✅ Concluído] Componentes Materiais em Magias:** Ao criar uma magia, é possível selecionar um item existente ou criar um novo para servir como componente.
