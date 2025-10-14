@@ -14,6 +14,8 @@ import { Relationship } from '../entities/Relationship.js';
 import { runGameMasterTurn } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
+import { In } from 'typeorm';
+import { HomebrewContent } from '../entities/HomebrewContent.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -170,6 +172,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
     const userRepository = AppDataSource.getRepository(User);
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
 
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
@@ -187,6 +190,15 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
     }
 
+    // Carregar conteúdo homebrew específico da sessão
+    let homebrewContext = {};
+    if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
+        const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
+        homebrewContext = {
+            installedHomebrew: homebrewItems.map(item => item.content)
+        };
+    }
+
     const recentLogs = await logRepository.find({
         where: { sessaoId: sessao.id },
         order: { timestamp: 'DESC' },
@@ -199,6 +211,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         playerAction,
         gameLog: gameLogSummary,
         combatState: currentCombatState,
+        ...homebrewContext, // Injeta o conteúdo homebrew no input da IA
     };
 
     const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-1.5-flash");

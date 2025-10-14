@@ -180,7 +180,8 @@ export const GameMasterFlowInputSchema = z.object({
   character: CharacterAISchema.describe("A summary of the current character state."),
   playerAction: z.string().describe("The action taken by the player."),
   gameLog: z.string().describe("A summary of the last few turns of game history."),
-  combatState: CombatStateSchema.optional().describe("The current state of combat, if active.")
+  combatState: CombatStateSchema.optional().describe("The current state of combat, if active."),
+  installedHomebrew: z.array(z.any()).optional().describe("An array of homebrew content objects (races, classes, monsters, etc.) that are active in this session."),
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
