@@ -28,28 +28,20 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 - **UI**: [Tailwind CSS](https://tailwindcss.com/) com componentes de [ShadCN UI](https://ui.shadcn.com/) para uma interface moderna e responsiva.
 - **Backend**: [Node.js](https://nodejs.org/) com [Express.js](https://expressjs.com/) para a API REST.
 - **Banco de Dados**: [MySQL](https://www.mysql.com/) com [TypeORM](https://typeorm.io/) para persistência de dados de usuários, personagens e sessões.
+- **Cache**: [Redis](https://redis.io/) para cache de chamadas de API externas e otimização.
 - **IA Generativa**: [Genkit (Google AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini.
-- **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada para popular dados de raças, classes, magias, equipamentos, etc.
+- **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada como fonte de dados para raças, classes, magias, etc., com cache no backend.
 
 ### Estrutura de Diretórios Principal
 
 ```
 /
-|-- /backend/         # Servidor Node.js, API e lógica de negócios
-|   |-- /src/
-|       |-- /controllers/
-|       |-- /database/
-|       |-- /entities/
-|       |-- /services/
-|       `-- server.ts
-|
-`-- /src/              # Aplicação Frontend Next.js
-    |-- /app/         # Rotas e UI principal do Next.js
-    |-- /components/  # Componentes React reutilizáveis
-    |-- /contexts/    # Contextos React (AuthState, GameState, Settings)
-    |-- /hooks/       # Hooks React customizados
-    `-- /services/    # Camada de comunicação com a API do backend
+|-- /backend/      # (Servidor Node.js, API e lógica de negócios)
+|-- /src/          # (Aplicação Frontend Next.js)
+`-- /data/         # (Arquivos de dados para modificações e customizações)
 ```
+
+**Nota Importante:** O diretório `/data/` é destinado a conter arquivos de dados (como JSONs customizados) que podem ser modificados para customizar o jogo. Não deve ser alterado de outras formas para não quebrar a lógica da aplicação.
 
 ## Como Funciona o Loop do Jogo
 
