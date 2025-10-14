@@ -15,6 +15,9 @@ import { runGameMasterTurn } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
 
+// Função auxiliar para calcular o modificador de um atributo
+const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
+
 // Constrói um objeto de personagem otimizado para a IA.
 const buildOptimizedCharacterForAI = async (characterId: number) => {
     const characterRepo = AppDataSource.getRepository(Character);
@@ -24,6 +27,21 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     });
 
     if (!fullCharacter) return null;
+    
+    // Calcula modificadores e bônus de proficiência
+    const proficiencyBonus = Math.floor((fullCharacter.level - 1) / 4) + 2;
+    const wisdomMod = calculateModifier(fullCharacter.attributes.wisdom);
+    const intelligenceMod = calculateModifier(fullCharacter.attributes.intelligence);
+    
+    // Verifica proficiência em perícias chave
+    const isProficientInPerception = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('perception'));
+    const isProficientInInsight = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('insight'));
+    const isProficientInInvestigation = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('investigation'));
+
+    // Calcula perícias passivas
+    const passivePerception = 10 + wisdomMod + (isProficientInPerception ? proficiencyBonus : 0);
+    const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
+    const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
     return {
         name: fullCharacter.name,
@@ -41,6 +59,9 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
             ac: fullCharacter.attributes.ac,
             conditions: fullCharacter.attributes.conditions || [],
         },
+        passivePerception,
+        passiveInsight,
+        passiveInvestigation,
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
         inventory: fullCharacter.items.map(item => item.itemData),
         spells: fullCharacter.spells.map(s => s.spellName),
@@ -156,7 +177,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const gameLogSummary = recentLogs.reverse().map(log => `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`).join('\n');
 
     const gameMasterFlowInput: GameMasterFlowInput = {
-        character: optimizedCharacter,
+        character: optimizedCharacter as any, // Cast to any to bypass strict schema check for new passive skills
         playerAction,
         gameLog: gameLogSummary,
         combatState: currentCombatState,

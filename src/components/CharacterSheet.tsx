@@ -5,7 +5,7 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
 import type { Attributes, Proficiency, ApiTrait } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight, Eye, Brain, Search } from 'lucide-react';
 
 const DeathSavesTracker: React.FC = () => {
     const { character } = useGameStateContext();
@@ -102,6 +102,17 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     
 
     const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
+    
+    // --- Passive Skills Calculation ---
+    const calculatePassiveScore = (skillName: string, attribute: keyof Attributes) => {
+        const isProficient = (proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
+        return 10 + (modifiers ? modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
+    };
+
+    const passivePerception = calculatePassiveScore('perception', 'wisdom');
+    const passiveInsight = calculatePassiveScore('insight', 'wisdom');
+    const passiveInvestigation = calculatePassiveScore('investigation', 'intelligence');
+    // --- End Passive Skills ---
 
     return (
         <div className="p-4 space-y-4">
@@ -138,14 +149,18 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-2 text-center">
-                 <div className="bg-stone-800/50 p-2 rounded-md">
-                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Footprints className="h-3 w-3" /> Deslocamento</div>
-                    <p className="font-bold text-lg text-stone-200">{character.speed ?? 0}m</p>
+             <div className="grid grid-cols-3 gap-2 text-center bg-stone-800/50 p-2 rounded-md">
+                 <div title="Percepção Passiva">
+                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Eye className="h-3 w-3"/> Percepção</div>
+                    <p className="font-bold text-lg text-stone-200">{passivePerception}</p>
                 </div>
-                <div className="bg-stone-800/50 p-2 rounded-md">
-                    <div className="text-xs font-bold text-stone-400">Bônus de Prof.</div>
-                    <p className="font-bold text-lg text-amber-300">+{character.proficiencyBonus}</p>
+                <div title="Intuição Passiva">
+                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Brain className="h-3 w-3"/> Intuição</div>
+                    <p className="font-bold text-lg text-stone-200">{passiveInsight}</p>
+                </div>
+                 <div title="Investigação Passiva">
+                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Search className="h-3 w-3"/> Investigação</div>
+                    <p className="font-bold text-lg text-stone-200">{passiveInvestigation}</p>
                 </div>
             </div>
 
