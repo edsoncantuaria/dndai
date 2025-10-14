@@ -243,7 +243,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew: installedHomebrew,
     };
 
-    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-1.5-flash");
+    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-2.5-flash");
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
