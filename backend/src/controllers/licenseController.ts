@@ -5,16 +5,14 @@ import { LicenseKey } from '../entities/LicenseKey.js';
 import { User } from '../entities/User.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import createError from 'http-errors';
+import { ActivateLicenseSchema } from '../schemas/validationSchemas.js';
 
 export const activateLicense = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { key } = req.body;
     const userId = req.user?.userId;
 
-    if (!key) {
-        return next(createError(400, 'A chave de licença é obrigatória.'));
-    }
-
     try {
+        const { key } = ActivateLicenseSchema.parse(req.body);
+
         const licenseRepository = AppDataSource.getRepository(LicenseKey);
         const license = await licenseRepository.findOne({ where: { key } });
 
@@ -36,7 +34,10 @@ export const activateLicense = async (req: AuthRequest, res: Response, next: Nex
 
         res.status(200).json({ success: true, message: 'Licença ativada com sucesso!' });
 
-    } catch (error) {
+    } catch (error: any) {
+         if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };

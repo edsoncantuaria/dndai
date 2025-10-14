@@ -9,6 +9,7 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
+import { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 
 
 // Função auxiliar para reconstruir o objeto completo do personagem
@@ -50,18 +51,15 @@ export const buildFullCharacterObject = async (character: Character) => {
 
 // Criar um novo personagem
 export const createCharacter = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const characterData = req.body;
     const userId = req.user?.userId;
-
-    if (!characterData || !characterData.name) {
-        return next(createError(400, 'Dados do personagem são inválidos.'));
-    }
 
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+        const characterData = NewCharacterInfoSchema.parse(req.body);
+
         // 1. Criar e salvar a entidade Character principal
         const newCharacter = new Character();
         newCharacter.userId = userId!;
@@ -125,9 +123,12 @@ export const createCharacter = async (req: AuthRequest, res: Response, next: Nex
 
         res.status(201).json({ message: 'Personagem criado com sucesso!', character: savedCharacter });
 
-    } catch (error) {
+    } catch (error: any) {
         // Se algo der errado, desfaz tudo
         await queryRunner.rollbackTransaction();
+         if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     } finally {
         // Libera o query runner

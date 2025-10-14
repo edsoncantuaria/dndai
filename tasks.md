@@ -8,7 +8,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ---
 
-## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Em Planejamento)
+## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Em Andamento)
 
 - **Problema:** O frontend atual ainda opera com muitas lógicas do design original (estado gerenciado no cliente, `localStorage`), o que o impede de aproveitar todo o potencial do novo backend (banco de dados persistente, gerenciamento de sessões, personagens reutilizáveis). A interface e o fluxo de dados não refletem a nova arquitetura de servidor.
 - **Filosofia Central:** O backend é a única fonte da verdade. O frontend deve ser uma interface reativa e performática que busca e envia dados ao servidor, utilizando o cache de forma inteligente para uma experiência de usuário fluida.
@@ -16,7 +16,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fase 1.1: Fundação da Arquitetura (Backend & Frontend)
 
-*   **[ ] Implementar Validação de Dados com Zod (Backend):**
+*   **[X] Implementar Validação de Dados com Zod (Backend):**
     *   **Tarefa:** Em cada controller do backend (ex: `characterController.ts`), usar o Zod para criar schemas que validam o `req.body` de todas as requisições `POST` e `PUT`.
     *   **Justificativa:** Garante que dados malformados ou maliciosos nunca cheguem à nossa lógica de negócios ou ao banco de dados, tornando a API mais segura e previsível.
 
@@ -31,6 +31,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
     *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
     *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação.
+
+*   **[ ] Centralizar Configurações Sensíveis (`.env`) (Backend):**
+    *   **Tarefa:** Garantir que todas as configurações que podem mudar entre ambientes (como `JWT_SECRET`) sejam lidas a partir de variáveis de ambiente e documentadas no `.env.example`.
+    *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
 ### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
@@ -69,7 +73,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[ ] Aba Dedicada para "Relacionamentos e Missões":**
     *   **Visão:** Criar uma nova aba com "cards" para cada NPC, mostrando afinidade, e listando as missões ativas e concluídas associadas a eles.
-    *   **Impacto:** Organiza a informação social do jogo, tornando o progresso das quests e as relações com NPCs mais claras e significativas.
+    *   **Impacto:** Organiza a informação social do jogo, tornando o progresso das quests e as relações com os NPCs mais claras e significativas.
 
 *   **[ ] Linha do Tempo da Progressão do Personagem:**
     *   **Visão:** Criar uma aba de "Progresso" que mostre visualmente as habilidades e talentos ganhos em cada nível, além de um painel para reputação com as facções do mundo.

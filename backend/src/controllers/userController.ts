@@ -4,6 +4,7 @@ import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import createError from 'http-errors';
+import { SettingsSchema } from '../schemas/validationSchemas.js';
 
 export const getMe = async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
@@ -34,16 +35,14 @@ export const getMe = async (req: AuthRequest, res: Response, next: NextFunction)
 
 export const updateSettings = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
-    const newSettings = req.body;
-
+    
     if (!userId) {
         return next(createError(401, 'Não autorizado.'));
     }
-    if (!newSettings || typeof newSettings !== 'object') {
-        return next(createError(400, 'Corpo da requisição de configurações inválido.'));
-    }
 
     try {
+        const newSettings = SettingsSchema.parse(req.body);
+
         const userRepository = AppDataSource.getRepository(User);
         
         // Overwrite the settings object completely to ensure sync
@@ -51,7 +50,10 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
         
         res.status(200).json({ message: 'Configurações atualizadas com sucesso!', settings: newSettings });
 
-    } catch (error) {
+    } catch (error: any) {
+        if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 }

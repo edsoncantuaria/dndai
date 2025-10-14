@@ -5,12 +5,13 @@ import jwt from 'jsonwebtoken';
 import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import createError from 'http-errors';
+import { RegisterSchema, LoginSchema } from '../schemas/validationSchemas.js';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "gemini-2.5-flash",
-    ttsModel: "gemini-2.5-flash-native-audio",
-    imageModel: "imagen-3",
+    model: "gemini-1.5-flash",
+    ttsModel: "gemini-2.5-flash-preview-tts",
+    imageModel: "imagen-3.0-generate-002",
     ttsVoice: "Charon",
     generationConfig: {
         temperature: 1,
@@ -24,13 +25,10 @@ const defaultSettings = {
 };
 
 export const register = async (req: Request, res: Response, next: NextFunction) => {
-    const { username, email, password } = req.body;
-
-    if (!username || !email || !password || username.trim() === '') {
-        return next(createError(400, 'Todos os campos são obrigatórios.'));
-    }
-
     try {
+        // Validação com Zod
+        const { username, email, password } = RegisterSchema.parse(req.body);
+
         const userRepository = AppDataSource.getRepository(User);
         const existingUser = await userRepository.findOne({ where: [{ email }, { username }] });
         if (existingUser) {
@@ -48,19 +46,19 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
         await userRepository.save(user);
 
         res.status(201).json({ message: 'Usuário registrado com sucesso!' });
-    } catch (error) {
+    } catch (error: any) {
+        if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };
 
 export const login = async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        return next(createError(400, 'Email e senha são obrigatórios.'));
-    }
-
     try {
+        // Validação com Zod
+        const { email, password } = LoginSchema.parse(req.body);
+
         const userRepository = AppDataSource.getRepository(User);
         const user = await userRepository.findOne({ 
             where: { email },
@@ -91,7 +89,10 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
             user: userResponse,
         });
 
-    } catch (error) {
+    } catch (error: any) {
+        if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };

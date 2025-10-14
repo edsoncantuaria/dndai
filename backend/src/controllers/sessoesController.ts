@@ -7,18 +7,16 @@ import createError from 'http-errors';
 import { IsNull } from 'typeorm';
 import { Character } from '../entities/Character.js';
 import { User } from '../entities/User.js';
-import { buildFullCharacterObject } from './characterController.js'; // Importação centralizada
+import { buildFullCharacterObject } from './characterController.js'; 
+import { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 
 // Criar uma nova sessão de jogo para um personagem existente
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const { nome, characterId } = req.body;
     const userId = req.user?.userId;
 
-    if (!nome || !characterId) {
-        return next(createError(400, 'Nome da sessão e ID do personagem são obrigatórios.'));
-    }
-
     try {
+        const { nome, characterId } = CreateSessaoSchema.parse(req.body);
+
         const characterRepository = AppDataSource.getRepository(Character);
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
         const userRepository = AppDataSource.getRepository(User);
@@ -58,7 +56,10 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
         const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
 
         res.status(201).json({ message: 'Sessão criada com sucesso!', sessao: sessaoParaRetorno });
-    } catch (error) {
+    } catch (error: any) {
+        if (error.errors) { // Erro de validação do Zod
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };
