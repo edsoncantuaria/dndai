@@ -25,6 +25,8 @@ const GameContainer = () => {
         deleteCharacter,
         deleteSession,
         startGame,
+        setIsLoading,
+        isLoading: isGameLoading,
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -57,7 +59,6 @@ const GameContainer = () => {
     }, []);
 
     useEffect(() => {
-        // Fetch data immediately on mount or when returning to a list view
         if (gameStage === 'loading' || gameStage === 'session_list' || gameStage === 'character_vault') {
             fetchInitialData();
         }
@@ -90,7 +91,7 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        setIsLoadingData(true);
+        setIsLoading(true);
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
@@ -98,7 +99,6 @@ const GameContainer = () => {
                 if (loadedData) {
                     setGameStage('playing');
                     setPlayMenuMusic(false);
-                    // Crucial fix: start the game if it's a brand new session with no logs.
                     if(loadedData.logs.length === 0) {
                         await startGame();
                     }
@@ -107,7 +107,7 @@ const GameContainer = () => {
         } catch (error) {
             console.error("Failed to start new game session:", error);
         } finally {
-            setIsLoadingData(false);
+            setIsLoading(false);
         }
     };
     
@@ -117,20 +117,22 @@ const GameContainer = () => {
     }
 
     const handleContinueGame = useCallback(async (sessionId: number) => {
-        setIsLoadingData(true);
+        setIsLoading(true); // Control loading state centrally
         const loadedData = await loadGameSession(sessionId);
         
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
             if (loadedData.logs.length === 0) {
-                await startGame();
+                await startGame(); // This will handle its own isLoading state via processPlayerAction
+            } else {
+                 setIsLoading(false); // If game is already started, stop loading
             }
         } else {
             setGameStage('session_list');
+            setIsLoading(false);
         }
-        setIsLoadingData(false);
-    }, [loadGameSession, setPlayMenuMusic, startGame]);
+    }, [loadGameSession, setPlayMenuMusic, startGame, setIsLoading]);
 
 
     const returnToMenu = useCallback(() => {
@@ -156,7 +158,7 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (gameStage === 'loading' || isLoadingData) {
+        if (gameStage === 'loading' || isLoadingData || isGameLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
