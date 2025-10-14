@@ -69,14 +69,14 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             )}
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2">
                 {coreAttributeKeys.map((key) => {
                     const value = attributes[key as keyof typeof attributes];
                     return (
-                        <div key={key} className="bg-stone-800/50 p-3 rounded-lg text-center">
-                            <div className="font-bold text-lg text-amber-300">{translateAttribute(key)}</div>
-                            <div className="text-3xl font-bold text-stone-100 my-1">{String(value)}</div>
-                            <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
+                        <div key={key} className="bg-stone-800/50 p-2 rounded-lg text-center">
+                            <div className="font-bold text-md text-amber-300">{translateAttribute(key)}</div>
+                            <div className="text-2xl font-bold text-stone-100 my-1">{String(value)}</div>
+                            <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-8 h-8 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
                         </div>
                     );
                 })}
