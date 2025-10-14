@@ -1,9 +1,11 @@
 // src/components/Homebrew/forms/ClassForm.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as characterUtils from '@/utils/characterUtils';
 import { translateAttribute, translateApiString } from '@/utils/translator';
 import type { ApiListItem } from '@/types';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
+import FeatureCreator from '../FeatureCreator';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -28,7 +30,9 @@ const ClassForm: React.FC<Props> = ({ onDataChange }) => {
         proficiencies: [] as ApiListItem[],
         proficiency_choices: [] as any[],
         saving_throws: [] as ApiListItem[],
+        features: [] as any[],
     });
+    const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
 
     // Update parent component whenever data changes
     useEffect(() => {
@@ -42,6 +46,16 @@ const ClassForm: React.FC<Props> = ({ onDataChange }) => {
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
         setClassData(prev => ({ ...prev, [field]: value }));
     };
+    
+    const handleFeatureCreated = (newFeature: any) => {
+        const updatedFeatures = [...classData.features, newFeature].sort((a, b) => a.level - b.level);
+        handleFieldChange('features', updatedFeatures);
+    }
+
+    const handleRemoveFeature = (featureIndex: string) => {
+        handleFieldChange('features', classData.features.filter(f => f.index !== featureIndex));
+    }
+
 
     const handleSavingThrowToggle = (attrIndex: string) => {
         const newSavingThrows = [...classData.saving_throws];
@@ -103,6 +117,17 @@ const ClassForm: React.FC<Props> = ({ onDataChange }) => {
 
     const skillChoiceGroup = classData.proficiency_choices.find(c => c.type === 'proficiencies' && c.desc.includes("skills"));
     const selectedSkillOptions = skillChoiceGroup?.from.options.map((opt:any) => opt.item.name.replace('Skill: ', '')) || [];
+    
+    const groupedFeatures = useMemo(() => {
+        return classData.features.reduce((acc, feature) => {
+            const level = `Nível ${feature.level}`;
+            if (!acc[level]) {
+                acc[level] = [];
+            }
+            acc[level].push(feature);
+            return acc;
+        }, {} as Record<string, any[]>);
+    }, [classData.features]);
 
 
     return (
@@ -215,6 +240,45 @@ const ClassForm: React.FC<Props> = ({ onDataChange }) => {
                     ))}
                  </div>
              </div>
+             {/* Features Section */}
+             <div className="pt-4 border-t border-stone-700">
+                <div className="flex justify-between items-center mb-2">
+                    <h4 className="text-lg font-bold text-amber-300">Características de Classe</h4>
+                    <button type="button" onClick={() => setIsFeatureCreatorOpen(true)} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                        <Plus className="h-4 w-4" /> Adicionar
+                    </button>
+                </div>
+                <div className="space-y-4">
+                    {Object.keys(groupedFeatures).length > 0 ? (
+                        Object.keys(groupedFeatures).map(level => (
+                            <div key={level}>
+                                <h5 className="font-semibold text-stone-300 text-md border-b border-stone-600 pb-1 mb-2">{level}</h5>
+                                <div className="space-y-2">
+                                {groupedFeatures[level].map((feature: any) => (
+                                    <div key={feature.index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
+                                        <div>
+                                            <p className="font-semibold text-stone-200">{feature.name}</p>
+                                            <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
+                                        </div>
+                                        <button onClick={() => handleRemoveFeature(feature.index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
+                                            <Trash2 className="h-4 w-4"/>
+                                        </button>
+                                    </div>
+                                ))}
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <p className="text-sm text-stone-500 italic text-center">Nenhuma característica adicionada ainda.</p>
+                    )}
+                </div>
+             </div>
+             <FeatureCreator
+                isOpen={isFeatureCreatorOpen}
+                onClose={() => setIsFeatureCreatorOpen(false)}
+                onFeatureCreated={handleFeatureCreated}
+                classId={classData.name.toLowerCase().replace(/\s+/g, '-')}
+            />
         </div>
     );
 };
