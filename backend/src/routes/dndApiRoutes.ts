@@ -17,8 +17,7 @@ router.get('/:resource', async (req, res, next) => {
     if (resource === 'backgrounds') {
         try {
             // CORREÇÃO: O caminho aponta para a pasta `data` dentro de `backend`.
-            // O `process.cwd()` no contexto de `backend` é a própria pasta `backend`.
-            const filePath = path.resolve(process.cwd(), 'data/backgrounds.json');
+            const filePath = path.join(process.cwd(), 'data', 'backgrounds.json');
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const data = JSON.parse(fileContent);
             return res.json(data);
