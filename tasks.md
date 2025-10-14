@@ -27,9 +27,15 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Implementar uma nova entidade no backend (ex: `WorldNews`) para registrar feitos heróicos ou eventos mundiais importantes causados pelo jogador.
     *   **Tarefa:** Ensinar a IA a consultar essas "notícias" e transformá-las em rumores que podem ser ouvidos em tavernas e cidades, aumentando a sensação de impacto do jogador no mundo.
 
-*   **[⬜️ A Fazer] Fase 4: Mapa do Mundo Interativo**
+*   **[⬜️ A Fazer] Fase 4: Reputação com Facções e Guildas**
+    *   **Tarefa:** Instruir a IA para rastrear a reputação do jogador com as facções do mundo (ex: Guilda dos Ladrões, Guarda da Cidade, Aliança dos Lordes).
+    *   **Tarefa:** Salvar a reputação (um valor numérico ou um status como "Odiado", "Neutro", "Amado") no banco de dados como parte da entidade `Character` (no campo `factionReputation`).
+    *   **Tarefa:** Garantir que a IA use essa reputação para modular diálogos, preços em lojas e a disponibilidade de missões.
+
+*   **[⬜️ A Fazer] Fase 5: Mapa do Mundo Interativo**
     *   **Tarefa:** Desenvolver um componente de UI no frontend que renderize um mapa.
     *   **Tarefa:** Usar os dados da entidade `JournalEntry` (locais descobertos) para popular o mapa dinamicamente, permitindo que o jogador visualize sua jornada e planeje seus próximos passos.
+
 
 ---
 
