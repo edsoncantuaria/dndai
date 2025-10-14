@@ -11,6 +11,7 @@ import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import * as HomebrewService from './homebrewService.js';
 import * as DndApiService from './dndApiService.js';
+import { v4 as uuidv4 } from 'uuid';
 
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
@@ -53,6 +54,49 @@ export const buildFullCharacterObject = async (character: Character) => {
 // Helper to check if a string is a UUID
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+// Helper function to create detailed item data based on its index
+const createDetailedItem = (itemData: any) => {
+    const baseItem = {
+        id: uuidv4(),
+        index: itemData.index || itemData.name.toLowerCase().replace(/\s+/g, '-'),
+        name: itemData.name,
+        quantity: itemData.quantity || 1,
+        equipped: false,
+        desc: itemData.desc || [],
+        itemData: {} // Será preenchido abaixo
+    };
+
+    const specificDetails: Record<string, any> = {
+        'signet-ring': {
+            desc: [`Um anel de sinete usado para selar cartas ou provar sua identidade. O emblema é de um(a) ${itemData.name.includes('imaginary') ? 'duque imaginário' : 'nobre desconhecido'}.`]
+        },
+        'scroll-of-pedigree': {
+            desc: [`Um pergaminho que detalha sua linhagem, mostrando seus laços com uma família nobre.`]
+        },
+        'clothes-fine': {
+            desc: [`Roupas finas e bem-feitas, adequadas para a nobreza ou ocasiões importantes.`]
+        },
+        'pouch': {
+            desc: [`Uma simples bolsa de couro ou tecido. Pode conter moedas e pequenos itens.`]
+        },
+    };
+
+    const details = specificDetails[baseItem.index] || {};
+    baseItem.itemData = { ...itemData, ...details, desc: details.desc || baseItem.desc };
+
+    // Extrai o ouro da bolsa
+    if (baseItem.index === 'pouch' && baseItem.itemData.desc[0]?.toLowerCase().includes('gold')) {
+        const match = baseItem.itemData.desc[0].match(/(\d+)\s*gp/);
+        if (match) {
+            baseItem.itemData.goldValue = parseInt(match[1], 10);
+            // Remove the gold part from the description to avoid confusion
+            baseItem.itemData.desc = [`Uma simples bolsa de couro ou tecido.`];
+        }
+    }
+
+    return baseItem;
+}
+
 
 export const createCharacter = async (userId: number, characterData: z.infer<typeof NewCharacterInfoSchema>) => {
     const queryRunner = AppDataSource.createQueryRunner();
@@ -75,17 +119,17 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         }
         
         let startingGold = 0;
-        const regularItemsData = characterData.inventory.filter(itemData => {
-            const isPouchWithGold = itemData.name.toLowerCase().includes('pouch') && itemData.desc?.[0]?.toLowerCase().includes('gold');
-            if (isPouchWithGold) {
-                const match = itemData.desc[0].match(/(\d+)\s*gp/);
-                if (match) {
-                    startingGold += parseInt(match[1], 10);
-                }
-                // Ainda mantemos a bolsa, mas o ouro já foi extraído
+        
+        const detailedItems = characterData.inventory.map(item => {
+            const detailedItem = createDetailedItem(item);
+            if (detailedItem.itemData.goldValue) {
+                startingGold += detailedItem.itemData.goldValue;
+                // Gold is extracted, we can potentially remove the pouch if that's the only thing it did
+                // For now, we keep the pouch but the gold is in the currency system.
             }
-            return true; // Mantém todos os itens, incluindo a bolsa vazia
+            return detailedItem;
         });
+
 
         const newCharacter = new Character();
         Object.assign(newCharacter, {
@@ -129,24 +173,25 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(proficiencies);
 
-        const items = regularItemsData.map(itemData => {
+        const items = detailedItems.map(itemData => {
             const charItem = new CharacterItem();
             charItem.character = savedCharacter;
             charItem.name = itemData.name;
             charItem.quantity = itemData.quantity;
-            charItem.itemData = itemData;
+            // The full data, including our new descriptions, is stored in itemData
+            charItem.itemData = itemData.itemData; 
             charItem.equipped = itemData.equipped || false;
             return charItem;
         });
         await queryRunner.manager.save(items);
         
-        // Add starting gold as a currency item
+        // Add starting gold as a currency item if it exists
         if (startingGold > 0) {
             const goldItem = new CharacterItem();
             goldItem.character = savedCharacter;
             goldItem.name = "Gold Piece";
             goldItem.quantity = startingGold;
-            goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0.02 }; // peso padrão
+            goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0.02, cost: { quantity: 1, unit: 'gp'} };
             goldItem.equipped = false;
             await queryRunner.manager.save(goldItem);
         }
