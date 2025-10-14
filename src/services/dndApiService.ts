@@ -43,7 +43,9 @@ export const getBackgroundDetails = async (index: string): Promise<ApiBackground
     const allBackgrounds = await getBackgroundsData();
     const background = allBackgrounds.find(bg => bg.index === index);
     if (!background) {
-        throw new Error(`Detalhes para '${index}' em 'backgrounds' não encontrados localmente.`);
+        // This is a fallback and might indicate an issue if it's called often
+        console.warn(`Background '${index}' not found in local cache, attempting API fallback.`);
+        return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
     }
     return background;
 };
@@ -54,8 +56,10 @@ export const getEquipmentForCategory = (index: string) => apiClient<{ equipment:
 
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => {
-    // Check if the trait is a homebrew one (UUID) vs official (string index)
-    if (index.includes('-') && index.length > 20) { // Simple check for UUID format
+    // Regex to check if the index is a UUID (for homebrew content)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (uuidRegex.test(index)) {
         return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiTrait);
     }
     return apiClient<ApiTrait>(`/dnds/traits/${index}`);
