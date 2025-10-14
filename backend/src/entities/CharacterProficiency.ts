@@ -13,6 +13,9 @@ export class CharacterProficiency {
     @ManyToOne(() => Character, character => character.proficiencies, { onDelete: 'CASCADE' })
     @JoinColumn({ name: 'characterId' })
     character: Character;
+    
+    @Column({ type: 'varchar', length: 100 })
+    index: string;
 
     @Column({ type: 'varchar', length: 100 })
     name: string;

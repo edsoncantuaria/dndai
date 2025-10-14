@@ -39,6 +39,9 @@ export class Character {
 
     @Column({ type: 'int', default: 1 })
     level: number;
+    
+    @Column({type: 'int', default: 0})
+    xp: number;
 
     @Column({ type: 'varchar', length: 50 })
     background: string;

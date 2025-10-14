@@ -1,5 +1,5 @@
 // backend/src/entities/CharacterAttributes.ts
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, AfterLoad } from 'typeorm';
 import { Character } from './Character.js';
 
 @Entity('character_attributes')
@@ -34,6 +34,9 @@ export class CharacterAttributes {
     
     @Column({ type: 'int', default: 10 })
     hp: number;
+    
+    @Column({ type: 'int', default: 0 })
+    maxHp: number;
 
     @Column({ type: 'int', default: 10 })
     ac: number;

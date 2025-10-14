@@ -20,6 +20,9 @@ export class CharacterItem {
     @Column({ type: 'int' })
     quantity: number;
 
+    @Column({ type: 'boolean', default: false })
+    equipped: boolean;
+
     @Column({ type: 'json' })
     itemData: any; // Armazena o objeto completo do item para referência futura
 }

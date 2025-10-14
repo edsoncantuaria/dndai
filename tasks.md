@@ -99,6 +99,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[ ] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
+    *   **Status:** Refatoração de banco de dados concluída. Próximo passo é a implementação na UI.
 
 *   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
@@ -141,4 +142,3 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
-

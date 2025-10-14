@@ -26,7 +26,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         relations: ["attributes", "proficiencies", "items", "spells", "journal", "relationships", "relationships.quests"],
     });
 
-    if (!fullCharacter) return null;
+    if (!fullCharacter || !fullCharacter.attributes) return null;
     
     // Calcula modificadores e bônus de proficiência
     const proficiencyBonus = Math.floor((fullCharacter.level - 1) / 4) + 2;
@@ -63,7 +63,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passiveInsight,
         passiveInvestigation,
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
-        inventory: fullCharacter.items.map(item => item.itemData),
+        inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
         spells: fullCharacter.spells.map(s => s.spellName),
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
@@ -93,22 +93,30 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
             await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
         }
         if (updates.inventory) {
-            await queryRunner.manager.getRepository(CharacterItem).delete({ characterId });
-            const newItems = updates.inventory.map((itemData: any) => {
-                const newItem = new CharacterItem();
-                Object.assign(newItem, { characterId, name: itemData.name, quantity: itemData.quantity, itemData });
-                return newItem;
-            });
-            await queryRunner.manager.save(newItems);
+             const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
+             await itemsRepo.delete({ characterId }); // Limpa inventário antigo
+             const newItems = updates.inventory.map((itemData: any) => {
+                 const newItem = new CharacterItem();
+                 Object.assign(newItem, { 
+                     characterId, 
+                     name: itemData.name, 
+                     quantity: itemData.quantity,
+                     equipped: itemData.equipped || false,
+                     itemData 
+                 });
+                 return newItem;
+             });
+             await itemsRepo.save(newItems);
         }
         if (updates.spells) {
-            await queryRunner.manager.getRepository(CharacterSpell).delete({ characterId });
+            const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
+            await spellsRepo.delete({ characterId });
             const newSpells = updates.spells.map((spellName: string) => {
                 const newSpell = new CharacterSpell();
                 Object.assign(newSpell, { characterId, spellName });
                 return newSpell;
             });
-            await queryRunner.manager.save(newSpells);
+            await spellsRepo.save(newSpells);
         }
         if(updates.journal) {
             await queryRunner.manager.getRepository(JournalEntry).delete({ characterId });
@@ -120,16 +128,25 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
             await queryRunner.manager.save(newJournalEntries);
         }
         if(updates.relationships) {
+            // This is complex. For now, let's assume a full replacement for simplicity.
+            // A more robust solution would diff the changes.
+            const existingRels = await queryRunner.manager.find(Relationship, { where: { characterId }, relations: ['quests'] });
+            for(const rel of existingRels) {
+                await queryRunner.manager.getRepository(Quest).delete({ relationshipId: rel.id });
+            }
             await queryRunner.manager.getRepository(Relationship).delete({ characterId });
+
             for (const relData of updates.relationships) {
                 const newRel = new Relationship();
                 Object.assign(newRel, relData, { characterId });
+                delete (newRel as any).id; 
                 delete (newRel as any).quests;
                 const savedRel = await queryRunner.manager.save(newRel);
                 
                 if (relData.quests) {
                     const newQuests = relData.quests.map((questData: any) => {
                         const newQuest = new Quest();
+                         delete (questData as any).id;
                         Object.assign(newQuest, questData, { relationshipId: savedRel.id });
                         return newQuest;
                     });
@@ -177,7 +194,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const gameLogSummary = recentLogs.reverse().map(log => `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`).join('\n');
 
     const gameMasterFlowInput: GameMasterFlowInput = {
-        character: optimizedCharacter as any, // Cast to any to bypass strict schema check for new passive skills
+        character: optimizedCharacter as any,
         playerAction,
         gameLog: gameLogSummary,
         combatState: currentCombatState,

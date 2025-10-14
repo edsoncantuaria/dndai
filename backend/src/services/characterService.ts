@@ -24,8 +24,8 @@ export const buildFullCharacterObject = async (character: Character) => {
     const characterData = {
         ...fullCharacter,
         attributes: fullCharacter.attributes,
-        proficiencies: fullCharacter.proficiencies,
-        inventory: fullCharacter.items.map((item: CharacterItem) => ({ ...item.itemData, id: item.id, quantity: item.quantity })),
+        proficiencies: fullCharacter.proficiencies.map(p => ({ index: p.index, name: p.name, type: p.type })),
+        inventory: fullCharacter.items.map((item: CharacterItem) => ({ ...item.itemData, id: item.id, quantity: item.quantity, equipped: item.equipped })),
         spells: fullCharacter.spells.map((s: CharacterSpell) => s.spellName),
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
@@ -68,6 +68,8 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
 
         const attributes = new CharacterAttributes();
         Object.assign(attributes, characterData.attributes);
+        attributes.hp = characterData.hitDie + Math.floor((characterData.attributes.constitution - 10) / 2);
+        attributes.maxHp = attributes.hp;
         attributes.character = savedCharacter;
         await queryRunner.manager.save(attributes);
 
@@ -75,6 +77,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             const prof = new CharacterProficiency();
             prof.character = savedCharacter;
             prof.name = p.name;
+            prof.index = p.index;
             prof.type = p.url?.includes('skill') ? 'skill' : (p.url?.includes('language') ? 'language' : 'other');
             return prof;
         });
@@ -86,6 +89,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             charItem.name = itemData.name;
             charItem.quantity = itemData.quantity;
             charItem.itemData = itemData;
+            charItem.equipped = itemData.equipped;
             return charItem;
         });
         await queryRunner.manager.save(items);
