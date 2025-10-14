@@ -1,4 +1,4 @@
-
+// src/components/NewNarrativeLog.tsx
 'use client';
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -90,7 +90,7 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             outcomeText = 'Falha.';
             themeColor = 'text-red-300';
             bgColor = 'bg-red-900/30 border-red-700/50';
-            resultColor = 'text-red-400';
+            resultColor = 'text-red-500';
         }
     } else if (isDamageRoll) {
         outcomeText = `${total} de Dano`;
@@ -297,5 +297,3 @@ const NewNarrativeLog: React.FC = () => {
 };
 
 export default NewNarrativeLog;
-
-    
