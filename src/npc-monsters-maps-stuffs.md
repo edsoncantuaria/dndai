@@ -24,7 +24,7 @@ Para suportar essa visão, novas tabelas (entidades TypeORM) serão criadas:
 
 - **`Quest` (Missões)**:
   - **Função**: Armazenará as missões dadas pelos NPCs.
-  - **Campos Principais**: `title`, `status` (ativa, completa, falha), `objectives` (uma lista de tarefas).
+  - **Campos Principais**: `title`, `status` ('active', 'completed', 'failed'), `objectives` (uma lista de tarefas claras).
   - **Relação**: Será vinculada a uma entidade `Relationship`, mostrando qual NPC deu a missão.
 
 - **`JournalEntry` (Locais/Diário)**:
@@ -37,6 +37,7 @@ Para suportar essa visão, novas tabelas (entidades TypeORM) serão criadas:
 O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
 
 - **Obrigação de Persistir**: A IA será instruída a, sempre que criar um NPC importante, um monstro único ou um local notável, incluí-lo em uma estrutura específica na sua resposta JSON (`updatedCharacter.relationships`, `updatedCharacter.journal`).
+- **Gerenciamento de Missões**: A IA deve criar e atualizar missões na entidade `Quest`. Ao dar uma missão, deve definir `status: 'active'` e listar os `objectives`. Ao reconhecer a conclusão de um objetivo, deve atualizar a lista ou marcar a missão como `'completed'`.
 - **Consulta de Estado**: Ao iniciar uma narração, a IA receberá o estado atual dos NPCs e locais conhecidos (ex: "Lembre-se, o ferreiro de Phandalin, Barthen, é amigável com o jogador (afinidade: 25) e a 'Caverna do Eco da Onda' já foi saqueada.").
 - **Diretrizes de Escalonamento**: A IA será instruída a criar novos desafios (NPCs hostis e monstros) com um nível de poder (CR) apropriado ao nível atual do personagem do jogador.
 
