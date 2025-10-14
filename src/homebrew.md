@@ -63,9 +63,13 @@ O objetivo desta fase era criar uma interface de formulário guiada para cada ti
 -   **[✅ Concluído] Traços em Raças:** Ao criar uma raça, é possível criar e associar novos traços.
 -   **[✅ Concluído] Componentes Materiais em Magias:** Ao criar uma magia, é possível selecionar um item existente ou criar um novo para servir como componente.
 
-## 3. Estrutura de Dados
+## 3. Estrutura de Dados e Extensibilidade
 
-Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e. O `openapi.yaml` na raiz do projeto é a referência canônica.
+Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e (`openapi.yaml`). Isso garante consistência e previsibilidade para o Mestre de Jogo IA.
+
+No entanto, o sistema foi projetado para ser extensível. Novas mecânicas que não existem no SRD (ex: Pontos de Ki, Dados de Poder Psíquico) podem ser ensinadas à IA através de regras customizadas adicionadas ao arquivo de prompt principal (`backend/src/game/prompt5e.ts`).
+
+Com essa arquitetura, a plataforma está pronta para recriar e integrar conteúdo de qualquer livro de D&D.
 
 **Exemplo (Raça Homebrew Simplificada):**
 ```json
@@ -83,4 +87,4 @@ Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e. O `opena
 }
 ```
 
-Este documento será atualizado conforme cada fase do sistema Homebrew for implementada.
+Este documento será atualizado conforme o sistema Homebrew evoluir com novas funcionalidades.
