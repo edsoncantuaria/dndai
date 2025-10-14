@@ -28,28 +28,26 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Garantir que todas as configurações que podem mudar entre ambientes (como `JWT_SECRET`) sejam lidas a partir de variáveis de ambiente e documentadas no `.env.example`.
     *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
-*   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor (Frontend) (Pausado):**
-    *   **Tarefa:** Integrar uma biblioteca como `React Query` ou `SWR`. Envolver a aplicação com o provider da biblioteca para gerenciar todas as chamadas de API.
-    *   **Justificativa:** Automatiza o cache, a revalidação e a sincronização dos dados do servidor, eliminando a necessidade de gerenciar manualmente estados de `isLoading` e `error` e tornando a UI mais rápida e responsiva.
-    *   **Status:** A IA não pode adicionar novas dependências. Esta tarefa será pulada por enquanto, mas a arquitetura será preparada para facilitar sua implementação futura.
-
 *   **[X] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
-    *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
-    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação.
+    *   **Tarefa:** Criar um único `apiClient.ts` que exporta um wrapper do `fetch`. Todos os serviços do frontend (`authService`, `gameService`) usarão este cliente.
+    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros e adição automática de headers de autenticação.
 
 ### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
 *   **[X] Refatorar Menus e Navegação (`GameContainer`):**
-    *   **Tarefa:** A tela principal passará a usar React Query para buscar e exibir a lista de sessões de jogo do usuário (`/api/sessoes`). O `GameContainer` deixará de gerenciar o estado do jogo.
-    *   **Justificativa:** Alinha o fluxo inicial com a nova arquitetura, onde o servidor é a fonte da verdade.
+    *   **Tarefa:** Separar a lógica de menu do estado de jogo ativo. O `GameContainer` passa a gerenciar os menus, enquanto um novo componente `Game` gerencia a tela de jogo principal. Corrigir o fluxo de início de jogo.
+    *   **Justificativa:** Melhora a organização, corrige bugs no carregamento de sessões e torna a estrutura de componentes mais lógica e fácil de manter.
+    *   **Status:** Concluído.
 
 *   **[X] Implementar o "Cofre de Heróis":**
-    *   **Tarefa:** Criar uma nova página/rota dedicada (`/characters`) que busca e exibe a lista de personagens do usuário (`/api/characters`). O fluxo de "Nova Aventura" levará para esta tela.
-    *   **Justificativa:** Completa a visão de personagens reutilizáveis, uma das principais vantagens do novo backend.
+    *   **Tarefa:** Criar uma nova tela (`character_vault`) para exibir a lista de personagens do usuário. O fluxo de "Nova Aventura" passa por esta tela, permitindo ao jogador escolher um herói existente ou criar um novo.
+    *   **Justificativa:** Realiza a visão de personagens reutilizáveis, uma das principais vantagens da arquitetura de backend.
+    *   **Status:** Concluído.
 
-*   **[ ] Adaptar Componentes de Jogo (Ficha, Inventário, etc.):**
-    *   **Tarefa:** Modificar `CharacterSheet`, `Inventory`, `NewJournal`, etc., para que eles usem hooks do React Query para buscar seus dados específicos, baseando-se no `characterId` ativo. As ações do usuário (equipar, usar item) se tornarão "mutações" do React Query.
-    *   **Justificativa:** Transforma os componentes em visualizadores de dados reativos e independentes, melhorando a performance e a organização.
+*   **[X] Adaptar Componentes de Jogo (Ficha, Inventário, etc.):**
+    *   **Tarefa:** Garantir que os componentes do frontend, como a ficha de personagem e o inventário, exibam corretamente os dados carregados do backend, corrigindo bugs de mapeamento de dados.
+    *   **Justificativa:** Assegura que a interface do usuário seja um reflexo fiel e completo do estado do personagem armazenado no servidor, resolvendo inconsistências.
+    *   **Status:** Concluído.
     
 *   **[ ] Componentizar a UI (Frontend):**
     *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
@@ -57,7 +55,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
-*   **[ ] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
+*   **[X] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
     *   **Visão (Backend):** Tornar o `prompt5e.ts` extremamente rigoroso. A IA **nunca** deve rolar dados pelo jogador ou presumir resultados. O fluxo `Intenção -> Pedido de Rolagem (com DC claro) -> Resultado -> Consequência` deve ser obrigatório para ataques, perícias e testes de resistência.
     *   **Visão (Frontend):** O `DiceRollModal` deve exibir claramente o alvo (DC) para criar suspense. A agência do jogador sobre os dados é a alma da experiência.
 

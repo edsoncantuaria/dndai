@@ -143,9 +143,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
 
   const renderResult = () => (
     <div className="text-center animate-fadeIn">
-      <div className="flex justify-center items-baseline gap-2">
-         {request.dc && <p className="text-stone-400 flex items-center gap-1"><Target className="h-4 w-4" /> CD: {request.dc}</p>}
-      </div>
       <p className={`text-8xl font-bold my-2 ${resultColor}`}>{rollResult?.total}</p>
       <p className="text-stone-400">
         Rolagens: [{rollResult?.rolls.join(', ')}] {request.modifier >= 0 ? '+' : '-'} {Math.abs(request.modifier || 0)}
@@ -173,7 +170,13 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       >
         <div id="dice-box" ref={diceBoxRef} className="w-full h-48 sm:h-64"></div>
         <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl min-h-[220px]">
-          <h3 className="text-xl font-semibold text-center text-stone-300 mb-4">{request.reason}</h3>
+          <h3 className="text-xl font-semibold text-center text-stone-300 mb-2">{request.reason}</h3>
+          {request.dc !== undefined && (
+            <div className="text-center text-stone-400 font-mono text-lg flex items-center justify-center gap-2 mb-4">
+              <Target className="h-5 w-5 text-amber-400"/>
+              <span>CD: {request.dc}</span>
+            </div>
+          )}
           {hasRolled ? (rollResult ? renderResult() : <div className="flex justify-center items-center h-24"><Loader2 className="h-8 w-8 animate-spin text-amber-400"/></div>) : renderRollButton()}
         </div>
       </div>
