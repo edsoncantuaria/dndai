@@ -171,7 +171,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
         <div id="dice-box" ref={diceBoxRef} className="w-full h-48 sm:h-64"></div>
         <div className="bg-stone-900 border-2 border-amber-600/50 p-6 rounded-lg shadow-2xl min-h-[220px]">
           <h3 className="text-xl font-semibold text-center text-stone-300 mb-2">{request.reason}</h3>
-          {request.dc !== undefined && (
+          {request.dc !== undefined && request.rollType !== 'damage' && (
             <div className="text-center text-stone-400 font-mono text-lg flex items-center justify-center gap-2 mb-4">
               <Target className="h-5 w-5 text-amber-400"/>
               <span>CD: {request.dc}</span>
