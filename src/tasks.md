@@ -63,10 +63,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão (Backend):** Calcular a `Percepção Passiva` (e outras, como Investigação ou Intuição) e incluí-la no prompt da IA. Instruir a IA a usar esse valor como um gatilho narrativo (ex: "Se a Percepção Passiva do personagem for > 14, narre que ele nota a fresta solta na parede").
     *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
 
-    *   **[X] Reimaginar o Menu Principal:**
+*   **[X] Reimaginar o Menu Principal:**
     *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo são apresentadas como diários ou pergaminhos, criando uma imersão imediata.
 
-*   **[ ] Ficha de Personagem Interativa:**
+*   **[X] Ficha de Personagem Interativa:**
     *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
     *   **Impacto:** Aumenta a agência do jogador e a clareza sobre o estado do seu personagem.
 
@@ -132,3 +132,5 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
+
