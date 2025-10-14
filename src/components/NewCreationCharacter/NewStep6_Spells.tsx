@@ -1,3 +1,4 @@
+// src/components/NewCreationCharacter/NewStep6_Spells.tsx
 'use client';
 import React from 'react';
 import type { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
