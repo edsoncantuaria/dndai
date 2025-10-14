@@ -7,7 +7,7 @@ import Inventory from './Inventory';
 import CharacterSheet from './CharacterSheet';
 import Spellbook from './Spellbook';
 import MobileToolbar from './MobileToolbar';
-import NewCombatTracker from './NewCombatTracker'; // Importar o novo componente
+import NewCombatTracker from './NewCombatTracker';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
@@ -22,6 +22,7 @@ import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import Vignette from './Vignette'; // Importar o novo componente
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -80,7 +81,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 
     return (
         <>
-            <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn">
+            <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
+                <Vignette />
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
