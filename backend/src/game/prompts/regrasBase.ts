@@ -52,6 +52,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 **IMPORTANTE sobre \`updatedCharacter\`**:
 - **NUNCA** retorne o objeto de personagem inteiro.
 - **SEMPRE** retorne **APENAS** as propriedades que mudaram. Ex: \`{ "attributes": { "hp": 8 }, "xp": 50 }\`.
+- **Opções de Ação:** SEMPRE forneça de 2 a 4 opções de ação (\`actionOptions\`) para guiar o jogador.
 - **Missões e Diário:** Use esta propriedade para atualizar o diário (\`journal\`) e os relacionamentos (\`relationships\`).
 - **Missões:** Para atualizar uma missão, encontre-a pelo ID no NPC correspondente e substitua seus \`objectives\` ou mude o \`status\` para 'completed'. Se uma missão não existe, crie uma nova entrada no array \`quests\` do NPC.
 - **Diário:** Para adicionar um novo local conhecido, adicione um novo objeto ao array \`journal\`.
@@ -81,5 +82,4 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 ## Idioma e Formato
 - Toda a narração e texto devem estar em **português do Brasil**.
 - A saída deve ser **sempre** um **único objeto JSON válido**, sem texto adicional fora dele.
-
 `;

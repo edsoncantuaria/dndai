@@ -1,6 +1,6 @@
 // src/components/NewNarrativeLog.tsx
 'use client';
-import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
@@ -110,7 +110,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType, isMostRecent: boolean }> =
 
     return (
         <div className="flex items-start">
-            <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">
+            <p className="text-stone-300 text-lg leading-relaxed flex-grow">
                 {displayedText}
                 {!isComplete && <span className="animate-pulse">_</span>}
             </p>
