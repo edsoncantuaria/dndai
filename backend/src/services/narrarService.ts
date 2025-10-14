@@ -64,7 +64,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
         inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
         spells: fullCharacter.spells.map(s => s.spellName),
-        features: fullCharacter.feats,
+        feats: fullCharacter.feats,
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         storySoFar: fullCharacter.storySoFar,
@@ -111,7 +111,14 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
         const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation'];
         directFields.forEach(field => {
-            if (updates[field] !== undefined) (character as any)[field] = updates[field];
+            if (updates[field] !== undefined) {
+                if (field === 'factionReputation') {
+                    // Merge faction reputation instead of overwriting
+                    character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
+                } else {
+                    (character as any)[field] = updates[field];
+                }
+            }
         });
         await queryRunner.manager.save(character);
 

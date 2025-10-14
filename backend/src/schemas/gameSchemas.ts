@@ -176,7 +176,7 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
-    worldState: WorldStateSchema.describe("Updates to the global world state, like time and weather. This MUST always be returned."),
+    worldState: WorldStateSchema.optional().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
