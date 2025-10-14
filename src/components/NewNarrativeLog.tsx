@@ -297,3 +297,5 @@ const NewNarrativeLog: React.FC = () => {
 };
 
 export default NewNarrativeLog;
+
+    

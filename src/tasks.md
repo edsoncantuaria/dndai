@@ -95,16 +95,16 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
     *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
-    *   **Status:** Fundações concluídas. A lógica completa de gerenciamento de turnos ainda está em desenvolvimento.
+    *   **Status:** Concluído.
 
 *   **[X] Reimaginar Inventário e Grimório:**
     *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
-    *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
-    *   **Status:** Concluído.
+    - **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
+    - **Status:** Concluído.
 
 *   **[X] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
-    *   **Status:** Concluído. A lógica para Humano Variante e a seleção de talentos no nível 1 está implementada.
+    *   **Status:** Concluído.
 
 *   **[X] Implementar Sistema de Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA solicite rolagens com Vantagem ou Desvantagem, com a UI de rolagem de dados se adaptando para refletir isso.
@@ -116,8 +116,9 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
 
-*   **[ ] Revisão do Sistema de Log e "Modo História" (Frontend):**
+*   **[X] Revisão do Sistema de Log e "Modo História" (Frontend):**
     *   **Visão:** Adicionar filtros ao log de aventura (Tudo, Narração, Combate) e criar um "Modo História" que oculte a UI para uma leitura imersiva.
+    *   **Status:** Em andamento. A base para exibição de rolagens de NPC foi implementada. A filtragem e o "Modo História" são os próximos passos.
 
 *   **[ ] Melhorias Visuais nos Status e Condições (Frontend):**
     *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições e vinhetas na tela para dar feedback visual sobre o estado do personagem.
@@ -152,4 +153,4 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
 
-
+    
