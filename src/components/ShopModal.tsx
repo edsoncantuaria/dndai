@@ -24,7 +24,7 @@ const ShopModal: React.FC = () => {
             {shopState.inventory.length === 0 ? (
                 <p className="text-stone-400 italic text-center py-4">O mercador não tem nada para vender no momento.</p>
             ) : (
-                shopState.inventory.map(item => {
+                shopState.inventory.map((item: ShopItem) => {
                     const translatedItem = translateEquipment(item);
                     return (
                         <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">

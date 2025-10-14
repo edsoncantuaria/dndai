@@ -4,7 +4,7 @@ import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
-import { translateEquipment } from '../utils/TranslatorEquipments';
+import { translateEquipment } from '../utils/translator';
 import { Backpack, Hand, Loader2 } from 'lucide-react';
 
 const LootDisplay: React.FC = () => {
@@ -59,7 +59,7 @@ const Inventory: React.FC = () => {
     if (loadPercentage > 90) progressBarColor = 'bg-red-600';
     else if (loadPercentage > 75) progressBarColor = 'bg-yellow-500';
     
-    const isPlayerTurn = combatState?.isActive ? combatState.combatants.find(c => c.id === character.name) && combatState.turn % combatState.combatants.length === combatState.combatants.findIndex(c => c.id === character.name) : true;
+    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
     return (
