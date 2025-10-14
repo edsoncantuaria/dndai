@@ -1,6 +1,6 @@
 // backend/src/routes/dndApiRoutes.ts
 import { Router } from 'express';
-import * * as DndApiService from '../services/dndApiService.js';
+import * as DndApiService from '../services/dndApiService.js';
 import * as HomebrewService from '../services/homebrewService.js';
 import createError from 'http-errors';
 import fs from 'fs/promises';
