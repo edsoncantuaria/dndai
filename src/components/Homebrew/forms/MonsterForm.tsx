@@ -137,7 +137,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
         } else if (!isNaN(profValue) && profValue > 0) {
             const skill = skills.find(s => s.index === skillIndex);
             if (skill) {
-                newProfs.push({ proficiency: { index: skill.index, name: skill.name }, value: profValue });
+                newProfs.push({ proficiency: { index: skill.index, name: skill.name, url: skill.url }, value: profValue });
             }
         }
         handleFieldChange('proficiencies', newProfs);
