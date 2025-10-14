@@ -83,6 +83,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [selectedFeat, setSelectedFeat] = useState<string>('');
     const [isVariantHuman, setIsVariantHuman] = useState(false);
+    const [variantHumanBonusSelections, setVariantHumanBonusSelections] = useState<(keyof Attributes)[]>([]);
+
 
     // Dragonborn specific state
     const [draconicAncestry, setDraconicAncestry] = useState('');
@@ -111,16 +113,15 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     const racialBonuses = useMemo<Partial<Attributes>>(() => {
         const bonuses: Partial<Attributes> = {};
-        const abilityBonusChoices = raceDetails?.ability_bonus_options;
-
+        
         if (isVariantHuman) {
-            // Variant Humans get to choose two different ability scores to increase by 1.
-            // This is a simplified implementation; a full one would let the user choose.
-            // For now, let's default to STR and DEX for simplicity.
-            bonuses['strength'] = 1;
-            bonuses['dexterity'] = 1;
+            variantHumanBonusSelections.forEach(attr => {
+                bonuses[attr] = (bonuses[attr] || 0) + 1;
+            });
             return bonuses;
         }
+        
+        const abilityBonusChoices = raceDetails?.ability_bonus_options;
     
         if (abilityBonusChoices?.from?.options?.[0]?.item?.index) {
             const selectionKey = abilityBonusChoices.from.options[0].item.index;
@@ -147,7 +148,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             }
         });
         return bonuses;
-    }, [raceDetails, subraceDetails, traitSelections, isVariantHuman]);
+    }, [raceDetails, subraceDetails, traitSelections, isVariantHuman, variantHumanBonusSelections]);
 
     const finalAttributes = useMemo<Attributes>(() =>
         (Object.keys(baseAttributes) as Array<keyof Attributes>).reduce((acc, key) => {
@@ -189,8 +190,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             (profList || []).forEach(p => profs.set(p.index, { ...p }));
         
         if (isVariantHuman) {
-            // Variant humans get one skill proficiency of their choice.
-            // This is handled in `allProficiencyChoices` instead.
+            // Variant humans don't get the standard +1 to all stats and default languages
         } else {
              addProfs(raceDetails?.starting_proficiencies);
         }
@@ -357,6 +357,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         }
         
         if(isVariantHuman && !selectedFeat) return false;
+        if (isVariantHuman && variantHumanBonusSelections.length !== 2) return false;
+
 
         const cantripsKnownVal = cantripsKnown;
         const spellsKnownVal = spellsKnown;
@@ -370,7 +372,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (!racialSpellsDone) return false;
 
         return areAllEquipmentChoicesMade;
-    }, [name, race, subrace, characterClass, background, alignment, points, attributeMethod, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade, draconicAncestry, isVariantHuman, selectedFeat]);
+    }, [name, race, subrace, characterClass, background, alignment, points, attributeMethod, raceDetails, canProceedFromProficiencies, cantripsKnown, spellsKnown, chosenClassSpells, classSpellOptions, racialSpellTraits, chosenRacialSpells, areAllEquipmentChoicesMade, draconicAncestry, isVariantHuman, selectedFeat, variantHumanBonusSelections]);
 
     // --- CALLBACKS & EFFECTS ---
     
@@ -409,6 +411,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setDraconicAncestryOptions([]); // Clear dragonborn options
             setSelectedFeat('');
             setIsVariantHuman(false);
+            setVariantHumanBonusSelections([]);
         } else if (type === 'class') {
             setChosenClassSpells([]);
         } else if (type === 'background') {
@@ -991,6 +994,19 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         setSelectedFeat(featIndex);
     };
 
+    const handleVariantHumanBonusSelection = useCallback((attr: keyof Attributes) => {
+        setVariantHumanBonusSelections(prev => {
+            const isSelected = prev.includes(attr);
+            if (isSelected) {
+                return prev.filter(a => a !== attr);
+            }
+            if (prev.length < 2) {
+                return [...prev, attr];
+            }
+            return prev; // Limit to 2 selections
+        });
+    }, []);
+
     const buildCharacter = (): NewCharacterInfo | null => {
         if (!isComplete || !raceDetails || !classDetails || !backgroundDetails || !classLevels) return null;
     
@@ -1137,5 +1153,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         handleRandomizeLanguages,
         handleRandomizeEquipment,
         handleRandomizeSpells,
+        // Variant Human
+        variantHumanBonusSelections,
+        handleVariantHumanBonusSelection,
     };
 };

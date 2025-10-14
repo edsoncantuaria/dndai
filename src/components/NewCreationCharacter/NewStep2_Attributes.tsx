@@ -3,7 +3,7 @@ import React from 'react';
 import type { Attributes } from '@/types';
 import { translateAttribute } from '@/utils/translator';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Dice5, Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star } from 'lucide-react';
+import { Dice5, Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star, PlusSquare } from 'lucide-react';
 import { getCostForScore } from '@/utils/creationHelpers';
 
 interface Props {
@@ -113,8 +113,17 @@ const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 
 
 const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
-    const { attributeMethod, setAttributeMethod, racialBonuses, finalAttributes, points } = hook;
-    const canProceed = attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0);
+    const { 
+        attributeMethod, 
+        setAttributeMethod, 
+        racialBonuses, 
+        finalAttributes, 
+        points, 
+        isVariantHuman, 
+        variantHumanBonusSelections,
+        handleVariantHumanBonusSelection 
+    } = hook;
+    const canProceed = (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) && (!isVariantHuman || variantHumanBonusSelections.length === 2);
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -131,6 +140,30 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     {attributeMethod === 'point-buy' && <PointBuySection hook={hook} />}
                     {attributeMethod === 'roll' && <RollDiceSection hook={hook} />}
                 </>
+            )}
+
+            {isVariantHuman && attributeMethod && (
+                <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 mt-8">
+                    <h4 className="text-lg font-semibold text-stone-300 mb-2">Bônus de Humano Variante</h4>
+                    <p className="text-sm text-stone-400 mb-4">Escolha dois atributos diferentes para aumentar em +1. ({variantHumanBonusSelections.length}/2)</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
+                        {attributeOrder.map(attr => {
+                            const isSelected = variantHumanBonusSelections.includes(attr);
+                            const isDisabled = !isSelected && variantHumanBonusSelections.length >= 2;
+                            return (
+                                <button
+                                    key={attr}
+                                    onClick={() => handleVariantHumanBonusSelection(attr)}
+                                    disabled={isDisabled}
+                                    className={`p-2 rounded-md border-2 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed ${isSelected ? 'bg-amber-800/70 border-amber-500' : 'bg-stone-800/50 border-stone-700 hover:border-amber-600'}`}
+                                >
+                                    <PlusSquare className="mx-auto h-5 w-5 mb-1" />
+                                    <span className="font-bold text-sm">{translateAttribute(attr).substring(0,3).toUpperCase()}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
             )}
 
             {attributeMethod && (
@@ -171,7 +204,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     disabled={!canProceed}
                     className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    {canProceed ? 'Avançar' : (attributeMethod === 'point-buy' ? `${points} pontos restantes` : 'Defina os Atributos')}
+                    {canProceed ? 'Avançar' : 'Faça suas escolhas'}
                     <ArrowRight className="h-6 w-6 ml-3"/>
                 </button>
             </div>
