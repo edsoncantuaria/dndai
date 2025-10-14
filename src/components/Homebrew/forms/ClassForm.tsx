@@ -184,9 +184,10 @@ const ClassForm: React.FC<Props> = ({ onDataChange }) => {
              {/* Skill Choices */}
              <div>
                 <label className="block text-sm font-medium text-stone-300 mb-2">Escolhas de Perícia</label>
-                <div className="flex items-center gap-4 mb-2">
-                    <label className="text-sm text-stone-300">Nº de escolhas:</label>
+                <div className="flex items-center gap-4 mb-2 bg-stone-800/80 p-2 rounded-md">
+                    <label htmlFor="skill-choice-count" className="text-sm text-stone-300">Nº de escolhas:</label>
                     <input 
+                        id="skill-choice-count"
                         type="number" 
                         min="0" 
                         max="4" 
