@@ -23,8 +23,11 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
 
     const existingSession = await sessaoRepository.findOne({ where: { characterId, userId, deletedAt: IsNull() } });
     if (existingSession) {
+        // Se a sessão já existe, atualizamos os homebrews instalados.
+        existingSession.homebrewContentIds = homebrewIds || [];
+        const sessaoAtualizada = await sessaoRepository.save(existingSession);
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { apiKey, ...sessaoParaRetorno } = existingSession;
+        const { apiKey, ...sessaoParaRetorno } = sessaoAtualizada;
         return { sessao: sessaoParaRetorno, isNew: false };
     }
 
@@ -36,7 +39,7 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
 
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
-    novaSessao.character = character;
+    novaSessao.characterId = character.id;
     novaSessao.userId = userId;
     novaSessao.apiKey = keyToUse;
     novaSessao.homebrewContentIds = homebrewIds || []; // Salva os IDs de homebrew
