@@ -59,7 +59,7 @@ const GameContainer = () => {
     }, []);
 
     useEffect(() => {
-        if (gameStage === 'loading' || gameStage === 'session_list' || gameStage === 'character_vault') {
+        if (gameStage === 'loading' || gameStage === 'main_menu' || gameStage === 'session_list' || gameStage === 'character_vault') {
             fetchInitialData();
         }
     }, [gameStage, fetchInitialData]);
@@ -158,7 +158,7 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (gameStage === 'loading' || isLoadingData || isGameLoading) {
+        if (gameStage === 'loading' || (isLoadingData && gameStage !== 'main_menu') || isGameLoading) {
             return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
