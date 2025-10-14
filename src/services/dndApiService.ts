@@ -12,6 +12,8 @@ export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/l
 export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds');
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
+export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');
+
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);

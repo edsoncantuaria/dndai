@@ -1,6 +1,6 @@
 // src/components/Homebrew/HomebrewCreator.tsx
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Plus, Trash2 } from 'lucide-react';
@@ -8,6 +8,8 @@ import { translateApiString } from '@/utils/translator';
 import TraitSelector from './TraitSelector';
 import type { ApiListItem } from '@/types';
 import * as characterUtils from '@/utils/characterUtils';
+import * as DndApiService from '@/services/dndApiService';
+
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -209,6 +211,127 @@ const BackgroundForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDat
     )
 }
 
+const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChange }) => {
+    const [spellData, setSpellData] = useState({
+        name: '',
+        desc: [''],
+        level: 0,
+        school: { index: '', name: '' },
+        casting_time: '1 ação',
+        range: 'Toque',
+        duration: 'Instantâneo',
+        concentration: false,
+        components: [] as string[],
+        material: '',
+    });
+    const [magicSchools, setMagicSchools] = useState<ApiListItem[]>([]);
+    const [isLoadingSchools, setIsLoadingSchools] = useState(true);
+
+    useEffect(() => {
+        const fetchSchools = async () => {
+            try {
+                const schools = await DndApiService.getMagicSchools();
+                setMagicSchools(schools?.results || []);
+            } catch (error) {
+                console.error("Falha ao buscar escolas de magia:", error);
+            } finally {
+                setIsLoadingSchools(false);
+            }
+        };
+        fetchSchools();
+    }, []);
+
+    const updateParent = (newData: any) => {
+        const fullData = {
+            ...newData,
+            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`
+        };
+        onDataChange(fullData);
+    };
+
+    const handleFieldChange = (field: keyof typeof spellData, value: any) => {
+        const newData = { ...spellData, [field]: value };
+        setSpellData(newData);
+        updateParent(newData);
+    };
+
+    const handleComponentChange = (component: 'V' | 'S' | 'M') => {
+        const newComponents = spellData.components.includes(component)
+            ? spellData.components.filter(c => c !== component)
+            : [...spellData.components, component];
+        handleFieldChange('components', newComponents);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
+                    <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Nível</label>
+                    <select value={spellData.level} onChange={e => handleFieldChange('level', Number(e.target.value))} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {Array.from({length: 10}).map((_, i) => <option key={i} value={i}>{i === 0 ? 'Truque' : `${i}º Nível`}</option>)}
+                    </select>
+                </div>
+            </div>
+             <div>
+                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
+                    {isLoadingSchools ? <Loader2 className="animate-spin" /> : (
+                        <select
+                            value={spellData.school.index}
+                            onChange={e => {
+                                const school = magicSchools.find(s => s.index === e.target.value);
+                                if (school) handleFieldChange('school', { index: school.index, name: school.name });
+                            }}
+                            className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
+                        >
+                            <option value="" disabled>Selecione...</option>
+                            {magicSchools.map(s => <option key={s.index} value={s.index}>{translateApiString(s.name)}</option>)}
+                        </select>
+                    )}
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Tempo de Conjuração</label>
+                    <input type="text" value={spellData.casting_time} onChange={e => handleFieldChange('casting_time', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Alcance</label>
+                    <input type="text" value={spellData.range} onChange={e => handleFieldChange('range', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Duração</label>
+                    <input type="text" value={spellData.duration} onChange={e => handleFieldChange('duration', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+            </div>
+            <div>
+                 <label className="block text-sm font-medium text-stone-300 mb-1">Componentes</label>
+                 <div className="flex gap-4">
+                    {['V', 'S', 'M'].map(c => (
+                        <label key={c} className="flex items-center gap-2 text-stone-200">
+                             <input type="checkbox" checked={spellData.components.includes(c)} onChange={() => handleComponentChange(c as any)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />
+                             {c}
+                        </label>
+                    ))}
+                 </div>
+            </div>
+            {spellData.components.includes('M') && (
+                 <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Componente Material</label>
+                    <input type="text" value={spellData.material} onChange={e => handleFieldChange('material', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+            )}
+        </div>
+    );
+};
+
+
 // --- COMPONENTE PRINCIPAL ---
 
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
@@ -254,6 +377,8 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                 return <RaceForm onDataChange={setContentData} />;
             case 'background':
                 return <BackgroundForm onDataChange={setContentData} />;
+            case 'spell':
+                return <SpellForm onDataChange={setContentData} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado. Você pode contribuir para adicioná-lo!</p>;
         }

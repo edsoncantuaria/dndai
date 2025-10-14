@@ -23,20 +23,19 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 -   **[X] Criar Entidades Homebrew no Banco de Dados:** Foi definida a entidade `HomebrewContent` (TypeORM) para armazenar os dados JSON que seguem o padrão OpenAPI, com campos para `type`, `authorId`, `isPublic` e o `content`.
 -   **[X] Criar Endpoints CRUD para Homebrew:** Foi desenvolvida a API REST (`/api/homebrew`) para criar, ler, atualizar e deletar conteúdo homebrew, com validação e checagem de permissões.
 
-### Fase 3: Integração com o Jogo (Em Andamento)
+### Fase 3: Integração com o Jogo (Concluído)
 
--   **[X] Mesclar Dados (Antecedentes):** O serviço do backend (`dndApiService`) foi modificado para que, ao receber uma requisição por "backgrounds", ele busque na fonte estática e mescle com os antecedentes homebrew públicos do banco de dados antes de retornar ao frontend.
-
--   **[ ] Interface da Loja Homebrew (Em andamento):** A UI do frontend está sendo construída para permitir aos usuários navegar, pesquisar, ativar e desativar conteúdo homebrew.
+-   **[X] Mesclar Dados (Antecedentes):** O serviço do backend (`dndApiRoutes.ts`) foi modificado para que, ao receber uma requisição por "backgrounds", ele busque na fonte estática e mescle com os antecedentes homebrew públicos do banco de dados antes de retornar ao frontend.
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
 
--   **[Em Andamento] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
+-   **[ ] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
     -   **[X] Implementado para Raças.**
-    -   **[ ] Próximo Passo: Implementar para Antecedentes.**
+    -   **[X] Implementado para Antecedentes.**
+    -   **[ ] Próximo Passo: Implementar para Magias.**
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
--   **[Em Andamento] Sistema de Dependências:**
+-   **[ ] Sistema de Dependências:**
     -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente.
     -   **Implementação:** Quando um conteúdo com dependências for "instalado" por outro jogador, o sistema identificará e instalará todas as dependências necessárias juntas.
     -   **[X] Implementado para Traços dentro da criação de Raças.**
