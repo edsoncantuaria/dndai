@@ -174,6 +174,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("Erro ao processar a ação do jogador:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
+            // Revert the action log entry on failure
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 
@@ -230,15 +231,15 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId || isLoading) return;
-        
+        if (!character || !sessionId) return;
+        // The isLoading state is already true from the calling function (handleContinueGame)
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         
-    }, [character, sessionId, isLoading, processPlayerAction]);
+    }, [character, sessionId, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
-        setIsLoading(true);
+        // Do not set isLoading here, it's handled by the caller
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
@@ -263,9 +264,8 @@ export const useNewGameState = () => {
             setApiError(err.message);
             clearGameState();
             return null;
-        } finally {
-            setIsLoading(false);
         }
+        // Do not set isLoading to false here.
     }, [clearGameState]);
 
 

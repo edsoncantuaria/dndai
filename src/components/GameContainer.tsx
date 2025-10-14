@@ -28,6 +28,8 @@ const GameContainer = () => {
         deleteSession,
         startGame,
         isLoading: isGameLoading,
+        setIsLoading: setIsGameLoadingState, // Get the setter
+        apiError
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -58,6 +60,12 @@ const GameContainer = () => {
             setIsLoadingData(false);
         }
     }, []);
+
+    useEffect(() => {
+        if (apiError) {
+            setGameStage('session_list');
+        }
+    }, [apiError]);
 
     useEffect(() => {
         if (gameStage === 'loading' || gameStage === 'main_menu' || gameStage === 'session_list' || gameStage === 'character_vault') {
@@ -100,7 +108,7 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        setIsLoadingData(true);
+        setIsGameLoadingState(true);
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
@@ -108,7 +116,7 @@ const GameContainer = () => {
             }
         } catch (error) {
             console.error("Failed to start new game session:", error);
-            setIsLoadingData(false);
+            setIsGameLoadingState(false);
         }
     };
     
@@ -118,15 +126,20 @@ const GameContainer = () => {
     }
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
+        setIsGameLoadingState(true); // Set loading state before anything starts
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
-            // The useEffect will trigger startGame if needed
+            if(loadedData.logs.length === 0) {
+                await startGame();
+            }
         } else {
+            // If loading fails, go back to the menu
             setGameStage('session_list');
         }
-    }, [loadGameSession, setPlayMenuMusic]);
+        setIsGameLoadingState(false); // Unset loading state after everything is done or failed
+    }, [loadGameSession, setPlayMenuMusic, startGame, setIsGameLoadingState]);
 
 
     const returnToMenu = useCallback(() => {
@@ -152,8 +165,8 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (gameStage === 'loading' || (isLoadingData && gameStage !== 'main_menu') || isGameLoading) {
-            const message = isGameLoading && log.length === 0 
+        if (isGameLoading) {
+            const message = log.length === 0 && gameStage === 'playing'
                 ? "O Mestre de Jogo está preparando o início da sua jornada." 
                 : "Carregando suas crônicas...";
             return (

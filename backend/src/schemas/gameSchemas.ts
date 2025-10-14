@@ -45,7 +45,7 @@ export const FullCombatantSchema = z.object({
     readyAction: z.string().optional().describe("A description of the action readied for a trigger."),
     readyWeapon: z.string().optional().describe("Weapon to be used with a readied action."),
     readySpell: z.string().optional().describe("Spell to be used with a readied action."),
-    tempModifiers: z.record(z.any()).optional().describe("Temporary modifiers from spells or effects."),
+    tempModifiers: z.any().optional().describe("Temporary modifiers from spells or effects."),
     rollHistory: z.array(z.any()).optional().default([]).describe("A log of all rolls made by or against this combatant."),
 });
 
@@ -70,7 +70,7 @@ export const ShopStateSchema = z.object({
     isHaggling: z.boolean(),
     name: z.string(),
     inventory: z.any(),
-    sellPrices: z.record(z.string(), z.number()),
+    sellPrices: z.any(),
 });
 
 export const LootOfferSchema = z.object({
