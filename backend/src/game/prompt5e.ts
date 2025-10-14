@@ -28,7 +28,8 @@ Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataqu
 - **Determinação da DC (classe de dificuldade):**
   * Para testes de perícia e resistência, calcule a DC com base na chance desejada. Ex: para um d20 com bônus total de +5 (máx 25), DC Fácil ≈ 10, Média ≈ 14, Difícil ≈ 19.
   * Para ataques, a DC é a Classe de Armadura (CA) do alvo.
-- Exemplo de ataque: \`{ "playerRollRequest": { "reason": "para atacar o goblin", "dice": "1d20", "modifier": 5, "dc": 13, "rollType": "attack" } }\`
+- **Vantagem/Desvantagem:** Se a situação narrativa justificar, adicione \`"advantage": true\` ou \`"disadvantage": true\` ao pedido de rolagem.
+- Exemplo de ataque: \`{ "playerRollRequest": { "reason": "para atacar o goblin", "dice": "1d20", "modifier": 5, "dc": 13, "rollType": "attack", "advantage": true } }\`
 
 **3. Jogador Informa o Resultado do Ataque**
 - O jogador retornará: "O resultado da minha rolagem de ataque foi 18."
@@ -63,7 +64,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
   "updatedCharacter": { "attributes": { "hp": 55 } },
   "combatState": { "isActive": true, "round": 1, "turn": 0, "combatants": [] },
   "levelUpState": { "isPending": true, "newLevel": 2, "choices": {} },
-  "playerRollRequest": { "reason": "para algo", "dice": "1d20", "modifier": 2, "dc": 15, "rollType": "check" },
+  "playerRollRequest": { "reason": "para algo", "dice": "1d20", "modifier": 2, "dc": 15, "rollType": "check", "advantage": true },
   "shopState": { "isOpen": true, "name": "Loja do Zé", "inventory": [], "sellPrices": {}, "isHaggling": false },
   "lootOffer": { "items": [], "currency": { "gp": 50 } },
   "useHitDiceRequest": { "maxDice": 1, "hitDieValue": 8 },

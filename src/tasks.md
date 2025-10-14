@@ -93,21 +93,22 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão:** Gerenciar a recuperação de recursos no backend e criar modais interativos no frontend para que o jogador role seus dados de vida durante um descanso curto.
     *   **Status:** Concluído.
 
+*   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
+    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
+    *   **Status:** Fundações concluídas. A lógica completa de gerenciamento de turnos ainda está em desenvolvimento.
+
 *   **[X] Reimaginar Inventário e Grimório:**
-    *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo e interativo.
+    *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
     *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
     *   **Status:** Concluído.
 
-*   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
-    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
+*   **[X] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
+    *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
     *   **Status:** Concluído.
 
 *   **[ ] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
     *   **Status:** Refatoração de banco de dados concluída. Próximo passo é a implementação na UI.
-
-*   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
-    *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
