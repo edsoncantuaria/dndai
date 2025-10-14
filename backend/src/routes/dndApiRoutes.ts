@@ -8,9 +8,11 @@ const router = Router();
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const { resource } = req.params;
+    console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
     try {
         const data = await DndApiService.getResourceList(resource);
         if (!data) {
+            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}`);
             return next(createError(404, `Recurso '${resource}' não encontrado.`));
         }
         res.json(data);
@@ -22,9 +24,11 @@ router.get('/:resource', async (req, res, next) => {
 // Rota para buscar detalhes de um recurso específico
 router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
+    console.log(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
     try {
         const data = await DndApiService.getDetails(resource, index);
         if (!data) {
+            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`);
             return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         }
         res.json(data);
@@ -36,6 +40,7 @@ router.get('/:resource/:index', async (req, res, next) => {
 // Rota específica para níveis de classe (que tem uma estrutura de URL diferente)
 router.get('/classes/:classIndex/levels', async (req, res, next) => {
     const { classIndex } = req.params;
+    console.log(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
     try {
         const data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
         if (!data) {
@@ -50,6 +55,7 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
 // Rota para magias de classe
 router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
+    console.log(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
     try {
         const data = await DndApiService.getDetails('classes', `${classIndex}/spells`);
         if (!data) {

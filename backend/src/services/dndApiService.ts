@@ -12,7 +12,6 @@ const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
  * @returns Os dados da API ou null em caso de erro.
  */
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
-    // Garante que o endpoint comece com uma barra
     const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
     const cacheKey = `dnd5e:${safeEndpoint}`;
@@ -29,6 +28,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
              console.log(`[Cache] MISS: ${cacheKey}`);
         } catch (error) {
             console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
+            // Continua para a API se o cache falhar
         }
     } else if (redisClient) {
         console.warn(`[Cache] Cliente Redis não está aberto ou pronto. Pulando cache para ${cacheKey}`);
@@ -36,11 +36,11 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     
     // 2. Se não estiver no cache, busca na API
     const fullApiUrl = `${API_BASE}${safeEndpoint}`;
-    console.log(`[API] Buscando: ${fullApiUrl}`);
+    console.log(`[API Fetch] Buscando URL: ${fullApiUrl}`);
     try {
         const response = await fetch(fullApiUrl);
         if (!response.ok) {
-            console.error(`API Error: ${response.status} for endpoint ${safeEndpoint}`);
+            console.error(`[API Fetch] Erro ${response.status} para o endpoint ${safeEndpoint}. URL: ${fullApiUrl}`);
             return null;
         }
         const data = await response.json();
@@ -59,7 +59,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
 
         return data as T;
     } catch (error) {
-        console.error(`Fetch Error for endpoint ${safeEndpoint}:`, error);
+        console.error(`[API Fetch] Erro de fetch para o endpoint ${safeEndpoint}:`, error);
         return null;
     }
 }

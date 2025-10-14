@@ -4,17 +4,19 @@ import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClas
 const API_BASE = '/api/dnds'; // Rota correta para o proxy do backend
 
 async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
+    const fullUrl = `${API_BASE}${endpoint}`;
+    console.log(`[Frontend Service] Solicitando para o backend: ${fullUrl}`);
     try {
-        const response = await fetch(`${API_BASE}${endpoint}`);
+        const response = await fetch(fullUrl);
         if (!response.ok) {
-            console.error(`API Error: ${response.status} for endpoint ${endpoint}`);
+            console.error(`[Frontend Service] Erro de API: ${response.status} para o endpoint ${endpoint}`);
             return null;
         }
         // Handle no content responses
         if (response.status === 204) return null;
         return await response.json() as T;
     } catch (error) {
-        console.error(`Fetch Error for endpoint ${endpoint}:`, error);
+        console.error(`[Frontend Service] Erro de Fetch para o endpoint ${endpoint}:`, error);
         return null;
     }
 }
