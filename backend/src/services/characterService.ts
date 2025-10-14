@@ -19,18 +19,29 @@ export const buildFullCharacterObject = async (character: Character) => {
         where: { id: character.id },
         relations: [
             "attributes", "proficiencies", "items", "spells",
-            "journal", "relationships", "relationships.quests",
+            "journal", "journal.subLocations",
+            "relationships", "relationships.quests",
         ],
     });
     if (!fullCharacter) return character;
+
+    // A UI espera que `inventory` contenha os dados dos itens.
+    // O backend armazena `itemData` dentro da entidade CharacterItem.
+    // Mapeamos para o formato esperado.
+    const inventory = fullCharacter.items.map((item: CharacterItem) => ({ 
+        ...item.itemData, 
+        id: item.id.toString(), // Garante que o ID do item da tabela seja usado
+        quantity: item.quantity, 
+        equipped: item.equipped 
+    }));
+
 
     const characterData = {
         ...fullCharacter,
         attributes: fullCharacter.attributes,
         proficiencies: fullCharacter.proficiencies.map(p => ({ index: p.index, name: p.name, type: p.type })),
-        // CORREÇÃO: Mapeia `items` para `inventory` e garante que `itemData` seja preservado.
-        inventory: fullCharacter.items.map((item: CharacterItem) => ({ ...item.itemData, id: item.id.toString(), quantity: item.quantity, equipped: item.equipped })),
-        spells: fullCharacter.spells, // Mantém a estrutura de `CharacterSpell`
+        inventory: inventory,
+        spells: fullCharacter.spells,
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         feats: fullCharacter.feats || [],

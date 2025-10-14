@@ -14,7 +14,7 @@ import { Relationship } from '../entities/Relationship.js';
 import { runGameMasterTurn } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
-import { In } from 'typeorm';
+import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -25,22 +25,19 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const characterRepo = AppDataSource.getRepository(Character);
     const fullCharacter = await characterRepo.findOne({
         where: { id: characterId },
-        relations: ["attributes", "proficiencies", "items", "spells", "journal", "relationships", "relationships.quests"],
+        relations: ["attributes", "proficiencies", "items", "spells", "journal", "journal.subLocations", "relationships", "relationships.quests"],
     });
 
     if (!fullCharacter || !fullCharacter.attributes) return null;
     
-    // Calcula modificadores e bônus de proficiência
     const proficiencyBonus = Math.floor((fullCharacter.level - 1) / 4) + 2;
     const wisdomMod = calculateModifier(fullCharacter.attributes.wisdom);
     const intelligenceMod = calculateModifier(fullCharacter.attributes.intelligence);
     
-    // Verifica proficiência em perícias chave
     const isProficientInPerception = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('perception'));
     const isProficientInInsight = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('insight'));
     const isProficientInInvestigation = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('investigation'));
 
-    // Calcula perícias passivas
     const passivePerception = 10 + wisdomMod + (isProficientInPerception ? proficiencyBonus : 0);
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
@@ -67,7 +64,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
         inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
         spells: fullCharacter.spells.map(s => s.spellName),
-        features: fullCharacter.feats, // Incluindo 'feats' que agora representam características de classe
+        features: fullCharacter.feats,
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         storySoFar: fullCharacter.storySoFar,
@@ -76,7 +73,33 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     };
 };
 
-// Persiste as atualizações do personagem no banco de dados.
+const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null) => {
+    for (const entryData of entries) {
+        let entry = await queryRunner.manager.findOne(JournalEntry, { where: { id: entryData.id } });
+        if (!entry) {
+            entry = new JournalEntry();
+            entry.id = entryData.id; // Assume que a IA fornece um ID único
+            entry.characterId = characterId;
+        }
+        
+        Object.assign(entry, {
+            name: entryData.name,
+            region: entryData.region,
+            summary: entryData.summary,
+            looted: entryData.looted,
+            parentLocation: parent,
+        });
+        
+        const savedEntry = await queryRunner.manager.save(entry);
+
+        if (entryData.subLocations && entryData.subLocations.length > 0) {
+            await upsertJournalEntries(queryRunner, entryData.subLocations, characterId, savedEntry);
+        }
+    }
+};
+
+
+// Persiste as atualizações do personagem no banco de dados de forma inteligente.
 const persistCharacterUpdates = async (characterId: number, updates: any) => {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
@@ -97,7 +120,8 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         }
         if (updates.inventory) {
              const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-             await itemsRepo.delete({ characterId }); // Limpa inventário antigo
+             // Para simplificar, ainda limpamos e recriamos o inventário, pois gerenciar o delta pode ser complexo.
+             await itemsRepo.delete({ characterId }); 
              const newItems = updates.inventory.map((itemData: any) => {
                  const newItem = new CharacterItem();
                  Object.assign(newItem, { 
@@ -122,38 +146,39 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
             await spellsRepo.save(newSpells);
         }
         if(updates.journal) {
-            await queryRunner.manager.getRepository(JournalEntry).delete({ characterId });
-            const newJournalEntries = updates.journal.map((entryData: any) => {
-                const newEntry = new JournalEntry();
-                Object.assign(newEntry, entryData, { characterId });
-                return newEntry;
-            });
-            await queryRunner.manager.save(newJournalEntries);
+            await upsertJournalEntries(queryRunner, updates.journal, characterId);
         }
         if(updates.relationships) {
-            // This is complex. For now, let's assume a full replacement for simplicity.
-            // A more robust solution would diff the changes.
-            const existingRels = await queryRunner.manager.find(Relationship, { where: { characterId }, relations: ['quests'] });
-            for(const rel of existingRels) {
-                await queryRunner.manager.getRepository(Quest).delete({ relationshipId: rel.id });
-            }
-            await queryRunner.manager.getRepository(Relationship).delete({ characterId });
-
             for (const relData of updates.relationships) {
-                const newRel = new Relationship();
-                Object.assign(newRel, relData, { characterId });
-                delete (newRel as any).id; 
-                delete (newRel as any).quests;
-                const savedRel = await queryRunner.manager.save(newRel);
+                let relationship = await queryRunner.manager.findOne(Relationship, { where: { npcId: relData.npcId, characterId }});
+                if (!relationship) {
+                    relationship = new Relationship();
+                    relationship.npcId = relData.npcId;
+                    relationship.characterId = characterId;
+                }
+                Object.assign(relationship, {
+                    name: relData.name,
+                    description: relData.description,
+                    status: relData.status,
+                    affinity: relData.affinity,
+                });
+                const savedRel = await queryRunner.manager.save(relationship);
                 
                 if (relData.quests) {
-                    const newQuests = relData.quests.map((questData: any) => {
-                        const newQuest = new Quest();
-                         delete (questData as any).id;
-                        Object.assign(newQuest, questData, { relationshipId: savedRel.id });
-                        return newQuest;
-                    });
-                    await queryRunner.manager.save(newQuests);
+                    for(const questData of relData.quests) {
+                        let quest = await queryRunner.manager.findOne(Quest, { where: { id: questData.id }});
+                        if (!quest) {
+                            quest = new Quest();
+                            quest.id = questData.id;
+                            quest.relationshipId = savedRel.id;
+                        }
+                        Object.assign(quest, {
+                            title: questData.title,
+                            status: questData.status,
+                            objectives: questData.objectives,
+                        });
+                        await queryRunner.manager.save(quest);
+                    }
                 }
             }
         }
@@ -190,13 +215,10 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
     }
 
-    // Carregar conteúdo homebrew específico da sessão
-    let homebrewContext = {};
+    let installedHomebrew: any[] = [];
     if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
         const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
-        homebrewContext = {
-            installedHomebrew: homebrewItems.map(item => item.content)
-        };
+        installedHomebrew = homebrewItems.map(item => item.content);
     }
 
     const recentLogs = await logRepository.find({
@@ -211,7 +233,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         playerAction,
         gameLog: gameLogSummary,
         combatState: currentCombatState,
-        ...homebrewContext, // Injeta o conteúdo homebrew no input da IA
+        installedHomebrew: installedHomebrew,
     };
 
     const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-1.5-flash");
@@ -239,7 +261,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
 
-    // Persist character updates from AI
     if (aiResponse.updatedCharacter) {
         await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
     }
