@@ -16,7 +16,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
     const token = authHeader.split(' ')[1];
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_default_secret') as { userId: number };
+        // Removido o valor padrão 'your_default_secret'
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
         req.user = decoded;
         next();
     } catch (error) {

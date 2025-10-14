@@ -23,6 +23,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[X] Criar Camada de Serviço (Service Layer) (Backend):**
     *   **Tarefa:** Criar novos serviços (ex: `characterService.ts`, `sessionService.ts`) na pasta `backend/src/services`. Mover a lógica de banco de dados (TypeORM) e as interações complexas dos controllers para esses serviços.
     *   **Justificativa:** Desacopla a lógica da API (Express) da lógica de negócios. Os controllers se tornam mais simples (apenas validam e chamam serviços), e a lógica principal pode ser reutilizada e testada de forma isolada.
+    
+*   **[X] Centralizar Configurações Sensíveis (`.env`) (Backend):**
+    *   **Tarefa:** Garantir que todas as configurações que podem mudar entre ambientes (como `JWT_SECRET`) sejam lidas a partir de variáveis de ambiente e documentadas no `.env.example`.
+    *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
 *   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor (Frontend):**
     *   **Tarefa:** Integrar uma biblioteca como `React Query` ou `SWR`. Envolver a aplicação com o provider da biblioteca para gerenciar todas as chamadas de API.
@@ -31,10 +35,6 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
     *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
     *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação.
-
-*   **[ ] Centralizar Configurações Sensíveis (`.env`) (Backend):**
-    *   **Tarefa:** Garantir que todas as configurações que podem mudar entre ambientes (como `JWT_SECRET`) sejam lidas a partir de variáveis de ambiente e documentadas no `.env.example`.
-    *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
 ### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
