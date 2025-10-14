@@ -2,6 +2,8 @@
 import { Router } from 'express';
 import * as DndApiService from '../services/dndApiService.js';
 import createError from 'http-errors';
+import fs from 'fs/promises';
+import path from 'path';
 
 const router = Router();
 
@@ -9,6 +11,22 @@ const router = Router();
 router.get('/:resource', async (req, res, next) => {
     const { resource } = req.params;
     console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
+
+    // --- Início da Lógica Homebrew/Custom Data ---
+    // Se a requisição for para 'backgrounds', lemos do nosso arquivo local.
+    if (resource === 'backgrounds') {
+        try {
+            const filePath = path.resolve(process.cwd(), 'src/data/backgrounds.json');
+            const fileContent = await fs.readFile(filePath, 'utf-8');
+            const data = JSON.parse(fileContent);
+            return res.json(data);
+        } catch (error) {
+            console.error('[Homebrew] Erro ao ler o arquivo de backgrounds:', error);
+            return next(createError(500, 'Falha ao carregar dados de antecedentes customizados.'));
+        }
+    }
+    // --- Fim da Lógica Homebrew ---
+
     try {
         const data = await DndApiService.getResourceList(resource);
         if (!data) {

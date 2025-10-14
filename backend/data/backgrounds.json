@@ -1,0 +1,70 @@
+
+{
+    "results": [
+        {
+            "index": "acolyte",
+            "name": "Acólito",
+            "url": "/api/backgrounds/acolyte"
+        },
+        {
+            "index": "charlatan",
+            "name": "Charlatão",
+            "url": "/api/backgrounds/charlatan"
+        },
+        {
+            "index": "criminal",
+            "name": "Criminoso",
+            "url": "/api/backgrounds/criminal"
+        },
+        {
+            "index": "entertainer",
+            "name": "Artista",
+            "url": "/api/backgrounds/entertainer"
+        },
+        {
+            "index": "folk-hero",
+            "name": "Herói do Povo",
+            "url": "/api/backgrounds/folk-hero"
+        },
+        {
+            "index": "guild-artisan",
+            "name": "Artesão de Guilda",
+            "url": "/api/backgrounds/guild-artisan"
+        },
+        {
+            "index": "hermit",
+            "name": "Eremita",
+            "url": "/api/backgrounds/hermit"
+        },
+        {
+            "index": "noble",
+            "name": "Nobre",
+            "url": "/api/backgrounds/noble"
+        },
+        {
+            "index": "outlander",
+            "name": "Forasteiro",
+            "url": "/api/backgrounds/outlander"
+        },
+        {
+            "index": "sage",
+            "name": "Sábio",
+            "url": "/api/backgrounds/sage"
+        },
+        {
+            "index": "sailor",
+            "name": "Marinheiro",
+            "url": "/api/backgrounds/sailor"
+        },
+        {
+            "index": "soldier",
+            "name": "Soldado",
+            "url": "/api/backgrounds/soldier"
+        },
+        {
+            "index": "urchin",
+            "name": "Órfão",
+            "url": "/api/backgrounds/urchin"
+        }
+    ]
+}
