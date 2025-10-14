@@ -55,6 +55,7 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
     - **[✅ Concluído]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
     - **[✅ Concluído]** Implementação de perícias, resistências, sentidos e idiomas.
     - **[🚧 Em Andamento]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
+        - **[🚧 Em Andamento]** Implementação de detalhes de ataque (bônus de ataque, dano, tipo de dano).
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
