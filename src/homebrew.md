@@ -42,7 +42,8 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[Em Andamento] Classes:**
     -   **[✅ Concluído] Estrutura básica com nome e dado de vida.**
     -   **[✅ Concluído] Adicionada seleção de testes de resistência, proficiências em equipamentos e escolhas de perícias.**
-    -   **[⬜️ A Fazer] Adicionar características de classe por nível.**
+    -   **[Em Andamento] Adicionar características de classe por nível.**
+        - **[Em Andamento] Criar editor de Características (Features).**
 -   **[Em Andamento] Subclasses:**
     -   **[✅ Concluído] Estrutura básica com seleção de classe original, nome e descrição.**
     -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**
