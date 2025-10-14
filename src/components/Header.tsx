@@ -124,14 +124,14 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                 </div>
 
                 {/* Stats for both Mobile and Desktop */}
-                 <div className="grid grid-cols-6 gap-x-1 sm:gap-x-2 gap-y-1 text-center mt-3 pt-3 border-t border-stone-700/50">
+                 <div className="grid grid-cols-6 gap-x-1 sm:gap-x-2 text-center mt-3 pt-3 border-t border-stone-700/50">
                     {/* HP */}
                     <div className="flex flex-col items-center justify-center">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-red-300">
                            <Heart className="h-4 w-4"/>
                            <span className="hidden sm:inline">VIDA</span>
                         </div>
-                        <div className="font-mono font-semibold text-sm sm:text-base">{hp?.current} / {hp?.max}</div>
+                        <div className="font-mono font-semibold text-sm sm:text-base"><span className="whitespace-nowrap">{hp?.current} / {hp?.max}</span></div>
                     </div>
                     {/* AC */}
                     <div className="flex flex-col items-center justify-center">
