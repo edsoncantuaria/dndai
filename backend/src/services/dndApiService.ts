@@ -3,16 +3,18 @@ import redisClient from '../database/redis-client.js';
 import fetch from 'node-fetch'; // Usando node-fetch no backend
 import 'dotenv/config';
 
-const API_BASE = 'https://www.dnd5eapi.co/api/2014';
+const API_BASE = 'https://www.dnd5eapi.co/api/2014'; // Garante que não há uma barra no final
 const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
 
 /**
  * Busca dados da API D&D 5e com cache no Redis.
- * @param endpoint O endpoint da API a ser consultado (ex: '/api/races').
+ * @param endpoint O endpoint da API a ser consultado (ex: '/races').
  * @returns Os dados da API ou null em caso de erro.
  */
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
-    const cacheKey = `dnd5e:${endpoint}`;
+    // Garante que o endpoint comece com uma barra
+    const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const cacheKey = `dnd5e:${safeEndpoint}`;
 
     // 1. Tenta buscar do cache primeiro
     if (redisClient && redisClient.isOpen) {
@@ -26,19 +28,18 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
              console.log(`[Cache] MISS: ${cacheKey}`);
         } catch (error) {
             console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
-            // Continua para a API externa em caso de erro de busca no cache
         }
     } else if (redisClient) {
         console.warn(`[Cache] Cliente Redis não está aberto ou pronto. Pulando cache para ${cacheKey}`);
     }
     
-    // 2. Se não estiver no cache (ou o Redis estiver indisponível), busca na API
-    const fullApiUrl = `${API_BASE}${endpoint}`;
+    // 2. Se não estiver no cache, busca na API
+    const fullApiUrl = `${API_BASE}${safeEndpoint}`;
     console.log(`[API] Buscando: ${fullApiUrl}`);
     try {
         const response = await fetch(fullApiUrl);
         if (!response.ok) {
-            console.error(`API Error: ${response.status} for endpoint ${endpoint}`);
+            console.error(`API Error: ${response.status} for endpoint ${safeEndpoint}`);
             return null;
         }
         const data = await response.json();
@@ -57,14 +58,13 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
 
         return data as T;
     } catch (error) {
-        console.error(`Fetch Error for endpoint ${endpoint}:`, error);
+        console.error(`Fetch Error for endpoint ${safeEndpoint}:`, error);
         return null;
     }
 }
 
 /**
- * Obtém uma lista de recursos de um endpoint principal (ex: '/races', '/classes').
- * @param resource O nome do recurso no plural (ex: 'races').
+ * Obtém uma lista de recursos de um endpoint principal (ex: 'races', 'classes').
  */
 export const getResourceList = (resource: string) => {
     return fetchWithCache<{ results: any[] }>(`/${resource}`);
