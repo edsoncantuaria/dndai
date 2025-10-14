@@ -32,9 +32,9 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
     -   **[✅ Concluído]** O `narrarService` e as rotas de níveis/magias agora também sabem como lidar com dados de classes homebrew.
 
 
-### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
+### Fase 4: O Editor Homebrew (Concluído)
 
-O objetivo desta fase é criar uma interface de formulário guiada para cada tipo de conteúdo, eliminando a necessidade de escrever JSON manualmente e reduzindo a possibilidade de erros.
+O objetivo desta fase era criar uma interface de formulário guiada para cada tipo de conteúdo, eliminando a necessidade de escrever JSON manualmente e reduzindo a possibilidade de erros.
 
 #### **Status dos Editores:**
 
@@ -54,8 +54,7 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
     - **[✅ Concluído]** Estrutura inicial do formulário (Nome, Tamanho, Tipo, Alinhamento).
     - **[✅ Concluído]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
     - **[✅ Concluído]** Implementação de perícias, resistências, sentidos e idiomas.
-    - **[✅ Concluído]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
-        - **[✅ Concluído]** Implementação de detalhes de ataque (bônus de ataque, dano, tipo de dano).
+    - **[✅ Concluído]** Sistema para adicionar ações, habilidades especiais e ações lendárias, incluindo detalhes de ataque.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
