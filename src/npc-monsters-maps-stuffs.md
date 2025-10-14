@@ -52,13 +52,16 @@ O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
 ## 3. Fases da Implementação
 
 -   **[✅ Concluído] Fase 1: Fundação do Banco de Dados**:
-    *   **Status:** As entidades `Relationship`, `Quest` e `JournalEntry` foram definidas no TypeORM e integradas ao banco de dados do backend.
+    *   Definir e criar as entidades `Relationship`, `Quest` e `JournalEntry` no TypeORM.
+    *   Estabelecer as relações entre elas e a entidade `Character`.
 
 -   **[✅ Concluído] Fase 2: Integração com a IA**:
-    *   **Status:** O prompt da IA (`prompt5e.ts` e seus módulos) foi atualizado para instruir o Mestre a criar, gerenciar e consultar essas novas entidades persistentes. Os schemas de entrada e saída da IA agora incluem dados de diário, relacionamentos e missões.
+    *   Atualizar o prompt em `prompt5e.ts` com as novas regras de criação e persistência de entidades.
+    *   Modificar os schemas de entrada (`GameMasterFlowInputSchema`) e saída (`GameMasterResponseSchema`) para incluir os novos dados de `journal` e `relationships`.
 
 -   **[✅ Concluído] Fase 3: Exibição no Frontend**:
-    *   **Status:** Os componentes `NewJournal.tsx` e `NewRelationships.tsx` foram implementados, exibindo os dados de NPCs, locais e missões de forma organizada para o jogador.
+    *   Criar ou adaptar os componentes `NewJournal.tsx` e `NewRelationships.tsx` para exibir os dados de forma clara e organizada.
+    *   Garantir que a UI seja atualizada em tempo real quando novas informações forem recebidas do backend.
 
 -   **[✅ Concluído] Fase 4: Mecânicas Avançadas (Mundo Vivo)**:
     *   **Status:** Concluído.
@@ -66,6 +69,35 @@ O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
     *   **[✅ Concluído]** A lógica de backend e de IA para diferenciar monstros únicos (gerenciados via `Relationship`) de monstros genéricos (que podem reaparecer) foi implementada. A IA agora consulta o estado persistente dos `Relationships` para evitar o "respawn" de entidades nomeadas e derrotadas.
     *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado, diferenciando monstros e NPCs únicos.
 
--   **[⬜️ A Fazer] Fase 5: Próximos Passos**:
+-   **[⬜️ A Fazer] Fase 5: Próximos Passos (Arquitetura Futura)**:
     *   **Tarefa:** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
+    *   **Tarefa:** Implementar um sistema de "agência assíncrona" para NPCs e eventos mundiais, aproveitando o tempo de espera do jogador.
     *   **Tarefa:** Implementar e testar o modo multiplayer cooperativo via WebSockets.
+
+## 4. Arquitetura para Agência Assíncrona de NPCs
+
+Esta seção detalha o plano para a **TASK-4**, que visa criar a ilusão de um mundo que evolui continuamente.
+
+### 4.1. Conceito
+
+A ideia central é usar o tempo em que o jogador está aguardando a resposta da IA (o "efeito de digitação") para executar processos de "evolução do mundo" no backend, de forma assíncrona. Isso significa que, enquanto o jogador lê a narração, o servidor pode estar calculando o progresso das rotinas de um NPC, o avanço de um evento mundial ou o movimento de uma facção inimiga.
+
+### 4.2. Implementação no Backend
+
+- **Fila de Tarefas (Job Queue):** O ideal seria usar uma biblioteca de fila de tarefas como BullMQ ou um serviço como o Cloud Tasks.
+    1.  Quando uma ação do jogador resulta em uma passagem de tempo significativa (ex: um descanso longo, uma viagem), o `narrarService` não apenas pede a narração à IA, mas também adiciona uma "tarefa de evolução" à fila.
+    2.  Essa tarefa conteria o `sessionId` e o tempo decorrido (ex: "8 horas").
+- **Workers Assíncronos:** Um ou mais processos "workers" independentes escutariam essa fila.
+    1.  Ao receber uma tarefa, o worker carregaria o estado da sessão correspondente.
+    2.  Ele faria uma chamada separada para a IA com um prompt específico: *"Passaram-se 8 horas. Com base no estado atual do mundo e dos NPCs, o que mudou? O NPC 'Gundren' avançou em sua jornada? O culto inimigo progrediu em seu plano? Seja breve e objetivo."*
+    3.  A resposta da IA seria usada para atualizar o banco de dados (o estado do `Relationship` de Gundren, o avanço de uma `Quest`, etc.).
+
+### 4.3. Implementação no Frontend
+
+- **Notificações em Tempo Real (WebSockets):** O frontend precisaria de uma conexão WebSocket estabelecida com o backend.
+    1.  Quando o "worker" do backend conclui uma tarefa de evolução, ele envia uma mensagem via WebSocket para o cliente (ou clientes, no modo multiplayer).
+    2.  A mensagem poderia ser algo como: `{ type: 'world_event', message: 'Você recebe um corvo mensageiro com uma nota de Gundren.' }`.
+- **UI Reativa:** O frontend receberia essa mensagem e a exibiria de forma não intrusiva.
+    1.  Isso poderia ser um "toast" (notificação pop-up), uma nova entrada no log de narração marcada como "Evento", ou um indicador piscando em uma aba relevante (como "Diário").
+
+Esta arquitetura desacopla a narrativa principal da evolução do mundo, permitindo que ambos ocorram de forma semi-independente, criando uma experiência profundamente imersiva e dinâmica.
