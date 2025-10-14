@@ -199,25 +199,13 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const modifiers = calculateModifiers(attributes);
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
-    const inventory: InventoryItem[] = (backendChar.items || []).map((item: any) => {
-        let parsedItemData = {};
-        try {
-            if (typeof item.itemData === 'string') {
-                parsedItemData = JSON.parse(item.itemData);
-            } else if (typeof item.itemData === 'object' && item.itemData !== null) {
-                parsedItemData = item.itemData;
-            }
-        } catch (e) {
-            console.error("Failed to parse itemData:", item.itemData, e);
-        }
-
-        return {
-            ...parsedItemData,
-            id: item.id.toString(),
-            quantity: item.quantity,
-            name: item.name,
-        };
-    });
+    // CORREÇÃO: Garante que `backendChar.inventory` seja tratado como um array.
+    const inventory: InventoryItem[] = Array.isArray(backendChar.inventory)
+        ? backendChar.inventory.map((item: any) => ({
+              ...item, // O backend já está enviando o `itemData` no objeto do inventário
+              id: item.id.toString(),
+          }))
+        : [];
     
     const ac = calculateAC(inventory, modifiers);
     const maxHp = backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
