@@ -156,5 +156,3 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
-
-    

@@ -8,7 +8,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ---
 
-## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Em Andamento)
+## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Concluído)
 
 - **Problema:** O frontend atual ainda opera com muitas lógicas do design original (estado gerenciado no cliente, `localStorage`), o que o impede de aproveitar todo o potencial do novo backend (banco de dados persistente, gerenciamento de sessões, personagens reutilizáveis). A interface e o fluxo de dados não refletem a nova arquitetura de servidor.
 - **Filosofia Central:** O backend é a única fonte da verdade. O frontend deve ser uma interface reativa e performática que busca e envia dados ao servidor, utilizando o cache de forma inteligente para uma experiência de usuário fluida.
@@ -58,41 +58,56 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[X] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
     *   **Visão (Backend):** Tornar o `prompt5e.ts` extremamente rigoroso. A IA **nunca** deve rolar dados pelo jogador ou presumir resultados. O fluxo `Intenção -> Pedido de Rolagem (com DC claro) -> Resultado -> Consequência` deve ser obrigatório para ataques, perícias e testes de resistência.
     *   **Visão (Frontend):** O `DiceRollModal` deve exibir claramente o alvo (DC) para criar suspense. A agência do jogador sobre os dados é a alma da experiência.
+    *   **Status:** Concluído.
 
 *   **[X] Implementar Sistema de Perícias Passivas:**
     *   **Visão (Backend):** Calcular a `Percepção Passiva` (e outras, como Investigação ou Intuição) e incluí-la no prompt da IA. Instruir a IA a usar esse valor como um gatilho narrativo (ex: "Se a Percepção Passiva do personagem for > 14, narre que ele nota a fresta solta na parede").
     *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
+    *   **Status:** Concluído.
 
 *   **[X] Reimaginar o Menu Principal:**
     *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo são apresentadas como diários ou pergaminhos, criando uma imersão imediata.
+    *   **Status:** Concluído.
 
 *   **[X] Ficha de Personagem Interativa:**
     *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
     *   **Impacto:** Aumenta a agência do jogador e a clareza sobre o estado do seu personagem.
+    *   **Status:** Concluído.
 
 *   **[X] Aba Dedicada para "Relacionamentos e Missões":**
     *   **Visão:** Criar uma nova aba com "cards" para cada NPC, mostrando afinidade, e listando as missões ativas e concluídas associadas a eles.
     *   **Impacto:** Organiza a informação social do jogo, tornando o progresso das quests e as relações com os NPCs mais claras e significativas.
+    *   **Status:** Concluído.
 
 *   **[X] Linha do Tempo da Progressão do Personagem:**
     *   **Visão:** Criar uma aba de "Progresso" que mostre visualmente as habilidades e talentos ganhos em cada nível, além de um painel para reputação com as facções do mundo.
     *   **Impacto:** Dá ao jogador um forte senso de jornada e evolução do seu herói.
+    *   **Status:** Concluído.
 
-*   **[ ] Sistema de Comércio e Lojas Aprofundado:**
+*   **[X] Sistema de Comércio e Lojas Aprofundado:**
     *   **Visão:** Uma UI de loja dedicada com abas para "Comprar" e "Vender", e uma mecânica de "Barganha" baseada em testes de perícia.
     *   **Impacto:** Transforma uma simples troca de texto em uma parte divertida e estratégica do jogo.
+    *   **Status:** Concluído.
 
-*   **[ ] Implementar Sistema de Descanso Completo (Curto/Longo):**
+*   **[X] Implementar Sistema de Descanso Completo (Curto/Longo):**
     *   **Visão:** Gerenciar a recuperação de recursos no backend e criar modais interativos no frontend para que o jogador role seus dados de vida durante um descanso curto.
+    *   **Status:** Concluído.
+
+*   **[X] Reimaginar Inventário e Grimório:**
+    *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo e interativo.
+    *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
+    *   **Status:** Concluído.
+
+*   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
+    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
+    *   **Status:** Concluído.
 
 *   **[ ] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
+    *   **Status:** Refatoração de banco de dados concluída. Próximo passo é a implementação na UI.
 
 *   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
-
-*   **[ ] Ações Estruturadas em Combate (Backend + Frontend):**
-    *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
@@ -132,4 +147,3 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
-
