@@ -22,6 +22,42 @@ interface Props {
 
 // --- SUB-FORMULÁRIOS ---
 
+const ItemForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChange }) => {
+    const [itemData, setItemData] = useState({
+        name: '',
+        desc: [''],
+        // Futuramente adicionaremos mais campos como tipo, peso, custo, propriedades mágicas, etc.
+    });
+
+    const updateParent = (newData: any) => {
+        const fullData = {
+            ...newData,
+            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
+        };
+        onDataChange(fullData);
+    };
+
+    const handleFieldChange = (field: keyof typeof itemData, value: any) => {
+        const newData = { ...itemData, [field]: value };
+        setItemData(newData);
+        updateParent(newData);
+    };
+
+    return (
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="item-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Item</label>
+                <input id="item-name" type="text" value={itemData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+             <div>
+                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
+            </div>
+        </div>
+    );
+};
+
+
 const RaceForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChange }) => {
     const [raceData, setRaceData] = useState({
         name: '',
@@ -494,6 +530,8 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                 return <BackgroundForm onDataChange={setContentData} />;
             case 'spell':
                 return <SpellForm onDataChange={setContentData} />;
+            case 'item':
+                return <ItemForm onDataChange={setContentData} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado. Você pode contribuir para adicioná-lo!</p>;
         }
