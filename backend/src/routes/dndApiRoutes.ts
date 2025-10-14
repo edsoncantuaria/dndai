@@ -5,8 +5,15 @@ import * as HomebrewService from '../services/homebrewService.js';
 import createError from 'http-errors';
 import fs from 'fs/promises';
 import path from 'path';
+import { HomebrewContentType } from '../entities/HomebrewContent.js';
 
 const router = Router();
+
+// Tipos de conteúdo que podem ser estendidos com homebrew.
+const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
+    'races', 'classes', 'subclasses', 'spells', 'items', 'monsters', 'backgrounds', 'feats'
+] as HomebrewContentType[];
+
 
 // Rota específica para servir os dados completos do backgrounds.json
 router.get('/backgrounds-data', async (req, res, next) => {
@@ -24,48 +31,35 @@ router.get('/backgrounds-data', async (req, res, next) => {
 
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
-    const { resource } = req.params;
+    const resource = req.params.resource as HomebrewContentType;
     console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
 
-    // --- Início da Lógica Homebrew/Custom Data ---
-    // Se a requisição for para 'backgrounds', mesclamos dados locais e do DB.
-    if (resource === 'backgrounds') {
-        try {
-            // 1. Carrega os antecedentes base do arquivo JSON.
-            const filePath = path.join(process.cwd(), 'data', 'backgrounds.json');
-            const fileContent = await fs.readFile(filePath, 'utf-8');
-            const baseData = JSON.parse(fileContent);
-
-            // 2. Busca os antecedentes homebrew públicos no banco de dados.
-            const homebrewBackgrounds = await HomebrewService.getPublicHomebrewContent('background');
-            
-            // 3. Mescla os resultados.
-            const homebrewResults = homebrewBackgrounds.map(hb => ({
-                index: hb.id, // Usamos o ID do homebrew como índice
-                name: hb.name,
-                url: `/api/homebrew/${hb.id}` // Aponta para a nossa API homebrew
-            }));
-
-            const combinedResults = {
-                count: baseData.results.length + homebrewResults.length,
-                results: [...baseData.results, ...homebrewResults]
-            };
-
-            return res.json(combinedResults);
-        } catch (error) {
-            console.error('[Homebrew] Erro ao carregar ou mesclar dados de antecedentes:', error);
-            return next(createError(500, 'Falha ao carregar dados de antecedentes customizados.'));
-        }
-    }
-    // --- Fim da Lógica Homebrew ---
-
     try {
-        const data = await DndApiService.getResourceList(resource);
-        if (!data) {
-            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}`);
-            return next(createError(404, `Recurso '${resource}' não encontrado.`));
+        // Busca os dados da API oficial
+        const apiData = await DndApiService.getResourceList(resource);
+        let finalResults = apiData?.results || [];
+
+        // Se o recurso for extensível, busca e mescla com o homebrew público.
+        if (HOMEBREW_EXTENSIBLE_RESOURCES.includes(resource)) {
+            const homebrewContent = await HomebrewService.getPublicHomebrewContent(resource);
+            
+            if (homebrewContent.length > 0) {
+                const homebrewResults = homebrewContent.map(hb => ({
+                    index: hb.id, // Usamos o ID do homebrew como índice
+                    name: `(H) ${hb.name}`, // Adiciona um prefixo para indicar que é homebrew
+                    url: `/api/homebrew/${hb.id}` // Aponta para a nossa API homebrew
+                }));
+                finalResults = [...finalResults, ...homebrewResults];
+            }
         }
-        res.json(data);
+        
+        const response = {
+            count: finalResults.length,
+            results: finalResults,
+        };
+
+        return res.json(response);
+
     } catch (error) {
         next(error);
     }
