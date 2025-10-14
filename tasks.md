@@ -8,26 +8,34 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ---
 
-## TASK-2: Mundo Vivo - NPCs, Monstros e Locais Persistentes (Fundação Concluída)
+## TASK-3: Aprofundando o "Mundo Vivo" (Próximas Etapas)
 
-- **Objetivo:** Transformar o mundo do jogo em um ecossistema persistente e reativo, onde NPCs, monstros únicos e locais descobertos se tornam entidades persistentes no banco de dados, vinculadas a uma sessão de jogo.
-- **Visão:** Consequências reais para as ações do jogador. A morte de um NPC é permanente (naquela campanha), missões progridem, e o mundo reage às façanhas do herói.
+- **Objetivo:** Implementar funcionalidades que adicionem mais dinamismo, reatividade e imersão ao mundo do jogo, fazendo-o sentir-se verdadeiramente vivo.
 
 ### Fases da Implementação:
 
-*   **[✅ Concluído] Fase 1: Fundação do Banco de Dados**:
-    *   **Status:** As entidades `Relationship`, `Quest` e `JournalEntry` foram definidas no TypeORM e integradas ao banco de dados do backend.
+*   **[⬜️ A Fazer] Fase 1: Ciclo Dinâmico de Dia/Noite e Clima**
+    *   **Tarefa:** Instruir a IA para atualizar proativamente o `worldState` (tempo e clima) após ações como descanso, viagem ou eventos narrativos significativos.
+    *   **Tarefa:** Fazer com que as mudanças climáticas tenham efeitos mecânicos (ex: desvantagem em Percepção durante uma nevasca, terreno difícil em lamaçais após a chuva).
 
-*   **[✅ Concluído] Fase 2: Integração com a IA**:
-    *   **Status:** O prompt da IA (`prompt5e.ts` e seus módulos) foi atualizado para instruir o Mestre a criar, gerenciar e consultar essas novas entidades persistentes. Os schemas de entrada e saída da IA agora incluem dados de diário, relacionamentos e missões.
+*   **[⬜️ A Fazer] Fase 2: NPCs com Agência e Rotinas**
+    *   **Tarefa:** Criar um mecanismo para que a IA processe o que NPCs importantes fazem "fora da tela" enquanto o jogador está ocupado.
+    *   **Tarefa:** Aprimorar o prompt da IA para que ela narre as mudanças na vida dos NPCs quando o jogador os reencontrar, refletindo a passagem do tempo.
 
-*   **[✅ Concluído] Fase 3: Exibição no Frontend**:
-    *   **Status:** Os componentes `NewJournal.tsx` e `NewRelationships.tsx` foram implementados, exibindo os dados de NPCs, locais e missões de forma organizada para o jogador.
+*   **[⬜️ A Fazer] Fase 3: Sistema de Notícias e Rumores**
+    *   **Tarefa:** Implementar uma nova entidade no backend (ex: `WorldNews`) para registrar feitos heróicos ou eventos mundiais importantes causados pelo jogador.
+    *   **Tarefa:** Ensinar a IA a consultar essas "notícias" e transformá-las em rumores que podem ser ouvidos em tavernas e cidades, aumentando a sensação de impacto do jogador no mundo.
 
-*   **[⬜️ A Fazer] Fase 4: Mecânicas Avançadas**:
-    *   **Tarefa:** Implementar a lógica para monstros únicos vs. genéricos (respawn).
-    *   **Tarefa:** Aprimorar a IA para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações (ex: "Você reencontra Barthen, o ferreiro, que ainda parece grato por você ter salvo sua filha.").
-    *   **Tarefa:** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
+*   **[⬜️ A Fazer] Fase 4: Mapa do Mundo Interativo**
+    *   **Tarefa:** Desenvolver um componente de UI no frontend que renderize um mapa.
+    *   **Tarefa:** Usar os dados da entidade `JournalEntry` (locais descobertos) para popular o mapa dinamicamente, permitindo que o jogador visualize sua jornada e planeje seus próximos passos.
+
+---
+
+## TASK-2: Mundo Vivo - NPCs, Monstros e Locais Persistentes (Concluído)
+
+- **Objetivo:** Transformar o mundo do jogo em um ecossistema persistente e reativo, onde NPCs, monstros únicos e locais descobertos se tornam entidades persistentes no banco de dados, vinculadas a uma sessão de jogo.
+- **Status:** Concluído. A fundação para um mundo com memória, NPCs únicos e consequências duradouras está implementada e funcional.
 
 ---
 
@@ -36,17 +44,3 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 - **Problema:** O frontend operava com lógicas antigas de estado no cliente, não aproveitando o potencial do novo backend.
 - **Objetivo:** Refatorar completamente a aplicação para alinhar frontend e backend, adotando as melhores práticas de arquitetura para criar uma plataforma rápida, estável e imersiva.
 - **Status:** Concluído. Todas as fases, da 1.1 à 1.4 (com exceção dos testes de integração), foram implementadas com sucesso, resultando em uma arquitetura robusta e uma experiência de usuário significativamente melhorada.
-
----
-
-### Metas de Longo Prazo
-
-*   **[ ] Testes de Integração e Unidade (Backend):**
-    *   **Tarefa:** Configurar `Jest` e `Supertest` para testar a camada de serviço e os endpoints da API.
-    *   **Justificativa:** Aumentar a confiabilidade do backend e permitir futuras modificações com segurança.
-    *   **Status:** Em espera.
-
-*   **[ ] Streaming e Modo Multiplayer (Pausado)**
-    *   **Status:** Em espera. A reestruturação da TASK-1 era um pré-requisito.
-
-```
