@@ -56,7 +56,8 @@ const GameContainer = () => {
     }, []);
 
     useEffect(() => {
-        if (gameStage === 'session_list' || gameStage === 'character_vault') {
+        // Fetch data immediately on mount or when returning to a list view
+        if (gameStage === 'loading' || gameStage === 'session_list' || gameStage === 'character_vault') {
             fetchInitialData();
         }
     }, [gameStage, fetchInitialData]);
