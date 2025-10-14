@@ -29,6 +29,7 @@
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
     "mysql2": "^3.10.3",
+    "redis": "^4.6.15",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.20"
   },

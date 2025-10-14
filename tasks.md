@@ -129,7 +129,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados (como o wizard de criação de personagem) apenas quando forem necessários.
     *   **Justificativa:** Reduzir o tamanho do bundle inicial, fazendo a aplicação carregar muito mais rápido.
     
-*   **[ ] Implementar Cache no Servidor com Redis (Backend):**
+*   **[Em Andamento] Implementar Cache no Servidor com Redis (Backend):**
     *   **Tarefa:** Adicionar o Redis para cachear chamadas repetidas, especialmente para a D&D 5e API.
     *   **Justificativa:** Acelerar drasticamente a criação de personagens e a consulta de informações, reduzindo a dependência de APIs externas.
     
@@ -152,6 +152,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
 
 
 

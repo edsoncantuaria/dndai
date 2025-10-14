@@ -13,6 +13,7 @@ import licenseRoutes from './routes/licenseRoutes.js';
 import narrarRoutes from './routes/narrarRoutes.js';
 import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
+import dndApiRoutes from './routes/dndApiRoutes.js'; // Nova rota
 
 const app = express();
 
@@ -52,6 +53,7 @@ app.use('/api/licenses', licenseRoutes);
 app.use('/api/narrar', narrarRoutes);
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
+app.use('/api/dnd', dndApiRoutes); // Nova rota
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {
