@@ -105,10 +105,18 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
             if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
-            // Homebrew classes might not have a /levels endpoint, data is in the content itself.
-            // This part might need more logic depending on how homebrew class levels are stored.
-            // For now, let's assume levels are part of the main content object.
-            data = (hbContent.content as any).levels || [];
+            // Para classes homebrew, os níveis (features) estão dentro do próprio objeto de conteúdo
+            const features = (hbContent.content as any).features || [];
+            
+            // Simular a estrutura de API para níveis
+            const levelsData = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
+                level: level,
+                features: features.filter((f: any) => f.level === level)
+                // Outros dados de nível como prof_bonus podem ser calculados se necessário
+            }));
+
+            data = levelsData;
+
         } else {
             data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
         }
@@ -127,13 +135,12 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
     console.log(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
     try {
-        // This logic might need adjustment for homebrew classes with specific spell lists
         if (isUuid(classIndex)) {
              const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
              if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
-            // Assuming homebrew class content has a `spells` property similar to API
+            // Assumindo que classes homebrew podem ter uma lista de magias em sua estrutura
             const spells = (hbContent.content as any).spells || { count: 0, results: [] };
              return res.json(spells);
         }

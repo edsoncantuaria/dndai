@@ -23,10 +23,14 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 -   **[X] Criar Entidades Homebrew no Banco de Dados:** Foi definida a entidade `HomebrewContent` (TypeORM) para armazenar os dados JSON que seguem o padrão OpenAPI, com campos para `type`, `authorId`, `isPublic` e o `content`.
 -   **[X] Criar Endpoints CRUD para Homebrew:** Foi desenvolvida a API REST (`/api/homebrew`) para criar, ler, atualizar e deletar conteúdo homebrew, com validação e checagem de permissões.
 
-### Fase 3: Integração com o Jogo (Concluído)
+### Fase 3: Integração com o Jogo (Em Andamento)
 
--   **[X] Mesclar Dados (Antecedentes):** O serviço do backend (`dndApiRoutes.ts`) foi modificado para que, ao receber uma requisição por "backgrounds", ele busque na fonte estática e mescle com os antecedentes homebrew públicos do banco de dados antes de retornar ao frontend.
--   **[X] Mesclagem Generalizada:** A lógica de mesclagem foi expandida para todos os tipos de conteúdo relevantes (`races`, `classes`, `spells`, `items`, etc.), garantindo que o conteúdo homebrew apareça de forma integrada em toda a aplicação.
+-   **[X] Mesclar Dados (Listas de Recursos):** A rota `GET /api/dnds/:resource` do backend foi modificada para que, ao receber uma requisição por "classes", "raças", etc., ele busque na API oficial e mescle com o conteúdo homebrew público do banco de dados antes de retornar ao frontend.
+-   **[Em Andamento] Integração de Detalhes no Backend:**
+    -   **[✅ Concluído]** A rota `GET /api/dnds/:resource/:index` foi atualizada para detectar se um `index` é um ID de homebrew. Se for, ela busca os detalhes do nosso banco de dados em vez da API D&D.
+    -   **[✅ Concluído]** O `characterService` foi atualizado para carregar os dados de uma classe homebrew durante a criação do personagem.
+    -   **[Em Andamento]** Garantir que todos os outros serviços (`narrarService`, rotas de níveis/magias) também saibam como lidar com dados de homebrew.
+
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
 
@@ -43,8 +47,6 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
     -   **[✅ Concluído] Estrutura básica com nome e dado de vida.**
     -   **[✅ Concluído] Seleção de testes de resistência, proficiências e escolhas de perícias.**
     -   **[Em Andamento] Adicionar características de classe por nível.**
-        - **[✅ Concluído] Criado editor de Características (Features).**
-        - **[Em Andamento] Integração do seletor/criador de Características no formulário de Classe.**
 -   **[Em Andamento] Subclasses:**
     -   **[✅ Concluído] Estrutura básica com seleção de classe original, nome e descrição.**
     -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**

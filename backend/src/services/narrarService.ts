@@ -65,6 +65,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
         inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
         spells: fullCharacter.spells.map(s => s.spellName),
+        features: fullCharacter.feats, // Incluindo 'feats' que agora representam características de classe
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
         storySoFar: fullCharacter.storySoFar,
