@@ -147,6 +147,13 @@ const BackgroundForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDat
         handleFieldChange(type, { ...bgData[type], from: { ...bgData[type].from, options: newOptions }});
     }
 
+    const typeLabels: Record<string, string> = {
+        personality_traits: 'Traços de Personalidade',
+        ideals: 'Ideais',
+        bonds: 'Vínculos',
+        flaws: 'Defeitos'
+    };
+
     return (
         <div className="space-y-6">
             <h4 className="text-lg font-bold text-amber-300 border-b border-amber-800 pb-2">Informações Básicas</h4>
@@ -197,14 +204,9 @@ const BackgroundForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDat
                 <textarea value={bgData.feature.desc[0]} onChange={e => handleFieldChange('feature', {...bgData.feature, desc: [e.target.value]})} rows={3} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
             
-            {Object.entries({
-                personality_traits: 'Traços de Personalidade',
-                ideals: 'Ideais',
-                bonds: 'Vínculos',
-                flaws: 'Defeitos'
-            }).map(([type, label]) => (
+            {Object.keys(typeLabels).map((type) => (
                 <div key={type}>
-                    <h4 className="text-lg font-bold text-amber-300 border-b border-amber-800 pb-2">{label}</h4>
+                    <h4 className="text-lg font-bold text-amber-300 border-b border-amber-800 pb-2">{typeLabels[type]}</h4>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                         {bgData[type as keyof typeof bgData].from.options.map((opt: any, index: number) => (
                              <input key={index} type="text" value={opt.string || opt.desc} onChange={(e) => handleListChange(type as any, index, e.target.value)} placeholder={`Opção ${index + 1}`} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-sm"/>
@@ -228,36 +230,52 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
         concentration: false,
         components: [] as string[],
         material: '',
+        attack_type: '',
+        damage: {
+            damage_type: { index: '', name: ''},
+            damage_dice: ''
+        }
     });
     const [magicSchools, setMagicSchools] = useState<ApiListItem[]>([]);
-    const [isLoadingSchools, setIsLoadingSchools] = useState(true);
+    const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const fetchSchools = async () => {
+        const fetchOptions = async () => {
             try {
-                setIsLoadingSchools(true);
-                const schools = await DndApiService.getMagicSchools();
+                setIsLoading(true);
+                const [schools, damages] = await Promise.all([
+                    DndApiService.getMagicSchools(),
+                    DndApiService.getDamageTypes()
+                ]);
+                
                 setMagicSchools(schools?.results || []);
-                // Set a default school if not already set
+                setDamageTypes(damages?.results || []);
+
                 if (!spellData.school.index && schools?.results?.length > 0) {
                     const defaultSchool = schools.results[0];
                     handleFieldChange('school', { index: defaultSchool.index, name: defaultSchool.name });
                 }
+                 if (!spellData.damage.damage_type.index && damages?.results?.length > 0) {
+                    const defaultDamage = damages.results[0];
+                    handleDamageChange('damage_type', { index: defaultDamage.index, name: defaultDamage.name });
+                }
             } catch (error) {
-                console.error("Falha ao buscar escolas de magia:", error);
+                console.error("Falha ao buscar opções de magia:", error);
             } finally {
-                setIsLoadingSchools(false);
+                setIsLoading(false);
             }
         };
-        fetchSchools();
+        fetchOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const updateParent = (newData: any) => {
-        const fullData = {
-            ...newData,
-            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`
-        };
+        const fullData = { ...newData };
+        if(!fullData.attack_type) delete fullData.attack_type;
+        if(!fullData.damage?.damage_dice) delete fullData.damage;
+
+        fullData.index = newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
         onDataChange(fullData);
     };
 
@@ -267,70 +285,100 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
         updateParent(newData);
     };
 
+    const handleDamageChange = (field: keyof typeof spellData.damage, value: any) => {
+        const newDamage = { ...spellData.damage, [field]: value };
+        handleFieldChange('damage', newDamage);
+    };
+
     const handleComponentChange = (component: 'V' | 'S' | 'M') => {
         const newComponents = spellData.components.includes(component)
             ? spellData.components.filter(c => c !== component)
             : [...spellData.components, component];
         handleFieldChange('components', newComponents);
     };
+    
+    const CASTING_TIMES = ["1 ação", "1 ação bônus", "1 reação", "1 minuto", "10 minutos", "1 hora", "8 horas", "12 horas", "24 horas"];
+    const RANGES = ["Toque", "Pessoal", "Visão", "Ilimitado", "5 pés", "10 pés", "30 pés", "60 pés", "90 pés", "100 pés", "120 pés", "150 pés", "300 pés", "500 pés", "1 milha"];
+    const DURATIONS = ["Instantâneo", "1 rodada", "6 rodadas", "1 minuto", "10 minutos", "1 hora", "8 horas", "24 horas", "Até ser dissipado"];
+
+    if (isLoading) {
+        return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8" /></div>
+    }
 
     return (
         <div className="space-y-4">
+             <div>
+                <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
+                <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+            <div>
+                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
-                    <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
-                </div>
-                <div>
+                 <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Nível</label>
                     <select value={spellData.level} onChange={e => handleFieldChange('level', Number(e.target.value))} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                         {Array.from({length: 10}).map((_, i) => <option key={i} value={i}>{i === 0 ? 'Truque' : `${i}º Nível`}</option>)}
                     </select>
                 </div>
-            </div>
-             <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
-                    {isLoadingSchools ? <Loader2 className="animate-spin" /> : (
-                        <select
-                            value={spellData.school.index}
-                            onChange={e => {
-                                const school = magicSchools.find(s => s.index === e.target.value);
-                                if (school) handleFieldChange('school', { index: school.index, name: school.name });
-                            }}
-                            className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
-                        >
-                            <option value="" disabled>Selecione...</option>
-                            {magicSchools.map(s => <option key={s.index} value={s.index}>{translateApiString(s.name)}</option>)}
-                        </select>
-                    )}
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Tempo de Conjuração</label>
-                    <input type="text" value={spellData.casting_time} onChange={e => handleFieldChange('casting_time', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                    <select value={spellData.school.index} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {magicSchools.map(s => <option key={s.index} value={s.index}>{translateApiString(s.name)}</option>)}
+                    </select>
                 </div>
                  <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Tempo de Conjuração</label>
+                    <select value={spellData.casting_time} onChange={e => handleFieldChange('casting_time', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {CASTING_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                </div>
+                <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Alcance</label>
-                    <input type="text" value={spellData.range} onChange={e => handleFieldChange('range', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                    <select value={spellData.range} onChange={e => handleFieldChange('range', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {RANGES.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Duração</label>
-                    <input type="text" value={spellData.duration} onChange={e => handleFieldChange('duration', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                    <select value={spellData.duration} onChange={e => handleFieldChange('duration', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Ataque</label>
+                    <select value={spellData.attack_type} onChange={e => handleFieldChange('attack_type', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        <option value="">Nenhum</option>
+                        <option value="ranged">À Distância</option>
+                        <option value="melee">Corpo a Corpo</option>
+                    </select>
                 </div>
             </div>
-            <div>
-                 <label className="block text-sm font-medium text-stone-300 mb-1">Componentes</label>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                {spellData.attack_type && (
+                     <>
+                         <div>
+                            <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
+                            <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                                {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-stone-300 mb-1">Dado de Dano</label>
+                            <input type="text" value={spellData.damage.damage_dice} onChange={e => handleDamageChange('damage_dice', e.target.value)} placeholder="Ex: 3d8" className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"/>
+                        </div>
+                     </>
+                )}
+            </div>
+
+            <div className="space-y-2">
+                 <label className="block text-sm font-medium text-stone-300">Componentes</label>
                  <div className="flex gap-4">
-                    {['V', 'S', 'M'].map(c => (
-                        <label key={c} className="flex items-center gap-2 text-stone-200">
-                             <input type="checkbox" checked={spellData.components.includes(c)} onChange={() => handleComponentChange(c as any)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />
-                             {c}
-                        </label>
-                    ))}
+                    {['V', 'S', 'M'].map(c => ( <label key={c} className="flex items-center gap-2 text-stone-200"><input type="checkbox" checked={spellData.components.includes(c)} onChange={() => handleComponentChange(c as any)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />{c}</label>))}
+                    <label className="flex items-center gap-2 text-stone-200"><input type="checkbox" checked={spellData.concentration} onChange={e => handleFieldChange('concentration', e.target.checked)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />Concentração</label>
                  </div>
             </div>
             {spellData.components.includes('M') && (

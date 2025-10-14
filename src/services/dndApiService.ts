@@ -13,6 +13,7 @@ export const getBackgrounds = () => apiClient<{ count: number, results: ApiListI
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
 export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');
+export const getDamageTypes = () => apiClient<{ results: ApiListItem[] }>('/dnds/damage-types');
 
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);

@@ -32,11 +32,13 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 -   **[ ] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
     -   **[X] Implementado para Raças.**
     -   **[X] Implementado para Antecedentes.**
-    -   **[ ] Próximo Passo: Implementar para Magias.**
+    -   **[Em Andamento] Próximo Passo: Implementar para Magias.**
+        -   **[X] Estrutura básica do formulário.**
+        -   **[ ] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
 -   **[ ] Sistema de Dependências:**
-    -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente.
+    -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente. Ao criar uma magia, poderá selecionar um item (existente ou customizado) como componente material.
     -   **Implementação:** Quando um conteúdo com dependências for "instalado" por outro jogador, o sistema identificará e instalará todas as dependências necessárias juntas.
     -   **[X] Implementado para Traços dentro da criação de Raças.**
 
