@@ -10,6 +10,8 @@ interface Props {
     onDataChange: (data: any) => void;
 }
 
+const RARITIES = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary", "Artifact"];
+
 const ItemForm: React.FC<Props> = ({ onDataChange }) => {
     const [itemData, setItemData] = useState({
         name: '',
@@ -17,6 +19,8 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
         equipment_category: { index: 'adventuring-gear', name: 'Adventuring Gear' },
         cost: { quantity: 0, unit: 'gp' },
         weight: 0,
+        rarity: { name: 'Common' }, // Campo para raridade de item mágico
+        isMagic: false, // Flag para item mágico
     });
     const [equipmentCategories, setEquipmentCategories] = useState<ApiListItem[]>([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -28,7 +32,6 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
                 const cats = await DndApiService.getEquipmentCategories();
                 if (cats?.results) {
                     setEquipmentCategories(cats.results);
-                    // Set a default category if not already set
                     if (!itemData.equipment_category.index && cats.results.length > 0) {
                         handleFieldChange('equipment_category', {
                             index: cats.results[0].index,
@@ -51,7 +54,12 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
             ...newData,
             index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
         };
-        onDataChange(fullData);
+        // Remove 'isMagic' field before sending up, it's just for form state
+        const { isMagic, ...finalData } = fullData;
+        if (!isMagic) {
+            delete finalData.rarity;
+        }
+        onDataChange(finalData);
     };
 
     const handleFieldChange = (field: keyof typeof itemData, value: any) => {
@@ -71,6 +79,10 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
         const newCost = { ...itemData.cost, [field]: value };
         handleFieldChange('cost', newCost);
     }
+    
+    const handleRarityChange = (name: string) => {
+        handleFieldChange('rarity', { name });
+    }
 
     return (
         <div className="space-y-4">
@@ -82,6 +94,22 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
                 <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
             </div>
+             <div className="flex items-center gap-4">
+                 <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={itemData.isMagic} onChange={(e) => handleFieldChange('isMagic', e.target.checked)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />
+                    É um item mágico?
+                </label>
+             </div>
+             {itemData.isMagic && (
+                 <div className="animate-fadeIn">
+                     <label htmlFor="item-rarity" className="block text-sm font-medium text-stone-300 mb-1">Raridade</label>
+                    <select id="item-rarity" value={itemData.rarity.name} onChange={(e) => handleRarityChange(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        {RARITIES.map(r => (
+                            <option key={r} value={r}>{translateApiString(r)}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
             <div>
                  <label htmlFor="item-category" className="block text-sm font-medium text-stone-300 mb-1">Categoria do Equipamento</label>
                 {isLoadingCategories ? <Loader2 className="animate-spin" /> : (

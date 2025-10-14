@@ -32,16 +32,16 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
     -   **[✅ Concluído]** O `narrarService` e as rotas de níveis/magias agora também sabem como lidar com dados de classes homebrew.
 
 
-### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
+### Fase 4: O Editor Homebrew (Concluído)
 
-O objetivo desta fase é criar uma interface de formulário guiada para cada tipo de conteúdo, eliminando a necessidade de escrever JSON manualmente e reduzindo a possibilidade de erros.
+O objetivo desta fase era criar uma interface de formulário guiada para cada tipo de conteúdo, eliminando a necessidade de escrever JSON manualmente e reduzindo a possibilidade de erros.
 
 #### **Status dos Editores:**
 
 -   **[✅ Concluído] Raças:** Incluindo a criação de traços customizados e o suporte a sub-raças.
 -   **[✅ Concluído] Antecedentes:** Formulário completo para a criação de antecedentes.
 -   **[✅ Concluído] Magias:** Incluindo mecânicas de dano, escalonamento e seleção de componentes materiais.
--   **[✅ Concluído] Itens:** Com campos para categoria, custo, peso e propriedades.
+-   **[✅ Concluído] Itens (Comuns e Mágicos):** Com campos para categoria, custo, peso, propriedades e raridade.
 -   **[✅ Concluído] Talentos (Feats):** Implementado através do "Criador de Traços".
 -   **[✅ Concluído] Classes:**
     -   Estrutura básica com nome e dado de vida.
@@ -50,11 +50,11 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Subclasses:**
     -   Estrutura básica com seleção de classe original, nome e descrição.
     -   Adição de características de subclasse por nível.
--   **[🚧 Em Andamento] Monstros:**
+-   **[✅ Concluído] Monstros:**
     - **[✅ Concluído]** Estrutura inicial do formulário (Nome, Tamanho, Tipo, Alinhamento).
-    - **[Em Andamento]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
-    - **[⬜️ A Fazer]** Implementação de perícias, resistências, sentidos e idiomas.
-    - **[⬜️ A Fazer]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
+    - **[✅ Concluído]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
+    - **[✅ Concluído]** Implementação de perícias, resistências, sentidos e idiomas.
+    - **[✅ Concluído]** Sistema para adicionar ações, habilidades especiais e ações lendárias, incluindo detalhes de ataque.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
@@ -63,9 +63,13 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Traços em Raças:** Ao criar uma raça, é possível criar e associar novos traços.
 -   **[✅ Concluído] Componentes Materiais em Magias:** Ao criar uma magia, é possível selecionar um item existente ou criar um novo para servir como componente.
 
-## 3. Estrutura de Dados
+## 3. Estrutura de Dados e Extensibilidade
 
-Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e. O `openapi.yaml` na raiz do projeto é a referência canônica.
+Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e (`openapi.yaml`). Isso garante consistência e previsibilidade para o Mestre de Jogo IA.
+
+No entanto, o sistema foi projetado para ser extensível. Novas mecânicas que não existem no SRD (ex: Pontos de Ki, Dados de Poder Psíquico) podem ser ensinadas à IA através de regras customizadas adicionadas ao arquivo de prompt principal (`backend/src/game/prompt5e.ts`).
+
+Com essa arquitetura, a plataforma está pronta para recriar e integrar conteúdo de qualquer livro de D&D.
 
 **Exemplo (Raça Homebrew Simplificada):**
 ```json
@@ -83,4 +87,4 @@ Todo o conteúdo criado DEVE aderir ao schema definido pela API D&D 5e. O `opena
 }
 ```
 
-Este documento será atualizado conforme cada fase do sistema Homebrew for implementada.
+Este documento será atualizado conforme o sistema Homebrew evoluir com novas funcionalidades.
