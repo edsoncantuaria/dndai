@@ -239,6 +239,7 @@ export const useNewGameState = () => {
                 // Mapeia os logs do backend para o formato do frontend
                 const formattedLogs = (sessionDetails.logs || []).map(log => ({
                     ...log,
+                    id: log.id?.toString() || uuidv4(),
                     content: log.response, // Mapeia 'response' para 'content'
                 }));
 

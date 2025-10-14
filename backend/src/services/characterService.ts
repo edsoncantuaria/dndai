@@ -25,8 +25,9 @@ export const buildFullCharacterObject = async (character: Character) => {
         ...fullCharacter,
         attributes: fullCharacter.attributes,
         proficiencies: fullCharacter.proficiencies.map(p => ({ index: p.index, name: p.name, type: p.type })),
-        inventory: fullCharacter.items.map((item: CharacterItem) => ({ ...item.itemData, id: item.id, quantity: item.quantity, equipped: item.equipped })),
-        spells: fullCharacter.spells.map((s: CharacterSpell) => s.spellName),
+        // CORREÇÃO: Mapeia `items` para `inventory` e garante que `itemData` seja preservado.
+        inventory: fullCharacter.items.map((item: CharacterItem) => ({ ...item.itemData, id: item.id.toString(), quantity: item.quantity, equipped: item.equipped })),
+        spells: fullCharacter.spells, // Mantém a estrutura de `CharacterSpell`
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
     };
@@ -89,7 +90,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             charItem.name = itemData.name;
             charItem.quantity = itemData.quantity;
             charItem.itemData = itemData;
-            charItem.equipped = itemData.equipped;
+            charItem.equipped = itemData.equipped || false;
             return charItem;
         });
         await queryRunner.manager.save(items);

@@ -25,4 +25,3 @@ Este arquivo rastreia os problemas relatados pelos usuários e as correções ap
 -   **Correção (Aplicada):**
     1.  A função `handleContinueGame` no `GameContainer.tsx` foi ajustada para chamar `startGame()` se a sessão carregada não tiver logs, garantindo que novas aventuras comecem corretamente.
     2.  A função `buildFrontendCharacter` foi corrigida para mapear `backendChar.items` para `inventory`, garantindo que os dados dos itens (incluindo `itemData`) sejam corretamente processados e exibidos.
-

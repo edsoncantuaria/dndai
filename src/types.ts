@@ -415,7 +415,7 @@ export interface ApiSpell {
     school: ApiListItem;
     classes: ApiListItem[];
     subclasses: ApiListItem[];
-    dc?: {
+dc?: {
         dc_type: ApiListItem;
         dc_success: string;
     }
