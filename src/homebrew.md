@@ -50,12 +50,12 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Subclasses:**
     -   Estrutura básica com seleção de classe original, nome e descrição.
     -   Adição de características de subclasse por nível.
--   **[🚧 Em Andamento] Monstros:**
+-   **[✅ Concluído] Monstros:**
     - **[✅ Concluído]** Estrutura inicial do formulário (Nome, Tamanho, Tipo, Alinhamento).
     - **[✅ Concluído]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
     - **[✅ Concluído]** Implementação de perícias, resistências, sentidos e idiomas.
-    - **[🚧 Em Andamento]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
-        - **[🚧 Em Andamento]** Implementação de detalhes de ataque (bônus de ataque, dano, tipo de dano).
+    - **[✅ Concluído]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
+        - **[✅ Concluído]** Implementação de detalhes de ataque (bônus de ataque, dano, tipo de dano).
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
