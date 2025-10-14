@@ -15,6 +15,7 @@ import { CharacterSpell } from '../entities/CharacterSpell.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
+import { HomebrewContent } from '../entities/HomebrewContent.js';
 
 
 /**
@@ -51,6 +52,7 @@ export const AppDataSource = new DataSource({
         JournalEntry,
         Quest,
         Relationship,
+        HomebrewContent,
     ], 
     
     migrations: [],
