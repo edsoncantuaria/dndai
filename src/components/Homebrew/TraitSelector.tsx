@@ -1,11 +1,12 @@
 // src/components/Homebrew/TraitSelector.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService';
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
+import TraitCreator from './TraitCreator'; // Importar o novo componente
 
 interface Props {
     selectedTraits: ApiListItem[];
@@ -16,36 +17,60 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
     const [allTraits, setAllTraits] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isCreatorOpen, setIsCreatorOpen] = useState(false); // Estado para o modal
+
+    const fetchTraits = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const officialTraitsPromise = DndApiService.getTraits();
+            // Busca tanto os traços públicos quanto os do próprio usuário
+            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'trait');
+            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'trait');
+
+            const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
+                officialTraitsPromise,
+                publicHomebrewPromise,
+                myHomebrewPromise,
+            ]);
+
+            const official = officialResult?.results || [];
+            
+            const formatHomebrew = (items: HomebrewService.HomebrewContent[], source: string) => items.map(hb => ({
+                index: hb.id,
+                name: `${hb.name} (${source})`,
+                url: `/api/homebrew/${hb.id}`,
+            }));
+
+            const publicHomebrew = formatHomebrew(publicHomebrewResult, 'Comunidade');
+            const myHomebrew = formatHomebrew(myHomebrewResult, 'Meu');
+
+            // Combina e remove duplicatas (caso um item "meu" também seja "público")
+            const combinedHomebrew = [...myHomebrew, ...publicHomebrew.filter(phb => !myHomebrew.some(mhb => mhb.index === phb.index))];
+
+            setAllTraits([...official, ...combinedHomebrew]);
+        } catch (error) {
+            console.error("Failed to fetch traits:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchTraits = async () => {
-            setIsLoading(true);
-            try {
-                const officialTraitsPromise = DndApiService.getTraits();
-                const homebrewTraitsPromise = HomebrewService.listHomebrewContent('public', 'trait');
-
-                const [officialResult, homebrewResult] = await Promise.all([
-                    officialTraitsPromise,
-                    homebrewTraitsPromise,
-                ]);
-
-                const official = officialResult?.results || [];
-                const homebrew = homebrewResult.map(hb => ({
-                    index: hb.id,
-                    name: `${hb.name} (Homebrew)`,
-                    url: `/api/homebrew/${hb.id}`,
-                }));
-
-                setAllTraits([...official, ...homebrew]);
-            } catch (error) {
-                console.error("Failed to fetch traits:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
         fetchTraits();
-    }, []);
+    }, [fetchTraits]);
+    
+    // Callback para quando um novo traço é criado
+    const handleTraitCreated = (newTraitContent: any) => {
+        // Adiciona o novo traço à lista local e o seleciona automaticamente
+        const newApiListItem: ApiListItem = {
+            index: newTraitContent.id,
+            name: `${newTraitContent.name} (Meu)`,
+            url: `/api/homebrew/${newTraitContent.id}`,
+        };
+        setAllTraits(prev => [newApiListItem, ...prev]);
+        onSelectionChange([...selectedTraits, newApiListItem]);
+    };
+
 
     const handleToggleTrait = (trait: ApiListItem) => {
         const isSelected = selectedTraits.some(st => st.index === trait.index);
@@ -93,10 +118,16 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
                 </div>
             )}
             <div className="text-right">
-                <button type="button" className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1" onClick={() => alert('Wizard para criação de traços ainda não implementado.')}>
+                <button type="button" className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1" onClick={() => setIsCreatorOpen(true)}>
                     <Plus className="h-4 w-4" /> Criar Novo Traço
                 </button>
             </div>
+            
+            <TraitCreator
+                isOpen={isCreatorOpen}
+                onClose={() => setIsCreatorOpen(false)}
+                onTraitCreated={handleTraitCreated}
+            />
         </div>
     );
 };

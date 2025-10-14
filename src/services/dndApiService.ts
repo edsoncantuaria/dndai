@@ -9,9 +9,9 @@ export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/cla
 export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
 export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
 export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
-export const getBackgrounds = () => apiClient<{ results: ApiListItem[], count: number }>('/dnds/backgrounds');
+export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds');
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
-export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits'); // Nova função
+export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);
@@ -19,7 +19,7 @@ export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/cla
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
 export const getBackgroundDetails = (index: string) => {
     // Check if the background is a homebrew one (UUID) vs official (string index)
-    if (index.includes('-')) { // Simple check for UUID format
+    if (index.includes('-') && index.length > 20) { // Simple check for UUID format
       return apiClient<ApiBackground>(`/homebrew/${index}`);
     }
     return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
@@ -30,7 +30,13 @@ export const getSpellsForClass = (index: string) => apiClient<{ results: ApiList
 export const getEquipmentForCategory = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
-export const getTraitDetails = (index: string) => apiClient<ApiTrait>(`/dnds/traits/${index}`);
+export const getTraitDetails = (index: string) => {
+    // Check if the trait is a homebrew one (UUID) vs official (string index)
+    if (index.includes('-') && index.length > 20) { // Simple check for UUID format
+        return apiClient<ApiTrait>(`/homebrew/${index}`);
+    }
+    return apiClient<ApiTrait>(`/dnds/traits/${index}`);
+}
 export const getEquipmentDetails = (index: string) => apiClient<Partial<InventoryItem>>(`/dnds/equipment/${index}`);
 export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
 export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
