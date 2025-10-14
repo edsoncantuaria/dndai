@@ -60,6 +60,7 @@ export const getSessoesForUser = async (userId: number) => {
             nome: true,
             createdAt: true,
             updatedAt: true,
+            homebrewContentIds: true,
             character: {
                 id: true,
                 name: true,
@@ -101,3 +102,30 @@ export const deleteSessao = async (sessionId: number, userId: number) => {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.');
     }
 };
+
+
+export const updateHomebrewInstallation = async (sessionId: number, userId: number, homebrewId: string, action: 'install' | 'uninstall') => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId } });
+
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
+    }
+
+    let currentHomebrewIds = sessao.homebrewContentIds || [];
+
+    if (action === 'install') {
+        if (!currentHomebrewIds.includes(homebrewId)) {
+            currentHomebrewIds.push(homebrewId);
+        }
+    } else if (action === 'uninstall') {
+        currentHomebrewIds = currentHomebrewIds.filter(id => id !== homebrewId);
+    }
+    
+    sessao.homebrewContentIds = [...new Set(currentHomebrewIds)]; // Garante unicidade
+
+    const updatedSessao = await sessaoRepository.save(sessao);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { apiKey, ...sessaoParaRetorno } = updatedSessao;
+    return sessaoParaRetorno;
+}

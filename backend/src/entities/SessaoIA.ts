@@ -1,5 +1,5 @@
 // backend/src/entities/SessaoIA.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, DeleteDateColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, DeleteDateColumn, Index } from "typeorm";
 import { SessionLog } from "./SessionLog.js";
 import { User } from "./User.js";
 import { Character } from "./Character.js"; // Importa a nova entidade
@@ -29,6 +29,7 @@ export class SessaoIA {
     @JoinColumn({ name: 'characterId' })
     character: Character | null;
 
+    @Index()
     @Column({ type: 'simple-json', nullable: true })
     homebrewContentIds: string[]; // Armazena os IDs do conteúdo homebrew "instalado"
 
