@@ -9,6 +9,9 @@ import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
+import * as HomebrewService from './homebrewService.js';
+import * as DndApiService from './dndApiService.js';
+
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
@@ -36,19 +39,36 @@ export const buildFullCharacterObject = async (character: Character) => {
     return characterData;
 };
 
+// Helper to check if a string is a UUID
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
+
 export const createCharacter = async (userId: number, characterData: z.infer<typeof NewCharacterInfoSchema>) => {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
+        
+        let classDetails: any;
+        if (isUuid(characterData.characterClass)) {
+            const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass);
+            classDetails = hbClass.content;
+        } else {
+            classDetails = await DndApiService.getDetails('classes', characterData.characterClass);
+        }
+
+        if (!classDetails) {
+            throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
+        }
+        
         const newCharacter = new Character();
         Object.assign(newCharacter, {
             userId,
             name: characterData.name,
             race: characterData.race,
             subrace: characterData.subrace,
-            characterClass: characterData.characterClass,
+            characterClass: classDetails.name, // Usar o nome da classe, não o index
             subclassFlavor: characterData.subclassFlavor,
             level: characterData.level,
             background: characterData.background,
@@ -68,7 +88,8 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
 
         const attributes = new CharacterAttributes();
         Object.assign(attributes, characterData.attributes);
-        attributes.hp = characterData.hitDie + Math.floor((characterData.attributes.constitution - 10) / 2);
+        const hitDie = classDetails.hit_die || 8;
+        attributes.hp = hitDie + Math.floor((characterData.attributes.constitution - 10) / 2);
         attributes.maxHp = attributes.hp;
         attributes.character = savedCharacter;
         await queryRunner.manager.save(attributes);

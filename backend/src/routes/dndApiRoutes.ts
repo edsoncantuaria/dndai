@@ -14,6 +14,9 @@ const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
     'races', 'classes', 'subclasses', 'spells', 'items', 'monsters', 'backgrounds', 'feats'
 ] as HomebrewContentType[];
 
+// Helper to check if a string is a UUID
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+
 
 // Rota específica para servir os dados completos do backgrounds.json
 router.get('/backgrounds-data', async (req, res, next) => {
@@ -47,7 +50,7 @@ router.get('/:resource', async (req, res, next) => {
                 const homebrewResults = homebrewContent.map(hb => ({
                     index: hb.id, // Usamos o ID do homebrew como índice
                     name: `(H) ${hb.name}`, // Adiciona um prefixo para indicar que é homebrew
-                    url: `/api/homebrew/${hb.id}` // Aponta para a nossa API homebrew
+                    url: `/api/dnds/${resource}/${hb.id}` // Aponta para a nossa própria API
                 }));
                 finalResults = [...finalResults, ...homebrewResults];
             }
@@ -70,7 +73,17 @@ router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
     console.log(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
     try {
-        const data = await DndApiService.getDetails(resource, index);
+        let data;
+        if (isUuid(index)) {
+             const hbContent = await HomebrewService.getHomebrewContentById(index);
+             if (!hbContent) {
+                return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
+             }
+             data = hbContent.content;
+        } else {
+            data = await DndApiService.getDetails(resource, index);
+        }
+        
         if (!data) {
             console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`);
             return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
@@ -86,7 +99,20 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
     const { classIndex } = req.params;
     console.log(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
     try {
-        const data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
+        let data;
+        if (isUuid(classIndex)) {
+            const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
+            if (!hbContent) {
+                return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
+            }
+            // Homebrew classes might not have a /levels endpoint, data is in the content itself.
+            // This part might need more logic depending on how homebrew class levels are stored.
+            // For now, let's assume levels are part of the main content object.
+            data = (hbContent.content as any).levels || [];
+        } else {
+            data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
+        }
+
         if (!data) {
             return next(createError(404, `Níveis para a classe '${classIndex}' não encontrados.`));
         }
@@ -101,6 +127,17 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
     console.log(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
     try {
+        // This logic might need adjustment for homebrew classes with specific spell lists
+        if (isUuid(classIndex)) {
+             const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
+             if (!hbContent) {
+                return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
+            }
+            // Assuming homebrew class content has a `spells` property similar to API
+            const spells = (hbContent.content as any).spells || { count: 0, results: [] };
+             return res.json(spells);
+        }
+
         const data = await DndApiService.getDetails('classes', `${classIndex}/spells`);
         if (!data) {
             return next(createError(404, `Magias para a classe '${classIndex}' não encontradas.`));
