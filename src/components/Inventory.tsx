@@ -4,7 +4,7 @@ import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
-import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword } from 'lucide-react';
+import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword, Coins } from 'lucide-react';
 
 const LootDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
@@ -60,7 +60,7 @@ const Inventory: React.FC = () => {
     const weapons = character.inventory.filter(i => i.weapon_category);
     const armors = character.inventory.filter(i => i.armor_category);
     const magicItems = character.inventory.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
-    const otherItems = character.inventory.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)'));
+    const otherItems = character.inventory.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)') && !['gp', 'sp', 'cp', 'ep', 'pp'].includes(i.index));
 
     const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
         <div>
@@ -90,19 +90,41 @@ const Inventory: React.FC = () => {
                     <Backpack />
                     Inventário
                 </h3>
-                
-                <div className="mb-4">
-                    <div className="flex justify-between text-sm mb-1">
-                        <span className="font-semibold text-stone-300">Carga</span>
-                        <span className="font-mono text-stone-400">{currentWeight.toFixed(1)} / {carryingCapacity} lbs</span>
+
+                <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700 space-y-3">
+                    {/* Currency */}
+                    <div>
+                         <h4 className="font-semibold text-stone-300 text-sm mb-2 flex items-center gap-2"><Coins /> Moedas</h4>
+                         <div className="flex justify-around text-center">
+                            <div>
+                                <p className="font-mono font-bold text-lg text-yellow-500">{character.currency.gp}</p>
+                                <p className="text-xs text-stone-500">Ouro</p>
+                            </div>
+                            <div>
+                                <p className="font-mono font-bold text-lg text-slate-400">{character.currency.sp}</p>
+                                <p className="text-xs text-stone-500">Prata</p>
+                            </div>
+                            <div>
+                                <p className="font-mono font-bold text-lg text-orange-400">{character.currency.cp}</p>
+                                <p className="text-xs text-stone-500">Cobre</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="w-full bg-stone-700 rounded-full h-2.5 border border-stone-600 overflow-hidden">
-                        <div 
-                            className={`${progressBarColor} h-full rounded-full transition-all duration-300`} 
-                            style={{ width: `${Math.min(loadPercentage, 100)}%`}}
-                        ></div>
+
+                    {/* Weight */}
+                    <div className="pt-3 border-t border-stone-700">
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="font-semibold text-stone-300">Carga</span>
+                            <span className="font-mono text-stone-400">{currentWeight.toFixed(1)} / {carryingCapacity.toFixed(1)} lbs</span>
+                        </div>
+                        <div className="w-full bg-stone-700 rounded-full h-2.5 border border-stone-600 overflow-hidden">
+                            <div 
+                                className={`${progressBarColor} h-full rounded-full transition-all duration-300`} 
+                                style={{ width: `${Math.min(loadPercentage, 100)}%`}}
+                            ></div>
+                        </div>
                     </div>
-                 </div>
+                </div>
             </div>
 
             <div className="space-y-4">

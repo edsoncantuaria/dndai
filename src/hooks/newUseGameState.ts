@@ -56,7 +56,7 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     
     newChar.attributes = { ...oldChar.attributes, ...updates.attributes };
     newChar.hp = { ...oldChar.hp, ...updates.hp };
-    newChar.currency = { ...oldChar.currency, ...updates.currency };
+    newChar.currency = characterUtils.calculateCurrency(newChar.inventory); // Recalculate currency
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
@@ -66,7 +66,8 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     newChar.modifiers = newModifiers;
     newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
     newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
-    newChar.currentWeight = (newChar.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+    newChar.currentWeight = characterUtils.calculateWeight(newChar.inventory);
+
 
     return newChar;
 };

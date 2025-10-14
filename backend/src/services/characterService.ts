@@ -96,6 +96,23 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             return charItem;
         });
         await queryRunner.manager.save(items);
+        
+        // Add starting gold as an item
+        const goldPouch = characterData.inventory.find(i => i.name.toLowerCase().includes('pouch'));
+        if (goldPouch && goldPouch.desc?.[0]?.toLowerCase().includes('gold')) {
+            const match = goldPouch.desc[0].match(/(\d+)\s*gp/);
+            if (match) {
+                const goldAmount = parseInt(match[1], 10);
+                const goldItem = new CharacterItem();
+                goldItem.character = savedCharacter;
+                goldItem.name = "Gold Piece";
+                goldItem.quantity = goldAmount;
+                goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0 };
+                goldItem.equipped = false;
+                await queryRunner.manager.save(goldItem);
+            }
+        }
+
 
         const spells = characterData.spells.map(spellName => {
             const charSpell = new CharacterSpell();

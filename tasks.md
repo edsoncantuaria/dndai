@@ -49,9 +49,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Justificativa:** Assegura que a interface do usuário seja um reflexo fiel e completo do estado do personagem armazenado no servidor, resolvendo inconsistências.
     *   **Status:** Concluído.
     
-*   **[ ] Componentizar a UI (Frontend):**
+*   **[X] Componentizar a UI (Frontend):**
     *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
     *   **Justificativa:** Melhora a organização do código, a performance de renderização (com `React.memo`) e a manutenibilidade.
+    *   **Status:** Em Andamento. Os componentes `CharacterSheet` e `NewCharacterCreation` foram refatorados.
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
@@ -99,14 +100,14 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Reimaginar Inventário e Grimório:**
     *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
-    *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
-    *   **Status:** Concluído.
+    - **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
+    - **Status:** Concluído.
 
-*   **[ ] Adicionar Suporte a Talentos (Feats):**
+*   **[X] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
-    *   **Status:** Refatoração de banco de dados concluída. Próximo passo é a implementação na UI.
+    *   **Status:** Concluído. A seleção de talentos para Humano Variante e a persistência no banco de dados estão funcionais.
 
-*   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
+*   **[X] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
@@ -147,4 +148,5 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
 

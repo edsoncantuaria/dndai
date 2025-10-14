@@ -14,6 +14,11 @@ export const PROFICIENCY_BONUS: Record<number, number> = {
     13: 5, 14: 5, 15: 5, 16: 5, 17: 6, 18: 6, 19: 6, 20: 6
 };
 
+// Standard D&D 5e rule: 50 coins weigh 1 pound.
+export const COIN_WEIGHT = 0.02;
+
+export const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
+
 
 export const calculateModifier = (score: number): number => {
     return Math.floor((score - 10) / 2);
@@ -39,6 +44,27 @@ export const getXpThreshold = (level: number): number => {
 export const calculateCarryingCapacity = (strength: number): number => {
     return strength * 15;
 };
+
+export const calculateCurrency = (inventory: InventoryItem[]): Character['currency'] => {
+    const currency: Character['currency'] = { gp: 0, sp: 0, cp: 0 };
+    inventory.forEach(item => {
+        if (COIN_TYPES.includes(item.index)) {
+            currency[item.index as keyof typeof currency] = (currency[item.index as keyof typeof currency] || 0) + item.quantity;
+        }
+    });
+    return currency;
+};
+
+export const calculateWeight = (inventory: InventoryItem[]): number => {
+    return inventory.reduce((sum, item) => {
+        // All coins weigh 0.02 lbs each
+        if (COIN_TYPES.includes(item.index)) {
+            return sum + (item.quantity * COIN_WEIGHT);
+        }
+        return sum + (item.weight || 0) * item.quantity;
+    }, 0);
+}
+
 
 export const calculateMaxHpAtLevel1 = (hitDie: number, constitutionModifier: number): number => {
     return hitDie + constitutionModifier;
@@ -250,8 +276,8 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
-        currency: { gp: backendChar.currency?.gp || 15, sp: 0, cp: 0 }, // Default gold if none
-        currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
+        currency: calculateCurrency(inventory),
+        currentWeight: calculateWeight(inventory),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),
         traits: traits,
         classLevelsData: classLevelsData,
