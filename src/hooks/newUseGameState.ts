@@ -46,7 +46,12 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     let newChar: Character = { ...oldChar, ...updates };
 
     // Deep merge for nested objects and arrays
-    if (updates.inventory) newChar.inventory = updates.inventory;
+    if (updates.inventory) {
+        newChar.inventory = updates.inventory;
+        // Recalculate currency and weight whenever inventory changes
+        newChar.currency = characterUtils.calculateCurrency(newChar.inventory);
+        newChar.currentWeight = characterUtils.calculateWeight(newChar.inventory);
+    }
     if (updates.spells) newChar.spells = updates.spells;
     if (updates.conditions) newChar.conditions = updates.conditions;
     if (updates.journal) newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
@@ -56,18 +61,17 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     
     newChar.attributes = { ...oldChar.attributes, ...updates.attributes };
     newChar.hp = { ...oldChar.hp, ...updates.hp };
-    newChar.currency = characterUtils.calculateCurrency(newChar.inventory); // Recalculate currency
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
 
-    // Recalculate derived properties
-    const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
-    newChar.modifiers = newModifiers;
-    newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
-    newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
-    newChar.currentWeight = characterUtils.calculateWeight(newChar.inventory);
-
+    // Recalculate derived properties if attributes changed
+    if (updates.attributes) {
+        const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
+        newChar.modifiers = newModifiers;
+        newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
+        newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
+    }
 
     return newChar;
 };

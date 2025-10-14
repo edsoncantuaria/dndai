@@ -56,12 +56,17 @@ export const calculateCurrency = (inventory: InventoryItem[]): Character['curren
 };
 
 export const calculateWeight = (inventory: InventoryItem[]): number => {
+    // Return early if inventory is not an array
+    if (!Array.isArray(inventory)) {
+        console.warn("calculateWeight received a non-array inventory:", inventory);
+        return 0;
+    }
     return inventory.reduce((sum, item) => {
         // All coins weigh 0.02 lbs each
-        if (COIN_TYPES.includes(item.index)) {
-            return sum + (item.quantity * COIN_WEIGHT);
+        if (COIN_TYPES.includes(item?.index)) {
+            return sum + ((item?.quantity || 0) * COIN_WEIGHT);
         }
-        return sum + (item.weight || 0) * item.quantity;
+        return sum + ((item?.weight || 0) * (item?.quantity || 1));
     }, 0);
 }
 

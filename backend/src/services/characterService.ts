@@ -33,9 +33,6 @@ export const buildFullCharacterObject = async (character: Character) => {
         feats: fullCharacter.feats || [],
     };
     
-    // Remove as propriedades de relação para evitar redundância no objeto final
-    delete (characterData as any).items;
-    
     return characterData;
 };
 
