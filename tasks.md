@@ -14,9 +14,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fases da Implementação:
 
-*   **[⬜️ A Fazer] Fase 1: Ciclo Dinâmico de Dia/Noite e Clima**
-    *   **Tarefa:** Instruir a IA para atualizar proativamente o `worldState` (tempo e clima) após ações como descanso, viagem ou eventos narrativos significativos.
-    *   **Tarefa:** Fazer com que as mudanças climáticas tenham efeitos mecânicos (ex: desvantagem em Percepção durante uma nevasca, terreno difícil em lamaçais após a chuva).
+*   **[⬜️ A Fazer] Fase 1: Ciclo Dinâmico de Dia/Noite, Clima e Calendário**
+    *   **Tarefa:** Instruir a IA para atualizar proativamente o `worldState` (tempo, clima e data) após ações como descanso, viagem ou eventos narrativos significativos.
+    *   **Tarefa:** Fazer com que as mudanças climáticas e a data tenham efeitos mecânicos e narrativos (ex: desvantagem em Percepção durante uma nevasca, festivais em certas épocas do ano, NPCs que reagem à passagem do tempo).
+    *   **Tarefa:** Exibir a data e o clima atuais na interface do jogador através do `WorldStatePanel`.
 
 *   **[⬜️ A Fazer] Fase 2: NPCs com Agência e Rotinas**
     *   **Tarefa:** Criar um mecanismo para que a IA processe o que NPCs importantes fazem "fora da tela" enquanto o jogador está ocupado.
