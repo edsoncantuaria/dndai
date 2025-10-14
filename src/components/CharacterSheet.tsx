@@ -2,16 +2,16 @@
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
-import type { Attributes, Proficiency, ApiTrait } from '../types';
+import type { Attributes, Proficiency, ApiListItem } from '../types';
 import * as characterUtils from '../utils/characterUtils';
-import { AlertTriangle, ChevronDown, Coffee, BedDouble, Dice5, ShieldCheck, Heart, Zap, Footprints, ChevronsRight, Eye, Brain, Search } from 'lucide-react';
+import { AlertTriangle, ChevronDown, Coffee, BedDouble } from 'lucide-react';
 import DeathSavesTracker from './CharacterSheet/DeathSavesTracker';
 import SkillItem from './CharacterSheet/SkillItem';
 
 const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultOpen);
     return (
-        <div className="border-t border-stone-700 pt-3">
+        <div className="border-t border-stone-700 pt-3 mt-4">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full flex justify-between items-center text-left"
@@ -33,26 +33,11 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     if (!character) return null;
 
     const { attributes, modifiers, proficiencies, languages, conditions, hitDice, traits } = character;
-    const initiativeBonus = modifiers?.dexterity ?? 0;
     
     const coreAttributeKeys = (Object.keys(attributes) as Array<keyof Attributes>).filter(
         key => typeof attributes[key] === 'number' && key !== 'id' && key !== 'characterId' && key !== 'hp' && key !== 'ac'
     );
     
-
-    const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
-    
-    // --- Passive Skills Calculation ---
-    const calculatePassiveScore = (skillName: string, attribute: keyof Attributes) => {
-        const isProficient = (proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
-        return 10 + (modifiers ? modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
-    };
-
-    const passivePerception = calculatePassiveScore('perception', 'wisdom');
-    const passiveInsight = calculatePassiveScore('insight', 'wisdom');
-    const passiveInvestigation = calculatePassiveScore('investigation', 'intelligence');
-    // --- End Passive Skills ---
-
     return (
         <div className="p-4 space-y-4">
             <div className="text-center mb-4">
@@ -60,49 +45,6 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 <p className="text-sm text-stone-400">{translateApiString(character.race)} {translateApiString(character.characterClass)} de Nível {character.level}</p>
             </div>
             
-             <div className="mb-4">
-                <div className="flex justify-between text-xs mb-1">
-                    <span className="font-semibold text-stone-300">XP</span>
-                    <span className="font-mono text-stone-400">{character.xp} / {character.xpToNextLevel}</span>
-                </div>
-                <div className="w-full bg-stone-700 rounded-full h-2 border border-stone-600 overflow-hidden relative">
-                    <div 
-                        className="bg-purple-600 h-full rounded-full transition-all duration-300" 
-                        style={{ width: `${xpPercentage}%`}}
-                    ></div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 text-center">
-                 <div className="bg-red-900/30 p-2 rounded-md border border-red-800">
-                    <div className="text-xs font-bold text-red-200 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> VIDA</div>
-                    <div className="font-bold text-xl text-stone-100">{character.hp.current} / {character.hp.max}</div>
-                </div>
-                 <div className="bg-blue-900/30 p-2 rounded-md border border-blue-800">
-                    <div className="text-xs font-bold text-blue-200 flex items-center justify-center gap-1"><ShieldCheck className="h-3 w-3"/> CA</div>
-                    <div className="font-bold text-xl text-stone-100">{character.ac.value}</div>
-                </div>
-                 <div className="bg-green-900/30 p-2 rounded-md border border-green-800">
-                    <div className="text-xs font-bold text-green-200 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> INICIATIVA</div>
-                    <div className="font-bold text-xl text-stone-100">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
-                </div>
-            </div>
-            
-             <div className="grid grid-cols-3 gap-2 text-center bg-stone-800/50 p-2 rounded-md">
-                 <div title="Percepção Passiva">
-                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Eye className="h-3 w-3"/> Percepção</div>
-                    <p className="font-bold text-lg text-stone-200">{passivePerception}</p>
-                </div>
-                <div title="Intuição Passiva">
-                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Brain className="h-3 w-3"/> Intuição</div>
-                    <p className="font-bold text-lg text-stone-200">{passiveInsight}</p>
-                </div>
-                 <div title="Investigação Passiva">
-                    <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Search className="h-3 w-3"/> Investigação</div>
-                    <p className="font-bold text-lg text-stone-200">{passiveInvestigation}</p>
-                </div>
-            </div>
-
             <DeathSavesTracker />
 
             {conditions && conditions.length > 0 && (
