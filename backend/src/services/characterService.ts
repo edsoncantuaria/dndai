@@ -11,8 +11,6 @@ import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import * as HomebrewService from './homebrewService.js';
 import * as DndApiService from './dndApiService.js';
-import { v4 as uuidv4 } from 'uuid';
-
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
@@ -54,47 +52,25 @@ export const buildFullCharacterObject = async (character: Character) => {
 // Helper to check if a string is a UUID
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
-// Helper function to create detailed item data based on its index
-const createDetailedItem = (itemData: any) => {
-    const baseItem = {
-        id: uuidv4(),
-        index: itemData.index || itemData.name.toLowerCase().replace(/\s+/g, '-'),
-        name: itemData.name,
-        quantity: itemData.quantity || 1,
-        equipped: false,
-        desc: itemData.desc || [],
-        itemData: {} // Será preenchido abaixo
-    };
 
-    const specificDetails: Record<string, any> = {
-        'signet-ring': {
-            desc: [`Um anel de sinete usado para selar cartas ou provar sua identidade. O emblema é de um(a) ${itemData.name.includes('imaginary') ? 'duque imaginário' : 'nobre desconhecido'}.`]
-        },
-        'scroll-of-pedigree': {
-            desc: [`Um pergaminho que detalha sua linhagem, mostrando seus laços com uma família nobre.`]
-        },
-        'clothes-fine': {
-            desc: [`Roupas finas e bem-feitas, adequadas para a nobreza ou ocasiões importantes.`]
-        },
-        'pouch': {
-            desc: [`Uma simples bolsa de couro ou tecido. Pode conter moedas e pequenos itens.`]
-        },
-    };
-
-    const details = specificDetails[baseItem.index] || {};
-    baseItem.itemData = { ...itemData, ...details, desc: details.desc || baseItem.desc };
-
-    // Extrai o ouro da bolsa
-    if (baseItem.index === 'pouch' && baseItem.itemData.desc[0]?.toLowerCase().includes('gold')) {
-        const match = baseItem.itemData.desc[0].match(/(\d+)\s*gp/);
-        if (match) {
-            baseItem.itemData.goldValue = parseInt(match[1], 10);
-            // Remove the gold part from the description to avoid confusion
-            baseItem.itemData.desc = [`Uma simples bolsa de couro ou tecido.`];
-        }
+// Helper to get or create a detailed, reusable homebrew item
+const getOrCreateReusableItem = async (userId: number, itemName: string, itemDetails: any) => {
+    const reusableItem = await HomebrewService.findHomebrewContentByName(itemName, 'item');
+    if (reusableItem) {
+        return reusableItem.content;
     }
-
-    return baseItem;
+    // If not found, create it as a new homebrew entry for future reuse
+    const newHomebrewItem = await HomebrewService.createHomebrewContent(userId, {
+        name: itemName,
+        type: 'item',
+        content: {
+            ...itemDetails,
+            index: itemDetails.index || itemName.toLowerCase().replace(/\s+/g, '-'),
+            name: itemName,
+        },
+        isPublic: true, // Make these descriptive items public by default
+    });
+    return newHomebrewItem.content;
 }
 
 
@@ -107,7 +83,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         
         let classDetails: any;
         if (isUuid(characterData.characterClass)) {
-            const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass);
+            const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass, userId);
             classDetails = hbClass.content;
         } else {
             // FIX: Convert class index to lowercase for API call
@@ -120,16 +96,28 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         
         let startingGold = 0;
         
-        const detailedItems = characterData.inventory.map(item => {
-            const detailedItem = createDetailedItem(item);
-            if (detailedItem.itemData.goldValue) {
-                startingGold += detailedItem.itemData.goldValue;
-                // Gold is extracted, we can potentially remove the pouch if that's the only thing it did
-                // For now, we keep the pouch but the gold is in the currency system.
+        const itemPromises = characterData.inventory.map(async (itemData: any) => {
+            // Handle special descriptive items by making them reusable homebrew content
+            if (itemData.index === 'signet-ring' || itemData.index === 'scroll-of-pedigree' || itemData.index === 'clothes-fine') {
+                 const reusableContent = await getOrCreateReusableItem(userId, itemData.name, {
+                    ...itemData,
+                    desc: itemData.desc || [`Um item com uma história para ser descoberta.`]
+                });
+                return { ...reusableContent, quantity: itemData.quantity || 1, equipped: false, id: '' };
             }
-            return detailedItem;
+             // Handle pouches with gold
+            if (itemData.index === 'pouch' && itemData.desc?.[0]?.toLowerCase().includes('gp')) {
+                const match = itemData.desc[0].match(/(\d+)\s*gp/);
+                if (match) {
+                    startingGold += parseInt(match[1], 10);
+                }
+                // Return a standard pouch without the gold description
+                return { ...itemData, desc: ['Uma simples bolsa de couro ou tecido.'], quantity: 1 };
+            }
+            return { ...itemData, quantity: itemData.quantity || 1 };
         });
 
+        const detailedItems = await Promise.all(itemPromises);
 
         const newCharacter = new Character();
         Object.assign(newCharacter, {
@@ -173,13 +161,14 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(proficiencies);
 
-        const items = detailedItems.map(itemData => {
+        const finalInventoryItems = detailedItems.filter(item => item.index !== 'gp');
+
+        const items = finalInventoryItems.map(itemData => {
             const charItem = new CharacterItem();
             charItem.character = savedCharacter;
             charItem.name = itemData.name;
             charItem.quantity = itemData.quantity;
-            // The full data, including our new descriptions, is stored in itemData
-            charItem.itemData = itemData.itemData; 
+            charItem.itemData = itemData; // Store the full (potentially homebrewed) item data
             charItem.equipped = itemData.equipped || false;
             return charItem;
         });

@@ -4,6 +4,7 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
+import { Like } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -81,5 +82,24 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
         throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
     }
 
+    return content;
+};
+
+/**
+ * Encontra um conteúdo homebrew pelo nome e tipo.
+ * Útil para verificar se um item reutilizável já existe.
+ * @param name O nome do conteúdo a ser encontrado.
+ * @param type O tipo do conteúdo.
+ * @returns O conteúdo homebrew encontrado ou null.
+ */
+export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    // Usamos Like para fazer uma busca case-insensitive
+    const content = await homebrewRepo.findOne({
+        where: {
+            name: Like(name),
+            type: type,
+        }
+    });
     return content;
 };
