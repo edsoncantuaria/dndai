@@ -29,8 +29,8 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
 *   **[X] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
-    *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
-    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros (ex: token expirado, redirecionar para login) e adição automática de headers de autenticação.
+    *   **Tarefa:** Criar um único `apiClient.ts` que exporta um wrapper do `fetch`. Todos os serviços do frontend (`authService`, `gameService`) usarão este cliente.
+    *   **Justificativa:** Centraliza a lógica de API, permitindo a fácil implementação de interceptadores para tratamento de erros e adição automática de headers de autenticação.
 
 ### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
@@ -46,7 +46,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Adaptar Componentes de Jogo (Ficha, Inventário, etc.):**
     *   **Tarefa:** Garantir que os componentes do frontend, como a ficha de personagem e o inventário, exibam corretamente os dados carregados do backend, corrigindo bugs de mapeamento de dados.
-    *   **Justificativa:** Assegura que a interface do usuário seja um reflexo fiel e completo do estado do personagem armazenado no servidor, resolvendo inconsistências como inventários vazios.
+    *   **Justificativa:** Assegura que a interface do usuário seja um reflexo fiel e completo do estado do personagem armazenado no servidor, resolvendo inconsistências.
     *   **Status:** Concluído.
     
 *   **[ ] Componentizar a UI (Frontend):**
@@ -55,16 +55,16 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fase 1.3: Imersão, Elegância e Completude do Sistema D&D
 
-*   **[ ] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
+*   **[X] Reforçar o Fluxo de Jogo "Mestre Pede, Jogador Rola":**
     *   **Visão (Backend):** Tornar o `prompt5e.ts` extremamente rigoroso. A IA **nunca** deve rolar dados pelo jogador ou presumir resultados. O fluxo `Intenção -> Pedido de Rolagem (com DC claro) -> Resultado -> Consequência` deve ser obrigatório para ataques, perícias e testes de resistência.
     *   **Visão (Frontend):** O `DiceRollModal` deve exibir claramente o alvo (DC) para criar suspense. A agência do jogador sobre os dados é a alma da experiência.
 
-*   **[ ] Implementar Sistema de Perícias Passivas:**
+*   **[X] Implementar Sistema de Perícias Passivas:**
     *   **Visão (Backend):** Calcular a `Percepção Passiva` (e outras, como Investigação ou Intuição) e incluí-la no prompt da IA. Instruir a IA a usar esse valor como um gatilho narrativo (ex: "Se a Percepção Passiva do personagem for > 14, narre que ele nota a fresta solta na parede").
     *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
 
-    *   **[ ] Reimaginar o Menu Principal:**
-    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira, criando uma imersão imediata.
+    *   **[X] Reimaginar o Menu Principal:**
+    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo são apresentadas como diários ou pergaminhos, criando uma imersão imediata.
 
 *   **[ ] Ficha de Personagem Interativa:**
     *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
