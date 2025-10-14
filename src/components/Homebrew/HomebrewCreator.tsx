@@ -197,9 +197,14 @@ const BackgroundForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDat
                 <textarea value={bgData.feature.desc[0]} onChange={e => handleFieldChange('feature', {...bgData.feature, desc: [e.target.value]})} rows={3} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
             
-            {['personality_traits', 'ideals', 'bonds', 'flaws'].map(type => (
+            {Object.entries({
+                personality_traits: 'Traços de Personalidade',
+                ideals: 'Ideais',
+                bonds: 'Vínculos',
+                flaws: 'Defeitos'
+            }).map(([type, label]) => (
                 <div key={type}>
-                    <h4 className="text-lg font-bold text-amber-300 border-b border-amber-800 pb-2 capitalize">{type.replace('_', ' de ')}</h4>
+                    <h4 className="text-lg font-bold text-amber-300 border-b border-amber-800 pb-2">{label}</h4>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
                         {bgData[type as keyof typeof bgData].from.options.map((opt: any, index: number) => (
                              <input key={index} type="text" value={opt.string || opt.desc} onChange={(e) => handleListChange(type as any, index, e.target.value)} placeholder={`Opção ${index + 1}`} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-sm"/>
