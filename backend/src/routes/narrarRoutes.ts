@@ -15,4 +15,3 @@ const router = Router();
 router.post('/:sessionId', authMiddleware, narrar);
 
 export default router;
-

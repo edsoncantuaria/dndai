@@ -1,94 +1,42 @@
 // backend/src/controllers/sessoesController.ts
 import { Response, NextFunction } from 'express';
-import { AppDataSource } from '../database/data-source.js';
-import { SessaoIA } from '../entities/SessaoIA.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
-import createError from 'http-errors';
-import { IsNull } from 'typeorm';
-import { Character } from '../entities/Character.js';
-import { User } from '../entities/User.js';
-import { buildFullCharacterObject } from './characterController.js'; 
+import * as SessaoService from '../services/sessaoService.js';
 import { CreateSessaoSchema } from '../schemas/validationSchemas.js';
+import createError from 'http-errors';
 
-// Criar uma nova sessão de jogo para um personagem existente
+// Criar ou obter uma nova sessão de jogo para um personagem
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
 
     try {
         const { nome, characterId } = CreateSessaoSchema.parse(req.body);
+        const { sessao, isNew } = await SessaoService.getOrCreateSessao(nome, characterId, userId);
 
-        const characterRepository = AppDataSource.getRepository(Character);
-        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const userRepository = AppDataSource.getRepository(User);
-
-        // Verifica se o personagem pertence ao usuário logado
-        const character = await characterRepository.findOne({ where: { id: characterId, userId: userId! } });
-        if (!character) {
-            return next(createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.'));
-        }
-
-        // Verifica se já existe uma sessão ativa para este personagem
-        const existingSession = await sessaoRepository.findOne({ where: { characterId, userId: userId!, deletedAt: IsNull() } });
-
-        if (existingSession) {
-            // Se a sessão já existe, retorna os dados dela para continuar
-            const { apiKey, ...sessaoParaRetorno } = existingSession;
-            return res.status(200).json({ message: 'Sessão existente encontrada.', sessao: sessaoParaRetorno });
-        }
-
-        // Busca o usuário para obter a chave de API das configurações
-        const user = await userRepository.findOneBy({ id: userId! });
-        if (!user?.settings?.apiKey) {
-            return next(createError(400, 'Nenhuma chave de API encontrada nas suas configurações. Adicione uma antes de criar a sessão.'));
-        }
-        const keyToUse = user.settings.apiKey;
-
-        const novaSessao = new SessaoIA();
-        novaSessao.nome = nome;
-        novaSessao.character = character;
-        novaSessao.userId = userId!;
-        novaSessao.apiKey = keyToUse; // Salva a chave do usuário na sessão
-        novaSessao.logs = [];
-
-        const sessaoSalva = await sessaoRepository.save(novaSessao);
-
-        // Remove a chave de api da resposta por segurança
-        const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
-
-        res.status(201).json({ message: 'Sessão criada com sucesso!', sessao: sessaoParaRetorno });
+        res.status(isNew ? 201 : 200).json({ 
+            message: isNew ? 'Sessão criada com sucesso!' : 'Sessão existente encontrada.', 
+            sessao 
+        });
     } catch (error: any) {
-        if (error.errors) { // Erro de validação do Zod
+        if (error.name === 'ZodError') {
             return next(createError(400, { errors: error.flatten().fieldErrors }));
         }
         next(error);
     }
 };
 
-
 // Listar todas as sessões do usuário autenticado
 export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
 
     try {
-        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const sessoes = await sessaoRepository.find({
-            where: { userId: userId!, deletedAt: IsNull() },
-            relations: ['character'], 
-            select: {
-                id: true,
-                nome: true,
-                createdAt: true,
-                updatedAt: true,
-                character: {
-                    id: true,
-                    name: true,
-                    level: true,
-                    characterClass: true,
-                    subclassFlavor: true, // Adicionado para exibição na lista
-                    race: true,
-                }
-            }
-        });
+        const sessoes = await SessaoService.getSessoesForUser(userId);
         res.status(200).json(sessoes);
     } catch (error) {
         next(error);
@@ -99,46 +47,38 @@ export const getSessoes = async (req: AuthRequest, res: Response, next: NextFunc
 export const getSessaoById = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+    
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
 
     try {
-        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        // Garante que as relações essenciais sejam sempre carregadas
-        const sessao = await sessaoRepository.findOne({
-            where: { id: Number(id), userId: userId!, deletedAt: IsNull() },
-            relations: ['logs', 'character'] 
-        });
-
-        if (!sessao) {
-            return next(createError(404, 'Sessão não encontrada ou você não tem permissão.'));
-        }
-
-        // Reconstroi o objeto do personagem completo
-        if (sessao.character) {
-            sessao.character = await buildFullCharacterObject(sessao.character) as Character;
-        }
-        
-        const { apiKey, ...sessaoSegura } = sessao;
-
-        res.status(200).json(sessaoSegura);
+        const sessao = await SessaoService.getSessaoDetails(sessionIdNum, userId);
+        res.status(200).json(sessao);
     } catch (error) {
         next(error);
     }
 };
 
-
-// Deletar uma sessão (agora usando soft delete)
+// Deletar uma sessão (soft delete)
 export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
 
     try {
-        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const result = await sessaoRepository.softDelete({ id: Number(id), userId: userId! });
-
-        if (result.affected === 0) {
-            return next(createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.'));
-        }
-        
+        await SessaoService.deleteSessao(sessionIdNum, userId);
         res.status(200).json({ message: 'Sessão movida para a lixeira com sucesso.' });
     } catch (error) {
         next(error);

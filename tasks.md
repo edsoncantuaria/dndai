@@ -20,7 +20,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Em cada controller do backend (ex: `characterController.ts`), usar o Zod para criar schemas que validam o `req.body` de todas as requisições `POST` e `PUT`.
     *   **Justificativa:** Garante que dados malformados ou maliciosos nunca cheguem à nossa lógica de negócios ou ao banco de dados, tornando a API mais segura e previsível.
 
-*   **[ ] Criar Camada de Serviço (Service Layer) (Backend):**
+*   **[X] Criar Camada de Serviço (Service Layer) (Backend):**
     *   **Tarefa:** Criar novos serviços (ex: `characterService.ts`, `sessionService.ts`) na pasta `backend/src/services`. Mover a lógica de banco de dados (TypeORM) e as interações complexas dos controllers para esses serviços.
     *   **Justificativa:** Desacopla a lógica da API (Express) da lógica de negócios. Os controllers se tornam mais simples (apenas validam e chamam serviços), e a lógica principal pode ser reutilizada e testada de forma isolada.
 
@@ -130,12 +130,6 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão:** Substituir a lista de diário por um mapa visual da região. Locais descobertos se tornam ícones clicáveis que revelam anotações.
     *   **Ressalva:** A geração de imagens de mapa de forma procedural e consistente é um desafio técnico. A viabilidade precisa ser investigada antes da implementação.
 
-*   **[ ] TASK-2: Streaming Avançado e Modo Multiplayer (Pausado)**
+*   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
-    *   **Sub-tarefas Planejadas:**
-        *   **[ ]** Migrar a lógica de IA para uma Cloud Function para escalabilidade.
-        *   **[ ]** Implementar um servidor WebSocket no backend Express.
-        *   **[ ]** Criar sistema de salas de jogo (criação, entrada, saída).
-        *   **[ ]** Sincronizar o estado do jogo entre múltiplos clientes via WebSockets.
-        *   **[ ]** Adaptar a UI e o fluxo de turnos para uma experiência cooperativa.
 ---

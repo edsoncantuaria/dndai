@@ -1,41 +1,23 @@
 // backend/src/controllers/licenseController.ts
 import { Response, NextFunction } from 'express';
-import { AppDataSource } from '../database/data-source.js';
-import { LicenseKey } from '../entities/LicenseKey.js';
-import { User } from '../entities/User.js';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
-import createError from 'http-errors';
+import * as LicenseService from '../services/licenseService.js';
 import { ActivateLicenseSchema } from '../schemas/validationSchemas.js';
+import createError from 'http-errors';
 
 export const activateLicense = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
 
     try {
         const { key } = ActivateLicenseSchema.parse(req.body);
-
-        const licenseRepository = AppDataSource.getRepository(LicenseKey);
-        const license = await licenseRepository.findOne({ where: { key } });
-
-        if (!license) {
-            return next(createError(404, 'Chave de licença inválida.'));
-        }
-
-        if (license.isActivated) {
-            return next(createError(409, 'Esta chave de licença já foi ativada.'));
-        }
-
-        license.isActivated = true;
-        license.activatedByUserId = userId!;
-        await licenseRepository.save(license);
-
-        const userRepository = AppDataSource.getRepository(User);
-        await userRepository.update(userId!, { licenseKeyId: license.id });
-
-
+        await LicenseService.activateLicenseForKey(key, userId);
         res.status(200).json({ success: true, message: 'Licença ativada com sucesso!' });
 
     } catch (error: any) {
-         if (error.errors) { // Erro de validação do Zod
+        if (error.name === 'ZodError') {
             return next(createError(400, { errors: error.flatten().fieldErrors }));
         }
         next(error);
@@ -44,22 +26,13 @@ export const activateLicense = async (req: AuthRequest, res: Response, next: Nex
 
 export const getLicenseStatus = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
 
     try {
-        const userRepository = AppDataSource.getRepository(User);
-        const user = await userRepository.findOne({
-            where: { id: userId },
-            relations: ["licenseKey"]
-        });
-
-        if (!user) {
-            return next(createError(404, 'Usuário não encontrado.'));
-        }
-
-        res.status(200).json({
-            isActive: user.licenseKey?.isActivated || false
-        });
-
+        const isActive = await LicenseService.getLicenseStatusForUser(userId);
+        res.status(200).json({ isActive });
     } catch (error) {
         next(error);
     }
