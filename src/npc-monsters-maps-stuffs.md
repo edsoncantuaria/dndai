@@ -61,10 +61,10 @@ O prompt do Mestre de Jogo será aprimorado com novas diretrizes:
     *   **Status:** Os componentes `NewJournal.tsx` e `NewRelationships.tsx` foram implementados, exibindo os dados de NPCs, locais e missões de forma organizada para o jogador.
 
 -   **[✅ Concluído] Fase 4: Mecânicas Avançadas (Fundação)**:
-    *   **Status:** O trabalho inicial nas mecânicas avançadas foi concluído.
+    *   **Status:** O trabalho de fundação nas mecânicas avançadas foi concluído.
     *   **[✅ Concluído]** A IA foi aprimorada para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações.
-    *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado, preparando o terreno para diferenciar monstros.
+    *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado, diferenciando monstros e NPCs únicos.
 
 -   **[⬜️ A Fazer] Fase 5: Próximos Passos**:
-    *   **Tarefa:** Implementar a lógica de backend e de IA para diferenciar monstros únicos de monstros genéricos (que podem reaparecer).
+    *   **Tarefa:** Implementar a lógica de backend para diferenciar o *respawn* de monstros únicos (gerenciados via `Relationship`) vs. genéricos (que podem reaparecer).
     *   **Tarefa:** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
