@@ -22,7 +22,7 @@ export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/cla
 export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
 export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
 export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
-export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds-data'); // Alterado para a rota correta
+export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds');
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
 export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');

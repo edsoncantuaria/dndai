@@ -100,7 +100,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
                     <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
                 </div>
             ) : (
-                <div className="max-h-48 overflow-y-auto space-y-2 rounded-md bg-stone-900/50 p-2 border border-stone-700">
+                <div className="max-h-48 overflow-y-auto space-y-2 rounded-md bg-stone-900/50 p-2 border border-stone-700 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {filteredTraits.map(trait => {
                          const isSelected = selectedTraits.some(st => st.index === trait.index);
                         return (
