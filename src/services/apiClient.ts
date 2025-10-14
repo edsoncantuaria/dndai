@@ -29,9 +29,10 @@ const getAuthHeaders = (): HeadersInit => {
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const { headers, ...customOptions } = options;
 
+    const isPublicRoute = endpoint.startsWith('/auth/') || endpoint.startsWith('/dnds/');
+
     const requestOptions: RequestInit = {
-        // Usa headers de autenticação para todas as rotas, exceto as de login/registro
-        headers: (endpoint.startsWith('/auth/'))
+        headers: isPublicRoute
             ? { 'Content-Type': 'application/json', ...headers }
             : { ...getAuthHeaders(), ...headers },
         ...customOptions

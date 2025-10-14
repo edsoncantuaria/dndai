@@ -1,50 +1,32 @@
 // src/services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
+import { apiClient } from './apiClient';
 
-const API_BASE = '/api/dnds'; // Rota correta para o proxy do backend
-
-async function fetchFromApi<T>(endpoint: string): Promise<T | null> {
-    const fullUrl = `${API_BASE}${endpoint}`;
-    console.log(`[Frontend Service] Solicitando para o backend: ${fullUrl}`);
-    try {
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-            console.error(`[Frontend Service] Erro de API: ${response.status} para o endpoint ${endpoint}`);
-            return null;
-        }
-        // Handle no content responses
-        if (response.status === 204) return null;
-        return await response.json() as T;
-    } catch (error) {
-        console.error(`[Frontend Service] Erro de Fetch para o endpoint ${endpoint}:`, error);
-        return null;
-    }
-}
 
 // --- Funções Principais (agora chamam nosso backend) ---
 
-export const getRaces = () => fetchFromApi<{ results: ApiListItem[] }>('/races');
-export const getClasses = () => fetchFromApi<{ results: ApiListItem[] }>('/classes');
-export const getAlignments = () => fetchFromApi<{ results: ApiListItem[] }>('/alignments');
-export const getSkills = () => fetchFromApi<{ results: ApiListItem[] }>('/skills');
-export const getLanguages = () => fetchFromApi<{ results: ApiListItem[] }>('/languages');
-export const getBackgrounds = () => fetchFromApi<{ results: ApiListItem[] }>('/backgrounds');
-export const getFeats = () => fetchFromApi<{ results: ApiListItem[] }>('/feats');
+export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/dnds/races');
+export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/classes');
+export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
+export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
+export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
+export const getBackgrounds = () => apiClient<{ results: ApiListItem[] }>('/dnds/backgrounds');
+export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 
-export const getRaceDetails = (index: string) => fetchFromApi<ApiRace>(`/races/${index}`);
-export const getSubraceDetails = (index: string) => fetchFromApi<ApiSubrace>(`/subraces/${index}`);
-export const getClassDetails = (index: string) => fetchFromApi<ApiClass>(`/classes/${index}`);
-export const getSubclassDetails = (index: string) => fetchFromApi<ApiSubclass>(`/subclasses/${index}`);
-export const getBackgroundDetails = (index: string) => fetchFromApi<ApiBackground>(`/backgrounds/${index}`);
+export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
+export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);
+export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/classes/${index}`);
+export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
+export const getBackgroundDetails = (index: string) => apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
 
-export const getClassLevels = (index: string) => fetchFromApi<ApiClassLevel[]>(`/classes/${index}/levels`);
-export const getSpellsForClass = (index: string) => fetchFromApi<{ results: ApiListItem[] }>(`/classes/${index}/spells`);
-export const getEquipmentForCategory = (index: string) => fetchFromApi<{ equipment: ApiListItem[] }>(`/equipment-categories/${index}`);
+export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);
+export const getSpellsForClass = (index: string) => apiClient<{ results: ApiListItem[] }>(`/dnds/classes/${index}/spells`);
+export const getEquipmentForCategory = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
-export const getSpellDetails = (index: string) => fetchFromApi<ApiSpell>(`/spells/${index}`);
-export const getTraitDetails = (index: string) => fetchFromApi<ApiTrait>(`/traits/${index}`);
-export const getEquipmentDetails = (index: string) => fetchFromApi<Partial<InventoryItem>>(`/equipment/${index}`);
-export const getConditionDetails = (index: string) => fetchFromApi<ApiCondition>(`/conditions/${index}`);
-export const getFeatureDetails = (index: string) => fetchFromApi<ApiFeature>(`/features/${index}`);
-export const getClassLevelDetails = (classIndex: string, level: number) => fetchFromApi<ApiClassLevel>(`/classes/${classIndex}/levels/${level}`);
-export const getFeatDetails = (index: string) => fetchFromApi<Feat>(`/feats/${index}`);
+export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
+export const getTraitDetails = (index: string) => apiClient<ApiTrait>(`/dnds/traits/${index}`);
+export const getEquipmentDetails = (index: string) => apiClient<Partial<InventoryItem>>(`/dnds/equipment/${index}`);
+export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
+export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
+export const getClassLevelDetails = (classIndex: string, level: number) => apiClient<ApiClassLevel>(`/dnds/classes/${classIndex}/levels/${level}`);
+export const getFeatDetails = (index: string) => apiClient<Feat>(`/dnds/feats/${index}`);
