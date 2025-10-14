@@ -109,8 +109,8 @@ const NarrationEntry: React.FC<{ entry: LogEntryType, isMostRecent: boolean }> =
     }, [entry.content, isMostRecent, isComplete]);
 
     return (
-        <div className="flex items-start">
-            <p className="text-stone-300 text-lg leading-relaxed flex-grow">
+         <div className="flex items-start">
+            <p className="text-stone-300 leading-relaxed flex-grow font-sans">
                 {displayedText}
                 {!isComplete && <span className="animate-pulse">_</span>}
             </p>
