@@ -36,7 +36,7 @@ export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds
 export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/classes/${index}`);
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
 export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
-    // Check if the background is a homebrew one (UUID) vs official (string index)
+    // Regex to check if the index is a UUID (for homebrew content)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(index)) {
         const data = await apiClient<any>(`/homebrew/${index}`);
@@ -60,14 +60,20 @@ export const getEquipmentForCategory = (index: string) => apiClient<{ equipment:
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => {
     // Regex to check if the index is a UUID (for homebrew content)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4-}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
     if (uuidRegex.test(index)) {
         return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiTrait);
     }
     return apiClient<ApiTrait>(`/dnds/traits/${index}`);
 }
-export const getEquipmentDetails = (index: string) => apiClient<Partial<InventoryItem>>(`/dnds/equipment/${index}`);
+export const getEquipmentDetails = (index: string) => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(index)) {
+        return apiClient<any>(`/homebrew/${index}`).then(data => data.content as Partial<InventoryItem>);
+    }
+    return apiClient<Partial<InventoryItem>>(`/dnds/equipment/${index}`);
+}
 export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
 export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
 export const getClassLevelDetails = (classIndex: string, level: number) => apiClient<ApiClassLevel>(`/dnds/classes/${classIndex}/levels/${level}`);

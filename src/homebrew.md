@@ -43,14 +43,14 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
     -   **[X] Refatoração:** Os formulários foram extraídos para componentes separados, melhorando a organização do código.
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
--   **[Em Andamento] Sistema de Dependências:**
+-   **[X] Sistema de Dependências:**
     -   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente. Ao criar uma magia, poderá selecionar um item (existente ou customizado) como componente material.
     -   **[X] Implementado para Traços dentro da criação de Raças.**
-    -   **[Em Andamento] Próximo Passo: Implementar para Componentes Materiais em Magias.**
-        -   **[X] Criar a estrutura básica para os componentes `ItemSelector.tsx` e `ItemCreator.tsx`.**
-        -   **[X] Implementar a lógica de busca e exibição de itens no `ItemSelector`.**
-        -   **[X] Implementar a lógica de criação de itens no modal `ItemCreator`.**
-        -   **[ ] Conectar o `ItemSelector` ao `SpellForm` para substituir o campo de texto do componente material.**
+    -   **[X] Implementado para Componentes Materiais em Magias.**
+        -   **[X] Criada a estrutura básica para os componentes `ItemSelector.tsx` e `ItemCreator.tsx`.**
+        -   **[X] Implementada a lógica de busca e exibição de itens no `ItemSelector`.**
+        -   **[X] Implementada a lógica de criação de itens no modal `ItemCreator`.**
+        -   **[X] Conectado o `ItemSelector` ao `SpellForm` para substituir o campo de texto do componente material.**
 
 ## 3. Estrutura de Dados
 
