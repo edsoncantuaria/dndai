@@ -11,8 +11,8 @@ Este documento servirá como nosso guia mestre para a Fase 2 da migração do ba
 
 O novo backend será uma API RESTful construída com Express.js, responsável por:
 
-1.  **Gerenciamento de Sessões**: Um endpoint para criar, recuperar, atualizar e deletar sessões de jogo (`SessaoIA`). Cada sessão terá sua própria chave de API do Google Gemini, permitindo que os jogadores usem suas próprias credenciais.
-2.  **Orquestração da IA**: Um serviço dedicado (`aiService`) que cria e gerencia instâncias isoladas do Genkit para cada sessão. Isso garante que a IA de uma sessão não interfira com outra.
+1.  **Gerenciamento de Sessões**: Um endpoint para criar, recuperar, atualizar e deletar sessões de jogo (`SessaoIA`). Cada sessão terá sua própria chave de API do Google Gemini, permitindo que os jogadores usem suas próprias credenciais. **Atualização**: As sessões agora também armazenarão uma lista de IDs de conteúdo Homebrew "instalados" para aquela campanha específica.
+2.  **Orquestração da IA**: Um serviço dedicado (`aiService`) que cria e gerencia instâncias isoladas do Genkit para cada sessão. Isso garante que a IA de uma sessão não interfere com outra.
 3.  **Cache de Instâncias**: Para evitar a sobrecarga de reinicializar o Genkit a cada requisição, as instâncias de IA serão mantidas em um cache in-memory (um `Map` simples).
 4.  **Narração**: O endpoint principal `/api/narrar/:sessionId` receberá o prompt do jogador, encontrará a instância de IA correta (ou a criará), obterá a resposta e a retornará.
 5.  **Persistência de Logs**: Todas as interações (prompts do jogador e respostas da IA) serão salvas em uma tabela `session_logs`, vinculada à sessão correspondente.
@@ -50,7 +50,7 @@ O novo backend será uma API RESTful construída com Express.js, responsável po
 *   **[X] Implementar Camada de Dados com TypeORM**:
     *   Criar `data-source.ts` para a configuração da conexão com o MySQL.
     *   Definir as entidades `SessaoIA` e `SessionLog` em `src/entities/`.
-        *   `SessaoIA`: `id`, `nome`, `apiKey`, `createdAt`, `updatedAt`.
+        *   `SessaoIA`: `id`, `nome`, `apiKey`, `createdAt`, `updatedAt`, `homebrewContentIds`.
         *   `SessionLog`: `id`, `sessionId`, `prompt`, `response`, `timestamp`.
 
 *   **[X] Criar Endpoints CRUD para Sessões**:

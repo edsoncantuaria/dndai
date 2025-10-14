@@ -13,8 +13,8 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     try {
-        const { nome, characterId } = CreateSessaoSchema.parse(req.body);
-        const { sessao, isNew } = await SessaoService.getOrCreateSessao(nome, characterId, userId);
+        const validatedData = CreateSessaoSchema.parse(req.body);
+        const { sessao, isNew } = await SessaoService.getOrCreateSessao(validatedData, userId);
 
         res.status(isNew ? 201 : 200).json({ 
             message: isNew ? 'Sessão criada com sucesso!' : 'Sessão existente encontrada.', 

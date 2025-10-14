@@ -29,6 +29,9 @@ export class SessaoIA {
     @JoinColumn({ name: 'characterId' })
     character: Character | null;
 
+    @Column({ type: 'simple-json', nullable: true })
+    homebrewContentIds: string[]; // Armazena os IDs do conteúdo homebrew "instalado"
+
     @OneToMany(() => SessionLog, log => log.sessao, { cascade: true, eager: true })
     logs: SessionLog[];
 

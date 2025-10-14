@@ -42,6 +42,7 @@ export const SettingsSchema = z.object({
 export const CreateSessaoSchema = z.object({
     nome: z.string().min(1, "O nome da sessão é obrigatório.").max(100),
     characterId: z.number().positive("ID do personagem inválido."),
+    homebrewIds: z.array(z.string().uuid()).optional(), // Valida que é um array de UUIDs
 });
 
 // --- Character ---

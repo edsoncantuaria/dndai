@@ -6,8 +6,12 @@ import { Character } from '../entities/Character.js';
 import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import { buildFullCharacterObject } from './characterService.js';
+import type { z } from 'zod';
+import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 
-export const getOrCreateSessao = async (nome: string, characterId: number, userId: number) => {
+export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
+    const { nome, characterId, homebrewIds } = data;
+    
     const characterRepository = AppDataSource.getRepository(Character);
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const userRepository = AppDataSource.getRepository(User);
@@ -35,6 +39,7 @@ export const getOrCreateSessao = async (nome: string, characterId: number, userI
     novaSessao.character = character;
     novaSessao.userId = userId;
     novaSessao.apiKey = keyToUse;
+    novaSessao.homebrewContentIds = homebrewIds || []; // Salva os IDs de homebrew
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
