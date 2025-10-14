@@ -10,8 +10,8 @@ import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
 import NewStep5_Equipment from './NewStep5_Equipment';
-import NewStep6_Spells from '../Spells/NewStep6_Spells';
-import NewStep8_Finalize from './NewStep8_Finalize';
+import NewStep6_Spells from './NewStep6_Spells';
+import NewStep7_Finalize from './NewStep7_Finalize'; // Renomeado
 import ActionModal from '../ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 
@@ -92,7 +92,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />;
+                return <NewStep7_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />; // Renomeado
             default:
                 return <div>Etapa Inválida.</div>;
         }

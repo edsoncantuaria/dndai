@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';
-import { Attributes } from '@/types';
+import type { Attributes } from '@/types';
 import { ArrowLeft, Play } from 'lucide-react';
 
 interface Props {
@@ -19,8 +19,11 @@ const NewStep7_Finalize: React.FC<Props> = ({
     handleFinalize,
 }) => {
     const {
-        name,
-        setName,
+        name, setName,
+        sex, setSex,
+        hairStyle, setHairStyle,
+        beardStyle, setBeardStyle,
+        skinColor, setSkinColor,
         isComplete,
         race,
         subrace,
@@ -83,6 +86,45 @@ const NewStep7_Finalize: React.FC<Props> = ({
                         placeholder="Nome do Personagem..."
                         className="w-full bg-transparent border-b-2 border-stone-600 focus:border-amber-500 pb-2 text-stone-100 text-3xl text-center font-bold font-garamond focus:ring-0 transition-colors"
                     />
+                </div>
+                
+                 {/* Appearance Section */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                        <label htmlFor="sex-select" className="block text-xs font-medium text-stone-400 mb-1">Sexo</label>
+                        <select id="sex-select" value={sex} onChange={e => setSex(e.target.value as any)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                            <option>Masculino</option>
+                            <option>Feminino</option>
+                            <option>Outro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="hair-select" className="block text-xs font-medium text-stone-400 mb-1">Cabelo</label>
+                        <select id="hair-select" value={hairStyle} onChange={e => setHairStyle(e.target.value as any)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                            <option>Careca</option>
+                            <option>Curto</option>
+                            <option>Médio</option>
+                            <option>Longo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="beard-select" className="block text-xs font-medium text-stone-400 mb-1">Barba</label>
+                        <select id="beard-select" value={beardStyle} onChange={e => setBeardStyle(e.target.value as any)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                            <option>Sem Barba</option>
+                            <option>Curta</option>
+                            <option>Grande</option>
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="skin-select" className="block text-xs font-medium text-stone-400 mb-1">Cor da Pele</label>
+                        <select id="skin-select" value={skinColor} onChange={e => setSkinColor(e.target.value as any)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                            <option>Branca</option>
+                            <option>Parda</option>
+                            <option>Negra</option>
+                            <option>Indígena</option>
+                            <option>Amarela</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
