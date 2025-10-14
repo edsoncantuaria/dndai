@@ -3,12 +3,12 @@ import redisClient from '../database/redis-client.js';
 import fetch from 'node-fetch'; // Usando node-fetch no backend
 import 'dotenv/config';
 
-const API_BASE = 'https://www.dnd5eapi.co/api';
+const API_BASE = 'https://www.dnd5eapi.co';
 const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
 
 /**
  * Busca dados da API D&D 5e com cache no Redis.
- * @param endpoint O endpoint da API a ser consultado (ex: '/races').
+ * @param endpoint O endpoint da API a ser consultado (ex: '/api/races').
  * @returns Os dados da API ou null em caso de erro.
  */
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
@@ -33,9 +33,10 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     }
     
     // 2. Se não estiver no cache (ou o Redis estiver indisponível), busca na API
-    console.log(`[API] Buscando: ${API_BASE}${endpoint}`);
+    const fullApiUrl = `${API_BASE}${endpoint}`;
+    console.log(`[API] Buscando: ${fullApiUrl}`);
     try {
-        const response = await fetch(`${API_BASE}${endpoint}`);
+        const response = await fetch(fullApiUrl);
         if (!response.ok) {
             console.error(`API Error: ${response.status} for endpoint ${endpoint}`);
             return null;
@@ -66,7 +67,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
  * @param resource O nome do recurso no plural (ex: 'races').
  */
 export const getResourceList = (resource: string) => {
-    return fetchWithCache<{ results: any[] }>(`/${resource}`);
+    return fetchWithCache<{ results: any[] }>(`/api/${resource}`);
 }
 
 /**
@@ -75,5 +76,5 @@ export const getResourceList = (resource: string) => {
  * @param index O índice do item (ex: 'elf', 'bard/levels').
  */
 export const getDetails = (resource: string, index: string) => {
-     return fetchWithCache<any>(`/${resource}/${index}`);
+     return fetchWithCache<any>(`/api/${resource}/${index}`);
 }
