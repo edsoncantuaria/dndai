@@ -44,7 +44,7 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
 
             const combinedHomebrew = [...myHomebrew, ...publicHomebrew.filter(phb => !myHomebrew.some(mhb => mhb.index === phb.index))];
 
-            setAllItems([...official, ...combinedHomebrew]);
+            setAllItems([...official, ...combinedHomebrew].sort((a, b) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error("Failed to fetch items:", error);
         } finally {
@@ -62,7 +62,7 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
             name: `(H) ${newItemContent.name}`,
             url: `/api/homebrew/${newItemContent.index}`,
         };
-        setAllItems(prev => [newApiListItem, ...prev]);
+        setAllItems(prev => [newApiListItem, ...prev].sort((a, b) => a.name.localeCompare(b.name)));
         onItemSelect(newApiListItem.name);
     };
 

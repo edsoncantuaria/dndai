@@ -30,7 +30,7 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
 
--   **[ ] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
+-   **[X] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
     -   **[X] Implementado para Raças.**
     -   **[X] Implementado para Antecedentes.**
     -   **[X] Implementado para Magias.**
@@ -48,9 +48,9 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
     -   **[X] Implementado para Traços dentro da criação de Raças.**
     -   **[Em Andamento] Próximo Passo: Implementar para Componentes Materiais em Magias.**
         -   **[X] Criar a estrutura básica para os componentes `ItemSelector.tsx` e `ItemCreator.tsx`.**
+        -   **[X] Implementar a lógica de busca e exibição de itens no `ItemSelector`.**
+        -   **[X] Implementar a lógica de criação de itens no modal `ItemCreator`.**
         -   **[ ] Conectar o `ItemSelector` ao `SpellForm` para substituir o campo de texto do componente material.**
-        -   **[ ] Implementar a lógica de busca e exibição de itens no `ItemSelector`.**
-        -   **[ ] Implementar a lógica de criação de itens no modal `ItemCreator`.**
 
 ## 3. Estrutura de Dados
 
