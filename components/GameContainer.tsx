@@ -10,7 +10,6 @@ import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
-import CharacterCreation from './CharacterCreation';
 import { useAuth } from '@/contexts/AuthContext';
 
 
@@ -22,7 +21,6 @@ const GameContainer = () => {
         character,
         loadGameSession,
         clearGameState,
-        createCharacter,
         deleteCharacter,
         deleteSession,
         startGame,
@@ -90,30 +88,46 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
-        if (newSessionResponse && newSessionResponse.sessao) {
-            await fetchInitialData();
-            const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-            if(loadedData) {
-                setGameStage('playing');
-                setPlayMenuMusic(false);
-                startGame(); // Explicitly start the game for a new session
+        setIsLoadingData(true);
+        try {
+            const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
+            if (newSessionResponse && newSessionResponse.sessao) {
+                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
+                if (loadedData) {
+                    setGameStage('playing');
+                    setPlayMenuMusic(false);
+                    if(loadedData.logs.length === 0) {
+                        startGame();
+                    }
+                }
             }
+        } catch (error) {
+            console.error("Failed to start new game session:", error);
+        } finally {
+            setIsLoadingData(false);
         }
     };
-
+    
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
     }
 
     const handleContinueGame = useCallback(async (sessionId: number) => {
+        setIsLoadingData(true);
         const loadedData = await loadGameSession(sessionId);
+        setIsLoadingData(false); 
+    
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
+            if (loadedData.logs.length === 0) {
+                startGame();
+            }
+        } else {
+            setGameStage('session_list');
         }
-    }, [loadGameSession, setPlayMenuMusic]);
+    }, [loadGameSession, setPlayMenuMusic, startGame]);
 
 
     const returnToMenu = useCallback(() => {
@@ -151,7 +165,6 @@ const GameContainer = () => {
         if (gameStage === 'playing' && character) {
             return (
                 <Game
-                    startNewGameFlow={() => setGameStage('character_vault')}
                     onCharacterCreated={handleCharacterCreated}
                     returnToMenu={returnToMenu}
                     gameStage={gameStage}
@@ -175,10 +188,10 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={() => handleNewGameFromVault(char)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
+                                        <button onClick={() => handleNewGameFromVault(char as Character)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
                                             <Play className="h-6 w-6 text-white" />
                                         </button>
-                                        <button onClick={() => setCharacterToDelete(char)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
+                                        <button onClick={() => setCharacterToDelete(char as Character)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
                                             <Trash2 className="h-6 w-6 text-white" />
                                         </button>
                                     </div>
@@ -202,7 +215,6 @@ const GameContainer = () => {
 
         if(gameStage === 'creating_character') {
             return <Game
-                startNewGameFlow={() => {}}
                 onCharacterCreated={handleCharacterCreated}
                 returnToMenu={returnToMenu}
                 gameStage={gameStage}

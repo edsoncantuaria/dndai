@@ -109,6 +109,13 @@ export const useNewGameState = () => {
         setActionOptions([]);
         setCombatState(INITIAL_COMBAT_STATE);
         setApiError(null);
+        setLevelUpState(null);
+        setShopState(null);
+        setPendingLootOffer(null);
+        setPendingHitDiceRequest(null);
+        setSkillCheckRequest(null);
+        setSpellCastRequest(null);
+        setPlayerRollRequest(null);
     }, []);
 
 
@@ -170,7 +177,6 @@ export const useNewGameState = () => {
         try {
             const savedCharacterResponse = await GameService.createNewCharacter(info);
             if(savedCharacterResponse.character) {
-                // This now returns the backend object, not a full frontend character
                 return savedCharacterResponse.character;
             }
             return null;
@@ -217,26 +223,30 @@ export const useNewGameState = () => {
     const startGame = useCallback(async (): Promise<void> => {
         if (!character || !sessionId || isLoading) return;
         
-        // Only send the starting prompt if the log is empty
-        if (log.length === 0) {
-            await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        }
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         
-    }, [character, sessionId, log, isLoading, processPlayerAction]);
+    }, [character, sessionId, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
+        clearGameState();
         setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
             if (sessionDetails && sessionDetails.character) {
-                const fullCharacter = characterUtils.buildFrontendCharacter(sessionDetails.character);
-                // Set state immediately here
+                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
+                
+                // Mapeia os logs do backend para o formato do frontend
+                const formattedLogs = (sessionDetails.logs || []).map(log => ({
+                    ...log,
+                    content: log.response, // Mapeia 'response' para 'content'
+                }));
+
                 setCharacter(fullCharacter);
-                setLog(sessionDetails.logs || []);
+                setLog(formattedLogs); // Usa os logs formatados
                 setSessionId(id);
-                // Return the loaded data so the container knows it's ready
-                return { character: fullCharacter, logs: sessionDetails.logs || [] };
+                
+                return { character: fullCharacter, logs: formattedLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }

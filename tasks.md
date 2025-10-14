@@ -28,9 +28,10 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Tarefa:** Garantir que todas as configurações que podem mudar entre ambientes (como `JWT_SECRET`) sejam lidas a partir de variáveis de ambiente e documentadas no `.env.example`.
     *   **Justificativa:** Melhora a segurança e a flexibilidade para futuras implantações em ambientes de produção.
 
-*   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor (Frontend):**
+*   **[ ] Adotar Ferramenta de Gerenciamento de Estado do Servidor (Frontend) (Pausado):**
     *   **Tarefa:** Integrar uma biblioteca como `React Query` ou `SWR`. Envolver a aplicação com o provider da biblioteca para gerenciar todas as chamadas de API.
     *   **Justificativa:** Automatiza o cache, a revalidação e a sincronização dos dados do servidor, eliminando a necessidade de gerenciar manualmente estados de `isLoading` e `error` e tornando a UI mais rápida e responsiva.
+    *   **Status:** A IA não pode adicionar novas dependências. Esta tarefa será pulada por enquanto, mas a arquitetura será preparada para facilitar sua implementação futura.
 
 *   **[X] Centralizar o Acesso à API (`apiClient.ts`) (Frontend):**
     *   **Tarefa:** Criar um único `apiClient.ts` que exporta uma instância configurada do `axios` ou um wrapper do `fetch`. Todos os serviços (`authService`, `gameService`) usarão este cliente.
@@ -38,11 +39,11 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ### Fase 1.2: Reconstrução dos Componentes e Fluxos de UI
 
-*   **[ ] Refatorar Menus e Navegação (`GameContainer`):**
+*   **[X] Refatorar Menus e Navegação (`GameContainer`):**
     *   **Tarefa:** A tela principal passará a usar React Query para buscar e exibir a lista de sessões de jogo do usuário (`/api/sessoes`). O `GameContainer` deixará de gerenciar o estado do jogo.
     *   **Justificativa:** Alinha o fluxo inicial com a nova arquitetura, onde o servidor é a fonte da verdade.
 
-*   **[ ] Implementar o "Cofre de Heróis":**
+*   **[X] Implementar o "Cofre de Heróis":**
     *   **Tarefa:** Criar uma nova página/rota dedicada (`/characters`) que busca e exibe a lista de personagens do usuário (`/api/characters`). O fluxo de "Nova Aventura" levará para esta tela.
     *   **Justificativa:** Completa a visão de personagens reutilizáveis, uma das principais vantagens do novo backend.
 
@@ -63,9 +64,6 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] Implementar Sistema de Perícias Passivas:**
     *   **Visão (Backend):** Calcular a `Percepção Passiva` (e outras, como Investigação ou Intuição) e incluí-la no prompt da IA. Instruir a IA a usar esse valor como um gatilho narrativo (ex: "Se a Percepção Passiva do personagem for > 14, narre que ele nota a fresta solta na parede").
     *   **Visão (Frontend):** Exibir os valores de perícias passivas na ficha do personagem. O jogador se sentirá recompensado ao ver que seu personagem nota coisas automaticamente.
-
-*   **[ ] Reimaginar o Menu Principal:**
-    *   **Visão:** Transformar a tela inicial em uma "Mesa do Aventureiro". Sessões de jogo seriam pergaminhos ou diários sobre uma mesa de madeira, criando uma imersão imediata.
 
 *   **[ ] Ficha de Personagem Interativa:**
     *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
@@ -133,3 +131,5 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
+```
