@@ -2,6 +2,19 @@
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
 
+// --- Cache para dados estáticos ---
+let backgroundsDataCache: ApiBackground[] | null = null;
+
+const getBackgroundsData = async (): Promise<ApiBackground[]> => {
+    if (backgroundsDataCache) {
+        return backgroundsDataCache;
+    }
+    const data = await apiClient<{ results: ApiBackground[] }>('/dnds/backgrounds-data');
+    backgroundsDataCache = data.results || [];
+    return backgroundsDataCache;
+};
+
+
 // --- Funções Principais (agora chamam nosso backend) ---
 
 export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/dnds/races');
@@ -20,12 +33,19 @@ export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);
 export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/classes/${index}`);
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
-export const getBackgroundDetails = (index: string) => {
+export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
     // Check if the background is a homebrew one (UUID) vs official (string index)
     if (index.includes('-') && index.length > 20) { // Simple check for UUID format
-      return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiBackground);
+        const data = await apiClient<any>(`/homebrew/${index}`);
+        return data.content as ApiBackground;
     }
-    return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
+    // It's an official background, fetch from our cached local data
+    const allBackgrounds = await getBackgroundsData();
+    const background = allBackgrounds.find(bg => bg.index === index);
+    if (!background) {
+        throw new Error(`Detalhes para '${index}' em 'backgrounds' não encontrados localmente.`);
+    }
+    return background;
 };
 
 export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);

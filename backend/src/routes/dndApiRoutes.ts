@@ -8,6 +8,20 @@ import path from 'path';
 
 const router = Router();
 
+// Rota específica para servir os dados completos do backgrounds.json
+router.get('/backgrounds-data', async (req, res, next) => {
+    try {
+        const filePath = path.join(process.cwd(), 'data', 'backgrounds.json');
+        const fileContent = await fs.readFile(filePath, 'utf-8');
+        const data = JSON.parse(fileContent);
+        res.json(data);
+    } catch (error) {
+        console.error('Erro ao carregar backgrounds.json:', error);
+        next(createError(500, 'Falha ao carregar dados de antecedentes.'));
+    }
+});
+
+
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const { resource } = req.params;
