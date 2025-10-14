@@ -94,7 +94,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
         spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
         journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
-        relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
+        relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
     
@@ -166,17 +166,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     
                     <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
                         <div className="flex-none border-b border-stone-700 flex justify-around">
-                            {(Object.keys(tabConfig) as Tab[]).map((key) => (
+                            {(Object.keys(tabConfig) as Tab[]).map((key) => {
+                                const tabKey = key as Tab;
+                                return (
                                 <button 
                                     key={key} 
-                                    onClick={() => setActiveTab(key as Tab)} 
-                                    className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
-                                    title={tabConfig[key as Tab].label}
+                                    onClick={() => setActiveTab(tabKey)} 
+                                    className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === tabKey ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
+                                    title={tabConfig[tabKey].label}
                                 >
-                                    {tabConfig[key as Tab].icon}
-                                    <span className="hidden lg:inline">{tabConfig[key as Tab].label}</span>
+                                    {tabConfig[tabKey].icon}
+                                    <span className="hidden lg:inline">{tabConfig[tabKey].label}</span>
                                 </button>
-                            ))}
+                            )})}
                         </div>
                         <div className="flex-grow overflow-y-auto">
                             {renderSidebarContent()}
