@@ -124,30 +124,30 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                 </div>
 
                 {/* Stats for both Mobile and Desktop */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-center mt-3 pt-3 border-t border-stone-700/50">
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center mt-3 pt-3 border-t border-stone-700/50">
                     <div className="bg-red-900/30 p-2 rounded-md border border-red-800/50">
-                        <div className="text-xs font-bold text-red-300 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> VIDA</div>
-                        <div className="font-mono font-bold text-lg">{hp?.current} / {hp?.max}</div>
+                        <div className="text-xs font-bold text-red-300 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> <span className="hidden sm:inline">VIDA</span></div>
+                        <div className="font-mono font-semibold text-lg">{hp?.current} / {hp?.max}</div>
                     </div>
                      <div className="bg-blue-900/30 p-2 rounded-md border border-blue-800/50">
-                        <div className="text-xs font-bold text-blue-300 flex items-center justify-center gap-1"><Shield className="h-3 w-3"/> CA</div>
-                        <div className="font-mono font-bold text-lg">{ac?.value}</div>
+                        <div className="text-xs font-bold text-blue-300 flex items-center justify-center gap-1"><Shield className="h-3 w-3"/> <span className="hidden sm:inline">CA</span></div>
+                        <div className="font-mono font-semibold text-lg">{ac?.value}</div>
                     </div>
                      <div className="bg-green-900/30 p-2 rounded-md border border-green-800/50">
-                        <div className="text-xs font-bold text-green-300 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> INICIATIVA</div>
-                        <div className="font-mono font-bold text-lg">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
+                        <div className="text-xs font-bold text-green-300 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> <span className="hidden sm:inline">INICIATIVA</span></div>
+                        <div className="font-mono font-semibold text-lg">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
                     </div>
                     <div className="bg-stone-800/40 p-2 rounded-md border border-stone-700/50" title="Percepção Passiva">
-                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Eye className="h-3 w-3"/> Percepção</div>
-                        <p className="font-mono font-bold text-lg">{passiveScores.perception}</p>
+                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Eye className="h-3 w-3"/> <span className="hidden sm:inline">Percepção</span></div>
+                        <p className="font-mono font-semibold text-lg">{passiveScores.perception}</p>
                     </div>
                     <div className="bg-stone-800/40 p-2 rounded-md border border-stone-700/50" title="Intuição Passiva">
-                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Brain className="h-3 w-3"/> Intuição</div>
-                        <p className="font-mono font-bold text-lg">{passiveScores.insight}</p>
+                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Brain className="h-3 w-3"/> <span className="hidden sm:inline">Intuição</span></div>
+                        <p className="font-mono font-semibold text-lg">{passiveScores.insight}</p>
                     </div>
                      <div className="bg-stone-800/40 p-2 rounded-md border border-stone-700/50" title="Investigação Passiva">
-                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Search className="h-3 w-3"/> Investigação</div>
-                        <p className="font-mono font-bold text-lg">{passiveScores.investigation}</p>
+                        <div className="text-xs font-bold text-stone-400 flex items-center justify-center gap-1"><Search className="h-3 w-3"/> <span className="hidden sm:inline">Investigação</span></div>
+                        <p className="font-mono font-semibold text-lg">{passiveScores.investigation}</p>
                     </div>
                 </div>
             </div>
