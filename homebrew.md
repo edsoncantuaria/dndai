@@ -17,9 +17,9 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 ### Fase 1: Fundação - Servindo Conteúdo Customizado (Estático)
 
 *   **[X] Corrigir o Carregamento de Antecedentes (`backgrounds.json`):**
-    *   **Problema:** A rota de backend não estava encontrando o arquivo JSON local.
+    *   **Problema:** A rota de backend não estava encontrando o arquivo JSON local devido a um caminho incorreto.
     *   **Solução:** O caminho em `backend/src/routes/dndApiRoutes.ts` foi corrigido para apontar para `backend/data/backgrounds.json`.
-    *   **Resultado:** O backend agora serve com sucesso um arquivo de dados local em vez de depender apenas da API externa. Este é o nosso "caso de teste" para o sistema homebrew, provando que o frontend pode consumir dados de uma fonte customizada via nosso backend.
+    *   **Resultado:** O backend agora serve com sucesso um arquivo de dados local em vez de depender apenas da API externa. Este é o nosso "caso de teste" para o sistema homebrew.
 
 ### Fase 2: Armazenamento no Banco de Dados
 
@@ -37,6 +37,16 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 
 *   **Interface da Loja Homebrew:**
     *   **Tarefa:** Construir a UI no frontend que permitirá aos usuários navegar, pesquisar, ativar e desativar conteúdo homebrew.
+
+### Fase 4: O Editor Homebrew e Gerenciamento de Dependências
+
+*   **Editor de Conteúdo Guiado:**
+    *   **Visão:** Implementar um "wizard" de criação no frontend. Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos (`Nome`, `Bônus de Atributo`, `Traços`, etc.). O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
+    *   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros, garantindo que todo o conteúdo criado seja válido.
+
+*   **Sistema de Dependências:**
+    *   **Visão:** Permitir que um conteúdo homebrew referencie outro. Por exemplo, ao criar uma nova Classe, o usuário poderá selecionar um Talento que ele mesmo criou anteriormente.
+    *   **Implementação:** Quando um conteúdo com dependências for "instalado" por outro jogador, o sistema identificará e instalará todas as dependências necessárias juntas, garantindo a integridade do conteúdo.
 
 ## 3. Estrutura de Dados
 
