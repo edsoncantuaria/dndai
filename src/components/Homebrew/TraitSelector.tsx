@@ -24,8 +24,8 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         try {
             const officialTraitsPromise = DndApiService.getTraits();
             // Busca tanto os traços públicos quanto os do próprio usuário
-            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'trait');
-            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'trait');
+            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'feat');
+            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'feat');
 
             const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 officialTraitsPromise,

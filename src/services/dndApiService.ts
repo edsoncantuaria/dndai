@@ -20,7 +20,7 @@ export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dn
 export const getBackgroundDetails = (index: string) => {
     // Check if the background is a homebrew one (UUID) vs official (string index)
     if (index.includes('-') && index.length > 20) { // Simple check for UUID format
-      return apiClient<ApiBackground>(`/homebrew/${index}`);
+      return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiBackground);
     }
     return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
 };
@@ -33,7 +33,7 @@ export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spe
 export const getTraitDetails = (index: string) => {
     // Check if the trait is a homebrew one (UUID) vs official (string index)
     if (index.includes('-') && index.length > 20) { // Simple check for UUID format
-        return apiClient<ApiTrait>(`/homebrew/${index}`);
+        return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiTrait);
     }
     return apiClient<ApiTrait>(`/dnds/traits/${index}`);
 }

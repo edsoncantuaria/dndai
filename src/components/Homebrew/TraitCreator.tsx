@@ -43,7 +43,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
 
             const data: HomebrewService.CreateHomebrewData = {
                 name: name,
-                type: 'trait',
+                type: 'feat',
                 content: content,
                 isPublic: false, // Por padrão, as criações são privadas
             };
