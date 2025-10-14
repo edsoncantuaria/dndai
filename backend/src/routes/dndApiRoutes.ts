@@ -20,6 +20,7 @@ const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 
 // Rota específica para servir os dados completos do backgrounds.json
 router.get('/backgrounds-data', async (req, res, next) => {
+    console.log('[Backend Route] Requisição para /backgrounds-data');
     try {
         const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
         const fileContent = await fs.readFile(filePath, 'utf-8');
@@ -40,6 +41,7 @@ router.get('/:resource', async (req, res, next) => {
     // CORREÇÃO: Se a requisição for para 'backgrounds', servir diretamente do arquivo local.
     if (resource === 'backgrounds') {
         try {
+            console.log('[Backend Route] Rota de /backgrounds detectada. Servindo JSON local.');
             const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const data = JSON.parse(fileContent);
@@ -89,12 +91,14 @@ router.get('/:resource/:index', async (req, res, next) => {
     try {
         let data;
         if (isUuid(index)) {
+             console.log(`[Backend Route] ID é um UUID, buscando no HomebrewService.`);
              const hbContent = await HomebrewService.getHomebrewContentById(index);
              if (!hbContent) {
                 return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              }
              data = hbContent.content;
         } else {
+            console.log(`[Backend Route] ID não é UUID, buscando no DndApiService.`);
             data = await DndApiService.getDetails(resource, index);
         }
         

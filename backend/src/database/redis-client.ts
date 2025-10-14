@@ -12,7 +12,7 @@ if (!redisUrl) {
 const redisClient = redisUrl ? createClient({ url: redisUrl }) : null;
 
 // Adicionando listeners de eventos para depuração
-redisClient?.on('error', (err) => console.error('Erro no Cliente Redis:', err));
+redisClient?.on('error', (err) => console.error('[Cache] Erro no Cliente Redis:', err));
 redisClient?.on('connect', () => console.log('[Cache] Conectando ao servidor Redis...'));
 redisClient?.on('ready', () => console.log('[Cache] Cliente Redis pronto para uso.'));
 

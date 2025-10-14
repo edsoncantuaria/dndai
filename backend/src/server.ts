@@ -26,19 +26,20 @@ const allowedOrigins = [
 
 const corsOptions: cors.CorsOptions = {
     origin: (origin, callback) => {
-        // Permite requisições sem origem (como apps mobile ou curl)
-        if (!origin) {
-            return callback(null, true);
-        }
-        // Permite origens da lista estática e qualquer subdomínio dos ambientes de desenvolvimento
+        if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) !== -1 || origin.endsWith('.cloudworkstations.dev') || origin.endsWith('.webcontainer-api.io')) {
             return callback(null, true);
         }
-        
         return callback(new Error('Not allowed by CORS'));
     },
-    optionsSuccessStatus: 200 // Para compatibilidade com navegadores legados
+    optionsSuccessStatus: 200
 };
+
+// Log de requisições
+app.use((req, res, next) => {
+    console.log(`[Server] Recebida requisição: ${req.method} ${req.originalUrl}`);
+    next();
+});
 
 // Middlewares essenciais
 app.use(cors(corsOptions));
@@ -55,7 +56,7 @@ app.use('/api/narrar', narrarRoutes);
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/dnds', dndApiRoutes);
-app.use('/api/homebrew', homebrewRoutes); // Adiciona a nova rota
+app.use('/api/homebrew', homebrewRoutes);
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {
@@ -65,11 +66,6 @@ app.get('/api/health', (req, res) => {
 // O middleware de erro deve ser o último a ser adicionado
 app.use(errorMiddleware);
 
-/**
- * Função para iniciar o servidor.
- * Primeiro, estabelece a conexão com o banco de dados e, em caso de sucesso,
- * inicia o servidor Express para ouvir as requisições.
- */
 const startServer = async () => {
     try {
         await AppDataSource.initialize();
@@ -81,7 +77,7 @@ const startServer = async () => {
 
     } catch (error) {
         console.error('Não foi possível conectar ao banco de dados:', error);
-        process.exit(1); // Encerra o processo se não conseguir conectar ao DB
+        process.exit(1);
     }
 };
 

@@ -92,18 +92,10 @@ const GameContainer = () => {
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
-                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if (loadedData) {
-                    setGameStage('playing');
-                    setPlayMenuMusic(false);
-                    if(loadedData.logs.length === 0) {
-                        startGame();
-                    }
-                }
+                await handleContinueGame(newSessionResponse.sessao.id);
             }
         } catch (error) {
             console.error("Failed to start new game session:", error);
-        } finally {
             setIsLoadingData(false);
         }
     };
@@ -122,7 +114,7 @@ const GameContainer = () => {
             setGameStage('playing');
             setPlayMenuMusic(false);
             if (loadedData.logs.length === 0) {
-                startGame();
+                await startGame();
             }
         } else {
             setGameStage('session_list');
