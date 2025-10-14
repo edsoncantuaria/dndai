@@ -69,6 +69,7 @@ const getOrCreateReusableItem = async (userId: number, itemName: string, itemDet
             name: itemName,
         },
         isPublic: true, // Make these descriptive items public by default
+        createdBy: 'ai', // Mark as AI-created
     });
     return newHomebrewItem.content;
 }
@@ -94,8 +95,6 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
-        let startingGold = 0;
-        
         const itemPromises = characterData.inventory.map(async (itemData: any) => {
             // Handle special descriptive items by making them reusable homebrew content
             if (itemData.index === 'signet-ring' || itemData.index === 'scroll-of-pedigree' || itemData.index === 'clothes-fine') {
@@ -105,19 +104,25 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
                 });
                 return { ...reusableContent, quantity: itemData.quantity || 1, equipped: false, id: '' };
             }
-             // Handle pouches with gold
-            if (itemData.index === 'pouch' && itemData.desc?.[0]?.toLowerCase().includes('gp')) {
-                const match = itemData.desc[0].match(/(\d+)\s*gp/);
-                if (match) {
-                    startingGold += parseInt(match[1], 10);
-                }
-                // Return a standard pouch without the gold description
-                return { ...itemData, desc: ['Uma simples bolsa de couro ou tecido.'], quantity: 1 };
-            }
             return { ...itemData, quantity: itemData.quantity || 1 };
         });
 
         const detailedItems = await Promise.all(itemPromises);
+        
+        // Extract gold from pouches
+        let startingGold = 0;
+        const finalInventoryItems = detailedItems.filter(item => {
+            if (item.index === 'pouch' && item.desc?.[0]?.toLowerCase().includes('gp')) {
+                 const match = item.desc[0].match(/(\d+)\s*gp/);
+                if (match) {
+                    startingGold += parseInt(match[1], 10);
+                }
+                // Keep the pouch, but without the gold description for cleaner data.
+                item.desc = ['Uma simples bolsa de couro ou tecido.'];
+            }
+            return item.index !== 'gp'; // Filter out any explicit "gp" items if they exist
+        });
+
 
         const newCharacter = new Character();
         Object.assign(newCharacter, {
@@ -139,6 +144,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             beardStyle: characterData.beardStyle,
             skinColor: characterData.skinColor,
             feats: characterData.feats || [],
+            currency: { gp: startingGold, sp: 0, cp: 0 }, // Store gold directly
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
@@ -161,8 +167,6 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(proficiencies);
 
-        const finalInventoryItems = detailedItems.filter(item => item.index !== 'gp');
-
         const items = finalInventoryItems.map(itemData => {
             const charItem = new CharacterItem();
             charItem.character = savedCharacter;
@@ -173,17 +177,6 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             return charItem;
         });
         await queryRunner.manager.save(items);
-        
-        // Add starting gold as a currency item if it exists
-        if (startingGold > 0) {
-            const goldItem = new CharacterItem();
-            goldItem.character = savedCharacter;
-            goldItem.name = "Gold Piece";
-            goldItem.quantity = startingGold;
-            goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0.02, cost: { quantity: 1, unit: 'gp'} };
-            goldItem.equipped = false;
-            await queryRunner.manager.save(goldItem);
-        }
 
         const spells = characterData.spells.map(spellName => {
             const charSpell = new CharacterSpell();

@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, Plus } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
+import { translateApiString } from '@/utils/translator';
 
 type View = 'list' | 'create';
 
@@ -18,7 +19,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const fetchContent = useCallback(async () => {
         setIsLoading(true);
         try {
-            const result = await HomebrewService.listHomebrewContent(activeTab);
+            // A aba 'public' agora só busca conteúdo criado por 'user'
+            const createdByFilter = activeTab === 'public' ? 'user' : undefined;
+            const result = await HomebrewService.listHomebrewContent(activeTab, undefined, createdByFilter);
             setContent(result);
         } catch (error: any) {
             toast({
@@ -84,8 +87,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             {content.map(item => (
                                 <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left">
                                     <h3 className="font-bold text-lg text-amber-200 truncate">{item.name}</h3>
-                                    <p className="text-sm text-stone-400 capitalize">{item.type}</p>
-                                    <p className="text-xs text-stone-500 mt-2">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
+                                    <p className="text-sm text-stone-400 capitalize">{translateApiString(item.type)}</p>
+                                    <p className="text-xs text-stone-500 mt-2">Criado por: <span className="font-semibold">{item.createdBy === 'ai' ? 'IA' : 'Usuário'}</span></p>
+                                    <p className="text-xs text-stone-500">Criado em: {new Date(item.createdAt).toLocaleDateString()}</p>
                                 </div>
                             ))}
                         </div>

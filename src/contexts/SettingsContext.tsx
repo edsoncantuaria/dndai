@@ -68,6 +68,8 @@ interface SettingsContextType {
     setIsMuted: (isMuted: boolean) => void;
     playMenuMusic: boolean;
     setPlayMenuMusic: (play: boolean) => void;
+    useAiHomebrew: boolean; // Novo campo
+    setUseAiHomebrew: (use: boolean) => void; // Novo setter
     getApiKey: () => string | undefined;
     saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject'>>) => Promise<void>;
 }
@@ -89,6 +91,7 @@ const defaultSettings = {
     volume: 0.3,
     isMuted: false,
     playMenuMusic: true,
+    useAiHomebrew: true, // Padrão é usar o conteúdo da IA
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -122,6 +125,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [volume, setVolume] = useState(defaultSettings.volume);
     const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
     const [playMenuMusic, setPlayMenuMusic] = useState(defaultSettings.playMenuMusic);
+    const [useAiHomebrew, setUseAiHomebrew] = useState(defaultSettings.useAiHomebrew);
 
     const getApiKey = useCallback(() => apiKey, [apiKey]);
     
@@ -143,9 +147,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const getSettingsObject = useCallback(() => {
         return {
-            model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey
+            model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew
         }
-    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey]);
+    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew]);
 
     // Save to localStorage whenever a setting changes
     useEffect(() => {
@@ -166,6 +170,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
+            if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew); // Carregar a nova configuração
             if (settings.apiKey) setApiKey(settings.apiKey);
         }
     }, []);
@@ -190,6 +195,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         volume, setVolume,
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,
+        useAiHomebrew, setUseAiHomebrew,
         getApiKey,
         saveSettingsToDB,
     };

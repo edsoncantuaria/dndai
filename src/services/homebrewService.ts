@@ -11,6 +11,7 @@ export interface HomebrewContent {
     name: string;
     content: any; // O objeto JSON completo
     isPublic: boolean;
+    createdBy: 'user' | 'ai';
     createdAt: string;
     updatedAt: string;
 }
@@ -20,21 +21,29 @@ export interface CreateHomebrewData {
     name: string;
     content: any;
     isPublic?: boolean;
+    createdBy?: 'user' | 'ai';
 }
 
 /**
  * Busca conteúdo homebrew.
  * @param scope 'public' para conteúdo da comunidade, 'mine' para conteúdo do usuário logado.
  * @param type Opcional. Filtra por tipo de conteúdo.
+ * @param createdBy Opcional. Filtra pela origem do conteúdo ('user' ou 'ai').
  */
 export const listHomebrewContent = async (
     scope: 'public' | 'mine',
-    type?: HomebrewContentType
+    type?: HomebrewContentType,
+    createdBy?: 'user' | 'ai'
 ): Promise<HomebrewContent[]> => {
-    let endpoint = `/homebrew?scope=${scope}`;
+    const params = new URLSearchParams({ scope });
     if (type) {
-        endpoint += `&type=${type}`;
+        params.append('type', type);
     }
+    if (createdBy) {
+        params.append('createdBy', createdBy);
+    }
+    
+    const endpoint = `/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
 

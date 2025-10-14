@@ -21,6 +21,7 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     newContent.name = data.name;
     newContent.content = data.content;
     newContent.isPublic = data.isPublic || false;
+    newContent.createdBy = data.createdBy || 'user'; // Assumir 'user' se não especificado
 
     try {
         const savedContent = await homebrewRepo.save(newContent);
@@ -37,17 +38,20 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
  * @param type Opcional. Filtra o conteúdo por tipo.
  * @returns Uma lista de conteúdos homebrew.
  */
-export const getPublicHomebrewContent = async (type?: HomebrewContentType) => {
+export const getPublicHomebrewContent = async (type?: HomebrewContentType, createdBy?: 'user' | 'ai') => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const whereCondition: { isPublic: boolean; type?: HomebrewContentType } = { isPublic: true };
+    const whereCondition: { isPublic: boolean; type?: HomebrewContentType, createdBy?: 'user' | 'ai' } = { isPublic: true };
 
     if (type) {
         whereCondition.type = type;
     }
+    if (createdBy) {
+        whereCondition.createdBy = createdBy;
+    }
 
     return homebrewRepo.find({
         where: whereCondition,
-        select: ["id", "name", "type", "authorId", "createdAt"], // Retorna apenas um resumo
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy"], // Retorna apenas um resumo
     });
 };
 
@@ -77,8 +81,8 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
         throw createError(404, 'Conteúdo Homebrew não encontrado.');
     }
 
-    // Se o conteúdo não for público, apenas o autor pode vê-lo.
-    if (!content.isPublic && content.authorId !== userId) {
+    // Se o conteúdo não for público e não for da IA, apenas o autor pode vê-lo.
+    if (!content.isPublic && content.createdBy !== 'ai' && content.authorId !== userId) {
         throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
     }
 

@@ -16,6 +16,13 @@ export class HomebrewContent {
     @Column({ type: 'int' })
     authorId: number;
 
+    @Column({
+        type: 'enum',
+        enum: ['user', 'ai'],
+        default: 'user'
+    })
+    createdBy: 'user' | 'ai';
+
     @Index()
     @Column({
         type: 'enum',

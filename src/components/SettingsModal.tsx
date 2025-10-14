@@ -2,7 +2,7 @@
 
 import React, { ChangeEvent, useEffect, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, AVAILABLE_IMAGE_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical } from 'lucide-react';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -59,8 +59,8 @@ const AudioControls: React.FC = () => {
                 </button>
                  <Slider 
                     id="volume"
-                    label="Volume do Ambiente"
-                    tooltip="Ajusta o volume dos sons de ambiente no jogo."
+                    label="Volume Geral"
+                    tooltip="Ajusta o volume da narração e dos sons de ambiente no jogo."
                     value={Math.round(volume * 100)}
                     min={0}
                     max={100}
@@ -87,7 +87,15 @@ const AudioControls: React.FC = () => {
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
-    const { model, setModel, ttsModel, setTtsModel, imageModel, setImageModel, ttsVoice, setTtsVoice, apiKey, setApiKey, generationConfig, setGenerationConfig } = useSettingsContext();
+    const { 
+        model, setModel, 
+        ttsModel, setTtsModel, 
+        imageModel, setImageModel, 
+        ttsVoice, setTtsVoice, 
+        apiKey, setApiKey, 
+        generationConfig, setGenerationConfig,
+        useAiHomebrew, setUseAiHomebrew
+    } = useSettingsContext();
     
     if (!isOpen) return null;
     
@@ -141,6 +149,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     <AudioControls />
+
+                    <div className="space-y-4 pt-4 border-t border-stone-700/50">
+                        <h3 className="text-lg font-semibold text-stone-300">Homebrew e IA</h3>
+                         <div className="flex items-center justify-between bg-stone-800/50 p-3 rounded-md">
+                            <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer">
+                                <span className="font-semibold text-stone-300 flex items-center gap-2">
+                                    <FlaskConical className="h-4 w-4 text-purple-400" />
+                                    Usar Homebrew da IA
+                                </span>
+                                <span className="text-xs text-stone-400">Permitir que a IA crie e reutilize itens, NPCs e locais em suas sessões.</span>
+                            </label>
+                            <button
+                                id="ai-homebrew-toggle"
+                                onClick={() => setUseAiHomebrew(p => !p)}
+                                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${useAiHomebrew ? 'bg-amber-600' : 'bg-stone-600'}`}
+                            >
+                                <span
+                                    aria-hidden="true"
+                                    className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${useAiHomebrew ? 'translate-x-5' : 'translate-x-0'}`}
+                                />
+                            </button>
+                        </div>
+                    </div>
+
 
                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
                         <h3 className="text-lg font-semibold text-stone-300">Modelos de IA</h3>

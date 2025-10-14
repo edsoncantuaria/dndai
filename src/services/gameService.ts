@@ -24,10 +24,10 @@ export const deleteCharacterById = async (characterId: number) => {
 
 // --- Session Management ---
 
-export const createGameSession = async (nome: string, characterId: number) => {
+export const createGameSession = async (nome: string, characterId: number, homebrewIds?: string[]) => {
     return apiClient<{ sessao: SessaoIA }>('/sessoes', {
         method: 'POST',
-        body: JSON.stringify({ nome, characterId }),
+        body: JSON.stringify({ nome, characterId, homebrewIds }),
     });
 };
 

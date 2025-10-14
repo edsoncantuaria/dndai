@@ -7,6 +7,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import * as GameService from '@/services/gameService';
+import * as HomebrewService from '@/services/homebrewService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
@@ -33,7 +34,7 @@ const GameContainer = () => {
     } = useGameStateContext();
 
     const { user } = useAuth();
-    const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
+    const { playMenuMusic, setPlayMenuMusic, volume, isMuted, useAiHomebrew } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -110,7 +111,22 @@ const GameContainer = () => {
     const handleNewGameFromVault = async (char: Character) => {
         setIsGameLoadingState(true);
         try {
-            const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
+            // Fetch homebrew content based on settings
+            let homebrewIds: string[] = [];
+            const userContent = await HomebrewService.listHomebrewContent('public', undefined, 'user');
+            homebrewIds = homebrewIds.concat(userContent.map(c => c.id));
+            
+            if (useAiHomebrew) {
+                const aiContent = await HomebrewService.listHomebrewContent('public', undefined, 'ai');
+                homebrewIds = homebrewIds.concat(aiContent.map(c => c.id));
+            }
+            
+            const newSessionResponse = await GameService.createGameSession(
+                `Aventura de ${char.name}`, 
+                char.id, 
+                [...new Set(homebrewIds)] // Ensure unique IDs
+            );
+
             if (newSessionResponse && newSessionResponse.sessao) {
                 await handleContinueGame(newSessionResponse.sessao.id);
             }
