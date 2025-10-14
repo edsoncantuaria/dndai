@@ -47,26 +47,27 @@ export const calculateCarryingCapacity = (strength: number): number => {
 
 export const calculateCurrency = (inventory: InventoryItem[]): Character['currency'] => {
     const currency: Character['currency'] = { gp: 0, sp: 0, cp: 0 };
+    if (!Array.isArray(inventory)) return currency;
+
     inventory.forEach(item => {
         if (COIN_TYPES.includes(item.index)) {
-            currency[item.index as keyof typeof currency] = (currency[item.index as keyof typeof currency] || 0) + item.quantity;
+            const coinType = item.index as keyof typeof currency;
+            currency[coinType] = (currency[coinType] || 0) + item.quantity;
         }
     });
     return currency;
 };
 
 export const calculateWeight = (inventory: InventoryItem[]): number => {
-    // Return early if inventory is not an array
     if (!Array.isArray(inventory)) {
         console.warn("calculateWeight received a non-array inventory:", inventory);
         return 0;
     }
     return inventory.reduce((sum, item) => {
-        // All coins weigh 0.02 lbs each
-        if (COIN_TYPES.includes(item?.index)) {
-            return sum + ((item?.quantity || 0) * COIN_WEIGHT);
-        }
-        return sum + ((item?.weight || 0) * (item?.quantity || 1));
+        const itemWeight = item?.weight || 0;
+        const itemQuantity = item?.quantity || 1;
+        // Coins are handled as regular items with weight now
+        return sum + (itemWeight * itemQuantity);
     }, 0);
 }
 
@@ -199,11 +200,12 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const modifiers = calculateModifiers(attributes);
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
-    // CORREÇÃO: Garante que `backendChar.inventory` seja tratado como um array.
-    const inventory: InventoryItem[] = Array.isArray(backendChar.inventory)
-        ? backendChar.inventory.map((item: any) => ({
-              ...item, // O backend já está enviando o `itemData` no objeto do inventário
+    const inventory: InventoryItem[] = Array.isArray(backendChar.items)
+        ? backendChar.items.map((item: any) => ({
+              ...item.itemData, // O backend já está enviando o `itemData` no objeto do inventário
               id: item.id.toString(),
+              quantity: item.quantity,
+              equipped: item.equipped,
           }))
         : [];
     

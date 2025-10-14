@@ -74,6 +74,19 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
+        let startingGold = 0;
+        const regularItemsData = characterData.inventory.filter(itemData => {
+            const isPouchWithGold = itemData.name.toLowerCase().includes('pouch') && itemData.desc?.[0]?.toLowerCase().includes('gold');
+            if (isPouchWithGold) {
+                const match = itemData.desc[0].match(/(\d+)\s*gp/);
+                if (match) {
+                    startingGold += parseInt(match[1], 10);
+                }
+                // Ainda mantemos a bolsa, mas o ouro já foi extraído
+            }
+            return true; // Mantém todos os itens, incluindo a bolsa vazia
+        });
+
         const newCharacter = new Character();
         Object.assign(newCharacter, {
             userId,
@@ -116,7 +129,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(proficiencies);
 
-        const items = characterData.inventory.map(itemData => {
+        const items = regularItemsData.map(itemData => {
             const charItem = new CharacterItem();
             charItem.character = savedCharacter;
             charItem.name = itemData.name;
@@ -127,22 +140,16 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(items);
         
-        // Add starting gold as an item
-        const goldPouch = characterData.inventory.find(i => i.name.toLowerCase().includes('pouch'));
-        if (goldPouch && goldPouch.desc?.[0]?.toLowerCase().includes('gold')) {
-            const match = goldPouch.desc[0].match(/(\d+)\s*gp/);
-            if (match) {
-                const goldAmount = parseInt(match[1], 10);
-                const goldItem = new CharacterItem();
-                goldItem.character = savedCharacter;
-                goldItem.name = "Gold Piece";
-                goldItem.quantity = goldAmount;
-                goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0 };
-                goldItem.equipped = false;
-                await queryRunner.manager.save(goldItem);
-            }
+        // Add starting gold as a currency item
+        if (startingGold > 0) {
+            const goldItem = new CharacterItem();
+            goldItem.character = savedCharacter;
+            goldItem.name = "Gold Piece";
+            goldItem.quantity = startingGold;
+            goldItem.itemData = { index: 'gp', name: 'Gold Piece', weight: 0.02 }; // peso padrão
+            goldItem.equipped = false;
+            await queryRunner.manager.save(goldItem);
         }
-
 
         const spells = characterData.spells.map(spellName => {
             const charSpell = new CharacterSpell();
