@@ -109,6 +109,8 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         traitChoiceDetails,
         handleRandomizeRaceAndClass,
         subclassFlavor,
+        isVariantHuman,
+        setIsVariantHuman,
     } = hook;
     
     const canProceed = race && characterClass && traitChoiceDetails.every(t => !t.trait_specific?.subfeature_options || hook.traitSelections[t.index]) && (race !== 'dragonborn' || hook.draconicAncestry);
@@ -144,6 +146,23 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     ))}
                 </div>
             </div>
+
+            {race === 'human' && (
+                <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
+                     <label className="flex items-center gap-3 cursor-pointer">
+                        <input 
+                            type="checkbox"
+                            checked={isVariantHuman}
+                            onChange={(e) => setIsVariantHuman(e.target.checked)}
+                            className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 rounded focus:ring-amber-500"
+                        />
+                        <div>
+                            <h4 className="text-lg font-semibold text-stone-300">Humano Variante</h4>
+                            <p className="text-sm text-stone-400">Troque o bônus de +1 em todos os atributos por +1 em dois atributos, uma perícia e um talento inicial.</p>
+                        </div>
+                    </label>
+                </div>
+            )}
 
             <DraconicAncestryChoice hook={hook} />
 

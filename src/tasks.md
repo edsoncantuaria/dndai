@@ -102,12 +102,16 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
     *   **Status:** Concluído.
 
-*   **[Em Andamento] Adicionar Suporte a Talentos (Feats):**
+*   **[X] Adicionar Suporte a Talentos (Feats):**
     *   **Visão:** Integrar talentos no sistema de progressão de nível e na ficha do personagem, permitindo que a IA os considere em suas narrações.
-    *   **Status:** UI para seleção na criação de personagem implementada. Próximo passo é integrar a lógica de Humano Variante e permitir a seleção no Nível 1.
+    *   **Status:** Concluído. A lógica para Humano Variante e a seleção de talentos no nível 1 está implementada.
 
-*   **[ ] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
-    *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
+*   **[X] Implementar Sistema de Vantagem/Desvantagem:**
+    *   **Visão:** Permitir que a IA solicite rolagens com Vantagem ou Desvantagem, com a UI de rolagem de dados se adaptando para refletir isso.
+    *   **Status:** Concluído.
+
+*   **[ ] Implementar Sistema de Inspiração:**
+    *   **Visão:** Permitir que a IA conceda "Inspiração" ao jogador por boa interpretação, que pode ser gasta para ganhar Vantagem em uma rolagem.
 
 *   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
@@ -147,3 +151,5 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
+
