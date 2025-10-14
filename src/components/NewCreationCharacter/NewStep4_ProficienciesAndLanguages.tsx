@@ -1,3 +1,4 @@
+// src/components/NewCreationCharacter/NewStep4_ProficienciesAndLanguages.tsx
 'use client';
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';

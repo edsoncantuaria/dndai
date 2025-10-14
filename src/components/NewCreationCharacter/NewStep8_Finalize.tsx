@@ -69,7 +69,7 @@ const NewStep8_Finalize: React.FC<Props> = ({
         <div className="space-y-6 animate-fadeIn">
             <div className="text-center">
                 <h3 className="text-2xl font-semibold text-stone-200 mb-2 font-garamond">O Toque Final</h3>
-                <p className="text-sm text-stone-400">Revise as escolhas do seu herói e dê a ele um nome digno de lendas.</p>
+                <p className="text-sm text-stone-400">Revise as escolhas do seu herói e dê a ele um nome e uma aparência dignos de lendas.</p>
             </div>
             
             <div className="bg-stone-900/50 p-4 sm:p-6 rounded-lg border-2 border-stone-700 space-y-6 shadow-lg">

@@ -63,9 +63,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         const finalCharacterData = hook.buildCharacter();
         if (finalCharacterData) {
             setShowConfirmationModal(false);
-            await createCharacter(finalCharacterData);
-            // Avisa o componente pai que a criação terminou.
-            onCharacterCreated();
+            const result = await createCharacter(finalCharacterData);
+            if (result) {
+                // Avisa o componente pai que a criação terminou com sucesso.
+                onCharacterCreated();
+            }
         } else {
             console.error("Não foi possível finalizar a criação do personagem. Dados incompletos.");
             setShowConfirmationModal(false);
@@ -106,7 +108,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Finalizando a criação do seu herói...</p>
+                <p className="mt-4">Forjando a alma do seu herói...</p>
             </div>
         );
     }

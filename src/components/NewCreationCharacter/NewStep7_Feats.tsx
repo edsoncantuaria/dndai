@@ -21,23 +21,16 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     } = hook;
 
     // This step is only relevant for Variant Humans or other future races that get a feat at level 1.
-    // If the character isn't one, we just skip this step automatically.
     if (!isVariantHuman) {
+        // Silently call nextStep if this step is not applicable
+        React.useEffect(() => {
+            nextStep();
+        }, [nextStep]);
+        
         return (
-            <div className="space-y-8 animate-fadeIn">
-                <div className="text-center text-stone-400 italic p-8 bg-stone-900/50 rounded-lg">
-                    <p>Sua raça não concede um talento no nível 1.</p>
-                </div>
-                <div className="flex justify-between pt-8">
-                    <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                        <ArrowLeft className="h-6 w-6 mr-3" />
-                        Voltar
-                    </button>
-                    <button type="button" onClick={nextStep} className="menu-button btn-new max-w-xs">
-                        Avançar
-                        <ArrowRight className="h-6 w-6 ml-3" />
-                    </button>
-                </div>
+            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
+                <Loader2 className="h-12 w-12 animate-spin" />
+                <p className="mt-4">Avançando para a próxima etapa...</p>
             </div>
         );
     }
