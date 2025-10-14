@@ -276,7 +276,8 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
 
         // Clean up empty fields before sending
         if(!fullData.attack_type) delete fullData.attack_type;
-        if (!fullData.damage?.damage_type?.index || 
+        
+        if (!fullData.attack_type || !fullData.damage?.damage_type?.index || 
             (Object.keys(fullData.damage.damage_at_character_level).length === 0 && 
              Object.keys(fullData.damage.damage_at_slot_level).length === 0)) {
             delete fullData.damage;
@@ -295,19 +296,9 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
         updateParent(newData);
     };
     
-    const handleDamageFieldChange = (path: string, value: any) => {
-        setSpellData(prev => {
-            const keys = path.split('.');
-            const newDamageState = JSON.parse(JSON.stringify(prev.damage)); // Deep copy
-            let current = newDamageState;
-            for(let i = 0; i < keys.length - 1; i++) {
-                current = current[keys[i]];
-            }
-            current[keys[keys.length - 1]] = value;
-            const newState = { ...prev, damage: newDamageState };
-            updateParent(newState);
-            return newState;
-        });
+    const handleDamageChange = (field: keyof typeof spellData.damage, value: any) => {
+        const newDamageData = { ...spellData.damage, [field]: value };
+        handleFieldChange('damage', newDamageData);
     };
 
     const handleScalingChange = (type: 'character' | 'slot', index: number, field: 'level' | 'dice', value: string) => {
@@ -321,26 +312,27 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
         if(field === 'dice') newDice = value;
         
         const newScaling: Record<string, string> = {};
-        for(let i = 0; i < currentScaling.length; i++) {
-            if (i === index) continue;
-            newScaling[currentScaling[i][0]] = currentScaling[i][1];
-        }
+        currentScaling.forEach((entry, i) => {
+            if (i !== index) {
+                newScaling[entry[0]] = entry[1];
+            }
+        });
         if(newLevel) newScaling[newLevel] = newDice;
 
-        handleDamageFieldChange(key, newScaling);
+        handleDamageChange(key, newScaling);
     };
 
     const addScalingEntry = (type: 'character' | 'slot') => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
         const newScaling = {...spellData.damage[key], ['']: ''};
-        handleDamageFieldChange(key, newScaling);
+        handleDamageChange(key, newScaling);
     };
     
     const removeScalingEntry = (type: 'character' | 'slot', level: string) => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
         const newScaling = {...spellData.damage[key]};
         delete newScaling[level];
-        handleDamageFieldChange(key, newScaling);
+        handleDamageChange(key, newScaling);
     };
 
     const handleComponentChange = (component: 'V' | 'S' | 'M') => {
@@ -357,8 +349,9 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
     if (isLoading) {
         return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8" /></div>
     }
-
+    
     const scalingType = spellData.level === 0 ? 'character' : 'slot';
+    const scalingLabel = scalingType === 'character' ? 'Nível do Personagem' : 'Nível da Magia';
 
     return (
         <div className="space-y-4">
@@ -427,26 +420,26 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
                 </select>
             </div>
             
-            {(spellData.attack_type || spellData.level > 0) && (
+            {spellData.attack_type && (
                 <div className="pt-4 border-t border-stone-700/50 space-y-4">
                     <h5 className="text-sm font-medium text-stone-300">Dano e Escalonamento</h5>
-                    {Object.entries(spellData.damage[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level']).map(([level, dice], index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
-                             <input type="number" placeholder={scalingType === 'character' ? "Nível do Personagem" : "Nível da Magia"} value={level} onChange={(e) => handleScalingChange(scalingType, index, 'level', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
-                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"/>
-                            <button type="button" onClick={() => removeScalingEntry(scalingType, level)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
-                        </div>
-                    ))}
-                     <button type="button" onClick={() => addScalingEntry(scalingType)} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"><Plus className="h-4 w-4" /> Adicionar Escalonamento de Dano</button>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                          <div>
                             <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
-                            <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageFieldChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                            <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                                 {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
                             </select>
                         </div>
                     </div>
+                     <p className="text-xs text-stone-400">Dano base e escalonamento por {scalingLabel}.</p>
+                    {Object.entries(spellData.damage[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level']).map(([level, dice], index) => (
+                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
+                             <input type="number" placeholder={scalingLabel} value={level} onChange={(e) => handleScalingChange(scalingType, index, 'level', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
+                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"/>
+                            <button type="button" onClick={() => removeScalingEntry(scalingType, level)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
+                        </div>
+                    ))}
+                     <button type="button" onClick={() => addScalingEntry(scalingType)} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"><Plus className="h-4 w-4" /> Adicionar Escalonamento</button>
                 </div>
             )}
         </div>

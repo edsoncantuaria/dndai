@@ -35,7 +35,7 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
     -   **[Em Andamento] Próximo Passo: Implementar para Magias.**
         -   **[X] Estrutura básica do formulário.**
         -   **[X] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
-        -   **[ ] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
+        -   **[X] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
     -   **Justificativa:** Reduz drasticamente a curva de aprendizado e a possibilidade de erros.
 
 -   **[ ] Sistema de Dependências:**
