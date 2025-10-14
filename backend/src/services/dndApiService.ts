@@ -28,7 +28,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     }
     
     console.log(`[Cache] MISS: ${cacheKey}. Buscando da API...`);
-    // 2. Se não estiver no cache, busca na API
+    // 2. Se não estiver no cache (ou o Redis estiver indisponível), busca na API
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
@@ -37,8 +37,8 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         }
         const data = await response.json();
 
-        // 3. Salva no cache se o Redis estiver disponível
-        if (redisClient) {
+        // 3. Salva no cache se o Redis estiver disponível e a conexão estiver aberta
+        if (redisClient && redisClient.isOpen) {
             try {
                 await redisClient.set(cacheKey, JSON.stringify(data), {
                     EX: CACHE_DURATION_SECONDS, // Define o tempo de expiração
