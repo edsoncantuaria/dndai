@@ -1,12 +1,24 @@
 'use client';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import CharacterCreation from '@/components/CharacterCreation';
 import GameScreen from '@/components/GameScreen';
 import { Loader2 } from 'lucide-react';
 
-export type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+const CharacterCreation = dynamic(() => import('@/components/CharacterCreation'), {
+    loading: () => (
+        <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
+            <Loader2 className="h-12 w-12 animate-spin" />
+            <p className="mt-4">Carregando o criador de heróis...</p>
+        </div>
+    ),
+    ssr: false // A criação de personagem depende de interações do cliente
+});
+
+
+export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+
 
 interface GameProps {
   onCharacterCreated: () => void;

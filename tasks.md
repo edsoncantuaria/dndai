@@ -109,25 +109,28 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Implementar Sistema de Inspiração e Vantagem/Desvantagem:**
     *   **Visão:** Permitir que a IA conceda "Inspiração" e que a UI de rolagem de dados se adapte para rolar com Vantagem ou Desvantagem.
+    *   **Status:** Concluído.
 
-*   **[ ] Inventário e Moedas Unificados (Backend + Frontend):**
+*   **[X] Inventário e Moedas Unificados (Backend + Frontend):**
     *   **Visão:** Implementar o sistema completo de moedas (Cobre, Prata, Ouro, etc.) e calcular seu peso para uma gestão de carga mais realista.
-
-*   **[ ] Revisão do Sistema de Log e "Modo História" (Frontend):**
+    *   **Status:** Concluído.
+    
+*   **[X] Revisão do Sistema de Log e "Modo História" (Frontend):**
     *   **Visão:** Adicionar filtros ao log de aventura (Tudo, Narração, Combate) e criar um "Modo História" que oculte a UI para uma leitura imersiva.
+    *   **Status:** Concluído.
 
 *   **[ ] Melhorias Visuais nos Status e Condições (Frontend):**
     *   **Visão:** Adicionar ícones flutuantes sobre os combatentes para indicar condições e vinhetas na tela para dar feedback visual sobre o estado do personagem.
 
 ### Fase 1.4: Otimização e Qualidade de Vida
 
+*   **[X] Implementar Code Splitting (Frontend):**
+    *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados (como o wizard de criação de personagem) apenas quando forem necessários.
+    *   **Justificativa:** Reduzir o tamanho do bundle inicial, fazendo a aplicação carregar muito mais rápido.
+    
 *   **[ ] Implementar Cache no Servidor com Redis (Backend):**
     *   **Tarefa:** Adicionar o Redis para cachear chamadas repetidas, especialmente para a D&D 5e API.
     *   **Justificativa:** Acelerar drasticamente a criação de personagens e a consulta de informações, reduzindo a dependência de APIs externas.
-
-*   **[ ] Implementar Code Splitting (Frontend):**
-    *   **Tarefa:** Usar o `next/dynamic` para carregar componentes pesados (como o wizard de criação de personagem) apenas quando forem necessários.
-    *   **Justificativa:** Reduzir o tamanho do bundle inicial, fazendo a aplicação carregar muito mais rápido.
     
 *   **[ ] Otimizar Imagens e Fontes (Frontend):**
     *   **Tarefa:** Revisar o uso do componente `next/image` e o carregamento das fontes do Google para garantir a máxima performance segundo as recomendações do Next.js.
@@ -148,5 +151,6 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+
 
 
