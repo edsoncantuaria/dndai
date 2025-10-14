@@ -10,6 +10,7 @@ import BackgroundForm from './forms/BackgroundForm';
 import SpellForm from './forms/SpellForm';
 import ItemForm from './forms/ItemForm';
 import ClassForm from './forms/ClassForm';
+import SubclassForm from './forms/SubclassForm';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -69,6 +70,8 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                 return <ItemForm onDataChange={setContentData} />;
             case 'class':
                 return <ClassForm onDataChange={setContentData} />;
+            case 'subclass':
+                return <SubclassForm onDataChange={setContentData} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado.</p>;
         }

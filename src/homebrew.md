@@ -43,7 +43,9 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
     -   **[X] Estrutura básica com nome e dado de vida.**
     -   **[X] Adicionada seleção de testes de resistência, proficiências em equipamentos e escolhas de perícias.**
     -   **[⬜️ A Fazer] Adicionar características de classe por nível.**
--   **[⬜️ A Fazer] Subclasses:** Formulário para especializações de classe, incluindo novas habilidades e magias.
+-   **[Em Andamento] Subclasses:**
+    -   **[X] Estrutura básica com seleção de classe original, nome e descrição.**
+    -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**
 -   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade a ser integrada diretamente no formulário de criação de `Raças`.
