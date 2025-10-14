@@ -238,6 +238,7 @@ export const useNewGameState = () => {
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
+        setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
@@ -262,6 +263,8 @@ export const useNewGameState = () => {
             setApiError(err.message);
             clearGameState();
             return null;
+        } finally {
+            setIsLoading(false);
         }
     }, [clearGameState]);
 
@@ -345,6 +348,7 @@ export const useNewGameState = () => {
     return {
         character,
         log,
+        sessionId,
         actionOptions,
         combatState,
         levelUpState,

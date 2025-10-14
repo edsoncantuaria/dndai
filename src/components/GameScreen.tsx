@@ -24,6 +24,7 @@ import SpellCastModal from './ui/SpellCastModal';
 import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
+import { Loader2 } from 'lucide-react';
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
@@ -34,6 +35,9 @@ interface GameScreenProps {
 const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
+        character,
+        log,
+        isLoading,
         levelUpState, 
         shopState, 
         apiError, 
@@ -93,6 +97,27 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         relationships: { label: 'Relacionamentos', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
+    
+    // Mostra um loader principal se o personagem ainda não carregou
+    if (!character) {
+        return (
+           <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
+               <Loader2 className="h-12 w-12 animate-spin mb-4" />
+               <h2 className="text-2xl font-bold font-garamond text-amber-300">Carregando Aventura...</h2>
+           </div>
+       );
+    }
+    
+    // Mostra um loader específico se estivermos aguardando a primeira narração.
+    if (isLoading && log.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
+                <Loader2 className="h-12 w-12 animate-spin mb-4" />
+                <h2 className="text-2xl font-bold font-garamond text-amber-300">Aguarde...</h2>
+                <p className="mt-2">O Mestre de Jogo está preparando o início da sua jornada.</p>
+            </div>
+        )
+    }
 
     return (
         <>
@@ -144,12 +169,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             {(Object.keys(tabConfig) as Tab[]).map((key) => (
                                 <button 
                                     key={key} 
-                                    onClick={() => setActiveTab(key)} 
+                                    onClick={() => setActiveTab(key as Tab)} 
                                     className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === key ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
-                                    title={tabConfig[key].label}
+                                    title={tabConfig[key as Tab].label}
                                 >
-                                    {tabConfig[key].icon}
-                                    <span className="hidden lg:inline">{tabConfig[key].label}</span>
+                                    {tabConfig[key as Tab].icon}
+                                    <span className="hidden lg:inline">{tabConfig[key as Tab].label}</span>
                                 </button>
                             ))}
                         </div>

@@ -20,12 +20,13 @@ type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 
 const GameContainer = () => {
     const {
         character,
+        sessionId,
+        log,
         loadGameSession,
         clearGameState,
         deleteCharacter,
         deleteSession,
         startGame,
-        setIsLoading,
         isLoading: isGameLoading,
     } = useGameStateContext();
 
@@ -69,6 +70,14 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
+    
+    // Effect to start the game after session is loaded
+    useEffect(() => {
+        if (gameStage === 'playing' && sessionId && log.length === 0 && !isGameLoading) {
+            startGame();
+        }
+    }, [gameStage, sessionId, log, isGameLoading, startGame]);
+
 
     // --- Audio Management ---
     useEffect(() => {
@@ -91,23 +100,15 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        setIsLoading(true);
+        setIsLoadingData(true);
         try {
             const newSessionResponse = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (newSessionResponse && newSessionResponse.sessao) {
-                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if (loadedData) {
-                    setGameStage('playing');
-                    setPlayMenuMusic(false);
-                    if(loadedData.logs.length === 0) {
-                        await startGame();
-                    }
-                }
+                await handleContinueGame(newSessionResponse.sessao.id);
             }
         } catch (error) {
             console.error("Failed to start new game session:", error);
-        } finally {
-            setIsLoading(false);
+            setIsLoadingData(false);
         }
     };
     
@@ -116,23 +117,16 @@ const GameContainer = () => {
         fetchInitialData(); // Refresh character list
     }
 
-    const handleContinueGame = useCallback(async (sessionId: number) => {
-        setIsLoading(true); // Control loading state centrally
-        const loadedData = await loadGameSession(sessionId);
-        
+    const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
+        const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
-            if (loadedData.logs.length === 0) {
-                await startGame(); // This will handle its own isLoading state via processPlayerAction
-            } else {
-                 setIsLoading(false); // If game is already started, stop loading
-            }
+            // The useEffect will trigger startGame if needed
         } else {
             setGameStage('session_list');
-            setIsLoading(false);
         }
-    }, [loadGameSession, setPlayMenuMusic, startGame, setIsLoading]);
+    }, [loadGameSession, setPlayMenuMusic]);
 
 
     const returnToMenu = useCallback(() => {
@@ -159,10 +153,13 @@ const GameContainer = () => {
 
     const renderContent = () => {
         if (gameStage === 'loading' || (isLoadingData && gameStage !== 'main_menu') || isGameLoading) {
+            const message = isGameLoading && log.length === 0 
+                ? "O Mestre de Jogo está preparando o início da sua jornada." 
+                : "Carregando suas crônicas...";
             return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
-                    <p className="mt-4 text-lg">Carregando suas crônicas...</p>
+                    <p className="mt-4 text-lg">{message}</p>
                 </div>
             );
         }
