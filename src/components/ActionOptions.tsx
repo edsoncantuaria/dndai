@@ -117,6 +117,7 @@ const ActionOptions: React.FC = () => {
         playerRollRequest,
         combatState,
         character,
+        nextTurn
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -144,7 +145,7 @@ const ActionOptions: React.FC = () => {
 
     
     // Actions are available if it is the player's turn and the game is not otherwise locked.
-    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading || !isPlayerTurn;
+    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: any) => {
         processPlayerAction(action);
@@ -164,8 +165,15 @@ const ActionOptions: React.FC = () => {
     const renderActionContent = () => {
         if (combatState.isActive && !isPlayerTurn) {
             return (
-                <div className="flex items-center justify-center p-4 text-stone-400 italic bg-stone-900/30 rounded-md">
-                    Aguardando turno de outros combatentes...
+                <div className="text-center">
+                    <p className="text-stone-400 italic mb-3">Aguardando turno de outros combatentes...</p>
+                    <button
+                        onClick={nextTurn}
+                        disabled={isLoading}
+                        className="w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Próximo Turno' }
+                    </button>
                 </div>
             );
         }
