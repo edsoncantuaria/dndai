@@ -73,6 +73,7 @@ Com a base arquitetônica definida, podemos expandir a visão para mecânicas ma
 -   **[🚧 Em Andamento] Fase 4: Mecânicas Avançadas**:
     *   **Status:** O trabalho nas mecânicas avançadas começou.
     *   **[✅ Concluído]** A IA foi aprimorada para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações.
+    *   **[✅ Concluído]** A estrutura de dados de combate (`CombatStateSchema`) e o prompt da IA foram aprimorados para lidar com um gerenciamento de estado mais detalhado (HP, condições, ações), preparando o terreno para diferenciar monstros.
     *   **[⬜️ A Fazer]** Implementar a lógica de backend e de IA para diferenciar monstros únicos de monstros genéricos (que podem reaparecer).
     *   **[⬜️ A Fazer]** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
 

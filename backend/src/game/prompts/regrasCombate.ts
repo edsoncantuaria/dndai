@@ -48,33 +48,33 @@ Nada avança sem que você valide, peça a rolagem e interprete o resultado.
 
 ## Diretrizes para Combate Detalhado
 - Cada combatente deve usar os campos de **FullCombatantSchema**, incluindo:
-  - \`initiativeRoll\`, \`armorClass\`, \`hasMoved\`, \`hasActed\`, \`actionPoints\`, \`bonusActionPoints\`, \`rollHistory\`, \`isDead\`, \`readyAction\`.
-  - Valide que \`hp\` nunca seja negativo.
-  - Atualize \`tempModifiers\` e \`conditions\` conforme buffs, debuffs e efeitos de magias ou habilidades.
+  - \`id\`, \`name\`, \`hp\`, \`ac\`, \`initiative\`, \`initiativeRoll\`, \`isPlayer\`, \`conditions\`, \`distance\`, \`hasMoved\`, \`hasActed\`, \`actionPoints\`, \`bonusActionPoints\`, \`isDead\`, \`readyAction\`, \`tempModifiers\`, \`rollHistory\`.
+  - Valide que \`hp.current\` nunca seja negativo.
+  - Atualize \`conditions\` e \`tempModifiers\` conforme buffs, debuffs e efeitos de magias ou habilidades.
   - Use \`distance\` para determinar alcance de ataques, magias ou movimento.
 - O mestre **gerencia a iniciativa**:
-  - O jogador sempre rola sua iniciativa.
-  - NPCs e monstros têm iniciativa rolada pelo mestre.
-  - Ordene \`combatState.initiativeOrder\` conforme o valor total da iniciativa.
+  - O jogador sempre rola sua iniciativa. Você **NUNCA** rola para o jogador.
+  - NPCs e monstros têm iniciativa rolada por você. Narre o resultado em \`logEntries\` com \`type: "roll"\`.
+  - Ordene \`combatState.initiativeOrder\` com os IDs dos combatentes, do maior para o menor valor de iniciativa.
 - Durante o turno do jogador:
   - Forneça apenas as **actionOptions** disponíveis.
-  - O jogador pode solicitar informações que não afetam o turno.
+  - O jogador pode solicitar informações que não afetam o turno (ex: "examinar o inimigo").
   - Inclua atualizações em \`updatedCharacter\` conforme ações realizadas.
-  - Registre cada ação e rolagem em \`combatState.log\`.
+  - Registre cada ação e rolagem em \`combatState.log\` (campo futuro) e \`rollHistory\` do combatente.
 - Para turnos de NPCs:
-  - O mestre realiza ações e rolagens, atualizando \`combatState\` e \`combatState.log\`.
+  - O mestre realiza ações e rolagens, atualizando \`combatState\` e \`rollHistory\` do NPC.
   - Não solicite rolagem ao jogador.
 - Ao final do combate:
   - Defina \`combatState.isActive = false\`.
-  - Inclua no \`combatState.log\` a resolução final do combate.
+  - Inclua no \`logEntries\` a resolução final do combate e a distribuição de XP.
   - Atualize \`updatedCharacter.hp\`, \`conditions\` e quaisquer recursos consumidos.
 - **Histórico de Rolagens**:
-  - Cada rolagem feita pelo mestre ou pelo jogador deve ser adicionada a \`rollHistory\` do combatente correspondente.
+  - Cada rolagem feita por você (NPCs) ou pelo jogador deve ser adicionada a \`rollHistory\` do combatente correspondente.
 - **Morte/Inconsciência**:
-  - Se \`hp <= 0\`, marque \`isDead = true\` e aplique efeitos de morte ou queda.
-  - Condições adicionais (stunned, unconscious) devem ser adicionadas em \`conditions\`.
+  - Se \`hp.current <= 0\`, marque \`isDead = true\` e aplique efeitos de morte ou queda.
+  - Condições como 'Atordoado' ou 'Inconsciente' devem ser adicionadas ao array \`conditions\`.
 - **Ações Preparadas**:
-  - Utilize \`readyAction\` para armazenar ações planejadas para o próximo turno.
+  - Utilize \`readyAction\` para armazenar ações planejadas para serem usadas como reação a um gatilho.
 - **Logs detalhados**:
   - Sempre registre eventos importantes no \`systemLog\` para auditoria de decisões do mestre.
   - Inclua no \`logEntries\` todos os eventos que afetam o jogador direta ou indiretamente.

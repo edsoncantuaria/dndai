@@ -351,24 +351,22 @@ export interface LogEntry {
 export interface Combatant {
     id: string;
     name: string;
-    isPlayer?: boolean; // New optional property
-    hp?: { current: number; max: number; } | number; // Updated to allow both object and number
+    isPlayer?: boolean;
+    hp?: { current: number; max: number; };
     maxHp?: number; // compatibilidade
     ac?: number;
-    armorClass?: number;
     initiative?: number;
-    conditions?: string[]; // Array of condition names
+    initiativeRoll?: number;
+    conditions?: string[];
     distance?: number;
-    rollHistory?: any[]; // Adicionado para compatibilidade
-    actionPoints?: number; // Adicionado para compatibilidade
-    bonusActionPoints?: number; // Adicionado para compatibilidade
-    isDead?: boolean; // Adicionado para compatibilidade
-    tempModifiers?: any; // Adicionado para compatibilidade
-    initiativeRoll?: number; // compatibilidade
-    hasMoved?: boolean; // compatibilidade
-    hasActed?: boolean; // compatibilidade
-    readyWeapon?: string; // compatibilidade
-    readySpell?: string; // compatibilidade
+    hasMoved: boolean;
+    hasActed: boolean;
+    actionPoints: number;
+    bonusActionPoints: number;
+    isDead: boolean;
+    readyAction?: string;
+    tempModifiers?: any;
+    rollHistory?: any[];
 }
 
 export interface CombatState {
