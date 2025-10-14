@@ -8,11 +8,12 @@ interface DiceRollModalProps {
   request: PlayerRollRequest;
   onRoll: (result: { total: number; rolls: number[] }) => void;
   onClose: () => void;
+  show: boolean;
 }
 
 type RollStatus = 'normal' | 'critical-success' | 'critical-failure' | 'success' | 'failure';
 
-const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose }) => {
+const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose, show }) => {
   const diceBoxRef = useRef<HTMLDivElement>(null);
   const diceBoxInstance = useRef<DiceBox | null>(null);
   const [isRolling, setIsRolling] = useState(false);
@@ -158,6 +159,8 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose 
       </button>
     </div>
   );
+
+  if (!show) return null;
 
   return (
     <div 

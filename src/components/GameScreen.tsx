@@ -1,7 +1,7 @@
 // src/components/GameScreen.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './Header';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
@@ -50,6 +50,20 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     } = useGameStateContext();
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const [showDiceModal, setShowDiceModal] = useState(false);
+    
+    useEffect(() => {
+        if (playerRollRequest) {
+            const timer = setTimeout(() => {
+                setShowDiceModal(true);
+            }, 1500); // 1.5 second delay
+            return () => clearTimeout(timer);
+        } else {
+            setShowDiceModal(false);
+        }
+    }, [playerRollRequest]);
+
+
     const handleModalAction = () => setIsMobileSheetOpen(false);
 
     const renderSidebarContent = () => {
@@ -92,6 +106,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         request={playerRollRequest}
                         onRoll={handleRollResult}
                         onClose={() => setPlayerRollRequest(null)}
+                        show={showDiceModal}
                     />
                 )}
                 {skillCheckRequest && (

@@ -2,13 +2,13 @@
 'use client';
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import type { LogEntry as LogEntryType, Combatant } from '../types';
+import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import Image from 'next/image';
 
-const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
+const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, playOnMount }) => {
     const [audioData, setAudioData] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +16,16 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
-    const handlePlay = async () => {
+    const handlePlay = useCallback(async (autoTrigger = false) => {
+        if (!autoTrigger && isPlaying) {
+             if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+                setIsPlaying(false);
+            }
+            return;
+        }
+
         if (audioData && audioRef.current) {
             audioRef.current.play();
             setIsPlaying(true);
@@ -38,7 +47,14 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [audioData, getApiKey, isPlaying, text, ttsModel, ttsVoice]);
+
+    useEffect(() => {
+        if (playOnMount) {
+            handlePlay(true);
+        }
+    }, [playOnMount, handlePlay]);
+
 
     useEffect(() => {
         if (audioData && audioRef.current) {
@@ -61,13 +77,47 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 
     return (
         <div className="inline-block ml-2">
-            <button onClick={handlePlay} disabled={isLoading || isPlaying} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className="h-4 w-4" />}
+            <button onClick={() => handlePlay(false)} disabled={isLoading} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className={`h-4 w-4 ${isPlaying ? 'text-amber-400' : ''}`} />}
             </button>
             {audioData && <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />}
         </div>
     );
 };
+
+const NarrationEntry: React.FC<{ entry: LogEntryType, isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
+    const [displayedText, setDisplayedText] = useState(isMostRecent ? '' : entry.content);
+    const [isComplete, setIsComplete] = useState(!isMostRecent);
+
+    useEffect(() => {
+        if (!isMostRecent || isComplete) return;
+
+        const words = entry.content.split(' ');
+        let currentIndex = 0;
+
+        const interval = setInterval(() => {
+            if (currentIndex < words.length) {
+                setDisplayedText(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
+                currentIndex++;
+            } else {
+                clearInterval(interval);
+                setIsComplete(true);
+            }
+        }, 50); // Adjust typing speed here
+
+        return () => clearInterval(interval);
+    }, [entry.content, isMostRecent, isComplete]);
+
+    return (
+        <div className="flex items-start">
+            <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">
+                {displayedText}
+                {!isComplete && <span className="animate-pulse">_</span>}
+            </p>
+            {isComplete && <AudioPlayer text={entry.content} playOnMount={isMostRecent} />}
+        </div>
+    );
+}
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
@@ -143,19 +193,13 @@ const getActionIcon = (content: string) => {
 };
 
 
-const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntryType, index: number }) {
+const LogEntry = React.memo(function LogEntry({ entry, isMostRecent }: { entry: LogEntryType, isMostRecent: boolean }) {
     let content;
     switch(entry.type) {
         case 'narration':
-            content = (
-                <div className="flex items-start">
-                    <p className="text-stone-300 font-serif text-lg italic leading-relaxed flex-grow">{entry.content}</p>
-                    <AudioPlayer text={entry.content} />
-                </div>
-            );
+            content = <NarrationEntry entry={entry} isMostRecent={isMostRecent} />;
             break;
         case 'action':
-             // Hide internal processing actions from the log
             if (typeof entry.content === 'string' && entry.content.startsWith("Processar")) {
                 content = null;
             } else {
@@ -204,7 +248,7 @@ const LogEntry = React.memo(function LogEntry({ entry, index }: { entry: LogEntr
     }
     if(content === null) return null;
 
-    return <div className="animate-fadeIn" style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, animationDuration: '400ms' }}>{content}</div>;
+    return <div>{content}</div>;
 });
 
 const NpcRollDisplay: React.FC = () => {
@@ -253,7 +297,7 @@ const NewNarrativeLog: React.FC = () => {
         <div className="space-y-4">
             <NpcRollDisplay />
             {log.map((entry, index) => (
-                <LogEntry key={entry.id} entry={entry} index={log.length - 1 - index} />
+                <LogEntry key={entry.id} entry={entry} isMostRecent={index === log.length - 1} />
             ))}
             <div ref={logEndRef} />
         </div>
