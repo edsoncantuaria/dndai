@@ -37,7 +37,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, 
                 className={`fixed bottom-16 left-0 right-0 z-40 md:hidden transition-transform duration-300 ease-in-out ${isOpen ? 'translate-y-0' : 'translate-y-[calc(100%)]'}`}
             >
                 <div className="bg-stone-800/80 backdrop-blur-md rounded-t-lg border-t border-stone-600">
-                     <button onClick={() => toggleOpen()} className="w-full flex justify-center items-center py-2">
+                     <button onClick={() => toggleOpen()} className="w-full flex justify-center items-center py-2 cursor-pointer" aria-label="Fechar painel">
                        <div className="w-8 h-1 bg-stone-600 rounded-full"></div>
                     </button>
                     <div className="max-h-[calc(85vh-4rem)] overflow-y-auto p-4">
@@ -49,7 +49,7 @@ const MobileToolbar: React.FC<MobileToolbarProps> = ({ activeTab, setActiveTab, 
             {/* Toolbar */}
             <div className="fixed bottom-0 left-0 right-0 bg-stone-900/90 backdrop-blur-sm border-t border-stone-700 grid grid-cols-6 items-center md:hidden z-50 h-16">
                  {mobileTabOrder.map((key) => {
-                    const { label, icon } = tabConfig[key];
+                    const { label, icon } = tabConfig[key as Tab];
                     return (
                         <button 
                             key={key} 
