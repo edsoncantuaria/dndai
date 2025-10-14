@@ -1,117 +1,60 @@
 // src/services/gameService.ts
-import type { NewCharacterInfo, CombatState, SessaoIA, Character } from "@/types";
-
-const API_URL = 'https://backend-5e.edsin-server.space/api';
-
-const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
-        throw new Error("Token de autenticação não encontrado.");
-    }
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-};
+import { apiClient } from './apiClient';
+import type { NewCharacterInfo, SessaoIA, Character, CombatState } from "@/types";
 
 // --- Character Management ---
 
 export const getCharacters = async (): Promise<Character[]> => {
-    const response = await fetch(`${API_URL}/characters`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-    });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao buscar os personagens.');
-    }
-    return await response.json();
+    return apiClient<Character[]>('/characters', { method: 'GET' });
 };
 
 export const createNewCharacter = async (characterData: NewCharacterInfo) => {
-     const response = await fetch(`${API_URL}/characters`, {
+     return apiClient<{ character: Character }>('/characters', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify(characterData),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao criar o personagem.');
-    }
-    return await response.json();
 };
 
 export const deleteCharacterById = async (characterId: number) => {
-     const response = await fetch(`${API_URL}/characters/${characterId}`, {
+     return apiClient<{ message: string }>(`/characters/${characterId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao deletar o personagem.');
-    }
-    return await response.json();
 };
 
 
 // --- Session Management ---
 
 export const createGameSession = async (nome: string, characterId: number) => {
-    const response = await fetch(`${API_URL}/sessoes`, {
+    return apiClient<{ sessao: SessaoIA }>('/sessoes', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ nome, characterId }),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao criar a sessão de jogo.');
-    }
-    return await response.json();
 };
 
 export const getGameSessions = async (): Promise<SessaoIA[]> => {
-    const response = await fetch(`${API_URL}/sessoes`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-    });
-     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao buscar as sessões de jogo.');
-    }
-    return await response.json();
+    return apiClient<SessaoIA[]>('/sessoes', { method: 'GET' });
 };
 
 export const getSessionDetails = async (sessionId: number): Promise<SessaoIA> => {
-    const response = await fetch(`${API_URL}/sessoes/${sessionId}`, {
-        method: 'GET',
-        headers: getAuthHeaders(),
-    });
-     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao buscar os detalhes da sessão.');
-    }
-    return await response.json();
+    return apiClient<SessaoIA>(`/sessoes/${sessionId}`, { method: 'GET' });
 };
 
 export const deleteSessionById = async (sessionId: number) => {
-     const response = await fetch(`${API_URL}/sessoes/${sessionId}`, {
+     return apiClient<{ message: string }>(`/sessoes/${sessionId}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
     });
-    if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Falha ao deletar a sessão.');
-    }
-    return await response.json();
 };
 
 
 // --- Gameplay Actions ---
 
 export const processPlayerAction = async (sessionId: number, prompt: string, combatState?: CombatState) => {
-    const response = await fetch(`${API_URL}/narrar/${sessionId}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ prompt, combatState }),
     });
 
@@ -119,5 +62,7 @@ export const processPlayerAction = async (sessionId: number, prompt: string, com
         const errorData = await response.json();
         throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
     }
-    return response; // Return the whole response for streaming
+    // Nota: Para streaming, não podemos usar apiClient diretamente pois ele consome o corpo da resposta.
+    // Mantemos o fetch aqui para um futuro sistema de streaming. Por enquanto, parseamos o JSON.
+    return response.json();
 };

@@ -1,6 +1,5 @@
 // src/services/authService.ts
-
-const API_URL = 'https://backend-5e.edsin-server.space/api';
+import { apiClient } from './apiClient';
 
 export interface LoginCredentials {
     login: string;
@@ -14,58 +13,35 @@ export interface RegisterDetails {
     confirmPassword?: string;
 }
 
-const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
-        throw new Error("Token de autenticação não encontrado.");
-    }
-    return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-    };
-}
-
+/**
+ * Registra um novo usuário na plataforma.
+ * @param details As informações de registro do usuário.
+ */
 export const registerUser = async (details: RegisterDetails) => {
-    const response = await fetch(`${API_URL}/auth/register`, {
+    return apiClient<{ success: boolean; message: string }>('/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(details),
     });
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.message || 'Erro no registro.');
-    }
-    return { success: true, message: data.message };
 };
 
-
+/**
+ * Autentica um usuário e retorna os dados do usuário e o token JWT.
+ * @param credentials As credenciais de login (email e senha).
+ */
 export const loginUser = async (credentials: LoginCredentials) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
+    return apiClient<{ success: boolean; user: any; token: string; message: string }>('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: credentials.login, password: credentials.password }),
     });
-    const data = await response.json();
-     if (!response.ok) {
-        throw new Error(data.message || 'Erro no login.');
-    }
-    return {
-        success: true,
-        user: data.user,
-        token: data.token,
-        message: data.message,
-    };
 };
 
+/**
+ * Ativa a chave de licença de um usuário.
+ * @param licenseKey A chave de licença a ser ativada.
+ */
 export const activateUserLicense = async (licenseKey: string) => {
-    const response = await fetch(`${API_URL}/licenses/activate`, {
+    return apiClient<{ success: boolean, message: string }>('/licenses/activate', {
         method: 'POST',
-        headers: getAuthHeaders(),
         body: JSON.stringify({ key: licenseKey }),
     });
-    const data = await response.json();
-    if (!response.ok) {
-        throw new Error(data.message || 'Erro ao ativar a licença.');
-    }
-    return { success: true, message: data.message };
 };
