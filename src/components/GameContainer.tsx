@@ -4,16 +4,17 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import HomebrewStore from './Homebrew/HomebrewStore';
 
 
-type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
 
 
 const GameContainer = () => {
@@ -261,6 +262,10 @@ const GameContainer = () => {
             />;
         }
 
+        if (gameStage === 'homebrew_store') {
+            return <HomebrewStore returnToMenu={() => setGameStage('main_menu')} />;
+        }
+
         // Default: main_menu
         return (
             <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
@@ -283,6 +288,9 @@ const GameContainer = () => {
                     </button>
                     <button onClick={() => setGameStage('character_vault')} className="menu-button btn-import max-w-sm text-2xl py-5">
                         <Sword className="mr-3 h-7 w-7"/> Nova Jornada
+                    </button>
+                    <button onClick={() => setGameStage('homebrew_store')} className="menu-button btn-import max-w-sm text-lg py-3 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-800 border-purple-600 hover:border-purple-500">
+                        <FlaskConical className="mr-3 h-6 w-6"/> Laboratório Homebrew
                     </button>
                 </main>
             </div>
