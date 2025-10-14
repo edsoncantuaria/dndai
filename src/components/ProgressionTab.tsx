@@ -10,7 +10,7 @@ const ProgressionTab: React.FC = () => {
 
     if (!character) return null;
 
-    const xpPercentage = (character.xp / character.xpToNextLevel) * 100;
+    const xpPercentage = character.xpToNextLevel > 0 ? (character.xp / character.xpToNextLevel) * 100 : 0;
     const allLevels = Array.from({ length: 20 }, (_, i) => i + 1);
 
     return (

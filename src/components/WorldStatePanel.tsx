@@ -43,7 +43,7 @@ const WorldStateIcon: React.FC<{ stateKey: string, value?: string }> = ({ stateK
         return <Sun className="h-5 w-5 text-yellow-400" title={`Clima: ${value}`} />;
     }
     if (stateKey === 'timeOfDay') {
-        if (lowerValue.includes('night') || lowerValue.includes('dusk')) return <Moon className="h-5 w-5 text-indigo-300" title={`Período: ${value}`} />;
+        if (lowerValue.includes('noite')) return <Moon className="h-5 w-5 text-indigo-300" title={`Período: ${value}`} />;
         return <Sun className="h-5 w-5 text-yellow-400" title={`Período: ${value}`} />;
     }
     return null;
@@ -52,13 +52,12 @@ const WorldStateIcon: React.FC<{ stateKey: string, value?: string }> = ({ stateK
 const WorldStatePanel: React.FC = () => {
     const { character } = useGameStateContext();
 
-    // The worldState is now part of the main character object in this context
     const worldState = character?.worldState || {};
     const hasFactions = character?.factionReputation && Object.keys(character.factionReputation).length > 0;
     const hasWorldState = Object.keys(worldState).length > 0;
     
     if (!hasFactions && !hasWorldState) {
-        return null; // Don't render the component if there's nothing to show
+        return null;
     }
 
     return (

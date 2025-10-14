@@ -333,6 +333,3 @@ export const translateSpell = (s?: any): any => {
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
-
-
-

@@ -127,6 +127,11 @@ const RelationshipSchema = z.object({
     quests: z.array(QuestSchema).optional(),
 });
 
+const WorldStateSchema = z.object({
+    timeOfDay: z.enum(['Manhã', 'Tarde', 'Noite']).describe("Current time of day."),
+    weather: z.enum(['Ensolarado', 'Nublado', 'Chuva', 'Tempestade', 'Neve', 'Nevoeiro']).describe("Current weather conditions."),
+}).describe("Describes the overall state of the world.");
+
 
 // Esquema otimizado do personagem enviado para a IA
 const CharacterAISchema = z.object({
@@ -154,7 +159,7 @@ const CharacterAISchema = z.object({
     journal: z.array(JournalEntrySchema).optional(),
     relationships: z.array(RelationshipSchema).optional(),
     storySoFar: z.string().optional(),
-    worldState: z.record(z.any()).optional(),
+    worldState: WorldStateSchema.optional(),
     factionReputation: z.record(z.number()).optional(),
 });
 
@@ -171,6 +176,7 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
+    worldState: WorldStateSchema.describe("Updates to the global world state, like time and weather. This MUST always be returned."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;

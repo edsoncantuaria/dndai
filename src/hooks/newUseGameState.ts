@@ -135,6 +135,10 @@ export const useNewGameState = () => {
         if (response.updatedCharacter) {
              setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
         }
+        
+        if (response.worldState) {
+            setCharacter(prev => prev ? mergeCharacterState(prev, { worldState: response.worldState }) : null);
+        }
 
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
