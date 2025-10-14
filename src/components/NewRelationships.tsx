@@ -72,8 +72,8 @@ const NewRelationships: React.FC = () => {
         );
     }
     
-    const activeQuests = character.relationships.flatMap(r => r.quests.filter(q => q.status === 'active'));
-    const completedQuests = character.relationships.flatMap(r => r.quests.filter(q => q.status === 'completed'));
+    const activeQuests = character.relationships.flatMap(r => r.quests?.filter(q => q.status === 'active') || []);
+    const completedQuests = character.relationships.flatMap(r => r.quests?.filter(q => q.status === 'completed') || []);
 
 
     return (
@@ -104,7 +104,7 @@ const NewRelationships: React.FC = () => {
                             <div>
                                 <div className="flex justify-between items-baseline">
                                     <h5 className="font-semibold text-stone-200 text-lg">{rel.name}</h5>
-                                    <span className={`px-2 py-1 text-xs font-bold rounded-full text-white/90 ${statusMap[rel.status].color}`}>{statusMap[rel.status].label}</span>
+                                    <span className={`px-2 py-1 text-xs font-bold rounded-full text-white/90 ${statusMap[rel.status]?.color || 'bg-stone-500'}`}>{statusMap[rel.status]?.label || rel.status}</span>
                                 </div>
                                 <p className="text-sm text-stone-400 italic">{rel.description}</p>
                             </div>

@@ -301,6 +301,7 @@ export interface Character {
     feats: Feat[];
     languages: string[];
     subclassFlavor: string | null;
+    currentRegion?: string;
 }
 
 export interface CharacterAttributes extends Attributes {

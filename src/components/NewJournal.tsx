@@ -1,11 +1,11 @@
 'use client';
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import type { JournalEntryLocation } from '../types';
+import type { JournalEntry } from '../types';
 import { ChevronDown, Map } from 'lucide-react';
 
 interface LocationProps {
-    location: JournalEntryLocation;
+    location: JournalEntry;
     level: number;
 }
 
@@ -78,7 +78,7 @@ const NewJournal: React.FC = () => {
         }
         acc[region].push(loc);
         return acc;
-    }, {} as Record<string, JournalEntryLocation[]>);
+    }, {} as Record<string, JournalEntry[]>);
 
     return (
         <div className="p-4 space-y-4">
@@ -88,7 +88,7 @@ const NewJournal: React.FC = () => {
             </h3>
             
             <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
-                <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{character.currentRegion}</span></p>
+                <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{character.currentRegion || 'Desconhecida'}</span></p>
             </div>
 
             <div className="space-y-4">
