@@ -8,6 +8,13 @@ import SettingsModal from './SettingsModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { translateApiString, translateAttribute } from '@/utils/translator';
 import type { Attributes } from '@/types';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
 
 interface HeaderProps {
     returnToMenu: () => void;
@@ -58,123 +65,160 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 
     return (
         <>
-            <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700">
-                <div className="flex justify-between items-start gap-4">
-                    {/* Character Info & XP */}
-                    <div className="flex-grow">
-                        <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-2">
-                             <h2 className="font-bold text-xl text-stone-100 truncate font-garamond">{name}</h2>
-                             <p className="text-sm text-stone-400">
-                                {translateApiString(race || '')} {translateApiString(characterClass || '')} de Nível {level}
-                            </p>
+            <TooltipProvider delayDuration={0}>
+                <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700">
+                    <div className="flex justify-between items-start gap-4">
+                        {/* Character Info & XP */}
+                        <div className="flex-grow">
+                            <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-2">
+                                <h2 className="font-bold text-xl text-stone-100 truncate font-garamond">{name}</h2>
+                                <p className="text-sm text-stone-400">
+                                    {translateApiString(race || '')} {translateApiString(characterClass || '')} de Nível {level}
+                                </p>
+                            </div>
+                            <div className="mt-2">
+                                <div className="flex justify-between text-xs mb-1">
+                                    <span className="font-semibold text-stone-300">XP</span>
+                                    <span className="font-mono text-stone-400">{xp} / {xpToNextLevel}</span>
+                                </div>
+                                <div className="w-full bg-stone-700 rounded-full h-2 border border-stone-600 overflow-hidden relative">
+                                    <div 
+                                        className="bg-purple-600 h-full rounded-full transition-all duration-300" 
+                                        style={{ width: `${xpPercentage}%`}}
+                                    ></div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="mt-2">
-                            <div className="flex justify-between text-xs mb-1">
-                                <span className="font-semibold text-stone-300">XP</span>
-                                <span className="font-mono text-stone-400">{xp} / {xpToNextLevel}</span>
-                            </div>
-                            <div className="w-full bg-stone-700 rounded-full h-2 border border-stone-600 overflow-hidden relative">
-                                <div 
-                                    className="bg-purple-600 h-full rounded-full transition-all duration-300" 
-                                    style={{ width: `${xpPercentage}%`}}
-                                ></div>
-                            </div>
+
+                        {/* Desktop Action Buttons */}
+                        <div className="hidden md:flex items-center justify-end gap-2 flex-shrink-0">
+                            <button
+                                onClick={() => setShowSettingsModal(true)}
+                                disabled={isInteractionDisabled}
+                                className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                title="Configurações"
+                            >
+                                <Settings className="h-5 w-5 text-amber-300" />
+                            </button>
+                            <button
+                                onClick={() => setShowExitModal(true)}
+                                disabled={isInteractionDisabled}
+                                className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                title="Sair da Aventura"
+                            >
+                                <DoorOpen className="h-5 w-5 text-amber-300" />
+                            </button>
+                        </div>
+
+                        {/* Mobile Action Buttons */}
+                        <div className="md:hidden flex items-center gap-1.5 flex-shrink-0">
+                            <button
+                                onClick={() => setShowSettingsModal(true)}
+                                disabled={isInteractionDisabled}
+                                className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                title="Configurações"
+                            >
+                                <Settings className="h-4 w-4 text-amber-300" />
+                            </button>
+                            <button
+                                onClick={() => setShowExitModal(true)}
+                                disabled={isInteractionDisabled}
+                                className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                title="Sair da Aventura"
+                            >
+                                <DoorOpen className="h-4 w-4 text-amber-300" />
+                            </button>
                         </div>
                     </div>
 
-                    {/* Desktop Action Buttons */}
-                    <div className="hidden md:flex items-center justify-end gap-2 flex-shrink-0">
-                        <button
-                            onClick={() => setShowSettingsModal(true)}
-                            disabled={isInteractionDisabled}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Configurações"
-                        >
-                            <Settings className="h-5 w-5 text-amber-300" />
-                        </button>
-                         <button
-                            onClick={() => setShowExitModal(true)}
-                            disabled={isInteractionDisabled}
-                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Sair da Aventura"
-                        >
-                            <DoorOpen className="h-5 w-5 text-amber-300" />
-                        </button>
-                    </div>
+                    {/* Stats for both Mobile and Desktop */}
+                    <div className="grid grid-cols-6 gap-x-1 sm:gap-x-2 text-center mt-3 pt-3 border-t border-stone-700/50">
+                        {/* HP */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Heart className="h-4 w-4 text-red-300"/>
+                                    <div className="font-mono font-semibold text-sm sm:text-base"><span className="whitespace-nowrap">{hp?.current} / {hp?.max}</span></div>
+                                    <div className="hidden sm:block text-xs font-bold text-red-300 uppercase">Vida</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Pontos de Vida</p>
+                            </TooltipContent>
+                        </Tooltip>
+                        
+                        {/* AC */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Shield className="h-4 w-4 text-blue-300"/>
+                                    <div className="font-mono font-semibold text-sm sm:text-base">{ac?.value}</div>
+                                    <div className="hidden sm:block text-xs font-bold text-blue-300 uppercase">CA</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Classe de Armadura</p>
+                            </TooltipContent>
+                        </Tooltip>
 
-                     {/* Mobile Action Buttons */}
-                    <div className="md:hidden flex items-center gap-1.5 flex-shrink-0">
-                         <button
-                            onClick={() => setShowSettingsModal(true)}
-                            disabled={isInteractionDisabled}
-                            className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Configurações"
-                        >
-                            <Settings className="h-4 w-4 text-amber-300" />
-                        </button>
-                        <button
-                            onClick={() => setShowExitModal(true)}
-                            disabled={isInteractionDisabled}
-                            className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
-                            title="Sair da Aventura"
-                        >
-                            <DoorOpen className="h-4 w-4 text-amber-300" />
-                        </button>
+                        {/* Initiative */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Zap className="h-4 w-4 text-green-300"/>
+                                    <div className="font-mono font-semibold text-sm sm:text-base">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
+                                    <div className="hidden sm:block text-xs font-bold text-green-300 uppercase">Iniciativa</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Iniciativa</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        {/* Passive Perception */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Eye className="h-4 w-4 text-stone-400"/>
+                                    <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.perception}</p>
+                                    <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Percepção</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Percepção Passiva</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        {/* Passive Insight */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Brain className="h-4 w-4 text-stone-400"/>
+                                    <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.insight}</p>
+                                    <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Intuição</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Intuição Passiva</p>
+                            </TooltipContent>
+                        </Tooltip>
+
+                        {/* Passive Investigation */}
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex flex-col items-center justify-center">
+                                    <Search className="h-4 w-4 text-stone-400"/>
+                                    <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.investigation}</p>
+                                    <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Investig.</div>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Investigação Passiva</p>
+                            </TooltipContent>
+                        </Tooltip>
                     </div>
                 </div>
-
-                {/* Stats for both Mobile and Desktop */}
-                 <div className="grid grid-cols-6 gap-x-1 sm:gap-x-2 text-center mt-3 pt-3 border-t border-stone-700/50">
-                    {/* HP */}
-                    <div className="flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-red-300">
-                           <Heart className="h-4 w-4"/>
-                           <span className="hidden sm:inline">VIDA</span>
-                        </div>
-                        <div className="font-mono font-semibold text-sm sm:text-base"><span className="whitespace-nowrap">{hp?.current} / {hp?.max}</span></div>
-                    </div>
-                    {/* AC */}
-                    <div className="flex flex-col items-center justify-center">
-                        <div className="flex items-center gap-1.5 text-xs font-bold text-blue-300">
-                           <Shield className="h-4 w-4"/>
-                           <span className="hidden sm:inline">CA</span>
-                        </div>
-                        <div className="font-mono font-semibold text-sm sm:text-base">{ac?.value}</div>
-                    </div>
-                    {/* Initiative */}
-                    <div className="flex flex-col items-center justify-center">
-                         <div className="flex items-center gap-1.5 text-xs font-bold text-green-300">
-                            <Zap className="h-4 w-4"/>
-                            <span className="hidden sm:inline">INICIATIVA</span>
-                         </div>
-                        <div className="font-mono font-semibold text-sm sm:text-base">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
-                    </div>
-                    {/* Passive Perception */}
-                    <div className="flex flex-col items-center justify-center" title="Percepção Passiva">
-                         <div className="flex items-center gap-1.5 text-xs font-bold text-stone-400">
-                             <Eye className="h-4 w-4"/>
-                             <span className="hidden sm:inline">Percepção</span>
-                         </div>
-                        <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.perception}</p>
-                    </div>
-                     {/* Passive Insight */}
-                    <div className="flex flex-col items-center justify-center" title="Intuição Passiva">
-                         <div className="flex items-center gap-1.5 text-xs font-bold text-stone-400">
-                            <Brain className="h-4 w-4"/>
-                            <span className="hidden sm:inline">Intuição</span>
-                         </div>
-                        <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.insight}</p>
-                    </div>
-                    {/* Passive Investigation */}
-                     <div className="flex flex-col items-center justify-center" title="Investigação Passiva">
-                         <div className="flex items-center gap-1.5 text-xs font-bold text-stone-400">
-                             <Search className="h-4 w-4"/>
-                             <span className="hidden sm:inline">Investigação</span>
-                         </div>
-                        <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.investigation}</p>
-                    </div>
-                </div>
-            </div>
+            </TooltipProvider>
 
             {showExitModal && (
                 <ActionModal
