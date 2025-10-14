@@ -39,7 +39,7 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Magias:** Incluindo mecânicas de dano, escalonamento e seleção de componentes materiais.
 -   **[✅ Concluído] Itens:** Com campos para categoria, custo, peso e propriedades.
 -   **[✅ Concluído] Talentos (Feats):** Implementado através do "Criador de Traços".
--   **[⬜️ A Fazer] Classes:** Próximo passo. Criar o formulário para definir características de classe, proficiências, dado de vida, etc.
+-   **[🚧 Em Andamento] Classes:** Próximo passo. Criar o formulário para definir características de classe, proficiências, dado de vida, etc.
 -   **[⬜️ A Fazer] Subclasses:** Formulário para especializações de classe, incluindo novas habilidades e magias.
 -   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
 
