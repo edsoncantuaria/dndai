@@ -23,7 +23,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
         <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
                  <div className={`w-3 h-3 rounded-full border-2 ${isProficient ? 'bg-amber-400 border-amber-300' : 'bg-stone-600 border-stone-500'}`} title={isProficient ? 'Proficiente' : 'Não Proficiente'}></div>
-                <span className="text-stone-300">{translateApiString(`Skill: ${skillName}`)}</span>
+                <span className="text-stone-300">{translateApiString(skillName)}</span>
                 <span className="text-xs text-stone-500">({translateAttribute(attribute).substring(0, 3)})</span>
             </div>
             <div className="flex items-center gap-2">

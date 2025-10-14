@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
+import { translateApiString } from '@/utils/translator';
 
 interface SkillCheckModalProps {
     skillName: string;
@@ -10,23 +11,25 @@ interface SkillCheckModalProps {
 
 const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, onConfirm, onClose }) => {
     const [description, setDescription] = useState('');
+    const translatedSkill = translateApiString(`Skill: ${skillName}`);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onConfirm(description || `usar ${skillName}`);
+        onConfirm(description || `usar ${translatedSkill}`);
     };
 
     return (
         <div 
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
             style={{ animationDuration: '200ms' }}
+            onClick={onClose}
         >
             <div 
                 className="bg-stone-900 border border-amber-500 rounded-lg shadow-2xl w-full max-w-md flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-garamond text-amber-300">Usar Perícia: {skillName}</h2>
+                    <h2 className="text-xl font-bold font-garamond text-amber-300">Usar Perícia: {translatedSkill}</h2>
                     <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
                 </header>
                 <form onSubmit={handleSubmit}>

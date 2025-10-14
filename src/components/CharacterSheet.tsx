@@ -45,7 +45,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     // --- Passive Skills Calculation ---
     const calculatePassiveScore = (skillName: string, attribute: keyof Attributes) => {
         const isProficient = (proficiencies || []).some(p => p?.name?.toLowerCase().includes(skillName.toLowerCase()));
-        return 10 + (modifiers ? modifiers[attribute] : 0) + (character.proficiencyBonus || 0);
+        return 10 + (modifiers ? modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
     };
 
     const passivePerception = calculatePassiveScore('perception', 'wisdom');

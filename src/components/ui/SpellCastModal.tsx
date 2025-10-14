@@ -43,7 +43,7 @@ const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, onConfirm, onClo
                             onChange={(e) => setDescription(e.target.value)}
                             rows={3}
                             className="w-full bg-stone-800 border border-stone-600 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                            placeholder={`Ex: "no goblin mais próximo" ou "para criar uma ponte sobre o abismo"`}
+                            placeholder={`Ex: "no goblin mais próximo" ou "para criar uma ponte de gelo"`}
                         />
                          <p className="text-xs text-stone-500">Deixe em branco para uma conjuração padrão ou forneça um alvo/intenção.</p>
                     </main>

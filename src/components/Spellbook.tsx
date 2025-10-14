@@ -1,4 +1,4 @@
-
+// src/components/Spellbook.tsx
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
