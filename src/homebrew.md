@@ -32,7 +32,7 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 -   **[ ] Editor de Conteúdo Guiado:** Em vez de escrever JSON manualmente, o usuário selecionará um tipo de conteúdo (ex: "Nova Raça") e preencherá um formulário com campos específicos. O sistema, então, irá gerar o JSON no formato `openapi.yaml` correto.
     -   **[X] Implementado para Raças.**
     -   **[X] Implementado para Antecedentes.**
-    -   **[Em Andamento] Próximo Passo: Implementar para Magias.**
+    -   **[X] Implementado para Magias.**
         -   **[X] Estrutura básica do formulário.**
         -   **[X] Adicionar campos estruturados para Duração, Alcance, Tempo de Conjuração e mecânicas de Ataque/Dano.**
         -   **[X] Adicionar sistema de escalonamento de dano (por nível de personagem ou espaço de magia).**
