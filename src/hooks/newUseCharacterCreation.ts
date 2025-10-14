@@ -820,15 +820,13 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setClassLevels(levels);
             setIsEquipmentLoading(false);
     
-            // Fetch subclass flavor immediately
             if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
                 setSubclassFlavor(subClassDetails?.subclass_flavor || null);
 
-                // Fetch subclass spells if available at level 1
                  if (subClassDetails?.spells) {
                     const level1SubclassSpells = subClassDetails.spells
-                        .filter(s => s.prerequisites.some(p => p.type === 'level' && p.spell.includes('1')))
+                        .filter(s => s.prerequisites.some(p => p && p.type === 'level' && typeof p.spell === 'string' && p.spell.includes('1')))
                         .map(s => s.spell);
                     
                     if (level1SubclassSpells.length > 0) {
@@ -838,7 +836,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 }
             }
     
-            // Start fetching spells in the background
             if (details?.spellcasting) {
                 setIsSpellsLoading(true);
                 setSpellsLoadingProgress('Carregando magias...');
