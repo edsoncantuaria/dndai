@@ -230,6 +230,7 @@ const SpellForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChan
     useEffect(() => {
         const fetchSchools = async () => {
             try {
+                setIsLoadingSchools(true);
                 const schools = await DndApiService.getMagicSchools();
                 setMagicSchools(schools?.results || []);
             } catch (error) {
