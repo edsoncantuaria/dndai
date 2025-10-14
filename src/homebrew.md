@@ -26,10 +26,10 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 ### Fase 3: Integração com o Jogo (Em Andamento)
 
 -   **[X] Mesclar Dados (Listas de Recursos):** A rota `GET /api/dnds/:resource` do backend foi modificada para que, ao receber uma requisição por "classes", "raças", etc., ele busque na API oficial e mescle com o conteúdo homebrew público do banco de dados antes de retornar ao frontend.
--   **[Em Andamento] Integração de Detalhes no Backend:**
+-   **[X] Integração de Detalhes no Backend:**
     -   **[✅ Concluído]** A rota `GET /api/dnds/:resource/:index` foi atualizada para detectar se um `index` é um ID de homebrew. Se for, ela busca os detalhes do nosso banco de dados em vez da API D&D.
     -   **[✅ Concluído]** O `characterService` foi atualizado para carregar os dados de uma classe homebrew durante a criação do personagem.
-    -   **[Em Andamento]** Garantir que todos os outros serviços (`narrarService`, rotas de níveis/magias) também saibam como lidar com dados de homebrew.
+    -   **[✅ Concluído]** O `narrarService` e as rotas de níveis/magias agora também sabem como lidar com dados de classes homebrew.
 
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
@@ -43,13 +43,13 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Magias:** Incluindo mecânicas de dano, escalonamento e seleção de componentes materiais.
 -   **[✅ Concluído] Itens:** Com campos para categoria, custo, peso e propriedades.
 -   **[✅ Concluído] Talentos (Feats):** Implementado através do "Criador de Traços".
--   **[Em Andamento] Classes:**
-    -   **[✅ Concluído] Estrutura básica com nome e dado de vida.**
-    -   **[✅ Concluído] Seleção de testes de resistência, proficiências e escolhas de perícias.**
-    -   **[Em Andamento] Adicionar características de classe por nível.**
+-   **[✅ Concluído] Classes:**
+    -   Estrutura básica com nome e dado de vida.
+    -   Seleção de testes de resistência, proficiências e escolhas de perícias.
+    -   Adição de características de classe por nível.
 -   **[Em Andamento] Subclasses:**
     -   **[✅ Concluído] Estrutura básica com seleção de classe original, nome e descrição.**
-    -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**
+    -   **[Em Andamento] Adicionar características de subclasse por nível.**
 -   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade a ser integrada diretamente no formulário de criação de `Raças`.
