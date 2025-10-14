@@ -353,6 +353,7 @@ export interface Combatant {
     hp?: { current: number; max: number; } | number; // Updated to allow both object and number
     maxHp?: number; // compatibilidade
     ac?: number;
+    armorClass?: number;
     initiative?: number;
     isPlayer?: boolean;
     conditions?: string[]; // Array of condition names

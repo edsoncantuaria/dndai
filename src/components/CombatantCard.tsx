@@ -13,7 +13,7 @@ const statusColorMap: Record<string, string> = {
     'Frightened': 'bg-indigo-600/50 text-indigo-200',
 };
 
-const RollHistoryDisplay: React.FC<{ rollHistory: Combatant['rollHistory'] }> = ({ rollHistory }) => {
+const RollHistoryDisplay: React.FC<{ rollHistory?: any[] }> = ({ rollHistory }) => {
     if (!rollHistory || rollHistory.length === 0) {
         return <p className="text-xs italic text-stone-500">Nenhuma rolagem registrada.</p>;
     }
@@ -53,7 +53,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
 
     const currentHp = typeof combatant.hp === 'object' ? combatant.hp.current : (typeof combatant.hp === 'number' ? combatant.hp : '?');
-    const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : combatant.maxHp ?? '?';
+    const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : (combatant.maxHp ?? '?');
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
 
@@ -82,7 +82,7 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                     </button>
                     <div className="text-center">
                         <div className="text-xs text-stone-400 flex items-center gap-1"><Shield className="h-3 w-3"/>AC</div>
-                        <div className="font-bold text-stone-200">{combatant.armorClass ?? '?'}</div>
+                        <div className="font-bold text-stone-200">{combatant.ac ?? '?'}</div>
                     </div>
                 </div>
             </div>
