@@ -32,6 +32,8 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 - **IA Generativa**: [Genkit (Google AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini.
 - **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada como fonte de dados para raças, classes, magias, etc., com cache no backend.
 
+**Nota Crítica sobre a API Externa:** O arquivo `openapi.yaml` na raiz do projeto documenta a estrutura exata da D&D 5e API. **Este arquivo DEVE ser consultado SEMPRE** antes de fazer qualquer modificação que envolva a busca de dados externos, para garantir que as URLs e os schemas estejam corretos.
+
 ### Estrutura de Diretórios Principal
 
 ```
