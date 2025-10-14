@@ -3,7 +3,7 @@ import redisClient from '../database/redis-client.js';
 import fetch from 'node-fetch'; // Usando node-fetch no backend
 import 'dotenv/config';
 
-const API_BASE = 'https://www.dnd5eapi.co';
+const API_BASE = 'https://www.dnd5eapi.co/api/2014';
 const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
 
 /**
@@ -67,7 +67,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
  * @param resource O nome do recurso no plural (ex: 'races').
  */
 export const getResourceList = (resource: string) => {
-    return fetchWithCache<{ results: any[] }>(`/api/${resource}`);
+    return fetchWithCache<{ results: any[] }>(`/${resource}`);
 }
 
 /**
@@ -76,5 +76,5 @@ export const getResourceList = (resource: string) => {
  * @param index O índice do item (ex: 'elf', 'bard/levels').
  */
 export const getDetails = (resource: string, index: string) => {
-     return fetchWithCache<any>(`/api/${resource}/${index}`);
+     return fetchWithCache<any>(`/${resource}/${index}`);
 }
