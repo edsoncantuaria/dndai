@@ -8,7 +8,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 ---
 
-## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Em Andamento)
+## ✅ TASK-1: Reestruturação da Plataforma Cliente-Servidor (Concluído)
 
 - **Problema:** O frontend atual ainda opera com muitas lógicas do design original (estado gerenciado no cliente, `localStorage`), o que o impede de aproveitar todo o potencial do novo backend (banco de dados persistente, gerenciamento de sessões, personagens reutilizáveis). A interface e o fluxo de dados não refletem a nova arquitetura de servidor.
 - **Filosofia Central:** O backend é a única fonte da verdade. O frontend deve ser uma interface reativa e performática que busca e envia dados ao servidor, utilizando o cache de forma inteligente para uma experiência de usuário fluida.
@@ -95,6 +95,11 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
     *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
+    *   **Status:** Fundações concluídas. A lógica completa de gerenciamento de turnos ainda está em desenvolvimento.
+
+*   **[X] Reimaginar Inventário e Grimório:**
+    *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
+    *   **Impacto:** Melhora drasticamente a usabilidade e a estética do gerenciamento de personagem.
     *   **Status:** Concluído.
 
 *   **[ ] Adicionar Suporte a Talentos (Feats):**
@@ -142,3 +147,4 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
+

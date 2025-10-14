@@ -4,8 +4,7 @@ import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
-import { translateEquipment } from '../utils/translator';
-import { Backpack, Hand, Loader2 } from 'lucide-react';
+import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword } from 'lucide-react';
 
 const LootDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
@@ -22,14 +21,11 @@ const LootDisplay: React.FC = () => {
                 Saque Próximo
             </h4>
             <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2">
-                {pendingLootOffer.items.map((item, index) => {
-                    const translatedItem = translateEquipment(item);
-                    return (
-                        <div key={item.id || index} className="text-sm text-stone-300">
-                             <span className="font-semibold text-stone-200">{translatedItem.name}</span> {item.quantity > 1 ? `(x${item.quantity})` : ''}
-                        </div>
-                    )
-                })}
+                {pendingLootOffer.items.map((item, index) => (
+                    <div key={item.id || index} className="text-sm text-stone-300">
+                         <span className="font-semibold text-stone-200">{item.name}</span> {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                    </div>
+                ))}
                 {pendingLootOffer.currency.gp > 0 && (
                     <div className="text-amber-400 font-semibold">{pendingLootOffer.currency.gp} moedas de ouro</div>
                 )}
@@ -44,7 +40,6 @@ const LootDisplay: React.FC = () => {
         </div>
     );
 };
-
 
 const Inventory: React.FC = () => {
     const { character, toggleEquipped, useConsumable, isLoading, combatState, playerRollRequest } = useGameStateContext();
@@ -62,31 +57,17 @@ const Inventory: React.FC = () => {
     const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
-    return (
-        <div className="p-4 space-y-4">
-            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 mb-3 text-shadow-amber">
-                <Backpack />
-                Inventário
-            </h3>
-            
-            <div className="mb-4">
-                <div className="flex justify-between text-sm mb-1">
-                    <span className="font-semibold text-stone-300">Carga</span>
-                    <span className="font-mono text-stone-400">{currentWeight.toFixed(1)} / {carryingCapacity} lbs</span>
-                </div>
-                <div className="w-full bg-stone-700 rounded-full h-2.5 border border-stone-600 overflow-hidden">
-                    <div 
-                        className={`${progressBarColor} h-full rounded-full transition-all duration-300`} 
-                        style={{ width: `${Math.min(loadPercentage, 100)}%`}}
-                    ></div>
-                </div>
-             </div>
+    const weapons = character.inventory.filter(i => i.weapon_category);
+    const armors = character.inventory.filter(i => i.armor_category);
+    const magicItems = character.inventory.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
+    const otherItems = character.inventory.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)'));
 
-            {(character.inventory || []).length === 0 ? (
-                <p className="text-stone-400 italic text-center py-4 bg-stone-800/40 rounded-md">Sua bolsa está vazia.</p>
-            ) : (
+    const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
+        <div>
+            <h4 className="font-semibold text-amber-200 border-b border-stone-700 pb-1 mb-2 flex items-center gap-2">{icon} {title}</h4>
+            {items.length > 0 ? (
                 <div className="space-y-2">
-                    {character.inventory.map((item) => (
+                    {items.map(item => (
                         <ItemCard 
                             key={item.id} 
                             item={item} 
@@ -96,7 +77,40 @@ const Inventory: React.FC = () => {
                         />
                     ))}
                 </div>
+            ) : (
+                <p className="text-sm text-stone-500 italic pl-2">Nenhum item.</p>
             )}
+        </div>
+    );
+
+    return (
+        <div className="p-4 space-y-6">
+            <div>
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 mb-3 text-shadow-amber">
+                    <Backpack />
+                    Inventário
+                </h3>
+                
+                <div className="mb-4">
+                    <div className="flex justify-between text-sm mb-1">
+                        <span className="font-semibold text-stone-300">Carga</span>
+                        <span className="font-mono text-stone-400">{currentWeight.toFixed(1)} / {carryingCapacity} lbs</span>
+                    </div>
+                    <div className="w-full bg-stone-700 rounded-full h-2.5 border border-stone-600 overflow-hidden">
+                        <div 
+                            className={`${progressBarColor} h-full rounded-full transition-all duration-300`} 
+                            style={{ width: `${Math.min(loadPercentage, 100)}%`}}
+                        ></div>
+                    </div>
+                 </div>
+            </div>
+
+            <div className="space-y-4">
+                {renderCategory("Armas", weapons, <Sword className="h-4 w-4" />)}
+                {renderCategory("Armaduras e Escudos", armors, <ShieldCheck className="h-4 w-4" />)}
+                {renderCategory("Itens Mágicos", magicItems, <Gem className="h-4 w-4" />)}
+                {renderCategory("Itens Gerais", otherItems, <Backpack className="h-4 w-4" />)}
+            </div>
 
             <LootDisplay />
         </div>

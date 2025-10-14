@@ -44,7 +44,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
 
     const cardContent = (
         <>
-            <div className="flex justify-between items-start w-full">
+            <div className="flex justify-between items-start w-full cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className="flex-grow">
                     <h4 className="font-semibold text-stone-200 group-hover:text-amber-300 transition-colors" title={spell.name}>{translatedSpell.name}</h4>
                     <p className="text-xs text-stone-400">{spell.level === 0 ? 'Truque' : `Nível ${spell.level}`} de {translateMagicSchool(spell.school.name)}</p>
@@ -60,9 +60,9 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             <Sparkles className="h-4 w-4" />
                         </button>
                     )}
-                    <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300 flex-shrink-0">
+                    <div className="p-1 text-stone-400 hover:text-amber-300 flex-shrink-0">
                         <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
+                    </div>
                 </div>
             </div>
 

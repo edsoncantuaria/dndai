@@ -99,7 +99,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
     const [traitChoiceDetails, setTraitChoiceDetails] = useState<ApiTrait[]>([]);
-    const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]); // Armazena magias de subclasse
+    const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
     
     // --- MEMOIZED DERIVED STATE ---
 
@@ -754,7 +754,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (newClassIndex) {
             setIsEquipmentLoading(true);
     
-            // Fetch primary class data without blocking
             const detailsPromise = DndApiService.getClassDetails(newClassIndex);
             const levelsPromise = DndApiService.getClassLevels(newClassIndex);
     
@@ -768,6 +767,18 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
                 setSubclassFlavor(subClassDetails?.subclass_flavor || null);
+
+                // Fetch subclass spells if available at level 1
+                 if (subClassDetails?.spells) {
+                    const level1SubclassSpells = subClassDetails.spells
+                        .filter(s => s.prerequisites.some(p => p.type === 'level' && p.spell.includes('1')))
+                        .map(s => s.spell);
+                    
+                    if (level1SubclassSpells.length > 0) {
+                        const spellDetails = await fetchDetailsInChunks(level1SubclassSpells, DndApiService.getSpellDetails, () => {});
+                        setSubclassSpells(spellDetails.filter(Boolean) as ApiSpell[]);
+                    }
+                }
             }
     
             // Start fetching spells in the background
@@ -815,9 +826,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         await handleRaceChange(randomRaceItem.index);
         await handleClassChange(randomClass.index);
         
-        // After fetching race details, check for subraces
-        // This relies on the state update from handleRaceChange to be processed.
-        // A more robust way might involve awaiting the state change or chaining promises.
         setTimeout(async () => {
             const raceData = await DndApiService.getRaceDetails(randomRaceItem.index);
             if (raceData && raceData.subraces && raceData.subraces.length > 0) {
@@ -832,7 +840,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                     setDraconicAncestry(randomAncestry.item.index);
                 }
             }
-        }, 500); // Delay to allow raceDetails to be set
+        }, 500);
 
     }, [handleRaceChange, handleClassChange, handleSubraceChange]);
 
@@ -840,30 +848,25 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
         await handleBackgroundChange(randomBgItem.index);
 
-        // Fetch details again to ensure we have them for randomization
         const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
         if (!details) return;
         
-        // Randomize Personality
         if (details.personality_traits) {
             const options = details.personality_traits.from.options;
             const shuffled = [...options].sort(() => 0.5 - Math.random());
             const selected = shuffled.slice(0, details.personality_traits.choose).map((opt: any) => opt.string);
             setPersonalityTraits(selected);
         }
-        // Randomize Ideal
         if (details.ideals) {
             const options = details.ideals.from.options;
             const randomIdeal = options[Math.floor(Math.random() * options.length)];
             setIdeal(randomIdeal.string || randomIdeal.desc);
         }
-        // Randomize Bond
         if (details.bonds) {
             const options = details.bonds.from.options;
             const randomBond = options[Math.floor(Math.random() * options.length)];
             setBond(randomBond.string);
         }
-        // Randomize Flaw
         if (details.flaws) {
             const options = details.flaws.from.options;
             const randomFlaw = options[Math.floor(Math.random() * options.length)];
@@ -901,7 +904,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const randomMainIndex = Math.floor(Math.random() * mainOptionsCount);
                 newSelections[group.id] = { main: randomMainIndex, sub: undefined };
             } else if (group.choice.from.option_set_type === 'equipment_category') {
-                // For direct categories, we still set a main index to trigger the sub-option load
                 newSelections[group.id] = { main: 0, sub: undefined };
             }
         });
@@ -950,14 +952,13 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         const allSpells = [...new Set([
             ...chosenClassSpells,
             ...Object.values(chosenRacialSpells).flat(),
-            ...subclassSpells.map(s => s.index) // Adiciona magias da subclasse
+            ...subclassSpells.map(s => s.index)
         ])];
         
         const finalInventory = [...fixedEquipment, ...finalizedEquipment];
         
         const inventoryWithoutGold = finalInventory.filter(i => !(i.name.toLowerCase().includes("pouch") && i.desc?.[0]?.toLowerCase().includes("gold")));
     
-        // Collect traits from both race and subrace, ensuring no duplicates.
         const finalTraitsMap = new Map<string, ApiListItem>();
         (raceDetails.traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
         (subraceDetails?.racial_traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
@@ -978,7 +979,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             alignment: alignment,
             attributes: finalAttributes,
             proficiencies: allProficiencies,
-            traits: finalTraits, // Pass the combined list of traits
+            traits: finalTraits,
             languages: finalLanguages,
             inventory: inventoryWithoutGold,
             spells: allSpells,
