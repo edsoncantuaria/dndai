@@ -69,13 +69,13 @@ Com a base arquitetônica definida, podemos expandir a visão para mecânicas ma
     *   Atualizar o prompt em `prompt5e.ts` com as novas regras de criação e persistência de entidades.
     *   Modificar os schemas de entrada (`GameMasterFlowInputSchema`) e saída (`GameMasterResponseSchema`) para incluir os novos dados de `journal` e `relationships`.
 
--   **[ ] Fase 3: Exibição no Frontend**:
-    *   Criar ou adaptar os componentes `NewJournal.tsx` e `NewRelationships.tsx` para exibir os dados de forma clara e organizada.
+-   **[✅ Concluído] Fase 3: Exibição no Frontend**:
+    *   Implementar os componentes `NewJournal.tsx` e `NewRelationships.tsx` para exibir os dados de forma clara e organizada.
     *   Garantir que a UI seja atualizada em tempo real quando novas informações forem recebidas do backend.
 
 -   **[ ] Fase 4: Mecânicas Avançadas**:
-    *   Implementar a lógica para monstros únicos vs. genéricos.
-    *   Aprimorar a IA para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações (ex: "Você reencontra Barthen, o ferreiro, que ainda parece grato por você ter salvo sua filha.").
-    *   Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
+    *   **[✅ Concluído]** Aprimorar a IA para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações (ex: "Você reencontra Barthen, o ferreiro, que ainda parece grato por você ter salvo sua filha.").
+    *   **[⬜️ A Fazer]** Implementar a lógica para monstros únicos vs. genéricos (respawn).
+    *   **[⬜️ A Fazer]** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.
 
 Este documento servirá como um guia vivo, sendo atualizado à medida que cada fase for concluída, nos aproximando de um mundo de RPG digital verdadeiramente dinâmico e persistente.
