@@ -235,15 +235,12 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     return {
         ...backendChar,
         attributes: attributes,
-        inventory: inventory,
-        // Ensure spells is always an array
+        inventory: inventory, // Use the corrected inventory
         spells: backendChar.spells || [],
-        // Ensure nested quest data is included
         relationships: (backendChar.relationships || []).map((r: any) => ({
             ...r,
             quests: r.quests || []
         })),
-        // ---- Calculated and processed frontend fields ----
         modifiers,
         proficiencyBonus,
         hp: { current: backendChar.attributes.hp || maxHp, max: maxHp, temp: 0 },
@@ -255,7 +252,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
         conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
-        currency: { gp: backendChar.currency?.gp || 0, sp: 0, cp: 0 }, // Assume gp from backend
+        currency: { gp: backendChar.currency?.gp || 0, sp: 0, cp: 0 },
         currentWeight: inventory.reduce((sum, item) => sum + (item.weight || 0) * item.quantity, 0),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),
         traits: traits,
