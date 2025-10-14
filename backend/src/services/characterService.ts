@@ -66,7 +66,8 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass);
             classDetails = hbClass.content;
         } else {
-            classDetails = await DndApiService.getDetails('classes', characterData.characterClass);
+            // FIX: Convert class index to lowercase for API call
+            classDetails = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
         }
 
         if (!classDetails) {
