@@ -1,20 +1,24 @@
-# Crônicas de Aventuras: Um RPG de Texto Gerado por IA
+# Crônicas de Aventuras: Uma Plataforma de RPG com IA
 
-Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js e Genkit, este projeto combina a nostalgia do Dungeons & Dragons 5ª Edição com o poder da IA generativa.
+Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo e imersiva, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js, Genkit e um robusto backend Node.js, este projeto combina a nostalgia do Dungeons & Dragons 5ª Edição com o poder da IA generativa.
 
 ## Core Features
 
-- **Criação de Personagem Detalhada**: Um assistente passo a passo que permite criar seu herói do zero, escolhendo raça, classe, atributos, antecedentes, perícias, equipamentos e magias, tudo integrado com a API oficial de D&D 5e.
-- **Mestre de Jogo com IA (Gemini)**: O coração do jogo. Uma IA generativa que atua como Mestre, descrevendo o mundo, interpretando NPCs, gerenciando combates, rolando dados e apresentando consequências narrativas para as ações do jogador.
-- **Jogabilidade Interativa**: As decisões são tomadas através de opções de ação dinâmicas, sugeridas pela IA, garantindo que a história sempre avance de forma coesa.
-- **Interface de Jogo Completa**: Uma UI rica e imersiva que inclui:
-  - **Ficha de Personagem**: Visualize atributos, perícias, bônus e informações do seu herói.
-  - **Inventário e Equipamentos**: Gerencie seus itens, peso e o que está equipado.
-  - **Grimório de Magias**: Consulte as magias que seu personagem conhece e pode conjurar.
-  - **Diário de Aventura**: Acompanhe missões, locais e NPCs importantes.
-  - **Progresso e Relacionamentos**: Monitore a evolução do seu personagem e seus laços com os NPCs.
-- **Sistema de Combate e Descanso**: Mecânicas de combate por turnos e regras para descanso curto e longo, tudo gerenciado pela IA.
-- **Persistência de Estado**: Sua aventura é salva automaticamente no `localStorage` do navegador, permitindo que você continue de onde parou.
+- **Backend Dedicado com Gerenciamento de Sessão:** A lógica do jogo é centralizada em um servidor Node.js/Express, garantindo persistência de dados, segurança e uma plataforma escalável.
+- **Cofre de Heróis e Personagens Persistentes:** Crie múltiplos personagens que são salvos em sua conta. Leve seus heróis em diferentes aventuras, mantendo seu progresso e história.
+- **Mestre de Jogo com IA (Gemini):** O coração do jogo. Uma IA generativa que atua como Mestre, descrevendo o mundo, interpretando NPCs, gerenciando combates e apresentando consequências narrativas.
+- **Jogabilidade Interativa Baseada em Turnos:** As decisões são tomadas através de opções de ação dinâmicas ou ações personalizadas digitadas pelo jogador, em um fluxo de jogo estruturado que garante coerência.
+- **Sistema de Rolagem de Dados Interativo:** O jogador sempre rola seus próprios dados. Uma UI dedicada para rolagens de ataque, perícias e testes de resistência, com feedback claro de sucesso ou falha.
+- **Interface de Jogo Completa e Imersiva:**
+    - **Ficha de Personagem Interativa:** Visualize e gerencie atributos, perícias, bônus, condições e recursos.
+    - **Inventário e Moedas Unificados:** Gerencie seus itens e todos os tipos de moedas (Cobre, Prata, Ouro), com cálculo de peso automático.
+    - **Grimório de Magias:** Consulte e prepare suas magias, com indicadores de espaços de magia disponíveis.
+    - **Diário de Aventura e Relacionamentos:** Acompanhe missões, NPCs importantes, sua afinidade com eles e o estado do mundo.
+- **Sistema de Combate Tático:** Um tracker de combate visual que mostra a ordem de iniciativa, status dos combatentes e histórico de ações.
+- **Progressão Completa:** Sistema de ganho de XP, "Level Up" com escolhas significativas (habilidades, talentos) e uma linha do tempo visual do progresso do personagem.
+- **Recursos Multimídia:**
+    - **Narração por Voz (TTS):** Ouça as narrações do Mestre de Jogo com vozes geradas por IA.
+    - **Geração de Imagens:** Em momentos importantes, a IA gera ilustrações para dar vida ao mundo.
 
 ## Arquitetura e Tecnologias
 
@@ -22,49 +26,40 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 
 - **Frontend**: [Next.js](https://nextjs.org/) com [React](https://reactjs.org/) e [TypeScript](https://www.typescriptlang.org/).
 - **UI**: [Tailwind CSS](https://tailwindcss.com/) com componentes de [ShadCN UI](https://ui.shadcn.com/) para uma interface moderna e responsiva.
-- **IA Generativa**: [Genkit (Firebase AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini Pro.
+- **Backend**: [Node.js](https://nodejs.org/) com [Express.js](https://expressjs.com/) para a API REST.
+- **Banco de Dados**: [MySQL](https://www.mysql.com/) com [TypeORM](https://typeorm.io/) para persistência de dados de usuários, personagens e sessões.
+- **IA Generativa**: [Genkit (Google AI)](https://firebase.google.com/docs/genkit) para orquestrar as chamadas ao modelo de linguagem Gemini.
 - **API de D&D**: A [D&D 5th Edition API](https://www.dnd5eapi.co/) é utilizada para popular dados de raças, classes, magias, equipamentos, etc.
 
 ### Estrutura de Diretórios Principal
 
 ```
-/src
-|-- /ai/              # Lógica de IA com Genkit
-|   |-- /flows/       # Definição dos fluxos de IA
-|   +-- genkit.ts     # Configuração principal do Genkit
+/
+|-- /backend/         # Servidor Node.js, API e lógica de negócios
+|   |-- /src/
+|       |-- /controllers/
+|       |-- /database/
+|       |-- /entities/
+|       |-- /services/
+|       `-- server.ts
 |
-|-- /app/             # Rotas e UI principal do Next.js
-|   |-- /_components/ # Componentes específicos da página principal do jogo
-|   |-- layout.tsx
-|   +-- page.tsx
-|
-|-- /components/      # Componentes React reutilizáveis
-|   |-- /NewCreationCharacter/ # Componentes para o wizard de criação de personagem
-|   |-- /ui/          # Componentes base da UI (Button, Modal, etc.)
-|   +-- ...outros
-|
-|-- /contexts/        # Contextos React (ex: GameStateContext)
-|
-|-- /hooks/           # Hooks React customizados
-|   |-- useGameState.ts          # Hook central que gerencia todo o estado do jogo
-|   +-- newUseCharacterCreation.ts # Hook que orquestra a criação de personagem
-|
-|-- /services/        # Camada de comunicação com APIs externas
-|   |-- dndApiService.ts # Funções para buscar dados da D&D 5e API
-|   +-- geminiService.ts # Funções para interagir com o Mestre de Jogo (Gemini)
-|
-`-- /utils/           # Funções utilitárias (cálculos, tradutores, etc.)
+`-- /src/              # Aplicação Frontend Next.js
+    |-- /app/         # Rotas e UI principal do Next.js
+    |-- /components/  # Componentes React reutilizáveis
+    |-- /contexts/    # Contextos React (AuthState, GameState, Settings)
+    |-- /hooks/       # Hooks React customizados
+    `-- /services/    # Camada de comunicação com a API do backend
 ```
 
 ## Como Funciona o Loop do Jogo
 
-1.  **Ação do Jogador**: O jogador seleciona uma das `actionOptions` apresentadas na UI.
-2.  **Chamada de Serviço**: A UI chama a função `processPlayerAction` do hook `useGameState`.
-3.  **Estado do Jogo**: O `useGameState` envia o estado atual do personagem, o histórico do log e a ação do jogador para o `geminiService`.
-4.  **Prompt para a IA**: O `geminiService` formata esses dados em um prompt detalhado para o Genkit/Gemini.
-5.  **Resposta da IA**: A IA processa o prompt e retorna um objeto JSON estruturado contendo:
-    - `logEntries`: Novas entradas narrativas para a história.
-    - `actionOptions`: Novas opções de escolha para o jogador.
-    - `updatedCharacter`: Um objeto com apenas as propriedades do personagem que foram alteradas (ex: `hp`, `xp`, `inventory`).
-    - `combatState`, `levelUpState`, etc.: Atualizações para outros sistemas do jogo.
-6.  **Atualização de Estado**: O `useGameState` recebe a resposta, atualiza o estado do `character` e do jogo com os novos dados, e a UI é re-renderizada para refletir a continuação da aventura.
+1.  **Ação do Jogador**: O jogador seleciona uma `actionOption` ou digita uma ação personalizada na UI.
+2.  **Chamada de Serviço (Frontend)**: A UI envia a ação para o `gameService`, que faz uma requisição `POST /api/narrar/:sessionId` para o backend.
+3.  **Processamento (Backend)**:
+    *   O `narrarController` recebe a requisição.
+    *   O `narrarService` carrega os dados completos do personagem e o histórico da sessão do banco de dados.
+    *   Os dados são formatados em um prompt detalhado e enviados para o `aiService`.
+4.  **Resposta da IA**: A IA (Genkit/Gemini) processa o prompt e retorna um objeto JSON estruturado com o resultado da ação (`logEntries`, `updatedCharacter`, `combatState`, etc.).
+5.  **Persistência (Backend)**: O `narrarService` recebe a resposta da IA, atualiza o estado do personagem e salva as novas entradas de log no banco de dados.
+6.  **Retorno ao Frontend**: O backend envia a resposta completa da IA de volta para o frontend.
+7.  **Atualização de Estado (Frontend)**: O `useGameState` recebe a resposta, atualiza o estado local do jogo, e a UI é re-renderizada para refletir a continuação da aventura.
