@@ -63,9 +63,9 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
     const handleTraitCreated = (newTraitContent: any) => {
         // Adiciona o novo traço à lista local e o seleciona automaticamente
         const newApiListItem: ApiListItem = {
-            index: newTraitContent.id,
+            index: newTraitContent.index, // Usa o index do conteúdo retornado
             name: `${newTraitContent.name} (Meu)`,
-            url: `/api/homebrew/${newTraitContent.id}`,
+            url: `/api/homebrew/${newTraitContent.index}`, // Usa o index na URL
         };
         setAllTraits(prev => [newApiListItem, ...prev]);
         onSelectionChange([...selectedTraits, newApiListItem]);
