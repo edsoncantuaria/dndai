@@ -15,20 +15,25 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     const cacheKey = `dnd5e:${endpoint}`;
 
     // 1. Tenta buscar do cache primeiro
-    if (redisClient) {
+    if (redisClient && redisClient.isOpen) {
         try {
+            console.log(`[Cache] GET: ${cacheKey}`);
             const cachedData = await redisClient.get(cacheKey);
             if (cachedData) {
                 console.log(`[Cache] HIT: ${cacheKey}`);
                 return JSON.parse(cachedData) as T;
             }
+             console.log(`[Cache] MISS: ${cacheKey}`);
         } catch (error) {
             console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
+            // Continua para a API externa em caso de erro de busca no cache
         }
+    } else if (redisClient) {
+        console.warn(`[Cache] Cliente Redis não está aberto ou pronto. Pulando cache para ${cacheKey}`);
     }
     
-    console.log(`[Cache] MISS: ${cacheKey}. Buscando da API...`);
     // 2. Se não estiver no cache (ou o Redis estiver indisponível), busca na API
+    console.log(`[API] Buscando: ${API_BASE}${endpoint}`);
     try {
         const response = await fetch(`${API_BASE}${endpoint}`);
         if (!response.ok) {
@@ -40,6 +45,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         // 3. Salva no cache se o Redis estiver disponível e a conexão estiver aberta
         if (redisClient && redisClient.isOpen) {
             try {
+                console.log(`[Cache] SET: ${cacheKey}`);
                 await redisClient.set(cacheKey, JSON.stringify(data), {
                     EX: CACHE_DURATION_SECONDS, // Define o tempo de expiração
                 });
