@@ -1,7 +1,8 @@
+// src/utils/translator.ts
 
 
 
-export const TRANSLations_EQUIPMENT: Record<string, any> = {
+export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
   "abacus": {
     "name": "Ábaco"
   },
@@ -31,6 +32,16 @@ export const TRANSLATIONS: Record<string, string> = {
     'High Elf': 'Alto Elfo',
     'Rock Gnome': 'Gnomo da Rocha',
     'Lightfoot Halfling': 'Pés Leves',
+
+    // Content Types
+    'race': 'Raça',
+    'class': 'Classe',
+    'subclass': 'Subclasse',
+    'spell': 'Magia',
+    'item': 'Item',
+    'monster': 'Monstro',
+    'background': 'Antecedente',
+    'feat': 'Talento',
 
 
     // Classes
@@ -322,5 +333,6 @@ export const translateSpell = (s?: any): any => {
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
+
 
 

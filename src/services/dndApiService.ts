@@ -2,6 +2,7 @@
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
 
+export const DND_API_BASE = 'https://www.dnd5eapi.co';
 
 // --- Funções Principais (agora chamam nosso backend) ---
 
@@ -10,14 +11,20 @@ export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/cla
 export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
 export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
 export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
-export const getBackgrounds = () => apiClient<{ results: ApiListItem[] }>('/dnds/backgrounds');
+export const getBackgrounds = () => apiClient<{ results: ApiListItem[], count: number }>('/dnds/backgrounds');
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);
 export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/classes/${index}`);
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
-export const getBackgroundDetails = (index: string) => apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
+export const getBackgroundDetails = (index: string) => {
+    // Check if the background is a homebrew one (UUID) vs official (string index)
+    if (index.includes('-')) { // Simple check for UUID format
+      return apiClient<ApiBackground>(`/homebrew/${index}`);
+    }
+    return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
+};
 
 export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);
 export const getSpellsForClass = (index: string) => apiClient<{ results: ApiListItem[] }>(`/dnds/classes/${index}/spells`);
