@@ -5,7 +5,8 @@ import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Plus, Trash2 } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
-import { DND_API_BASE } from '@/services/dndApiService'; // Assuming this is exported
+import TraitSelector from './TraitSelector'; // Novo componente
+import type { ApiListItem } from '@/types';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -16,79 +17,73 @@ interface Props {
     onCancel: () => void;
 }
 
-// Sub-component for Race creation form
-const RaceForm: React.FC<{ setRaceData: (data: any) => void }> = ({ setRaceData }) => {
-    const [name, setName] = useState('');
-    const [speed, setSpeed] = useState(30);
-    const [abilityBonuses, setAbilityBonuses] = useState<{ ability_score: { index: string; name: string }; bonus: number }[]>([]);
+// --- SUB-FORMULÁRIOS ---
 
-    // This would be expanded to handle all race properties
-    const handleSubmit = () => {
-        const raceData = {
-            index: name.toLowerCase().replace(/\s+/g, '-'),
-            name,
-            speed,
-            ability_bonuses: abilityBonuses.map(b => ({
-                ...b,
-                ability_score: {
-                    ...b.ability_score,
-                    url: `${DND_API_BASE}/ability-scores/${b.ability_score.index}`
-                }
-            })),
-            // Default values for other required fields based on OpenAPI
-            alignment: "No typical alignment for this custom race.",
-            age: "Maturity and lifespan are defined by culture.",
-            size: "Medium",
-            size_description: "Varies.",
-            starting_proficiencies: [],
-            languages: [],
-            language_desc: "",
-            traits: [],
-            subraces: []
+const RaceForm: React.FC<{ onDataChange: (data: any) => void }> = ({ onDataChange }) => {
+    const [raceData, setRaceData] = useState({
+        name: '',
+        speed: 30,
+        ability_bonuses: [] as { ability_score: { index: string; name: string }; bonus: number }[],
+        traits: [] as ApiListItem[],
+        // Adicionar outros campos conforme o openapi.yaml
+        alignment: "No typical alignment.",
+        age: "Varies.",
+        size: "Medium",
+        size_description: "Varies.",
+        starting_proficiencies: [],
+        language_options: { choose: 0, from: { options: [] } },
+        languages: [],
+        subraces: [],
+    });
+
+    const updateParent = (newData: any) => {
+        const fullData = {
+            ...newData,
+            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
         };
-        setRaceData(raceData);
-    };
-    
-    const addBonus = () => {
-        setAbilityBonuses([...abilityBonuses, { ability_score: { index: 'str', name: 'STR' }, bonus: 1 }]);
+        onDataChange(fullData);
     };
 
-    const removeBonus = (index: number) => {
-        setAbilityBonuses(abilityBonuses.filter((_, i) => i !== index));
+    const handleFieldChange = (field: keyof typeof raceData, value: any) => {
+        const newData = { ...raceData, [field]: value };
+        setRaceData(newData);
+        updateParent(newData);
     };
 
-    const updateBonus = (index: number, field: string, value: string | number) => {
-        const newBonuses = [...abilityBonuses];
-        if(field === 'ability_score') {
+    const handleBonusChange = (index: number, field: 'ability_score' | 'bonus', value: string | number) => {
+        const newBonuses = [...raceData.ability_bonuses];
+        if (field === 'ability_score') {
             newBonuses[index].ability_score = { index: value as string, name: (value as string).toUpperCase() };
         } else {
             newBonuses[index].bonus = Number(value);
         }
-        setAbilityBonuses(newBonuses);
+        handleFieldChange('ability_bonuses', newBonuses);
     };
 
-    // Simulate submission on change to update the parent state
-    React.useEffect(() => {
-        handleSubmit();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [name, speed, abilityBonuses]);
+    const addBonus = () => {
+        handleFieldChange('ability_bonuses', [...raceData.ability_bonuses, { ability_score: { index: 'str', name: 'STR' }, bonus: 1 }]);
+    };
+
+    const removeBonus = (index: number) => {
+        handleFieldChange('ability_bonuses', raceData.ability_bonuses.filter((_, i) => i !== index));
+    };
 
     return (
         <div className="space-y-4">
             <div>
                 <label htmlFor="race-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Raça</label>
-                <input id="race-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <input id="race-name" type="text" value={raceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
             <div>
                 <label htmlFor="race-speed" className="block text-sm font-medium text-stone-300 mb-1">Velocidade</label>
-                <input id="race-speed" type="number" value={speed} onChange={e => setSpeed(Number(e.target.value))} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <input id="race-speed" type="number" value={raceData.speed} onChange={e => handleFieldChange('speed', Number(e.target.value))} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
             <div>
                 <h5 className="text-sm font-medium text-stone-300 mb-2">Bônus de Atributo</h5>
                 <div className="space-y-2">
-                    {abilityBonuses.map((bonus, index) => (
+                    {raceData.ability_bonuses.map((bonus, index) => (
                         <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
-                            <select value={bonus.ability_score.index} onChange={e => updateBonus(index, 'ability_score', e.target.value)} className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                            <select value={bonus.ability_score.index} onChange={e => handleBonusChange(index, 'ability_score', e.target.value)} className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
                                 <option value="str">Força</option>
                                 <option value="dex">Destreza</option>
                                 <option value="con">Constituição</option>
@@ -96,19 +91,26 @@ const RaceForm: React.FC<{ setRaceData: (data: any) => void }> = ({ setRaceData 
                                 <option value="wis">Sabedoria</option>
                                 <option value="cha">Carisma</option>
                             </select>
-                            <input type="number" value={bonus.bonus} onChange={e => updateBonus(index, 'bonus', e.target.value)} className="w-20 bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
+                            <input type="number" value={bonus.bonus} onChange={e => handleBonusChange(index, 'bonus', e.target.value)} className="w-20 bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
                             <button type="button" onClick={() => removeBonus(index)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
                         </div>
                     ))}
                 </div>
                 <button type="button" onClick={addBonus} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"><Plus className="h-4 w-4" /> Adicionar Bônus</button>
             </div>
+             <div>
+                <TraitSelector
+                    selectedTraits={raceData.traits}
+                    onSelectionChange={(newTraits) => handleFieldChange('traits', newTraits)}
+                />
+            </div>
         </div>
-    )
-}
+    );
+};
+
+// --- COMPONENTE PRINCIPAL ---
 
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
-    const [name, setName] = useState('');
     const [type, setType] = useState<HomebrewService.HomebrewContentType>('race');
     const [contentData, setContentData] = useState<any>(null);
     const [isPublic, setIsPublic] = useState(false);
@@ -121,7 +123,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
              toast({
                 variant: 'destructive',
                 title: 'Dados Incompletos',
-                description: 'Por favor, preencha o nome do conteúdo.',
+                description: 'Por favor, preencha pelo menos o nome do conteúdo.',
             });
             return;
         }
@@ -148,11 +150,9 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
     const renderFormForType = () => {
         switch (type) {
             case 'race':
-                return <RaceForm setRaceData={setContentData} />;
-            // Add cases for other types here later
-            // case 'class': return <ClassForm />;
+                return <RaceForm onDataChange={setContentData} />;
             default:
-                return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado. Você pode contribuir para adicioná-lo!</p>
+                return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado. Você pode contribuir para adicioná-lo!</p>;
         }
     }
 
@@ -178,7 +178,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                     </select>
                 </div>
                 
-                {/* Dynamic form based on type */}
                 {renderFormForType()}
                 
                 <div className="flex items-center justify-between bg-stone-800/60 p-3 rounded-md">

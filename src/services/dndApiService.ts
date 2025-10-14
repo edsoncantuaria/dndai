@@ -2,8 +2,6 @@
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
 
-export const DND_API_BASE = 'https://www.dnd5eapi.co';
-
 // --- Funções Principais (agora chamam nosso backend) ---
 
 export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/dnds/races');
@@ -13,6 +11,7 @@ export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skil
 export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
 export const getBackgrounds = () => apiClient<{ results: ApiListItem[], count: number }>('/dnds/backgrounds');
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
+export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits'); // Nova função
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds/subraces/${index}`);
