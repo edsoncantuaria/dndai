@@ -25,35 +25,38 @@ const LogEntrySchema = z.object({
 
 
 const FullCombatantSchema = z.object({
-    id: z.string(),
-    name: z.string(),
-    hp: z.object({ current: z.number(), max: z.number() }),
-    ac: z.number().optional(),
-    initiative: z.number().optional(),
+    id: z.string().describe("Unique ID for the combatant (e.g., 'player', 'goblin-1')."),
+    name: z.string().describe("Display name of the combatant."),
+    hp: z.object({ 
+        current: z.number().describe("Current hit points."), 
+        max: z.number().describe("Maximum hit points.") 
+    }).describe("Combatant's hit points."),
+    ac: z.number().optional().describe("Armor Class of the combatant."),
+    initiative: z.number().optional().describe("The combatant's total initiative score."),
     initiativeRoll: z.number().optional().describe("The raw d20 roll for initiative."),
-    isPlayer: z.boolean().optional(),
-    conditions: z.array(z.string()).optional(),
-    distance: z.number().optional().describe("Distância em metros do jogador."),
-    hasMoved: z.boolean().default(false),
-    hasActed: z.boolean().default(false),
-    actionPoints: z.number().default(1),
-    bonusActionPoints: z.number().default(1),
-    isDead: z.boolean().default(false),
-    readyAction: z.string().optional(),
-    readyWeapon: z.string().optional(),
-    readySpell: z.string().optional(),
-    tempModifiers: z.record(z.any()).optional(),
-    rollHistory: z.array(z.any()).optional(),
+    isPlayer: z.boolean().optional().default(false).describe("Whether this combatant is the player character."),
+    conditions: z.array(z.string()).optional().default([]).describe("List of active conditions (e.g., 'Grappled', 'Poisoned')."),
+    distance: z.number().optional().describe("Distance in meters from the player character."),
+    hasMoved: z.boolean().default(false).describe("If the combatant has used their movement this turn."),
+    hasActed: z.boolean().default(false).describe("If the combatant has used their Action this turn."),
+    actionPoints: z.number().default(1).describe("Number of main actions available (usually 1)."),
+    bonusActionPoints: z.number().default(1).describe("Number of bonus actions available (usually 1)."),
+    isDead: z.boolean().default(false).describe("If the combatant is dead or unconscious."),
+    readyAction: z.string().optional().describe("A description of the action readied for a trigger."),
+    readyWeapon: z.string().optional().describe("Weapon to be used with a readied action."),
+    readySpell: z.string().optional().describe("Spell to be used with a readied action."),
+    tempModifiers: z.record(z.any()).optional().describe("Temporary modifiers from spells or effects."),
+    rollHistory: z.array(z.any()).optional().default([]).describe("A log of all rolls made by or against this combatant."),
 });
 
 export const CombatStateSchema = z.object({
-    isActive: z.boolean().describe("Se o combate está ativo."),
-    round: z.number().describe("Número do round atual."),
-    turn: z.number().describe("Índice do combatente que está na vez de agir."),
-    combatants: z.array(FullCombatantSchema).describe("Lista de todos os combatentes envolvidos."),
-    initiativeOrder: z.array(z.string()).optional().describe("IDs dos combatentes em ordem de iniciativa."),
-    log: z.array(z.string()).optional().describe("Log de eventos significativos do combate."),
-}).describe("O estado completo do combate.");
+    isActive: z.boolean().describe("If combat is currently active. MUST be true if enemies are present and not defeated."),
+    round: z.number().describe("The current combat round number."),
+    turn: z.number().describe("The index in the initiativeOrder array indicating whose turn it is."),
+    combatants: z.array(FullCombatantSchema).describe("List of all combatants involved in the encounter."),
+    initiativeOrder: z.array(z.string()).optional().describe("Array of combatant IDs, sorted from highest to lowest initiative."),
+    log: z.array(z.string()).optional().default([]).describe("Log of significant events in the combat."),
+}).describe("The complete state of the combat encounter.");
 
 
 export const LevelUpStateSchema = z.object({

@@ -90,16 +90,6 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 
 ---
 
-## Combate
-- **REGRA CRÍTICA**: O campo \`combatState.isActive\` **DEVE** ser \`true\` enquanto houver inimigos vivos. Se todos os inimigos forem derrotados, defina-o como \`false\`. Ocultar ou omitir este campo fará com que o jogo quebre.
-- Início: \`combatState.isActive = true\`.
-- Primeiro turno: solicite rolagem de iniciativa do jogador e role para NPCs.
-- Ordene por iniciativa e gerencie os turnos via \`combatState.turn\`.
-- Só forneça \`actionOptions\` no turno do jogador.
-- Final: \`combatState.isActive = false\`.
-
----
-
 ## Regras de Recursos
 - **Fonte da Verdade:** o objeto \`character\` recebido é a única referência.
 - **Cura:** nunca ultrapassa \`attributes.hp\`.
@@ -186,4 +176,5 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 - **Logs detalhados**:
   - Sempre registre eventos importantes no \`systemLog\` para auditoria de decisões do mestre.
   - Inclua no \`logEntries\` todos os eventos que afetam o jogador direta ou indiretamente.
+- **REGRA CRÍTICA**: O campo \`combatState.isActive\` **DEVE** ser \`true\` enquanto houver inimigos vivos. Se todos os inimigos forem derrotados, defina-o como \`false\`. Ocultar ou omitir este campo fará com que o jogo quebre.
 `
