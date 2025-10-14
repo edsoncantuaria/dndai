@@ -22,7 +22,7 @@ export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/cla
 export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
 export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
 export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
-export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds');
+export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds-data'); // Alterado para a rota correta
 export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
 export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
 export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');
@@ -60,7 +60,7 @@ export const getEquipmentForCategory = (index: string) => apiClient<{ equipment:
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => {
     // Regex to check if the index is a UUID (for homebrew content)
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4-}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     
     if (uuidRegex.test(index)) {
         return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiTrait);

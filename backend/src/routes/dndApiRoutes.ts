@@ -1,6 +1,6 @@
 // backend/src/routes/dndApiRoutes.ts
 import { Router } from 'express';
-import * as DndApiService from '../services/dndApiService.js';
+import * * as DndApiService from '../services/dndApiService.js';
 import * as HomebrewService from '../services/homebrewService.js';
 import createError from 'http-errors';
 import fs from 'fs/promises';
@@ -21,7 +21,7 @@ const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 // Rota específica para servir os dados completos do backgrounds.json
 router.get('/backgrounds-data', async (req, res, next) => {
     try {
-        const filePath = path.join(process.cwd(), 'data', 'backgrounds.json');
+        const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
         const fileContent = await fs.readFile(filePath, 'utf-8');
         const data = JSON.parse(fileContent);
         res.json(data);
@@ -36,6 +36,20 @@ router.get('/backgrounds-data', async (req, res, next) => {
 router.get('/:resource', async (req, res, next) => {
     const resource = req.params.resource as HomebrewContentType;
     console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
+
+    // CORREÇÃO: Se a requisição for para 'backgrounds', servir diretamente do arquivo local.
+    if (resource === 'backgrounds') {
+        try {
+            const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
+            const fileContent = await fs.readFile(filePath, 'utf-8');
+            const data = JSON.parse(fileContent);
+            return res.json(data);
+        } catch (error) {
+            console.error('Erro ao carregar backgrounds.json para /:resource:', error);
+            return next(createError(500, 'Falha ao carregar dados de antecedentes.'));
+        }
+    }
+
 
     try {
         // Busca os dados da API oficial
