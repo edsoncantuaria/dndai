@@ -39,12 +39,12 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[✅ Concluído] Magias:** Incluindo mecânicas de dano, escalonamento e seleção de componentes materiais.
 -   **[✅ Concluído] Itens:** Com campos para categoria, custo, peso e propriedades.
 -   **[✅ Concluído] Talentos (Feats):** Implementado através do "Criador de Traços".
--   **[✅ Concluído] Classes:**
-    -   **[X] Estrutura básica com nome e dado de vida.**
-    -   **[X] Adicionada seleção de testes de resistência, proficiências em equipamentos e escolhas de perícias.**
+-   **[Em Andamento] Classes:**
+    -   **[✅ Concluído] Estrutura básica com nome e dado de vida.**
+    -   **[✅ Concluído] Adicionada seleção de testes de resistência, proficiências em equipamentos e escolhas de perícias.**
     -   **[⬜️ A Fazer] Adicionar características de classe por nível.**
 -   **[Em Andamento] Subclasses:**
-    -   **[X] Estrutura básica com seleção de classe original, nome e descrição.**
+    -   **[✅ Concluído] Estrutura básica com seleção de classe original, nome e descrição.**
     -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**
 -   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
 
