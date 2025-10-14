@@ -46,7 +46,13 @@ export const FullCombatantSchema = z.object({
     readyWeapon: z.string().optional().describe("Weapon to be used with a readied action."),
     readySpell: z.string().optional().describe("Spell to be used with a readied action."),
     tempModifiers: z.any().optional().describe("Temporary modifiers from spells or effects."),
-    rollHistory: z.array(z.any()).optional().default([]).describe("A log of all rolls made by or against this combatant."),
+    rollHistory: z.array(z.object({
+        type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
+        roll: z.number(),
+        total: z.number(),
+        modifier: z.number(),
+        description: z.string(),
+    })).optional().default([]).describe("A log of all rolls made by or against this combatant."),
 });
 
 export const CombatStateSchema = z.object({
