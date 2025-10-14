@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2 } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
@@ -13,7 +13,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 
-type GameStage = 'loading' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
 
 
 const GameContainer = () => {
@@ -56,14 +56,14 @@ const GameContainer = () => {
     }, []);
 
     useEffect(() => {
-        if (gameStage === 'loading' || gameStage === 'session_list' || gameStage === 'character_vault') {
+        if (gameStage === 'session_list' || gameStage === 'character_vault') {
             fetchInitialData();
         }
     }, [gameStage, fetchInitialData]);
 
     useEffect(() => {
         if (!isLoadingData && gameStage === 'loading') {
-            setGameStage('session_list');
+            setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
 
@@ -132,7 +132,7 @@ const GameContainer = () => {
 
     const returnToMenu = useCallback(() => {
         clearGameState();
-        setGameStage('session_list');
+        setGameStage('main_menu');
         setPlayMenuMusic(true);
     }, [clearGameState, setPlayMenuMusic]);
 
@@ -172,6 +172,45 @@ const GameContainer = () => {
             );
         }
 
+        if (gameStage === 'session_list') {
+             return (
+                <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+                     <header className="mb-8">
+                        <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Continuar Aventura</h1>
+                        <p className="text-stone-400 mt-2">Escolha uma de suas jornadas salvas.</p>
+                    </header>
+                    <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
+                         {sessions.length > 0 ? (
+                            sessions.map(session => (
+                                 <div key={session.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center group">
+                                    <div>
+                                        <span className="font-bold text-xl text-stone-200 group-hover:text-amber-300 transition-colors">{session.nome}</span>
+                                        <p className="text-sm text-stone-400">Herói: {session.character?.name} ({session.character?.characterClass} Nível {session.character?.level})</p>
+                                        <p className="text-xs text-stone-500 mt-1">Última vez jogado: {new Date(session.updatedAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => handleContinueGame(session.id)} className="p-3 bg-green-700/80 hover:bg-green-600 rounded-md transition-transform group-hover:scale-110" title="Continuar Aventura">
+                                            <Play className="h-6 w-6 text-white" />
+                                        </button>
+                                        <button onClick={() => setSessionToDelete(session)} className="p-3 bg-red-800/80 hover:bg-red-700 rounded-md transition-transform group-hover:scale-110" title="Deletar Sessão">
+                                            <Trash2 className="h-6 w-6 text-white" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <p className="text-stone-400 italic py-8">Nenhuma aventura em andamento.</p>
+                        )}
+                    </main>
+                     <footer className="mt-6">
+                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2 mx-auto">
+                           <ArrowLeft className="h-4 w-4" /> Voltar ao Menu Principal
+                        </button>
+                    </footer>
+                </div>
+            )
+        }
+
         if (gameStage === 'character_vault') {
             return (
                 <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
@@ -205,8 +244,8 @@ const GameContainer = () => {
                         <button onClick={() => setGameStage('creating_character')} className="menu-button btn-new">
                             <User className="mr-2 h-6 w-6"/> Criar Novo Herói
                         </button>
-                        <button onClick={() => setGameStage('session_list')} className="text-stone-300 hover:text-amber-300 underline">
-                            Voltar para Sessões
+                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2">
+                           <ArrowLeft className="h-4 w-4" /> Voltar ao Menu Principal
                         </button>
                     </footer>
                 </div>
@@ -221,48 +260,28 @@ const GameContainer = () => {
             />;
         }
 
-        // Default: session list
+        // Default: main_menu
         return (
-            <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
+            <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
                 <button 
                     onClick={() => setShowSettingsModal(true)} 
-                    className="absolute top-0 right-0 p-3 text-stone-400 hover:text-amber-300 transition-colors"
+                    className="absolute -top-4 right-0 md:-top-8 md:right-4 p-3 text-stone-400 hover:text-amber-300 transition-colors"
                     title="Configurações"
                 >
                     <Settings className="h-7 w-7"/>
                 </button>
-                <header className="mb-8" style={{ animationDelay: '200ms' }}>
-                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
+                 <header className="mb-10" style={{ animationDelay: '200ms' }}>
+                    <h1 className="text-6xl md:text-8xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Crônicas de Aventuras
                     </h1>
-                    <p className="text-stone-400 mt-2">Escolha uma aventura para continuar ou inicie uma nova jornada.</p>
+                    <p className="text-stone-400 text-lg mt-4">Uma experiência de RPG gerada por Inteligência Artificial</p>
                 </header>
-                <main className="w-full" style={{ animationDelay: '400ms' }}>
-                    <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
-                        {sessions.length > 0 ? (
-                            sessions.map(session => (
-                                <div key={session.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center group">
-                                    <div>
-                                        <span className="font-bold text-xl text-stone-200 group-hover:text-amber-300 transition-colors">{session.nome}</span>
-                                        <p className="text-sm text-stone-400">Herói: {session.character?.name} ({session.character?.characterClass} Nível {session.character?.level})</p>
-                                        <p className="text-xs text-stone-500 mt-1">Última vez jogado: {new Date(session.updatedAt).toLocaleDateString()}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => handleContinueGame(session.id)} className="p-3 bg-green-700/80 hover:bg-green-600 rounded-md transition-transform group-hover:scale-110" title="Continuar Aventura">
-                                            <Play className="h-6 w-6 text-white" />
-                                        </button>
-                                        <button onClick={() => setSessionToDelete(session)} className="p-3 bg-red-800/80 hover:bg-red-700 rounded-md transition-transform group-hover:scale-110" title="Deletar Sessão">
-                                            <Trash2 className="h-6 w-6 text-white" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <p className="text-stone-400 italic py-8">Nenhuma aventura em andamento.</p>
-                        )}
-                    </div>
-                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-new mt-8 text-2xl py-5">
-                        <Plus className="mr-3 h-7 w-7"/> Nova Aventura
+                 <main className="w-full flex flex-col items-center gap-4" style={{ animationDelay: '400ms' }}>
+                    <button onClick={() => setGameStage('session_list')} className="menu-button btn-new max-w-sm text-2xl py-5">
+                       <BookOpen className="mr-3 h-7 w-7"/> Continuar Aventura
+                    </button>
+                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-import max-w-sm text-2xl py-5">
+                        <Sword className="mr-3 h-7 w-7"/> Nova Jornada
                     </button>
                 </main>
             </div>
@@ -310,4 +329,3 @@ const GameContainer = () => {
 };
 
 export default GameContainer;
-
