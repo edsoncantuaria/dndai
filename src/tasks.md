@@ -70,11 +70,11 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Visão:** Transformar a ficha de uma tela de leitura para uma de interação, permitindo ao jogador clicar para gastar recursos (espaços de magia, dados de vida), e exibir visualmente condições e testes de morte.
     *   **Impacto:** Aumenta a agência do jogador e a clareza sobre o estado do seu personagem.
 
-*   **[ ] Aba Dedicada para "Relacionamentos e Missões":**
+*   **[X] Aba Dedicada para "Relacionamentos e Missões":**
     *   **Visão:** Criar uma nova aba com "cards" para cada NPC, mostrando afinidade, e listando as missões ativas e concluídas associadas a eles.
     *   **Impacto:** Organiza a informação social do jogo, tornando o progresso das quests e as relações com os NPCs mais claras e significativas.
 
-*   **[ ] Linha do Tempo da Progressão do Personagem:**
+*   **[X] Linha do Tempo da Progressão do Personagem:**
     *   **Visão:** Criar uma aba de "Progresso" que mostre visualmente as habilidades e talentos ganhos em cada nível, além de um painel para reputação com as facções do mundo.
     *   **Impacto:** Dá ao jogador um forte senso de jornada e evolução do seu herói.
 
@@ -132,5 +132,3 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
-
-
