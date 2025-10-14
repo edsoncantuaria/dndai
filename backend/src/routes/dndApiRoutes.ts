@@ -1,6 +1,7 @@
 // backend/src/routes/dndApiRoutes.ts
 import { Router } from 'express';
 import * as DndApiService from '../services/dndApiService.js';
+import * as HomebrewService from '../services/homebrewService.js';
 import createError from 'http-errors';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,16 +14,32 @@ router.get('/:resource', async (req, res, next) => {
     console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
 
     // --- Início da Lógica Homebrew/Custom Data ---
-    // Se a requisição for para 'backgrounds', lemos do nosso arquivo local.
+    // Se a requisição for para 'backgrounds', mesclamos dados locais e do DB.
     if (resource === 'backgrounds') {
         try {
-            // CORREÇÃO: O caminho aponta para a pasta `data` dentro de `backend`.
+            // 1. Carrega os antecedentes base do arquivo JSON.
             const filePath = path.join(process.cwd(), 'data', 'backgrounds.json');
             const fileContent = await fs.readFile(filePath, 'utf-8');
-            const data = JSON.parse(fileContent);
-            return res.json(data);
+            const baseData = JSON.parse(fileContent);
+
+            // 2. Busca os antecedentes homebrew públicos no banco de dados.
+            const homebrewBackgrounds = await HomebrewService.getPublicHomebrewContent('background');
+            
+            // 3. Mescla os resultados.
+            const homebrewResults = homebrewBackgrounds.map(hb => ({
+                index: hb.id, // Usamos o ID do homebrew como índice
+                name: hb.name,
+                url: `/api/homebrew/${hb.id}` // Aponta para a nossa API homebrew
+            }));
+
+            const combinedResults = {
+                count: baseData.results.length + homebrewResults.length,
+                results: [...baseData.results, ...homebrewResults]
+            };
+
+            return res.json(combinedResults);
         } catch (error) {
-            console.error('[Homebrew] Erro ao ler o arquivo de backgrounds:', error);
+            console.error('[Homebrew] Erro ao carregar ou mesclar dados de antecedentes:', error);
             return next(createError(500, 'Falha ao carregar dados de antecedentes customizados.'));
         }
     }
