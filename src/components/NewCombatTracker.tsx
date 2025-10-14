@@ -1,4 +1,3 @@
-
 'use client';
 import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -45,7 +44,9 @@ const NewCombatTracker: React.FC = () => {
             const id = getCombatantId(apiCombatant);
             if (!id) return;
             
-            const existing = combatantMap.get(id) || {};
+            // If the incoming combatant is the player, merge it with the existing player data
+            const isApiPlayer = apiCombatant.isPlayer || id === character.name;
+            const existing = isApiPlayer ? playerCombatant : combatantMap.get(id) || {};
 
             let currentHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.current : apiCombatant.hp;
             let maxHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.max : apiCombatant.maxHp;
@@ -54,7 +55,7 @@ const NewCombatTracker: React.FC = () => {
                 ...existing,
                 ...apiCombatant,
                 id,
-                isPlayer: id === character.name,
+                isPlayer: isApiPlayer,
                  hp: {
                     current: typeof currentHp === 'number' ? currentHp : (existing?.hp?.current ?? 1),
                     max: typeof maxHp === 'number' ? maxHp : (existing?.hp?.max || 1)

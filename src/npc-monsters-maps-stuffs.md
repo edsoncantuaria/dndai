@@ -73,7 +73,7 @@ Com a base arquitetônica definida, podemos expandir a visão para mecânicas ma
     *   Implementar os componentes `NewJournal.tsx` e `NewRelationships.tsx` para exibir os dados de forma clara e organizada.
     *   Garantir que a UI seja atualizada em tempo real quando novas informações forem recebidas do backend.
 
--   **[ ] Fase 4: Mecânicas Avançadas**:
+-   **[🚧 Em Andamento] Fase 4: Mecânicas Avançadas**:
     *   **[✅ Concluído]** Aprimorar a IA para consultar e referenciar de forma proativa o estado dos NPCs e locais em suas narrações (ex: "Você reencontra Barthen, o ferreiro, que ainda parece grato por você ter salvo sua filha.").
     *   **[⬜️ A Fazer]** Implementar a lógica para monstros únicos vs. genéricos (respawn).
     *   **[⬜️ A Fazer]** Desenvolver o sistema de mapa interativo baseado nos dados de `JournalEntry`.

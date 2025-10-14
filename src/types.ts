@@ -351,12 +351,12 @@ export interface LogEntry {
 export interface Combatant {
     id: string;
     name: string;
+    isPlayer?: boolean; // New optional property
     hp?: { current: number; max: number; } | number; // Updated to allow both object and number
     maxHp?: number; // compatibilidade
     ac?: number;
     armorClass?: number;
     initiative?: number;
-    isPlayer?: boolean;
     conditions?: string[]; // Array of condition names
     distance?: number;
     rollHistory?: any[]; // Adicionado para compatibilidade
