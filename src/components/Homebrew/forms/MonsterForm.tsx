@@ -5,7 +5,7 @@ import { translateApiString, translateAttribute } from '@/utils/translator';
 import { Attributes } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
 
 
@@ -47,6 +47,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
         condition_immunities: [] as { index: string, name: string }[],
         senses: { passive_perception: 10 } as Record<string, any>,
         languages: '',
+        actions: [] as any[], // Adicionado para as ações
     });
     
     const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
@@ -135,6 +136,17 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
             }
         }
         handleFieldChange('proficiencies', newProfs);
+    };
+
+    const handleAddAction = () => {
+        // Placeholder, will open a modal later
+        const newAction = { name: `Nova Ação ${monsterData.actions.length + 1}`, desc: 'Descrição...' };
+        handleFieldChange('actions', [...monsterData.actions, newAction]);
+    };
+
+    const handleRemoveAction = (index: number) => {
+        const newActions = monsterData.actions.filter((_, i) => i !== index);
+        handleFieldChange('actions', newActions);
     };
 
 
@@ -315,6 +327,31 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
                  <div className="mt-4">
                     <label htmlFor="monster-languages" className="block text-sm font-medium text-stone-300 mb-1">Idiomas</label>
                     <input id="monster-languages" type="text" value={monsterData.languages} onChange={e => handleFieldChange('languages', e.target.value)} placeholder="Ex: Comum, Dracônico, telepatia 120 ft." className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+            </div>
+
+            <div className="pt-4 border-t border-stone-700/50">
+                <div className="flex justify-between items-center mb-4">
+                    <h4 className="text-lg font-bold text-amber-300">Ações</h4>
+                    <button type="button" onClick={handleAddAction} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                        <Plus className="h-4 w-4" /> Adicionar Ação
+                    </button>
+                </div>
+                <div className="space-y-2">
+                    {monsterData.actions.map((action, index) => (
+                        <div key={index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
+                            <div>
+                                <p className="font-semibold text-stone-200">{action.name}</p>
+                                <p className="text-xs text-stone-400 mt-1">{action.desc}</p>
+                            </div>
+                            <button onClick={() => handleRemoveAction(index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
+                                <Trash2 className="h-4 w-4"/>
+                            </button>
+                        </div>
+                    ))}
+                    {monsterData.actions.length === 0 && (
+                        <p className="text-sm text-center italic text-stone-500 py-4">Nenhuma ação definida.</p>
+                    )}
                 </div>
             </div>
 

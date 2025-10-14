@@ -53,8 +53,8 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
 -   **[🚧 Em Andamento] Monstros:**
     - **[✅ Concluído]** Estrutura inicial do formulário (Nome, Tamanho, Tipo, Alinhamento).
     - **[✅ Concluído]** Implementação de estatísticas de combate (Atributos, PV, CA, Velocidade).
-    - **[🚧 Em Andamento]** Implementação de perícias, resistências, sentidos e idiomas.
-    - **[⬜️ A Fazer]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
+    - **[✅ Concluído]** Implementação de perícias, resistências, sentidos e idiomas.
+    - **[🚧 Em Andamento]** Sistema para adicionar ações, habilidades especiais e ações lendárias.
 
 **Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
