@@ -11,7 +11,8 @@ import NewStep3_Background from './NewStep3_Background';
 import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
 import NewStep5_Equipment from './NewStep5_Equipment';
 import NewStep6_Spells from './NewStep6_Spells';
-import NewStep7_Finalize from './NewStep7_Finalize'; // Renomeado
+import NewStep7_Feats from './NewStep7_Feats';
+import NewStep8_Finalize from './NewStep8_Finalize';
 import ActionModal from '../ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 
@@ -37,7 +38,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const [currentStep, setCurrentStep] = useState(1);
     const [highestStep, setHighestStep] = useState(1);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-    const totalSteps = 7; 
+    const totalSteps = 8; 
     const wizardRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -92,7 +93,9 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:
-                return <NewStep7_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />; // Renomeado
+                return <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+            case 8:
+                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />;
             default:
                 return <div>Etapa Inválida.</div>;
         }

@@ -1,4 +1,4 @@
-// src/components/NewCreationCharacter/NewStep7_Finalize.tsx
+// src/components/NewCreationCharacter/NewStep8_Finalize.tsx
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';
@@ -13,7 +13,7 @@ interface Props {
 
 const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
-const NewStep7_Finalize: React.FC<Props> = ({
+const NewStep8_Finalize: React.FC<Props> = ({
     hook,
     prevStep,
     handleFinalize,
@@ -57,10 +57,10 @@ const NewStep7_Finalize: React.FC<Props> = ({
         }
     }
 
-    const finalSpells = [
+    const finalSpells = [...new Set([
         ...chosenClassSpells,
         ...Object.values(chosenRacialSpells).flat()
-    ].map(spellIndex => {
+    ])].map(spellIndex => {
         const spell = [...classSpellOptions, ...racialSpellOptions].find(s => s.index === spellIndex);
         return spell ? translateApiString(spell.name) : null;
     }).filter(Boolean);
@@ -72,10 +72,8 @@ const NewStep7_Finalize: React.FC<Props> = ({
                 <p className="text-sm text-stone-400">Revise as escolhas do seu herói e dê a ele um nome digno de lendas.</p>
             </div>
             
-             {/* Character Sheet Summary */}
             <div className="bg-stone-900/50 p-4 sm:p-6 rounded-lg border-2 border-stone-700 space-y-6 shadow-lg">
                 
-                {/* Name Input */}
                 <div className="w-full mb-6">
                     <label htmlFor="character-name" className="sr-only">Nome do Personagem</label>
                     <input
@@ -88,7 +86,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                     />
                 </div>
                 
-                 {/* Appearance Section */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                         <label htmlFor="sex-select" className="block text-xs font-medium text-stone-400 mb-1">Sexo</label>
@@ -128,7 +125,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
-                    {/* Basic Info */}
                     <div className="md:col-span-1 space-y-2">
                         <div className="bg-stone-800/50 p-3 rounded-md">
                             <strong className="text-stone-400 block text-xs uppercase tracking-wider">Raça</strong> 
@@ -148,7 +144,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                         </div>
                     </div>
 
-                    {/* Attributes */}
                     <div className="md:col-span-2">
                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-center">
                             {attributeOrder.map(attr => (
@@ -163,7 +158,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Skills */}
                     {finalSkills.length > 0 && (
                         <div className="bg-stone-800/50 p-4 rounded-md">
                             <h4 className="font-semibold text-amber-300 border-b border-stone-700 pb-2 mb-2">Perícias</h4>
@@ -173,7 +167,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                         </div>
                     )}
 
-                    {/* Spells */}
                     {finalSpells.length > 0 && (
                          <div className="bg-stone-800/50 p-4 rounded-md">
                             <h4 className="font-semibold text-amber-300 border-b border-stone-700 pb-2 mb-2">Magias Conhecidas (Nível 1)</h4>
@@ -185,7 +178,6 @@ const NewStep7_Finalize: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-between items-center pt-6">
                 <button
                     type="button"
@@ -209,4 +201,4 @@ const NewStep7_Finalize: React.FC<Props> = ({
     );
 };
 
-export default NewStep7_Finalize;
+export default NewStep8_Finalize;

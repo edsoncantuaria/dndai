@@ -298,6 +298,7 @@ export interface Character {
     classLevelsData: ApiClassLevel[];
     subclassLevelsData?: ApiClassLevel[];
     traits: ApiListItem[];
+    feats: Feat[];
     languages: string[];
     subclassFlavor: string | null;
 }
