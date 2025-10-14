@@ -30,6 +30,7 @@ export const buildFullCharacterObject = async (character: Character) => {
         spells: fullCharacter.spells, // Mantém a estrutura de `CharacterSpell`
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
+        feats: fullCharacter.feats || [],
     };
     
     // Remove as propriedades de relação para evitar redundância no objeto final
@@ -63,6 +64,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             hairStyle: characterData.hairStyle,
             beardStyle: characterData.beardStyle,
             skinColor: characterData.skinColor,
+            feats: characterData.feats || [],
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);

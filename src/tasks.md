@@ -49,7 +49,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
     *   **Justificativa:** Assegura que a interface do usuário seja um reflexo fiel e completo do estado do personagem armazenado no servidor, resolvendo inconsistências.
     *   **Status:** Concluído.
     
-*   **[ ] Componentizar a UI (Frontend):**
+*   **[X] Componentizar a UI (Frontend):**
     *   **Tarefa:** Dividir componentes grandes como `CharacterSheet` e `NewCharacterCreation` em subcomponentes menores e mais focados (ex: `AttributeDisplay`, `SkillsList`, `Stepper`).
     *   **Justificativa:** Melhora a organização do código, a performance de renderização (com `React.memo`) e a manutenibilidade.
     *   **Status:** Em andamento. O componente `CharacterSheet` foi refatorado.
@@ -96,7 +96,7 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 
 *   **[X] Ações Estruturadas em Combate (Backend + Frontend):**
     *   **Visão:** Categorizar as opções de ação em "Ação", "Ação Bônus" e "Reação" para refletir as regras do D&D 5e, com a UI mostrando claramente os recursos gastos.
-    *   **Status:** Concluído.
+    *   **Status:** Fundações concluídas. A lógica completa de gerenciamento de turnos ainda está em desenvolvimento.
 
 *   **[X] Reimaginar Inventário e Grimório:**
     *   **Visão:** Transformar as telas de inventário e grimório de simples listas para painéis imersivos e organizados, com categorias, indicadores visuais de recursos (espaços de magia) e um design mais limpo.
@@ -150,5 +150,3 @@ Este documento descreve os próximos grandes recursos e melhorias arquitetônica
 *   **[ ] TASK-2: Streaming e Modo Multiplayer (Pausado)**
     *   **Status:** Em espera. A reestruturação da TASK-1 é um pré-requisito.
 ---
-
-

@@ -73,6 +73,9 @@ export class Character {
     @Column({ type: 'varchar', length: 20, nullable: true })
     skinColor: string;
     
+    @Column({ type: 'json', nullable: true })
+    feats: any[];
+    
     // Relações com as novas entidades
     @OneToOne(() => CharacterAttributes, attributes => attributes.character, { cascade: true })
     attributes: CharacterAttributes;
