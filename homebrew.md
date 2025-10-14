@@ -23,13 +23,13 @@ O objetivo do sistema Homebrew é transformar o "Crônicas de Aventuras" em uma 
 -   **[X] Criar Entidades Homebrew no Banco de Dados:** Foi definida a entidade `HomebrewContent` (TypeORM) para armazenar os dados JSON que seguem o padrão OpenAPI, com campos para `type`, `authorId`, `isPublic` e o `content`.
 -   **[X] Criar Endpoints CRUD para Homebrew:** Foi desenvolvida a API REST (`/api/homebrew`) para criar, ler, atualizar e deletar conteúdo homebrew, com validação e checagem de permissões.
 
-### Fase 3: Integração com o Jogo (Em Andamento)
+### Fase 3: Integração com o Jogo (Concluído)
 
 -   **[X] Mesclar Dados (Listas de Recursos):** A rota `GET /api/dnds/:resource` do backend foi modificada para que, ao receber uma requisição por "classes", "raças", etc., ele busque na API oficial e mescle com o conteúdo homebrew público do banco de dados antes de retornar ao frontend.
--   **[Em Andamento] Integração de Detalhes no Backend:**
+-   **[X] Integração de Detalhes no Backend:**
     -   **[✅ Concluído]** A rota `GET /api/dnds/:resource/:index` foi atualizada para detectar se um `index` é um ID de homebrew. Se for, ela busca os detalhes do nosso banco de dados em vez da API D&D.
     -   **[✅ Concluído]** O `characterService` foi atualizado para carregar os dados de uma classe homebrew durante a criação do personagem.
-    -   **[⬜️ A Fazer]** Garantir que todos os outros serviços (`narrarService`, etc.) também saibam como lidar com dados de homebrew.
+    -   **[✅ Concluído]** O `narrarService` e as rotas de níveis/magias agora também sabem como lidar com dados de classes homebrew.
 
 
 ### Fase 4: O Editor Homebrew e Gerenciamento de Dependências (Em Andamento)
@@ -47,14 +47,14 @@ O objetivo desta fase é criar uma interface de formulário guiada para cada tip
     -   Estrutura básica com nome e dado de vida.
     -   Seleção de testes de resistência, proficiências e escolhas de perícias.
     -   Adição de características de classe por nível.
--   **[Em Andamento] Subclasses:**
-    -   **[✅ Concluído] Estrutura básica com seleção de classe original, nome e descrição.**
-    -   **[⬜️ A Fazer] Adicionar características de subclasse por nível.**
--   **[⬜️ A Fazer] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
+-   **[✅ Concluído] Subclasses:**
+    -   Estrutura básica com seleção de classe original, nome e descrição.
+    -   Adição de características de subclasse por nível.
+-   **[🚧 Em Andamento] Monstros:** Editor para criar NPCs e monstros, definindo suas estatísticas, ações e habilidades.
 
-**Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade a ser integrada diretamente no formulário de criação de `Raças`.
+**Nota sobre Sub-raças:** A criação de sub-raças não é um editor separado, mas uma funcionalidade integrada diretamente no formulário de criação de `Raças`.
 
-#### **Sistema de Dependências (Em Andamento):**
+#### **Sistema de Dependências (Concluído):**
 
 A visão é permitir que um conteúdo homebrew referencie outro, criando um ecossistema conectado.
 
