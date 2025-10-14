@@ -100,7 +100,7 @@ const GameContainer = () => {
                     setPlayMenuMusic(false);
                     // Crucial fix: start the game if it's a brand new session with no logs.
                     if(loadedData.logs.length === 0) {
-                        startGame();
+                        await startGame();
                     }
                 }
             }
@@ -119,17 +119,17 @@ const GameContainer = () => {
     const handleContinueGame = useCallback(async (sessionId: number) => {
         setIsLoadingData(true);
         const loadedData = await loadGameSession(sessionId);
-        setIsLoadingData(false); 
-    
+        
         if (loadedData) {
             setGameStage('playing');
             setPlayMenuMusic(false);
             if (loadedData.logs.length === 0) {
-                startGame();
+                await startGame();
             }
         } else {
             setGameStage('session_list');
         }
+        setIsLoadingData(false);
     }, [loadGameSession, setPlayMenuMusic, startGame]);
 
 

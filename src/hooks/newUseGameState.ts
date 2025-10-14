@@ -256,6 +256,7 @@ export const useNewGameState = () => {
                 setLog(formattedLogs); // Usa os logs formatados
                 setSessionId(id);
                 
+                // Não chama mais o setIsLoading(false) aqui
                 return { character: fullCharacter, logs: formattedLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
@@ -263,9 +264,8 @@ export const useNewGameState = () => {
         } catch(err: any) {
             setApiError(err.message);
             clearGameState();
+            setIsLoading(false); // Garante que o loading para em caso de erro
             return null;
-        } finally {
-            setIsLoading(false);
         }
     }, [clearGameState]);
 

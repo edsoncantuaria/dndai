@@ -1,3 +1,4 @@
+// src/components/Game.tsx
 'use client';
 
 import React from 'react';
@@ -42,7 +43,7 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage }: Ga
         }
 
         // If the initial narration hasn't arrived yet (log is empty), show a specific loader.
-        if (log.length === 0 && isLoading) {
+        if (isLoading && log.length === 0) {
             return (
                 <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
                     <Loader2 className="h-12 w-12 animate-spin mb-4" />
