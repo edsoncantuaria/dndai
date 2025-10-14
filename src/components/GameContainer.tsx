@@ -63,7 +63,7 @@ const GameContainer = () => {
 
     useEffect(() => {
         if (apiError) {
-            setGameStage('session_list');
+            setGameStage('main_menu');
         }
     }, [apiError]);
 
@@ -136,7 +136,7 @@ const GameContainer = () => {
             }
         } else {
             // If loading fails, go back to the menu
-            setGameStage('session_list');
+            setGameStage('main_menu');
         }
         setIsGameLoadingState(false); // Unset loading state after everything is done or failed
     }, [loadGameSession, setPlayMenuMusic, startGame, setIsGameLoadingState]);
@@ -165,7 +165,7 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (isGameLoading) {
+        if (isLoadingData || isGameLoading) {
             const message = log.length === 0 && gameStage === 'playing'
                 ? "O Mestre de Jogo está preparando o início da sua jornada." 
                 : "Carregando suas crônicas...";
