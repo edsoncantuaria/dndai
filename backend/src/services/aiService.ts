@@ -28,7 +28,7 @@ const gameMasterPrompt = (options: GenkitOptions) => {
 export async function runGameMasterTurn(
   input: GameMasterFlowInput,
   apiKey: string,
-  model: string,
+  model: string, // O modelo agora é um parâmetro obrigatório.
 ): Promise<GameMasterResponse | null> {
     try {
         // Configura o Genkit dinamicamente com a chave e modelo do usuário.
@@ -40,6 +40,7 @@ export async function runGameMasterTurn(
         const prompt = gameMasterPrompt(dynamicGenkitOptions);
         
         // Executa o prompt, passando o modelo dinamicamente na chamada.
+        // O modelo agora é obrigatório, garantindo que a escolha do usuário seja sempre usada.
         const result = await prompt(input, { model: `googleai/${model}` });
         
         return result.output;

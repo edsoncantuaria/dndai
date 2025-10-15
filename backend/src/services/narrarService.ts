@@ -222,6 +222,10 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
+    
+    // Centralize a lógica do modelo padrão aqui.
+    const modelToUse = user?.settings?.model || "gemini-1.5-flash";
+
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
     if (!optimizedCharacter) {
@@ -234,17 +238,14 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew = homebrewItems.map(item => item.content);
     }
 
-    // Fetch the LAST 10 logs to provide recent context.
     const recentLogs = await logRepository.find({
         where: { sessaoId: sessao.id },
-        order: { timestamp: 'DESC' }, // Correct order: newest to oldest
+        order: { timestamp: 'DESC' }, 
         take: 10,
     });
     
-    // Reverse the logs to be in chronological order for the prompt (oldest to newest)
     const chronologicalLogs = recentLogs.reverse();
 
-    // Convert to a simpler format for the AI prompt
     const gameLogSummary = chronologicalLogs.map(log => ({
         role: log.type === 'action' ? 'user' : 'model',
         content: log.response
@@ -254,12 +255,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLogSummary, // Send the summarized log
+        gameLog: gameLogSummary,
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
 
-    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-1.5-flash");
+    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, modelToUse);
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
