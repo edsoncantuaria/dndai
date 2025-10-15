@@ -222,9 +222,8 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
     }
     if(content === null) return null;
 
-    return <div>{content}</div>;
+    return <div className="animate-fadeIn" style={{animationDuration: '500ms'}}>{content}</div>;
 });
-LogEntry.displayName = 'LogEntry';
 
 
 const NpcRollDisplay: React.FC = () => {
