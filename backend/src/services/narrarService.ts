@@ -293,24 +293,23 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
 
     // Log AI response
-    if (aiResponse.logEntries) {
-        for (const entry of aiResponse.logEntries) {
-            const newLog = new SessionLog();
-            // Stringify the entire AI response for the log content to allow state restoration
-            const content = typeof entry.content === 'object' 
-                ? JSON.stringify(entry.content) 
-                : (entry.content || '');
-            
-            Object.assign(newLog, {
-                sessaoId: sessao.id,
-                prompt: 'GM Response',
-                response: JSON.stringify(aiResponse), // Save the whole response object
-                type: entry.type || 'narration',
-                rollResult: entry.rollResult,
-            });
-            await logRepository.save(newLog);
-        }
+    if (aiResponse.logEntries && aiResponse.logEntries.length > 0) {
+        const newLog = new SessionLog();
+        const narrationEntry = aiResponse.logEntries.find(e => e.type === 'narration');
+        
+        Object.assign(newLog, {
+            sessaoId: sessao.id,
+            prompt: 'GM Response',
+            // The `response` column in the DB will now store the full AI response object
+            // This is crucial for state restoration.
+            response: JSON.stringify(aiResponse), 
+            // The `type` here is a general indicator for the log entry itself.
+            type: narrationEntry?.type || 'narration', 
+            rollResult: narrationEntry?.rollResult,
+        });
+        await logRepository.save(newLog);
     }
+
 
     // Persist new homebrew content created by the AI
     if (aiResponse.newHomebrewContent) {

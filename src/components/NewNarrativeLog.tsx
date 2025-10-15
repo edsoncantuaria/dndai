@@ -78,10 +78,11 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-// Simplified Narration Entry
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    // Garantir que o texto seja sempre uma string
+    // Ensure content is a string. If it's an object (like image status), it will be ignored here.
     const textContent = typeof entry.content === 'string' ? entry.content : '';
+
+    if (!textContent) return null;
 
     return (
         <div className="flex items-start">

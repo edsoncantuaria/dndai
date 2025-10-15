@@ -270,34 +270,48 @@ export const useNewGameState = () => {
 
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
-                const formattedLogs = (sessionDetails.logs || []).map(log => ({
-                    ...log,
-                    id: log.id?.toString() || uuidv4(),
-                    content: log.response,
-                }));
                 
+                // Map the logs for display. The 'response' field from the DB now holds the text for narration/action entries.
+                // The full game state is in the 'response' of the 'GM Response' log entry.
+                const formattedLogs = (sessionDetails.logs || []).flatMap(log => {
+                    if (log.prompt === 'GM Response') {
+                        try {
+                            const gmState = JSON.parse(log.response || '{}');
+                            return (gmState.logEntries || []).map((entry: any) => ({
+                                ...entry,
+                                id: uuidv4()
+                            }));
+                        } catch {
+                            return []; // Skip if parsing fails
+                        }
+                    }
+                    return {
+                        ...log,
+                        id: log.id?.toString() || uuidv4(),
+                        content: log.response, // This is for player 'action' logs
+                    };
+                });
+
+
                 setCharacter(fullCharacter);
                 setLog(formattedLogs);
                 setSessionId(id);
 
                 // If logs exist, it's a continued session. Restore state from the last narration.
-                if (formattedLogs.length > 0) {
-                    const lastGmLog = [...formattedLogs].reverse().find(l => l.prompt === 'GM Response');
-                    if (lastGmLog?.content) {
+                if (sessionDetails.logs && sessionDetails.logs.length > 0) {
+                    const lastGmLog = [...sessionDetails.logs].reverse().find(l => l.prompt === 'GM Response');
+                    if (lastGmLog?.response) {
                          try {
-                            const lastState = JSON.parse(lastGmLog.content);
+                            const lastState = JSON.parse(lastGmLog.response);
                             handleApiResponse(lastState);
                         } catch(e) {
                             console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                            // As a fallback, if parsing fails, silently ask the GM to regenerate the state.
                             await processPlayerAction("Recarregar estado atual e obter opções.", id);
                         }
-                    } else if (formattedLogs.length > 0 && !formattedLogs.some(l => l.prompt === 'GM Response')) {
-                        // This handles the case where a session was created but never started.
+                    } else if (sessionDetails.logs.length > 0 && !sessionDetails.logs.some(l => l.prompt === 'GM Response')) {
                         await startGame(id);
                     }
                 } else {
-                    // This is a brand new session, so we start the game.
                     await startGame(id);
                 }
 
