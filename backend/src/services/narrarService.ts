@@ -221,7 +221,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
     }
 
-    const user = await userRepository.findOneBy({ id: userId });
+    const user = await userRepository.findOne({ where: { id: userId } });
     const apiKey = user?.settings?.apiKey;
     if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
