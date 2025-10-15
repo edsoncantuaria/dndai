@@ -69,7 +69,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' },
+        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' }, // Valor Padrão
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
@@ -216,18 +216,17 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const userRepository = AppDataSource.getRepository(User);
 
-    const user = await userRepository.findOne({ where: { id: userId } });
-     if (!apiKey) {
+    if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
 
+    const user = await userRepository.findOne({ where: { id: userId } });
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
     }
     
     const modelToUse = user?.settings?.model || "gemini-1.5-flash";
-
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
     if (!optimizedCharacter) {
@@ -251,7 +250,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         content: log.response
     }));
 
-
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
@@ -274,12 +272,16 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
             const newLog = new SessionLog();
-            const content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : entry.content;
+            // CORREÇÃO: Garante que o 'content' é uma string antes de salvar.
+            const content = typeof entry.content === 'object' 
+                ? JSON.stringify(entry.content) 
+                : (entry.content || ''); // Usa string vazia se for null/undefined
+            
             Object.assign(newLog, {
                 sessaoId: sessao.id,
                 prompt: 'GM Response',
                 response: content,
-                type: entry.type,
+                type: entry.type || 'narration',
                 rollResult: entry.rollResult,
             });
             await logRepository.save(newLog);

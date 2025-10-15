@@ -17,6 +17,7 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 
 // Schema para uma única entrada no log da aventura.
+// CORREÇÃO: Tornando o schema mais estrito para orientar a IA corretamente.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
     content: z.union([z.string(), z.object({ status: z.string(), url: z.string().optional(), prompt: z.string().optional() })]).describe("The text content of the log entry or a structured object for special types like 'image'."),
