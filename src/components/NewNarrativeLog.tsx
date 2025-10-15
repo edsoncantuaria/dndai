@@ -1,6 +1,6 @@
 // src/components/NewNarrativeLog.tsx
 'use client';
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
@@ -16,7 +16,7 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
-    const handlePlay = useCallback(async () => {
+    const handlePlay = async () => {
         if (isPlaying && audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
@@ -46,7 +46,7 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [audioData, getApiKey, isPlaying, text, ttsModel, ttsVoice]);
+    };
 
     useEffect(() => {
         if (audioData && audioRef.current) {
@@ -78,48 +78,15 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
-    const [displayedText, setDisplayedText] = useState(() => isMostRecent ? '' : (entry.content || ''));
-    const isAnimating = useRef(isMostRecent);
-
-    useEffect(() => {
-        setDisplayedText(isMostRecent ? '' : (entry.content || ''));
-        isAnimating.current = isMostRecent;
-    
-        if (!isMostRecent) return;
-    
-        const content = entry.content || '';
-        const words = content.split(' ');
-        let currentIndex = 0;
-        let animationFrameId: number;
-    
-        const animate = () => {
-            if (currentIndex < words.length) {
-                setDisplayedText(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
-                currentIndex++;
-                animationFrameId = requestAnimationFrame(animate);
-            } else {
-                isAnimating.current = false;
-            }
-        };
-    
-        animationFrameId = requestAnimationFrame(animate);
-    
-        return () => {
-            cancelAnimationFrame(animationFrameId);
-            isAnimating.current = false;
-        };
-    }, [entry.content, isMostRecent]);
-
-    const isAnimationComplete = !isAnimating.current;
-
+// Simplified Narration Entry
+const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
+    const textContent = entry.content || '';
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
-                {displayedText}
-                {!isAnimationComplete && <span className="animate-pulse">_</span>}
+                {textContent}
             </p>
-            {isAnimationComplete && <AudioPlayer text={entry.content || ''} />}
+            {textContent && <AudioPlayer text={textContent} />}
         </div>
     );
 };
@@ -198,11 +165,11 @@ const getActionIcon = (content: string) => {
 };
 
 
-const LogEntry = React.memo(function LogEntry({ entry, isMostRecent }: { entry: LogEntryType, isMostRecent: boolean }) {
+const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }) {
     let content;
     switch(entry.type) {
         case 'narration':
-            content = <NarrationEntry entry={entry} isMostRecent={isMostRecent} />;
+            content = <NarrationEntry entry={entry} />;
             break;
         case 'action':
             if (typeof entry.content === 'string' && entry.content.startsWith("Processar")) {
@@ -255,11 +222,13 @@ const LogEntry = React.memo(function LogEntry({ entry, isMostRecent }: { entry: 
 
     return <div>{content}</div>;
 });
+LogEntry.displayName = 'LogEntry';
+
 
 const NpcRollDisplay: React.FC = () => {
     const { combatState, character } = useGameStateContext();
 
-    const initiativeString = useMemo(() => {
+    const initiativeString = React.useMemo(() => {
         if (!combatState.isActive || !combatState.initiativeOrder || combatState.initiativeOrder.length === 0) return null;
 
         const order = combatState.initiativeOrder.map(entry => {
@@ -301,9 +270,9 @@ const NewNarrativeLog: React.FC = () => {
     return (
         <div className="space-y-4">
             <NpcRollDisplay />
-            {log.map((entry, index) => {
-                if(!entry) return null;
-                return <LogEntry key={entry.id} entry={entry} isMostRecent={index === log.length - 1} />
+            {log.map((entry) => {
+                if(!entry || !entry.id) return null;
+                return <LogEntry key={entry.id} entry={entry} />
             })}
             <div ref={logEndRef} />
         </div>

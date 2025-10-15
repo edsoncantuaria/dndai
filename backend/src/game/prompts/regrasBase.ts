@@ -73,7 +73,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 - **Fonte da Verdade:** o objeto \`character\` recebido é a única referência.
 - **Cura:** nunca ultrapassa \`attributes.hp\`.
 - **Consumíveis:** usar uma poção ou item reduz a quantidade em inventário.
-- **Magias:** gastar um espaço de magia deve atualizar os recursos.
+- **Magias:** Gastar um espaço de magia deve atualizar os recursos. Um conjurador DEVE ter um foco de conjuração apropriado para sua classe (Símbolo Sagrado para Clérigos/Paladinos, Foco Druídico para Druidas, Foco Arcano para outras classes) ou um componente material, se o feitiço exigir componentes 'M' e não tiver foco.
 - **Sempre valide:** se o personagem não tiver o recurso, narre a falha.
 - **Mecânicas Homebrew (Extensibilidade):** Você pode encontrar um campo opcional \`custom_mechanics\` nas características de um personagem. Se presente, você **DEVE** seguir as regras descritas nele. Ex: se \`custom_mechanics: { "bonus_actions": 1 }\`, o personagem tem uma ação bônus adicional. Use o \`systemLog\` para justificar a aplicação dessas regras customizadas. Se uma mecânica não estiver documentada aqui ou em \`custom_mechanics\`, ignore-a.
 
@@ -93,12 +93,11 @@ O contexto a seguir é essencial. Você DEVE usá-lo para informar sua resposta.
 \`\`\`
 
 ### Últimos Eventos do Jogo
-\`\`\`
-{{{gameLog}}}
+\`\`\`json
+{{{json gameLog}}}
 \`\`\`
 
 ---
 A ação do jogador é: "{{playerAction}}"
 
 Com base no estado atual do personagem e no histórico, continue a aventura.
-`;

@@ -1,22 +1,11 @@
 // backend/src/services/aiService.ts
-import { genkit, type GenkitOptions } from 'genkit';
-import { googleAI, type GoogleAIOptions } from '@genkit-ai/google-genai';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
 import { GameMasterFlowInput, GameMasterFlowInputSchema, GameMasterResponse, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
 import { promptDnD5e } from '../game/prompt5e.js';
 
 // Define o prompt fora da função de chamada para eficiência.
-// A instância 'ai' é criada dinamicamente dentro da função.
-const gameMasterPrompt = (options: GenkitOptions) => {
-  const ai = genkit(options);
-  return ai.definePrompt(
-    {
-      name: "gameMasterPrompt",
-      input: { schema: GameMasterFlowInputSchema },
-      output: { schema: GameMasterResponseSchema },
-      prompt: promptDnD5e,
-    },
-  );
-}
+const systemInstruction = promptDnD5e;
 
 /**
  * Executa um turno do Mestre de Jogo IA.
@@ -28,22 +17,53 @@ const gameMasterPrompt = (options: GenkitOptions) => {
 export async function runGameMasterTurn(
   input: GameMasterFlowInput,
   apiKey: string,
-  model: string, // O modelo agora é um parâmetro obrigatório.
+  model: string,
 ): Promise<GameMasterResponse | null> {
     try {
-        // Configura o Genkit dinamicamente com a chave e modelo do usuário.
-        const dynamicGenkitOptions: GenkitOptions = {
+        const ai = genkit({
             plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
             enableTracingAndMetrics: process.env.NODE_ENV === 'development',
-        };
+        });
+        
+        const gameMasterFlow = ai.defineFlow(
+            {
+                name: "gameMasterFlow",
+                inputSchema: GameMasterFlowInputSchema,
+                outputSchema: GameMasterResponseSchema,
+                system: systemInstruction, // Usando a instrução de sistema aqui
+            },
+            async (flowInput) => {
+                const llmResponse = await ai.generate({
+                    model: `googleai/${model}`,
+                    prompt: {
+                        text: `A ação do jogador é: "${flowInput.playerAction}"`,
+                        context: {
+                            character: flowInput.character,
+                            gameLog: flowInput.gameLog,
+                            combatState: flowInput.combatState,
+                            installedHomebrew: flowInput.installedHomebrew,
+                        }
+                    },
+                    // Configuração de formato de saída JSON
+                    config: {
+                        response: {
+                            format: 'json',
+                            schema: GameMasterResponseSchema,
+                        },
+                    },
+                });
+                
+                const output = llmResponse.output();
+                if (!output) {
+                    throw new Error("A resposta da IA foi nula ou vazia.");
+                }
+                return output;
+            }
+        );
 
-        const prompt = gameMasterPrompt(dynamicGenkitOptions);
-        
-        // Executa o prompt, passando o modelo dinamicamente na chamada.
-        // O modelo agora é obrigatório, garantindo que a escolha do usuário seja sempre usada.
-        const result = await prompt(input, { model: `googleai/${model}` });
-        
-        return result.output;
+        const result = await gameMasterFlow(input);
+        return result;
+
     } catch (error) {
         console.error("Erro ao executar o turno do Mestre de Jogo:", error);
         throw new Error('Falha na comunicação com a Inteligência Artificial.');
