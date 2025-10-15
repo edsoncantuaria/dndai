@@ -113,7 +113,7 @@ const GameContainer = () => {
         try {
             // Fetch homebrew content based on settings
             let homebrewIds: string[] = [];
-            const userContent = await HomebrewService.listHomebrewContent('public', undefined, 'user');
+            const userContent = await HomebrewService.listHomebrewContent('mine', undefined);
             homebrewIds = homebrewIds.concat(userContent.map(c => c.id));
             
             if (useAiHomebrew) {
@@ -143,19 +143,17 @@ const GameContainer = () => {
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
         setIsGameLoadingState(true); // Set loading state before anything starts
+        setGameStage('playing'); // Immediately switch to playing stage
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
-            setGameStage('playing');
             setPlayMenuMusic(false);
-            if(loadedData.logs.length === 0) {
-                await startGame();
-            }
+            // The startGame effect will trigger automatically now
         } else {
             // If loading fails, go back to the menu
             setGameStage('main_menu');
         }
         setIsGameLoadingState(false); // Unset loading state after everything is done or failed
-    }, [loadGameSession, setPlayMenuMusic, startGame, setIsGameLoadingState]);
+    }, [loadGameSession, setPlayMenuMusic, setIsGameLoadingState]);
 
 
     const returnToMenu = useCallback(() => {
@@ -181,19 +179,16 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (isLoadingData || isGameLoading) {
-            const message = log.length === 0 && gameStage === 'playing'
-                ? "O Mestre de Jogo está preparando o início da sua jornada." 
-                : "Carregando suas crônicas...";
-            return (
+        if (gameStage === 'loading' || (isLoadingData && gameStage !== 'playing')) {
+             return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
-                    <p className="mt-4 text-lg">{message}</p>
+                    <p className="mt-4 text-lg">Carregando suas crônicas...</p>
                 </div>
             );
         }
 
-        if (gameStage === 'playing' && character) {
+        if (gameStage === 'playing') {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}

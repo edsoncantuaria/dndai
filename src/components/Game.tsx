@@ -30,30 +30,9 @@ interface GameProps {
 export default function Game({ onCharacterCreated, returnToMenu, gameStage }: GameProps) {
     const { character, log, isLoading } = useGameStateContext();
 
-    // If we are in the 'playing' stage
+    // If we are in the 'playing' stage, always render the GameScreen.
+    // The GameScreen itself will handle showing loaders for its internal state.
     if (gameStage === 'playing') {
-        // But the character data isn't loaded yet, show a main loader
-        if (!character) {
-             return (
-                <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
-                    <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                    <h2 className="text-2xl font-bold font-garamond text-amber-300">Carregando Aventura...</h2>
-                </div>
-            );
-        }
-
-        // If the initial narration hasn't arrived yet (log is empty), show a specific loader.
-        if (isLoading && log.length === 0) {
-            return (
-                <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
-                    <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                    <h2 className="text-2xl font-bold font-garamond text-amber-300">Aguarde...</h2>
-                    <p className="mt-2">O Mestre de Jogo está preparando o início da sua jornada.</p>
-                </div>
-            )
-        }
-        
-        // Once everything is ready, show the main game screen
         return <GameScreen returnToMenu={returnToMenu} />;
     }
 
