@@ -39,8 +39,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
     const [showDisclaimer, setShowDisclaimer] = useState(false);
     
-    // Supondo que a sessão ativa é conhecida, aqui pegamos um ID fixo para o exemplo.
-    // Em um app real, isso viria de um contexto ou estado global.
     const activeSessionId = sessionId;
 
     const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
@@ -51,7 +49,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             const createdByFilter = activeTab === 'public' ? 'user' : undefined;
             const [contentResult, sessionsResult] = await Promise.all([
                 HomebrewService.listHomebrewContent(activeTab, undefined, createdByFilter),
-                GameService.getGameSessions() // Precisamos saber o estado de todas as sessões
+                GameService.getGameSessions()
             ]);
 
             setContent(contentResult);
@@ -60,7 +58,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 const activeSession = sessionsResult.find(s => s.id === activeSessionId);
                 setInstalledIds(new Set(activeSession?.homebrewContentIds || []));
             } else {
-                 setInstalledIds(new Set()); // Se não há sessão ativa, nada está instalado.
+                 setInstalledIds(new Set());
             }
         } catch (error: any) {
             toast({
@@ -149,15 +147,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             className="w-full bg-stone-900/70 border-2 border-stone-700 rounded-md p-2 pl-10 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
                         />
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-                        <button onClick={() => setTypeFilter('all')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>Todos</button>
-                        {CONTENT_TYPES.map(t => (
-                            <button key={t} onClick={() => setTypeFilter(t)} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === t ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>
-                                {translateApiString(t)}
-                            </button>
-                        ))}
-                    </div>
                 </div>
+                <div className="flex gap-2 mb-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+                    <button onClick={() => setTypeFilter('all')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>Todos</button>
+                    {CONTENT_TYPES.map(t => (
+                        <button key={t} onClick={() => setTypeFilter(t)} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === t ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>
+                            {translateApiString(t)}
+                        </button>
+                    ))}
+                </div>
+
 
                 {/* --- Aba Pública / Minhas Criações --- */}
                  <div className="flex justify-between items-center mb-4">
