@@ -1,6 +1,6 @@
 // src/components/NewNarrativeLog.tsx
 'use client';
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
@@ -80,7 +80,9 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 
 // Simplified Narration Entry
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    const textContent = entry.content || '';
+    // Garantir que o texto seja sempre uma string
+    const textContent = typeof entry.content === 'string' ? entry.content : '';
+
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
