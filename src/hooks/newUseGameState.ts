@@ -283,6 +283,7 @@ export const useNewGameState = () => {
                 setSessionId(id);
 
                 // If logs exist, it's a continued session. Request action options.
+                // If not, the startGame function (called from GameContainer) will handle it.
                 if (formattedLogs.length > 0) {
                     await processPlayerAction("Recarregar estado atual e obter opções.");
                 }
@@ -421,6 +422,6 @@ export const useNewGameState = () => {
         // State setters
         setCharacter,
         setLog,
-        setSessionId,
+        setSessionId
     };
 };

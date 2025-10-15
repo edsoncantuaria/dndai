@@ -85,14 +85,6 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
-    
-    // Effect to start the game after session is loaded
-    useEffect(() => {
-         console.log(`[GameContainer] StartGame Effect Check: Stage=${gameStage}, SessionID=${sessionId}, Logs=${log.length}, isGameLoading=${isGameLoading}`);
-        if (gameStage === 'playing' && sessionId && log.length === 0 && !isGameLoading) {
-            startGame();
-        }
-    }, [gameStage, sessionId, log, isGameLoading, startGame]);
 
 
     // --- Audio Management ---
@@ -119,7 +111,6 @@ const GameContainer = () => {
         console.log(`[GameContainer] handleNewGameFromVault called for character: ${char.id}`);
         setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
-            // Fetch homebrew content based on settings
             let homebrewIds: string[] = [];
             const userContent = await HomebrewService.listHomebrewContent('mine');
             homebrewIds = homebrewIds.concat(userContent.map(c => c.id));
@@ -132,19 +123,22 @@ const GameContainer = () => {
             const newSessionResponse = await GameService.createGameSession(
                 `Aventura de ${char.name}`, 
                 char.id, 
-                [...new Set(homebrewIds)] // Ensure unique IDs
+                [...new Set(homebrewIds)]
             );
 
             if (newSessionResponse && newSessionResponse.sessao) {
-                 console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Loading it now.`);
-                await loadGameSession(newSessionResponse.sessao.id);
-                setPlayMenuMusic(false);
+                console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Loading it now.`);
+                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
+                if (loadedData) {
+                    setPlayMenuMusic(false);
+                    await startGame(); // Start the game since it's brand new
+                }
             } else {
                 throw new Error("Failed to create a new session from the server.");
             }
         } catch (error) {
             console.error("[GameContainer] Failed to start new game session:", error);
-            setGameStage('main_menu'); // Revert to menu on failure
+            setGameStage('main_menu');
         }
     };
     
@@ -160,9 +154,7 @@ const GameContainer = () => {
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
             setPlayMenuMusic(false);
-            // The startGame effect will trigger automatically now
         } else {
-            // If loading fails, go back to the menu
             console.log(`[GameContainer] Loading session ${sessionIdToLoad} failed, returning to main_menu.`);
             setGameStage('main_menu');
         }
