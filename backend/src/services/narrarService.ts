@@ -43,6 +43,8 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
+    const worldState = fullCharacter.worldState || {};
+
     return {
         name: fullCharacter.name,
         race: fullCharacter.race,
@@ -69,7 +71,11 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState || {},
+        worldState: {
+            timeOfDay: worldState.timeOfDay || 'Manhã',
+            weather: worldState.weather || 'Ensolarado',
+            currentRegion: fullCharacter.currentRegion || "Região Desconhecida",
+        },
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
@@ -216,15 +222,14 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const userRepository = AppDataSource.getRepository(User);
 
-    const user = await userRepository.findOneBy({ id: userId });
+    const user = await userRepository.findOne({ where: { id: userId }, relations: ["settings"] });
+    if (!apiKey) {
+        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
+    }
 
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
-    }
-
-    if (!apiKey) {
-        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
     const modelToUse = user?.settings?.model || "gemini-1.5-flash";

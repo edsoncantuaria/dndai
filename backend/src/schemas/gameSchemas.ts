@@ -136,6 +136,7 @@ const RelationshipSchema = z.object({
 const WorldStateSchema = z.object({
     timeOfDay: z.enum(['Manhã', 'Tarde', 'Noite']).describe("Current time of day."),
     weather: z.enum(['Ensolarado', 'Nublado', 'Chuva', 'Tempestade', 'Neve', 'Nevoeiro']).describe("Current weather conditions."),
+    currentRegion: z.string().optional().describe("The current region or general location of the player."),
 }).describe("Describes the overall state of the world.");
 
 
