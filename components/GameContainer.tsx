@@ -22,18 +22,16 @@ type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 
 const GameContainer = () => {
     const {
         character,
-        log,
         loadGameSession,
         clearGameState,
         deleteCharacter,
         deleteSession,
-        startGame,
         isLoading: isGameLoading,
-        apiError
+        apiError,
     } = useGameStateContext();
 
-    const { user } = useAuth();
-    const { playMenuMusic, setPlayMenuMusic, volume, isMuted, useAiHomebrew } = useSettingsContext();
+    const { useAiHomebrew } = useSettingsContext();
+    const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -302,20 +300,20 @@ const GameContainer = () => {
                         <FlaskConical className="mr-3 h-6 w-6"/> Laboratório Homebrew
                     </button>
                 </main>
-                 <footer className="mt-12 flex items-center gap-6">
+                 <footer className="mt-12 flex justify-center gap-6">
                     <button 
                         onClick={() => setShowSettingsModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
                         title="Configurações"
                     >
-                        <Settings className="h-6 w-6"/> Configurações
+                        <Settings className="h-5 w-5"/> Configurações
                     </button>
                      <button 
                         onClick={() => setShowTestModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
                         title="Testes do Sistema"
                     >
-                        <Beaker className="h-6 w-6"/> Testes do Sistema
+                        <Beaker className="h-5 w-5"/> Testes do Sistema
                     </button>
                 </footer>
             </div>
@@ -361,6 +359,7 @@ const GameContainer = () => {
             <SystemTestModal
                 isOpen={showTestModal}
                 onClose={() => setShowTestModal(false)}
+                characters={characters as Character[]}
             />
         </>
     );
