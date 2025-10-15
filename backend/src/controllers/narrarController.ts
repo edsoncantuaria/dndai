@@ -6,7 +6,8 @@ import createError from 'http-errors';
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    const { prompt: playerAction, combatState: currentCombatState } = req.body;
+    // Extrai a apiKey e o resto do corpo da requisição
+    const { prompt: playerAction, combatState: currentCombatState, apiKey } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -14,6 +15,10 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
     }
     if (!playerAction) {
         return next(createError(400, 'A ação do jogador (prompt) é obrigatória.'));
+    }
+    // Adiciona validação para a apiKey
+    if (!apiKey) {
+        return next(createError(400, 'A chave de API do usuário é obrigatória para a narração.'));
     }
     const sessionIdNum = Number(sessionId);
     if(isNaN(sessionIdNum)) {
@@ -24,7 +29,8 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
         const aiResponse = await NarrarService.processPlayerTurn(
             sessionIdNum, 
             userId, 
-            playerAction, 
+            playerAction,
+            apiKey, // Passa a chave de API para o serviço
             currentCombatState
         );
         

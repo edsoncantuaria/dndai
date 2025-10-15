@@ -164,6 +164,12 @@ export const useNewGameState = () => {
             console.error("[processPlayerAction] Aborted: No sessionId.");
             return;
         }
+        const key = getApiKey();
+        if (!key) {
+             console.error("[processPlayerAction] Aborted: No API Key.");
+             setApiError("Chave de API não encontrada. Por favor, configure-a nas Configurações.");
+             return;
+        }
         
         console.log(`[processPlayerAction] Processing action for session ${sessionId}: "${action}"`);
         setIsLoading(true);
@@ -176,7 +182,7 @@ export const useNewGameState = () => {
         setActionOptions([]); 
         
         try {
-            const responseData = await GameService.processPlayerAction(sessionId, action, combatState);
+            const responseData = await GameService.processPlayerAction(sessionId, action, key, combatState);
             console.log("[processPlayerAction] Received API response:", responseData);
             handleApiResponse(responseData);
         } catch (error: any) {
@@ -187,7 +193,7 @@ export const useNewGameState = () => {
             console.log("[processPlayerAction] Finished processing. Setting isLoading to false.");
             setIsLoading(false); 
         }
-    }, [sessionId, combatState, handleApiResponse]);
+    }, [sessionId, combatState, handleApiResponse, getApiKey]);
     
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
         setIsLoading(true);
@@ -284,8 +290,8 @@ export const useNewGameState = () => {
             clearGameState();
             return null;
         } finally {
-             console.log(`[loadGameSession] Finished loading session ${id}. Setting isLoading to false.`);
-            setIsLoading(false);
+             console.log(`[loadGameSession] Finished loading session ${id}.`);
+             setIsLoading(false);
         }
     }, [clearGameState]);
 

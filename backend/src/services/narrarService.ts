@@ -210,20 +210,22 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, currentCombatState?: any) => {
+export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
-    const userRepository = AppDataSource.getRepository(User);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const userRepository = AppDataSource.getRepository(User);
+
+    const user = await userRepository.findOneBy({ id: userId });
 
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
     }
 
-    const user = await userRepository.findOneBy({ id: userId });
-    const apiKey = user?.settings?.apiKey;
+    // A chave de API agora vem do frontend.
     if (!apiKey) {
+        // Esta verificação é uma segurança extra, o controller já deve ter verificado.
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     

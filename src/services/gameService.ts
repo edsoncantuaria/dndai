@@ -55,21 +55,19 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string, combatState?: CombatState) => {
+export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState) => {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
         headers: {
              'Content-Type': 'application/json',
              'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify({ prompt, combatState }),
+        body: JSON.stringify({ prompt, apiKey, combatState }),
     });
 
     if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
     }
-    // Nota: Para streaming, não podemos usar apiClient diretamente pois ele consome o corpo da resposta.
-    // Mantemos o fetch aqui para um futuro sistema de streaming. Por enquanto, parseamos o JSON.
     return response.json();
 };
