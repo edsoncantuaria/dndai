@@ -32,16 +32,13 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     }
 
     const user = await userRepository.findOneBy({ id: userId });
-    const keyToUse = user?.settings?.apiKey;
-    if (!keyToUse) {
-        throw createError(400, 'Nenhuma chave de API encontrada nas suas configurações. Adicione uma antes de criar a sessão.');
-    }
-
+    // A chave de API não é mais armazenada na sessão, será passada pelo frontend.
+    
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
     novaSessao.characterId = character.id;
     novaSessao.userId = userId;
-    novaSessao.apiKey = keyToUse;
+    novaSessao.apiKey = ''; // Campo fica vazio, não é mais a fonte da verdade
     novaSessao.homebrewContentIds = homebrewIds || []; // Salva os IDs de homebrew
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);

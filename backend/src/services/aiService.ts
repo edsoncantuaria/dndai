@@ -1,86 +1,158 @@
 // backend/src/services/aiService.ts
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
-import { GameMasterFlowInput, GameMasterFlowInputSchema, GameMasterResponse, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
-import { promptDnD5e } from '../game/prompt5e.js';
-import { configureGenkit } from 'genkit/core';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import type { GameMasterFlowInput } from '../schemas/gameSchemas';
+import { GameMasterResponse, GameMasterResponseSchema } from "../schemas/gameSchemas.js";
+import type { GenerationConfig } from "@/contexts/SettingsContext";
+import { regrasBase } from '../game/prompts/regrasBase.js';
+import { regrasCombate } from '../game/prompts/regrasCombate.js';
+import { regrasInventario } from '../game/prompts/regrasInventario.js';
 
-// Define o prompt fora da função de chamada para eficiência.
-const systemInstruction = promptDnD5e;
+// Combina os prompts importados
+const systemInstruction = `
+${regrasBase}
 
-// Cache para as instâncias de Genkit
-const aiInstances = new Map<string, any>();
+${regrasInventario}
 
-function getOrCreateAiInstance(apiKey: string) {
-    if (aiInstances.has(apiKey)) {
-        return aiInstances.get(apiKey);
-    }
+${regrasCombate}
+`;
+
+// Esta função agora aceita a chave de API como um argumento.
+const getGenAI = (apiKey: string) => {
+    return new GoogleGenerativeAI(apiKey);
+}
+
+const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
+    const { character, playerAction, gameLog, combatState, installedHomebrew } = input;
     
-    const newAi = genkit({
-        plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
-        enableTracingAndMetrics: process.env.NODE_ENV === 'development',
-    });
+    // Assegura que todos os objetos complexos sejam transformados em string JSON
+    const characterContext = JSON.stringify(character, null, 2);
+    const logContext = JSON.stringify(gameLog, null, 2); 
+    const combatContextValue = combatState ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
+    const homebrewContext = installedHomebrew && installedHomebrew.length > 0 ? JSON.stringify(installedHomebrew, null, 2) : "Nenhum conteúdo homebrew instalado.";
+  
+    const mainPrompt = `
+Contexto da Sessão:
+Você DEVE usar o seguinte contexto para informar sua resposta.
 
-    aiInstances.set(apiKey, newAi);
-    return newAi;
-}
+### Estado Atual do Personagem (JSON)
+\`\`\`json
+${characterContext}
+\`\`\`
 
+### Estado de Combate (JSON)
+\`\`\`json
+${combatContextValue}
+\`\`\`
 
-/**
- * Executa um turno do Mestre de Jogo IA.
- * @param input Os dados do estado atual do jogo (personagem, ação, log).
- * @param apiKey A chave de API do Google Gemini do usuário.
- * @param model O modelo de IA a ser usado (ex: "gemini-1.5-flash").
- * @returns A resposta estruturada da IA.
- */
-export async function runGameMasterTurn(
-  input: GameMasterFlowInput,
-  apiKey: string,
-  model: string,
-): Promise<GameMasterResponse | null> {
-    try {
-        const ai = getOrCreateAiInstance(apiKey);
-        
-        const gameMasterFlow = ai.defineFlow(
-            {
-                name: "gameMasterFlow",
-                inputSchema: GameMasterFlowInputSchema,
-                outputSchema: GameMasterResponseSchema,
-                system: systemInstruction,
-            },
-            async (flowInput) => {
-                const llmResponse = await ai.generate({
-                    model: `googleai/${model}`,
-                    prompt: {
-                        text: `A ação do jogador é: "${flowInput.playerAction}"`,
-                        context: {
-                            character: flowInput.character,
-                            gameLog: flowInput.gameLog,
-                            combatState: flowInput.combatState,
-                            installedHomebrew: flowInput.installedHomebrew,
-                        }
-                    },
-                    config: {
-                        response: {
-                            format: 'json',
-                            schema: GameMasterResponseSchema,
-                        },
-                    },
-                });
-                
-                const output = llmResponse.output();
-                if (!output) {
-                    throw new Error("A resposta da IA foi nula ou vazia.");
-                }
-                return output;
-            }
-        );
+### Últimos Eventos do Jogo (JSON)
+\`\`\`json
+${logContext}
+\`\`\`
 
-        const result = await gameMasterFlow(input);
-        return result;
+### Conteúdo Homebrew Instalado (JSON)
+\`\`\`json
+${homebrewContext}
+\`\`\`
 
-    } catch (error) {
-        console.error("Erro ao executar o turno do Mestre de Jogo:", error);
-        throw new Error('Falha na comunicação com a Inteligência Artificial.');
+A ação do jogador é: "${playerAction}"
+
+Com base no estado atual do personagem, do combate, do conteúdo homebrew e no histórico, continue a aventura. 
+Responda APENAS com um objeto JSON válido que siga o schema GameMasterResponseSchema.`;
+  
+    if (isGemma) {
+        return `${systemInstruction}\n\n${mainPrompt}`;
     }
+  
+    return mainPrompt;
 }
+
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
+    if (!apiKey) {
+      throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+    }
+    const genAI = getGenAI(apiKey);
+    const isGemma = modelName.toLowerCase().includes('gemma');
+
+    const model = genAI.getGenerativeModel({
+        model: modelName,
+        ...(!isGemma && {
+            systemInstruction: {
+                role: "model",
+                parts: [{ text: systemInstruction }],
+            },
+        }),
+        safetySettings: [
+            { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+            { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        ]
+    });
+    
+    // O schema JSON é especificado no Gemini, não no Gemma
+    const finalGenerationConfig: any = {
+        ...generationConfig,
+        ...(!isGemma && { responseMimeType: "application/json", responseSchema: GameMasterResponseSchema }),
+    };
+
+
+    const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
+        try {
+            let prompt = createPrompt(input, isGemma);
+            if (retry) {
+                prompt += "\n\nAVISO: Sua resposta anterior não era um objeto JSON válido. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador de formatação como \`\`\`json."
+            }
+
+            const result = await model.generateContent({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: finalGenerationConfig,
+            });
+
+            const response = result.response;
+            const jsonText = response.text();
+
+            try {
+                let textToParse = jsonText;
+                // Gemma pode retornar o JSON dentro de um bloco de código
+                if (isGemma) {
+                    const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+                    if (match) {
+                        textToParse = match[1];
+                    }
+                }
+                
+                const parsedJson = JSON.parse(textToParse);
+
+                // Tenta validar com o Zod
+                const validationResult = GameMasterResponseSchema.safeParse(parsedJson);
+
+                if (!validationResult.success) {
+                    console.error("[geminiService] Falha na validação do Zod:", validationResult.error.flatten());
+                    if (!retry) {
+                        console.log("[geminiService] Tentando novamente com prompt de correção...");
+                        return await attemptGeneration(true);
+                    }
+                    throw new Error(`A resposta da IA falhou na validação do schema: ${validationResult.error.message}`);
+                }
+                
+                return validationResult.data as GameMasterResponse;
+
+            } catch(e: any) {
+                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
+                if (!retry) {
+                    console.log("[geminiService] Tentando novamente com prompt de correção...");
+                    return await attemptGeneration(true);
+                }
+                throw new Error("O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção.");
+            }
+
+        } catch (error: any) {
+            console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
+            throw new Error(`Erro de comunicação com o Mestre de Jogo: ${error.message}`);
+        }
+    }
+
+    return await attemptGeneration();
+};
+
+// ... (A função testAiConnection pode permanecer como estava ou ser adaptada se necessário)

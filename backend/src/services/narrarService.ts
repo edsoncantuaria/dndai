@@ -11,7 +11,7 @@ import { CharacterSpell } from '../entities/CharacterSpell.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
-import { runGameMasterTurn } from './aiService.js';
+import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
@@ -43,8 +43,6 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
-    const worldState = fullCharacter.worldState || {};
-
     return {
         name: fullCharacter.name,
         race: fullCharacter.race,
@@ -71,11 +69,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: {
-            timeOfDay: worldState.timeOfDay || 'Manhã',
-            weather: worldState.weather || 'Ensolarado',
-            currentRegion: fullCharacter.currentRegion || "Região Desconhecida",
-        },
+        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' },
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
@@ -222,8 +216,8 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const userRepository = AppDataSource.getRepository(User);
 
-    const user = await userRepository.findOne({ where: { id: userId }, relations: ["settings"] });
-    if (!apiKey) {
+    const user = await userRepository.findOne({ where: { id: userId } });
+     if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
 
@@ -266,7 +260,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew: installedHomebrew,
     };
 
-    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, modelToUse);
+    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, user?.settings?.generationConfig, apiKey);
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }

@@ -1,6 +1,6 @@
 // src/services/gameService.ts
 import { apiClient } from './apiClient';
-import type { NewCharacterInfo, SessaoIA, Character, CombatState } from "@/types";
+import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from "@/types";
 
 // --- Character Management ---
 
@@ -55,18 +55,22 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState) => {
+export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState): Promise<GameMasterResponse> => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        throw new Error("Token de autenticação não encontrado.");
+    }
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
         headers: {
              'Content-Type': 'application/json',
-             'Authorization': `Bearer ${localStorage.getItem('token')}`
+             'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ prompt, apiKey, combatState }),
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ message: 'Erro de comunicação desconhecido.' }));
         throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
     }
     return response.json();
