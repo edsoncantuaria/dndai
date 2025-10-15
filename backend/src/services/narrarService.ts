@@ -274,28 +274,41 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
     
-    // Sanitize AI response to ensure logEntries are in the correct object format
+    // --> Início da Seção de Saneamento
+    
+    // Preserve o playerRollRequest se ele existir.
+    const playerRollRequest = aiResponse.playerRollRequest || null;
+    
+    // Sanitize logEntries para garantir o formato correto e limpar o conteúdo
+    let sanitizedLogEntries: any[] = [];
     if (Array.isArray(aiResponse.logEntries)) {
-        aiResponse.logEntries = aiResponse.logEntries.map(entry => {
+        sanitizedLogEntries = aiResponse.logEntries.map(entry => {
             if (typeof entry === 'string') {
                 try {
-                    // It's a stringified JSON object like "{\"type\":\"narration\",\"content\":\"...\"}"
                     const parsed = JSON.parse(entry);
-                    if (parsed.type && parsed.content) {
-                        return { type: parsed.type, content: parsed.content, rollResult: parsed.rollResult };
-                    }
+                    return { type: parsed.type, content: parsed.content, rollResult: parsed.rollResult };
                 } catch (e) {
-                     // It's just a plain string. Wrap it.
-                     return { type: 'narration', content: entry };
+                    // Se o parse falhar, é apenas um texto. Não adicione, a menos que queira logs do tipo 'unknown'.
+                    return { type: 'narration', content: entry };
                 }
             }
-            // If it's already an object with the correct structure, keep it.
+            // Se já for um objeto, apenas retorne.
             if (typeof entry === 'object' && entry !== null && entry.type && entry.content) {
                 return entry;
             }
-            return null; // Invalid format
-        }).filter((entry): entry is { type: string; content: any; rollResult?: any } => entry !== null);
+            return null; // Descarta entradas inválidas/vazias
+        }).filter(Boolean); // Remove as entradas nulas
     }
+    aiResponse.logEntries = sanitizedLogEntries;
+
+    // Garante que worldState seja sempre um objeto, mesmo que a IA retorne null
+    if (!aiResponse.worldState) {
+        aiResponse.worldState = optimizedCharacter.worldState;
+    }
+    // Restaura o playerRollRequest, caso tenha sido limpo pelo saneamento de logs
+    aiResponse.playerRollRequest = playerRollRequest;
+
+    // <-- Fim da Seção de Saneamento
 
 
     // Log player action, unless it's a system reload
@@ -304,36 +317,33 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         await logRepository.save(playerLog);
     }
-
-    // Save only display-friendly logs (narration, combat, etc.) with simple string content
+    
+    // Salva logs de narração limpos para exibição
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-            const contentString = typeof entry.content === 'object' 
-                ? JSON.stringify(entry.content) 
-                : (entry.content || '');
-
-            const newLog = new SessionLog();
-            Object.assign(newLog, {
-                sessaoId: sessao.id,
-                prompt: 'GM Narration',
-                response: contentString,
-                type: entry.type || 'narration',
-                rollResult: entry.rollResult,
-            });
-            await logRepository.save(newLog);
+             if (typeof entry.content === 'string' && entry.type !== 'state') {
+                const newLog = new SessionLog();
+                Object.assign(newLog, {
+                    sessaoId: sessao.id,
+                    prompt: 'GM Narration',
+                    response: entry.content,
+                    type: entry.type || 'narration',
+                    rollResult: entry.rollResult,
+                });
+                await logRepository.save(newLog);
+            }
         }
     }
     
-    // Special log entry to save the full state for restoration
+    // Log especial para salvar o estado completo para restauração
     const stateLog = new SessionLog();
     Object.assign(stateLog, {
         sessaoId: sessao.id,
         prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse), // Save the WHOLE response object
+        response: JSON.stringify(aiResponse), // Salva o objeto AIResponse COMPLETO e saneado
         type: 'state',
     });
     await logRepository.save(stateLog);
-
 
 
     // Persist new homebrew content created by the AI
