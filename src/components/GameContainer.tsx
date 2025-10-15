@@ -128,9 +128,8 @@ const GameContainer = () => {
             if (newSessionResponse && newSessionResponse.sessao) {
                 console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Starting it now.`);
                 setPlayMenuMusic(false);
-                // The character is loaded here, but the game start logic will be handled by startGame
                 const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if(loadedData) {
+                if(loadedData && loadedData.logs.length === 0) {
                     await startGame(newSessionResponse.sessao.id);
                 }
             } else {
@@ -153,7 +152,7 @@ const GameContainer = () => {
         setGameStage('playing'); // Immediately switch to playing stage to show loader
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
-            setPlayMenu-music(false);
+            setPlayMenuMusic(false);
         } else {
             console.log(`[GameContainer] Loading session ${sessionIdToLoad} failed, returning to main_menu.`);
             setGameStage('main_menu');

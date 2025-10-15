@@ -13,7 +13,7 @@ import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
 import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
-import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
+import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -70,7 +70,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' },
+        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' },
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
@@ -219,7 +219,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
+export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any): Promise<GameMasterResponse> => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
@@ -274,12 +274,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
 
-    // Sanitize AI response to ensure logEntries are objects
+    // Sanitize AI response to ensure logEntries are in the correct object format
     if (Array.isArray(aiResponse.logEntries)) {
         if (aiResponse.logEntries.length > 1 && aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
             aiResponse.logEntries = [{ type: 'narration', content: aiResponse.logEntries[1] }];
         } else {
-            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type);
+            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type && entry.content);
         }
     }
 
@@ -296,14 +296,15 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
             const newLog = new SessionLog();
+            // Stringify the entire AI response for the log content to allow state restoration
             const content = typeof entry.content === 'object' 
                 ? JSON.stringify(entry.content) 
-                : (entry.content || ''); // Ensure content is not null
+                : (entry.content || '');
             
             Object.assign(newLog, {
                 sessaoId: sessao.id,
                 prompt: 'GM Response',
-                response: content,
+                response: JSON.stringify(aiResponse), // Save the whole response object
                 type: entry.type || 'narration',
                 rollResult: entry.rollResult,
             });

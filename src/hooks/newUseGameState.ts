@@ -129,8 +129,8 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
+        // This is a safety measure. If the AI returns a malformed logEntries array, fix it.
         if (Array.isArray(response.logEntries)) {
-            // Handle the malformed ["narration", "text..."] format
             if (response.logEntries.length > 1 && response.logEntries[0] === 'narration' && typeof response.logEntries[1] === 'string') {
                 response.logEntries = [{ type: 'narration', content: response.logEntries[1] }];
             } else {
@@ -186,11 +186,8 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        // Only add a new log entry if it's not a system action
-        if (action !== "Recarregar estado atual e obter opções.") {
-            const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-            setLog(prev => [...prev, newLogEntry]);
-        }
+        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+        setLog(prev => [...prev, newLogEntry]);
 
         setActionOptions([]); 
         
@@ -200,9 +197,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-             if (action !== "Recarregar estado atual e obter opções.") {
-                setLog(prev => prev.slice(0, -1));
-            }
+            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 
         }
@@ -259,7 +254,6 @@ export const useNewGameState = () => {
 
     const startGame = useCallback(async (newSessionId: number): Promise<void> => {
         if (isLoading) return;
-        setSessionId(newSessionId);
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", newSessionId);
         
     }, [isLoading, processPlayerAction]);
@@ -283,9 +277,20 @@ export const useNewGameState = () => {
                 setLog(formattedLogs);
                 setSessionId(id);
 
-                // If logs exist, it's a continued session. Request action options.
+                // If logs exist, it's a continued session. Restore state from the last narration.
                 if (formattedLogs.length > 0) {
-                    await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                    // Find the last actual response from the GM to restore actionOptions etc.
+                    const lastGmLog = [...formattedLogs].reverse().find(l => l.prompt === 'GM Response');
+                    if (lastGmLog?.content) {
+                         try {
+                            const lastState = JSON.parse(lastGmLog.content);
+                            handleApiResponse(lastState);
+                        } catch(e) {
+                            console.error("Failed to parse last GM state from log, requesting refresh.", e);
+                            // Fallback if parsing fails
+                            await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                        }
+                    }
                 }
 
                 return { character: fullCharacter, logs: formattedLogs };
@@ -299,7 +304,7 @@ export const useNewGameState = () => {
         } finally {
              setIsLoading(false);
         }
-    }, [clearGameState, processPlayerAction]);
+    }, [clearGameState, handleApiResponse, processPlayerAction]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
