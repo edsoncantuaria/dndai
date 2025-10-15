@@ -81,6 +81,10 @@ export const useNewGameState = () => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         if (!currentSessionId) {
             console.error("[processPlayerAction] Aborted: No sessionId.");
+            // Don't show API error for test actions if no session is active.
+            if (!action.startsWith("Teste:")) {
+                 setApiError("Nenhuma sessão de jogo ativa para processar a ação.");
+            }
             return;
         }
         const key = getApiKey();
@@ -94,8 +98,7 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        // Only add player-facing actions to the log
-        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.startsWith("Teste:");
         if (!isInternalAction) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
         }

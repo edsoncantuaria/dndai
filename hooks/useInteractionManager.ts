@@ -141,6 +141,10 @@ export const useInteractionManager = () => {
             ],
         });
     }, []);
+
+    const triggerTestSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
     
     return {
         actionOptions, setActionOptions,
@@ -170,5 +174,6 @@ export const useInteractionManager = () => {
         // Debug triggers
         triggerTestShop,
         triggerTestCombat,
+        triggerTestSkillCheck,
     };
 };

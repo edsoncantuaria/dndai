@@ -54,7 +54,7 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 
 ### 2.2. Causa Raiz e Filosofia de Correção
 - **Resposta Inválida da IA:** A IA, em certas situações, retornava `logEntries` como um array de `null`s, ou um `content` de log como um JSON stringificado.
-- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção. A dependência da chamada de "re-try" para a IA tornava a exceção a regra, em vez de ser um mecanismo de segurança para casos raros.
+- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção. A dependência da chamada de "re-try" para a IA tornava a exceção a regra, em vez de ser um mecanismo de segurança para casos raros. A auto-correção não deve ser o fluxo padrão.
 
 ### 2.3. Solução Implementada e Validação
 
@@ -62,7 +62,7 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 - **O que foi feito:**
     1.  **Prompt Explícito (`regrasBase.ts`):** O prompt foi fortalecido com uma instrução explícita que proíbe a IA de retornar `null` em campos de objeto (como `worldState`), instruindo-a a usar `[]` ou `{}`.
     2.  **Validação Robusta (`gameSchemas.ts`):** Os schemas Zod foram ajustados para que campos como `worldState` e `combatState` sejam `optional()`, mas se presentes, **não podem ser `null`**. Isso impõe um contrato de dados mais rígido.
-    3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta agressivamente qualquer entrada de log que não seja um objeto bem-formado. Mais importante, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão, tornando-a uma verdadeira exceção.
+    3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta agressivamente qualquer entrada de log que não seja um objeto bem-formado. Mais importante, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão.
 - **Como Testar:**
   - [ ] Execute a ação que causava o erro anteriormente ("Examinar o conteúdo da Dungeoneer's Pack"). O jogo **não deve** mais quebrar. A narração deve continuar normalmente, e os logs do backend não devem mostrar o `ZodError`.
 
@@ -80,10 +80,10 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
     1.  **Novo Layout de Menu (`GameContainer.tsx`):** Foram adicionados botões de "Configurações" e "Testes do Sistema" no rodapé do menu principal para acesso fácil.
     2.  **Modal de Testes (`SystemTestModal.tsx`):**
         - O antigo `DiceTestModal` foi renomeado e expandido para servir como um painel de controle de testes.
-        - **Teste de Rolagem de Dados:** Permite configurar (quantidade, tipo de dado, modificador) e executar o `DiceRollModal` para testar a rolagem 3D e a lógica de cálculo de forma isolada.
-        - **Teste de Estado de Loja:** Um novo botão "Testar Loja" foi adicionado. Ao ser clicado, ele aciona a função `triggerTestShop` no hook `useInteractionManager`, que popula o `shopState` com dados de teste e abre o `ShopModal`.
-        - **Teste de Estado de Combate:** Um novo botão "Testar Combate" foi adicionado. Ele aciona `triggerTestCombat`, que popula o `combatState` com um cenário de combate de exemplo e exibe o `NewCombatTracker`.
-    3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop` e `triggerTestCombat` foram criadas para injetar estados de teste na aplicação.
+        - **Teste de Rolagem de Dados:** Permite configurar e executar o `DiceRollModal` de forma isolada.
+        - **Teste de Estado de Loja e Combate:** Botões dedicados acionam `triggerTestShop` e `triggerTestCombat` no `useInteractionManager`, que populam os estados com dados de teste e abrem os respectivos modais/componentes (`ShopModal`, `NewCombatTracker`).
+        - **Teste de Interação:** Adicionada uma nova seção para simular diretamente ações do jogador, como usar perícias ou enviar um prompt customizado para a IA.
+    3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop`, `triggerTestCombat` e `triggerTestSkillCheck` foram criadas para injetar estados de teste na aplicação.
 
 ### 3.1. Casos de Teste com o Painel de Depuração
 
@@ -98,19 +98,31 @@ Use o botão "Testes do Sistema" no menu principal para validar os seguintes sub
     -   **Esperado:** A animação deve rolar dois dados 3D na tela. O cálculo deve usar o maior dos dois valores.
 
 -   **[ ] Teste de Estado da Loja:**
-    -   [ ] Abra o painel de testes e clique em "Testar Loja".
-    -   **Esperado:** O modal de loja (`ShopModal`) deve aparecer imediatamente, sobrepondo o menu principal.
+    -   [ ] Abra o painel de testes e clique em "Testar UI da Loja".
+    -   **Esperado:** O modal de loja (`ShopModal`) deve aparecer imediatamente.
     -   [ ] Verifique o conteúdo do modal.
-    -   **Esperado:** O modal deve estar populado com os itens de compra e venda de exemplo definidos na função `triggerTestShop` (ex: "Poção de Cura", "Espada Longa +1"). Os preços devem ser exibidos corretamente.
-    -   [ ] Tente clicar nos botões "Comprar" e "Vender".
-    -   **Esperado:** Como isso é apenas um teste de UI, os botões podem não executar uma ação completa, mas não devem quebrar a aplicação.
+    -   **Esperado:** O modal deve estar populado com os itens de exemplo definidos em `triggerTestShop`.
     -   [ ] Feche o modal. A aplicação deve retornar ao menu principal.
 
 -   **[ ] Teste de Estado de Combate:**
-    -   [ ] Abra o painel de testes e clique em "Testar Combate".
-    -   **Esperado:** O rastreador de combate (`NewCombatTracker`) deve aparecer na tela principal, sobrepondo o menu.
+    -   [ ] Abra o painel de testes e clique em "Testar UI de Combate".
+    -   **Esperado:** O rastreador de combate (`NewCombatTracker`) deve aparecer na tela principal.
     -   [ ] Verifique o conteúdo do rastreador.
-    -   **Esperado:** O componente deve exibir os combatentes de exemplo definidos na função `triggerTestCombat` (ex: "Seu Herói", "Goblin Batedor"). O estado de HP, CA e iniciativa deve corresponder aos dados de teste. O turno do "Goblin" (turn 1) deve estar destacado.
+    -   **Esperado:** O componente deve exibir os combatentes de exemplo definidos em `triggerTestCombat`. O estado de HP, CA e iniciativa deve corresponder aos dados de teste.
+
+-   **[✅] Teste de Fluxo de Perícia:**
+    -   [ ] Inicie uma aventura (o teste de perícia requer uma sessão ativa).
+    -   [ ] Abra o painel de testes e na seção "Testar Interações do Jogo", selecione a perícia "Intimidação".
+    -   [ ] Clique em "Testar".
+    -   **Esperado:** O modal de testes fecha e o modal de teste de perícia (`SkillCheckModal`) aparece, perguntando como você deseja usar "Intimidação".
+    -   [ ] Descreva uma ação (ex: "para assustar o taverneiro") e clique em "Confirmar".
+    -   **Esperado:** O modal de rolagem de dados 3D (`DiceRollModal`) deve aparecer, solicitando a rolagem para "usar Intimidação". O fluxo continua normalmente a partir daí.
+
+-   **[✅] Teste de Ação Direta da IA:**
+    -   [ ] Inicie uma aventura.
+    -   [ ] Abra o painel de testes e na seção "Testar Interações do Jogo", digite um comando no campo de texto, como "Eu abro a porta à minha frente".
+    -   [ ] Clique em "Enviar".
+    -   **Esperado:** O modal fecha e o jogo processa a ação como se você a tivesse digitado na caixa de ação principal. A narração da IA correspondente deve aparecer no log.
 
 ---
 

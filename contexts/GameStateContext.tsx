@@ -52,6 +52,7 @@ export interface GameStateContextType {
     // Debug Triggers
     triggerTestShop: () => void;
     triggerTestCombat: () => void;
+    triggerTestSkillCheck: (skillName: string) => void;
 }
 
 
