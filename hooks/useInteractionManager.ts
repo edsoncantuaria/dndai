@@ -70,29 +70,28 @@ export const useInteractionManager = () => {
     }, [clearTransientInteractions]);
 
     // --- Action Handlers that depend on processPlayerAction ---
-    const handleRollResult = useCallback((processPlayerAction: (action: string) => void) => (result: { total: number; rolls: number[] }) => {
+    const handleRollResult = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
-        console.log("Resultado do teste de dados 3D:", result);
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         setPlayerRollRequest(null);
         processPlayerAction(actionText);
     }, [playerRollRequest]);
 
-    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string) => void) => (description: string) => {
+    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
         setSkillCheckRequest(null);
-        processPlayerAction(actionText);
+        processPlayerAction(actionText, -1); // Use test session ID
     }, [skillCheckRequest]);
 
-    const submitSpellCast = useCallback((processPlayerAction: (action: string) => void) => (spell: ApiSpell, description: string) => {
+    const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
         const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}` : '.'}`;
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, []);
 
-    const handleTakeLoot = useCallback((processPlayerAction: (action: string) => void) => (takeAll: boolean) => {
+    const handleTakeLoot = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (takeAll: boolean) => {
         if (!pendingLootOffer) return;
         setPlayerRollRequest(null);
         if (takeAll) {
@@ -100,17 +99,17 @@ export const useInteractionManager = () => {
         }
     }, [pendingLootOffer]);
 
-    const handleBuyItem = useCallback((processPlayerAction: (action: string) => void) => (item: ShopItem, price: number) => {
+    const handleBuyItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: ShopItem, price: number) => {
         setPlayerRollRequest(null);
         processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
     }, []);
 
-    const handleSellItem = useCallback((processPlayerAction: (action: string) => void) => (item: InventoryItem, price: number) => {
+    const handleSellItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: InventoryItem, price: number) => {
         setPlayerRollRequest(null);
         processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, []);
     
-    const nextTurn = useCallback((processPlayerAction: (action: string) => void) => () => {
+    const nextTurn = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
         processPlayerAction("Processar próximo turno");
     }, []);
 
@@ -121,9 +120,9 @@ export const useInteractionManager = () => {
             isHaggling: false,
             name: "Loja de Testes do Ferreiro",
             inventory: [
-                { id: 'item-1', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
-                { id: 'item-2', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
-                { id: 'item-3', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: Infinity, equipped: false },
+                { id: 'item-1', index: 'potion-of-healing', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
+                { id: 'item-2', index: 'longsword', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
+                { id: 'item-3', index: 'rations', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: Infinity, equipped: false },
             ],
             sellPrices: { 'player-item-1': 25, 'player-item-2': 10 },
         });
@@ -136,7 +135,7 @@ export const useInteractionManager = () => {
             turn: 1, // Goblin's turn
             initiativeOrder: ['player', 'goblin-1', 'goblin-2'],
             combatants: [
-                { id: 'player', name: 'Seu Herói', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [] },
+                { id: 'player', name: 'Herói de Teste', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [] },
                 { id: 'goblin-1', name: 'Goblin Batedor', hp: { current: 7, max: 7 }, ac: 13, initiative: 15, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
                 { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 12, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: ['Frightened'], rollHistory: [], isDead: false },
             ],
@@ -178,3 +177,5 @@ export const useInteractionManager = () => {
         triggerTestSkillCheck,
     };
 };
+
+    

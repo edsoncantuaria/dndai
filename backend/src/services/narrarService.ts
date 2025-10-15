@@ -45,6 +45,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
     return {
+        id: fullCharacter.id, // Include ID for context
         name: fullCharacter.name,
         race: fullCharacter.race,
         characterClass: fullCharacter.characterClass,
@@ -221,47 +222,87 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
 const sanitizeLogEntries = (entries: any): any[] => {
     if (!Array.isArray(entries)) {
+        console.warn("[narrarService] logEntries não era um array. Retornando array vazio.");
         return [];
     }
     // Filter out null, undefined, or invalid entries.
-    return entries.filter(entry => entry && typeof entry === 'object' && entry.type && entry.content);
+    return entries.filter(entry => {
+        if (!entry || typeof entry !== 'object' || !entry.type || !entry.content) {
+            console.warn("[narrarService] Descartando entrada de log inválida:", entry);
+            return false;
+        }
+        // Attempt to parse stringified JSON content
+        if (typeof entry.content === 'string') {
+            try {
+                const parsed = JSON.parse(entry.content);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    // It's a stringified object, which is often a mistake.
+                    // Let's see if it has a 'content' property inside.
+                    if ('content' in parsed) {
+                         entry.content = parsed.content;
+                    }
+                }
+            } catch(e) {
+                // It's just a regular string, which is fine.
+            }
+        }
+        return true;
+    });
 };
 
 
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState): Promise<GameMasterResponse> => {
-    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-    const logRepository = AppDataSource.getRepository(SessionLog);
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const userRepository = AppDataSource.getRepository(User);
+export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
+    // For test runs, we can mock a character if no session is found.
+    let isTestRun = false;
+    let sessao: SessaoIA | null = null;
+    let user: User | null = null;
+    let characterForAI: any = null;
+    let installedHomebrewSummary: any[] = [];
 
-    const user = await userRepository.findOneBy({ id: userId });
-    const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
-    if (!sessao || !sessao.character) {
-        throw createError(404, 'Sessão de IA ou personagem não encontrado.');
+    if (sessionId === -1) {
+        isTestRun = true;
+        user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
+        // Create a default character mock for testing
+        characterForAI = {
+            id: 1, name: 'Herói de Teste', race: 'Humano', characterClass: 'Guerreiro', level: 1,
+            attributes: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10, hp: 10, ac: 10, conditions: [] },
+            proficiencies: [], inventory: [], spells: [], storySoFar: '', worldState: { timeOfDay: 'Manhã', weather: 'Ensolarado' },
+            relationships: [], journal: [], factionReputation: {}, currentRegion: 'Plano de Testes',
+            passivePerception: 10, passiveInsight: 10, passiveInvestigation: 10,
+        };
+    } else {
+        const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+        const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+        const userRepository = AppDataSource.getRepository(User);
+
+        user = await userRepository.findOneBy({ id: userId });
+        sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
+
+        if (!sessao || !sessao.character) {
+            throw createError(404, 'Sessão de IA ou personagem não encontrado.');
+        }
+
+        characterForAI = await buildOptimizedCharacterForAI(sessao.character.id);
+        if (!characterForAI) {
+            throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
+        }
+        
+        if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
+            const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
+            installedHomebrewSummary = homebrewItems.map(item => ({ name: item.name, type: item.type }));
+        }
     }
     
     if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
+    const modelToUse = modelOverride || user?.settings?.model || "gemini-2.5-flash";
     const generationConfig = user?.settings?.generationConfig || {};
-
-    const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
-    if (!optimizedCharacter) {
-        throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
-    }
-
-    let installedHomebrewSummary: any[] = [];
-    if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
-        const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
-        // Send only name and type to save tokens
-        installedHomebrewSummary = homebrewItems.map(item => ({ name: item.name, type: item.type }));
-    }
-
-    const recentLogs = await logRepository.find({
-        where: { sessaoId: sessao.id },
+    
+    const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
+        where: { sessaoId: sessao!.id },
         order: { timestamp: 'DESC' }, 
         take: 10,
     });
@@ -272,11 +313,11 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }));
 
     const gameMasterFlowInput: GameMasterFlowInput = {
-        character: optimizedCharacter as any,
+        character: characterForAI,
         playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
-        installedHomebrew: installedHomebrewSummary, // Use the summarized list
+        installedHomebrew: installedHomebrewSummary,
     };
 
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
@@ -287,15 +328,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     // --- Sanitize and Process the rest of the response ---
     aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
     
-    // Ensure worldState is always an object, falling back to the character's current state
+    // Ensure worldState is always an object, falling back to the character's current state if null.
     if (!aiResponse.worldState || typeof aiResponse.worldState !== 'object') {
-        aiResponse.worldState = optimizedCharacter.worldState;
+        aiResponse.worldState = characterForAI.worldState || {};
     } else {
         // Merge, ensuring new properties from AI are added without losing old ones.
-        aiResponse.worldState = {
-            ...optimizedCharacter.worldState,
-            ...aiResponse.worldState
-        };
+        aiResponse.worldState = { ...characterForAI.worldState, ...aiResponse.worldState };
     }
     
     // --- Prioritize Player Roll Request ---
@@ -310,6 +348,13 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         } as GameMasterResponse;
     }
     
+    // If it's a test run, we don't need to save anything to the database.
+    if (isTestRun || !sessao) {
+        return aiResponse;
+    }
+
+    const logRepository = AppDataSource.getRepository(SessionLog);
+
     // Log da ação do jogador, a menos que seja uma recarga interna do sistema
     if(playerAction !== "Recarregar estado atual e obter opções." && !playerAction.startsWith("A aventura começa.")) {
         const playerLog = new SessionLog();
@@ -351,9 +396,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
                 const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
                 if (!existing) {
                     await HomebrewService.createHomebrewContent(userId, newContent);
-                    console.log(`[narrarService] Conteúdo Homebrew da IA salvo: ${newContent.name}`);
-                } else {
-                    console.log(`[narrarService] Conteúdo Homebrew da IA já existe, não foi salvo novamente: ${newContent.name}`);
                 }
             } catch (error) {
                 console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
@@ -363,11 +405,13 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     // Aplica atualizações ao personagem no banco de dados
     if (aiResponse.updatedCharacter) {
-        await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
+        await persistCharacterUpdates(sessao.character!.id, aiResponse.updatedCharacter);
     } else if (aiResponse.worldState) {
         // Persist worldState even if there are no other character updates
-        await persistCharacterUpdates(sessao.character.id, { worldState: aiResponse.worldState });
+        await persistCharacterUpdates(sessao.character!.id, { worldState: aiResponse.worldState });
     }
     
     return aiResponse;
 };
+
+    

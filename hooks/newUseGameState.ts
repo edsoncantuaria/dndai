@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { apiKey } = useSettingsContext();
+    const { apiKey, model } = useSettingsContext();
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
@@ -82,16 +82,21 @@ export const useNewGameState = () => {
     }, [logState, characterState, interactionState]);
 
 
-    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number) => {
+    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
         const currentSessionId = sessionIdOverride ?? sessionId;
-        if (!currentSessionId) {
-            console.error("[processPlayerAction] Aborted: No sessionId. This is normal for isolated tests.");
-            // Don't show API error for test actions if no session is active.
-            if (!action.startsWith("Teste:")) {
-                 setApiError("Nenhuma sessão de jogo ativa para processar a ação.");
+        
+        // Allow test actions to proceed without a session ID by using a mock ID and character.
+        let finalSessionId = currentSessionId;
+        if (!finalSessionId) {
+            finalSessionId = -1; // Use a mock session ID for tests
+            console.log("[processPlayerAction] No active session. Running in test mode.");
+            if (!characterState.character) {
+                // If there's no character, create a temporary one for the test.
+                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' });
+                characterState.setCharacter(mockCharacter);
             }
-            return;
         }
+        
         const key = getApiKey();
         if (!key) {
              console.error("[processPlayerAction] Aborted: No API Key.");
@@ -104,15 +109,14 @@ export const useNewGameState = () => {
         interactionState.clearTransientInteractions();
         
         const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
-        if (!isInternalAction) {
+        if (!isInternalAction && finalSessionId !== -1) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
         }
 
         interactionState.setActionOptions([]); 
-        console.log(`[processPlayerAction] Enviando ação: "${action}" para a sessão ${currentSessionId}`);
         
         try {
-            const responseData = await GameService.processPlayerAction(currentSessionId, action, key, interactionState.combatState);
+            const responseData = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
             console.log("[processPlayerAction] Resposta da IA recebida:", responseData);
             handleApiResponse(responseData);
         } catch (error: any) {
@@ -121,7 +125,7 @@ export const useNewGameState = () => {
         } finally {
             setIsLoading(false); 
         }
-    }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState]);
+    }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState, model, characterState]);
     
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;
@@ -280,3 +284,5 @@ export const useNewGameState = () => {
 
     return memoizedValue;
 };
+
+    
