@@ -228,7 +228,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
     
     // Centralize a lógica do modelo padrão aqui.
-    const modelToUse = user?.settings?.model || "gemini-1.5-flash";
+    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
 
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
