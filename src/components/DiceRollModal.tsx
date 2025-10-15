@@ -56,38 +56,10 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
   }, [show]);
 
   const handleRoll = useCallback(async () => {
-    if (isRolling || hasRolled) return;
+    if (isRolling || hasRolled || !isDiceboxReady) return;
     
     setIsRolling(true);
     setHasRolled(true);
-
-    // Fallback for when DiceBox fails to initialize
-    if (!diceBoxInstance.current || !isDiceboxReady) {
-        console.warn("DiceBox not ready, using fallback roll.");
-        const fallbackRolls: number[] = [];
-        let numDice = 1;
-        let numSides = 20;
-        const diceMatch = request.dice.match(/(\d+)d(\d+)/);
-        if (diceMatch) {
-            numDice = parseInt(diceMatch[1], 10);
-            numSides = parseInt(diceMatch[2], 10);
-        }
-
-        let diceResult = 0;
-        for(let i=0; i<numDice; i++){
-            const roll = Math.floor(Math.random() * numSides) + 1;
-            fallbackRolls.push(roll);
-            diceResult += roll;
-        }
-
-        const total = diceResult + (request.modifier || 0);
-        setTimeout(() => {
-            setRollResult({ total, rolls: fallbackRolls });
-            setIsRolling(false);
-        }, 500); // Short delay to simulate rolling
-        return;
-    }
-
 
     try {
       let diceNotation: string[];
