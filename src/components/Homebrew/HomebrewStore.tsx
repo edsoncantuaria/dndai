@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Search, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
@@ -9,12 +9,23 @@ import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
 import { translateApiString } from '@/utils/translator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
+import ActionModal from '../ui/ActionModal';
 
 type View = 'list' | 'create';
 type Tab = 'public' | 'mine';
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
+
+const DisclaimerModalContent: React.FC = () => (
+    <div className="space-y-3 text-stone-300 text-sm">
+        <p>Bem-vindo ao Laboratório! Antes de começar, é crucial entender como suas criações ganham vida no jogo.</p>
+        <p>O sistema permite que você **descreva** regras, habilidades e mecânicas (como 'Ataque Extra', 'Fúria' ou 'Pontos de Ki'). O Mestre de Jogo IA é treinado para ler e interpretar essas descrições durante a aventura.</p>
+        <p className="font-semibold text-amber-300">O que isso significa: Você pode recriar quase todo o conteúdo dos livros, mas o sistema não possui um <strong className="text-amber-200">motor de jogo codificado</strong> para forçar a aplicação mecânica dessas regras na interface. A execução depende da interpretação da IA.</p>
+        <p>Sua criatividade na descrição é a chave para o sucesso do seu conteúdo!</p>
+    </div>
+);
+
 
 const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
     const [view, setView] = useState<View>('list');
@@ -26,6 +37,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
+    const [showDisclaimer, setShowDisclaimer] = useState(false);
     
     // Supondo que a sessão ativa é conhecida, aqui pegamos um ID fixo para o exemplo.
     // Em um app real, isso viria de um contexto ou estado global.
@@ -111,11 +123,17 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     }
 
     return (
+        <>
         <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col text-center animate-fadeIn p-4 sm:p-6">
-            <header className="mb-8">
-                <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
-                    Oficina Homebrew
-                </h1>
+            <header className="mb-8 text-center">
+                <div className="flex items-center justify-center gap-3">
+                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
+                        Oficina Homebrew
+                    </h1>
+                     <button onClick={() => setShowDisclaimer(true)} className="text-stone-500 hover:text-amber-300 transition-colors" title="Informações Importantes">
+                        <Info className="h-6 w-6"/>
+                    </button>
+                </div>
                 <p className="text-stone-400 mt-2">Crie, compartilhe e descubra novo conteúdo para suas aventuras.</p>
             </header>
             <main className="w-full">
@@ -217,6 +235,18 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 </button>
             </footer>
         </div>
+        
+        {showDisclaimer && (
+            <ActionModal
+                isOpen={showDisclaimer}
+                title="Aviso Importante: Como Funciona o Homebrew"
+                onClose={() => setShowDisclaimer(false)}
+                actions={[{ text: "Entendido", onClick: () => setShowDisclaimer(false), variant: 'primary' }]}
+            >
+                <DisclaimerModalContent />
+            </ActionModal>
+        )}
+        </>
     );
 };
 
