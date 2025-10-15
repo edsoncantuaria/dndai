@@ -241,7 +241,6 @@ export const useNewGameState = () => {
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
-        // Do not set isLoading here, it's handled by the caller
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
@@ -267,7 +266,6 @@ export const useNewGameState = () => {
             clearGameState();
             return null;
         }
-        // Do not set isLoading to false here.
     }, [clearGameState]);
 
 
