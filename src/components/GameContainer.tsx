@@ -29,7 +29,6 @@ const GameContainer = () => {
         deleteSession,
         startGame,
         isLoading: isGameLoading,
-        setIsLoading: setIsGameLoadingState, // Get the setter
         apiError
     } = useGameStateContext();
 
@@ -109,11 +108,11 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
-        setIsGameLoadingState(true);
+        setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
             // Fetch homebrew content based on settings
             let homebrewIds: string[] = [];
-            const userContent = await HomebrewService.listHomebrewContent('mine', undefined);
+            const userContent = await HomebrewService.listHomebrewContent('mine');
             homebrewIds = homebrewIds.concat(userContent.map(c => c.id));
             
             if (useAiHomebrew) {
@@ -128,11 +127,14 @@ const GameContainer = () => {
             );
 
             if (newSessionResponse && newSessionResponse.sessao) {
-                await handleContinueGame(newSessionResponse.sessao.id);
+                await loadGameSession(newSessionResponse.sessao.id);
+                 setPlayMenuMusic(false);
+            } else {
+                throw new Error("Failed to create a new session from the server.");
             }
         } catch (error) {
             console.error("Failed to start new game session:", error);
-            setIsGameLoadingState(false);
+            setGameStage('main_menu'); // Revert to menu on failure
         }
     };
     
@@ -142,8 +144,7 @@ const GameContainer = () => {
     }
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
-        setIsGameLoadingState(true); // Set loading state before anything starts
-        setGameStage('playing'); // Immediately switch to playing stage
+        setGameStage('playing'); // Immediately switch to playing stage to show loader
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
             setPlayMenuMusic(false);
@@ -152,8 +153,7 @@ const GameContainer = () => {
             // If loading fails, go back to the menu
             setGameStage('main_menu');
         }
-        setIsGameLoadingState(false); // Unset loading state after everything is done or failed
-    }, [loadGameSession, setPlayMenuMusic, setIsGameLoadingState]);
+    }, [loadGameSession, setPlayMenuMusic]);
 
 
     const returnToMenu = useCallback(() => {

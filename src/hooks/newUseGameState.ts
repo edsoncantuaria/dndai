@@ -144,7 +144,8 @@ export const useNewGameState = () => {
 
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setActionOptions([]); 
+            if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
+            else setActionOptions([]); 
             return; 
         }
         
@@ -241,6 +242,7 @@ export const useNewGameState = () => {
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
+        setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
@@ -265,6 +267,8 @@ export const useNewGameState = () => {
             setApiError(err.message);
             clearGameState();
             return null;
+        } finally {
+            setIsLoading(false);
         }
     }, [clearGameState]);
 
