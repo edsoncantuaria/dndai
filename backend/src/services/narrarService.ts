@@ -234,16 +234,18 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         take: 10,
     });
     
-    // CORREÇÃO: Não inverta a ordem. O prompt espera do mais antigo para o mais novo.
-    const gameLogSummary = recentLogs
+    // Sort logs from oldest to newest for the AI context
+    const gameLog = recentLogs
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      .map(log => `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${typeof log.response === 'object' ? JSON.stringify(log.response) : log.response}`)
-      .join('\n');
+      .map(log => ({
+          role: log.type === 'action' ? 'user' : 'model',
+          content: log.response
+      }));
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLogSummary,
+        gameLog: gameLog, // Pass the structured log array
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
@@ -262,10 +264,11 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
             const newLog = new SessionLog();
+            const content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : entry.content;
             Object.assign(newLog, {
                 sessaoId: sessao.id,
                 prompt: JSON.stringify(gameMasterFlowInput), // For debug
-                response: entry.content,
+                response: content,
                 type: entry.type,
                 rollResult: entry.rollResult,
             });
