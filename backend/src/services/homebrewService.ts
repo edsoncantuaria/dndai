@@ -4,7 +4,7 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
-import { Like } from 'typeorm';
+import { ILike } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -98,10 +98,10 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
  */
 export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    // Usamos Like para fazer uma busca case-insensitive
+    // Usamos ILike para fazer uma busca case-insensitive no PostgreSQL, ou Like para MySQL
     const content = await homebrewRepo.findOne({
         where: {
-            name: Like(name),
+            name: ILike(name),
             type: type,
         }
     });

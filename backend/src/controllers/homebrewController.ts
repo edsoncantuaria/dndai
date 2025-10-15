@@ -1,5 +1,5 @@
 // backend/src/controllers/homebrewController.ts
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as HomebrewService from '../services/homebrewService.js';
 import { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
@@ -46,13 +46,49 @@ export const listContent = async (req: AuthRequest, res: Response, next: NextFun
 };
 
 // Obter um conteúdo homebrew específico por ID
-export const getContentById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getContentById = async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
-    const userId = req.user?.userId; // Pode ser undefined se o usuário não estiver logado
+    // O userId pode não estar presente para conteúdo público, então tratamos como opcional.
+    const authHeader = req.headers.authorization;
+    const token = authHeader?.split(' ')[1];
+    let userId: number | undefined;
+
+    if (token) {
+        // Tentativa de verificar o token sem quebrar se for inválido
+        try {
+            const jwt = (await import('jsonwebtoken')).default;
+            const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
+            userId = decoded.userId;
+        } catch (e) {
+            // Token inválido ou expirado, o usuário não está autenticado.
+        }
+    }
 
     try {
         const content = await HomebrewService.getHomebrewContentById(id, userId);
         res.status(200).json(content);
+    } catch (error) {
+        next(error);
+    }
+};
+
+
+// Nova função para buscar por nome
+export const findContentByName = async (req: Request, res: Response, next: NextFunction) => {
+    const { name, type } = req.query;
+
+    if (!name || !type) {
+        return next(createError(400, "Os parâmetros 'name' e 'type' são obrigatórios."));
+    }
+
+    try {
+        const content = await HomebrewService.findHomebrewContentByName(name as string, type as HomebrewContentType);
+        if (content) {
+            res.status(200).json(content);
+        } else {
+            // Retorna 404, que será tratado como "não encontrado" pelo cliente.
+            res.status(404).json({ message: 'Conteúdo não encontrado.'});
+        }
     } catch (error) {
         next(error);
     }

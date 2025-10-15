@@ -69,7 +69,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' }, // Valor Padrão
+        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' },
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
@@ -117,20 +117,28 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }});
         if (!character) throw new Error("Personagem não encontrado para atualização.");
 
-        const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation', 'currentRegion'];
+        const directFields = ['level', 'xp', 'storySoFar', 'factionReputation'];
         directFields.forEach(field => {
             if (updates[field] !== undefined) {
                 if (field === 'factionReputation' && updates[field]) {
                     // Merge faction reputation instead of overwriting
                     character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
-                } else if (field === 'worldState' && updates[field]) {
-                     character.worldState = { ...(character.worldState || {}), ...updates.worldState };
-                }
-                 else {
+                } else {
                     (character as any)[field] = updates[field];
                 }
             }
         });
+        
+        // Handle worldState separately to merge properties
+        if (updates.worldState) {
+            character.worldState = { ...(character.worldState || {}), ...updates.worldState };
+            // Specifically update currentRegion if it's part of the worldState update
+            if (updates.worldState.currentRegion) {
+                character.currentRegion = updates.worldState.currentRegion;
+            }
+        }
+
+
         await queryRunner.manager.save(character);
 
         if (updates.attributes) {
@@ -220,7 +228,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
 
-    const user = await userRepository.findOne({ where: { id: userId } });
+    const user = await userRepository.findOneBy({ id: userId });
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
@@ -262,6 +270,21 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
+    
+    // Sanitize AI response to ensure logEntries are objects
+    if (Array.isArray(aiResponse.logEntries)) {
+        // If the first item is "narration", it's likely the old, incorrect format.
+        if (aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
+            aiResponse.logEntries = [{
+                type: 'narration',
+                content: aiResponse.logEntries[1]
+            }];
+        } else {
+            // Filter out any entries that aren't objects, which can happen with malformed AI responses.
+            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type && entry.content);
+        }
+    }
+
 
     // Log player action
     const playerLog = new SessionLog();
@@ -272,10 +295,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
             const newLog = new SessionLog();
-            // CORREÇÃO: Garante que o 'content' é uma string antes de salvar.
             const content = typeof entry.content === 'object' 
                 ? JSON.stringify(entry.content) 
-                : (entry.content || ''); // Usa string vazia se for null/undefined
+                : (entry.content || ''); 
             
             Object.assign(newLog, {
                 sessaoId: sessao.id,

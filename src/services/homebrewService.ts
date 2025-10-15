@@ -57,3 +57,17 @@ export const createHomebrewContent = async (data: CreateHomebrewData): Promise<{
         body: JSON.stringify(data),
     });
 };
+
+/**
+ * Encontra um conteúdo homebrew pelo nome e tipo.
+ */
+export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+    const params = new URLSearchParams({ name, type });
+    const endpoint = `/homebrew/find?${params.toString()}`;
+    try {
+        return await apiClient<HomebrewContent | null>(endpoint, { method: 'GET' });
+    } catch (error) {
+        // A API pode retornar 404 se não encontrar, o que é um resultado esperado, não um erro.
+        return null;
+    }
+};

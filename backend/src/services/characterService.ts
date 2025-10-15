@@ -85,7 +85,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         let classDetails: any;
         if (isUuid(characterData.characterClass)) {
             const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass, userId);
-            classDetails = hbClass.content;
+            classDetails = hbClass?.content;
         } else {
             // FIX: Convert class index to lowercase for API call
             classDetails = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
@@ -144,7 +144,6 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             beardStyle: characterData.beardStyle,
             skinColor: characterData.skinColor,
             feats: characterData.feats || [],
-            currency: { gp: startingGold, sp: 0, cp: 0 }, // Store gold directly
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
