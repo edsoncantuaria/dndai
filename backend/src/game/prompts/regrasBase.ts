@@ -89,3 +89,4 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 ## Idioma e Formato
 - Toda a narração e texto devem estar em **português do Brasil**.
 - A saída deve ser **sempre** um **único objeto JSON válido**, sem texto adicional fora dele.
+`
