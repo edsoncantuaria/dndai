@@ -129,6 +129,18 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
+        // Sanitize AI response to ensure logEntries are objects
+        if (response.logEntries && Array.isArray(response.logEntries)) {
+            // Handle the malformed ["narration", "text..."] format
+            if (response.logEntries.length > 1 && response.logEntries[0] === 'narration' && typeof response.logEntries[1] === 'string') {
+                response.logEntries = [{ type: 'narration', content: response.logEntries[1] }];
+            } else {
+                // Filter out any non-object entries just in case
+                response.logEntries = response.logEntries.filter((entry: any) => typeof entry === 'object' && entry !== null && entry.type && entry.content);
+            }
+        }
+
+
         if (response.logEntries && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);

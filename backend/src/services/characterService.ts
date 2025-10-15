@@ -5,6 +5,7 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
+import { SessaoIA } from '../entities/SessaoIA.js'; // Importar SessaoIA
 import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
@@ -220,6 +221,18 @@ export const getCharacterById = async (characterId: number, userId: number) => {
 
 export const deleteCharacter = async (characterId: number, userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+
+    // Verificar se existem sessões ativas para este personagem
+    const activeSessions = await sessaoRepository.count({
+        where: { characterId, userId, deletedAt: IsNull() }
+    });
+
+    if (activeSessions > 0) {
+        throw createError(409, 'Este personagem não pode ser excluído pois está vinculado a uma ou mais sessões de jogo. Por favor, exclua as sessões primeiro.');
+    }
+
+    // Procede com a exclusão suave se não houver sessões
     const result = await characterRepository.softDelete({ id: characterId, userId });
 
     if (result.affected === 0) {
