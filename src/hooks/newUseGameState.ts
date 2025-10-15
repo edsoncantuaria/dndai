@@ -127,11 +127,8 @@ export const useNewGameState = () => {
 
 
     const handleApiResponse = useCallback((response: any, isRestoring: boolean = false) => {
-        if (!response) {
-            throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
-        }
-    
-        // Only add to log if we are not restoring state from a log entry
+        if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
+        
         if (!isRestoring && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
@@ -182,7 +179,6 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        // Don't add internal refresh actions to the visible log
         if (action !== "Recarregar estado atual e obter opções.") {
             const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
             setLog(prev => [...prev, newLogEntry]);
@@ -284,7 +280,7 @@ export const useNewGameState = () => {
                 if (lastStateLog?.response) {
                      try {
                         const lastState = JSON.parse(lastStateLog.response);
-                        handleApiResponse(lastState, true); // Pass true to indicate we are restoring
+                        handleApiResponse(lastState, true);
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);

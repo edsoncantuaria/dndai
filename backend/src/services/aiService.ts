@@ -143,11 +143,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                         return { ...responseData, actionOptions: healingResponse.actionOptions };
                     }
                 }
-                // Se a auto-correção falhar ou o erro for outro, prossegue com os dados que temos.
-                console.warn("[geminiService] Auto-correção falhou ou erro não relacionado a actionOptions. Prosseguindo com dados parciais.");
+                 console.warn("[geminiService] Auto-correção falhou ou erro não relacionado a actionOptions. Prosseguindo com dados parciais, mas isso pode indicar um problema.");
+                 return responseData as GameMasterResponse;
             }
 
-            return responseData as GameMasterResponse;
+            return validationResult.data as GameMasterResponse;
 
         } catch (error: any) {
             console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);

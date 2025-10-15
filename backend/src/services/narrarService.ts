@@ -227,40 +227,24 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 const sanitizeLogEntries = (entries: any): any[] => {
     if (!entries) return [];
     if (!Array.isArray(entries)) {
-        // If it's not an array, wrap it in one for consistent processing
         entries = [entries];
     }
 
     const sanitized: any[] = [];
-
-    for (let entry of entries) {
+    for (const entry of entries) {
         if (!entry) continue;
 
-        // If it's a string, it could be JSON or just a raw narration string.
         if (typeof entry === 'string') {
-            try {
-                // Try to parse if it's a JSON string like "{\"type\":\"narration\",...}"
-                const parsedEntry = JSON.parse(entry);
-                // After parsing, it might still be a string inside, or an object.
-                if (typeof parsedEntry === 'object' && parsedEntry !== null) {
-                    entry = parsedEntry;
-                } else {
-                     entry = { type: 'narration', content: String(parsedEntry) };
-                }
-            } catch (e) {
-                // If it's just a plain string, treat it as narration content.
-                entry = { type: 'narration', content: entry.replace(/<[^>]*>?/gm, '') };
-            }
-        }
-
-        // Ensure it's a valid object with at least type and content
-        if (typeof entry === 'object' && entry.type && entry.content) {
+            // If it's a string, treat it as narration content.
+            sanitized.push({ type: 'narration', content: entry });
+        } else if (typeof entry === 'object' && entry.type && entry.content) {
             // Remove any HTML tags from the content if it's a string
             if (typeof entry.content === 'string') {
                 entry.content = entry.content.replace(/<[^>]*>?/gm, '');
             }
             sanitized.push(entry);
         }
+        // Discard any other invalid format
     }
     return sanitized.filter(Boolean); // Filter out any null/undefined entries
 };
@@ -320,38 +304,31 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
-
-    // --- SANEAMENTO E PROCESSAMENTO DA RESPOSTA ---
     
-    // Se a IA pedir uma rolagem, retorne IMEDIATAMENTE para garantir que a UI a receba.
+    // --- Prioritize Player Roll Request ---
     if (aiResponse.playerRollRequest) {
-        // Log para depuração, se necessário
         if (aiResponse.systemLog) {
             console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
         }
-        // Retorna apenas o pedido de rolagem e as opções, se houver.
         return { 
             playerRollRequest: aiResponse.playerRollRequest, 
             actionOptions: aiResponse.actionOptions || [] 
         } as GameMasterResponse;
     }
 
-    // Sanitize log entries to ensure consistent format
+    // --- Sanitize and Process the rest of the response ---
     aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
     
     // Ensure worldState is always an object, falling back to the character's current state
     if (!aiResponse.worldState) {
         aiResponse.worldState = optimizedCharacter.worldState;
     } else {
-        // Garante que o estado do mundo retornado pela IA tenha todos os campos esperados
         aiResponse.worldState = {
             ...optimizedCharacter.worldState,
             ...aiResponse.worldState
         };
     }
     
-    // --- Fim da Seção de Saneamento ---
-
     // Log da ação do jogador, a menos que seja uma recarga interna do sistema
     if(playerAction !== "Recarregar estado atual e obter opções.") {
         const playerLog = new SessionLog();
@@ -364,7 +341,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     Object.assign(stateLog, {
         sessaoId: sessao.id,
         prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse), // Salva a resposta completa e saneada
+        response: JSON.stringify(aiResponse),
         type: 'state',
     });
     await logRepository.save(stateLog);
@@ -377,7 +354,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
                 Object.assign(newLog, {
                     sessaoId: sessao.id,
                     prompt: 'GM Narration',
-                    response: entry.content, // Salva apenas o texto da narração
+                    response: entry.content,
                     type: entry.type || 'narration',
                     rollResult: entry.rollResult,
                 });
@@ -407,7 +384,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.updatedCharacter) {
         await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
     } else if (aiResponse.worldState) {
-        // Mesmo sem updatedCharacter, o worldState pode ter mudado
         await persistCharacterUpdates(sessao.character.id, { worldState: aiResponse.worldState });
     }
     

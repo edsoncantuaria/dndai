@@ -6,7 +6,7 @@ Este documento detalha as melhorias cruciais implementadas no backend para resol
 
 O sistema original sofria de vários problemas:
 
-1.  **Confiança Cega na IA:** O backend aceitava a resposta da IA sem questionar. Se a IA retornasse um JSON malformatado, com campos faltando (como `actionOptions`) ou com dados em um formato inesperado (como um array de caracteres em vez de um objeto), o sistema quebrava. Isso causava erros de validação Zod, crashes e uma péssima experiência de usuário.
+1.  **Confiança Cega na IA:** O backend aceitava a resposta da IA sem questionar. Se a IA retornasse um JSON mal formatado, com campos faltando (como `actionOptions`) ou com dados em um formato inesperado (como um array de caracteres em vez de um objeto), o sistema quebrava. Isso causava erros de validação Zod, crashes e uma péssima experiência de usuário.
 
 2.  **Lógica de Jogo Implícita:** As "regras" para a IA eram muito vagas. Não havia uma instrução clara sobre *quando* solicitar uma rolagem de dados. Isso levava a IA a pedir rolagens para ações triviais ou, pior, a não pedir rolagens para ações que claramente exigiam uma, quebrando a mecânica principal do jogo.
 

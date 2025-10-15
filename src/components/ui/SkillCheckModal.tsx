@@ -65,5 +65,3 @@ const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, onConfirm,
 };
 
 export default SkillCheckModal;
-
-    

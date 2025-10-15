@@ -36,7 +36,10 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
       diceBox.init().then(() => {
         diceBoxInstance.current = diceBox;
         setIsDiceboxReady(true);
-      }).catch(e => console.error("Falha ao inicializar o DiceBox:", e));
+      }).catch(e => {
+          console.error("Falha ao inicializar o DiceBox:", e);
+          setIsDiceboxReady(false); // Mark as not ready on failure
+      });
     }
     
     return () => {
@@ -51,10 +54,38 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
   }, []);
 
   const handleRoll = useCallback(async () => {
-    if (!diceBoxInstance.current || isRolling || !isDiceboxReady || hasRolled) return;
+    if (isRolling || hasRolled) return;
     
     setIsRolling(true);
     setHasRolled(true);
+
+    // Fallback for when DiceBox fails to initialize
+    if (!diceBoxInstance.current || !isDiceboxReady) {
+        console.warn("DiceBox not ready, using fallback roll.");
+        const fallbackRolls: number[] = [];
+        let numDice = 1;
+        let numSides = 20;
+        const diceMatch = request.dice.match(/(\d+)d(\d+)/);
+        if (diceMatch) {
+            numDice = parseInt(diceMatch[1], 10);
+            numSides = parseInt(diceMatch[2], 10);
+        }
+
+        let diceResult = 0;
+        for(let i=0; i<numDice; i++){
+            const roll = Math.floor(Math.random() * numSides) + 1;
+            fallbackRolls.push(roll);
+            diceResult += roll;
+        }
+
+        const total = diceResult + (request.modifier || 0);
+        setTimeout(() => {
+            setRollResult({ total, rolls: fallbackRolls });
+            setIsRolling(false);
+        }, 500); // Short delay to simulate rolling
+        return;
+    }
+
 
     try {
       let diceNotation: string[];
@@ -79,7 +110,6 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
       
       const total = finalRawRoll + (request.modifier || 0);
 
-      // Determine roll status
       const isD20Roll = request.dice === '1d20';
       if (isD20Roll && finalRawRoll === 20) {
         setRollStatus('critical-success');
