@@ -1,4 +1,4 @@
-
+// src/components/ActionOptions.tsx
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -7,7 +7,6 @@ import type { PlayerRollRequest } from '@/types';
 
 
 const HitDiceRoller: React.FC = () => {
-    // ... (código existente inalterado)
     const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
     const [diceToSpend, setDiceToSpend] = useState(1);
     
@@ -49,7 +48,6 @@ const HitDiceRoller: React.FC = () => {
 };
 
 const LootOfferDisplay: React.FC = () => {
-    // ... (código existente inalterado)
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
     if (!pendingLootOffer) return null;
 
@@ -74,7 +72,6 @@ const LootOfferDisplay: React.FC = () => {
 };
 
 const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean }> = ({ onActionSubmit, disabled }) => {
-    // ... (código existente inalterado)
     const [inputValue, setInputValue] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -114,7 +111,7 @@ const ActionOptions: React.FC = () => {
         actionOptions,
         pendingLootOffer, 
         pendingHitDiceRequest, 
-        handleSkillCheck,
+        setSkillCheckRequest,
         playerRollRequest,
         combatState,
         character,
@@ -145,7 +142,6 @@ const ActionOptions: React.FC = () => {
     }, [combatState, character]);
 
     
-    // Actions are available if it is the player's turn and the game is not otherwise locked.
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: any) => {
@@ -154,7 +150,7 @@ const ActionOptions: React.FC = () => {
     };
 
     const handleSkillClick = (skill: string) => {
-        handleSkillCheck(skill);
+        setSkillCheckRequest({ skillName: skill });
         setIsOpen(false); // Close mobile modal on skill check
     };
     
@@ -257,7 +253,6 @@ const ActionOptions: React.FC = () => {
         );
     }
     
-    // In combat, button is always visible on mobile, but disabled when not player's turn
     const isMobileCombatButtonVisible = combatState.isActive;
     const isMobileCombatButtonEnabled = isPlayerTurn && !isLoading;
     const isMobileNonCombatButtonVisible = !combatState.isActive;
@@ -301,5 +296,3 @@ const ActionOptions: React.FC = () => {
 };
 
 export default ActionOptions;
-
-    

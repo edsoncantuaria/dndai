@@ -6,58 +6,56 @@ Este documento detalha o ciclo completo de uma interação no jogo, desde a aç�
 
 O jogo opera em um ciclo de requisição e resposta. Cada ação do jogador inicia um novo ciclo.
 
-### 1. Ação do Jogador (Frontend - `ActionOptions.tsx`, `SkillItem.tsx`)
+### 1. Ação do Jogador (Frontend)
 
-Tudo começa com você, o jogador.
+Tudo começa com você, o jogador. A ação pode ser:
 
--   **Ação Sugerida:** Você clica em um dos botões de ação (`actionOptions`) fornecidos pela IA.
--   **Ação de Perícia:** Você clica no botão "Usar" de uma perícia na sua ficha de personagem. Uma janela modal (`SkillCheckModal`) aparece para você descrever sua intenção.
--   **Ação Personalizada:** Você digita sua própria ação no campo de texto e clica em "Enviar".
+-   **Ação Sugerida:** Clicar em um dos botões de `actionOptions` (`ActionOptions.tsx`).
+-   **Ação de Perícia:** Clicar em "Usar" em uma perícia na ficha (`SkillItem.tsx`), o que abre o `SkillCheckModal`.
+-   **Ação Personalizada:** Digitar uma ação e enviar.
 
-Independentemente da origem, a ação é consolidada em uma **string de texto** (ex: "Eu ataco o goblin com minha espada" ou "Eu tento usar Furtividade para passar pelos guardas.") e enviada para a função `processPlayerAction` no hook `newUseGameState.ts`.
+Independentemente da origem, a ação é consolidada em uma **string de texto** (ex: "Eu tento usar Furtividade para passar pelos guardas.") e enviada para a função `processPlayerAction` no hook orquestrador `newUseGameState.ts`.
+
+**Exemplo de código (`SkillCheckModal.tsx` -> `newUseGameState.ts`):**
+A função `handleSkillCheckSubmit` formula a ação: `Eu tento usar ${skillName}: ${description}` e chama `processPlayerAction`.
 
 ### 2. Preparação da Requisição (Frontend - `newUseGameState.ts`)
 
-O hook `newUseGameState` prepara a chamada para o backend:
+O hook `newUseGameState.ts` agora atua como um **orquestrador**:
 
-1.  A ação do jogador é adicionada ao log local com o tipo `action`, para que apareça imediatamente na tela.
-2.  A função `GameService.processPlayerAction` é chamada, enviando:
-    -   O `sessionId` da aventura atual.
-    -   A `string` da ação do jogador (`prompt`).
-    -   A sua `apiKey` do Google AI, que é obtida do `SettingsContext`.
-    -   O `combatState` atual, se um combate estiver ativo.
+1.  Ele chama `addLogEntry` do hook `useGameLog.ts` para exibir sua ação imediatamente na tela.
+2.  Ele chama `GameService.processPlayerAction`, enviando o `sessionId`, a `string` da ação, sua `apiKey` e o `combatState` atual (gerenciado pelo `useInteractionManager.ts`).
 
 ### 3. Chamada de API para o Backend (Frontend -> Backend)
 
--   `gameService.ts` usa o `apiClient` para fazer uma requisição `POST` para o endpoint `/api/narrar/:sessionId` no servidor backend.
--   O token de autenticação (JWT) é automaticamente incluído nos headers para segurança.
+-   `gameService.ts` faz uma requisição `POST` para o endpoint `/api/narrar/:sessionId` no servidor backend.
+-   O token de autenticação (JWT) é incluído para segurança.
 
 ### 4. Processamento no Backend (`narrarController.ts` -> `narrarService.ts`)
 
-1.  **Controlador (`narrarController.ts`):** O controlador recebe a requisição, valida os dados (ID da sessão, prompt, etc.) e passa tudo para o serviço `narrarService`.
-
-2.  **Serviço (`narrarService.ts`):** Esta é a principal orquestração no backend.
-    -   Carrega os dados completos do personagem e da sessão do banco de dados (MySQL/TypeORM).
-    -   Constrói um objeto otimizado para a IA, contendo o estado atual do personagem, histórico recente, estado do mundo e qualquer conteúdo homebrew instalado.
-    -   Chama o `aiService.getGameUpdate` para se comunicar com a IA do Google.
+1.  **Controlador (`narrarController.ts`):** Valida os dados da requisição e os repassa.
+2.  **Serviço (`narrarService.ts`):** O cérebro do backend.
+    -   Carrega os dados completos do personagem e da sessão do banco de dados.
+    -   Constrói um objeto otimizado para a IA, contendo apenas as informações essenciais para economizar tokens.
+    -   Chama o `aiService.getGameUpdate` para se comunicar com a IA.
 
 ### 5. Interação com a IA (`aiService.ts` e Prompts)
 
-1.  **Formatação do Prompt:** O `aiService` pega os dados e os formata em um prompt detalhado para a IA, seguindo as regras definidas nos arquivos de prompt (`regrasBase.ts`, `regrasCombate.ts`, etc.). A regra mais importante é que a IA **SEMPRE** deve responder com um objeto JSON que siga um schema específico (`GameMasterResponseSchema`).
+1.  **Formatação do Prompt:** O `aiService` formata um prompt detalhado para a IA, seguindo as regras rigorosas definidas em `regrasBase.ts`, `regrasCombate.ts` e `regrasInventario.ts`. A regra mais importante é que a IA **SEMPRE** deve responder com um objeto JSON que siga o `GameMasterResponseSchema`.
 
-2.  **Chamada para a IA:** O serviço envia o prompt para o modelo Genkit configurado (ex: `gemini-2.5-flash`).
-
-3.  **Resposta da IA:** A IA processa todo o contexto e a ação do jogador e retorna sua resposta, que pode ser uma narração, um pedido de rolagem de dados, ou ambos.
+2.  **Chamada e Validação:** A chamada para a IA é feita. Aqui entra a **primeira camada de blindagem**:
+    *   Se a IA retornar um JSON malformado, o `aiService` faz uma **segunda chamada** pedindo para a IA corrigir o formato.
+    *   Se o JSON for válido, mas faltar o campo crucial `actionOptions`, o serviço faz uma **chamada de auto-reparo** focada apenas em obter as opções de ação.
 
 ### 6. Saneamento e Persistência (Backend - `narrarService.ts`)
 
-Esta é a etapa mais crítica para evitar os bugs que vimos anteriormente.
+Esta é a etapa mais crítica para a estabilidade.
 
 1.  **Prioridade Máxima: Pedido de Rolagem:** O serviço verifica **primeiro** se a resposta da IA contém um `playerRollRequest`.
-    -   **Se sim:** A função **retorna imediatamente** para o frontend, enviando apenas o objeto `playerRollRequest` e as `actionOptions` (como "Cancelar Ação"). Nada mais é processado ou salvo. Isso garante que os pedidos de rolagem de dados nunca sejam perdidos.
+    -   **Se sim:** A função **retorna imediatamente** para o frontend, enviando apenas o `playerRollRequest` e as `actionOptions` (como "Cancelar Ação"). Nada mais é processado ou salvo. Isso garante que os pedidos de rolagem de dados nunca sejam perdidos.
 
-2.  **"Saneamento" dos Logs:** Se não houver pedido de rolagem, o serviço "limpa" o campo `logEntries`:
-    -   Ele garante que cada entrada seja um objeto válido. Se a IA retornar uma string JSON (ex: `"{\"type\":\"narration\"...}"`), ele faz o "parse" para o formato de objeto correto.
+2.  **Saneamento dos Logs:** Se não houver pedido de rolagem, o serviço "limpa" o campo `logEntries`:
+    *   Ele garante que cada entrada seja um objeto válido. Se a IA retornar uma string JSON (ex: `"{\"type\":\"narration\"...}"`), ele faz o "parse" para o formato de objeto correto.
     -   Ele remove quaisquer tags HTML (`<p>`, `<b>`, etc.) do conteúdo da narração para garantir que apenas texto puro seja enviado.
 
 3.  **Persistência no Banco de Dados:**
@@ -69,26 +67,23 @@ Esta é a etapa mais crítica para evitar os bugs que vimos anteriormente.
 
 -   O backend envia a `GameMasterResponse` completa e saneada de volta para o frontend.
 
-### 8. Atualização da Interface (Frontend - `newUseGameState.ts`)
+### 8. Atualização da Interface (Frontend)
 
-1.  **Recebimento da Resposta:** A função `handleApiResponse` no hook `newUseGameState` recebe os dados.
-2.  **Atualização do Estado:**
-    -   **Narração:** As `logEntries` (agora limpas) são adicionadas ao estado do log, e o componente `NewNarrativeLog` as renderiza na tela. O componente verifica o `type` de cada log:
-        -   `action`: Mostra a ação do jogador com um ícone.
-        -   `narration`: Mostra o parágrafo de texto da história, sem nenhum rótulo.
-        -   `roll`: Renderiza uma caixa especial mostrando o resultado da rolagem.
-        -   `system`, `insight`: Mostram mensagens de sistema ou pensamentos do personagem de forma estilizada.
-    -   **Opções de Ação:** O estado `actionOptions` é atualizado, e os novos botões aparecem.
-    -   **Rolagem de Dados:** Se um `playerRollRequest` foi recebido, o estado `playerRollRequest` é definido, o que aciona a exibição do `DiceRollModal`.
-    -   **Outros Estados:** `combatState`, `levelUpState`, etc., são atualizados conforme necessário, fazendo com que seus respectivos componentes (como o `NewCombatTracker`) apareçam ou se atualizem.
+1.  **Recebimento da Resposta (`newUseGameState.ts`):** A função `handleApiResponse` no hook orquestrador recebe os dados.
+2.  **Distribuição do Estado:** O `newUseGameState` distribui os dados para os hooks especializados:
+    *   `logState.addLogEntries` é chamado para adicionar as novas narrações ao log.
+    *   `characterState.updateCharacter` é chamado para atualizar o personagem.
+    *   `interactionState.setRequest({ type: 'roll', ... })` é chamado se houver um pedido de rolagem. Isso faz o `DiceRollModal` aparecer.
+    *   `interactionState.setActionOptions` atualiza os botões de ação.
+    *   Outros estados (`combatState`, `shopState`, etc.) são atualizados, fazendo com que seus respectivos componentes (como o `NewCombatTracker`) reajam.
 
 ### Fluxo de Restauração de Sessão
 
 Ao clicar em "Continuar Aventura":
 
 1.  `loadGameSession` busca **todos** os logs da sessão no backend.
-2.  Ela filtra e exibe imediatamente todos os logs que **não** são do tipo `state`. É por isso que seu histórico de narração aparece corretamente.
-3.  Ela encontra o **último** log do tipo `state`, faz o `JSON.parse` de seu conteúdo (que é a `GameMasterResponse` completa) e chama `handleApiResponse` com esses dados.
+2.  Ele filtra e exibe imediatamente todos os logs que **não** são do tipo `state` no `NewNarrativeLog`.
+3.  Ele encontra o **último** log do tipo `state`, faz o `JSON.parse` de seu conteúdo (que é a `GameMasterResponse` completa) e chama `handleApiResponse` com esses dados.
 4.  `handleApiResponse` então restaura as `actionOptions` e todos os outros estados da UI, **pulando a adição de logs** para evitar duplicação.
 
 Este fluxo garante que o jogo seja restaurado para o ponto exato em que foi deixado, de forma rápida e sem requisições desnecessárias à IA.

@@ -5,8 +5,13 @@ import * as characterUtils from '../../utils/characterUtils';
 import { translateApiString, translateAttribute } from '../../utils/translator';
 import { Dice5 } from 'lucide-react';
 
-const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillName, onUse }) => {
-    const { isLoading, character, handleSkillCheck, playerRollRequest } = useGameStateContext();
+interface SkillItemProps {
+    skillName: string;
+    onUse?: () => void;
+}
+
+const SkillItem: React.FC<SkillItemProps> = ({ skillName, onUse }) => {
+    const { isLoading, character, playerRollRequest, handleSkillCheck } = useGameStateContext();
     
     if (!character) return null;
     
@@ -14,9 +19,11 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
     const attribute = characterUtils.SKILL_ATTRIBUTE_MAP[skillName as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
     const modifier = (character.modifiers ? character.modifiers[attribute] : 0) + (isProficient ? (character.proficiencyBonus || 0) : 0);
 
-    const handleSkillUse = () => {
-        if (onUse) onUse();
+    const handleUseClick = () => {
         handleSkillCheck(skillName);
+        if (onUse) {
+            onUse();
+        }
     }
     
     return (
@@ -28,7 +35,7 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>
-                <button onClick={handleSkillUse} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
+                <button onClick={handleUseClick} disabled={isLoading || !!playerRollRequest} className="px-1 py-0.5 bg-stone-700/80 hover:bg-stone-600 border border-stone-600 rounded text-xs text-stone-300 disabled:opacity-50 flex items-center gap-1">
                     <Dice5 className="h-3 w-3"/> Usar
                 </button>
             </div>
@@ -37,5 +44,3 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
 }
 
 export default SkillItem;
-
-    

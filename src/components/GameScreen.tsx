@@ -145,7 +145,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {spellCastRequest && (
                     <SpellCastModal
                         spell={spellCastRequest.spell}
-                        onConfirm={submitSpellCast}
+                        onConfirm={(spell, desc) => submitSpellCast(spell, desc)}
                         onClose={() => setSpellCastRequest(null)}
                     />
                 )}
@@ -202,5 +202,3 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
-
-    
