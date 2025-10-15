@@ -21,7 +21,7 @@ export class User {
     @Column({ type: 'int', nullable: true })
     licenseKeyId: number;
 
-    @Column({ type: 'json', nullable: true })
+    @Column({ type: 'simple-json', nullable: true })
     settings: Record<string, any>;
     
     @Column({ type: 'boolean', default: false })
