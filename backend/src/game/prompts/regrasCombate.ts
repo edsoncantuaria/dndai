@@ -15,7 +15,7 @@ Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataqu
   - **Se for plausível e desafiador:** continue o fluxo.
 
 **2. Mestre Solicita a Rolagem de ATAQUE ou PERÍCIA**
-- Sua resposta **DEVE** conter o objeto \`playerRollRequest\`. **NÃO** coloque a rolagem em uma `actionOption`.
+- Sua resposta **DEVE** conter o objeto 'playerRollRequest'. **NÃO** coloque a rolagem em uma 'actionOption'.
 - **REGRA ADICIONAL:** Ao solicitar uma rolagem, **SEMPRE** forneça também \`actionOptions\` contextuais, como "Cancelar Ação".
 - **Determinação da DC:** Para ataques, a DC é a Classe de Armadura (CA) do alvo. Para testes, siga o "Senso de Justiça" da Regra 2.
 - Exemplo de perícia: \`{ "playerRollRequest": { "reason": "para usar Furtividade", "dice": "1d20", "modifier": 4, "dc": 15, "rollType": "check" } }\`
