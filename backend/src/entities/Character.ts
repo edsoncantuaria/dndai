@@ -92,10 +92,10 @@ export class Character {
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];
     
-    @OneToMany(() => JournalEntry, journal => journal.character, { cascade: true })
+    @OneToMany(() => JournalEntry, journal => journal.character, { cascade: true, eager: true })
     journal: JournalEntry[];
 
-    @OneToMany(() => Relationship, relationship => relationship.character, { cascade: true })
+    @OneToMany(() => Relationship, relationship => relationship.character, { cascade: true, eager: true })
     relationships: Relationship[];
     
     // Campos de narrativa persistente que permanecem aqui
@@ -107,6 +107,9 @@ export class Character {
 
     @Column({ type: 'json', nullable: true })
     worldState: Record<string, any>; 
+    
+    @Column({ type: 'varchar', length: 100, nullable: true })
+    currentRegion: string;
 
 
     @CreateDateColumn()

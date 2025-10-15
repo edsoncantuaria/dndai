@@ -70,8 +70,8 @@ const NewJournal: React.FC = () => {
         );
     }
     
-    // Agrupa as entradas do diário por região.
-    const groupedLocations = character.journal.reduce((acc, loc) => {
+    // Agrupa as entradas do diário que não têm um pai (são de nível superior) por região.
+    const groupedLocations = character.journal.filter(loc => !loc.parentLocation).reduce((acc, loc) => {
         const region = loc.region || 'Outras Regiões';
         if (!acc[region]) {
             acc[region] = [];

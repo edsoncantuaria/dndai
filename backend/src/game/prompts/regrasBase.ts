@@ -92,9 +92,9 @@ O contexto a seguir é essencial. Você DEVE usá-lo para informar sua resposta.
 {{{json character}}}
 \`\`\`
 
-### Últimos Eventos do Jogo (JSON)
-\`\`\`json
-{{{json gameLog}}}
+### Últimos Eventos do Jogo
+\`\`\`
+{{{gameLog}}}
 \`\`\`
 
 ---

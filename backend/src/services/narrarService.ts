@@ -75,10 +75,16 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
 
 const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null) => {
     for (const entryData of entries) {
-        let entry = await queryRunner.manager.findOne(JournalEntry, { where: { id: entryData.id } });
+        // Tenta encontrar a entrada por ID, se existir
+        let entry: JournalEntry | null = null;
+        if(entryData.id) {
+            entry = await queryRunner.manager.findOne(JournalEntry, { where: { id: entryData.id } });
+        }
+        
+        // Se não encontrar, cria uma nova
         if (!entry) {
             entry = new JournalEntry();
-            entry.id = entryData.id; // Assume que a IA fornece um ID único
+            entry.id = entryData.id || uuidv4(); // Usa o ID da IA ou gera um novo
             entry.characterId = characterId;
         }
         
@@ -109,10 +115,10 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }});
         if (!character) throw new Error("Character not found for update.");
 
-        const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation'];
+        const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation', 'currentRegion'];
         directFields.forEach(field => {
             if (updates[field] !== undefined) {
-                if (field === 'factionReputation') {
+                if (field === 'factionReputation' && updates[field]) {
                     // Merge faction reputation instead of overwriting
                     character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
                 } else {
@@ -127,7 +133,6 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         }
         if (updates.inventory) {
              const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-             // Para simplificar, ainda limpamos e recriamos o inventário, pois gerenciar o delta pode ser complexo.
              await itemsRepo.delete({ characterId }); 
              const newItems = updates.inventory.map((itemData: any) => {
                  const newItem = new CharacterItem();
@@ -212,9 +217,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
 
     const user = await userRepository.findOneBy({ id: userId });
-    const apiKey = sessao.apiKey || user?.settings?.apiKey;
+    const apiKey = user?.settings?.apiKey;
     if (!apiKey) {
-        throw createError(400, 'A chave de API não está configurada para este usuário.');
+        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
@@ -235,22 +240,21 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     });
     
     // Sort logs from oldest to newest for the AI context
-    const gameLog = recentLogs
+    const gameLogSummary = recentLogs
       .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      .map(log => ({
-          role: log.type === 'action' ? 'user' : 'model',
-          content: log.response
-      }));
+      .map(log => `${log.type === 'action' ? 'Player' : 'GM'}: ${log.response}`)
+      .join('\n');
+
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLog, // Pass the structured log array
+        gameLog: gameLogSummary, // Send the summarized log
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
 
-    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-2.5-flash");
+    const aiResponse = await runGameMasterTurn(gameMasterFlowInput, apiKey, user?.settings?.model || "gemini-1.5-flash");
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
@@ -267,7 +271,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             const content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : entry.content;
             Object.assign(newLog, {
                 sessaoId: sessao.id,
-                prompt: JSON.stringify(gameMasterFlowInput), // For debug
+                prompt: 'GM Response',
                 response: content,
                 type: entry.type,
                 rollResult: entry.rollResult,

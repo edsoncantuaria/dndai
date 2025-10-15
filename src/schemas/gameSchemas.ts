@@ -19,12 +19,12 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-    content: z.string().describe("The text content of the log entry."),
+    content: z.union([z.string(), z.object({ status: z.string(), url: z.string().optional(), prompt: z.string().optional() })]).describe("The text content of the log entry or a structured object for special types like 'image'."),
     rollResult: z.any().optional().describe("Optional structured data for a dice roll."),
 }).describe("An entry in the game's adventure log.");
 
 
-const FullCombatantSchema = z.object({
+export const FullCombatantSchema = z.object({
     id: z.string().describe("Unique ID for the combatant (e.g., 'player', 'goblin-1')."),
     name: z.string().describe("Display name of the combatant."),
     hp: z.object({ 
@@ -45,8 +45,14 @@ const FullCombatantSchema = z.object({
     readyAction: z.string().optional().describe("A description of the action readied for a trigger."),
     readyWeapon: z.string().optional().describe("Weapon to be used with a readied action."),
     readySpell: z.string().optional().describe("Spell to be used with a readied action."),
-    tempModifiers: z.record(z.any()).optional().describe("Temporary modifiers from spells or effects."),
-    rollHistory: z.array(z.any()).optional().default([]).describe("A log of all rolls made by or against this combatant."),
+    tempModifiers: z.any().optional().describe("Temporary modifiers from spells or effects."),
+    rollHistory: z.array(z.object({
+        type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
+        roll: z.number(),
+        total: z.number(),
+        modifier: z.number(),
+        description: z.string(),
+    })).optional().default([]).describe("A log of all rolls made by or against this combatant."),
 });
 
 export const CombatStateSchema = z.object({
@@ -70,7 +76,7 @@ export const ShopStateSchema = z.object({
     isHaggling: z.boolean(),
     name: z.string(),
     inventory: z.any(),
-    sellPrices: z.record(z.string(), z.number()),
+    sellPrices: z.any(),
 });
 
 export const LootOfferSchema = z.object({
@@ -104,7 +110,7 @@ type JournalEntryType = {
 
 // Agora, defina o schema Zod e anote-o com o tipo
 const JournalEntrySchema: ZodType<JournalEntryType> = z.object({
-    id: z.string(),
+    id: z.string().uuid(),
     name: z.string(),
     region: z.string(),
     summary: z.string(),
@@ -114,7 +120,7 @@ const JournalEntrySchema: ZodType<JournalEntryType> = z.object({
 
 
 const QuestSchema = z.object({
-    id: z.string(),
+    id: z.string().uuid(),
     title: z.string(),
     status: z.enum(['active', 'completed', 'failed']),
     objectives: z.array(z.string()),
@@ -122,10 +128,17 @@ const QuestSchema = z.object({
 const RelationshipSchema = z.object({
     npcId: z.string(),
     name: z.string(),
+    description: z.string().optional(),
     status: z.enum(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']),
     affinity: z.number(),
     quests: z.array(QuestSchema).optional(),
 });
+
+const WorldStateSchema = z.object({
+    timeOfDay: z.enum(['Manhã', 'Tarde', 'Noite']).describe("Current time of day."),
+    weather: z.enum(['Ensolarado', 'Nublado', 'Chuva', 'Tempestade', 'Neve', 'Nevoeiro']).describe("Current weather conditions."),
+    currentRegion: z.string().optional().describe("The current region or general location of the player."),
+}).describe("Describes the overall state of the world.");
 
 
 // Esquema otimizado do personagem enviado para a IA
@@ -154,7 +167,7 @@ const CharacterAISchema = z.object({
     journal: z.array(JournalEntrySchema).optional(),
     relationships: z.array(RelationshipSchema).optional(),
     storySoFar: z.string().optional(),
-    worldState: z.record(z.any()).optional(),
+    worldState: WorldStateSchema.optional(),
     factionReputation: z.record(z.number()).optional(),
 });
 
@@ -171,6 +184,7 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
+    worldState: WorldStateSchema.optional().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;

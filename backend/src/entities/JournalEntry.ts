@@ -1,5 +1,5 @@
 // backend/src/entities/JournalEntry.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, Tree, TreeChildren, TreeParent } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, Tree, TreeChildren, TreeParent, CreateDateColumn } from 'typeorm';
 import { Character } from './Character.js';
 
 @Entity('journal_entries')
@@ -26,6 +26,9 @@ export class JournalEntry {
 
     @Column({ type: 'boolean', default: false })
     looted: boolean;
+
+    @CreateDateColumn()
+    createdAt: Date;
 
     @TreeChildren()
     subLocations: JournalEntry[];
