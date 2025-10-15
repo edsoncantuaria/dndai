@@ -205,3 +205,5 @@ Este é o fluxo mais crítico, descrito em detalhes no `game-flow-overview.md`.
     -   [ ] Criar uma nova magia, instalá-la e pedir para a IA que o personagem a use. Verificar se a IA reconhece a magia.
 
 Este documento estabelece a base para todos os testes. À medida que novos recursos forem adicionados, este arquivo deve ser atualizado.
+
+    
