@@ -18,7 +18,7 @@ export interface RegisterDetails {
  * @param details As informações de registro do usuário.
  */
 export const registerUser = async (details: RegisterDetails) => {
-    return apiClient<{ success: boolean; message: string }>('/auth/register', {
+    return apiClient<{ success: boolean; message: string; user?: any }>('/auth/register', {
         method: 'POST',
         body: JSON.stringify(details),
     });

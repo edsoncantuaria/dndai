@@ -8,7 +8,7 @@ export const register = async (req: Request, res: Response, next: NextFunction) 
     try {
         const validatedBody = RegisterSchema.parse(req.body);
         const newUser = await AuthService.registerUser(validatedBody);
-        res.status(201).json({ message: 'Usuário registrado com sucesso!', user: newUser });
+        res.status(201).json({ success: true, message: 'Usuário registrado com sucesso!', user: newUser });
     } catch (error: any) {
         // ZodError is handled by middleware, but we can catch specific service errors
         if (error.name === 'ZodError') {
