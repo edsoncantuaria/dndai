@@ -231,11 +231,11 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId) return;
-        // The isLoading state is already true from the calling function (handleContinueGame)
+        if (!character || !sessionId || isLoading) return;
+        
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         
-    }, [character, sessionId, processPlayerAction]);
+    }, [character, sessionId, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
@@ -253,7 +253,7 @@ export const useNewGameState = () => {
                 }));
 
                 setCharacter(fullCharacter);
-                setLog(formattedLogs);
+                setLog(formattedLogs); // Usa os logs formatados
                 setSessionId(id);
                 
                 return { character: fullCharacter, logs: formattedLogs };

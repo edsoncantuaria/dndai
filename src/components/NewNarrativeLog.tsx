@@ -85,39 +85,47 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
     );
 };
 
-const NarrationEntry: React.FC<{ entry: LogEntryType, isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
+const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
     const [displayedText, setDisplayedText] = useState(isMostRecent ? '' : entry.content);
-    const [isComplete, setIsComplete] = useState(!isMostRecent);
+    const isAnimating = useRef(isMostRecent);
 
     useEffect(() => {
-        if (!isMostRecent || isComplete) return;
+        if (!isMostRecent || !isAnimating.current) {
+            setDisplayedText(entry.content || ''); // Ensure content is displayed even if not animating
+            return;
+        }
 
-        const words = entry.content.split(' ');
+        const words = (entry.content || '').split(' ');
         let currentIndex = 0;
+        let animationFrameId: number;
 
-        const interval = setInterval(() => {
+        const animate = () => {
             if (currentIndex < words.length) {
                 setDisplayedText(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
                 currentIndex++;
+                animationFrameId = requestAnimationFrame(animate);
             } else {
-                clearInterval(interval);
-                setIsComplete(true);
+                isAnimating.current = false;
             }
-        }, 50); // Adjust typing speed here
+        };
 
-        return () => clearInterval(interval);
-    }, [entry.content, isMostRecent, isComplete]);
+        animationFrameId = requestAnimationFrame(animate);
+
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [entry.content, isMostRecent]);
+
+    const isAnimationComplete = !isAnimating.current;
 
     return (
-         <div className="flex items-start">
+        <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
                 {displayedText}
-                {!isComplete && <span className="animate-pulse">_</span>}
+                {!isAnimationComplete && <span className="animate-pulse">_</span>}
             </p>
-            {isComplete && <AudioPlayer text={entry.content} playOnMount={isMostRecent} />}
+            {isAnimationComplete && <AudioPlayer text={entry.content} playOnMount={isMostRecent} />}
         </div>
     );
-}
+};
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
