@@ -107,3 +107,4 @@ A ação do jogador é: "{{playerAction}}"
 
 Com base no estado atual do personagem e no histórico, continue a aventura.
 
+`
