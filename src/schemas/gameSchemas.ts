@@ -125,6 +125,7 @@ const QuestSchema = z.object({
     status: z.enum(['active', 'completed', 'failed']),
     objectives: z.array(z.string()),
 });
+
 const RelationshipSchema = z.object({
     npcId: z.string(),
     name: z.string(),
@@ -193,7 +194,10 @@ export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 export const GameMasterFlowInputSchema = z.object({
   character: CharacterAISchema.describe("A summary of the current character state."),
   playerAction: z.string().describe("The action taken by the player."),
-  gameLog: z.string().describe("A summary of the last few turns of game history."),
+  gameLog: z.array(z.object({
+    role: z.enum(['user', 'model']),
+    content: z.string(),
+  })).describe("A summary of the last few turns of game history."),
   combatState: CombatStateSchema.optional().describe("The current state of combat, if active."),
   installedHomebrew: z.array(z.any()).optional().describe("An array of homebrew content objects (races, classes, monsters, etc.) that are active in this session."),
 });

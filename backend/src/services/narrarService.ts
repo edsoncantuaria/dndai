@@ -182,7 +182,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
                         let quest = await queryRunner.manager.findOne(Quest, { where: { id: questData.id }});
                         if (!quest) {
                             quest = new Quest();
-                            quest.id = questData.id;
+                            quest.id = questData.id || uuidv4();
                             quest.relationshipId = savedRel.id;
                         }
                         Object.assign(quest, {
@@ -234,24 +234,27 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew = homebrewItems.map(item => item.content);
     }
 
+    // Fetch the LAST 10 logs to provide recent context.
     const recentLogs = await logRepository.find({
         where: { sessaoId: sessao.id },
-        order: { timestamp: 'ASC' }, // Correct order: oldest to newest
+        order: { timestamp: 'DESC' }, // Correct order: newest to oldest
         take: 10,
     });
     
+    // Reverse the logs to be in chronological order for the prompt (oldest to newest)
+    const chronologicalLogs = recentLogs.reverse();
+
     // Convert to a simpler format for the AI prompt
-    const gameLogSummary = recentLogs
-      .map(log => ({
-          role: log.type === 'action' ? 'user' : 'model',
-          content: log.response
-      }));
+    const gameLogSummary = chronologicalLogs.map(log => ({
+        role: log.type === 'action' ? 'user' : 'model',
+        content: log.response
+    }));
 
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLogSummary, // Send the summarized log as an array of objects
+        gameLog: gameLogSummary, // Send the summarized log
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
