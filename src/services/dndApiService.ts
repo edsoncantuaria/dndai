@@ -55,6 +55,7 @@ export const getBackgroundDetails = async (index: string): Promise<ApiBackground
 };
 
 export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);
+export const getSubclassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/subclasses/${index}/levels`);
 export const getSpellsForClass = (index: string) => apiClient<{ results: ApiListItem[] }>(`/dnds/classes/${index}/spells`);
 export const getEquipmentForCategory = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
