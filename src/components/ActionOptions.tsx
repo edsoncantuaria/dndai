@@ -111,7 +111,7 @@ const ActionOptions: React.FC = () => {
         actionOptions,
         pendingLootOffer, 
         pendingHitDiceRequest, 
-        setSkillCheckRequest,
+        handleSkillCheck,
         playerRollRequest,
         combatState,
         character,
@@ -150,7 +150,7 @@ const ActionOptions: React.FC = () => {
     };
 
     const handleSkillClick = (skill: string) => {
-        setSkillCheckRequest({ skillName: skill });
+        handleSkillCheck(skill);
         setIsOpen(false); // Close mobile modal on skill check
     };
     

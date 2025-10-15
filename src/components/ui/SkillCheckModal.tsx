@@ -28,7 +28,7 @@ const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, onConfirm,
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-garamond text-amber-300">Usar Perícia: {translateApiString(`Skill: ${skillName}`)}</h2>
+                    <h2 className="text-xl font-bold font-garamond text-amber-300">Usar Perícia: {translateApiString(skillName)}</h2>
                     <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
                 </header>
                 <form onSubmit={handleSubmit}>

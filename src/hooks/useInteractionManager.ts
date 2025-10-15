@@ -79,7 +79,7 @@ export const useInteractionManager = () => {
 
     const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string) => void) => (description: string) => {
         if (!skillCheckRequest) return;
-        const translatedSkill = translateApiString(`Skill: ${skillCheckRequest.skillName}`);
+        const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
         setSkillCheckRequest(null);
         processPlayerAction(actionText);

@@ -29,7 +29,7 @@ export interface GameStateContextType {
     createCharacter: (info: NewCharacterInfo) => Promise<Character | null>;
     deleteCharacter: (characterId: number) => Promise<boolean>;
     deleteSession: (sessionIdToDelete: number) => Promise<boolean>;
-    startGame: (newSessionId: number) => Promise<void>;
+    startGame: (newSessionId?: number) => Promise<void>;
     processPlayerAction: (action: string, sessionIdOverride?: number) => Promise<void>;
     applyLevelUp: (selections: LevelUpSelections) => Promise<void>;
     toggleEquipped: (itemId: string) => void;
