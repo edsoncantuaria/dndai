@@ -81,9 +81,10 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
     2.  **Modal de Testes (`SystemTestModal.tsx`):**
         - O antigo `DiceTestModal` foi renomeado e expandido para servir como um painel de controle de testes.
         - **Teste de Rolagem de Dados:** Permite configurar e executar o `DiceRollModal` de forma isolada.
-        - **Teste de Estado de Loja e Combate:** Botões dedicados acionam `triggerTestShop` e `triggerTestCombat` no `useInteractionManager`, que populam os estados com dados de teste e abrem os respectivos modais/componentes (`ShopModal`, `NewCombatTracker`).
-        - **Teste de Interação:** Adicionada uma nova seção para simular diretamente ações do jogador, como usar perícias ou enviar um prompt customizado para a IA.
-    3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop`, `triggerTestCombat` e `triggerTestSkillCheck` foram criadas para injetar estados de teste na aplicação.
+        - **Teste de Estado de Loja e Combate (UI):** Botões dedicados acionam `triggerTestShop` e `triggerTestCombat` no `useInteractionManager`, que populam os estados com dados de teste e abrem os respectivos modais/componentes (`ShopModal`, `NewCombatTracker`).
+        - **Teste de Interação com a IA:** Adicionada uma nova seção para simular diretamente ações do jogador, como usar perícias, enviar um prompt customizado para a IA, e simular fluxos completos de loja e combate.
+        - **Seleção de Modelo de IA:** O modal agora inclui um seletor para permitir testes rápidos com diferentes modelos de IA, sem precisar sair para as Configurações.
+    3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop`, `triggerTestCombat` e `triggerTestSkillCheck` foram criadas para injetar estados de teste na aplicação, e as interações com a IA agora podem ser executadas mesmo sem uma sessão de jogo ativa.
 
 ### 3.1. Casos de Teste com o Painel de Depuração
 
@@ -97,32 +98,26 @@ Use o botão "Testes do Sistema" no menu principal para validar os seguintes sub
     -   [✅] Configure uma rolagem com vantagem (`1d20`, `+3`, Vantagem marcada).
     -   **Esperado:** A animação deve rolar dois dados 3D na tela. O cálculo deve usar o maior dos dois valores.
 
--   **[✅] Teste de Estado da Loja:**
-    -   [✅] Abra o painel de testes e clique em "Testar UI da Loja".
-    -   **Esperado:** O modal de loja (`ShopModal`) deve aparecer imediatamente.
-    -   [✅] Verifique o conteúdo do modal.
-    -   **Esperado:** O modal deve estar populado com os itens de exemplo definidos em `triggerTestShop`.
-    -   [✅] Feche o modal. A aplicação deve retornar ao menu principal.
+-   **[✅] Teste de Estado Visual (UI):**
+    -   [✅] Abra o painel, clique em "Testar UI da Loja". **Esperado:** O `ShopModal` aparece com dados de teste.
+    -   [✅] Feche o modal. Abra o painel, clique em "Testar UI de Combate". **Esperado:** O `NewCombatTracker` aparece com dados de teste.
 
--   **[✅] Teste de Estado de Combate:**
-    -   [✅] Abra o painel de testes e clique em "Testar UI de Combate".
-    -   **Esperado:** O rastreador de combate (`NewCombatTracker`) deve aparecer na tela principal.
-    -   [✅] Verifique o conteúdo do rastreador.
-    -   **Esperado:** O componente deve exibir os combatentes de exemplo definidos em `triggerTestCombat`. O estado de HP, CA e iniciativa deve corresponder aos dados de teste.
+-   **[✅] Teste de Fluxo Completo Simulado:**
+    -   [✅] Abra o painel. Na seção "Testar Interações", clique em "Simular Loja".
+    -   **Esperado:** O jogo envia um prompt para a IA (`"Eu entro em uma loja..."`). A IA deve responder com um `shopState` válido, e o `ShopModal` deve abrir, populado com os dados gerados pela IA.
+    -   [✅] Abra o painel e clique em "Simular Combate".
+    -   **Esperado:** O jogo envia um prompt de ataque para a IA. A IA deve responder com um `combatState` ativo, e o `NewCombatTracker` deve aparecer com os inimigos gerados pela IA.
 
 -   **[✅] Teste de Fluxo de Perícia:**
-    -   [✅] Inicie uma aventura (o teste de perícia requer uma sessão ativa).
-    -   [✅] Abra o painel de testes e na seção "Testar Interações do Jogo", selecione a perícia "Intimidação".
-    -   [✅] Clique em "Testar".
-    -   **Esperado:** O modal de testes fecha e o modal de teste de perícia (`SkillCheckModal`) aparece, perguntando como você deseja usar "Intimidação".
-    -   [✅] Descreva uma ação (ex: "para assustar o taverneiro") e clique em "Confirmar".
-    -   **Esperado:** O modal de rolagem de dados 3D (`DiceRollModal`) deve aparecer, solicitando a rolagem para "usar Intimidação". O fluxo continua normalmente a partir daí.
+    -   [✅] Abra o painel, selecione a perícia "Intimidação" e clique em "Testar".
+    -   **Esperado:** O modal de teste de perícia (`SkillCheckModal`) aparece.
+    -   [✅] Descreva uma ação (ex: "para assustar o taverneiro") e confirme.
+    -   **Esperado:** O `DiceRollModal` aparece, solicitando a rolagem para "usar Intimidação". O fluxo continua normalmente a partir daí.
 
--   **[✅] Teste de Ação Direta da IA:**
-    -   [✅] Inicie uma aventura.
-    -   [✅] Abra o painel de testes e na seção "Testar Interações do Jogo", digite um comando no campo de texto, como "Eu abro a porta à minha frente".
-    -   [✅] Clique em "Enviar".
-    -   **Esperado:** O modal fecha e o jogo processa a ação como se você a tivesse digitado na caixa de ação principal. A narração da IA correspondente deve aparecer no log.
+-   **[✅] Teste de Ação Direta e Modelo de IA:**
+    -   [✅] Abra o painel. No seletor de modelo, escolha um modelo diferente (ex: `gemma-3-27b-it`).
+    -   [✅] Na caixa de texto "Testar Ação Direta", digite "Eu abro a porta à minha frente" e clique em "Enviar".
+    -   **Esperado:** O jogo processa a ação usando o modelo selecionado. A narração da IA correspondente deve aparecer no log. Verifique no console que o modelo correto foi usado.
 
 ---
 
@@ -130,9 +125,9 @@ Use o botão "Testes do Sistema" no menu principal para validar os seguintes sub
 
 - **Refatoração dos Hooks (`useGameState`):**
   - **O que foi feito:** O hook monolítico `newUseGameState.ts` foi quebrado em hooks menores com responsabilidades únicas (`useCharacterState`, `useGameLog`, `useInteractionManager`). `newUseGameState.ts` agora serve como um orquestrador.
-- **Carregamento do Menu Principal:**
-  - **O que foi feito:** O carregador inicial no `GameContainer.tsx` foi removido para uma transição mais suave.
-- **Correção de Duplicação de Logs:**
+- **Correção da Duplicação de Logs:**
   - **O que foi feito:** A função `handleApiResponse` em `newUseGameState.ts` agora aceita um parâmetro `isRestoring`, que impede a re-renderização de logs ao carregar uma sessão salva, consertando o bug de logs duplicados.
+- **Consistência de Schema:**
+  - **O que foi feito:** O arquivo de schema Zod do frontend foi removido. Agora, a única fonte da verdade para validação é o `backend/src/schemas/gameSchemas.ts`. O frontend apenas consome os tipos (`src/types.ts`) derivados desse schema, eliminando inconsistências.
 
 Este documento agora reflete o estado funcional e esperado do sistema após a refatoração completa.
