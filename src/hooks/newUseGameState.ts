@@ -94,7 +94,8 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        if (action !== "Recarregar estado atual e obter opções.") {
+        // Don't add internal system actions to the visible log
+        if (action !== "Recarregar estado atual e obter opções." && !action.startsWith("A aventura começa.")) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
         }
 
@@ -111,10 +112,11 @@ export const useNewGameState = () => {
         }
     }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState]);
     
-    const startGame = useCallback(async (newSessionId: number): Promise<void> => {
-        if (isLoading) return;
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", newSessionId);
-    }, [isLoading, processPlayerAction]);
+    const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
+        const targetSessionId = newSessionId ?? sessionId;
+        if (!targetSessionId || isLoading) return;
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", targetSessionId);
+    }, [sessionId, isLoading, processPlayerAction]);
 
      const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: any[] } | null> => {
         clearGameState();

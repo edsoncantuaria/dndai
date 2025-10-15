@@ -219,43 +219,26 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-/**
- * Sanitizes the logEntries from the AI response to ensure they are in a consistent, valid format.
- * This is a critical defense layer against malformed AI output.
- * @param entries The raw logEntries array from the AI, which can be almost anything.
- * @returns A cleaned array of valid LogEntry objects.
- */
 const sanitizeLogEntries = (entries: any): any[] => {
-    // 1. Ensure we always have an array, even if the AI returns null or something else.
     if (!Array.isArray(entries)) {
         return [];
     }
 
     const sanitized: any[] = [];
     for (const entry of entries) {
-        // 2. Filter out any null, undefined, or empty items in the array.
         if (!entry) continue;
 
-        // 3. Handle entries that are just strings (like "narration" or a full sentence)
         if (typeof entry === 'string') {
-            // If it's just the word "narration" or empty, discard it.
-            if (entry.trim().toLowerCase() === 'narration' || entry.trim() === '') {
-                continue;
+            // Ignore empty strings or strings that just say "narration"
+            if (entry.trim().toLowerCase() !== 'narration' && entry.trim() !== '') {
+                sanitized.push({ type: 'narration', content: entry });
             }
-            // Otherwise, convert the string into a valid narration object.
-            sanitized.push({ type: 'narration', content: entry });
-        } 
-        // 4. Ensure it's a valid object with the minimum required fields.
-        else if (typeof entry === 'object' && entry.type && (entry.content || entry.rollResult)) {
-            // Remove any potential HTML tags from the content if it's a string.
-            if (typeof entry.content === 'string') {
-                entry.content = entry.content.replace(/<[^>]*>?/gm, '');
-            }
+        } else if (typeof entry === 'object' && entry.type && entry.content) {
+            // If it's already a valid-looking object, push it
             sanitized.push(entry);
         }
-        // 5. Discard any other invalid format.
     }
-    return sanitized.filter(Boolean); // Final filter for any remaining nulls.
+    return sanitized;
 };
 
 

@@ -82,7 +82,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     const textContent = (typeof entry.content === 'string') ? entry.content : null;
 
     // Do not render if content is empty, null, or just the word "narration"
-    if (!textContent || textContent.trim().toLowerCase() === 'narration') {
+    if (!textContent || textContent.trim().toLowerCase() === 'narration' || textContent.trim() === '') {
         return null;
     }
     
@@ -178,8 +178,8 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             content = <NarrationEntry entry={entry} />;
             break;
         case 'action':
-            if (typeof entry.content === 'string' && entry.content.startsWith("Recarregar estado atual")) {
-                 content = null; // Don't render refresh actions
+            if (typeof entry.content === 'string' && (entry.content.startsWith("Recarregar estado atual") || entry.content.startsWith("A aventura começa."))) {
+                 content = null; // Don't render system actions
             } else {
                 content = (
                     <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">

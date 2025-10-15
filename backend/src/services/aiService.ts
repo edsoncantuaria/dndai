@@ -50,7 +50,7 @@ ${homebrewContext}
 A ação do jogador é: "${playerAction}"
 
 Com base no estado atual do personagem, do combate, do conteúdo homebrew e no histórico, continue a aventura. 
-Responda APENAS com um objeto JSON válido que siga o schema GameMasterResponseSchema.`;
+Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
   
     if (isGemma) {
         return `${systemInstruction}\n\n${mainPrompt}`;
