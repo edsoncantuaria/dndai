@@ -84,11 +84,33 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
         - **Teste de Estado de Loja:** Um novo botão "Testar Loja" foi adicionado. Ao ser clicado, ele aciona a função `triggerTestShop` no hook `useInteractionManager`, que popula o `shopState` com dados de teste e abre o `ShopModal`.
         - **Teste de Estado de Combate:** Um novo botão "Testar Combate" foi adicionado. Ele aciona `triggerTestCombat`, que popula o `combatState` com um cenário de combate de exemplo e exibe o `NewCombatTracker`.
     3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop` e `triggerTestCombat` foram criadas para injetar estados de teste na aplicação.
-- **Como Testar:**
-  - [ ] No menu principal, clique no botão "Testes do Sistema".
-  - [ ] **Teste de Dados:** Configure uma rolagem (ex: 2d8 + 3) e clique em "Rolar o Dado". Verifique se o modal de rolagem 3D (`DiceRollModal`) aparece e executa a rolagem corretamente.
-  - [ ] **Teste de Loja:** Clique em "Testar Loja". Verifique se o `ShopModal` aparece populado com itens de compra e venda de exemplo.
-  - [ ] **Teste de Combate:** Clique em "Testar Combate". Verifique se o `NewCombatTracker` aparece na tela principal com um cenário de combate simulado.
+
+### 3.1. Casos de Teste com o Painel de Depuração
+
+Use o botão "Testes do Sistema" no menu principal para validar os seguintes subsistemas:
+
+-   **[ ] Teste de Rolagem de Dados 3D (Isolado):**
+    -   [ ] Abra o painel e configure uma rolagem de `1d20` com modificador `+5`. Clique em "Rolar o Dado".
+    -   **Esperado:** O modal de rolagem (`DiceRollModal`) deve aparecer. O botão "Rolar" deve estar inicialmente desabilitado com o texto "Carregando Dados...". Após um breve momento, ele deve se tornar clicável.
+    -   [ ] Clique para rolar.
+    -   **Esperado:** A animação do dado 3D deve ser executada. O resultado final (rolagem + modificador) deve ser exibido corretamente. O botão "Continuar" deve aparecer.
+    -   [ ] Configure uma rolagem com vantagem (`1d20`, `+3`, Vantagem marcada).
+    -   **Esperado:** A animação deve rolar dois dados 3D na tela. O cálculo deve usar o maior dos dois valores.
+
+-   **[ ] Teste de Estado da Loja:**
+    -   [ ] Abra o painel de testes e clique em "Testar Loja".
+    -   **Esperado:** O modal de loja (`ShopModal`) deve aparecer imediatamente, sobrepondo o menu principal.
+    -   [ ] Verifique o conteúdo do modal.
+    -   **Esperado:** O modal deve estar populado com os itens de compra e venda de exemplo definidos na função `triggerTestShop` (ex: "Poção de Cura", "Espada Longa +1"). Os preços devem ser exibidos corretamente.
+    -   [ ] Tente clicar nos botões "Comprar" e "Vender".
+    -   **Esperado:** Como isso é apenas um teste de UI, os botões podem não executar uma ação completa, mas não devem quebrar a aplicação.
+    -   [ ] Feche o modal. A aplicação deve retornar ao menu principal.
+
+-   **[ ] Teste de Estado de Combate:**
+    -   [ ] Abra o painel de testes e clique em "Testar Combate".
+    -   **Esperado:** O rastreador de combate (`NewCombatTracker`) deve aparecer na tela principal, sobrepondo o menu.
+    -   [ ] Verifique o conteúdo do rastreador.
+    -   **Esperado:** O componente deve exibir os combatentes de exemplo definidos na função `triggerTestCombat` (ex: "Seu Herói", "Goblin Batedor"). O estado de HP, CA e iniciativa deve corresponder aos dados de teste. O turno do "Goblin" (turn 1) deve estar destacado.
 
 ---
 
