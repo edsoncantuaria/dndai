@@ -23,7 +23,7 @@ No arquivo `backend/src/services/aiService.ts`, a resposta da IA passa por um pr
 
 1.  **Validação com Zod:** A resposta é imediatamente validada contra o `GameMasterResponseSchema`.
 2.  **Primeira Falha (Erro de Formato):** Se a resposta não for um JSON válido, em vez de quebrar, o serviço faz uma **segunda chamada** para a IA com uma instrução de correção: *"Sua resposta anterior não era um JSON válido. Por favor, corrija o formato."*
-3.  **Segunda Falha (Falta de Opções):** Se a resposta for um JSON válido, mas faltarem as cruciais `actionOptions` (deixando o jogador preso), o serviço faz uma **chamada de auto-reparo**: *"A aventura não pode parar. Forneça 2-4 opções de ação para o jogador..."*. Essa nova resposta com as opções é então mesclada com a resposta original.
+3.  **Segunda Falha (Falta de Opções):** Se a resposta for um JSON válido, mas faltarem as cruciais `actionOptions` (deixando o jogador preso), o serviço faz uma **chamada de auto-reparo** focada apenas em obter as opções de ação. Essa nova resposta com as opções é então mesclada com a resposta original.
 
 **Por que Melhorou?**
 O sistema não é mais passivo. Ele ativamente se defende contra as "alucinações" da IA. Isso reduz drasticamente a chance de o jogo travar ou apresentar erros, criando uma experiência muito mais estável e fluida.
