@@ -130,8 +130,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-            // Log for debugging
-            // console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${isRetry ? 2 : 1}):`, jsonText); 
+            console.log("📜 Resposta bruta da IA:", jsonText);
+
 
             let responseData: any;
             try {
