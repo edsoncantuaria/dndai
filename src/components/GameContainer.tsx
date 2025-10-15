@@ -167,8 +167,8 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        // Master loading screen
-        if (gameStage === 'loading' || isLoadingData || (gameStage === 'playing' && isGameLoading && !log.length)) {
+        // Master loading screen for playing stage
+        if (gameStage === 'playing' && (isGameLoading || !character)) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
@@ -280,7 +280,7 @@ const GameContainer = () => {
             return <HomebrewStore returnToMenu={() => setGameStage('main_menu')} />;
         }
 
-        // Default: main_menu
+        // Default: main_menu or loading
         return (
             <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
                 <button 
