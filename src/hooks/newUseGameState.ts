@@ -126,23 +126,20 @@ export const useNewGameState = () => {
     }, []);
 
 
-    const handleApiResponse = useCallback((response: any | null) => {
+    const handleApiResponse = useCallback((response: any | null, isRestoring: boolean = false) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        if (Array.isArray(response.logEntries)) {
+        if (!isRestoring && Array.isArray(response.logEntries)) {
             const parsedEntries: LogEntry[] = response.logEntries.map((entry: any) => {
+                let parsedEntry = entry;
                 if (typeof entry === 'string') {
                     try {
-                        const parsed = JSON.parse(entry);
-                        return { id: uuidv4(), ...parsed };
+                        parsedEntry = JSON.parse(entry);
                     } catch (e) {
                         return { id: uuidv4(), type: 'narration', content: entry };
                     }
                 }
-                if (typeof entry === 'object' && entry !== null) {
-                    return { id: uuidv4(), ...entry };
-                }
-                return null;
+                return { id: uuidv4(), ...parsedEntry };
             }).filter((entry): entry is LogEntry => entry !== null);
     
             setLog(prev => [...prev, ...parsedEntries]);
@@ -278,7 +275,7 @@ export const useNewGameState = () => {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
                 const displayLogs = (sessionDetails.logs || [])
-                    .filter(log => log.type !== 'state') // Exclude state logs from display
+                    .filter(log => log.type !== 'state') 
                     .map(log => ({
                         id: log.id?.toString() || uuidv4(),
                         type: log.type as LogEntry['type'],
@@ -290,23 +287,19 @@ export const useNewGameState = () => {
                 setLog(displayLogs); 
                 setSessionId(id);
 
-                // Find the last 'state' log to restore the game state
                 const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
                 
                 if (lastStateLog?.response) {
                      try {
                         const lastState = JSON.parse(lastStateLog.response);
-                        handleApiResponse(lastState);
+                        handleApiResponse(lastState, true); // Pass true to indicate we are restoring
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                        // Fallback to a refresh if parsing fails
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else if (displayLogs.length === 0) {
-                    // This is a new session with no logs, so start the game.
                     await startGame(id);
                 } else {
-                    // This is an older session without a state log, refresh to get actions.
                      await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 
