@@ -52,18 +52,18 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 - Logs do backend mostravam `ZodError` com centenas de erros `Expected object, received null`.
 - Campos como `worldState` e `combatState` se tornavam `null`, quebrando a validação do `GameMasterResponseSchema`.
 
-### 2.2. Causa Raiz
-- **Resposta Inválida da IA:** A IA, em certas situações, retornava um `logEntries` como um array de `null`s, ou um `content` de log como um JSON stringificado.
-- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção e repassava os dados inválidos para o frontend.
-- **Erro de Renderização no Frontend:** O componente `NewNarrativeLog.tsx` não fazia o "parse" de `content` que era uma string JSON, renderizando-a diretamente.
+### 2.2. Causa Raiz e Filosofia de Correção
+- **Resposta Inválida da IA:** A IA, em certas situações, retornava `logEntries` como um array de `null`s, ou um `content` de log como um JSON stringificado.
+- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção.
+- **Confiança na Auto-Correção:** O sistema dependia de uma chamada de "re-try" para a IA, tornando a exceção a regra.
 
 ### 2.3. Solução Implementada e Validação
 
-#### **Backend (Tolerância Zero com Dados Corrompidos)**
+#### **Backend (Defesa em Profundidade)**
 - **O que foi feito:**
-    1.  Em `/home/user/studio/backend/src/schemas/gameSchemas.ts`, o `GameMasterResponseSchema` foi ajustado. Campos como `worldState` e `combatState` agora são `optional()`, mas se presentes, não podem ser `null`.
-    2.  Em `/home/user/studio/backend/src/services/narrarService.ts`, a função `sanitizeLogEntries` foi reescrita para **descartar** qualquer entrada de log que não seja um objeto bem-formado.
-    3.  Na mesma função, foi adicionado um **fallback inteligente**: se a IA retornar `worldState` como `null`, o serviço irá preenchê-lo com o último estado válido do personagem no banco de dados antes de enviar ao frontend.
+    1.  **Prompt Explícito (`regrasBase.ts`):** O prompt agora proíbe explicitamente a IA de retornar `null` em campos de objeto, instruindo-a a usar `[]` ou `{}`.
+    2.  **Validação Robusta (`gameSchemas.ts`):** Os schemas Zod foram ajustados. Campos como `worldState` e `combatState` são `optional()`, mas se presentes, **não podem ser `null`**.
+    3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta qualquer entrada de log que não seja um objeto bem-formado. Adicionalmente, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão.
 - **Como Testar:**
   - [ ] Execute a ação que causava o erro anteriormente ("Examinar o conteúdo da Dungeoneer's Pack"). O jogo **não deve** mais quebrar. A narração deve continuar normalmente, e os logs do backend não devem mostrar o `ZodError`.
 
@@ -74,27 +74,28 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 
 ---
 
-## 3. Melhorias de Arquitetura e UX
+## 3. Ferramentas de Teste e Depuração
+
+- **Objetivo:** Criar uma UI dedicada para testar subsistemas críticos de forma isolada, acelerando a depuração e a validação de novas funcionalidades.
+- **O que foi feito:**
+    1.  **Novo Layout de Menu (`GameContainer.tsx`):** Foram adicionados botões de "Configurações" e "Testes do Sistema" no rodapé do menu principal para acesso fácil.
+    2.  **Modal de Testes (`DiceTestModal.tsx`):** Um novo componente foi criado para servir como um painel de controle de testes.
+    3.  **Teste de Rolagem de Dados:** A primeira ferramenta implementada permite configurar (quantidade, tipo de dado, modificador, vantagem/desvantagem) e executar o `DiceRollModal`, testando a rolagem 3D e a lógica de cálculo de forma isolada.
+- **Como Testar:**
+  - [ ] No menu principal, clique no botão "Testes do Sistema".
+  - [ ] O modal "Configurar Teste de Dados" deve aparecer.
+  - [ ] Configure uma rolagem (ex: 2d8 + 3) e clique em "Rolar o Dado".
+  - [ ] Verifique se o modal de rolagem 3D (`DiceRollModal`) aparece e executa a rolagem corretamente. O resultado deve ser logado no console do navegador.
+
+---
+
+## 4. Melhorias de Arquitetura e UX
 
 - **Refatoração dos Hooks (`useGameState`):**
-  - **O que foi feito:** O hook monolítico `newUseGameState.ts` foi quebrado em hooks menores com responsabilidades únicas:
-    - `useCharacterState.ts`: Gerencia o estado do `character`.
-    - `useGameLog.ts`: Gerencia a lista de `log`.
-    - `useInteractionManager.ts`: Gerencia todos os estados de interação (modais, opções de ação, combate).
-  - `newUseGameState.ts` agora serve como um orquestrador, simplificando o fluxo de dados.
-  - **Validação:** O sistema continua funcionando como antes, mas o código está mais limpo e organizado, facilitando futuras manutenções.
-
+  - **O que foi feito:** O hook monolítico `newUseGameState.ts` foi quebrado em hooks menores com responsabilidades únicas (`useCharacterState`, `useGameLog`, `useInteractionManager`). `newUseGameState.ts` agora serve como um orquestrador.
 - **Carregamento do Menu Principal:**
-  - **O que foi feito:** O carregador inicial no `GameContainer.tsx` foi removido. A tela de autenticação já cobre o carregamento inicial, e o menu principal agora aparece instantaneamente enquanto os dados das sessões são buscados silenciosamente em segundo plano.
-  - **Validação:**
-    - [ ] Após o login, verifique se o menu principal é a primeira tela exibida, sem um "pisca-pisca" de carregamento.
-
-- **Correção de Duplicação de Logs ao Carregar Jogo:**
-  - **O que foi feito:** Em `newUseGameState.ts`, a função `handleApiResponse` agora aceita um parâmetro `isRestoring`. Ao carregar uma sessão (`loadGameSession`), ela é chamada com `true`, fazendo com que a função restaure a UI (`actionOptions`, `combatState`) a partir do último log de estado, mas **pule** a renderização das `logEntries` contidas nesse estado, evitando duplicatas.
-  - **Validação:**
-    - [ ] Jogue alguns turnos.
-    - [ ] Saia para o menu principal.
-    - [ ] Clique em "Continuar Aventura" e carregue a sessão.
-    - [ ] Verifique se o log da aventura aparece **sem nenhuma entrada duplicada** no final.
+  - **O que foi feito:** O carregador inicial no `GameContainer.tsx` foi removido.
+- **Correção de Duplicação de Logs:**
+  - **O que foi feito:** A função `handleApiResponse` em `newUseGameState.ts` agora aceita um parâmetro `isRestoring`, que impede a re-renderização de logs ao carregar uma sessão salva.
 
 Este documento agora reflete o estado funcional e esperado do sistema após a refatoração completa.
