@@ -21,7 +21,7 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-    content: z.union([z.string(), z.object({ status: z.string(), url: z.string().optional(), prompt: z.string().optional() })]).describe("The text content of the log entry or a structured object for special types like 'image'."),
+    content: z.any().describe("The text content of the log entry or a structured object for special types like 'image'."),
     rollResult: z.any().optional().describe("Optional structured data for a dice roll."),
 }).describe("An entry in the game's adventure log.");
 
@@ -100,14 +100,12 @@ export const InventoryItemSchema = z.object({
 });
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 
-// FIX: Removed recursive definition to avoid $ref issues with Google's API
 const JournalEntrySchema = z.object({
     id: z.string().uuid(),
     name: z.string(),
     region: z.string(),
     summary: z.string(),
     looted: z.boolean(),
-    // subLocations: z.lazy(() => JournalEntrySchema.array()).optional(),
 });
 
 const QuestSchema = z.object({
@@ -133,38 +131,6 @@ const WorldStateSchema = z.object({
 }).describe("Describes the overall state of the world.");
 
 
-// Esquema otimizado do personagem enviado para a IA
-const CharacterAISchema = z.object({
-    name: z.string(),
-    race: z.string(),
-    characterClass: z.string(),
-    level: z.number(),
-    attributes: z.object({
-        strength: z.number(),
-        dexterity: z.number(),
-        constitution: z.number(),
-        intelligence: z.number(),
-        wisdom: z.number(),
-        charisma: z.number(),
-        hp: z.number(),
-        ac: z.number(),
-        conditions: z.array(z.string()).optional(),
-    }),
-    passivePerception: z.number().optional(),
-    passiveInsight: z.number().optional(),
-    passiveInvestigation: z.number().optional(),
-    proficiencies: z.array(z.string()),
-    inventory: z.array(InventoryItemSchema),
-    spells: z.array(z.string()),
-    journal: z.array(JournalEntrySchema).optional(),
-    relationships: z.array(RelationshipSchema).optional(),
-    storySoFar: z.string().optional(),
-    worldState: WorldStateSchema.optional(),
-    factionReputation: z.record(z.number()).optional(),
-    currentRegion: z.string().optional(),
-    feats: z.array(z.any()).optional(),
-});
-
 export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
@@ -183,9 +149,9 @@ export const GameMasterResponseSchema = z.object({
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
-// Schema para os dados que enviamos para a IA.
+// Esquema para os dados que enviamos para a IA.
 export const GameMasterFlowInputSchema = z.object({
-  character: CharacterAISchema.describe("A summary of the current character state."),
+  character: z.any().describe("A summary of the current character state."),
   playerAction: z.string().describe("The action taken by the player."),
   gameLog: z.string().describe("A JSON string representing a summary of the last few turns of game history."),
   combatState: CombatStateSchema.optional().describe("The current state of combat, if active."),

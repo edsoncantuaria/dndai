@@ -13,7 +13,7 @@ import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
 import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
-import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
+import type { GameMasterFlowInput, GameMasterResponse, CombatState } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -223,27 +223,13 @@ const sanitizeLogEntries = (entries: any): any[] => {
     if (!Array.isArray(entries)) {
         return [];
     }
-
-    const sanitized: any[] = [];
-    for (const entry of entries) {
-        if (!entry) continue;
-
-        if (typeof entry === 'string') {
-            // Ignore empty strings or strings that just say "narration"
-            if (entry.trim().toLowerCase() !== 'narration' && entry.trim() !== '') {
-                sanitized.push({ type: 'narration', content: entry });
-            }
-        } else if (typeof entry === 'object' && entry.type && entry.content) {
-            // If it's already a valid-looking object, push it
-            sanitized.push(entry);
-        }
-    }
-    return sanitized;
+    // Filter out null, undefined, or invalid entries.
+    return entries.filter(entry => entry && typeof entry === 'object' && entry.type && entry.content);
 };
 
 
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any): Promise<GameMasterResponse> => {
+export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState): Promise<GameMasterResponse> => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
@@ -318,6 +304,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
         }
         return { 
+            ...aiResponse,
             playerRollRequest: aiResponse.playerRollRequest, 
             actionOptions: aiResponse.actionOptions || [] 
         } as GameMasterResponse;

@@ -79,17 +79,31 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    // Ensure content is a string and not the placeholder "narration"
-    if (typeof entry.content !== 'string' || entry.content.trim().toLowerCase() === 'narration' || entry.content.trim() === '') {
+    let textContent = entry.content;
+    
+    // Check if content is a stringified JSON and parse it
+    if (typeof textContent === 'string') {
+        try {
+            const parsed = JSON.parse(textContent);
+            if (typeof parsed === 'object' && parsed !== null && parsed.type === 'narration' && parsed.content) {
+                textContent = parsed.content;
+            }
+        } catch (e) {
+            // It's not a JSON string, so we use it as is.
+        }
+    }
+    
+    // Ensure content is a string and not the placeholder "narration" or empty
+    if (typeof textContent !== 'string' || textContent.trim().toLowerCase() === 'narration' || textContent.trim() === '') {
         return null;
     }
     
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
-                {entry.content}
+                {textContent}
             </p>
-            <AudioPlayer text={entry.content} />
+            <AudioPlayer text={textContent} />
         </div>
     );
 };
@@ -286,5 +300,3 @@ const NewNarrativeLog: React.FC = () => {
 };
 
 export default NewNarrativeLog;
-
-    

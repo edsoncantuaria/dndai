@@ -92,14 +92,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             responseSchema: jsonSchema 
         }),
     };
-
-    const selfHealPrompt = "A aventura não pode parar. Forneça 2-4 opções de ação para o jogador com base na situação atual.";
-
-    const attemptGeneration = async (retry: boolean = false, selfHeal: boolean = false): Promise<GameMasterResponse | null> => {
+    
+    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse | null> => {
         try {
-            let prompt = selfHeal ? selfHealPrompt : createPrompt(input, isGemma);
-            if (retry) {
-                prompt += "\n\nSua resposta anterior não era um objeto JSON válido. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra."
+            let prompt = createPrompt(input, isGemma);
+            if (isRetry) {
+                prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
             }
 
             const result = await model.generateContent({
@@ -111,12 +109,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const jsonText = response.text();
             
             if (!jsonText) {
-                 console.error(`[geminiService] Resposta da IA vazia na tentativa ${retry ? 2 : 1}.`);
-                 if (!retry) return attemptGeneration(true);
+                 console.error(`[geminiService] Resposta da IA vazia na tentativa ${isRetry ? 2 : 1}.`);
+                 if (!isRetry) return attemptGeneration(true);
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-            console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
+            console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${isRetry ? 2 : 1}):`, jsonText); 
 
             let responseData: any;
             try {
@@ -129,36 +127,29 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 }
                 responseData = JSON.parse(textToParse);
             } catch(e: any) {
-                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
-                if (!retry) {
+                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
+                if (!isRetry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
                     return await attemptGeneration(true);
                 }
                 throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // Validação com Zod e auto-correção
+            // Validação final com Zod
             const validationResult = GameMasterResponseSchema.safeParse(responseData);
             if (!validationResult.success) {
-                console.warn("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
-                // Se o problema for a falta de actionOptions, tenta corrigir.
-                if (!responseData.actionOptions && !selfHeal) {
-                    console.log("[geminiService] Resposta válida mas sem actionOptions. Solicitando apenas opções...");
-                    const healingResponse = await attemptGeneration(false, true);
-                    if (healingResponse?.actionOptions) {
-                        // Combina a resposta original (válida, exceto pelas opções) com as opções curadas.
-                        return { ...responseData, actionOptions: healingResponse.actionOptions };
-                    }
+                console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
+                if (!isRetry) {
+                    console.warn("[geminiService] Tentando corrigir falha de validação...");
+                    return await attemptGeneration(true);
                 }
-                 console.warn("[geminiService] Auto-correção falhou ou erro não relacionado a actionOptions. Prosseguindo com dados parciais, mas isso pode indicar um problema.");
-                 return responseData as GameMasterResponse;
+                 throw new Error(`A resposta da IA falhou na validação final: ${validationResult.error.message}`);
             }
 
-            return validationResult.data as GameMasterResponse;
+            return validationResult.data;
 
         } catch (error: any) {
             console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-            // Melhora a mensagem de erro para incluir o código, se disponível
             const errorMessage = error.details?.message || error.message;
             throw new Error(`Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
         }
