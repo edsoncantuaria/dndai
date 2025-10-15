@@ -170,6 +170,7 @@ const CharacterAISchema = z.object({
     storySoFar: z.string().optional(),
     worldState: WorldStateSchema.optional(),
     factionReputation: z.record(z.number()).optional(),
+    currentRegion: z.string().optional(),
 });
 
 export const GameMasterResponseSchema = z.object({

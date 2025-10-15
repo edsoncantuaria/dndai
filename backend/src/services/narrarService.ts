@@ -71,6 +71,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         storySoFar: fullCharacter.storySoFar,
         worldState: fullCharacter.worldState,
         factionReputation: fullCharacter.factionReputation,
+        currentRegion: fullCharacter.currentRegion,
     };
 };
 
@@ -122,7 +123,10 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
                 if (field === 'factionReputation' && updates[field]) {
                     // Merge faction reputation instead of overwriting
                     character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
-                } else {
+                } else if (field === 'worldState' && updates[field]) {
+                     character.worldState = { ...(character.worldState || {}), ...updates.worldState };
+                }
+                 else {
                     (character as any)[field] = updates[field];
                 }
             }
