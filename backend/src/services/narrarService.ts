@@ -336,6 +336,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     await logRepository.save(stateLog);
 
 
+
     // Persist new homebrew content created by the AI
     if (aiResponse.newHomebrewContent) {
         for (const newContent of aiResponse.newHomebrewContent) {

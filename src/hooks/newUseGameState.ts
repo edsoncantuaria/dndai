@@ -286,6 +286,28 @@ export const useNewGameState = () => {
                         rollResult: log.rollResult,
                     }));
                 
+                // Map the logs for display. The 'response' field from the DB now holds the text for narration/action entries.
+                // The full game state is in the 'response' of the 'GM Response' log entry.
+                const formattedLogs = (sessionDetails.logs || []).flatMap(log => {
+                    if (log.prompt === 'GM Response') {
+                        try {
+                            const gmState = JSON.parse(log.response || '{}');
+                            return (gmState.logEntries || []).map((entry: any) => ({
+                                ...entry,
+                                id: uuidv4()
+                            }));
+                        } catch {
+                            return []; // Skip if parsing fails
+                        }
+                    }
+                    return {
+                        ...log,
+                        id: log.id?.toString() || uuidv4(),
+                        content: log.response, // This is for player 'action' logs
+                    };
+                });
+
+
                 setCharacter(fullCharacter);
                 setLog(displayLogs); 
                 setSessionId(id);

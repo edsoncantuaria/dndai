@@ -78,7 +78,6 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-// Simplified Narration Entry
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let textContent = '';
 
@@ -89,6 +88,8 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
         textContent = entry.content.content as string;
     }
     
+    if (!textContent) return null;
+
     if (!textContent) return null;
 
     return (
