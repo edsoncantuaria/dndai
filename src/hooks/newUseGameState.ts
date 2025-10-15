@@ -160,8 +160,12 @@ export const useNewGameState = () => {
     }, []);
     
     const processPlayerAction = useCallback(async (action: string) => {
-        if (!sessionId) return;
+        if (!sessionId) {
+            console.error("[processPlayerAction] Aborted: No sessionId.");
+            return;
+        }
         
+        console.log(`[processPlayerAction] Processing action for session ${sessionId}: "${action}"`);
         setIsLoading(true);
         setApiError(null);
         setPendingHitDiceRequest(null);
@@ -173,13 +177,14 @@ export const useNewGameState = () => {
         
         try {
             const responseData = await GameService.processPlayerAction(sessionId, action, combatState);
+            console.log("[processPlayerAction] Received API response:", responseData);
             handleApiResponse(responseData);
         } catch (error: any) {
-            console.error("Erro ao processar a ação do jogador:", error);
+            console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            // Revert the action log entry on failure
             setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
+            console.log("[processPlayerAction] Finished processing. Setting isLoading to false.");
             setIsLoading(false); 
         }
     }, [sessionId, combatState, handleApiResponse]);
@@ -234,41 +239,53 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId || isLoading) return;
+        console.log(`[startGame] Attempting to start game for session ${sessionId}. Character: ${!!character}, isLoading: ${isLoading}`);
+        if (!character || !sessionId || isLoading) {
+            console.warn(`[startGame] Aborted. Conditions not met.`);
+            return;
+        }
         
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         
     }, [character, sessionId, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
+        console.log(`[loadGameSession] Starting to load session ID: ${id}`);
         clearGameState();
         setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
+            console.log(`[loadGameSession] Fetched session details for ID: ${id}`, sessionDetails);
+
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
+                console.log(`[loadGameSession] Built frontend character:`, fullCharacter);
                 
                 const formattedLogs = (sessionDetails.logs || []).map(log => ({
                     ...log,
                     id: log.id?.toString() || uuidv4(),
                     content: log.response,
                 }));
+                console.log(`[loadGameSession] Formatted ${formattedLogs.length} logs.`);
 
                 setCharacter(fullCharacter);
-                setLog(formattedLogs); // Usa os logs formatados
+                setLog(formattedLogs);
                 setSessionId(id);
-                setIsLoading(false); // Signal that loading is complete
                 
+                console.log(`[loadGameSession] State updated for session ${id}.`);
                 return { character: fullCharacter, logs: formattedLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
         } catch(err: any) {
+            console.error(`[loadGameSession] Error loading session ${id}:`, err);
             setApiError(err.message);
             clearGameState();
-            setIsLoading(false); // Also stop loading on error
             return null;
+        } finally {
+             console.log(`[loadGameSession] Finished loading session ${id}. Setting isLoading to false.`);
+            setIsLoading(false);
         }
     }, [clearGameState]);
 

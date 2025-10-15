@@ -43,9 +43,13 @@ const GameContainer = () => {
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
+    
+    console.log(`[GameContainer] Render. Stage: ${gameStage}, Character: ${!!character}, isGameLoading: ${isGameLoading}, isLoadingData: ${isLoadingData}`);
+
 
     // --- Data Fetching ---
     const fetchInitialData = useCallback(async () => {
+        console.log('[GameContainer] Fetching initial data...');
         setIsLoadingData(true);
         try {
             const [userSessions, userCharacters] = await Promise.all([
@@ -54,8 +58,9 @@ const GameContainer = () => {
             ]);
             setSessions(userSessions || []);
             setCharacters(userCharacters || []);
+             console.log('[GameContainer] Initial data fetched.');
         } catch (err) {
-            console.error("Falha ao buscar dados iniciais:", err);
+            console.error("[GameContainer] Falha ao buscar dados iniciais:", err);
         } finally {
             setIsLoadingData(false);
         }
@@ -63,6 +68,7 @@ const GameContainer = () => {
 
     useEffect(() => {
         if (apiError) {
+             console.log('[GameContainer] API Error detected, returning to main_menu.');
             setGameStage('main_menu');
         }
     }, [apiError]);
@@ -75,12 +81,14 @@ const GameContainer = () => {
 
     useEffect(() => {
         if (!isLoadingData && gameStage === 'loading') {
+            console.log('[GameContainer] Initial data loaded, moving to main_menu.');
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
     
     // Effect to start the game after session is loaded
     useEffect(() => {
+         console.log(`[GameContainer] StartGame Effect Check: Stage=${gameStage}, SessionID=${sessionId}, Logs=${log.length}, isGameLoading=${isGameLoading}`);
         if (gameStage === 'playing' && sessionId && log.length === 0 && !isGameLoading) {
             startGame();
         }
@@ -108,6 +116,7 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = async (char: Character) => {
+        console.log(`[GameContainer] handleNewGameFromVault called for character: ${char.id}`);
         setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
             // Fetch homebrew content based on settings
@@ -127,23 +136,26 @@ const GameContainer = () => {
             );
 
             if (newSessionResponse && newSessionResponse.sessao) {
+                 console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Loading it now.`);
                 await loadGameSession(newSessionResponse.sessao.id);
-                 setPlayMenuMusic(false);
+                setPlayMenuMusic(false);
             } else {
                 throw new Error("Failed to create a new session from the server.");
             }
         } catch (error) {
-            console.error("Failed to start new game session:", error);
+            console.error("[GameContainer] Failed to start new game session:", error);
             setGameStage('main_menu'); // Revert to menu on failure
         }
     };
     
     const handleCharacterCreated = () => {
+         console.log('[GameContainer] Character created, returning to character_vault.');
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
     }
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
+         console.log(`[GameContainer] handleContinueGame called for session: ${sessionIdToLoad}`);
         setGameStage('playing'); // Immediately switch to playing stage to show loader
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
@@ -151,12 +163,14 @@ const GameContainer = () => {
             // The startGame effect will trigger automatically now
         } else {
             // If loading fails, go back to the menu
+            console.log(`[GameContainer] Loading session ${sessionIdToLoad} failed, returning to main_menu.`);
             setGameStage('main_menu');
         }
     }, [loadGameSession, setPlayMenuMusic]);
 
 
     const returnToMenu = useCallback(() => {
+        console.log('[GameContainer] returnToMenu called.');
         clearGameState();
         setGameStage('main_menu');
         setPlayMenuMusic(true);
