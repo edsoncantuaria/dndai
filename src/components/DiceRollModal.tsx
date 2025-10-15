@@ -24,7 +24,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
 
   // Initialize DiceBox
   useEffect(() => {
-    if (diceBoxRef.current && !diceBoxInstance.current) {
+    if (show && diceBoxRef.current && !diceBoxInstance.current) {
       const diceBox = new DiceBox({
         container: '#dice-box',
         assetPath: '/assets/dice-box/',
@@ -42,16 +42,18 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
       });
     }
     
+    // Cleanup on unmount or when modal is hidden
     return () => {
       if (diceBoxInstance.current) {
         try {
-          diceBoxInstance.current.clear();
+          // A proper cleanup might be needed if the library provides one.
+          // For now, we just ensure we don't hold onto the instance.
         } catch(e) {
           // Ignore cleanup errors
         }
       }
     }
-  }, []);
+  }, [show]);
 
   const handleRoll = useCallback(async () => {
     if (isRolling || hasRolled) return;

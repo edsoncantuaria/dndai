@@ -220,9 +220,9 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 };
 
 /**
- * Sanitizes the logEntries from the AI response to ensure they are in a consistent format.
+ * Sanitizes the logEntries from the AI response to ensure they are in a consistent, valid format.
  * This is a critical defense layer against malformed AI output.
- * @param entries The raw logEntries array from the AI.
+ * @param entries The raw logEntries array from the AI, which can be almost anything.
  * @returns A cleaned array of valid LogEntry objects.
  */
 const sanitizeLogEntries = (entries: any): any[] => {
@@ -233,20 +233,21 @@ const sanitizeLogEntries = (entries: any): any[] => {
 
     const sanitized: any[] = [];
     for (const entry of entries) {
-        // 2. Filter out any null or undefined items in the array.
+        // 2. Filter out any null, undefined, or empty items in the array.
         if (!entry) continue;
 
-        // 3. Handle entries that are just strings (like "narration")
+        // 3. Handle entries that are just strings (like "narration" or a full sentence)
         if (typeof entry === 'string') {
-            // Convert simple strings to a valid narration object.
-            // This prevents the "Expected object, received string" error.
-            if (entry.trim()) { // Only add if it's not an empty string
-                 sanitized.push({ type: 'narration', content: entry });
+            // If it's just the word "narration" or empty, discard it.
+            if (entry.trim().toLowerCase() === 'narration' || entry.trim() === '') {
+                continue;
             }
+            // Otherwise, convert the string into a valid narration object.
+            sanitized.push({ type: 'narration', content: entry });
         } 
-        // 4. Ensure it's an object with the minimum required fields.
-        else if (typeof entry === 'object' && entry.type && entry.content) {
-            // Remove any HTML tags from the content if it's a string, just in case.
+        // 4. Ensure it's a valid object with the minimum required fields.
+        else if (typeof entry === 'object' && entry.type && (entry.content || entry.rollResult)) {
+            // Remove any potential HTML tags from the content if it's a string.
             if (typeof entry.content === 'string') {
                 entry.content = entry.content.replace(/<[^>]*>?/gm, '');
             }
@@ -321,6 +322,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!aiResponse.worldState || typeof aiResponse.worldState !== 'object') {
         aiResponse.worldState = optimizedCharacter.worldState;
     } else {
+        // Merge, ensuring new properties from AI are added without losing old ones.
         aiResponse.worldState = {
             ...optimizedCharacter.worldState,
             ...aiResponse.worldState
@@ -339,7 +341,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
     
     // Log da ação do jogador, a menos que seja uma recarga interna do sistema
-    if(playerAction !== "Recarregar estado atual e obter opções.") {
+    if(playerAction !== "Recarregar estado atual e obter opções." && !playerAction.startsWith("A aventura começa.")) {
         const playerLog = new SessionLog();
         Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         await logRepository.save(playerLog);

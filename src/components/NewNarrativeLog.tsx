@@ -79,14 +79,13 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    let textContent = '';
-    if (typeof entry.content === 'string') {
-        textContent = entry.content;
+    const textContent = (typeof entry.content === 'string') ? entry.content : null;
+
+    // Do not render if content is empty, null, or just the word "narration"
+    if (!textContent || textContent.trim().toLowerCase() === 'narration') {
+        return null;
     }
-
-    if (!textContent) return null;
-
-    // Use a regular paragraph and do not use dangerouslySetInnerHTML
+    
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
