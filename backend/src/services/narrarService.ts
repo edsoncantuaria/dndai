@@ -16,6 +16,7 @@ import createError from 'http-errors';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
+import { v4 as uuidv4 } from 'uuid';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -113,7 +114,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
     try {
         const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }});
-        if (!character) throw new Error("Character not found for update.");
+        if (!character) throw new Error("Personagem não encontrado para atualização.");
 
         const directFields = ['level', 'xp', 'storySoFar', 'worldState', 'factionReputation', 'currentRegion'];
         directFields.forEach(field => {
@@ -198,7 +199,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
         await queryRunner.commitTransaction();
     } catch (error) {
         await queryRunner.rollbackTransaction();
-        console.error("Error persisting character updates:", error);
+        console.error("Erro ao persistir atualizações do personagem:", error);
         throw createError(500, 'Falha ao salvar atualizações do personagem.');
     } finally {
         await queryRunner.release();
@@ -235,21 +236,22 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     const recentLogs = await logRepository.find({
         where: { sessaoId: sessao.id },
-        order: { timestamp: 'DESC' },
+        order: { timestamp: 'ASC' }, // Correct order: oldest to newest
         take: 10,
     });
     
-    // Sort logs from oldest to newest for the AI context
+    // Convert to a simpler format for the AI prompt
     const gameLogSummary = recentLogs
-      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
-      .map(log => `${log.type === 'action' ? 'Player' : 'GM'}: ${log.response}`)
-      .join('\n');
+      .map(log => ({
+          role: log.type === 'action' ? 'user' : 'model',
+          content: log.response
+      }));
 
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLogSummary, // Send the summarized log
+        gameLog: gameLogSummary, // Send the summarized log as an array of objects
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
