@@ -225,6 +225,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
  * @returns A cleaned array of log entry objects.
  */
 const sanitizeLogEntries = (entries: any): any[] => {
+    if (!entries) return [];
     if (!Array.isArray(entries)) {
         // If it's not an array, wrap it in one for consistent processing
         entries = [entries];
@@ -235,26 +236,33 @@ const sanitizeLogEntries = (entries: any): any[] => {
     for (let entry of entries) {
         if (!entry) continue;
 
+        // If it's a string, it could be JSON or just a raw narration string.
         if (typeof entry === 'string') {
             try {
-                // Try to parse if it's a JSON string
-                entry = JSON.parse(entry);
+                // Try to parse if it's a JSON string like "{\"type\":\"narration\",...}"
+                const parsedEntry = JSON.parse(entry);
+                // After parsing, it might still be a string inside, or an object.
+                if (typeof parsedEntry === 'object' && parsedEntry !== null) {
+                    entry = parsedEntry;
+                } else {
+                     entry = { type: 'narration', content: String(parsedEntry) };
+                }
             } catch (e) {
-                // If it's just a plain string, treat it as narration content
-                entry = { type: 'narration', content: entry };
+                // If it's just a plain string, treat it as narration content.
+                entry = { type: 'narration', content: entry.replace(/<[^>]*>?/gm, '') };
             }
         }
 
         // Ensure it's a valid object with at least type and content
         if (typeof entry === 'object' && entry.type && entry.content) {
-            // Remove any HTML tags from the content
+            // Remove any HTML tags from the content if it's a string
             if (typeof entry.content === 'string') {
                 entry.content = entry.content.replace(/<[^>]*>?/gm, '');
             }
             sanitized.push(entry);
         }
     }
-    return sanitized;
+    return sanitized.filter(Boolean); // Filter out any null/undefined entries
 };
 
 
@@ -277,16 +285,16 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const modelToUse = user?.settings?.model || "gemini-2.5-flash";
     const generationConfig = user?.settings?.generationConfig || {};
 
-
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
     if (!optimizedCharacter) {
         throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
     }
 
-    let installedHomebrew: any[] = [];
+    let installedHomebrewSummary: any[] = [];
     if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
         const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
-        installedHomebrew = homebrewItems.map(item => item.content);
+        // Send only name and type to save tokens
+        installedHomebrewSummary = homebrewItems.map(item => ({ name: item.name, type: item.type }));
     }
 
     const recentLogs = await logRepository.find({
@@ -305,66 +313,71 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
-        installedHomebrew: installedHomebrew,
+        installedHomebrew: installedHomebrewSummary, // Use the summarized list
     };
 
     const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
-    
-    // --- Início da Seção de Saneamento ---
-    
-    // 1. Sanitize logEntries
-    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
-    
-    // 2. Ensure worldState is always an object, falling back to the character's current state
-    if (!aiResponse.worldState) {
-        aiResponse.worldState = optimizedCharacter.worldState;
-    }
 
-    // 3. If a player roll is requested, return it immediately with its specific actionOptions.
-    // This is the highest priority response to ensure no rolls are missed.
+    // --- SANEAMENTO E PROCESSAMENTO DA RESPOSTA ---
+    
+    // Se a IA pedir uma rolagem, retorne IMEDIATAMENTE para garantir que a UI a receba.
     if (aiResponse.playerRollRequest) {
+        // Log para depuração, se necessário
         if (aiResponse.systemLog) {
-            const systemLog = new SessionLog();
-            Object.assign(systemLog, { sessaoId: sessao.id, prompt: 'Player Roll Request', response: aiResponse.systemLog, type: 'system' });
-            await logRepository.save(systemLog);
+            console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
         }
+        // Retorna apenas o pedido de rolagem e as opções, se houver.
         return { 
             playerRollRequest: aiResponse.playerRollRequest, 
             actionOptions: aiResponse.actionOptions || [] 
         } as GameMasterResponse;
     }
 
-    // -- Fim da Seção de Saneamento --
+    // Sanitize log entries to ensure consistent format
+    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
+    
+    // Ensure worldState is always an object, falling back to the character's current state
+    if (!aiResponse.worldState) {
+        aiResponse.worldState = optimizedCharacter.worldState;
+    } else {
+        // Garante que o estado do mundo retornado pela IA tenha todos os campos esperados
+        aiResponse.worldState = {
+            ...optimizedCharacter.worldState,
+            ...aiResponse.worldState
+        };
+    }
+    
+    // --- Fim da Seção de Saneamento ---
 
-    // Log player action, unless it's a system reload
+    // Log da ação do jogador, a menos que seja uma recarga interna do sistema
     if(playerAction !== "Recarregar estado atual e obter opções.") {
         const playerLog = new SessionLog();
         Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         await logRepository.save(playerLog);
     }
     
-    // Salva a resposta completa como um log de estado especial
+    // Salva a resposta completa como um log de estado especial para restauração
     const stateLog = new SessionLog();
     Object.assign(stateLog, {
         sessaoId: sessao.id,
         prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse), // Save the entire sanitized response
+        response: JSON.stringify(aiResponse), // Salva a resposta completa e saneada
         type: 'state',
     });
     await logRepository.save(stateLog);
 
-    // Save the cleaned narration logs for display
+    // Salva logs de narração limpos para exibição no histórico
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-             if (entry.content) { // Ensure there's content to save
+             if (entry.content && typeof entry.content === 'string') {
                 const newLog = new SessionLog();
                 Object.assign(newLog, {
                     sessaoId: sessao.id,
                     prompt: 'GM Narration',
-                    response: entry.content, // Save only the string content
+                    response: entry.content, // Salva apenas o texto da narração
                     type: entry.type || 'narration',
                     rollResult: entry.rollResult,
                 });
@@ -373,11 +386,10 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
 
-    // Persist new homebrew content created by the AI
+    // Persiste novo conteúdo homebrew criado pela IA
     if (aiResponse.newHomebrewContent) {
         for (const newContent of aiResponse.newHomebrewContent) {
             try {
-                // Check if content with this name and type already exists to prevent duplicates
                 const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
                 if (!existing) {
                     await HomebrewService.createHomebrewContent(userId, newContent);
@@ -391,8 +403,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
 
+    // Aplica atualizações ao personagem no banco de dados
     if (aiResponse.updatedCharacter) {
         await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
+    } else if (aiResponse.worldState) {
+        // Mesmo sem updatedCharacter, o worldState pode ter mudado
+        await persistCharacterUpdates(sessao.character.id, { worldState: aiResponse.worldState });
     }
     
     return aiResponse;

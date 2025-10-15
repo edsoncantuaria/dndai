@@ -2,7 +2,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "../schemas/gameSchemas.js";
-import type { GenerationConfig } from "@/contexts/SettingsContext.js";
+import { GenerationConfig } from '../schemas/validationSchemas.js'; // Ajustado para importar do backend
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
@@ -42,7 +42,7 @@ ${combatContextValue}
 ### Últimos Eventos do Jogo (JSON)
 ${logContext}
 
-### Conteúdo Homebrew Instalado (JSON)
+### Resumo do Conteúdo Homebrew Instalado (JSON)
 \`\`\`json
 ${homebrewContext}
 \`\`\`
@@ -93,10 +93,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         }),
     };
 
+    const selfHealPrompt = "A aventura não pode parar. Forneça 2-4 opções de ação para o jogador com base na situação atual.";
 
-    const attemptGeneration = async (retry: boolean = false): Promise<GameMasterResponse | null> => {
+    const attemptGeneration = async (retry: boolean = false, selfHeal: boolean = false): Promise<GameMasterResponse | null> => {
         try {
-            let prompt = createPrompt(input, isGemma);
+            let prompt = selfHeal ? selfHealPrompt : createPrompt(input, isGemma);
             if (retry) {
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra."
             }
@@ -110,6 +111,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const jsonText = response.text();
             console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
 
+            let responseData: any;
             try {
                 let textToParse = jsonText;
                 if (isGemma) {
@@ -118,17 +120,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                         textToParse = match[1];
                     }
                 }
-
-                const responseData = JSON.parse(textToParse);
-                
-                // Zod validation is useful for debugging but let's trust the API for now if it returns JSON
-                const validationResult = GameMasterResponseSchema.safeParse(responseData);
-                if (!validationResult.success) {
-                    console.warn("[geminiService] Zod validation failed, but proceeding with API response.", validationResult.error.flatten());
-                }
-
-                return responseData as GameMasterResponse;
-
+                responseData = JSON.parse(textToParse);
             } catch(e) {
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
                 if (!retry) {
@@ -138,37 +130,32 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw new Error("O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção.");
             }
 
+            // Validação com Zod e auto-correção
+            const validationResult = GameMasterResponseSchema.safeParse(responseData);
+            if (!validationResult.success) {
+                console.warn("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
+                // Se o problema for a falta de actionOptions, tenta corrigir.
+                if (!responseData.actionOptions && !selfHeal) {
+                    console.log("[geminiService] Resposta válida mas sem actionOptions. Solicitando apenas opções...");
+                    const healingResponse = await attemptGeneration(false, true);
+                    if (healingResponse?.actionOptions) {
+                        // Combina a resposta original (válida, exceto pelas opções) com as opções curadas.
+                        return { ...responseData, actionOptions: healingResponse.actionOptions };
+                    }
+                }
+                // Se a auto-correção falhar ou o erro for outro, prossegue com os dados que temos.
+                console.warn("[geminiService] Auto-correção falhou ou erro não relacionado a actionOptions. Prosseguindo com dados parciais.");
+            }
+
+            return responseData as GameMasterResponse;
+
         } catch (error: any) {
             console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-            throw new Error(`Erro de comunicação com o Mestre de Jogo: ${error.message}`);
+            // Melhora a mensagem de erro para incluir o código, se disponível
+            const errorMessage = error.details?.message || error.message;
+            throw new Error(`Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
         }
     }
 
     return await attemptGeneration();
-};
-
-export const testAiConnection = async (modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<string | null> => {
-     if (!apiKey) {
-        return "Erro: Nenhuma chave de API fornecida ou configurada. Por favor, adicione uma chave nas configurações.";
-    }
-    try {
-        const genAI = getGenAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: modelName });
-        const prompt = "Você é o Mestre de um jogo de RPG de texto. Um jogador pergunta 'Mestre, você está aí?'. Responda de forma concisa e temática, em português do Brasil, confirmando que você está presente e pronto. Exemplo: 'Sim, estou aqui. O que você faz?'";
-        
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
-                ...generationConfig,
-                responseMimeType: "text/plain",
-            }
-        });
-
-        const response = result.response;
-        const textResponse = response.text();
-        return `Modelo: ${modelName}\n\n${textResponse}`;
-    } catch (error: any) {
-        console.error("Erro no teste de conexão com a IA:", error);
-        return `Falha ao conectar com a IA (${modelName}). Detalhes: ${error.message}`;
-    }
 };
