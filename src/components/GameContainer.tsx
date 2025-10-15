@@ -43,12 +43,8 @@ const GameContainer = () => {
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
     
-    console.log(`[GameContainer] Render. Stage: ${gameStage}, Character: ${!!character}, isGameLoading: ${isGameLoading}, isLoadingData: ${isLoadingData}`);
-
-
     // --- Data Fetching ---
     const fetchInitialData = useCallback(async () => {
-        console.log('[GameContainer] Fetching initial data...');
         setIsLoadingData(true);
         try {
             const [userSessions, userCharacters] = await Promise.all([
@@ -57,7 +53,6 @@ const GameContainer = () => {
             ]);
             setSessions(userSessions || []);
             setCharacters(userCharacters || []);
-             console.log('[GameContainer] Initial data fetched.');
         } catch (err) {
             console.error("[GameContainer] Falha ao buscar dados iniciais:", err);
         } finally {
@@ -67,7 +62,6 @@ const GameContainer = () => {
 
     useEffect(() => {
         if (apiError) {
-             console.log('[GameContainer] API Error detected, returning to main_menu.');
             setGameStage('main_menu');
         }
     }, [apiError]);
@@ -80,7 +74,6 @@ const GameContainer = () => {
 
     useEffect(() => {
         if (!isLoadingData && gameStage === 'loading') {
-            console.log('[GameContainer] Initial data loaded, moving to main_menu.');
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
@@ -107,7 +100,6 @@ const GameContainer = () => {
 
     // --- Navigation and Actions ---
     const handleNewGameFromVault = useCallback(async (char: Character) => {
-        console.log(`[GameContainer] handleNewGameFromVault called for character: ${char.id}`);
         setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
             let homebrewIds: string[] = [];
@@ -126,12 +118,7 @@ const GameContainer = () => {
             );
 
             if (newSessionResponse && newSessionResponse.sessao) {
-                console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Starting it now.`);
-                setPlayMenuMusic(false);
-                const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if(loadedData && loadedData.logs.length === 0) {
-                    await startGame(newSessionResponse.sessao.id);
-                }
+                await loadGameSession(newSessionResponse.sessao.id);
             } else {
                 throw new Error("Failed to create a new session from the server.");
             }
@@ -139,29 +126,25 @@ const GameContainer = () => {
             console.error("[GameContainer] Failed to start new game session:", error);
             setGameStage('main_menu');
         }
-    }, [useAiHomebrew, loadGameSession, startGame, setPlayMenuMusic]);
+    }, [useAiHomebrew, loadGameSession]);
     
     const handleCharacterCreated = () => {
-         console.log('[GameContainer] Character created, returning to character_vault.');
         setGameStage('character_vault');
         fetchInitialData(); // Refresh character list
     }
 
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
-         console.log(`[GameContainer] handleContinueGame called for session: ${sessionIdToLoad}`);
         setGameStage('playing'); // Immediately switch to playing stage to show loader
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
             setPlayMenuMusic(false);
         } else {
-            console.log(`[GameContainer] Loading session ${sessionIdToLoad} failed, returning to main_menu.`);
             setGameStage('main_menu');
         }
     }, [loadGameSession, setPlayMenuMusic]);
 
 
     const returnToMenu = useCallback(() => {
-        console.log('[GameContainer] returnToMenu called.');
         clearGameState();
         setGameStage('main_menu');
         setPlayMenuMusic(true);

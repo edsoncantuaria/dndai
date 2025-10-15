@@ -54,6 +54,8 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 
 const NewJournal: React.FC = () => {
     const { character } = useGameStateContext();
+    const currentRegion = character?.worldState?.currentRegion || 'Desconhecida';
+
 
     if (!character || !character.journal || character.journal.length === 0) {
         return (
@@ -62,6 +64,9 @@ const NewJournal: React.FC = () => {
                     <Map />
                     Diário de Aventura
                 </h3>
+                 <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
+                    <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
+                </div>
                 <div className="text-center text-stone-400 italic p-8 bg-stone-800/50 rounded-lg">
                     <p>Seu diário está vazio.</p>
                     <p className="text-sm">Locais importantes que você descobrir aparecerão aqui.</p>
@@ -88,7 +93,7 @@ const NewJournal: React.FC = () => {
             </h3>
             
             <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
-                <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{character.currentRegion || 'Desconhecida'}</span></p>
+                <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
             </div>
 
             <div className="space-y-4">

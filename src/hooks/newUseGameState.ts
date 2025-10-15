@@ -186,8 +186,11 @@ export const useNewGameState = () => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
+        // Don't add internal refresh actions to the visible log
+        if (action !== "Recarregar estado atual e obter opções.") {
+            const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+            setLog(prev => [...prev, newLogEntry]);
+        }
 
         setActionOptions([]); 
         
@@ -197,7 +200,7 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+            // Don't remove the log entry here, so the user can see what they tried to do.
         } finally {
             setIsLoading(false); 
         }
@@ -279,7 +282,6 @@ export const useNewGameState = () => {
 
                 // If logs exist, it's a continued session. Restore state from the last narration.
                 if (formattedLogs.length > 0) {
-                    // Find the last actual response from the GM to restore actionOptions etc.
                     const lastGmLog = [...formattedLogs].reverse().find(l => l.prompt === 'GM Response');
                     if (lastGmLog?.content) {
                          try {
@@ -287,10 +289,16 @@ export const useNewGameState = () => {
                             handleApiResponse(lastState);
                         } catch(e) {
                             console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                            // Fallback if parsing fails
+                            // As a fallback, if parsing fails, silently ask the GM to regenerate the state.
                             await processPlayerAction("Recarregar estado atual e obter opções.", id);
                         }
+                    } else if (formattedLogs.length > 0 && !formattedLogs.some(l => l.prompt === 'GM Response')) {
+                        // This handles the case where a session was created but never started.
+                        await startGame(id);
                     }
+                } else {
+                    // This is a brand new session, so we start the game.
+                    await startGame(id);
                 }
 
                 return { character: fullCharacter, logs: formattedLogs };
@@ -304,7 +312,7 @@ export const useNewGameState = () => {
         } finally {
              setIsLoading(false);
         }
-    }, [clearGameState, handleApiResponse, processPlayerAction]);
+    }, [clearGameState, handleApiResponse, processPlayerAction, startGame]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
