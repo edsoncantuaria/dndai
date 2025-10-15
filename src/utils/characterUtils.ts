@@ -202,7 +202,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     
     const inventory: InventoryItem[] = Array.isArray(backendChar.items)
         ? backendChar.items.map((item: any) => ({
-              ...item.itemData, // O backend já está enviando o `itemData` no objeto do inventário
+              ...item.itemData,
               id: item.id.toString(),
               quantity: item.quantity,
               equipped: item.equipped,
@@ -221,7 +221,6 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     if(subraceDetails && subraceDetails.languages) {
         subraceDetails.languages.forEach(l => baseLanguages.add(l.name));
     }
-    // Assumes languages are stored as a simple array of strings on the character object
     const characterLanguages = new Set(backendChar.languages || []); 
     const languages = Array.from(new Set([...baseLanguages, ...characterLanguages]));
 
@@ -231,18 +230,34 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         ...p
     }));
 
+    // --- Correct Spell Slot Calculation ---
     const spellSlots: Character['spellSlots'] = {};
     const levelData = classLevelsData.find(l => l.level === backendChar.level);
+    
+    let relevantSpellcastingData = null;
     if (levelData?.spellcasting) {
+        relevantSpellcastingData = levelData.spellcasting;
+    } else {
+        // Look backwards for the most recent level that HAD spellcasting data
+        for (let i = backendChar.level - 1; i >= 1; i--) {
+            const pastLevelData = classLevelsData.find(l => l.level === i);
+            if (pastLevelData?.spellcasting) {
+                relevantSpellcastingData = pastLevelData.spellcasting;
+                break;
+            }
+        }
+    }
+    
+    if (relevantSpellcastingData) {
         for (let i = 1; i <= 9; i++) {
-            const slotKey = `spell_slots_level_${i}` as keyof typeof levelData.spellcasting;
-            if (levelData.spellcasting[slotKey]) {
+            const slotKey = `spell_slots_level_${i}` as keyof typeof relevantSpellcastingData;
+            if (relevantSpellcastingData[slotKey] && relevantSpellcastingData[slotKey] > 0) {
                 const currentSlots = (backendChar.spellSlots && backendChar.spellSlots[`level${i}`]) 
                     ? backendChar.spellSlots[`level${i}`].current 
-                    : levelData.spellcasting[slotKey];
+                    : relevantSpellcastingData[slotKey];
                 
                 spellSlots[`level${i}`] = {
-                    max: levelData.spellcasting[slotKey] as number,
+                    max: relevantSpellcastingData[slotKey] as number,
                     current: currentSlots as number,
                 };
             }
