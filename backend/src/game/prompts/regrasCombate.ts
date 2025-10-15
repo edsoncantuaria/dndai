@@ -3,7 +3,7 @@
 export const regrasCombate = `
 ---
 
-## Fluxo Mandatório de Ações (Intenção → Pedido de Rolagem → Resultado → Narração)
+## Fluxo Mandatório de Ações (Intenção -> Pedido de Rolagem -> Resultado -> Narração)
 Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataque ou ação especial.
 
 **1. Jogador Declara a Intenção**

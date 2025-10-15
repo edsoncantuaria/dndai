@@ -80,22 +80,20 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let textContent = '';
-
     if (typeof entry.content === 'string') {
         textContent = entry.content;
-    } else if (entry.content && typeof entry.content === 'object' && 'content' in entry.content) {
-        // Fallback for cases where content might be nested incorrectly
-        textContent = entry.content.content as string;
     }
-    
+
     if (!textContent) return null;
 
+    // Use dangerouslySetInnerHTML to render potential HTML content from the AI
     return (
         <div className="flex items-start">
-            <p className="text-stone-300 leading-relaxed flex-grow font-sans">
-                {textContent}
-            </p>
-            {textContent && <AudioPlayer text={textContent} />}
+            <p 
+                className="text-stone-300 leading-relaxed flex-grow font-sans"
+                dangerouslySetInnerHTML={{ __html: textContent }} 
+            />
+            {textContent && <AudioPlayer text={textContent.replace(/<[^>]*>?/gm, '')} />}
         </div>
     );
 };
@@ -289,3 +287,5 @@ const NewNarrativeLog: React.FC = () => {
 };
 
 export default NewNarrativeLog;
+
+    

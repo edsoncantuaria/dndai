@@ -37,3 +37,5 @@ const SkillItem: React.FC<{ skillName: string, onUse?: () => void }> = ({ skillN
 }
 
 export default SkillItem;
+
+    

@@ -274,42 +274,46 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
     
-    // --> Início da Seção de Saneamento
+    // --- Início da Seção de Saneamento ---
+
+    // Prioridade 1: Se um `playerRollRequest` existir, retorne-o imediatamente.
+    if (aiResponse.playerRollRequest) {
+        // Ainda podemos registrar a justificativa, se houver.
+        if (aiResponse.systemLog) {
+            const systemLog = new SessionLog();
+            Object.assign(systemLog, { sessaoId: sessao.id, prompt: 'Player Roll Request', response: aiResponse.systemLog, type: 'system' });
+            await logRepository.save(systemLog);
+        }
+        return { playerRollRequest: aiResponse.playerRollRequest, actionOptions: aiResponse.actionOptions || [] } as GameMasterResponse;
+    }
     
-    // Preserve o playerRollRequest se ele existir.
-    const playerRollRequest = aiResponse.playerRollRequest || null;
-    
-    // Sanitize logEntries para garantir o formato correto e limpar o conteúdo
-    let sanitizedLogEntries: any[] = [];
+    // Sanitize logEntries
     if (Array.isArray(aiResponse.logEntries)) {
-        sanitizedLogEntries = aiResponse.logEntries.map(entry => {
+        aiResponse.logEntries = aiResponse.logEntries.map(entry => {
             if (typeof entry === 'string') {
                 try {
-                    const parsed = JSON.parse(entry);
-                    return { type: parsed.type, content: parsed.content, rollResult: parsed.rollResult };
-                } catch (e) {
-                    // Se o parse falhar, é apenas um texto. Não adicione, a menos que queira logs do tipo 'unknown'.
-                    return { type: 'narration', content: entry };
+                    return JSON.parse(entry);
+                } catch {
+                    // Remove HTML tags from simple string narration
+                    const cleanContent = entry.replace(/<[^>]*>?/gm, '');
+                    return { type: 'narration', content: cleanContent };
                 }
             }
-            // Se já for um objeto, apenas retorne.
-            if (typeof entry === 'object' && entry !== null && entry.type && entry.content) {
-                return entry;
+            if (entry && typeof entry.content === 'string') {
+                entry.content = entry.content.replace(/<[^>]*>?/gm, '');
             }
-            return null; // Descarta entradas inválidas/vazias
-        }).filter(Boolean); // Remove as entradas nulas
+            return entry;
+        }).filter(entry => entry && entry.content); // Filtra entradas nulas ou sem conteúdo
+    } else {
+        aiResponse.logEntries = [];
     }
-    aiResponse.logEntries = sanitizedLogEntries;
 
-    // Garante que worldState seja sempre um objeto, mesmo que a IA retorne null
+    // Garante que worldState seja sempre um objeto
     if (!aiResponse.worldState) {
         aiResponse.worldState = optimizedCharacter.worldState;
     }
-    // Restaura o playerRollRequest, caso tenha sido limpo pelo saneamento de logs
-    aiResponse.playerRollRequest = playerRollRequest;
-
-    // <-- Fim da Seção de Saneamento
-
+    
+    // -- Fim da Seção de Saneamento --
 
     // Log player action, unless it's a system reload
     if(playerAction !== "Recarregar estado atual e obter opções.") {
@@ -318,10 +322,20 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         await logRepository.save(playerLog);
     }
     
+    // Salva a resposta completa como um log de estado especial
+    const stateLog = new SessionLog();
+    Object.assign(stateLog, {
+        sessaoId: sessao.id,
+        prompt: 'GM Full State',
+        response: JSON.stringify(aiResponse),
+        type: 'state',
+    });
+    await logRepository.save(stateLog);
+
     // Salva logs de narração limpos para exibição
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-             if (typeof entry.content === 'string' && entry.type !== 'state') {
+             if (entry.type !== 'state' && typeof entry.content === 'string') {
                 const newLog = new SessionLog();
                 Object.assign(newLog, {
                     sessaoId: sessao.id,
@@ -334,17 +348,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             }
         }
     }
-    
-    // Log especial para salvar o estado completo para restauração
-    const stateLog = new SessionLog();
-    Object.assign(stateLog, {
-        sessaoId: sessao.id,
-        prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse), // Salva o objeto AIResponse COMPLETO e saneado
-        type: 'state',
-    });
-    await logRepository.save(stateLog);
-
 
     // Persist new homebrew content created by the AI
     if (aiResponse.newHomebrewContent) {
@@ -360,7 +363,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
                 }
             } catch (error) {
                 console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
-                // Continue even if this part fails
             }
         }
     }
@@ -371,3 +373,5 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     return aiResponse;
 };
+
+    

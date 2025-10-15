@@ -98,7 +98,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
+    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string, description: string } | null>(null);
     const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null);
     const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -126,26 +126,16 @@ export const useNewGameState = () => {
     }, []);
 
 
-    const handleApiResponse = useCallback((response: any | null, isRestoring: boolean = false) => {
-        if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
-        
-        if (!isRestoring && Array.isArray(response.logEntries)) {
-            const parsedEntries: LogEntry[] = response.logEntries.map((entry: any) => {
-                let parsedEntry = entry;
-                if (typeof entry === 'string') {
-                    try {
-                        parsedEntry = JSON.parse(entry);
-                    } catch (e) {
-                        return { id: uuidv4(), type: 'narration', content: entry };
-                    }
-                }
-                return { id: uuidv4(), ...parsedEntry };
-            }).filter((entry): entry is LogEntry => entry !== null);
-    
-            setLog(prev => [...prev, ...parsedEntries]);
+    const handleApiResponse = useCallback((response: any, isRestoring: boolean = false) => {
+        if (!response) {
+            throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         }
-
-
+    
+        if (!isRestoring && Array.isArray(response.logEntries)) {
+            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+            setLog(prev => [...prev, ...newLogEntries]);
+        }
+    
         if (response.updatedCharacter) {
              setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
         }
@@ -153,15 +143,17 @@ export const useNewGameState = () => {
         if (response.worldState) {
             setCharacter(prev => prev ? mergeCharacterState(prev, { worldState: response.worldState }) : null);
         }
-
+    
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
-            else setActionOptions([]); 
-            return; 
+            setActionOptions(response.actionOptions || []);
+            return;
         }
         
-        if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
+        if (response.actionOptions !== undefined) {
+            setActionOptions(response.actionOptions);
+        }
+        
         if (response.combatState) setCombatState(response.combatState);
         if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
         if (response.shopState) setShopState(response.shopState);
@@ -203,7 +195,6 @@ export const useNewGameState = () => {
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            // Don't remove the log entry here, so the user can see what they tried to do.
         } finally {
             setIsLoading(false); 
         }
@@ -324,11 +315,14 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
     }, [playerRollRequest, processPlayerAction]);
     
-    const handleSkillCheck = useCallback((skillName: string) => setSkillCheckRequest({ skillName }), []);
+    const handleSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName, description: '' });
+    }, []);
+
     const handleSkillCheckSubmit = useCallback((description: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(`Skill: ${skillCheckRequest.skillName}`);
-        const actionText = `Eu tento usar ${translatedSkill}: ${description}`;
+        const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}`: '.'}`;
         setSkillCheckRequest(null);
         processPlayerAction(actionText);
     }, [skillCheckRequest, processPlayerAction]);
@@ -440,3 +434,5 @@ export const useNewGameState = () => {
         setSessionId
     };
 };
+
+    

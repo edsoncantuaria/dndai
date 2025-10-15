@@ -58,9 +58,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     
     useEffect(() => {
         if (playerRollRequest) {
+            // A small delay to allow the UI to update before showing the modal
             const timer = setTimeout(() => {
                 setShowDiceModal(true);
-            }, 1500); // 1.5 second delay
+            }, 300); // 0.3 second delay
             return () => clearTimeout(timer);
         } else {
             setShowDiceModal(false);
@@ -201,3 +202,5 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
+
+    
