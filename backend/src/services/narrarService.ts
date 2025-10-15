@@ -221,33 +221,19 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 };
 
 const sanitizeLogEntries = (entries: any): any[] => {
-    if (!Array.isArray(entries)) {
-        console.warn("[narrarService] logEntries não era um array. Retornando array vazio.");
+    if (!entries || !Array.isArray(entries)) {
         return [];
     }
-    // Filter out null, undefined, or invalid entries.
-    return entries.filter(entry => {
-        if (!entry || typeof entry !== 'object' || !entry.type || !entry.content) {
-            console.warn("[narrarService] Descartando entrada de log inválida:", entry);
-            return false;
+
+    return entries.map(entry => {
+        if (typeof entry === 'string') {
+            return { type: 'narration', content: entry };
         }
-        // Attempt to parse stringified JSON content
-        if (typeof entry.content === 'string') {
-            try {
-                const parsed = JSON.parse(entry.content);
-                if (typeof parsed === 'object' && parsed !== null) {
-                    // It's a stringified object, which is often a mistake.
-                    // Let's see if it has a 'content' property inside.
-                    if ('content' in parsed) {
-                         entry.content = parsed.content;
-                    }
-                }
-            } catch(e) {
-                // It's just a regular string, which is fine.
-            }
+        if (entry && typeof entry === 'object' && entry.type && entry.content) {
+            return entry;
         }
-        return true;
-    });
+        return null; // Será filtrado
+    }).filter((entry): entry is any => entry !== null);
 };
 
 
@@ -327,14 +313,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     // --- Sanitize and Process the rest of the response ---
     aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
-    
-    // Ensure worldState is always an object, falling back to the character's current state if null.
-    if (!aiResponse.worldState || typeof aiResponse.worldState !== 'object') {
-        aiResponse.worldState = characterForAI.worldState || {};
-    } else {
-        // Merge, ensuring new properties from AI are added without losing old ones.
-        aiResponse.worldState = { ...characterForAI.worldState, ...aiResponse.worldState };
-    }
+    if (aiResponse.worldState === null) aiResponse.worldState = characterForAI.worldState || {};
+    if (aiResponse.combatState === null) aiResponse.combatState = undefined;
+    if (aiResponse.playerRollRequest === null) aiResponse.playerRollRequest = undefined;
     
     // --- Prioritize Player Roll Request ---
     if (aiResponse.playerRollRequest) {
