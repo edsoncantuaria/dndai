@@ -25,7 +25,7 @@ export const deleteCharacterById = async (characterId: number) => {
 // --- Session Management ---
 
 export const createGameSession = async (nome: string, characterId: number, homebrewIds?: string[]) => {
-    return apiClient<{ sessao: SessaoIA }>('/sessoes', {
+    return apiClient<{ sessao: SessaoIA, isNew: boolean }>('/sessoes', {
         method: 'POST',
         body: JSON.stringify({ nome, characterId, homebrewIds }),
     });
@@ -56,13 +56,8 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 // --- Gameplay Actions ---
 
 export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState, model?: string): Promise<GameMasterResponse> => {
-    // A mock session ID of -1 is used for tests without a real session.
-    // In a real scenario, you might want to handle this differently, but for testing it's fine.
-    if (sessionId === -1) {
-        console.warn("Running processPlayerAction in test mode with a mock session.");
-    }
-
-    const token = localStorage.getItem('token');
+    
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token && sessionId !== -1) {
         throw new Error("Token de autenticação não encontrado.");
     }
@@ -75,7 +70,7 @@ export const processPlayerAction = async (sessionId: number, prompt: string, api
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ prompt, apiKey, combatState, model }), // Pass model override
+        body: JSON.stringify({ prompt, apiKey, combatState, model }),
     });
 
     if (!response.ok) {

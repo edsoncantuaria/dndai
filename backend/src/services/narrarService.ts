@@ -221,25 +221,35 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 };
 
 const sanitizeLogEntries = (entries: any): any[] => {
-    if (!entries || !Array.isArray(entries)) {
+    if (!Array.isArray(entries)) {
+        console.warn("[narrarService] logEntries não era um array. Retornando array vazio.");
         return [];
     }
-
+    // Filter out null, undefined, or invalid entries.
     return entries.map(entry => {
         if (typeof entry === 'string') {
             return { type: 'narration', content: entry };
         }
         if (entry && typeof entry === 'object' && entry.type && entry.content) {
+             try {
+                // Defensive parse: If content is already a stringified JSON, parse it.
+                const parsedContent = JSON.parse(entry.content);
+                if (typeof parsedContent === 'object' && parsedContent.content) {
+                    return { ...entry, content: parsedContent.content };
+                }
+             } catch (e) {
+                // It's not a JSON string, which is fine.
+             }
             return entry;
         }
-        return null; // Será filtrado
+        console.warn("[narrarService] Descartando entrada de log inválida:", entry);
+        return null;
     }).filter((entry): entry is any => entry !== null);
 };
 
 
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
-    // For test runs, we can mock a character if no session is found.
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
     let user: User | null = null;
@@ -313,9 +323,15 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     // --- Sanitize and Process the rest of the response ---
     aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
-    if (aiResponse.worldState === null) aiResponse.worldState = characterForAI.worldState || {};
+    
+    // Ensure complex objects are not null, falling back to empty states.
+    if (aiResponse.worldState === null || aiResponse.worldState === undefined) aiResponse.worldState = characterForAI.worldState || {};
+    else aiResponse.worldState = { ...characterForAI.worldState, ...aiResponse.worldState };
+    
     if (aiResponse.combatState === null) aiResponse.combatState = undefined;
     if (aiResponse.playerRollRequest === null) aiResponse.playerRollRequest = undefined;
+    if (aiResponse.newHomebrewContent === null) aiResponse.newHomebrewContent = undefined;
+    
     
     // --- Prioritize Player Roll Request ---
     if (aiResponse.playerRollRequest) {
@@ -336,8 +352,8 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     const logRepository = AppDataSource.getRepository(SessionLog);
 
-    // Log da ação do jogador, a menos que seja uma recarga interna do sistema
-    if(playerAction !== "Recarregar estado atual e obter opções." && !playerAction.startsWith("A aventura começa.")) {
+    const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+    if(!isInternalAction) {
         const playerLog = new SessionLog();
         Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         await logRepository.save(playerLog);
@@ -394,5 +410,3 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     return aiResponse;
 };
-
-    

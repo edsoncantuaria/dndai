@@ -22,21 +22,16 @@ type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 
 const GameContainer = () => {
     const {
         character,
-        log,
         loadGameSession,
         clearGameState,
         deleteCharacter,
         deleteSession,
-        startGame,
         isLoading: isGameLoading,
         apiError,
-        // For testing UI states directly
-        shopState,
-        combatState,
     } = useGameStateContext();
 
-    const { user } = useAuth();
-    const { playMenuMusic, setPlayMenuMusic, volume, isMuted, useAiHomebrew } = useSettingsContext();
+    const { useAiHomebrew } = useSettingsContext();
+    const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -82,14 +77,6 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
-    
-    // --- UI State Override for Testing ---
-    const isTesting = shopState?.isOpen || combatState?.isActive;
-     useEffect(() => {
-        if (isTesting && gameStage !== 'playing') {
-            setGameStage('playing');
-        }
-    }, [isTesting, gameStage]);
 
 
     // --- Audio Management ---
@@ -181,7 +168,7 @@ const GameContainer = () => {
 
     const renderContent = () => {
         // Master loading screen for playing stage
-        if (gameStage === 'playing' && (isGameLoading || (!character && !isTesting))) {
+        if (gameStage === 'playing' && (isGameLoading || !character)) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
@@ -191,7 +178,7 @@ const GameContainer = () => {
         }
 
         // Once loaded, if the stage is 'playing', render the Game component.
-        if (gameStage === 'playing' && (character || isTesting)) {
+        if (gameStage === 'playing' && character) {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}
