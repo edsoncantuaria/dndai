@@ -1,8 +1,7 @@
 // backend/src/services/aiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
-import { GameMasterResponse, GameMasterResponseSchema } from "../schemas/gameSchemas.js";
+import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "../schemas/gameSchemas.js";
 import type { GenerationConfig } from "@/contexts/SettingsContext.js";
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
@@ -30,10 +29,7 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const combatContextValue = combatState ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
     const homebrewContext = installedHomebrew && installedHomebrew.length > 0 ? JSON.stringify(installedHomebrew, null, 2) : "Nenhum conteúdo homebrew instalado.";
   
-    const mainPrompt = `Contexto da Sessão:
-Você DEVE usar o seguinte contexto para informar sua resposta.
-
-### Estado Atual do Personagem (JSON)
+    const mainPrompt = `### Estado Atual do Personagem (JSON)
 \`\`\`json
 ${characterContext}
 \`\`\`
@@ -82,8 +78,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         })
     });
     
-    // Convert Zod schema to plain JSON schema
+    // Convert Zod schema to plain JSON schema and remove unsupported properties
     const jsonSchema = zodToJsonSchema(GameMasterResponseSchema, "GameMasterResponseSchema");
+    delete (jsonSchema as any).$ref;
+    delete (jsonSchema as any).definitions;
+    delete (jsonSchema as any).$schema;
+
 
     const finalGenerationConfig: any = {
         ...generationConfig,

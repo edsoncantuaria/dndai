@@ -98,36 +98,27 @@ export const InventoryItemSchema = z.object({
 });
 export type InventoryItem = z.infer<typeof InventoryItemSchema>;
 
-// Define o tipo recursivo para JournalEntry primeiro
-type JournalEntryType = {
-    id: string;
-    name: string;
-    region: string;
-    summary: string;
-    looted: boolean;
-    subLocations?: JournalEntryType[];
-};
-
-// Agora, defina o schema Zod e anote-o com o tipo
-const JournalEntrySchema: ZodType<JournalEntryType> = z.object({
-    id: z.string(),
+// FIX: Removed recursive definition to avoid $ref issues with Google's API
+const JournalEntrySchema = z.object({
+    id: z.string().uuid(),
     name: z.string(),
     region: z.string(),
     summary: z.string(),
     looted: z.boolean(),
-    subLocations: z.array(z.lazy(() => JournalEntrySchema)).optional(),
+    // subLocations: z.array(z.lazy(() => JournalEntrySchema)).optional(), // Recursive part removed
 });
 
-
 const QuestSchema = z.object({
-    id: z.string(),
+    id: z.string().uuid(),
     title: z.string(),
     status: z.enum(['active', 'completed', 'failed']),
     objectives: z.array(z.string()),
 });
+
 const RelationshipSchema = z.object({
     npcId: z.string(),
     name: z.string(),
+    description: z.string().optional(),
     status: z.enum(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']),
     affinity: z.number(),
     quests: z.array(QuestSchema).optional(),
@@ -169,6 +160,7 @@ const CharacterAISchema = z.object({
     worldState: WorldStateSchema.optional(),
     factionReputation: z.record(z.number()).optional(),
     currentRegion: z.string().optional(),
+    feats: z.array(z.any()).optional(),
 });
 
 export const GameMasterResponseSchema = z.object({
@@ -178,7 +170,6 @@ export const GameMasterResponseSchema = z.object({
     combatState: CombatStateSchema.optional().describe("The complete state of combat, if it is active."),
     playerRollRequest: PlayerRollRequestSchema.optional().describe("If the Game Master needs the player to roll dice, this object MUST be populated."),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night')."),
-    imagePrompt: z.string().optional().describe("A prompt for the image generation model to create a scene."),
     systemLog: z.string().optional().describe("Optional log for the GM to explain decisions (DC choice, NPC rolls, etc.)."),
     levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
