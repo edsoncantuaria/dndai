@@ -46,7 +46,12 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     let newChar: Character = { ...oldChar, ...updates };
 
     // Deep merge for nested objects and arrays
-    if (updates.inventory) newChar.inventory = updates.inventory;
+    if (updates.inventory) {
+        newChar.inventory = updates.inventory;
+        // Recalculate currency and weight whenever inventory changes
+        newChar.currency = characterUtils.calculateCurrency(newChar.inventory);
+        newChar.currentWeight = characterUtils.calculateWeight(newChar.inventory);
+    }
     if (updates.spells) newChar.spells = updates.spells;
     if (updates.conditions) newChar.conditions = updates.conditions;
     if (updates.journal) newChar.journal = mergeJournalEntries(oldChar.journal || [], updates.journal);
@@ -56,17 +61,19 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     
     newChar.attributes = { ...oldChar.attributes, ...updates.attributes };
     newChar.hp = { ...oldChar.hp, ...updates.hp };
-    newChar.currency = { ...oldChar.currency, ...updates.currency };
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
+    newChar.spellSlots = { ...oldChar.spellSlots, ...updates.spellSlots };
 
-    // Recalculate derived properties
-    const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
-    newChar.modifiers = newModifiers;
-    newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
-    newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
-    newChar.currentWeight = (newChar.inventory || []).reduce((sum: number, item: InventoryItem) => sum + (item.weight || 0) * item.quantity, 0);
+
+    // Recalculate derived properties if attributes changed
+    if (updates.attributes) {
+        const newModifiers = characterUtils.calculateModifiers(newChar.attributes);
+        newChar.modifiers = newModifiers;
+        newChar.ac = characterUtils.calculateAC(newChar.inventory, newModifiers);
+        newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(newChar.attributes.strength);
+    }
 
     return newChar;
 };
@@ -119,25 +126,32 @@ export const useNewGameState = () => {
     }, []);
 
 
-    const handleApiResponse = useCallback((response: any | null) => {
+    const handleApiResponse = useCallback((response: any, isRestoring: boolean = false) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        if (response.logEntries && Array.isArray(response.logEntries)) {
+        if (!isRestoring && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
-
+    
         if (response.updatedCharacter) {
              setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
         }
-
+        
+        if (response.worldState) {
+            setCharacter(prev => prev ? mergeCharacterState(prev, { worldState: response.worldState }) : null);
+        }
+    
         if(response.playerRollRequest) {
             setPlayerRollRequest(response.playerRollRequest);
-            setActionOptions([]); 
-            return; 
+            setActionOptions(response.actionOptions || []);
+            return;
         }
         
-        if (response.actionOptions !== undefined) setActionOptions(response.actionOptions);
+        if (response.actionOptions !== undefined) {
+            setActionOptions(response.actionOptions);
+        }
+        
         if (response.combatState) setCombatState(response.combatState);
         if (response.levelUpState) setLevelUpState(prev => ({ ...(prev || {isPending: false, newLevel: 0, choices: {}}), ...response.levelUpState }));
         if (response.shopState) setShopState(response.shopState);
@@ -147,29 +161,41 @@ export const useNewGameState = () => {
         
     }, []);
     
-    const processPlayerAction = useCallback(async (action: string) => {
-        if (!sessionId) return;
+    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number) => {
+        const currentSessionId = sessionIdOverride ?? sessionId;
+        if (!currentSessionId) {
+            console.error("[processPlayerAction] Aborted: No sessionId.");
+            return;
+        }
+        const key = getApiKey();
+        if (!key) {
+             console.error("[processPlayerAction] Aborted: No API Key.");
+             setApiError("Chave de API não encontrada. Por favor, configure-a nas Configurações.");
+             return;
+        }
         
         setIsLoading(true);
         setApiError(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
+        if (action !== "Recarregar estado atual e obter opções.") {
+            const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+            setLog(prev => [...prev, newLogEntry]);
+        }
+
         setActionOptions([]); 
         
         try {
-            const responseData = await GameService.processPlayerAction(sessionId, action, combatState);
+            const responseData = await GameService.processPlayerAction(currentSessionId, action, key, combatState);
             handleApiResponse(responseData);
         } catch (error: any) {
-            console.error("Erro ao processar a ação do jogador:", error);
+            console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
         } finally {
             setIsLoading(false); 
         }
-    }, [sessionId, combatState, handleApiResponse]);
+    }, [sessionId, combatState, handleApiResponse, getApiKey]);
     
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
         setIsLoading(true);
@@ -220,12 +246,11 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
 
-    const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId || isLoading) return;
+    const startGame = useCallback(async (newSessionId: number): Promise<void> => {
+        if (isLoading) return;
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", newSessionId);
         
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        
-    }, [character, sessionId, isLoading, processPlayerAction]);
+    }, [isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
@@ -233,20 +258,40 @@ export const useNewGameState = () => {
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
+
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
-                // Mapeia os logs do backend para o formato do frontend
-                const formattedLogs = (sessionDetails.logs || []).map(log => ({
-                    ...log,
-                    content: log.response, // Mapeia 'response' para 'content'
-                }));
-
-                setCharacter(fullCharacter);
-                setLog(formattedLogs); // Usa os logs formatados
-                setSessionId(id);
+                const displayLogs = (sessionDetails.logs || [])
+                    .filter(log => log.type !== 'state') 
+                    .map(log => ({
+                        id: log.id?.toString() || uuidv4(),
+                        type: log.type as LogEntry['type'],
+                        content: log.response,
+                        rollResult: log.rollResult,
+                    }));
                 
-                return { character: fullCharacter, logs: formattedLogs };
+                setCharacter(fullCharacter);
+                setLog(displayLogs); 
+                setSessionId(id);
+
+                const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
+                
+                if (lastStateLog?.response) {
+                     try {
+                        const lastState = JSON.parse(lastStateLog.response);
+                        handleApiResponse(lastState, true);
+                    } catch(e) {
+                        console.error("Failed to parse last GM state from log, requesting refresh.", e);
+                        await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                    }
+                } else if (displayLogs.length === 0) {
+                    await startGame(id);
+                } else {
+                     await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                }
+
+                return { character: fullCharacter, logs: displayLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
@@ -255,9 +300,9 @@ export const useNewGameState = () => {
             clearGameState();
             return null;
         } finally {
-            setIsLoading(false);
+             setIsLoading(false);
         }
-    }, [clearGameState]);
+    }, [clearGameState, handleApiResponse, processPlayerAction, startGame]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {
@@ -267,11 +312,14 @@ export const useNewGameState = () => {
         processPlayerAction(actionText);
     }, [playerRollRequest, processPlayerAction]);
     
-    const handleSkillCheck = useCallback((skillName: string) => setSkillCheckRequest({ skillName }), []);
+    const handleSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
+
     const handleSkillCheckSubmit = useCallback((description: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(`Skill: ${skillCheckRequest.skillName}`);
-        const actionText = `Eu tento usar ${translatedSkill}: ${description}`;
+        const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}`: '.'}`;
         setSkillCheckRequest(null);
         processPlayerAction(actionText);
     }, [skillCheckRequest, processPlayerAction]);
@@ -339,6 +387,7 @@ export const useNewGameState = () => {
     return {
         character,
         log,
+        sessionId,
         actionOptions,
         combatState,
         levelUpState,
