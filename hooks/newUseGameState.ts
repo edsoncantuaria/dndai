@@ -94,8 +94,9 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        // Don't add internal system actions to the visible log
-        if (action !== "Recarregar estado atual e obter opções." && !action.startsWith("A aventura começa.")) {
+        // Only add player-facing actions to the log
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
+        if (!isInternalAction) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
         }
 

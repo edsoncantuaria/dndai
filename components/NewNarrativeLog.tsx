@@ -1,4 +1,3 @@
-// src/components/NewNarrativeLog.tsx
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -79,21 +78,17 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    const textContent = (typeof entry.content === 'string') ? entry.content : null;
-
-    if (!textContent) return null;
-
-    // Remove the "narration" word if it's the only content
-    if (textContent.trim().toLowerCase() === 'narration') {
+    // Ensure content is a string and not the placeholder "narration"
+    if (typeof entry.content !== 'string' || entry.content.trim().toLowerCase() === 'narration' || entry.content.trim() === '') {
         return null;
     }
     
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
-                {textContent}
+                {entry.content}
             </p>
-            {textContent && <AudioPlayer text={textContent} />}
+            <AudioPlayer text={entry.content} />
         </div>
     );
 };
@@ -174,38 +169,44 @@ const getActionIcon = (content: string) => {
 
 
 const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }) {
-    let content;
+    let contentComponent;
+
+    // Ação interna do sistema, não deve ser renderizada.
+    if (entry.type === 'action' && typeof entry.content === 'string' && (entry.content.startsWith("Recarregar estado atual") || entry.content.startsWith("A aventura começa."))) {
+        return null;
+    }
+
     switch(entry.type) {
         case 'narration':
-            content = <NarrationEntry entry={entry} />;
+            contentComponent = <NarrationEntry entry={entry} />;
             break;
         case 'action':
-            if (typeof entry.content === 'string' && entry.content.startsWith("Recarregar estado atual")) {
-                 content = null; // Don't render refresh actions
-            } else {
-                content = (
+             if (typeof entry.content === 'string' && entry.content.trim()) {
+                 contentComponent = (
                     <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
                         <div className="flex-shrink-0 pt-1">{getActionIcon(entry.content as string)}</div>
                         <p className="text-amber-400 font-semibold">{entry.content}</p>
                     </div>
                 );
-            }
+             } else {
+                 contentComponent = null;
+             }
             break;
         case 'roll':
-            content = <RollEntry entry={entry} />;
+            contentComponent = <RollEntry entry={entry} />;
             break;
         case 'system':
-             content = <p className="text-yellow-500/80 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><Sparkles className="h-4 w-4"/> {entry.content} </p>;
+             contentComponent = <p className="text-yellow-500/80 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><Sparkles className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'combat':
-             content = <p className="text-red-400 text-sm font-semibold">{entry.content}</p>;
+             contentComponent = <p className="text-red-400 text-sm font-semibold">{entry.content}</p>;
              break;
         case 'insight':
-             content = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
+             contentComponent = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'image':
             const imageContent = entry.content as any;
-            content = (
+            contentComponent = (
                 <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
                     {imageContent.status === 'done' && imageContent.url ? (
                         <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
@@ -224,16 +225,13 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             );
             break;
         default:
-             // Fallback for any unexpected type or simple string content
-            if (typeof entry.content === 'string' && entry.type !== 'action') {
-                content = <NarrationEntry entry={{...entry, type: 'narration'}} />;
-            } else {
-                content = null;
-            }
+             // If the type is unknown or invalid, render nothing.
+             contentComponent = null;
     }
-    if(content === null) return null;
+    
+    if(contentComponent === null) return null;
 
-    return <div className="animate-fadeIn" style={{animationDuration: '500ms'}}>{content}</div>;
+    return <div className="animate-fadeIn" style={{animationDuration: '500ms'}}>{contentComponent}</div>;
 });
 
 
