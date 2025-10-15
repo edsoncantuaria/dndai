@@ -179,7 +179,7 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (gameStage === 'loading' || (isLoadingData && gameStage !== 'playing')) {
+        if (gameStage === 'loading') {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
