@@ -147,14 +147,17 @@ export const useNewGameState = () => {
                 if (lastStateLog?.response) {
                      try {
                         const lastState = JSON.parse(lastStateLog.response);
-                        handleApiResponse(lastState, true);
+                        // Restore state from the last full snapshot, but DO NOT add its logEntries again.
+                        handleApiResponse(lastState, true); 
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else if (displayLogs.length === 0) {
+                    // This is a brand new session, start the game.
                     await startGame(id);
                 } else {
+                    // Session has logs but no state snapshot, request a refresh from the GM.
                      await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 

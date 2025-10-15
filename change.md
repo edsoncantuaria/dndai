@@ -54,16 +54,15 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 
 ### 2.2. Causa Raiz e Filosofia de Correção
 - **Resposta Inválida da IA:** A IA, em certas situações, retornava `logEntries` como um array de `null`s, ou um `content` de log como um JSON stringificado.
-- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção.
-- **Confiança na Auto-Correção:** O sistema dependia de uma chamada de "re-try" para a IA, tornando a exceção a regra.
+- **Saneamento Insuficiente no Backend:** O `narrarService.ts` não estava preparado para esse tipo de corrupção. A dependência da chamada de "re-try" para a IA tornava a exceção a regra, em vez de ser um mecanismo de segurança para casos raros.
 
 ### 2.3. Solução Implementada e Validação
 
 #### **Backend (Defesa em Profundidade)**
 - **O que foi feito:**
-    1.  **Prompt Explícito (`regrasBase.ts`):** O prompt agora proíbe explicitamente a IA de retornar `null` em campos de objeto, instruindo-a a usar `[]` ou `{}`.
-    2.  **Validação Robusta (`gameSchemas.ts`):** Os schemas Zod foram ajustados. Campos como `worldState` e `combatState` são `optional()`, mas se presentes, **não podem ser `null`**.
-    3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta qualquer entrada de log que não seja um objeto bem-formado. Adicionalmente, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão.
+    1.  **Prompt Explícito (`regrasBase.ts`):** O prompt foi fortalecido com uma instrução explícita que proíbe a IA de retornar `null` em campos de objeto (como `worldState`), instruindo-a a usar `[]` ou `{}`.
+    2.  **Validação Robusta (`gameSchemas.ts`):** Os schemas Zod foram ajustados para que campos como `worldState` e `combatState` sejam `optional()`, mas se presentes, **não podem ser `null`**. Isso impõe um contrato de dados mais rígido.
+    3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta agressivamente qualquer entrada de log que não seja um objeto bem-formado. Mais importante, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão, tornando-a uma verdadeira exceção.
 - **Como Testar:**
   - [ ] Execute a ação que causava o erro anteriormente ("Examinar o conteúdo da Dungeoneer's Pack"). O jogo **não deve** mais quebrar. A narração deve continuar normalmente, e os logs do backend não devem mostrar o `ZodError`.
 
@@ -79,13 +78,17 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 - **Objetivo:** Criar uma UI dedicada para testar subsistemas críticos de forma isolada, acelerando a depuração e a validação de novas funcionalidades.
 - **O que foi feito:**
     1.  **Novo Layout de Menu (`GameContainer.tsx`):** Foram adicionados botões de "Configurações" e "Testes do Sistema" no rodapé do menu principal para acesso fácil.
-    2.  **Modal de Testes (`DiceTestModal.tsx`):** Um novo componente foi criado para servir como um painel de controle de testes.
-    3.  **Teste de Rolagem de Dados:** A primeira ferramenta implementada permite configurar (quantidade, tipo de dado, modificador, vantagem/desvantagem) e executar o `DiceRollModal`, testando a rolagem 3D e a lógica de cálculo de forma isolada.
+    2.  **Modal de Testes (`SystemTestModal.tsx`):**
+        - O antigo `DiceTestModal` foi renomeado e expandido para servir como um painel de controle de testes.
+        - **Teste de Rolagem de Dados:** Permite configurar (quantidade, tipo de dado, modificador) e executar o `DiceRollModal` para testar a rolagem 3D e a lógica de cálculo de forma isolada.
+        - **Teste de Estado de Loja:** Um novo botão "Testar Loja" foi adicionado. Ao ser clicado, ele aciona a função `triggerTestShop` no hook `useInteractionManager`, que popula o `shopState` com dados de teste e abre o `ShopModal`.
+        - **Teste de Estado de Combate:** Um novo botão "Testar Combate" foi adicionado. Ele aciona `triggerTestCombat`, que popula o `combatState` com um cenário de combate de exemplo e exibe o `NewCombatTracker`.
+    3.  **Lógica de Estado (`useInteractionManager.ts`):** Novas funções `triggerTestShop` e `triggerTestCombat` foram criadas para injetar estados de teste na aplicação.
 - **Como Testar:**
   - [ ] No menu principal, clique no botão "Testes do Sistema".
-  - [ ] O modal "Configurar Teste de Dados" deve aparecer.
-  - [ ] Configure uma rolagem (ex: 2d8 + 3) e clique em "Rolar o Dado".
-  - [ ] Verifique se o modal de rolagem 3D (`DiceRollModal`) aparece e executa a rolagem corretamente. O resultado deve ser logado no console do navegador.
+  - [ ] **Teste de Dados:** Configure uma rolagem (ex: 2d8 + 3) e clique em "Rolar o Dado". Verifique se o modal de rolagem 3D (`DiceRollModal`) aparece e executa a rolagem corretamente.
+  - [ ] **Teste de Loja:** Clique em "Testar Loja". Verifique se o `ShopModal` aparece populado com itens de compra e venda de exemplo.
+  - [ ] **Teste de Combate:** Clique em "Testar Combate". Verifique se o `NewCombatTracker` aparece na tela principal com um cenário de combate simulado.
 
 ---
 
@@ -94,8 +97,8 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 - **Refatoração dos Hooks (`useGameState`):**
   - **O que foi feito:** O hook monolítico `newUseGameState.ts` foi quebrado em hooks menores com responsabilidades únicas (`useCharacterState`, `useGameLog`, `useInteractionManager`). `newUseGameState.ts` agora serve como um orquestrador.
 - **Carregamento do Menu Principal:**
-  - **O que foi feito:** O carregador inicial no `GameContainer.tsx` foi removido.
+  - **O que foi feito:** O carregador inicial no `GameContainer.tsx` foi removido para uma transição mais suave.
 - **Correção de Duplicação de Logs:**
-  - **O que foi feito:** A função `handleApiResponse` em `newUseGameState.ts` agora aceita um parâmetro `isRestoring`, que impede a re-renderização de logs ao carregar uma sessão salva.
+  - **O que foi feito:** A função `handleApiResponse` em `newUseGameState.ts` agora aceita um parâmetro `isRestoring`, que impede a re-renderização de logs ao carregar uma sessão salva, consertando o bug de logs duplicados.
 
 Este documento agora reflete o estado funcional e esperado do sistema após a refatoração completa.
