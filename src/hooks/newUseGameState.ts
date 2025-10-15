@@ -43,6 +43,8 @@ export const useNewGameState = () => {
             return;
         }
 
+        // The 'sanitizeLogEntries' function in the backend now guarantees logEntries is an array of valid objects.
+        // Thus, we can trust the data structure here.
         if (!isRestoring && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             logState.addLogEntries(newLogEntries);
@@ -52,6 +54,7 @@ export const useNewGameState = () => {
              characterState.updateCharacter(response.updatedCharacter);
         }
         
+        // Backend now guarantees worldState is an object if present.
         if (response.worldState) {
             characterState.updateCharacter({ worldState: response.worldState });
         }
@@ -66,7 +69,9 @@ export const useNewGameState = () => {
             interactionState.setActionOptions(response.actionOptions);
         }
         
+        // Backend now guarantees combatState is an object if present.
         if (response.combatState) interactionState.setCombatState(response.combatState);
+        
         if (response.levelUpState) interactionState.setRequest({ type: 'levelUp', request: response.levelUpState });
         if (response.shopState) interactionState.setRequest({ type: 'shop', request: response.shopState });
         if (response.lootOffer) interactionState.setRequest({ type: 'loot', request: response.lootOffer });
@@ -80,16 +85,13 @@ export const useNewGameState = () => {
     const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         
-        // Allow test actions to proceed without a session ID by creating a temporary one.
-        let isTestAction = false;
+        // Allow test actions to proceed without a session ID by using a mock ID and character.
         let finalSessionId = currentSessionId;
         if (!finalSessionId) {
-            isTestAction = true;
             finalSessionId = -1; // Use a mock session ID for tests
             console.log("[processPlayerAction] No active session. Running in test mode.");
-             if (!characterState.character) {
+            if (!characterState.character) {
                 // If there's no character, create a temporary one for the test.
-                console.log("[processPlayerAction] Creating mock character for test.");
                 const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' });
                 characterState.setCharacter(mockCharacter);
             }
@@ -106,23 +108,20 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
-        if (!isInternalAction && !isTestAction) {
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
+        if (!isInternalAction && finalSessionId !== -1) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
         }
 
         interactionState.setActionOptions([]); 
         
         try {
-            console.log(`[processPlayerAction] Sending action to backend. Session: ${finalSessionId}, Action: "${action}"`);
             const responseData = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
-            console.log("[processPlayerAction] Response from AI received:", responseData);
+            console.log("[processPlayerAction] Resposta da IA recebida:", responseData);
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            // Re-throw for specific test handling
-            throw error;
         } finally {
             setIsLoading(false); 
         }
@@ -162,14 +161,17 @@ export const useNewGameState = () => {
                 if (lastStateLog?.response) {
                      try {
                         const lastState = JSON.parse(lastStateLog.response);
+                        // Restore state from the last full snapshot, but DO NOT add its logEntries again.
                         handleApiResponse(lastState, true); 
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else if (displayLogs.length === 0) {
+                    // This is a brand new session, start the game.
                     await startGame(id);
                 } else {
+                    // Session has logs but no state snapshot, request a refresh from the GM.
                      await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 
