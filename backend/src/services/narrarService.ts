@@ -235,7 +235,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = user?.settings?.model || "gemini-1.5-flash";
+    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
     const generationConfig = user?.settings?.generationConfig || {};
 
 
