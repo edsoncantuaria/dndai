@@ -174,5 +174,3 @@ const NewCombatTracker: React.FC = () => {
 };
 
 export default NewCombatTracker;
-
-    

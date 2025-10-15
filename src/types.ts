@@ -352,7 +352,7 @@ export interface Combatant {
     id: string;
     name: string;
     isPlayer?: boolean;
-    hp?: { current: number; max: number; };
+    hp?: { current: number; max: number };
     maxHp?: number; // compatibilidade
     ac?: number;
     initiative?: number;
