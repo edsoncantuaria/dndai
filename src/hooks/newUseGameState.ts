@@ -129,17 +129,20 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        // This is a safety measure. If the AI returns a malformed logEntries array, fix it.
         if (Array.isArray(response.logEntries)) {
-            if (response.logEntries.length > 1 && response.logEntries[0] === 'narration' && typeof response.logEntries[1] === 'string') {
-                response.logEntries = [{ type: 'narration', content: response.logEntries[1] }];
-            } else {
-                response.logEntries = response.logEntries.filter((entry: any) => typeof entry === 'object' && entry !== null && entry.type && entry.content);
-            }
-        }
-
-        if (response.logEntries && Array.isArray(response.logEntries)) {
-            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+            const parsedLogEntries = response.logEntries.map((entry: any) => {
+                if (typeof entry === 'string') {
+                    try {
+                        return JSON.parse(entry);
+                    } catch (e) {
+                        console.warn("Could not parse log entry string:", entry, e);
+                        return null; // Ignore malformed strings
+                    }
+                }
+                return entry;
+            }).filter((entry: any): entry is LogEntry => entry !== null && typeof entry === 'object' && entry.type && entry.content);
+            
+            const newLogEntries = parsedLogEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
 
@@ -270,17 +273,17 @@ export const useNewGameState = () => {
 
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
+                
                 const formattedLogs = (sessionDetails.logs || []).map(log => ({
                     ...log,
                     id: log.id?.toString() || uuidv4(),
-                    content: log.response,
+                    content: log.response, // Mapeia 'response' para 'content' para a UI
                 }));
                 
                 setCharacter(fullCharacter);
-                setLog(formattedLogs);
+                setLog(formattedLogs); 
                 setSessionId(id);
 
-                // If logs exist, it's a continued session. Restore state from the last narration.
                 if (formattedLogs.length > 0) {
                     const lastGmLog = [...formattedLogs].reverse().find(l => l.prompt === 'GM Response');
                     if (lastGmLog?.content) {
@@ -289,15 +292,12 @@ export const useNewGameState = () => {
                             handleApiResponse(lastState);
                         } catch(e) {
                             console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                            // As a fallback, if parsing fails, silently ask the GM to regenerate the state.
                             await processPlayerAction("Recarregar estado atual e obter opções.", id);
                         }
-                    } else if (formattedLogs.length > 0 && !formattedLogs.some(l => l.prompt === 'GM Response')) {
-                        // This handles the case where a session was created but never started.
+                    } else {
                         await startGame(id);
                     }
                 } else {
-                    // This is a brand new session, so we start the game.
                     await startGame(id);
                 }
 
