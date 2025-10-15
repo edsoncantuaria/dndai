@@ -282,7 +282,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
         const choiceGroups: EquipmentChoiceGroup[] = [];
-        const fixed: InventoryItem[] = [];
+        let fixed: InventoryItem[] = [];
     
         const addEquipment = (list: { equipment: ApiListItem, quantity: number }[] = []) => {
             list.forEach(item => fixed.push({ ...item.equipment, id: uuidv4(), quantity: item.quantity, equipped: false }));
@@ -299,6 +299,19 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
              backgroundDetails.starting_equipment_options?.forEach((choice, i) => {
                 choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice });
             });
+        }
+
+        // Add class-specific spellcasting focus if not already present
+        const hasFocus = fixed.some(item => item.index.includes('focus') || item.index.includes('holy-symbol'));
+        if (classDetails?.spellcasting && !hasFocus) {
+            const classIndex = classDetails.index;
+            if (classIndex === 'cleric' || classIndex === 'paladin') {
+                fixed.push({ id: uuidv4(), index: 'holy-symbol', name: 'Holy Symbol', quantity: 1, equipped: true });
+            } else if (classIndex === 'druid') {
+                 fixed.push({ id: uuidv4(), index: 'druidic-focus', name: 'Druidic Focus', quantity: 1, equipped: true });
+            } else if (['sorcerer', 'warlock', 'wizard'].includes(classIndex)) {
+                 fixed.push({ id: uuidv4(), index: 'arcane-focus', name: 'Arcane Focus', quantity: 1, equipped: true });
+            }
         }
         
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
