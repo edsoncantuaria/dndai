@@ -168,8 +168,9 @@ export const useNewGameState = () => {
         
     }, []);
     
-    const processPlayerAction = useCallback(async (action: string) => {
-        if (!sessionId) {
+    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number) => {
+        const currentSessionId = sessionIdOverride ?? sessionId;
+        if (!currentSessionId) {
             console.error("[processPlayerAction] Aborted: No sessionId.");
             return;
         }
@@ -194,7 +195,7 @@ export const useNewGameState = () => {
         setActionOptions([]); 
         
         try {
-            const responseData = await GameService.processPlayerAction(sessionId, action, key, combatState);
+            const responseData = await GameService.processPlayerAction(currentSessionId, action, key, combatState);
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
@@ -256,12 +257,12 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
 
-    const startGame = useCallback(async (): Promise<void> => {
-        if (!character || !sessionId || isLoading) return;
+    const startGame = useCallback(async (newSessionId: number): Promise<void> => {
+        if (isLoading) return;
+        setSessionId(newSessionId);
+        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", newSessionId);
         
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
-        
-    }, [character, sessionId, isLoading, processPlayerAction]);
+    }, [isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
         clearGameState();
@@ -283,9 +284,8 @@ export const useNewGameState = () => {
                 setSessionId(id);
 
                 // If logs exist, it's a continued session. Request action options.
-                // If not, the startGame function (called from GameContainer) will handle it.
                 if (formattedLogs.length > 0) {
-                    await processPlayerAction("Recarregar estado atual e obter opções.");
+                    await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 
                 return { character: fullCharacter, logs: formattedLogs };

@@ -21,7 +21,6 @@ type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 
 const GameContainer = () => {
     const {
         character,
-        sessionId,
         log,
         loadGameSession,
         clearGameState,
@@ -107,7 +106,7 @@ const GameContainer = () => {
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
     // --- Navigation and Actions ---
-    const handleNewGameFromVault = async (char: Character) => {
+    const handleNewGameFromVault = useCallback(async (char: Character) => {
         console.log(`[GameContainer] handleNewGameFromVault called for character: ${char.id}`);
         setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
@@ -127,11 +126,12 @@ const GameContainer = () => {
             );
 
             if (newSessionResponse && newSessionResponse.sessao) {
-                console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Loading it now.`);
+                console.log(`[GameContainer] New session created: ${newSessionResponse.sessao.id}. Starting it now.`);
+                setPlayMenuMusic(false);
+                // The character is loaded here, but the game start logic will be handled by startGame
                 const loadedData = await loadGameSession(newSessionResponse.sessao.id);
-                if (loadedData) {
-                    setPlayMenuMusic(false);
-                    await startGame(); // Start the game since it's brand new
+                if(loadedData) {
+                    await startGame(newSessionResponse.sessao.id);
                 }
             } else {
                 throw new Error("Failed to create a new session from the server.");
@@ -140,7 +140,7 @@ const GameContainer = () => {
             console.error("[GameContainer] Failed to start new game session:", error);
             setGameStage('main_menu');
         }
-    };
+    }, [useAiHomebrew, loadGameSession, startGame, setPlayMenuMusic]);
     
     const handleCharacterCreated = () => {
          console.log('[GameContainer] Character created, returning to character_vault.');
@@ -153,7 +153,7 @@ const GameContainer = () => {
         setGameStage('playing'); // Immediately switch to playing stage to show loader
         const loadedData = await loadGameSession(sessionIdToLoad);
         if (loadedData) {
-            setPlayMenuMusic(false);
+            setPlayMenu-music(false);
         } else {
             console.log(`[GameContainer] Loading session ${sessionIdToLoad} failed, returning to main_menu.`);
             setGameStage('main_menu');
@@ -186,7 +186,7 @@ const GameContainer = () => {
 
     const renderContent = () => {
         // Master loading screen
-        if (gameStage === 'loading' || isLoadingData || (gameStage === 'playing' && isGameLoading)) {
+        if (gameStage === 'loading' || isLoadingData || (gameStage === 'playing' && isGameLoading && !log.length)) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
