@@ -173,5 +173,36 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
     }
 });
 
+// Rota para níveis de subclasse
+router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
+    const { subclassIndex } = req.params;
+    console.log(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`);
+    try {
+        let data;
+        if (isUuid(subclassIndex)) {
+            const hbContent = await HomebrewService.getHomebrewContentById(subclassIndex);
+            if (!hbContent) {
+                return next(createError(404, `Subclasse homebrew com ID '${subclassIndex}' não encontrada.`));
+            }
+            const features = (hbContent.content as any).features || [];
+            
+            // Simular a estrutura de API para níveis
+            data = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
+                level: level,
+                features: features.filter((f: any) => f.level === level)
+            }));
+        } else {
+            data = await DndApiService.getDetails('subclasses', `${subclassIndex}/levels`);
+        }
+
+        if (!data) {
+            return next(createError(404, `Níveis para a subclasse '${subclassIndex}' não encontrados.`));
+        }
+        res.json(data);
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 export default router;
