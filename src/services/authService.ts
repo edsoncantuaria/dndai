@@ -45,3 +45,12 @@ export const activateUserLicense = async (licenseKey: string) => {
         body: JSON.stringify({ key: licenseKey }),
     });
 };
+
+/**
+ * Confirma que o usuário leu e aceitou o aviso sobre o sistema homebrew.
+ */
+export const acknowledgeHomebrewDisclaimer = async () => {
+    return apiClient<{ success: boolean, message: string }>('/users/me/acknowledge-homebrew', {
+        method: 'POST',
+    });
+};

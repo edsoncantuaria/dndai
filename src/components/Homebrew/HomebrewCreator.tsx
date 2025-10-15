@@ -13,6 +13,7 @@ import ClassForm from './forms/ClassForm';
 import SubclassForm from './forms/SubclassForm';
 import MonsterForm from './forms/MonsterForm';
 import FeatForm from './forms/FeatForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -25,6 +26,13 @@ interface Props {
 
 const DisclaimerScreen: React.FC<{ onAcknowledge: () => void, onCancel: () => void }> = ({ onAcknowledge, onCancel }) => {
     const [isChecked, setIsChecked] = useState(false);
+    const { acknowledgeHomebrew, isLoading } = useAuth();
+    
+    const handleAcknowledge = async () => {
+        if (!isChecked) return;
+        await acknowledgeHomebrew();
+        onAcknowledge();
+    };
 
     return (
         <div className="bg-stone-900/50 p-6 rounded-lg border-2 border-amber-600/50 animate-fadeIn flex flex-col">
@@ -53,11 +61,11 @@ const DisclaimerScreen: React.FC<{ onAcknowledge: () => void, onCancel: () => vo
                 </button>
                 <button
                     type="button"
-                    onClick={onAcknowledge}
-                    disabled={!isChecked}
+                    onClick={handleAcknowledge}
+                    disabled={!isChecked || isLoading}
                     className="menu-button btn-new flex items-center justify-center gap-2 text-lg px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    Prosseguir
+                    {isLoading ? <Loader2 className="animate-spin" /> : "Prosseguir"}
                 </button>
             </div>
         </div>
@@ -66,15 +74,19 @@ const DisclaimerScreen: React.FC<{ onAcknowledge: () => void, onCancel: () => vo
 
 
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
-    const [hasAcknowledged, setHasAcknowledged] = useState(false);
+    const { user } = useAuth();
     const [type, setType] = useState<HomebrewService.HomebrewContentType>('race');
     const [contentData, setContentData] = useState<any>(null);
     const [isPublic, setIsPublic] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    
+    // The component is only rendered after this check, so we can assume user is not null.
+    const hasAcknowledged = user?.acknowledgedHomebrewDisclaimer || false;
+    const [isDisclaimerAcknowledged, setIsDisclaimerAcknowledged] = useState(hasAcknowledged);
 
-    if (!hasAcknowledged) {
-        return <DisclaimerScreen onAcknowledge={() => setHasAcknowledged(true)} onCancel={onCancel} />;
+    if (!isDisclaimerAcknowledged) {
+        return <DisclaimerScreen onAcknowledge={() => setIsDisclaimerAcknowledged(true)} onCancel={onCancel} />;
     }
 
     const handleSubmit = async (e: React.FormEvent) => {

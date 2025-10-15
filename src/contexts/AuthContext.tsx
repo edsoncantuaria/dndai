@@ -10,6 +10,7 @@ interface User {
     username: string;
     licenseKey?: { isActivated: boolean };
     settings?: any;
+    acknowledgedHomebrewDisclaimer?: boolean;
 }
 
 interface AuthContextType {
@@ -23,6 +24,7 @@ interface AuthContextType {
     activateLicense: (licenseKey: string) => Promise<boolean>;
     saveApiKey: (apiKey: string) => Promise<boolean>;
     logout: () => void;
+    acknowledgeHomebrew: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -86,7 +88,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
         validateSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSettingsLoaded]); // Depend on isSettingsLoaded to ensure we sync only after context is ready.
+    }, [isSettingsLoaded]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
@@ -192,6 +194,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         });
         return true;
     };
+    
+     const acknowledgeHomebrew = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            await authService.acknowledgeHomebrewDisclaimer();
+            setUser(prev => prev ? { ...prev, acknowledgedHomebrewDisclaimer: true } : null);
+        } catch (err: any) {
+            toast({
+                variant: "destructive",
+                title: "Erro ao Salvar",
+                description: err.message || 'Não foi possível salvar sua preferência.',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     const value: AuthContextType = {
         user,
@@ -203,7 +223,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         register,
         activateLicense,
         saveApiKey,
-        logout
+        logout,
+        acknowledgeHomebrew,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
