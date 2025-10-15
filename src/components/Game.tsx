@@ -18,7 +18,7 @@ const CharacterCreation = dynamic(() => import('@/components/CharacterCreation')
 });
 
 
-export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing';
+export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
 
 
 interface GameProps {
@@ -28,15 +28,14 @@ interface GameProps {
 }
 
 export default function Game({ onCharacterCreated, returnToMenu, gameStage }: GameProps) {
-    const { character, log, isLoading } = useGameStateContext();
+    const { character, isLoading } = useGameStateContext();
 
-    // If we are in the 'playing' stage, always render the GameScreen.
-    // The GameScreen itself will handle showing loaders for its internal state.
-    if (gameStage === 'playing') {
+    // Se o estágio é 'playing', e o personagem está carregado, mostre a tela de jogo.
+    if (gameStage === 'playing' && character) {
         return <GameScreen returnToMenu={returnToMenu} />;
     }
 
-    // Otherwise, show the creation screen if that's the stage.
+    // Se o estágio é criando personagem, mostre o criador.
     if(gameStage === 'creating_character') {
       return (
           <CharacterCreation 
@@ -44,7 +43,8 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage }: Ga
           />
       );
     }
-
-    // Fallback or menu state handled by GameContainer
+    
+    // Se o estágio é 'playing' mas o personagem ainda não carregou, o GameContainer mostrará o loader.
+    // Este componente não deve mais renderizar loaders ou menus, apenas as telas de jogo ou criação.
     return null; 
 };

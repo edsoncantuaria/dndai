@@ -258,6 +258,7 @@ export const useNewGameState = () => {
                 setCharacter(fullCharacter);
                 setLog(formattedLogs); // Usa os logs formatados
                 setSessionId(id);
+                setIsLoading(false); // Signal that loading is complete
                 
                 return { character: fullCharacter, logs: formattedLogs };
             } else {
@@ -266,9 +267,8 @@ export const useNewGameState = () => {
         } catch(err: any) {
             setApiError(err.message);
             clearGameState();
+            setIsLoading(false); // Also stop loading on error
             return null;
-        } finally {
-            setIsLoading(false);
         }
     }, [clearGameState]);
 
@@ -394,6 +394,5 @@ export const useNewGameState = () => {
         setCharacter,
         setLog,
         setSessionId,
-        setIsLoading
     };
 };

@@ -179,7 +179,8 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        if (gameStage === 'loading' || isGameLoading) {
+        // Master loading screen
+        if (gameStage === 'loading' || isLoadingData || (gameStage === 'playing' && isGameLoading)) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
@@ -188,7 +189,8 @@ const GameContainer = () => {
             );
         }
 
-        if (gameStage === 'playing') {
+        // Once loaded, if the stage is 'playing', render the Game component.
+        if (gameStage === 'playing' && character) {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}
