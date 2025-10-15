@@ -35,7 +35,8 @@ export const AppDataSource = new DataSource({
      * com base nas entidades. Ótimo para desenvolvimento, mas para produção
      * é recomendado usar migrações (`synchronize: false`).
      */
-    synchronize: true, 
+    synchronize: true,
+    dropSchema: true, // Adicionado para limpar o banco de dados na inicialização
     logging: false, // Mude para true para ver as queries SQL no console
     
     // Lista de todas as entidades que o TypeORM deve gerenciar
