@@ -1,171 +1,55 @@
-# Refatoração do Backend: Rumo a uma Plataforma de RPG com Múltiplas Sessões
+# Como o Backend foi Melhorado: Mais Inteligente, Resiliente e Eficiente
 
-* **Objetivo:** Substituir a lógica de jogo do frontend por um backend Node.js robusto. Este backend gerenciará múltiplas sessões de jogo, cada uma com sua própria instância de IA (Genkit/Gemini) e persistência de dados em um banco de dados MySQL, utilizando TypeORM.
+Este documento detalha as melhorias cruciais implementadas no backend para resolver problemas de instabilidade, melhorar a lógica do jogo e otimizar o desempenho.
 
-Este documento servirá como nosso guia mestre para a Fase 2 da migração do backend.
+## Antes: Uma Arquitetura Frágil
 
----
+O sistema original sofria de vários problemas:
 
-## **Visão Geral da Arquitetura**
+1.  **Confiança Cega na IA:** O backend aceitava a resposta da IA sem questionar. Se a IA retornasse um JSON malformatado, com campos faltando (como `actionOptions`) ou com dados em um formato inesperado (como um array de caracteres em vez de um objeto), o sistema quebrava. Isso causava erros de validação Zod, crashes e uma péssima experiência de usuário.
 
-O novo backend será uma API RESTful construída com Express.js, responsável por:
+2.  **Lógica de Jogo Implícita:** As "regras" para a IA eram muito vagas. Não havia uma instrução clara sobre *quando* solicitar uma rolagem de dados. Isso levava a IA a pedir rolagens para ações triviais ou, pior, a não pedir rolagens para ações que claramente exigiam uma, quebrando a mecânica principal do jogo.
 
-1.  **Gerenciamento de Sessões**: Um endpoint para criar, recuperar, atualizar e deletar sessões de jogo (`SessaoIA`). Cada sessão terá sua própria chave de API do Google Gemini, permitindo que os jogadores usem suas próprias credenciais. **Atualização**: As sessões agora também armazenarão uma lista de IDs de conteúdo Homebrew "instalados" para aquela campanha específica.
-2.  **Orquestração da IA**: Um serviço dedicado (`aiService`) que cria e gerencia instâncias isoladas do Genkit para cada sessão. Isso garante que a IA de uma sessão não interfere com outra.
-3.  **Cache de Instâncias**: Para evitar a sobrecarga de reinicializar o Genkit a cada requisição, as instâncias de IA serão mantidas em um cache in-memory (um `Map` simples).
-4.  **Narração**: O endpoint principal `/api/narrar/:sessionId` receberá o prompt do jogador, encontrará a instância de IA correta (ou a criará), obterá a resposta e a retornará.
-5.  **Persistência de Logs**: Todas as interações (prompts do jogador e respostas da IA) serão salvas em uma tabela `session_logs`, vinculada à sessão correspondente.
-6.  **Segurança e Configuração**: As chaves de API serão armazenadas de forma segura (neste caso, no banco de dados, associadas a cada sessão) e a configuração geral será gerenciada por um arquivo `.env`.
+3.  **Uso Ineficiente de Tokens:** Em cada turno, o backend enviava o JSON completo de *todo* o conteúdo homebrew "instalado" para a IA. Com apenas alguns itens customizados, isso já aumentava drasticamente o tamanho do prompt, arriscando estourar o limite de tokens da IA e aumentando os custos de cada chamada.
 
-### **Estrutura de Diretórios Planejada**
+## Depois: Uma Arquitetura Robusta e Inteligente
 
-```
-/backend
-  /src
-    /controllers       # Lógica de requisição/resposta (ex: narrarController.ts)
-    /database          # Configuração do TypeORM (data-source.ts) e migrações
-    /entities          # Modelos de dados do TypeORM (SessaoIA.ts, SessionLog.ts)
-    /middlewares       # Middlewares customizados (ex: errorMiddleware.ts)
-    /routes            # Definição dos endpoints da API (ex: narrarRoutes.ts)
-    /services          # Lógica de negócios (ex: aiService.ts)
-    /utils             # Funções utilitárias (opcional)
-    server.ts          # Ponto de entrada do servidor Express
-  .env.example         # Exemplo de arquivo de configuração
-  package.json
-  tsconfig.json
-```
+As melhorias foram focadas em tornar o backend mais defensivo, explícito e eficiente.
 
----
+### 1. Validação e Auto-Reparo da Resposta da IA
 
-## **Fases da Implementação**
+**Como Está Agora:**
+No arquivo `backend/src/services/aiService.ts`, a resposta da IA passa por um processo rigoroso de validação e, se necessário, auto-reparo.
 
-### **Fase 2.1: Estrutura e Gerenciamento de Sessões (Concluído)**
+1.  **Validação com Zod:** A resposta é imediatamente validada contra o `GameMasterResponseSchema`.
+2.  **Primeira Falha (Erro de Formato):** Se a resposta não for um JSON válido, em vez de quebrar, o serviço faz uma **segunda chamada** para a IA com uma instrução de correção: *"Sua resposta anterior não era um JSON válido. Por favor, corrija o formato."*
+3.  **Segunda Falha (Falta de Opções):** Se a resposta for um JSON válido, mas faltarem as cruciais `actionOptions` (deixando o jogador preso), o serviço faz uma **chamada de auto-reparo**: *"A aventura não pode parar. Forneça 2-4 opções de ação para o jogador..."*. Essa nova resposta com as opções é então mesclada com a resposta original.
 
-*   **[X] Configurar o Projeto Node.js**:
-    *   Ajustar `package.json` com as dependências: `express`, `dotenv`, `typeorm`, `mysql2`, `@google/generative-ai`, `genkit`.
-    *   Criar `tsconfig.json` para o projeto TypeScript.
-    *   Criar `.env.example` com as variáveis de ambiente necessárias (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `PORT`).
+**Por que Melhorou?**
+O sistema não é mais passivo. Ele ativamente se defende contra as "alucinações" da IA. Isso reduz drasticamente a chance de o jogo travar ou apresentar erros, criando uma experiência muito mais estável e fluida.
 
-*   **[X] Implementar Camada de Dados com TypeORM**:
-    *   Criar `data-source.ts` para a configuração da conexão com o MySQL.
-    *   Definir as entidades `SessaoIA` e `SessionLog` em `src/entities/`.
-        *   `SessaoIA`: `id`, `nome`, `apiKey`, `createdAt`, `updatedAt`, `homebrewContentIds`.
-        *   `SessionLog`: `id`, `sessionId`, `prompt`, `response`, `timestamp`.
+### 2. "Senso de Justiça" Explícito para a IA
 
-*   **[X] Criar Endpoints CRUD para Sessões**:
-    *   Definir rotas em `src/routes/` e lógica nos `src/controllers/` para:
-        *   `POST /api/sessoes`: Criar uma nova sessão de jogo.
-        *   `GET /api/sessoes/:id`: Obter detalhes de uma sessão (incluindo seus logs).
-        *   `PUT /api/sessoes/:id`: Atualizar uma sessão (ex: mudar o nome ou a chave).
-        *   `DELETE /api/sessoes/:id`: Deletar uma sessão.
+**Como Está Agora:**
+O principal arquivo de prompt da IA, `backend/src/game/prompts/regrasBase.ts`, foi atualizado com uma regra explícita e imutável sobre rolagens de dados, apelidada de **"O Senso de Justiça"**.
 
-### **Fase 2.2: Integração com Genkit e Narração (Concluído)**
+-   **Instrução Clara:** A IA é instruída a **NÃO** pedir rolagens para ações triviais (como examinar um item) e a **SEMPRE** pedir rolagens para ações desafiadoras com consequências interessantes para a falha.
+-   **Fluxo de Dano Detalhado:** Em `regrasCombate.ts`, o fluxo de combate agora detalha o ciclo obrigatório: **Intenção do Jogador -> Pedido de Rolagem de Ataque -> (se acertar) -> Pedido de Rolagem de DANO -> Narração Final**. Isso força a IA a nunca rolar o dano pelo jogador, preservando a mecânica central do jogo.
 
-*   **[X] Criar `aiService.ts`**:
-    *   Implementar um `Map` para cachear as instâncias de Genkit.
-    *   Criar uma função `getOrCreateAiInstance(sessionId, apiKey)` que:
-        1.  Verifica se uma instância para o `sessionId` já existe no cache.
-        2.  Se sim, a retorna.
-        3.  Se não, cria uma nova instância do Genkit usando a `apiKey` fornecida, a armazena no cache com a `sessionId` como chave e a retorna.
+**Por que Melhorou?**
+O comportamento da IA torna-se mais previsível e alinhado com as regras de um RPG de mesa. O jogo se sente mais "justo" e mecânico, evitando interrupções na imersão causadas por rolagens desnecessárias ou pela IA "roubando" o momento do jogador de rolar seu próprio dano.
 
-*   **[X] Implementar o Endpoint de Narração**:
-    *   Criar `narrarController.ts` e `narrarRoutes.ts`.
-    *   O endpoint `POST /api/narrar/:sessionId` deverá:
-        1.  Receber o `prompt` do jogador no corpo da requisição.
-        2.  Usar o `sessionId` para obter os dados da sessão do banco (incluindo a `apiKey`).
-        3.  Chamar `aiService.getOrCreateAiInstance()` para obter a instância correta do Genkit.
-        4.  Executar o prompt na instância de Genkit para obter a `response`.
-        5.  Salvar o `prompt` e a `response` na tabela `session_logs`.
-        6.  Retornar a `response` para o frontend.
+### 3. Otimização Radical do Conteúdo Homebrew
 
-### **Fase 2.3: Testes e Documentação Final (Concluído)**
+**Como Está Agora:**
+A lógica de preparação de dados em `backend/src/services/narrarService.ts` foi completamente alterada.
 
-*   **[X] Atualizar `README.md` do Backend**: Instruções detalhadas sobre como rodar o servidor e usar a API.
-*   **[X] Testar Endpoints via `curl`**: Adicionar exemplos práticos para testar a criação de sessão e o fluxo de narração.
-*   **[X] Tratamento de Erros Aprimorado**: Garantir que todos os endpoints tenham um tratamento de erro robusto e mensagens claras.
+-   **Envio de Resumos, Não de Dados Completos:** Em vez de enviar o JSON completo de cada item homebrew, o backend agora envia para a IA apenas um resumo contendo o **nome** e o **tipo** de cada item (ex: `{ "name": "(H) Espada Vorpal", "type": "item" }`).
 
----
+**Por que Melhorou?**
+Essa é uma otimização massiva. O tamanho do prompt enviado para a IA é drasticamente reduzido. Isso:
+-   **Economiza Tokens:** Reduz o custo de cada chamada à API da IA.
+-   **Evita Erros de Limite:** Impede que o jogo quebre quando o jogador tiver uma grande coleção de conteúdo homebrew.
+-   **Mantém o Contexto:** A IA ainda sabe quais itens customizados estão disponíveis e pode referenciá-los pelo nome, sem precisar de todos os detalhes técnicos em cada turno.
 
-## Testando a API (Fase 2.1 e 2.2)
-
-Você pode usar `curl` ou uma ferramenta como Postman/Insomnia para testar os endpoints. **Lembre-se de substituir `seu_token_jwt_aqui` por um token válido obtido no login.**
-
-### Pré-requisitos de Teste
-
-Para testar a ativação de licença, você precisa primeiro adicionar uma chave válida no seu banco de dados MySQL.
-
-```sql
-INSERT INTO license_keys (`key`) VALUES ('SUA-CHAVE-DE-TESTE');
-```
-
-#### **1. Criar uma nova sessão de jogo (`POST /api/sessoes`)**
-
-```bash
-curl -X POST http://localhost:8071/api/sessoes \
--H "Content-Type: application/json" \
--H "Authorization: Bearer seu_token_jwt_aqui" \
--d '{
-  "nome": "A Caverna do Dragão Esquecido",
-  "characterId": 1
-}'
-```
-**Resposta Esperada:**
-```json
-{
-    "message": "Sessão criada com sucesso!",
-    "sessao": {
-        "nome": "A Caverna do Dragão Esquecido",
-        "characterId": 1,
-        "userId": 1,
-        "logs": [],
-        "id": 1,
-        "createdAt": "...",
-        "updatedAt": "..."
-    }
-}
-```
-> Anote o `"id"` da sessão criada (ex: `1`).
-
-#### **2. Enviar um prompt para a IA narrar (`POST /api/narrar/:sessionId`)**
-
-Use o `id` da sessão da etapa anterior.
-
-```bash
-# Substitua :sessionId pelo seu ID (ex: 1)
-curl -X POST http://localhost:8071/api/narrar/1 \
--H "Content-Type: application/json" \
--H "Authorization: Bearer seu_token_jwt_aqui" \
--d '{
-  "prompt": "Eu entro na taverna com uma cara amarrada, sento no balcão e peço a bebida mais forte que tiverem."
-}'
-```
-**Resposta Esperada (Exemplo):**
-```json
-{
-    "logEntries": [
-        {
-            "type": "narration",
-            "content": "O taverneiro, um homem corpulento com um olho de vidro, te encara por um instante... O que você faz?"
-        }
-    ],
-    "actionOptions": ["Perguntar sobre rumores", "Observar o ambiente"]
-}
-```
-
-#### **3. Obter detalhes da sessão (com logs) (`GET /api/sessoes/:id`)**
-```bash
-# Substitua :id pelo seu ID de sessão
-curl -X GET http://localhost:8071/api/sessoes/1 \
--H "Authorization: Bearer seu_token_jwt_aqui"
-```
-
-#### **4. Deletar a sessão (`DELETE /api/sessoes/:id`)**
-```bash
-# Substitua :id pelo seu ID de sessão
-curl -X DELETE http://localhost:8071/api/sessoes/1 \
--H "Authorization: Bearer seu_token_jwt_aqui"
-```
-
----
-
-Ao concluir este plano, teremos um backend totalmente funcional, desacoplado e pronto para ser a base da experiência multiplayer do "Crônicas de Aventuras".
+Em suma, essas três melhorias transformaram o backend de um simples intermediário para um verdadeiro **orquestrador inteligente**, que valida, corrige, instrui e otimiza a comunicação com a IA, resultando em um jogo mais estável, justo e escalável.
