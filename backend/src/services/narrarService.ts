@@ -68,10 +68,10 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         feats: fullCharacter.feats,
         journal: fullCharacter.journal,
         relationships: fullCharacter.relationships,
-        storySoFar: fullCharacter.storySoFar,
+        storySoFar: fullCharacter.storySoFar || "",
         worldState: fullCharacter.worldState,
         factionReputation: fullCharacter.factionReputation,
-        currentRegion: fullCharacter.currentRegion,
+        currentRegion: fullCharacter.currentRegion || "",
     };
 };
 
@@ -257,7 +257,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: chronologicalLogs,
+        gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };

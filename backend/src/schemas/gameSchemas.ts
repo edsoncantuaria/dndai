@@ -167,6 +167,7 @@ const CharacterAISchema = z.object({
     storySoFar: z.string().optional(),
     worldState: WorldStateSchema.optional(),
     factionReputation: z.record(z.number()).optional(),
+    currentRegion: z.string().optional(),
 });
 
 export const GameMasterResponseSchema = z.object({
@@ -191,7 +192,7 @@ export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 export const GameMasterFlowInputSchema = z.object({
   character: CharacterAISchema.describe("A summary of the current character state."),
   playerAction: z.string().describe("The action taken by the player."),
-  gameLog: z.string().describe("A summary of the last few turns of game history."),
+  gameLog: z.string().describe("A JSON string representing a summary of the last few turns of game history."),
   combatState: CombatStateSchema.optional().describe("The current state of combat, if active."),
   installedHomebrew: z.array(z.any()).optional().describe("An array of homebrew content objects (races, classes, monsters, etc.) that are active in this session."),
 });
