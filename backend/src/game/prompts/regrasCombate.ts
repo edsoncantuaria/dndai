@@ -17,6 +17,7 @@ Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataqu
 
 **2. Mestre Solicita a Rolagem**
 - Sua resposta **DEVE** conter **APENAS** o objeto \`playerRollRequest\`.
+- **REGRA ADICIONAL:** Ao solicitar uma rolagem, **SEMPRE** forneça também \`actionOptions\` contextuais, como "Cancelar Ação" ou outras ações que não exijam uma rolagem (ex: "Mover para cobertura"). Isso garante que o jogador nunca fique sem opções.
 - **Determinação da DC (classe de dificuldade):**
   * Para testes de perícia e resistência, calcule a DC com base na chance desejada. Ex: para um d20 com bônus total de +5 (máx 25), DC Fácil ≈ 10, Média ≈ 14, Difícil ≈ 19.
   * Para ataques, a DC é a Classe de Armadura (CA) do alvo.
