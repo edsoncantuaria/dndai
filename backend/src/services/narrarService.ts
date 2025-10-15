@@ -221,33 +221,42 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 
 /**
  * Sanitizes the logEntries from the AI response to ensure they are in a consistent format.
+ * This is a critical defense layer against malformed AI output.
  * @param entries The raw logEntries array from the AI.
- * @returns A cleaned array of log entry objects.
+ * @returns A cleaned array of valid LogEntry objects.
  */
 const sanitizeLogEntries = (entries: any): any[] => {
-    if (!entries) return [];
+    // 1. Ensure we always have an array, even if the AI returns null or something else.
     if (!Array.isArray(entries)) {
-        entries = [entries];
+        return [];
     }
 
     const sanitized: any[] = [];
     for (const entry of entries) {
+        // 2. Filter out any null or undefined items in the array.
         if (!entry) continue;
 
+        // 3. Handle entries that are just strings (like "narration")
         if (typeof entry === 'string') {
-            // If it's a string, treat it as narration content.
-            sanitized.push({ type: 'narration', content: entry });
-        } else if (typeof entry === 'object' && entry.type && entry.content) {
-            // Remove any HTML tags from the content if it's a string
+            // Convert simple strings to a valid narration object.
+            // This prevents the "Expected object, received string" error.
+            if (entry.trim()) { // Only add if it's not an empty string
+                 sanitized.push({ type: 'narration', content: entry });
+            }
+        } 
+        // 4. Ensure it's an object with the minimum required fields.
+        else if (typeof entry === 'object' && entry.type && entry.content) {
+            // Remove any HTML tags from the content if it's a string, just in case.
             if (typeof entry.content === 'string') {
                 entry.content = entry.content.replace(/<[^>]*>?/gm, '');
             }
             sanitized.push(entry);
         }
-        // Discard any other invalid format
+        // 5. Discard any other invalid format.
     }
-    return sanitized.filter(Boolean); // Filter out any null/undefined entries
+    return sanitized.filter(Boolean); // Final filter for any remaining nulls.
 };
+
 
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any): Promise<GameMasterResponse> => {
@@ -300,9 +309,22 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew: installedHomebrewSummary, // Use the summarized list
     };
 
-    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
+    let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
+    }
+    
+    // --- Sanitize and Process the rest of the response ---
+    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
+    
+    // Ensure worldState is always an object, falling back to the character's current state
+    if (!aiResponse.worldState || typeof aiResponse.worldState !== 'object') {
+        aiResponse.worldState = optimizedCharacter.worldState;
+    } else {
+        aiResponse.worldState = {
+            ...optimizedCharacter.worldState,
+            ...aiResponse.worldState
+        };
     }
     
     // --- Prioritize Player Roll Request ---
@@ -314,19 +336,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             playerRollRequest: aiResponse.playerRollRequest, 
             actionOptions: aiResponse.actionOptions || [] 
         } as GameMasterResponse;
-    }
-
-    // --- Sanitize and Process the rest of the response ---
-    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
-    
-    // Ensure worldState is always an object, falling back to the character's current state
-    if (!aiResponse.worldState) {
-        aiResponse.worldState = optimizedCharacter.worldState;
-    } else {
-        aiResponse.worldState = {
-            ...optimizedCharacter.worldState,
-            ...aiResponse.worldState
-        };
     }
     
     // Log da ação do jogador, a menos que seja uma recarga interna do sistema
@@ -384,6 +393,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.updatedCharacter) {
         await persistCharacterUpdates(sessao.character.id, aiResponse.updatedCharacter);
     } else if (aiResponse.worldState) {
+        // Persist worldState even if there are no other character updates
         await persistCharacterUpdates(sessao.character.id, { worldState: aiResponse.worldState });
     }
     

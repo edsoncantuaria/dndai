@@ -109,6 +109,13 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             const response = result.response;
             const jsonText = response.text();
+            
+            if (!jsonText) {
+                 console.error(`[geminiService] Resposta da IA vazia na tentativa ${retry ? 2 : 1}.`);
+                 if (!retry) return attemptGeneration(true);
+                 throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
+            }
+            
             console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${retry ? 2 : 1}):`, jsonText); 
 
             let responseData: any;
@@ -121,13 +128,13 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     }
                 }
                 responseData = JSON.parse(textToParse);
-            } catch(e) {
+            } catch(e: any) {
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${retry ? 2 : 1}:`, e);
                 if (!retry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
                     return await attemptGeneration(true);
                 }
-                throw new Error("O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção.");
+                throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
             // Validação com Zod e auto-correção
