@@ -154,6 +154,22 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
+            // 🔧 Correção automática de strings JSON aninhadas em logEntries
+            if (Array.isArray(responseData.logEntries)) {
+              responseData.logEntries = responseData.logEntries.map((entry: any) => {
+                if (typeof entry === "string") {
+                  try {
+                    const parsed = JSON.parse(entry);
+                    if (typeof parsed === "object" && parsed !== null) return parsed;
+                  } catch {
+                    // Se não for um JSON válido, converte em objeto de narração simples
+                    return { type: "narration", content: entry };
+                  }
+                }
+                return entry; // Retorna a entrada original se já for um objeto
+              });
+            }
+
             // Validação final com Zod
             const validationResult = GameMasterResponseSchema.safeParse(responseData);
             if (!validationResult.success) {
@@ -169,7 +185,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
         } catch (error: any) {
             console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-            const errorMessage = error.details?.message || error.message;
+            const errorMessage = (error as any).details?.message || (error as any).message;
             throw new Error(`Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
         }
     }
