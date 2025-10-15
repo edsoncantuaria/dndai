@@ -127,7 +127,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         <div className="relative z-10 w-full max-w-6xl mx-auto flex flex-col text-center animate-fadeIn p-4 sm:p-6">
             <header className="mb-8 text-center">
                 <div className="flex items-center justify-center gap-3">
-                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
+                    <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Oficina Homebrew
                     </h1>
                      <button onClick={() => setShowDisclaimer(true)} className="text-stone-500 hover:text-amber-300 transition-colors" title="Informações Importantes">
@@ -149,7 +149,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             className="w-full bg-stone-900/70 border-2 border-stone-700 rounded-md p-2 pl-10 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
                         />
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2">
+                    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
                         <button onClick={() => setTypeFilter('all')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>Todos</button>
                         {CONTENT_TYPES.map(t => (
                             <button key={t} onClick={() => setTypeFilter(t)} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors whitespace-nowrap ${typeFilter === t ? 'bg-amber-600 text-stone-900' : 'bg-stone-800 text-stone-300 hover:bg-stone-700'}`}>
@@ -181,7 +181,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     ) : filteredContent.length === 0 ? (
                         <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado com estes filtros.</p>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             <AnimatePresence>
                                 {filteredContent.map((item, i) => {
                                     const isInstalled = installedIds.has(item.id);
@@ -192,7 +192,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, scale: 0.8 }}
-                                        transition={{ delay: i * 0.05 }}
+                                        transition={{ duration: 0.2 }}
                                         className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between"
                                     >
                                         <div>
@@ -225,7 +225,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     </motion.div>
                                 )})}
                             </AnimatePresence>
-                        </div>
+                        </motion.div>
                     )}
                 </div>
             </main>
