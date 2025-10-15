@@ -305,19 +305,18 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         await logRepository.save(playerLog);
     }
 
-
-    // Log AI response
+    // Save only display-friendly logs (narration, combat, etc.) with simple string content
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-            const newLog = new SessionLog();
-            const content = typeof entry.content === 'object' 
+            const contentString = typeof entry.content === 'object' 
                 ? JSON.stringify(entry.content) 
                 : (entry.content || '');
-            
+
+            const newLog = new SessionLog();
             Object.assign(newLog, {
                 sessaoId: sessao.id,
-                prompt: 'GM Response',
-                response: content, 
+                prompt: 'GM Narration',
+                response: contentString,
                 type: entry.type || 'narration',
                 rollResult: entry.rollResult,
             });
@@ -325,7 +324,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
     
-     // Special log entry to save the full state for restoration
+    // Special log entry to save the full state for restoration
     const stateLog = new SessionLog();
     Object.assign(stateLog, {
         sessaoId: sessao.id,

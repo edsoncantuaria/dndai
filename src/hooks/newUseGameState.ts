@@ -143,7 +143,7 @@ export const useNewGameState = () => {
                     return { id: uuidv4(), ...entry };
                 }
                 return null;
-            }).filter((entry): entry is LogEntry => entry !== null && typeof entry.content === 'string' && entry.content.trim() !== '');
+            }).filter((entry): entry is LogEntry => entry !== null);
     
             setLog(prev => [...prev, ...parsedEntries]);
         }
@@ -286,34 +286,12 @@ export const useNewGameState = () => {
                         rollResult: log.rollResult,
                     }));
                 
-                // Map the logs for display. The 'response' field from the DB now holds the text for narration/action entries.
-                // The full game state is in the 'response' of the 'GM Response' log entry.
-                const formattedLogs = (sessionDetails.logs || []).flatMap(log => {
-                    if (log.prompt === 'GM Response') {
-                        try {
-                            const gmState = JSON.parse(log.response || '{}');
-                            return (gmState.logEntries || []).map((entry: any) => ({
-                                ...entry,
-                                id: uuidv4()
-                            }));
-                        } catch {
-                            return []; // Skip if parsing fails
-                        }
-                    }
-                    return {
-                        ...log,
-                        id: log.id?.toString() || uuidv4(),
-                        content: log.response, // This is for player 'action' logs
-                    };
-                });
-
-
                 setCharacter(fullCharacter);
                 setLog(displayLogs); 
                 setSessionId(id);
 
-                // Find the special log entry containing the full state to restore the UI
                 const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
+                
                 if (lastStateLog?.response) {
                      try {
                         const lastState = JSON.parse(lastStateLog.response);
