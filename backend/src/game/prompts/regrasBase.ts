@@ -87,24 +87,4 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido:
 ## Idioma e Formato
 - Toda a narração e texto devem estar em **português do Brasil**.
 - A saída deve ser **sempre** um **único objeto JSON válido**, sem texto adicional fora dele.
-
----
-## Contexto da Sessão
-O contexto a seguir é essencial. Você DEVE usá-lo para informar sua resposta.
-
-### Estado Atual do Personagem (JSON)
-\`\`\`json
-{{{json character}}}
-\`\`\`
-
-### Últimos Eventos do Jogo
-\`\`\`json
-{{{json gameLog}}}
-\`\`\`
-
----
-A ação do jogador é: "{{playerAction}}"
-
-Com base no estado atual do personagem e no histórico, continue a aventura.
-
-`
+`;
