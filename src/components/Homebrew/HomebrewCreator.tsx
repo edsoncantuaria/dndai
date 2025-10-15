@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FlaskConical, Loader2 } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Loader2, Info } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
 import RaceForm from './forms/RaceForm';
 import BackgroundForm from './forms/BackgroundForm';
@@ -23,12 +23,59 @@ interface Props {
     onCancel: () => void;
 }
 
+const DisclaimerScreen: React.FC<{ onAcknowledge: () => void, onCancel: () => void }> = ({ onAcknowledge, onCancel }) => {
+    const [isChecked, setIsChecked] = useState(false);
+
+    return (
+        <div className="bg-stone-900/50 p-6 rounded-lg border-2 border-amber-600/50 animate-fadeIn flex flex-col">
+            <h2 className="text-2xl font-bold font-garamond text-amber-300 mb-4 flex items-center gap-3">
+                <Info className="h-6 w-6"/>
+                Aviso Importante: Como o Sistema Homebrew Funciona
+            </h2>
+            <div className="space-y-3 text-stone-300 text-sm mb-6">
+                <p>Bem-vindo ao Laboratório! Antes de começar, é crucial entender como suas criações ganham vida no jogo.</p>
+                <p>O sistema permite que você **descreva** regras, habilidades e mecânicas (como 'Ataque Extra', 'Fúria' ou 'Pontos de Ki'). O Mestre de Jogo IA é treinado para ler e interpretar essas descrições durante a aventura.</p>
+                <p className="font-semibold text-amber-300">O que isso significa: Você pode recriar quase todo o conteúdo dos livros, mas o sistema não possui um <strong className="text-amber-200">motor de jogo codificado</strong> para forçar a aplicação mecânica dessas regras na interface. A execução depende da interpretação da IA.</p>
+                <p>Sua criatividade na descrição é a chave para o sucesso do seu conteúdo!</p>
+            </div>
+            <label className="flex items-center gap-3 mt-auto pt-4 border-t border-stone-700 cursor-pointer">
+                <input 
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={(e) => setIsChecked(e.target.checked)}
+                    className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 rounded focus:ring-amber-500"
+                />
+                <span className="text-stone-200 font-semibold">Eu entendo as limitações e desejo continuar.</span>
+            </label>
+            <div className="flex justify-between items-center mt-6">
+                <button type="button" onClick={onCancel} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2">
+                    <ArrowLeft className="h-4 w-4"/> Voltar
+                </button>
+                <button
+                    type="button"
+                    onClick={onAcknowledge}
+                    disabled={!isChecked}
+                    className="menu-button btn-new flex items-center justify-center gap-2 text-lg px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Prosseguir
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
+    const [hasAcknowledged, setHasAcknowledged] = useState(false);
     const [type, setType] = useState<HomebrewService.HomebrewContentType>('race');
     const [contentData, setContentData] = useState<any>(null);
     const [isPublic, setIsPublic] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+
+    if (!hasAcknowledged) {
+        return <DisclaimerScreen onAcknowledge={() => setHasAcknowledged(true)} onCancel={onCancel} />;
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
