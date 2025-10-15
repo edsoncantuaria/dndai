@@ -1,3 +1,4 @@
+// src/components/NewCombatTracker.tsx
 'use client';
 import React, { useMemo, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -21,14 +22,14 @@ const NewCombatTracker: React.FC = () => {
 
         const combatantMap = new Map<string, Combatant>();
 
-        // Ensure player is always in the map, using character data as the base
+        // Player is always added first with a consistent ID.
         const playerCombatant: Combatant = {
-            id: character.name, // Use name as a reliable ID for the player
+            id: 'player', 
             name: character.name,
             hp: { current: character.hp.current, max: character.hp.max },
             ac: character.ac.value,
             isPlayer: true,
-            initiative: 0, // Placeholder, will be updated
+            initiative: 0,
             isDead: character.hp.current <= 0,
             hasMoved: false,
             hasActed: false,
@@ -37,31 +38,30 @@ const NewCombatTracker: React.FC = () => {
             conditions: character.conditions.map(c => c.name),
             rollHistory: [],
         };
-        combatantMap.set(playerCombatant.id, playerCombatant);
+        combatantMap.set('player', playerCombatant);
         
         (combatState.combatants || []).forEach(apiCombatant => {
             if (!apiCombatant || !apiCombatant.name) return;
-            const id = getCombatantId(apiCombatant);
-            if (!id) return;
-            
-            // If the incoming combatant is the player, merge it with the existing player data
-            const isApiPlayer = apiCombatant.isPlayer || id === character.name;
-            const existing = isApiPlayer ? playerCombatant : combatantMap.get(id) || {};
 
-            let currentHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.current : apiCombatant.hp;
-            let maxHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.max : apiCombatant.maxHp;
+            const id = getCombatantId(apiCombatant);
+            if (!id || id === 'player') return;
+
+            const existing = combatantMap.get(id) || {};
+            
+            const currentHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.current : (typeof apiCombatant.hp === 'number' ? apiCombatant.hp : 1);
+            const maxHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.max : (apiCombatant.maxHp ?? 1);
 
             const mergedCombatant: Combatant = {
                 ...existing,
                 ...apiCombatant,
                 id,
-                isPlayer: isApiPlayer,
+                isPlayer: false, // Only the main character is the player
                  hp: {
-                    current: typeof currentHp === 'number' ? currentHp : (existing?.hp?.current ?? 1),
-                    max: typeof maxHp === 'number' ? maxHp : (existing?.hp?.max || 1)
+                    current: currentHp,
+                    max: maxHp,
                 },
                 ac: apiCombatant.ac ?? existing.ac ?? 10,
-                isDead: apiCombatant.isDead ?? (currentHp !== undefined && currentHp <= 0),
+                isDead: apiCombatant.isDead ?? (currentHp <= 0),
             };
             
             combatantMap.set(id, mergedCombatant);
