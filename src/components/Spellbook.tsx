@@ -126,15 +126,18 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                                 {levelKey === 'Nível 0' ? 'Truques' : levelKey}
                             </h4>
                             <div className="space-y-2">
-                                {groupedSpells[levelKey].map(spell => (
-                                    <NewSpellCard 
-                                        key={spell.index} 
-                                        spell={spell}
-                                        onCast={handleCastSpell}
-                                        canCast={spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0}
-                                        isActionLoading={isActionLoading || !!playerRollRequest || !isPlayerTurn}
-                                    />
-                                ))}
+                                {groupedSpells[levelKey].map(spell => {
+                                    const canCast = spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0;
+                                    return (
+                                        <NewSpellCard 
+                                            key={spell.index} 
+                                            spell={spell}
+                                            onCast={handleCastSpell}
+                                            canCast={canCast}
+                                            isActionLoading={isActionLoading || !!playerRollRequest || !isPlayerTurn}
+                                        />
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}

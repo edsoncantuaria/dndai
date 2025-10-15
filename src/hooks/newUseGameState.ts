@@ -64,6 +64,8 @@ const mergeCharacterState = (oldChar: Character, updates: Partial<Character>): C
     newChar.deathSaves = { ...oldChar.deathSaves, ...updates.deathSaves };
     newChar.ac = { ...oldChar.ac, ...updates.ac };
     newChar.hitDice = { ...oldChar.hitDice, ...updates.hitDice };
+    newChar.spellSlots = { ...oldChar.spellSlots, ...updates.spellSlots };
+
 
     // Recalculate derived properties if attributes changed
     if (updates.attributes) {
