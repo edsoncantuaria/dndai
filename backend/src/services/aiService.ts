@@ -3,9 +3,28 @@ import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/google-genai';
 import { GameMasterFlowInput, GameMasterFlowInputSchema, GameMasterResponse, GameMasterResponseSchema } from '../schemas/gameSchemas.js';
 import { promptDnD5e } from '../game/prompt5e.js';
+import { configureGenkit } from 'genkit/core';
 
 // Define o prompt fora da função de chamada para eficiência.
 const systemInstruction = promptDnD5e;
+
+// Cache para as instâncias de Genkit
+const aiInstances = new Map<string, any>();
+
+function getOrCreateAiInstance(apiKey: string) {
+    if (aiInstances.has(apiKey)) {
+        return aiInstances.get(apiKey);
+    }
+    
+    const newAi = genkit({
+        plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
+        enableTracingAndMetrics: process.env.NODE_ENV === 'development',
+    });
+
+    aiInstances.set(apiKey, newAi);
+    return newAi;
+}
+
 
 /**
  * Executa um turno do Mestre de Jogo IA.
@@ -20,17 +39,14 @@ export async function runGameMasterTurn(
   model: string,
 ): Promise<GameMasterResponse | null> {
     try {
-        const ai = genkit({
-            plugins: [googleAI({ apiKey, apiVersion: 'v1beta' })],
-            enableTracingAndMetrics: process.env.NODE_ENV === 'development',
-        });
+        const ai = getOrCreateAiInstance(apiKey);
         
         const gameMasterFlow = ai.defineFlow(
             {
                 name: "gameMasterFlow",
                 inputSchema: GameMasterFlowInputSchema,
                 outputSchema: GameMasterResponseSchema,
-                system: systemInstruction, // Usando a instrução de sistema aqui
+                system: systemInstruction,
             },
             async (flowInput) => {
                 const llmResponse = await ai.generate({
@@ -44,7 +60,6 @@ export async function runGameMasterTurn(
                             installedHomebrew: flowInput.installedHomebrew,
                         }
                     },
-                    // Configuração de formato de saída JSON
                     config: {
                         response: {
                             format: 'json',

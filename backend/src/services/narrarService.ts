@@ -65,12 +65,12 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         proficiencies: fullCharacter.proficiencies.map(p => p.name),
         inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
         spells: fullCharacter.spells.map(s => s.spellName),
-        feats: fullCharacter.feats,
-        journal: fullCharacter.journal,
-        relationships: fullCharacter.relationships,
+        feats: fullCharacter.feats || [],
+        journal: fullCharacter.journal || [],
+        relationships: fullCharacter.relationships || [],
         storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState,
-        factionReputation: fullCharacter.factionReputation,
+        worldState: fullCharacter.worldState || {},
+        factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
 };
@@ -223,13 +223,10 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
     }
 
-    // A chave de API agora vem do frontend.
     if (!apiKey) {
-        // Esta verificação é uma segurança extra, o controller já deve ter verificado.
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    // Centralize a lógica do modelo padrão aqui.
     const modelToUse = user?.settings?.model || "gemini-1.5-flash";
 
 
