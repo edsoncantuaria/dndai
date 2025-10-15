@@ -17,6 +17,7 @@ import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { v4 as uuidv4 } from 'uuid';
+import * as HomebrewService from './homebrewService.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -228,13 +229,15 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
 
-    const user = await userRepository.findOneBy({ id: userId });
+    const user = await userRepository.findOne({ where: { id: userId } });
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
     }
     
     const modelToUse = user?.settings?.model || "gemini-1.5-flash";
+    const generationConfig = user?.settings?.generationConfig || {};
+
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
     if (!optimizedCharacter) {
@@ -266,21 +269,16 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew: installedHomebrew,
     };
 
-    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, user?.settings?.generationConfig, apiKey);
+    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
-    
+
     // Sanitize AI response to ensure logEntries are objects
     if (Array.isArray(aiResponse.logEntries)) {
-        // If the first item is "narration", it's likely the old, incorrect format.
-        if (aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
-            aiResponse.logEntries = [{
-                type: 'narration',
-                content: aiResponse.logEntries[1]
-            }];
+        if (aiResponse.logEntries.length > 1 && aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
+            aiResponse.logEntries = [{ type: 'narration', content: aiResponse.logEntries[1] }];
         } else {
-            // Filter out any entries that aren't objects, which can happen with malformed AI responses.
             aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type && entry.content);
         }
     }
@@ -297,7 +295,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             const newLog = new SessionLog();
             const content = typeof entry.content === 'object' 
                 ? JSON.stringify(entry.content) 
-                : (entry.content || ''); 
+                : (entry.content || ''); // Ensure content is not null
             
             Object.assign(newLog, {
                 sessaoId: sessao.id,
@@ -307,6 +305,19 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
                 rollResult: entry.rollResult,
             });
             await logRepository.save(newLog);
+        }
+    }
+
+    // Persist new homebrew content created by the AI
+    if (aiResponse.newHomebrewContent) {
+        for (const newContent of aiResponse.newHomebrewContent) {
+            try {
+                await HomebrewService.createHomebrewContent(userId, newContent);
+                 console.log(`[narrarService] Conteúdo Homebrew da IA salvo: ${newContent.name}`);
+            } catch (error) {
+                console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
+                // Continue even if this part fails
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 'use client';
 import { z, type ZodType } from 'zod';
+import { CreateHomebrewSchema } from './validationSchemas.js';
 
 // Schema for PlayerRollRequest
 export const PlayerRollRequestSchema = z.object({
@@ -17,7 +18,6 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 
 // Schema para uma única entrada no log da aventura.
-// CORREÇÃO: Tornando o schema mais estrito para orientar a IA corretamente.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
     content: z.union([z.string(), z.object({ status: z.string(), url: z.string().optional(), prompt: z.string().optional() })]).describe("The text content of the log entry or a structured object for special types like 'image'."),
@@ -177,6 +177,7 @@ export const GameMasterResponseSchema = z.object({
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
     worldState: WorldStateSchema.optional().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
+    newHomebrewContent: z.array(CreateHomebrewSchema).optional().describe("A list of new homebrew content (monsters, items, etc.) created by the GM that should be persisted."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
