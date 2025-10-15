@@ -101,3 +101,5 @@ O contexto a seguir é essencial. Você DEVE usá-lo para informar sua resposta.
 A ação do jogador é: "{{playerAction}}"
 
 Com base no estado atual do personagem e no histórico, continue a aventura.
+
+`;
