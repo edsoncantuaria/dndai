@@ -129,17 +129,14 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        // Sanitize AI response to ensure logEntries are objects
-        if (response.logEntries && Array.isArray(response.logEntries)) {
+        if (Array.isArray(response.logEntries)) {
             // Handle the malformed ["narration", "text..."] format
             if (response.logEntries.length > 1 && response.logEntries[0] === 'narration' && typeof response.logEntries[1] === 'string') {
                 response.logEntries = [{ type: 'narration', content: response.logEntries[1] }];
             } else {
-                // Filter out any non-object entries just in case
                 response.logEntries = response.logEntries.filter((entry: any) => typeof entry === 'object' && entry !== null && entry.type && entry.content);
             }
         }
-
 
         if (response.logEntries && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
@@ -183,26 +180,29 @@ export const useNewGameState = () => {
              return;
         }
         
-        console.log(`[processPlayerAction] Processing action for session ${sessionId}: "${action}"`);
         setIsLoading(true);
         setApiError(null);
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
         
-        const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
-        setLog(prev => [...prev, newLogEntry]);
+        // Only add a new log entry if it's not a system action
+        if (action !== "Recarregar estado atual e obter opções.") {
+            const newLogEntry: LogEntry = { id: uuidv4(), type: 'action', content: action };
+            setLog(prev => [...prev, newLogEntry]);
+        }
+
         setActionOptions([]); 
         
         try {
             const responseData = await GameService.processPlayerAction(sessionId, action, key, combatState);
-            console.log("[processPlayerAction] Received API response:", responseData);
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
             setApiError(error.message || "Ocorreu um erro desconhecido.");
-            setLog(prev => prev.filter(entry => entry.id !== newLogEntry.id));
+             if (action !== "Recarregar estado atual e obter opções.") {
+                setLog(prev => prev.slice(0, -1));
+            }
         } finally {
-            console.log("[processPlayerAction] Finished processing. Setting isLoading to false.");
             setIsLoading(false); 
         }
     }, [sessionId, combatState, handleApiResponse, getApiKey]);
@@ -257,55 +257,48 @@ export const useNewGameState = () => {
 
 
     const startGame = useCallback(async (): Promise<void> => {
-        console.log(`[startGame] Attempting to start game for session ${sessionId}. Character: ${!!character}, isLoading: ${isLoading}`);
-        if (!character || !sessionId || isLoading) {
-            console.warn(`[startGame] Aborted. Conditions not met.`);
-            return;
-        }
+        if (!character || !sessionId || isLoading) return;
         
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?");
         
     }, [character, sessionId, isLoading, processPlayerAction]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: LogEntry[] } | null> => {
-        console.log(`[loadGameSession] Starting to load session ID: ${id}`);
         clearGameState();
         setIsLoading(true);
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
-            console.log(`[loadGameSession] Fetched session details for ID: ${id}`, sessionDetails);
 
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
-                console.log(`[loadGameSession] Built frontend character:`, fullCharacter);
-                
                 const formattedLogs = (sessionDetails.logs || []).map(log => ({
                     ...log,
                     id: log.id?.toString() || uuidv4(),
                     content: log.response,
                 }));
-                console.log(`[loadGameSession] Formatted ${formattedLogs.length} logs.`);
-
+                
                 setCharacter(fullCharacter);
                 setLog(formattedLogs);
                 setSessionId(id);
-                
-                console.log(`[loadGameSession] State updated for session ${id}.`);
+
+                // If logs exist, it's a continued session. Request action options.
+                if (formattedLogs.length > 0) {
+                    await processPlayerAction("Recarregar estado atual e obter opções.");
+                }
+
                 return { character: fullCharacter, logs: formattedLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
         } catch(err: any) {
-            console.error(`[loadGameSession] Error loading session ${id}:`, err);
             setApiError(err.message);
             clearGameState();
             return null;
         } finally {
-             console.log(`[loadGameSession] Finished loading session ${id}.`);
              setIsLoading(false);
         }
-    }, [clearGameState]);
+    }, [clearGameState, processPlayerAction]);
 
 
     const handleRollResult = useCallback((result: { total: number; rolls: number[] }) => {

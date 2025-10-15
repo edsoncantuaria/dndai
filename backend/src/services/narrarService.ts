@@ -219,20 +219,20 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
+export const processPlayerAction = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const userRepository = AppDataSource.getRepository(User);
 
-    if (!apiKey) {
-        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
-    }
-
-    const user = await userRepository.findOne({ where: { id: userId } });
+    const user = await userRepository.findOneBy({ id: userId });
     const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ["character"] });
     if (!sessao || !sessao.character) {
         throw createError(404, 'Sessão de IA ou personagem não encontrado.');
+    }
+    
+    if (!apiKey) {
+        throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
     const modelToUse = user?.settings?.model || "gemini-1.5-flash";
@@ -279,15 +279,18 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         if (aiResponse.logEntries.length > 1 && aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
             aiResponse.logEntries = [{ type: 'narration', content: aiResponse.logEntries[1] }];
         } else {
-            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type && entry.content);
+            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type);
         }
     }
 
 
-    // Log player action
-    const playerLog = new SessionLog();
-    Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
-    await logRepository.save(playerLog);
+    // Log player action, unless it's a system reload
+    if(playerAction !== "Recarregar estado atual e obter opções.") {
+        const playerLog = new SessionLog();
+        Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
+        await logRepository.save(playerLog);
+    }
+
 
     // Log AI response
     if (aiResponse.logEntries) {
