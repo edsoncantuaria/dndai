@@ -90,8 +90,6 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     
     if (!textContent) return null;
 
-    if (!textContent) return null;
-
     return (
         <div className="flex items-start">
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">

@@ -277,8 +277,8 @@ export const useNewGameState = () => {
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
-                const displayLogs: LogEntry[] = (sessionDetails.logs || [])
-                    .filter(log => log.type !== 'state') 
+                const displayLogs = (sessionDetails.logs || [])
+                    .filter(log => log.type !== 'state') // Exclude state logs from display
                     .map(log => ({
                         id: log.id?.toString() || uuidv4(),
                         type: log.type as LogEntry['type'],
@@ -290,6 +290,7 @@ export const useNewGameState = () => {
                 setLog(displayLogs); 
                 setSessionId(id);
 
+                // Find the last 'state' log to restore the game state
                 const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
                 
                 if (lastStateLog?.response) {
@@ -298,10 +299,15 @@ export const useNewGameState = () => {
                         handleApiResponse(lastState);
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
+                        // Fallback to a refresh if parsing fails
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
-                } else {
+                } else if (displayLogs.length === 0) {
+                    // This is a new session with no logs, so start the game.
                     await startGame(id);
+                } else {
+                    // This is an older session without a state log, refresh to get actions.
+                     await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 
                 return { character: fullCharacter, logs: displayLogs };
