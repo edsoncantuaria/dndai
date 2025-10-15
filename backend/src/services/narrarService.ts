@@ -273,14 +273,30 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!aiResponse) {
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
-
+    
     // Sanitize AI response to ensure logEntries are in the correct object format
     if (Array.isArray(aiResponse.logEntries)) {
-        if (aiResponse.logEntries.length > 1 && aiResponse.logEntries[0] === 'narration' && typeof aiResponse.logEntries[1] === 'string') {
-            aiResponse.logEntries = [{ type: 'narration', content: aiResponse.logEntries[1] }];
-        } else {
-            aiResponse.logEntries = aiResponse.logEntries.filter(entry => typeof entry === 'object' && entry !== null && entry.type && entry.content);
-        }
+        aiResponse.logEntries = aiResponse.logEntries.map(entry => {
+            if (typeof entry === 'string') {
+                try {
+                    // It's a stringified JSON object like "{\"type\":\"narration\",\"content\":\"...\"}"
+                    const parsed = JSON.parse(entry);
+                    if (parsed.type && parsed.content) {
+                        return { type: parsed.type, content: parsed.content };
+                    }
+                } catch (e) {
+                    // It's just a plain string like "narration", which is incorrect.
+                    // Or it's the narration content itself, also incorrect.
+                    // We can't reliably fix this, so we should filter it out.
+                    return null;
+                }
+            }
+            // If it's already an object with the correct structure, keep it.
+            if (typeof entry === 'object' && entry !== null && entry.type && entry.content) {
+                return entry;
+            }
+            return null; // Invalid format
+        }).filter((entry): entry is { type: string; content: any; rollResult?: any } => entry !== null);
     }
 
 
@@ -304,13 +320,24 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             Object.assign(newLog, {
                 sessaoId: sessao.id,
                 prompt: 'GM Response',
-                response: JSON.stringify(aiResponse), // Save the whole response object
+                response: content, // Save the narration text
                 type: entry.type || 'narration',
                 rollResult: entry.rollResult,
             });
             await logRepository.save(newLog);
         }
     }
+    
+     // Special log entry to save the full state for restoration
+    const stateLog = new SessionLog();
+    Object.assign(stateLog, {
+        sessaoId: sessao.id,
+        prompt: 'GM Full State',
+        response: JSON.stringify(aiResponse), // Save the WHOLE response object
+        type: 'state',
+    });
+    await logRepository.save(stateLog);
+
 
     // Persist new homebrew content created by the AI
     if (aiResponse.newHomebrewContent) {

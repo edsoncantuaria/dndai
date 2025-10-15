@@ -80,8 +80,9 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 
 // Simplified Narration Entry
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    // Garantir que o texto seja sempre uma string
     const textContent = typeof entry.content === 'string' ? entry.content : '';
+
+    if (!textContent) return null;
 
     return (
         <div className="flex items-start">
@@ -92,6 +93,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
         </div>
     );
 };
+
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (!entry.rollResult) return null;
@@ -174,8 +176,8 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             content = <NarrationEntry entry={entry} />;
             break;
         case 'action':
-            if (typeof entry.content === 'string' && entry.content.startsWith("Processar")) {
-                content = null;
+            if (typeof entry.content === 'string' && entry.content.startsWith("Recarregar estado atual")) {
+                 content = null; // Don't render refresh actions
             } else {
                 content = (
                     <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">

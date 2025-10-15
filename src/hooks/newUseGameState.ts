@@ -129,22 +129,23 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        if (response.logEntries && Array.isArray(response.logEntries)) {
+        if (Array.isArray(response.logEntries)) {
             const parsedEntries: LogEntry[] = response.logEntries.map((entry: any) => {
                 if (typeof entry === 'string') {
                     try {
-                        // Try to parse if it's a stringified JSON object
-                        return JSON.parse(entry);
+                        const parsed = JSON.parse(entry);
+                        return { id: uuidv4(), ...parsed };
                     } catch (e) {
-                        // If parsing fails, it's likely just a narration string. Wrap it.
-                        return { type: 'narration', content: entry };
+                        return { id: uuidv4(), type: 'narration', content: entry };
                     }
                 }
-                return entry;
-            }).filter(Boolean); // Filter out any null/undefined entries
-
-            const newLogEntries = parsedEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
-            setLog(prev => [...prev, ...newLogEntries]);
+                if (typeof entry === 'object' && entry !== null) {
+                    return { id: uuidv4(), ...entry };
+                }
+                return null;
+            }).filter((entry): entry is LogEntry => entry !== null && typeof entry.content === 'string' && entry.content.trim() !== '');
+    
+            setLog(prev => [...prev, ...parsedEntries]);
         }
 
 
@@ -276,30 +277,31 @@ export const useNewGameState = () => {
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
-                const formattedLogs = (sessionDetails.logs || []).map(log => ({
-                    ...log,
-                    id: log.id?.toString() || uuidv4(),
-                    content: log.response, // Mapeia 'response' para 'content' para a UI
-                }));
+                const formattedLogs: LogEntry[] = (sessionDetails.logs || [])
+                    .filter(log => log.type !== 'state') // Don't display raw state logs
+                    .map(log => ({
+                        ...log,
+                        id: log.id?.toString() || uuidv4(),
+                        content: log.response, // The backend now saves the clean string here
+                    }));
                 
                 setCharacter(fullCharacter);
                 setLog(formattedLogs); 
                 setSessionId(id);
 
-                if (formattedLogs.length > 0) {
-                    const lastGmLog = [...formattedLogs].reverse().find(l => l.prompt === 'GM Response');
-                    if (lastGmLog?.content) {
-                         try {
-                            const lastState = JSON.parse(lastGmLog.content);
-                            handleApiResponse(lastState);
-                        } catch(e) {
-                            console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                            await processPlayerAction("Recarregar estado atual e obter opções.", id);
-                        }
-                    } else {
-                        await startGame(id);
+                // Find the special log entry containing the full state to restore the UI
+                const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
+                if (lastStateLog?.response) {
+                     try {
+                        const lastState = JSON.parse(lastStateLog.response);
+                        handleApiResponse(lastState);
+                    } catch(e) {
+                        console.error("Failed to parse last GM state from log, requesting refresh.", e);
+                        // Fallback to refresh if parsing fails
+                        await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else {
+                    // This is a new session, start the game.
                     await startGame(id);
                 }
 
