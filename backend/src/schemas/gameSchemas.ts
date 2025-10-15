@@ -132,17 +132,17 @@ const WorldStateSchema = z.object({
 
 
 export const GameMasterResponseSchema = z.object({
-    logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
+    logEntries: z.array(LogEntrySchema.nullable()).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action. E.g., { attributes: { hp: 25 }, inventory: [...] }"),
     combatState: CombatStateSchema.optional().nullable().describe("The complete state of combat, if it is active."),
     playerRollRequest: PlayerRollRequestSchema.optional().nullable().describe("If the Game Master needs the player to roll dice, this object MUST be populated."),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night')."),
     systemLog: z.string().optional().nullable().describe("Optional log for the GM to explain decisions (DC choice, NPC rolls, etc.)."),
-    levelUpState: LevelUpStateSchema.optional().describe("The state of a pending level-up for the character."),
-    shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
-    lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
-    useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
+    levelUpState: LevelUpStateSchema.optional().nullable().describe("The state of a pending level-up for the character."),
+    shopState: ShopStateSchema.optional().nullable().describe("The state of a shop, if the player is currently in one."),
+    lootOffer: LootOfferSchema.optional().nullable().describe("An offer of loot for the player to accept."),
+    useHitDiceRequest: UseHitDiceRequestSchema.optional().nullable().describe("A request for the player to spend hit dice during a short rest."),
     worldState: WorldStateSchema.optional().nullable().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
     newHomebrewContent: z.array(CreateHomebrewSchema).optional().nullable().describe("A list of new homebrew content (monsters, items, etc.) created by the GM that should be persisted."),
 }).describe("The Game Master's complete response to a player action.");

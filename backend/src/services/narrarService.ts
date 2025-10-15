@@ -220,35 +220,45 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-const sanitizeLogEntries = (entries: any): any[] => {
-    if (!Array.isArray(entries)) {
-        console.warn("[narrarService] logEntries não era um array. Retornando array vazio.");
-        return [];
-    }
-    // Filter out null, undefined, or invalid entries.
-    return entries.map(entry => {
-        if (typeof entry === 'string') {
-            return { type: 'narration', content: entry };
-        }
-        if (entry && typeof entry === 'object' && entry.type && entry.content) {
-             try {
-                // Defensive parse: If content is already a stringified JSON, parse it.
-                if (typeof entry.content === 'string') {
-                    const parsedContent = JSON.parse(entry.content);
-                    if (typeof parsedContent === 'object' && parsedContent.content) {
-                        return { ...entry, content: parsedContent.content };
+const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState: any): GameMasterResponse => {
+    const sanitized: GameMasterResponse = { ...response };
+
+    // 1. Sanitize logEntries: Ensure it's an array of valid objects.
+    if (Array.isArray(sanitized.logEntries)) {
+        sanitized.logEntries = sanitized.logEntries
+            .map((entry: any) => {
+                if (typeof entry === 'string') {
+                    try {
+                        const parsed = JSON.parse(entry);
+                        if (typeof parsed === 'object' && parsed !== null && parsed.type && parsed.content) {
+                            return parsed;
+                        }
+                    } catch (e) {
+                        // If it's not a valid JSON object string, treat it as a simple narration string.
+                        return { type: 'narration', content: entry };
                     }
                 }
-             } catch (e) {
-                // It's not a JSON string, which is fine.
-             }
-            return entry;
-        }
-        console.warn("[narrarService] Descartando entrada de log inválida:", entry);
-        return null;
-    }).filter((entry): entry is any => entry !== null);
-};
+                if (entry && typeof entry === 'object' && entry.type && entry.content) {
+                    return entry;
+                }
+                return null; // Discard invalid entries
+            })
+            .filter((entry): entry is any => entry !== null);
+    } else {
+        // If logEntries is not an array, create an empty one.
+        sanitized.logEntries = [];
+    }
 
+    // 2. Sanitize nullable fields to prevent downstream errors.
+    sanitized.worldState = sanitized.worldState ?? characterState.worldState ?? {};
+    sanitized.combatState = sanitized.combatState ?? undefined;
+    sanitized.playerRollRequest = sanitized.playerRollRequest ?? undefined;
+    sanitized.newHomebrewContent = sanitized.newHomebrewContent ?? undefined;
+    sanitized.levelUpState = sanitized.levelUpState ?? undefined;
+    sanitized.shopState = sanitized.shopState ?? undefined;
+
+    return sanitized;
+};
 
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
@@ -324,15 +334,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
     
     // --- Sanitize and Process the rest of the response ---
-    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
-    
-    // Sanitize null fields to avoid downstream validation errors
-    if (aiResponse.worldState === null || aiResponse.worldState === undefined) aiResponse.worldState = characterForAI.worldState || {};
-    else aiResponse.worldState = { ...characterForAI.worldState, ...aiResponse.worldState };
-    
-    if (aiResponse.combatState === null) aiResponse.combatState = undefined;
-    if (aiResponse.playerRollRequest === null) aiResponse.playerRollRequest = undefined;
-    if (aiResponse.newHomebrewContent === null) aiResponse.newHomebrewContent = undefined;
+    aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
     
     // --- Prioritize Player Roll Request ---
