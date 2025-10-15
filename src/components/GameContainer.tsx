@@ -4,8 +4,9 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker } from 'lucide-react';
 import SettingsModal from './SettingsModal';
+import SystemTestModal from './SystemTestModal';
 import * as GameService from '@/services/gameService';
 import * as HomebrewService from '@/services/homebrewService';
 import type { Character, SessaoIA } from '@/types';
@@ -37,6 +38,7 @@ const GameContainer = () => {
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [showTestModal, setShowTestModal] = useState(false);
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
@@ -282,14 +284,7 @@ const GameContainer = () => {
 
         // Default: main_menu or loading
         return (
-            <div className="relative z-10 w-full max-w-2xl mx-auto flex flex-col items-center text-center animate-fadeIn">
-                <button 
-                    onClick={() => setShowSettingsModal(true)} 
-                    className="absolute -top-4 right-0 md:-top-8 md:right-4 p-3 text-stone-400 hover:text-amber-300 transition-colors"
-                    title="Configurações"
-                >
-                    <Settings className="h-7 w-7"/>
-                </button>
+            <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
                  <header className="mb-10" style={{ animationDelay: '200ms' }}>
                     <h1 className="text-6xl md:text-8xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Crônicas de Aventuras
@@ -307,6 +302,22 @@ const GameContainer = () => {
                         <FlaskConical className="mr-3 h-6 w-6"/> Laboratório Homebrew
                     </button>
                 </main>
+                 <footer className="mt-12 flex items-center gap-6">
+                    <button 
+                        onClick={() => setShowSettingsModal(true)} 
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        title="Configurações"
+                    >
+                        <Settings className="h-6 w-6"/> Configurações
+                    </button>
+                     <button 
+                        onClick={() => setShowTestModal(true)} 
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        title="Testes do Sistema"
+                    >
+                        <Beaker className="h-6 w-6"/> Testes do Sistema
+                    </button>
+                </footer>
             </div>
         );
     }
@@ -346,6 +357,10 @@ const GameContainer = () => {
             <SettingsModal
                 isOpen={showSettingsModal}
                 onClose={() => setShowSettingsModal(false)}
+            />
+            <SystemTestModal
+                isOpen={showTestModal}
+                onClose={() => setShowTestModal(false)}
             />
         </>
     );

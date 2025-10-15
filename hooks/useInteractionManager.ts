@@ -72,6 +72,7 @@ export const useInteractionManager = () => {
     // --- Action Handlers that depend on processPlayerAction ---
     const handleRollResult = useCallback((processPlayerAction: (action: string) => void) => (result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
+        console.log("Resultado do teste de dados 3D:", result);
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         setPlayerRollRequest(null);
         processPlayerAction(actionText);
@@ -120,9 +121,9 @@ export const useInteractionManager = () => {
             isHaggling: false,
             name: "Loja de Testes do Ferreiro",
             inventory: [
-                { id: 'item-1', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, availableQuantity: 5 },
-                { id: 'item-2', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, availableQuantity: 1 },
-                { id: 'item-3', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, availableQuantity: Infinity },
+                { id: 'item-1', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
+                { id: 'item-2', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
+                { id: 'item-3', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: Infinity, equipped: false },
             ],
             sellPrices: { 'player-item-1': 25, 'player-item-2': 10 },
         });
