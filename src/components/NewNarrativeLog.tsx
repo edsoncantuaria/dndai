@@ -8,7 +8,7 @@ import { textToSpeech } from '@/ai/flows/textToSpeech';
 import { useSettingsContext } from '../contexts/SettingsContext';
 import Image from 'next/image';
 
-const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, playOnMount }) => {
+const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
     const [audioData, setAudioData] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -16,13 +16,11 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
     const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
-    const handlePlay = useCallback(async (autoTrigger = false) => {
-        if (!autoTrigger && isPlaying) {
-             if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-                setIsPlaying(false);
-            }
+    const handlePlay = useCallback(async () => {
+        if (isPlaying && audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            setIsPlaying(false);
             return;
         }
 
@@ -31,6 +29,7 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
             setIsPlaying(true);
             return;
         }
+        
         setIsLoading(true);
         try {
             const apiKeyToUse = getApiKey();
@@ -43,24 +42,18 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
                 setAudioData(response.media);
             }
         } catch (error) {
-            console.error("Error generating speech silently:", error);
+            console.error("Error generating speech:", error);
         } finally {
             setIsLoading(false);
         }
     }, [audioData, getApiKey, isPlaying, text, ttsModel, ttsVoice]);
 
     useEffect(() => {
-        if (playOnMount) {
-            handlePlay(true);
-        }
-    }, [playOnMount, handlePlay]);
-
-
-    useEffect(() => {
         if (audioData && audioRef.current) {
             audioRef.current.src = audioData;
-            audioRef.current.play();
-            setIsPlaying(true);
+            audioRef.current.play()
+                .then(() => setIsPlaying(true))
+                .catch(e => console.error("Audio play failed:", e));
         }
     }, [audioData]);
 
@@ -77,7 +70,7 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
 
     return (
         <div className="inline-block ml-2">
-            <button onClick={() => handlePlay(false)} disabled={isLoading} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
+            <button onClick={handlePlay} disabled={isLoading} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className={`h-4 w-4 ${isPlaying ? 'text-amber-400' : ''}`} />}
             </button>
             {audioData && <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />}
@@ -86,12 +79,12 @@ const AudioPlayer: React.FC<{ text: string, playOnMount: boolean }> = ({ text, p
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
-    const [displayedText, setDisplayedText] = useState(isMostRecent ? '' : entry.content);
+    const [displayedText, setDisplayedText] = useState(isMostRecent ? '' : (entry.content || ''));
     const isAnimating = useRef(isMostRecent);
 
     useEffect(() => {
         if (!isMostRecent || !isAnimating.current) {
-            setDisplayedText(entry.content || ''); // Ensure content is displayed even if not animating
+            setDisplayedText(entry.content || '');
             return;
         }
 
@@ -122,7 +115,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> =
                 {displayedText}
                 {!isAnimationComplete && <span className="animate-pulse">_</span>}
             </p>
-            {isAnimationComplete && <AudioPlayer text={entry.content} playOnMount={isMostRecent} />}
+            {isAnimationComplete && <AudioPlayer text={entry.content} />}
         </div>
     );
 };
@@ -304,9 +297,10 @@ const NewNarrativeLog: React.FC = () => {
     return (
         <div className="space-y-4">
             <NpcRollDisplay />
-            {log.map((entry, index) => (
-                <LogEntry key={entry.id} entry={entry} isMostRecent={index === log.length - 1} />
-            ))}
+            {log.map((entry, index) => {
+                if(!entry) return null;
+                return <LogEntry key={entry.id} entry={entry} isMostRecent={index === log.length - 1} />
+            })}
             <div ref={logEndRef} />
         </div>
     );
