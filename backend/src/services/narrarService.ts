@@ -228,7 +228,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
     
     // Centralize a lógica do modelo padrão aqui.
-    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
+    const modelToUse = user?.settings?.model || "gemini-1.5-flash";
 
 
     const optimizedCharacter = await buildOptimizedCharacterForAI(sessao.character.id);
@@ -248,9 +248,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         take: 10,
     });
     
-    const chronologicalLogs = recentLogs.reverse();
-
-    const gameLogSummary = chronologicalLogs.map(log => ({
+    const chronologicalLogs = recentLogs.reverse().map(log => ({
         role: log.type === 'action' ? 'user' : 'model',
         content: log.response
     }));
@@ -259,7 +257,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,
         playerAction,
-        gameLog: gameLogSummary,
+        gameLog: chronologicalLogs,
         combatState: currentCombatState,
         installedHomebrew: installedHomebrew,
     };
