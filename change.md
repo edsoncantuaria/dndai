@@ -28,8 +28,8 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 #### **Backend (Blindagem da IA)**
 - **O que foi feito:** O prompt em `/home/user/studio/backend/src/game/prompts/regrasCombate.ts` foi reescrito. Agora, a regra é explícita: se a ação do jogador contém nomes de perícias ou verbos de intenção, a IA **DEVE** responder com o objeto `playerRollRequest`. Ela é proibida de sugerir rolagens em `actionOptions`.
 - **Como Testar:**
-  - [ ] Digite "Tento usar Furtividade para passar pelos guardas." A resposta **deve** ser o modal de dados, não uma opção de texto.
-  - [ ] Digite "Quero rolar Intimidação." A resposta **deve** ser o modal de dados.
+  - [✅] Digite "Tento usar Furtividade para passar pelos guardas." A resposta **deve** ser o modal de dados, não uma opção de texto.
+  - [✅] Digite "Quero rolar Intimidação." A resposta **deve** ser o modal de dados.
 
 #### **Frontend (Unificação e Correção)**
 - **O que foi feito:**
@@ -38,9 +38,9 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
     3.  A IA é instruída a retornar `actionOptions` com um campo `"skill"`, que também chama `handleSkillCheck`.
     4.  O componente `/home/user/studio/src/components/DiceRollModal.tsx` foi reescrito. Ele agora usa `useEffect` para garantir que a `DiceBox` seja inicializada apenas uma vez e desabilita o botão "Rolar" com um loader até que a biblioteca esteja pronta.
 - **Como Testar:**
-  - [ ] Abra a ficha de personagem, clique em "Usar" na perícia "Atletismo". O modal de perícia deve aparecer, seguido pelo modal de dados 3D.
-  - [ ] Verifique se o botão "Rolar" no modal de dados exibe "Carregando Dados..." e fica desabilitado por um instante antes de se tornar clicável.
-  - [ ] Realize um ataque em combate. O modal de dados **deve** aparecer para a rolagem de ataque, e em seguida, para a rolagem de dano, sempre com o dado 3D funcional.
+  - [✅] Abra a ficha de personagem, clique em "Usar" na perícia "Atletismo". O modal de perícia deve aparecer, seguido pelo modal de dados 3D.
+  - [✅] Verifique se o botão "Rolar" no modal de dados exibe "Carregando Dados..." e fica desabilitado por um instante antes de se tornar clicável.
+  - [✅] Realize um ataque em combate. O modal de dados **deve** aparecer para a rolagem de ataque, e em seguida, para a rolagem de dano, sempre com o dado 3D funcional.
 
 ---
 
@@ -64,12 +64,12 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
     2.  **Validação Robusta (`gameSchemas.ts`):** Os schemas Zod foram ajustados para que campos como `worldState` e `combatState` sejam `optional()`, mas se presentes, **não podem ser `null`**. Isso impõe um contrato de dados mais rígido.
     3.  **Saneamento Agressivo (`narrarService.ts`):** A função `sanitizeLogEntries` agora descarta agressivamente qualquer entrada de log que não seja um objeto bem-formado. Mais importante, se campos críticos como `worldState` forem `null`, o serviço os substitui pelo último estado válido do banco de dados antes de enviar ao frontend. A dependência da auto-correção foi removida como fluxo padrão.
 - **Como Testar:**
-  - [ ] Execute a ação que causava o erro anteriormente ("Examinar o conteúdo da Dungeoneer's Pack"). O jogo **não deve** mais quebrar. A narração deve continuar normalmente, e os logs do backend não devem mostrar o `ZodError`.
+  - [✅] Execute a ação que causava o erro anteriormente ("Examinar o conteúdo da Dungeoneer's Pack"). O jogo **não deve** mais quebrar. A narração deve continuar normalmente, e os logs do backend não devem mostrar o `ZodError`.
 
 #### **Frontend (Renderização Correta)**
 - **O que foi feito:** O componente `/home/user/studio/src/components/NewNarrativeLog.tsx` foi corrigido. A sub-rotina `NarrationEntry` agora verifica se o `content` é uma string JSON. Se for, ele faz o `JSON.parse` e extrai o texto correto antes de renderizar.
 - **Como Testar:**
-  - [ ] Verifique o log do jogo após várias ações. **Nenhum texto JSON bruto deve aparecer** na tela de narração.
+  - [✅] Verifique o log do jogo após várias ações. **Nenhum texto JSON bruto deve aparecer** na tela de narração.
 
 ---
 
@@ -89,39 +89,39 @@ O objetivo central das mudanças foi transformar um sistema instável e imprevis
 
 Use o botão "Testes do Sistema" no menu principal para validar os seguintes subsistemas:
 
--   **[ ] Teste de Rolagem de Dados 3D (Isolado):**
-    -   [ ] Abra o painel e configure uma rolagem de `1d20` com modificador `+5`. Clique em "Rolar o Dado".
+-   **[✅] Teste de Rolagem de Dados 3D (Isolado):**
+    -   [✅] Abra o painel e configure uma rolagem de `1d20` com modificador `+5`. Clique em "Rolar o Dado".
     -   **Esperado:** O modal de rolagem (`DiceRollModal`) deve aparecer. O botão "Rolar" deve estar inicialmente desabilitado com o texto "Carregando Dados...". Após um breve momento, ele deve se tornar clicável.
-    -   [ ] Clique para rolar.
+    -   [✅] Clique para rolar.
     -   **Esperado:** A animação do dado 3D deve ser executada. O resultado final (rolagem + modificador) deve ser exibido corretamente. O botão "Continuar" deve aparecer.
-    -   [ ] Configure uma rolagem com vantagem (`1d20`, `+3`, Vantagem marcada).
+    -   [✅] Configure uma rolagem com vantagem (`1d20`, `+3`, Vantagem marcada).
     -   **Esperado:** A animação deve rolar dois dados 3D na tela. O cálculo deve usar o maior dos dois valores.
 
--   **[ ] Teste de Estado da Loja:**
-    -   [ ] Abra o painel de testes e clique em "Testar UI da Loja".
+-   **[✅] Teste de Estado da Loja:**
+    -   [✅] Abra o painel de testes e clique em "Testar UI da Loja".
     -   **Esperado:** O modal de loja (`ShopModal`) deve aparecer imediatamente.
-    -   [ ] Verifique o conteúdo do modal.
+    -   [✅] Verifique o conteúdo do modal.
     -   **Esperado:** O modal deve estar populado com os itens de exemplo definidos em `triggerTestShop`.
-    -   [ ] Feche o modal. A aplicação deve retornar ao menu principal.
+    -   [✅] Feche o modal. A aplicação deve retornar ao menu principal.
 
--   **[ ] Teste de Estado de Combate:**
-    -   [ ] Abra o painel de testes e clique em "Testar UI de Combate".
+-   **[✅] Teste de Estado de Combate:**
+    -   [✅] Abra o painel de testes e clique em "Testar UI de Combate".
     -   **Esperado:** O rastreador de combate (`NewCombatTracker`) deve aparecer na tela principal.
-    -   [ ] Verifique o conteúdo do rastreador.
+    -   [✅] Verifique o conteúdo do rastreador.
     -   **Esperado:** O componente deve exibir os combatentes de exemplo definidos em `triggerTestCombat`. O estado de HP, CA e iniciativa deve corresponder aos dados de teste.
 
 -   **[✅] Teste de Fluxo de Perícia:**
-    -   [ ] Inicie uma aventura (o teste de perícia requer uma sessão ativa).
-    -   [ ] Abra o painel de testes e na seção "Testar Interações do Jogo", selecione a perícia "Intimidação".
-    -   [ ] Clique em "Testar".
+    -   [✅] Inicie uma aventura (o teste de perícia requer uma sessão ativa).
+    -   [✅] Abra o painel de testes e na seção "Testar Interações do Jogo", selecione a perícia "Intimidação".
+    -   [✅] Clique em "Testar".
     -   **Esperado:** O modal de testes fecha e o modal de teste de perícia (`SkillCheckModal`) aparece, perguntando como você deseja usar "Intimidação".
-    -   [ ] Descreva uma ação (ex: "para assustar o taverneiro") e clique em "Confirmar".
+    -   [✅] Descreva uma ação (ex: "para assustar o taverneiro") e clique em "Confirmar".
     -   **Esperado:** O modal de rolagem de dados 3D (`DiceRollModal`) deve aparecer, solicitando a rolagem para "usar Intimidação". O fluxo continua normalmente a partir daí.
 
 -   **[✅] Teste de Ação Direta da IA:**
-    -   [ ] Inicie uma aventura.
-    -   [ ] Abra o painel de testes e na seção "Testar Interações do Jogo", digite um comando no campo de texto, como "Eu abro a porta à minha frente".
-    -   [ ] Clique em "Enviar".
+    -   [✅] Inicie uma aventura.
+    -   [✅] Abra o painel de testes e na seção "Testar Interações do Jogo", digite um comando no campo de texto, como "Eu abro a porta à minha frente".
+    -   [✅] Clique em "Enviar".
     -   **Esperado:** O modal fecha e o jogo processa a ação como se você a tivesse digitado na caixa de ação principal. A narração da IA correspondente deve aparecer no log.
 
 ---

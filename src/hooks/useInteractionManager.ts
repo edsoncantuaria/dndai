@@ -112,6 +112,39 @@ export const useInteractionManager = () => {
     const nextTurn = useCallback((processPlayerAction: (action: string) => void) => () => {
         processPlayerAction("Processar próximo turno");
     }, []);
+
+     // --- Debug/Test Triggers ---
+    const triggerTestShop = useCallback(() => {
+        setShopState({
+            isOpen: true,
+            isHaggling: false,
+            name: "Loja de Testes do Ferreiro",
+            inventory: [
+                { id: 'item-1', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
+                { id: 'item-2', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
+                { id: 'item-3', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: Infinity, equipped: false },
+            ],
+            sellPrices: { 'player-item-1': 25, 'player-item-2': 10 },
+        });
+    }, []);
+
+    const triggerTestCombat = useCallback(() => {
+        setCombatState({
+            isActive: true,
+            round: 2,
+            turn: 1, // Goblin's turn
+            initiativeOrder: ['player', 'goblin-1', 'goblin-2'],
+            combatants: [
+                { id: 'player', name: 'Seu Herói', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [] },
+                { id: 'goblin-1', name: 'Goblin Batedor', hp: { current: 7, max: 7 }, ac: 13, initiative: 15, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
+                { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 12, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: ['Frightened'], rollHistory: [], isDead: false },
+            ],
+        });
+    }, []);
+
+    const triggerTestSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
     
     return {
         actionOptions, setActionOptions,
@@ -129,7 +162,7 @@ export const useInteractionManager = () => {
         clearTransientInteractions,
         clearAllInteractions,
         
-        // Handlers that need processPlayerAction from the main hook
+        // Handlers that need processPlayerAction
         handleRollResult,
         handleSkillCheckSubmit,
         submitSpellCast,
@@ -137,5 +170,10 @@ export const useInteractionManager = () => {
         handleBuyItem,
         handleSellItem,
         nextTurn,
+
+        // Debug triggers
+        triggerTestShop,
+        triggerTestCombat,
+        triggerTestSkillCheck,
     };
 };

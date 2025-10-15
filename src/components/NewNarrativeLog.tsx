@@ -1,4 +1,3 @@
-// src/components/NewNarrativeLog.tsx
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
@@ -81,20 +80,21 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let textContent = entry.content;
     
-    // Check if content is a stringified JSON and parse it
+    // Defensive check: If content is a stringified JSON, parse it to get the actual text.
     if (typeof textContent === 'string') {
         try {
             const parsed = JSON.parse(textContent);
-            if (typeof parsed === 'object' && parsed !== null && parsed.type === 'narration' && parsed.content) {
+            // Check if parsing resulted in an object with a 'content' property
+            if (typeof parsed === 'object' && parsed !== null && 'content' in parsed) {
                 textContent = parsed.content;
             }
         } catch (e) {
-            // It's not a JSON string, so we use it as is.
+            // Not a JSON string, which is the expected case. Do nothing.
         }
     }
     
-    // Ensure content is a string and not the placeholder "narration" or empty
-    if (typeof textContent !== 'string' || textContent.trim().toLowerCase() === 'narration' || textContent.trim() === '') {
+    // Final check to ensure we have a renderable string.
+    if (typeof textContent !== 'string' || !textContent.trim()) {
         return null;
     }
     
@@ -185,6 +185,11 @@ const getActionIcon = (content: string) => {
 
 const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }) {
     let contentComponent;
+
+    // Ação interna do sistema, não deve ser renderizada.
+    if (entry.type === 'action' && typeof entry.content === 'string' && (entry.content.startsWith("Recarregar estado atual") || entry.content.startsWith("A aventura começa."))) {
+        return null;
+    }
 
     switch(entry.type) {
         case 'narration':

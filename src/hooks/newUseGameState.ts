@@ -43,6 +43,8 @@ export const useNewGameState = () => {
             return;
         }
 
+        // The 'sanitizeLogEntries' function in the backend now guarantees logEntries is an array of valid objects.
+        // Thus, we can trust the data structure here.
         if (!isRestoring && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             logState.addLogEntries(newLogEntries);
@@ -52,6 +54,7 @@ export const useNewGameState = () => {
              characterState.updateCharacter(response.updatedCharacter);
         }
         
+        // Backend now guarantees worldState is an object if present.
         if (response.worldState) {
             characterState.updateCharacter({ worldState: response.worldState });
         }
@@ -66,7 +69,9 @@ export const useNewGameState = () => {
             interactionState.setActionOptions(response.actionOptions);
         }
         
+        // Backend now guarantees combatState is an object if present.
         if (response.combatState) interactionState.setCombatState(response.combatState);
+        
         if (response.levelUpState) interactionState.setRequest({ type: 'levelUp', request: response.levelUpState });
         if (response.shopState) interactionState.setRequest({ type: 'shop', request: response.shopState });
         if (response.lootOffer) interactionState.setRequest({ type: 'loot', request: response.lootOffer });
@@ -81,6 +86,10 @@ export const useNewGameState = () => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         if (!currentSessionId) {
             console.error("[processPlayerAction] Aborted: No sessionId.");
+            // Don't show API error for test actions if no session is active.
+            if (!action.startsWith("Teste:")) {
+                 setApiError("Nenhuma sessão de jogo ativa para processar a ação.");
+            }
             return;
         }
         const key = getApiKey();
@@ -94,7 +103,6 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        // Only add player-facing actions to the log
         const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
         if (!isInternalAction) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });

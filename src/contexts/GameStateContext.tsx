@@ -49,6 +49,10 @@ export interface GameStateContextType {
     setCharacter: React.Dispatch<React.SetStateAction<Character | null>>;
     setLog: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setSessionId: React.Dispatch<React.SetStateAction<number | null>>;
+    // Debug Triggers
+    triggerTestShop: () => void;
+    triggerTestCombat: () => void;
+    triggerTestSkillCheck: (skillName: string) => void;
 }
 
 
