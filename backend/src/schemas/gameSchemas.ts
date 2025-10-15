@@ -1,3 +1,4 @@
+// backend/src/schemas/gameSchemas.ts
 'use client';
 import { z, type ZodType } from 'zod';
 import { CreateHomebrewSchema } from './validationSchemas.js';
@@ -106,7 +107,7 @@ const JournalEntrySchema = z.object({
     region: z.string(),
     summary: z.string(),
     looted: z.boolean(),
-    // subLocations: z.array(z.lazy(() => JournalEntrySchema)).optional(), // Recursive part removed
+    // subLocations: z.lazy(() => JournalEntrySchema.array()).optional(),
 });
 
 const QuestSchema = z.object({
