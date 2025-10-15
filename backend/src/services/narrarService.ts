@@ -233,7 +233,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         order: { timestamp: 'DESC' },
         take: 10,
     });
-    const gameLogSummary = recentLogs.reverse().map(log => `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${log.response}`).join('\n');
+    
+    // CORREÇÃO: Não inverta a ordem. O prompt espera do mais antigo para o mais novo.
+    const gameLogSummary = recentLogs
+      .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+      .map(log => `${log.type === 'action' ? 'Jogador' : 'Mestre'}: ${typeof log.response === 'object' ? JSON.stringify(log.response) : log.response}`)
+      .join('\n');
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: optimizedCharacter as any,

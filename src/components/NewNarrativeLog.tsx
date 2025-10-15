@@ -5,7 +5,7 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
 import { textToSpeech } from '@/ai/flows/textToSpeech';
-import { useSettingsContext } from '../contexts/SettingsContext';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import Image from 'next/image';
 
 const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
@@ -79,19 +79,20 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> = ({ entry, isMostRecent }) => {
-    const [displayedText, setDisplayedText] = useState(isMostRecent ? '' : (entry.content || ''));
+    const [displayedText, setDisplayedText] = useState(() => isMostRecent ? '' : (entry.content || ''));
     const isAnimating = useRef(isMostRecent);
 
     useEffect(() => {
-        if (!isMostRecent || !isAnimating.current) {
-            setDisplayedText(entry.content || '');
-            return;
-        }
-
-        const words = (entry.content || '').split(' ');
+        setDisplayedText(isMostRecent ? '' : (entry.content || ''));
+        isAnimating.current = isMostRecent;
+    
+        if (!isMostRecent) return;
+    
+        const content = entry.content || '';
+        const words = content.split(' ');
         let currentIndex = 0;
         let animationFrameId: number;
-
+    
         const animate = () => {
             if (currentIndex < words.length) {
                 setDisplayedText(prev => prev + (currentIndex > 0 ? ' ' : '') + words[currentIndex]);
@@ -101,10 +102,13 @@ const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> =
                 isAnimating.current = false;
             }
         };
-
+    
         animationFrameId = requestAnimationFrame(animate);
-
-        return () => cancelAnimationFrame(animationFrameId);
+    
+        return () => {
+            cancelAnimationFrame(animationFrameId);
+            isAnimating.current = false;
+        };
     }, [entry.content, isMostRecent]);
 
     const isAnimationComplete = !isAnimating.current;
@@ -115,7 +119,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType; isMostRecent: boolean }> =
                 {displayedText}
                 {!isAnimationComplete && <span className="animate-pulse">_</span>}
             </p>
-            {isAnimationComplete && <AudioPlayer text={entry.content} />}
+            {isAnimationComplete && <AudioPlayer text={entry.content || ''} />}
         </div>
     );
 };
