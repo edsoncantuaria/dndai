@@ -23,11 +23,25 @@ export const getUserProfile = async (userId: number) => {
 
 export const updateUserSettings = async (userId: number, newSettings: z.infer<typeof SettingsSchema>) => {
     const userRepository = AppDataSource.getRepository(User);
-    // Overwrite the settings object completely to ensure sync
-    const result = await userRepository.update(userId, { settings: newSettings });
-    if(result.affected === 0) {
+    const user = await userRepository.findOneBy({ id: userId });
+    if (!user) {
         throw createError(404, 'Usuário não encontrado para atualizar as configurações.');
     }
+
+    // Merge new settings with existing ones to avoid overwriting everything.
+    const settingsToSave = {
+        ...(user.settings || {}),
+        ...newSettings,
+        generationConfig: {
+            ...(user.settings?.generationConfig || {}),
+            ...newSettings.generationConfig,
+        }
+    };
+    
+    // We don't save the API key to the database, it's client-side only.
+    delete settingsToSave.apiKey;
+
+    await userRepository.update(userId, { settings: settingsToSave });
 };
 
 export const setHomebrewDisclaimerAsAcknowledged = async (userId: number) => {

@@ -29,7 +29,10 @@ const GameContainer = () => {
         deleteSession,
         startGame,
         isLoading: isGameLoading,
-        apiError
+        apiError,
+        // For testing UI states directly
+        shopState,
+        combatState,
     } = useGameStateContext();
 
     const { user } = useAuth();
@@ -79,6 +82,14 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
+    
+    // --- UI State Override for Testing ---
+    const isTesting = shopState?.isOpen || combatState?.isActive;
+     useEffect(() => {
+        if (isTesting) {
+            setGameStage('playing');
+        }
+    }, [isTesting]);
 
 
     // --- Audio Management ---
@@ -170,7 +181,7 @@ const GameContainer = () => {
 
     const renderContent = () => {
         // Master loading screen for playing stage
-        if (gameStage === 'playing' && (isGameLoading || !character)) {
+        if (gameStage === 'playing' && (isGameLoading || (!character && !isTesting))) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />
@@ -180,7 +191,7 @@ const GameContainer = () => {
         }
 
         // Once loaded, if the stage is 'playing', render the Game component.
-        if (gameStage === 'playing' && character) {
+        if (gameStage === 'playing' && (character || isTesting)) {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}
@@ -302,20 +313,20 @@ const GameContainer = () => {
                         <FlaskConical className="mr-3 h-6 w-6"/> Laboratório Homebrew
                     </button>
                 </main>
-                 <footer className="mt-12 flex items-center gap-6">
+                 <footer className="mt-12 flex justify-center gap-6">
                     <button 
                         onClick={() => setShowSettingsModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
                         title="Configurações"
                     >
-                        <Settings className="h-6 w-6"/> Configurações
+                        <Settings className="h-5 w-5"/> Configurações
                     </button>
                      <button 
                         onClick={() => setShowTestModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-lg"
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
                         title="Testes do Sistema"
                     >
-                        <Beaker className="h-6 w-6"/> Testes do Sistema
+                        <Beaker className="h-5 w-5"/> Testes do Sistema
                     </button>
                 </footer>
             </div>

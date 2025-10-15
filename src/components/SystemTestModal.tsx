@@ -1,11 +1,12 @@
 'use client';
 import React, { useState } from 'react';
 import type { PlayerRollRequest } from '../types';
-import { Dices, Store, Swords, Send, BrainCircuit, Wand } from 'lucide-react';
+import { Dices, Store, Swords, Send, BrainCircuit, Wand, Bot } from 'lucide-react';
 import DiceRollModal from './DiceRollModal';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as characterUtils from '../utils/characterUtils';
 import { translateApiString } from '@/utils/translator';
+import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100', 'd12', 'd20'];
 
@@ -83,7 +84,16 @@ const DiceTestSection: React.FC = () => {
 };
 
 const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const { triggerTestSkillCheck, processPlayerAction, sessionId } = useGameStateContext();
+    const { 
+        triggerTestSkillCheck, 
+        processPlayerAction, 
+        triggerTestCombat, 
+        triggerTestShop,
+    } = useGameStateContext();
+
+    const { model: currentModel, setModel: setContextModel } = useSettingsContext();
+    const [tempModel, setTempModel] = useState(currentModel);
+    
     const [selectedSkill, setSelectedSkill] = useState<string>('Acrobatics');
     const [customAction, setCustomAction] = useState<string>('');
 
@@ -94,17 +104,52 @@ const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }
 
     const handleTestAction = () => {
         if (!customAction.trim()) return;
-        processPlayerAction(customAction);
+        processPlayerAction(customAction, undefined, tempModel);
+        onClose();
+    };
+
+    const handleTestShopInteraction = () => {
+        processPlayerAction("Eu entro em uma loja para ver o que há para vender.", undefined, tempModel);
+        onClose();
+    };
+
+    const handleTestCombatInteraction = () => {
+        processPlayerAction("Um goblin pula de trás de um arbusto e me ataca!", undefined, tempModel);
         onClose();
     };
 
     return (
         <div className="p-4 border border-stone-700 rounded-lg space-y-4">
             <h3 className="font-semibold text-stone-300 mb-3">Testar Interações do Jogo</h3>
-
-            {/* Teste de Perícia */}
+            
+            <div>
+                <label htmlFor="ia-model-test-select" className="block text-sm font-medium text-stone-400 mb-1">Modelo de IA para este Teste</label>
+                <select
+                    id="ia-model-test-select"
+                    value={tempModel}
+                    onChange={(e) => setTempModel(e.target.value)}
+                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                >
+                    {AVAILABLE_MODELS.map(modelName => (
+                        <option key={modelName} value={modelName}>{modelName}</option>
+                    ))}
+                </select>
+            </div>
+            
             <div className="space-y-2">
-                <label htmlFor="skill-test-select" className="block text-sm font-medium text-stone-400">1. Simular Teste de Perícia</label>
+                <label className="block text-sm font-medium text-stone-400">1. Simular Fluxos Completos</label>
+                <div className="flex flex-col sm:flex-row gap-2">
+                    <button onClick={handleTestShopInteraction} className="w-full px-3 py-2 rounded-md font-semibold text-white bg-blue-700 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                        <Store className="h-4 w-4"/> Simular Loja
+                    </button>
+                    <button onClick={handleTestCombatInteraction} className="w-full px-3 py-2 rounded-md font-semibold text-white bg-red-700 hover:bg-red-600 transition-colors flex items-center justify-center gap-2">
+                        <Swords className="h-4 w-4"/> Simular Combate
+                    </button>
+                </div>
+            </div>
+
+            <div className="space-y-2">
+                <label htmlFor="skill-test-select" className="block text-sm font-medium text-stone-400">2. Simular Teste de Perícia</label>
                 <div className="flex gap-2">
                     <select
                         id="skill-test-select"
@@ -116,15 +161,14 @@ const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }
                             <option key={skill} value={skill}>{translateApiString(skill)}</option>
                         ))}
                     </select>
-                    <button onClick={handleTestSkill} disabled={!sessionId} className="px-3 py-2 rounded-md font-semibold text-white bg-cyan-700 hover:bg-cyan-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50" title={!sessionId ? "Inicie um jogo para testar" : "Testar perícia"}>
+                    <button onClick={handleTestSkill} className="px-3 py-2 rounded-md font-semibold text-white bg-cyan-700 hover:bg-cyan-600 transition-colors flex items-center justify-center gap-2">
                         <BrainCircuit className="h-4 w-4"/> Testar
                     </button>
                 </div>
             </div>
 
-            {/* Teste de Ação Customizada */}
             <div className="space-y-2">
-                <label htmlFor="action-test-input" className="block text-sm font-medium text-stone-400">2. Testar Ação Direta da IA</label>
+                <label htmlFor="action-test-input" className="block text-sm font-medium text-stone-400">3. Testar Ação Direta da IA</label>
                 <div className="flex gap-2">
                     <input
                         id="action-test-input"
@@ -134,7 +178,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }
                         placeholder="Ex: Eu ataco o goblin"
                         className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
                     />
-                    <button onClick={handleTestAction} disabled={!sessionId || !customAction.trim()} className="px-3 py-2 rounded-md font-semibold text-stone-900 bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50" title={!sessionId ? "Inicie um jogo para testar" : "Enviar Ação"}>
+                    <button onClick={handleTestAction} disabled={!customAction.trim()} className="px-3 py-2 rounded-md font-semibold text-stone-900 bg-amber-500 hover:bg-amber-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                         <Send className="h-4 w-4"/> Enviar
                     </button>
                 </div>
@@ -147,11 +191,11 @@ const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }
 const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
     const { triggerTestShop, triggerTestCombat } = useGameStateContext();
 
-    const handleTestShop = () => {
+    const handleTestShopUI = () => {
         triggerTestShop();
         onClose();
     }
-    const handleTestCombat = () => {
+    const handleTestCombatUI = () => {
         triggerTestCombat();
         onClose();
     }
@@ -176,11 +220,11 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
                     <DiceTestSection />
                     
                     <div className="p-4 border border-stone-700 rounded-lg space-y-3">
-                         <h3 className="font-semibold text-stone-300 mb-3">Testes de Estado Visual</h3>
-                         <button onClick={handleTestShop} className="w-full px-4 py-2 rounded-md font-semibold text-white bg-blue-700 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
+                         <h3 className="font-semibold text-stone-300 mb-3">Testes de Estado Visual (UI)</h3>
+                         <button onClick={handleTestShopUI} className="w-full px-4 py-2 rounded-md font-semibold text-white bg-blue-700 hover:bg-blue-600 transition-colors flex items-center justify-center gap-2">
                             Testar UI da Loja <Store className="h-4 w-4"/>
                         </button>
-                         <button onClick={handleTestCombat} className="w-full px-4 py-2 rounded-md font-semibold text-white bg-red-700 hover:bg-red-600 transition-colors flex items-center justify-center gap-2">
+                         <button onClick={handleTestCombatUI} className="w-full px-4 py-2 rounded-md font-semibold text-white bg-red-700 hover:bg-red-600 transition-colors flex items-center justify-center gap-2">
                             Testar UI de Combate <Swords className="h-4 w-4"/>
                         </button>
                     </div>

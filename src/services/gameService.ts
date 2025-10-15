@@ -55,18 +55,27 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState): Promise<GameMasterResponse> => {
+export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState, model?: string): Promise<GameMasterResponse> => {
+    // A mock session ID of -1 is used for tests without a real session.
+    // In a real scenario, you might want to handle this differently, but for testing it's fine.
+    if (sessionId === -1) {
+        console.warn("Running processPlayerAction in test mode with a mock session.");
+    }
+
     const token = localStorage.getItem('token');
-    if (!token) {
+    if (!token && sessionId !== -1) {
         throw new Error("Token de autenticação não encontrado.");
     }
+    
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
-        headers: {
-             'Content-Type': 'application/json',
-             'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ prompt, apiKey, combatState }),
+        headers: headers,
+        body: JSON.stringify({ prompt, apiKey, combatState, model }), // Pass model override
     });
 
     if (!response.ok) {

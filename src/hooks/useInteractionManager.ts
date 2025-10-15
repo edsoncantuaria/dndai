@@ -70,14 +70,14 @@ export const useInteractionManager = () => {
     }, [clearTransientInteractions]);
 
     // --- Action Handlers that depend on processPlayerAction ---
-    const handleRollResult = useCallback((processPlayerAction: (action: string) => void) => (result: { total: number; rolls: number[] }) => {
+    const handleRollResult = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         setPlayerRollRequest(null);
         processPlayerAction(actionText);
     }, [playerRollRequest]);
 
-    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string) => void) => (description: string) => {
+    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
@@ -85,13 +85,13 @@ export const useInteractionManager = () => {
         processPlayerAction(actionText);
     }, [skillCheckRequest]);
 
-    const submitSpellCast = useCallback((processPlayerAction: (action: string) => void) => (spell: ApiSpell, description: string) => {
+    const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
         const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}` : '.'}`;
         setSpellCastRequest(null);
         processPlayerAction(actionText);
     }, []);
 
-    const handleTakeLoot = useCallback((processPlayerAction: (action: string) => void) => (takeAll: boolean) => {
+    const handleTakeLoot = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (takeAll: boolean) => {
         if (!pendingLootOffer) return;
         setPlayerRollRequest(null);
         if (takeAll) {
@@ -99,17 +99,17 @@ export const useInteractionManager = () => {
         }
     }, [pendingLootOffer]);
 
-    const handleBuyItem = useCallback((processPlayerAction: (action: string) => void) => (item: ShopItem, price: number) => {
+    const handleBuyItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: ShopItem, price: number) => {
         setPlayerRollRequest(null);
         processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
     }, []);
 
-    const handleSellItem = useCallback((processPlayerAction: (action: string) => void) => (item: InventoryItem, price: number) => {
+    const handleSellItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: InventoryItem, price: number) => {
         setPlayerRollRequest(null);
         processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
     }, []);
     
-    const nextTurn = useCallback((processPlayerAction: (action: string) => void) => () => {
+    const nextTurn = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
         processPlayerAction("Processar próximo turno");
     }, []);
 
