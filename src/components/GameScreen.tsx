@@ -54,7 +54,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     } = useGameStateContext();
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const [showDiceModal, setShowDiceModal] = useState(false);
     
+    useEffect(() => {
+        // Controla a visibilidade do modal de dados com base no estado do playerRollRequest.
+        // Isso é mais robusto do que usar um setTimeout.
+        if (playerRollRequest) {
+            setShowDiceModal(true);
+        } else {
+            setShowDiceModal(false);
+        }
+    }, [playerRollRequest]);
+
+
     const handleModalAction = () => setIsMobileSheetOpen(false);
 
     const renderSidebarContent = () => {
@@ -118,7 +130,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         request={playerRollRequest}
                         onRoll={handleRollResult}
                         onClose={() => setPlayerRollRequest(null)}
-                        show={!!playerRollRequest}
+                        show={showDiceModal}
                     />
                 )}
                 {skillCheckRequest && (
