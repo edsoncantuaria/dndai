@@ -80,8 +80,15 @@ const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
 
 // Simplified Narration Entry
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    const textContent = typeof entry.content === 'string' ? entry.content : '';
+    let textContent = '';
 
+    if (typeof entry.content === 'string') {
+        textContent = entry.content;
+    } else if (entry.content && typeof entry.content === 'object' && 'content' in entry.content) {
+        // Fallback for cases where content might be nested incorrectly
+        textContent = entry.content.content as string;
+    }
+    
     if (!textContent) return null;
 
     return (

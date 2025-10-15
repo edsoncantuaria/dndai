@@ -1,8 +1,9 @@
+// src/components/NewJournal.tsx
 'use client';
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { JournalEntry } from '../types';
-import { ChevronDown, Map } from 'lucide-react';
+import { ChevronDown, Map, Compass } from 'lucide-react';
 
 interface LocationProps {
     location: JournalEntry;
@@ -54,18 +55,18 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 
 const NewJournal: React.FC = () => {
     const { character } = useGameStateContext();
-    const currentRegion = character?.worldState?.currentRegion || 'Desconhecida';
+    const currentRegion = character?.currentRegion || 'Desconhecida';
 
 
     if (!character || !character.journal || character.journal.length === 0) {
         return (
              <div className="p-4 space-y-4">
-                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                     <Map />
                     Diário de Aventura
                 </h3>
                  <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
-                    <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
+                    <p className="text-sm text-stone-400 flex items-center gap-2"><Compass className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
                 </div>
                 <div className="text-center text-stone-400 italic p-8 bg-stone-800/50 rounded-lg">
                     <p>Seu diário está vazio.</p>
@@ -93,7 +94,7 @@ const NewJournal: React.FC = () => {
             </h3>
             
             <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
-                <p className="text-sm text-stone-400">Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
+                <p className="text-sm text-stone-400 flex items-center gap-2"><Compass className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-300">{currentRegion}</span></p>
             </div>
 
             <div className="space-y-4">

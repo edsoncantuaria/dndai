@@ -282,13 +282,11 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
                     // It's a stringified JSON object like "{\"type\":\"narration\",\"content\":\"...\"}"
                     const parsed = JSON.parse(entry);
                     if (parsed.type && parsed.content) {
-                        return { type: parsed.type, content: parsed.content };
+                        return { type: parsed.type, content: parsed.content, rollResult: parsed.rollResult };
                     }
                 } catch (e) {
-                    // It's just a plain string like "narration", which is incorrect.
-                    // Or it's the narration content itself, also incorrect.
-                    // We can't reliably fix this, so we should filter it out.
-                    return null;
+                     // It's just a plain string. Wrap it.
+                     return { type: 'narration', content: entry };
                 }
             }
             // If it's already an object with the correct structure, keep it.
@@ -312,7 +310,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
             const newLog = new SessionLog();
-            // Stringify the entire AI response for the log content to allow state restoration
             const content = typeof entry.content === 'object' 
                 ? JSON.stringify(entry.content) 
                 : (entry.content || '');
@@ -320,7 +317,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             Object.assign(newLog, {
                 sessaoId: sessao.id,
                 prompt: 'GM Response',
-                response: content, // Save the narration text
+                response: content, 
                 type: entry.type || 'narration',
                 rollResult: entry.rollResult,
             });

@@ -277,16 +277,17 @@ export const useNewGameState = () => {
             if (sessionDetails && sessionDetails.character) {
                 const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                 
-                const formattedLogs: LogEntry[] = (sessionDetails.logs || [])
-                    .filter(log => log.type !== 'state') // Don't display raw state logs
+                const displayLogs: LogEntry[] = (sessionDetails.logs || [])
+                    .filter(log => log.type !== 'state') 
                     .map(log => ({
-                        ...log,
                         id: log.id?.toString() || uuidv4(),
-                        content: log.response, // The backend now saves the clean string here
+                        type: log.type as LogEntry['type'],
+                        content: log.response,
+                        rollResult: log.rollResult,
                     }));
                 
                 setCharacter(fullCharacter);
-                setLog(formattedLogs); 
+                setLog(displayLogs); 
                 setSessionId(id);
 
                 // Find the special log entry containing the full state to restore the UI
@@ -297,15 +298,13 @@ export const useNewGameState = () => {
                         handleApiResponse(lastState);
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                        // Fallback to refresh if parsing fails
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else {
-                    // This is a new session, start the game.
                     await startGame(id);
                 }
 
-                return { character: fullCharacter, logs: formattedLogs };
+                return { character: fullCharacter, logs: displayLogs };
             } else {
                 throw new Error("Dados da sessão ou do personagem estão faltando.");
             }
