@@ -129,22 +129,24 @@ export const useNewGameState = () => {
     const handleApiResponse = useCallback((response: any | null) => {
         if (!response) throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         
-        if (Array.isArray(response.logEntries)) {
-            const parsedLogEntries = response.logEntries.map((entry: any) => {
+        if (response.logEntries && Array.isArray(response.logEntries)) {
+            const parsedEntries: LogEntry[] = response.logEntries.map((entry: any) => {
                 if (typeof entry === 'string') {
                     try {
+                        // Try to parse if it's a stringified JSON object
                         return JSON.parse(entry);
                     } catch (e) {
-                        console.warn("Could not parse log entry string:", entry, e);
-                        return null; // Ignore malformed strings
+                        // If parsing fails, it's likely just a narration string. Wrap it.
+                        return { type: 'narration', content: entry };
                     }
                 }
                 return entry;
-            }).filter((entry: any): entry is LogEntry => entry !== null && typeof entry === 'object' && entry.type && entry.content);
-            
-            const newLogEntries = parsedLogEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+            }).filter(Boolean); // Filter out any null/undefined entries
+
+            const newLogEntries = parsedEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
         }
+
 
         if (response.updatedCharacter) {
              setCharacter(prev => prev ? mergeCharacterState(prev, response.updatedCharacter) : null);
