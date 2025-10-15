@@ -23,6 +23,9 @@ export class User {
 
     @Column({ type: 'json', nullable: true })
     settings: Record<string, any>;
+    
+    @Column({ type: 'boolean', default: false })
+    acknowledgedHomebrewDisclaimer: boolean;
 
     @OneToOne(() => LicenseKey)
     @JoinColumn({ name: 'licenseKeyId' })

@@ -29,3 +29,11 @@ export const updateUserSettings = async (userId: number, newSettings: z.infer<ty
         throw createError(404, 'Usuário não encontrado para atualizar as configurações.');
     }
 };
+
+export const setHomebrewDisclaimerAsAcknowledged = async (userId: number) => {
+    const userRepository = AppDataSource.getRepository(User);
+    const result = await userRepository.update(userId, { acknowledgedHomebrewDisclaimer: true });
+    if (result.affected === 0) {
+        throw createError(404, 'Usuário não encontrado para atualizar a confirmação.');
+    }
+}

@@ -35,4 +35,18 @@ export const updateSettings = async (req: AuthRequest, res: Response, next: Next
         }
         next(error);
     }
-}
+};
+
+export const acknowledgeHomebrewDisclaimer = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Não autorizado.'));
+    }
+
+    try {
+        await UserService.setHomebrewDisclaimerAsAcknowledged(userId);
+        res.status(200).json({ success: true, message: 'Confirmação salva com sucesso.' });
+    } catch (error) {
+        next(error);
+    }
+};
