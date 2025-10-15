@@ -1,4 +1,3 @@
-
 # Refatoração do Backend: Rumo a uma Plataforma de RPG com Múltiplas Sessões
 
 * **Objetivo:** Substituir a lógica de jogo do frontend por um backend Node.js robusto. Este backend gerenciará múltiplas sessões de jogo, cada uma com sua própria instância de IA (Genkit/Gemini) e persistência de dados em um banco de dados MySQL, utilizando TypeORM.
