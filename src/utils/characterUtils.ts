@@ -184,7 +184,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     }
     
     const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const subclassLevelsData = subraceDetails ? (await DndApiService.getSubclassLevels(subraceDetails.index) || []) : [];
+    const subclassLevelsData = classDetails?.subclasses?.[0] ? (await DndApiService.getSubclassLevels(classDetails.subclasses[0].index) || []) : [];
     
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
@@ -210,7 +210,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         : [];
     
     const ac = calculateAC(inventory, modifiers);
-    const maxHp = backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
+    const maxHp = backendChar.attributes.maxHp || backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
 
     const traits: ApiListItem[] = [...(raceDetails?.traits || [])];
     if (subraceDetails && subraceDetails.racial_traits) {
@@ -232,19 +232,20 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
 
     // --- Correct Spell Slot Calculation ---
     const spellSlots: Character['spellSlots'] = {};
-    const levelData = classLevelsData.find(l => l.level === backendChar.level);
-    
     let relevantSpellcastingData = null;
-    if (levelData?.spellcasting) {
-        relevantSpellcastingData = levelData.spellcasting;
-    } else {
-        // Look backwards for the most recent level that HAD spellcasting data
-        for (let i = backendChar.level - 1; i >= 1; i--) {
-            const pastLevelData = classLevelsData.find(l => l.level === i);
-            if (pastLevelData?.spellcasting) {
-                relevantSpellcastingData = pastLevelData.spellcasting;
-                break;
-            }
+
+    // Look backwards from the current level to find the most recent spellcasting data
+    for (let i = backendChar.level; i >= 1; i--) {
+        const levelData = classLevelsData.find(l => l.level === i);
+        if (levelData?.spellcasting) {
+            relevantSpellcastingData = levelData.spellcasting;
+            break;
+        }
+        // Check subclass levels too, which is crucial for Paladin, Ranger, etc.
+        const sublevelData = subclassLevelsData.find(l => l.level === i);
+        if (sublevelData?.spellcasting) {
+            relevantSpellcastingData = sublevelData.spellcasting;
+            break;
         }
     }
     
@@ -294,6 +295,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         subclassLevelsData: subclassLevelsData,
         spellSlots: spellSlots,
         personalityTraits: backendChar.personalityTraits || [],
+        subclassFlavor: backendChar.subclassFlavor || classDetails?.subclasses?.[0]?.name || null
     };
 }
 
