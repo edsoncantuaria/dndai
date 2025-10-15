@@ -219,7 +219,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
-export const processPlayerAction = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
+export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
@@ -315,8 +315,14 @@ export const processPlayerAction = async (sessionId: number, userId: number, pla
     if (aiResponse.newHomebrewContent) {
         for (const newContent of aiResponse.newHomebrewContent) {
             try {
-                await HomebrewService.createHomebrewContent(userId, newContent);
-                 console.log(`[narrarService] Conteúdo Homebrew da IA salvo: ${newContent.name}`);
+                // Check if content with this name and type already exists to prevent duplicates
+                const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
+                if (!existing) {
+                    await HomebrewService.createHomebrewContent(userId, newContent);
+                    console.log(`[narrarService] Conteúdo Homebrew da IA salvo: ${newContent.name}`);
+                } else {
+                    console.log(`[narrarService] Conteúdo Homebrew da IA já existe, não foi salvo novamente: ${newContent.name}`);
+                }
             } catch (error) {
                 console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
                 // Continue even if this part fails
