@@ -98,7 +98,7 @@ export const useNewGameState = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
-    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string, description: string } | null>(null);
+    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
     const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null);
     const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
     const [isLoading, setIsLoading] = useState(false);
@@ -131,6 +131,7 @@ export const useNewGameState = () => {
             throw new Error('O Mestre parece distraído. A resposta da IA foi vazia.');
         }
     
+        // Only add to log if we are not restoring state from a log entry
         if (!isRestoring && Array.isArray(response.logEntries)) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             setLog(prev => [...prev, ...newLogEntries]);
@@ -316,7 +317,7 @@ export const useNewGameState = () => {
     }, [playerRollRequest, processPlayerAction]);
     
     const handleSkillCheck = useCallback((skillName: string) => {
-        setSkillCheckRequest({ skillName, description: '' });
+        setSkillCheckRequest({ skillName });
     }, []);
 
     const handleSkillCheckSubmit = useCallback((description: string) => {
@@ -434,5 +435,3 @@ export const useNewGameState = () => {
         setSessionId
     };
 };
-
-    

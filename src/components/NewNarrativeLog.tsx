@@ -86,14 +86,13 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
 
     if (!textContent) return null;
 
-    // Use dangerouslySetInnerHTML to render potential HTML content from the AI
+    // Use a regular paragraph and do not use dangerouslySetInnerHTML
     return (
         <div className="flex items-start">
-            <p 
-                className="text-stone-300 leading-relaxed flex-grow font-sans"
-                dangerouslySetInnerHTML={{ __html: textContent }} 
-            />
-            {textContent && <AudioPlayer text={textContent.replace(/<[^>]*>?/gm, '')} />}
+            <p className="text-stone-300 leading-relaxed flex-grow font-sans">
+                {textContent}
+            </p>
+            {textContent && <AudioPlayer text={textContent} />}
         </div>
     );
 };
@@ -224,7 +223,12 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             );
             break;
         default:
-            content = null;
+             // Fallback for any unexpected type or simple string content
+            if (typeof entry.content === 'string' && entry.type !== 'action') {
+                content = <NarrationEntry entry={{...entry, type: 'narration'}} />;
+            } else {
+                content = null;
+            }
     }
     if(content === null) return null;
 
@@ -287,5 +291,3 @@ const NewNarrativeLog: React.FC = () => {
 };
 
 export default NewNarrativeLog;
-
-    

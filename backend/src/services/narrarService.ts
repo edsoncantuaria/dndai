@@ -219,6 +219,45 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     }
 };
 
+/**
+ * Sanitizes the logEntries from the AI response to ensure they are in a consistent format.
+ * @param entries The raw logEntries array from the AI.
+ * @returns A cleaned array of log entry objects.
+ */
+const sanitizeLogEntries = (entries: any): any[] => {
+    if (!Array.isArray(entries)) {
+        // If it's not an array, wrap it in one for consistent processing
+        entries = [entries];
+    }
+
+    const sanitized: any[] = [];
+
+    for (let entry of entries) {
+        if (!entry) continue;
+
+        if (typeof entry === 'string') {
+            try {
+                // Try to parse if it's a JSON string
+                entry = JSON.parse(entry);
+            } catch (e) {
+                // If it's just a plain string, treat it as narration content
+                entry = { type: 'narration', content: entry };
+            }
+        }
+
+        // Ensure it's a valid object with at least type and content
+        if (typeof entry === 'object' && entry.type && entry.content) {
+            // Remove any HTML tags from the content
+            if (typeof entry.content === 'string') {
+                entry.content = entry.content.replace(/<[^>]*>?/gm, '');
+            }
+            sanitized.push(entry);
+        }
+    }
+    return sanitized;
+};
+
+
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: any): Promise<GameMasterResponse> => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const logRepository = AppDataSource.getRepository(SessionLog);
@@ -275,44 +314,29 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     }
     
     // --- Início da Seção de Saneamento ---
+    
+    // 1. Sanitize logEntries
+    aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
+    
+    // 2. Ensure worldState is always an object, falling back to the character's current state
+    if (!aiResponse.worldState) {
+        aiResponse.worldState = optimizedCharacter.worldState;
+    }
 
-    // Prioridade 1: Se um `playerRollRequest` existir, retorne-o imediatamente.
+    // 3. If a player roll is requested, return it immediately with its specific actionOptions.
+    // This is the highest priority response to ensure no rolls are missed.
     if (aiResponse.playerRollRequest) {
-        // Ainda podemos registrar a justificativa, se houver.
         if (aiResponse.systemLog) {
             const systemLog = new SessionLog();
             Object.assign(systemLog, { sessaoId: sessao.id, prompt: 'Player Roll Request', response: aiResponse.systemLog, type: 'system' });
             await logRepository.save(systemLog);
         }
-        return { playerRollRequest: aiResponse.playerRollRequest, actionOptions: aiResponse.actionOptions || [] } as GameMasterResponse;
-    }
-    
-    // Sanitize logEntries
-    if (Array.isArray(aiResponse.logEntries)) {
-        aiResponse.logEntries = aiResponse.logEntries.map(entry => {
-            if (typeof entry === 'string') {
-                try {
-                    return JSON.parse(entry);
-                } catch {
-                    // Remove HTML tags from simple string narration
-                    const cleanContent = entry.replace(/<[^>]*>?/gm, '');
-                    return { type: 'narration', content: cleanContent };
-                }
-            }
-            if (entry && typeof entry.content === 'string') {
-                entry.content = entry.content.replace(/<[^>]*>?/gm, '');
-            }
-            return entry;
-        }).filter(entry => entry && entry.content); // Filtra entradas nulas ou sem conteúdo
-    } else {
-        aiResponse.logEntries = [];
+        return { 
+            playerRollRequest: aiResponse.playerRollRequest, 
+            actionOptions: aiResponse.actionOptions || [] 
+        } as GameMasterResponse;
     }
 
-    // Garante que worldState seja sempre um objeto
-    if (!aiResponse.worldState) {
-        aiResponse.worldState = optimizedCharacter.worldState;
-    }
-    
     // -- Fim da Seção de Saneamento --
 
     // Log player action, unless it's a system reload
@@ -327,20 +351,20 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     Object.assign(stateLog, {
         sessaoId: sessao.id,
         prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse),
+        response: JSON.stringify(aiResponse), // Save the entire sanitized response
         type: 'state',
     });
     await logRepository.save(stateLog);
 
-    // Salva logs de narração limpos para exibição
+    // Save the cleaned narration logs for display
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-             if (entry.type !== 'state' && typeof entry.content === 'string') {
+             if (entry.content) { // Ensure there's content to save
                 const newLog = new SessionLog();
                 Object.assign(newLog, {
                     sessaoId: sessao.id,
                     prompt: 'GM Narration',
-                    response: entry.content,
+                    response: entry.content, // Save only the string content
                     type: entry.type || 'narration',
                     rollResult: entry.rollResult,
                 });
@@ -373,5 +397,3 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     return aiResponse;
 };
-
-    
