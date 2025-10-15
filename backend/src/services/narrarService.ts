@@ -116,7 +116,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     await queryRunner.startTransaction();
 
     try {
-        const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }});
+        const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items"] });
         if (!character) throw new Error("Personagem não encontrado para atualização.");
 
         const directFields = ['level', 'xp', 'storySoFar', 'factionReputation'];
@@ -140,28 +140,38 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
             }
         }
 
-
         await queryRunner.manager.save(character);
 
         if (updates.attributes) {
             await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
         }
+
         if (updates.inventory) {
-             const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-             await itemsRepo.delete({ characterId }); 
-             const newItems = updates.inventory.map((itemData: any) => {
-                 const newItem = new CharacterItem();
-                 Object.assign(newItem, { 
-                     characterId, 
-                     name: itemData.name, 
-                     quantity: itemData.quantity,
-                     equipped: itemData.equipped || false,
-                     itemData 
-                 });
-                 return newItem;
-             });
-             await itemsRepo.save(newItems);
+            const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
+            const existingItemsMap = new Map(character.items.map(item => [item.itemData.index, item]));
+            
+            for (const itemData of updates.inventory) {
+                const existingItem = existingItemsMap.get(itemData.index);
+                if (existingItem) {
+                    // Update existing item
+                    existingItem.quantity = itemData.quantity;
+                    existingItem.equipped = itemData.equipped || false;
+                    await itemsRepo.save(existingItem);
+                    existingItemsMap.delete(itemData.index); // Remove from map to track which items were not in the update
+                } else {
+                    // Add new item
+                    const newItem = new CharacterItem();
+                    Object.assign(newItem, { characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
+                    await itemsRepo.save(newItem);
+                }
+            }
+            // Delete items that were in the DB but not in the update
+            const itemsToDelete = Array.from(existingItemsMap.values());
+            if (itemsToDelete.length > 0) {
+                await itemsRepo.remove(itemsToDelete);
+            }
         }
+        
         if (updates.spells) {
             const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
             await spellsRepo.delete({ characterId });
@@ -230,6 +240,7 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
                 if (typeof entry === 'string') {
                     try {
                         const parsed = JSON.parse(entry);
+                        // Check if parsing resulted in a valid log entry object
                         if (typeof parsed === 'object' && parsed !== null && parsed.type && parsed.content) {
                             return parsed;
                         }
@@ -238,6 +249,7 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
                         return { type: 'narration', content: entry };
                     }
                 }
+                // If it's already a valid-looking object
                 if (entry && typeof entry === 'object' && entry.type && entry.content) {
                     return entry;
                 }
@@ -245,11 +257,10 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
             })
             .filter((entry): entry is any => entry !== null);
     } else {
-        // If logEntries is not an array, create an empty one.
         sanitized.logEntries = [];
     }
 
-    // 2. Sanitize nullable fields to prevent downstream errors.
+    // 2. Sanitize nullable/optional fields to prevent downstream errors.
     sanitized.worldState = sanitized.worldState ?? characterState.worldState ?? {};
     sanitized.combatState = sanitized.combatState ?? undefined;
     sanitized.playerRollRequest = sanitized.playerRollRequest ?? undefined;
@@ -333,7 +344,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
     
-    // --- Sanitize and Process the rest of the response ---
     aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
     

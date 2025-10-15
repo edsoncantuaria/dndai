@@ -1,11 +1,12 @@
 // backend/src/services/aiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema } from "../schemas/gameSchemas.js";
+import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js'; // Ajustado para importar do backend
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
+import createError from 'http-errors';
 
 
 // Esta função agora aceita a chave de API como um argumento.
@@ -77,6 +78,9 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
+    // Validate input before sending to AI
+    GameMasterFlowInputSchema.parse(input);
+    
     if (!apiKey) {
       throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
     }
@@ -178,7 +182,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     console.warn("[geminiService] Tentando corrigir falha de validação...");
                     return await attemptGeneration(true);
                 }
-                 throw new Error(`A resposta da IA falhou na validação final: ${validationResult.error.message}`);
+                 throw createError(500, `A resposta da IA falhou na validação final: ${JSON.stringify(validationResult.error.flatten())}`);
             }
 
             return validationResult.data;

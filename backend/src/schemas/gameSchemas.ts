@@ -1,6 +1,5 @@
 // backend/src/schemas/gameSchemas.ts
-'use client';
-import { z, type ZodType } from 'zod';
+import { z } from 'zod';
 import { CreateHomebrewSchema } from './validationSchemas.js';
 
 // Schema for PlayerRollRequest
@@ -21,7 +20,16 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 // Schema para uma única entrada no log da aventura.
 const LogEntrySchema = z.object({
     type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-    content: z.any().describe("The text content of the log entry or a structured object for special types like 'image'."),
+    content: z.union([
+      z.string(),
+      z.object({
+        text: z.string().optional(),
+        imageUrl: z.string().optional(),
+        status: z.enum(['generating', 'failed', 'done']).optional(),
+        prompt: z.string().optional(),
+        meta: z.record(z.any()).optional(),
+      })
+    ]).describe("The content of the log entry, which can be a simple string or a structured object for special types like 'image'."),
     rollResult: z.any().optional().describe("Optional structured data for a dice roll."),
 }).describe("An entry in the game's adventure log.");
 
@@ -63,7 +71,7 @@ export const CombatStateSchema = z.object({
     turn: z.number().describe("The index in the initiativeOrder array indicating whose turn it is."),
     combatants: z.array(FullCombatantSchema).describe("List of all combatants involved in the encounter."),
     initiativeOrder: z.array(z.string()).optional().describe("Array of combatant IDs, sorted from highest to lowest initiative."),
-    log: z.array(z.string()).optional().default([]).describe("Log of significant events in the combat."),
+    log: z.array(z.union([z.string(), LogEntrySchema])).optional().default([]).describe("Log of significant events in the combat."),
 }).describe("The complete state of the combat encounter.");
 
 
@@ -71,7 +79,7 @@ export const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
     newLevel: z.number(),
     choices: z.any(),
-}).optional();
+}).nullable().optional();
 
 export const ShopStateSchema = z.object({
     isOpen: z.boolean(),
@@ -79,17 +87,17 @@ export const ShopStateSchema = z.object({
     name: z.string(),
     inventory: z.any(),
     sellPrices: z.any(),
-}).optional();
+}).nullable().optional();
 
 export const LootOfferSchema = z.object({
     items: z.any(),
     currency: z.object({ gp: z.number() }),
-}).optional();
+}).nullable().optional();
 
 export const UseHitDiceRequestSchema = z.object({
     maxDice: z.number(),
     hitDieValue: z.number(),
-}).optional();
+}).nullable().optional();
 
 
 // Itens do inventário com propriedades de uso/equipamento
@@ -135,16 +143,16 @@ export const GameMasterResponseSchema = z.object({
     logEntries: z.array(LogEntrySchema.nullable()).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action. E.g., { attributes: { hp: 25 }, inventory: [...] }"),
-    combatState: CombatStateSchema.optional().nullable().describe("The complete state of combat, if it is active."),
-    playerRollRequest: PlayerRollRequestSchema.optional().nullable().describe("If the Game Master needs the player to roll dice, this object MUST be populated."),
+    combatState: CombatStateSchema.nullable().optional().describe("The complete state of combat, if it is active."),
+    playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("If the Game Master needs the player to roll dice, this object MUST be populated."),
     ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night')."),
     systemLog: z.string().optional().nullable().describe("Optional log for the GM to explain decisions (DC choice, NPC rolls, etc.)."),
-    levelUpState: LevelUpStateSchema.optional().nullable().describe("The state of a pending level-up for the character."),
-    shopState: ShopStateSchema.optional().nullable().describe("The state of a shop, if the player is currently in one."),
-    lootOffer: LootOfferSchema.optional().nullable().describe("An offer of loot for the player to accept."),
-    useHitDiceRequest: UseHitDiceRequestSchema.optional().nullable().describe("A request for the player to spend hit dice during a short rest."),
-    worldState: WorldStateSchema.optional().nullable().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
-    newHomebrewContent: z.array(CreateHomebrewSchema).optional().nullable().describe("A list of new homebrew content (monsters, items, etc.) created by the GM that should be persisted."),
+    levelUpState: LevelUpStateSchema,
+    shopState: ShopStateSchema,
+    lootOffer: LootOfferSchema,
+    useHitDiceRequest: UseHitDiceRequestSchema,
+    worldState: WorldStateSchema.nullable().optional().describe("Updates to the global world state, like time and weather. This MUST always be returned."),
+    newHomebrewContent: z.array(CreateHomebrewSchema).nullable().optional().describe("A list of new homebrew content (monsters, items, etc.) created by the GM that should be persisted."),
 }).describe("The Game Master's complete response to a player action.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
