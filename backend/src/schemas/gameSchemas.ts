@@ -71,7 +71,7 @@ export const LevelUpStateSchema = z.object({
     isPending: z.boolean(),
     newLevel: z.number(),
     choices: z.any(),
-});
+}).optional();
 
 export const ShopStateSchema = z.object({
     isOpen: z.boolean(),
@@ -79,17 +79,17 @@ export const ShopStateSchema = z.object({
     name: z.string(),
     inventory: z.any(),
     sellPrices: z.any(),
-});
+}).optional();
 
 export const LootOfferSchema = z.object({
     items: z.any(),
     currency: z.object({ gp: z.number() }),
-});
+}).optional();
 
 export const UseHitDiceRequestSchema = z.object({
     maxDice: z.number(),
     hitDieValue: z.number(),
-});
+}).optional();
 
 
 // Itens do inventário com propriedades de uso/equipamento
