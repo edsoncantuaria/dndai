@@ -86,10 +86,10 @@ const GameContainer = () => {
     // --- UI State Override for Testing ---
     const isTesting = shopState?.isOpen || combatState?.isActive;
      useEffect(() => {
-        if (isTesting) {
+        if (isTesting && gameStage !== 'playing') {
             setGameStage('playing');
         }
-    }, [isTesting]);
+    }, [isTesting, gameStage]);
 
 
     // --- Audio Management ---

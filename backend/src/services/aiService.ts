@@ -24,33 +24,48 @@ ${regrasCombate}
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const { character, playerAction, gameLog, combatState, installedHomebrew } = input;
     
-    const characterContext = JSON.stringify(character, null, 2);
+    // Create a leaner character object for the prompt
+    const characterForPrompt = character ? {
+        name: character.name,
+        race: character.race,
+        characterClass: character.characterClass,
+        level: character.level,
+        attributes: character.attributes,
+        proficiencies: character.proficiencies,
+        inventory: character.inventory.map((item: any) => ({ name: item.name, equipped: item.equipped })), // only name and equipped status
+        spells: character.spells,
+        storySoFar: character.storySoFar,
+        worldState: character.worldState,
+        relationships: character.relationships.map((r: any) => ({ name: r.name, status: r.status, affinity: r.affinity })),
+        journal: character.journal.map((j: any) => ({ name: j.name, region: j.region, status: j.looted ? 'looted' : 'unexplored' }))
+    } : null;
+
+    const characterContext = JSON.stringify(characterForPrompt, null, 2);
     const logContext = JSON.stringify(gameLog, null, 2); 
-    const combatContextValue = combatState ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
+    const combatContextValue = combatState && combatState.isActive ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
     const homebrewContext = installedHomebrew && installedHomebrew.length > 0 ? JSON.stringify(installedHomebrew, null, 2) : "Nenhum conteúdo homebrew instalado.";
   
-    const mainPrompt = `### Estado Atual do Personagem (JSON)
+    const mainPrompt = `### Estado do Personagem
 \`\`\`json
 ${characterContext}
 \`\`\`
 
-### Estado de Combate (JSON)
+### Estado de Combate
 \`\`\`json
 ${combatContextValue}
 \`\`\`
 
-### Últimos Eventos do Jogo (JSON)
+### Histórico Recente
 ${logContext}
 
-### Resumo do Conteúdo Homebrew Instalado (JSON)
+### Conteúdo Homebrew
 \`\`\`json
 ${homebrewContext}
 \`\`\`
 
 A ação do jogador é: "${playerAction}"
 
-Com base no estado atual do personagem, do combate, do conteúdo homebrew e no histórico, continue a aventura. 
-Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
+Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
   
     if (isGemma) {
         return `${systemInstruction}\n\n${mainPrompt}`;
@@ -100,6 +115,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
             }
 
+            console.log(`[geminiService (${modelName})] Gerando conteúdo com prompt...`);
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: finalGenerationConfig,
@@ -114,11 +130,13 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-            console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${isRetry ? 2 : 1}):`, jsonText); 
+            // Log for debugging
+            // console.log(`[geminiService (${modelName})] Resposta da IA (Tentativa ${isRetry ? 2 : 1}):`, jsonText); 
 
             let responseData: any;
             try {
                 let textToParse = jsonText;
+                // For Gemma models, extract JSON from markdown code blocks
                 if (isGemma) {
                     const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
                     if (match) {
@@ -128,6 +146,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 responseData = JSON.parse(textToParse);
             } catch(e: any) {
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
+                 console.error("[geminiService] JSON inválido recebido:", jsonText); // Log the bad JSON
                 if (!isRetry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
                     return await attemptGeneration(true);

@@ -87,8 +87,6 @@ const SystemInteractionSection: React.FC<{ onClose: () => void }> = ({ onClose }
     const { 
         triggerTestSkillCheck, 
         processPlayerAction, 
-        triggerTestCombat, 
-        triggerTestShop,
     } = useGameStateContext();
 
     const { model: currentModel, setModel: setContextModel } = useSettingsContext();
@@ -193,11 +191,9 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ i
 
     const handleTestShopUI = () => {
         triggerTestShop();
-        onClose();
     }
     const handleTestCombatUI = () => {
         triggerTestCombat();
-        onClose();
     }
 
     if (!isOpen) return null;
