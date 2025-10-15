@@ -233,9 +233,11 @@ const sanitizeLogEntries = (entries: any): any[] => {
         if (entry && typeof entry === 'object' && entry.type && entry.content) {
              try {
                 // Defensive parse: If content is already a stringified JSON, parse it.
-                const parsedContent = JSON.parse(entry.content);
-                if (typeof parsedContent === 'object' && parsedContent.content) {
-                    return { ...entry, content: parsedContent.content };
+                if (typeof entry.content === 'string') {
+                    const parsedContent = JSON.parse(entry.content);
+                    if (typeof parsedContent === 'object' && parsedContent.content) {
+                        return { ...entry, content: parsedContent.content };
+                    }
                 }
              } catch (e) {
                 // It's not a JSON string, which is fine.
@@ -324,7 +326,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     // --- Sanitize and Process the rest of the response ---
     aiResponse.logEntries = sanitizeLogEntries(aiResponse.logEntries);
     
-    // Ensure complex objects are not null, falling back to empty states.
+    // Sanitize null fields to avoid downstream validation errors
     if (aiResponse.worldState === null || aiResponse.worldState === undefined) aiResponse.worldState = characterForAI.worldState || {};
     else aiResponse.worldState = { ...characterForAI.worldState, ...aiResponse.worldState };
     

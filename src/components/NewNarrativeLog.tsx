@@ -187,7 +187,7 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
     let contentComponent;
 
     // Ação interna do sistema, não deve ser renderizada.
-    if (entry.type === 'action' && typeof entry.content === 'string' && (entry.content.startsWith("Recarregar estado atual") || entry.content.startsWith("A aventura começa."))) {
+    if (entry.type === 'action' && typeof entry.content === 'string' && (entry.content.startsWith("Recarregar estado atual") || entry.content.startsWith("A aventura começa.") || entry.content.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades"))) {
         return null;
     }
 
