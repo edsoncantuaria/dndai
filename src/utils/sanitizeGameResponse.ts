@@ -12,25 +12,31 @@ const EMPTY_COMBAT_STATE = { isActive: false, round: 0, turn: 0, combatants: [],
  */
 export const sanitizeGameMasterResponse = (response: any): GameMasterResponse => {
     if (typeof response !== 'object' || response === null) {
+        console.warn('Invalid response received from backend, returning default empty state.');
         return {
-            logEntries: [{ type: 'system', content: 'A resposta do mestre foi inválida.' }],
+            logEntries: [{ id: 'error-sanitizer', type: 'system', content: 'A resposta do mestre foi inválida.' }],
             actionOptions: [],
             combatState: EMPTY_COMBAT_STATE,
         };
     }
 
+    // Sanitize logEntries to ensure it's an array of valid objects
     const logEntries = Array.isArray(response.logEntries)
         ? response.logEntries.map((entry: any) => {
               if (typeof entry === 'string') {
+                  // If a log entry is just a string, wrap it in a narration object.
                   return { type: 'narration', content: entry };
               }
               if (typeof entry === 'object' && entry !== null && entry.type && entry.content) {
+                  // This looks like a valid entry, return it.
                   return entry;
               }
+              // Discard invalid entries (like null, or malformed objects)
               return null;
-          }).filter(Boolean)
+          }).filter(Boolean) // Remove any nulls from the array
         : [];
     
+    // Return a well-structured object with safe fallbacks
     return {
         logEntries: logEntries,
         actionOptions: Array.isArray(response.actionOptions) ? response.actionOptions : [],
@@ -44,5 +50,6 @@ export const sanitizeGameMasterResponse = (response: any): GameMasterResponse =>
         useHitDiceRequest: typeof response.useHitDiceRequest === 'object' && response.useHitDiceRequest !== null ? response.useHitDiceRequest : undefined,
         ambientSound: response.ambientSound ?? 'none',
         systemLog: response.systemLog ?? undefined,
+        imagePrompt: response.imagePrompt ?? undefined,
     };
 };

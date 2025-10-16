@@ -39,10 +39,7 @@ export const useNewGameState = () => {
 
 
     const handleApiResponse = useCallback((response: GameMasterResponse, isRestoring: boolean = false) => {
-        if (!response) {
-            setApiError('O Mestre parece distraído. A resposta da IA foi vazia.');
-            return;
-        }
+        // The sanitize function guarantees a valid object, so we don't need to check for response existence.
 
         if (!isRestoring && response.logEntries) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
@@ -115,11 +112,8 @@ export const useNewGameState = () => {
         
         try {
             const rawResponse = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
-            console.log("[processPlayerAction] Resposta da IA recebida (bruta):", rawResponse);
-            
             const responseData = sanitizeGameMasterResponse(rawResponse);
-            console.log("[processPlayerAction] Resposta da IA sanitizada:", responseData);
-
+            
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
