@@ -251,9 +251,23 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
     const sanitized: Partial<GameMasterResponse> = { ...response };
     const sanitizationLogs: string[] = [];
 
-    // Sanitize logEntries
+    // Sanitize and parse stringified JSON fields
+    (['worldState', 'combatState', 'playerRollRequest'] as const).forEach(key => {
+        if (typeof sanitized[key] === 'string') {
+            try {
+                sanitized[key] = JSON.parse(sanitized[key] as string);
+                sanitizationLogs.push(`Sanitized ${key}: Parsed from string.`);
+            } catch (e) {
+                sanitized[key] = null; // Invalidate if parsing fails
+                sanitizationLogs.push(`Sanitized ${key}: Invalid string, set to null.`);
+            }
+        }
+    });
+
+    // Sanitize logEntries: filter nulls and parse stringified objects
     if (Array.isArray(sanitized.logEntries)) {
         sanitized.logEntries = sanitized.logEntries.map((entry: any, index: number) => {
+            if (entry === null) return null;
             if (typeof entry === 'string') {
                 try {
                     const parsed = JSON.parse(entry);
@@ -263,43 +277,48 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
                     return { type: "narration", content: entry };
                 }
             }
-            if (entry === null || typeof entry !== 'object' || !entry.type || !entry.content) {
-                sanitizationLogs.push(`Sanitized logEntries[${index}]: Removed invalid/null entry.`);
-                return null;
-            }
-            return entry;
-        }).filter(Boolean);
+            if (typeof entry === 'object' && entry.type && entry.content) return entry;
+            return null;
+        }).filter(Boolean); // Remove null entries
     } else {
         sanitized.logEntries = [];
         sanitizationLogs.push("Sanitized logEntries: Was not an array, reset to [].");
     }
 
-    const fieldsToSanitize: (keyof GameMasterResponse)[] = ['combatState', 'worldState', 'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'];
+    // Default object fallbacks
+    const defaultCombatState = { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] };
+    const defaultWorldState = { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
     
-    fieldsToSanitize.forEach(key => {
-        if (typeof sanitized[key] !== 'object') {
-             if (key === 'combatState') {
-                const defaultCombatState = { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] };
-                sanitized[key] = { ...defaultCombatState, ...(sanitized[key] || {}) };
-                sanitizationLogs.push(`Sanitized ${key}: Was not an object, created default combat state.`);
-             } else if (key === 'worldState') {
-                 const defaultWorldState = { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
-                 sanitized[key] = { ...(characterState?.worldState || defaultWorldState), ...(sanitized[key] || {}) };
-                 sanitizationLogs.push(`Sanitized ${key}: Was not an object, created default world state.`);
-             } else if (sanitized[key] !== undefined && sanitized[key] !== null) {
-                 sanitized[key] = null as any;
-                 sanitizationLogs.push(`Sanitized ${key}: Was not an object, set to null.`);
-            }
+    sanitized.combatState = (typeof sanitized.combatState === 'object' && sanitized.combatState !== null) 
+        ? { ...defaultCombatState, ...sanitized.combatState } 
+        : defaultCombatState;
+
+    sanitized.worldState = (typeof sanitized.worldState === 'object' && sanitized.worldState !== null)
+        ? { ...(characterState?.worldState || defaultWorldState), ...sanitized.worldState }
+        : (characterState?.worldState || defaultWorldState);
+
+
+    // Sanitize other optional fields
+    const optionalObjectFields: (keyof GameMasterResponse)[] = ['playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'];
+    optionalObjectFields.forEach(key => {
+        if (sanitized[key] !== undefined && (typeof sanitized[key] !== 'object' || sanitized[key] === null)) {
+            sanitized[key] = null as any;
+            sanitizationLogs.push(`Sanitized ${key}: Invalid type, set to null.`);
         }
     });
     
-    if (!Array.isArray(sanitized.newHomebrewContent)) {
-        sanitized.newHomebrewContent = [];
-    }
-
-    if (!Array.isArray(sanitized.actionOptions) || sanitized.actionOptions.length === 0) {
-        sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
-        if(response.actionOptions !== undefined) sanitizationLogs.push("Sanitized actionOptions: Invalid or empty, reset to fallback options.");
+    if (!Array.isArray(sanitized.newHomebrewContent)) sanitized.newHomebrewContent = [];
+    if (!Array.isArray(sanitized.actionOptions) || sanitized.actionOptions.length === 0 || sanitized.actionOptions.some(opt => opt === null)) {
+        if (Array.isArray(sanitized.actionOptions) && sanitized.actionOptions.length > 0) {
+            sanitized.actionOptions = sanitized.actionOptions.filter(Boolean); // Remove nulls
+            if (sanitized.actionOptions.length === 0) {
+                 sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
+                 sanitizationLogs.push("actionOptions was empty after filtering, reset to fallback.");
+            }
+        } else {
+             sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
+             sanitizationLogs.push("actionOptions was invalid or empty, reset to fallback.");
+        }
     }
 
 
@@ -416,6 +435,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
         if (stateForLog.updatedCharacter) {
             if (Array.isArray(stateForLog.updatedCharacter.inventory)) {
+                // Truncate inventory for logging to save space
                 stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]` as any;
             }
             if (Array.isArray(stateForLog.updatedCharacter.journal)) {
