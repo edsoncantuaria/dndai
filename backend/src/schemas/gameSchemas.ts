@@ -155,8 +155,9 @@ export const GameMasterResponseSchema = z.object({
   lootOffer: LootOfferSchema.nullable().optional(),
   useHitDiceRequest: UseHitDiceRequestSchema.nullable().optional(),
   worldState: WorldStateSchema.optional().describe("Atualizações do estado global do mundo."),
-  newHomebrewContent: z.array(CreateHomebrewSchema).default([]).describe("Conteúdos homebrew criados pelo GM."),
+  newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
+
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 

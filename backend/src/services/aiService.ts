@@ -159,12 +159,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // Sanitização da Resposta Bruta (antes da validação Zod)
+            // Sanitize the raw response BEFORE validation
             const sanitizedResponse = sanitizeGameMasterResponse(responseData);
-             console.log('[sanitizeAndProcessResponse] Sanitization applied:', sanitizedResponse);
+            console.log('[sanitizeAndProcessResponse] Sanitization applied:', sanitizedResponse.systemLog);
 
 
-            // Validação final com Zod
+            // Final validation with Zod on the sanitized data
             const validationResult = GameMasterResponseSchema.safeParse(sanitizedResponse);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
