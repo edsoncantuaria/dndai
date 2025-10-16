@@ -29,7 +29,11 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             // Separate spells that already have full details (like racial breath weapons)
             const existingDetails = character.spells.filter(s => typeof s === 'object' && s.desc) as ApiSpell[];
             const spellsToFetch = character.spells
-                .filter(s => typeof s === 'object' && s.spellName && !existingDetails.some(ed => ed.index === s.spellName))
+                .filter(s => {
+                    if (typeof s !== 'object' || !s.spellName) return false;
+                    // Don't fetch if we already have the details
+                    return !existingDetails.some(ed => ed.index === s.spellName);
+                })
                 .map(s => ({ index: s.spellName.toLowerCase().replace(/ /g, '-'), name: s.spellName, url: '' }));
 
 
