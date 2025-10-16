@@ -1,84 +1,70 @@
 // backend/src/services/aiSanitizer.ts
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
 
+const EMPTY_COMBAT_STATE = { isActive: false, round: 0, turn: 0, combatants: [], initiativeOrder: [] };
+
 /**
- * Sanitiza a resposta bruta do modelo para garantir que ela esteja em conformidade com o schema esperado,
- * corrigindo erros comuns de formatação da IA.
- * @param responseData Os dados brutos da IA.
- * @returns Um objeto GameMasterResponse que tem mais probabilidade de passar na validação Zod.
+ * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
+ * Atua como a camada final de "senso de jogo" antes de retornar a resposta.
+ * @param responseData A resposta da IA, já validada estruturalmente pelo Zod.
+ * @param currentCharacter O estado atual do personagem, para fallback.
+ * @returns Um objeto GameMasterResponse logicamente coerente.
  */
-export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMasterResponse> => {
-  if (!responseData || typeof responseData !== 'object') {
-    return {};
-  }
-  
-  const sanitized: Partial<GameMasterResponse> & { systemLog?: string | null } = { ...responseData };
+export const sanitizeGameMasterResponse = (responseData: GameMasterResponse, currentCharacter?: any): GameMasterResponse => {
+  const sanitized = { ...responseData };
   const sanitationLogs: string[] = [];
 
-  // 1. Sanitize logEntries: Garante que é um array de objetos válidos.
+  // 1. Sanitize logEntries: Garante que é um array de objetos válidos e com conteúdo.
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
-      if (!entry) return null;
-      
-      let content = entry;
-      let type = 'narration'; // Tipo padrão
-
-      if (typeof entry === 'object' && entry !== null) {
-        content = entry.content;
-        type = entry.type || 'narration';
-      }
-
-      // Remove tags XML como <narration>
+      if (!entry || typeof entry !== 'object') return null;
+      let { type = 'narration', content } = entry;
       if (typeof content === 'string') {
         content = content.replace(/<\/?narration>/g, '').trim();
       }
-
-      // Se o conteúdo for um JSON stringificado dentro de um logEntry, faz o parse.
-      if (typeof content === 'string' && content.startsWith('{') && content.endsWith('}')) {
-          try {
-            return JSON.parse(content);
-          } catch {
-            // Se o parse falhar, trata como string normal.
-          }
-      }
-
-      return { type, content };
-    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null && entry.content && (typeof entry.content !== 'string' || entry.content.trim() !== ''));
+      return content ? { type, content, rollResult: entry.rollResult } : null;
+    }).filter(Boolean);
   } else {
     sanitized.logEntries = [];
-    sanitationLogs.push('logEntries não era um array, foi resetado para [].');
-  }
-  
-  // 2. Sanitize newHomebrewContent
-  if (Array.isArray(sanitized.newHomebrewContent)) {
-      sanitized.newHomebrewContent = sanitized.newHomebrewContent.filter((item: any) => item && typeof item === 'object');
-  } else {
-    sanitized.newHomebrewContent = [];
+    sanitationLogs.push('logEntries não era um array, resetado para [].');
   }
 
-  // 3. Garante que campos de objeto complexos sejam 'undefined' se forem nulos ou não forem objetos.
-  // Isso permite que os valores padrão do Zod ou a validação 'optional' funcionem corretamente.
+  // 2. Garante que actionOptions seja um array, mesmo que vazio.
+  if (!Array.isArray(sanitized.actionOptions)) {
+    sanitized.actionOptions = [];
+    sanitationLogs.push('actionOptions não era um array, resetado para [].');
+  }
+  
+  // 3. Garante que worldState seja sempre um objeto, usando o estado anterior como fallback.
+  if (!sanitized.worldState || typeof sanitized.worldState !== 'object') {
+    sanitized.worldState = currentCharacter?.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
+    sanitationLogs.push('worldState era inválido, restaurado para o estado anterior ou padrão.');
+  } else {
+    // Merge, para não perder dados se a IA omitir um campo
+    sanitized.worldState = { ...(currentCharacter?.worldState || {}), ...sanitized.worldState };
+  }
+
+  // 4. Garante que os estados complexos sejam objetos válidos ou undefined, mas nunca null.
   const fieldsToSanitize: (keyof GameMasterResponse)[] = [
-    'worldState', 'combatState', 'playerRollRequest', 'updatedCharacter', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
+    'combatState', 'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
 
   fieldsToSanitize.forEach(field => {
       if (sanitized[field] === null || (typeof sanitized[field] === 'object' && Object.keys(sanitized[field]!).length === 0)) {
-           sanitized[field] = undefined;
+           (sanitized as any)[field] = undefined;
            sanitationLogs.push(`${field} era nulo ou vazio, definido como undefined.`);
       }
   });
-
-  // 4. Garante que actionOptions seja um array.
-  if (!Array.isArray(sanitized.actionOptions)) {
-    sanitized.actionOptions = [];
-     sanitationLogs.push('actionOptions não era um array, foi resetado para [].');
+  
+  // 5. Se o combate não estiver ativo, garante que o estado do combate está limpo.
+  if (!sanitized.combatState?.isActive) {
+      sanitized.combatState = EMPTY_COMBAT_STATE;
   }
 
   // Anexa os logs de sanitização ao systemLog para depuração.
   if (sanitationLogs.length > 0) {
     const existingLog = sanitized.systemLog ? ` | ${sanitized.systemLog}` : '';
-    sanitized.systemLog = `[Sanitizer] Correções aplicadas: ${sanitationLogs.join(', ')}${existingLog}`;
+    sanitized.systemLog = `[Sanitizer Lógico] Correções: ${sanitationLogs.join(', ')}${existingLog}`;
   }
 
   return sanitized;

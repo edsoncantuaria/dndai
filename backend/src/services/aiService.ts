@@ -6,10 +6,10 @@ import { GenerationConfig } from '../schemas/validationSchemas.js';
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
+import { sanitizeGameMasterResponse } from './aiSanitizer.js';
 import createError from 'http-errors';
 
 
-// Esta função agora aceita a chave de API como um argumento.
 const getGenAI = (apiKey: string) => {
     return new GoogleGenerativeAI(apiKey);
 }
@@ -74,11 +74,41 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
   
     return mainPrompt;
 }
+
+/**
+ * 🔹 Mini-sanitizador inline:
+ * Remove nulls, normaliza números e booleanos básicos antes de validar com Zod.
+ */
+const miniSanitize = (raw: any): any => {
+  if (!raw || typeof raw !== "object") return {};
+
+  const clean = { ...raw };
+
+  for (const key of Object.keys(clean)) {
+    const val = clean[key];
+
+    if (val === null || val === undefined) {
+        if (Array.isArray(clean[key])) {
+            clean[key] = [];
+        } else if (typeof clean[key] === 'object') {
+             clean[key] = {};
+        }
+        continue;
+    }
+    
+    if (typeof val === "string" && ["null", "undefined", "NaN"].includes(val.trim().toLowerCase())) {
+      clean[key] = undefined;
+    }
+  }
+
+  return clean;
+};
   
 
-
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
-    // 1. Validação da entrada antes de enviar para a IA.
+/**
+ * 🔸 AI Service: Main entry point for getting a game update from the AI.
+ */
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse> => {
     const inputValidation = GameMasterFlowInputSchema.safeParse(input);
     if (!inputValidation.success) {
         console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
@@ -107,37 +137,30 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     delete (jsonSchema as any).$schema;
 
 
-    const finalGenerationConfig: any = {
-        ...generationConfig,
-        ...(!isGemma && { 
-            responseMimeType: "application/json", 
-            responseSchema: jsonSchema 
-        }),
-    };
+    const finalGenerationConfig: any = { ...generationConfig };
     
-    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse | null> => {
+    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse> => {
         try {
             let prompt = createPrompt(input, isGemma);
             if (isRetry) {
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
             }
 
-            console.log(`[geminiService (${modelName})] Gerando conteúdo com prompt...`);
+            console.log(`[aiService (${modelName})] Gerando conteúdo com prompt...`);
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: finalGenerationConfig,
             });
 
             const response = result.response;
-            
-            // Verificação aprimorada da resposta
+
             if (!response || response.promptFeedback?.blockReason) {
                 const reason = response.promptFeedback?.blockReason;
                 const blockMessage = `A resposta foi bloqueada. Motivo: ${reason}.`;
                 if(reason === 'SAFETY') {
-                     throw createError(400, `Sua ação foi bloqueada pelos filtros de segurança. Tente reformular sua ação de uma maneira diferente. Detalhes: ${JSON.stringify(response.promptFeedback)}`);
+                     throw createError(400, `Sua ação foi bloqueada pelos filtros de segurança. Tente reformular sua ação. Detalhes: ${JSON.stringify(response.promptFeedback)}`);
                 }
-                console.error(`[geminiService] ${blockMessage}`);
+                console.error(`[aiService] ${blockMessage}`);
                 throw createError(500, blockMessage);
             }
 
@@ -146,73 +169,52 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             console.log("📜 Resposta bruta da IA:", jsonText);
             
             if (!jsonText) {
-                 console.error(`[geminiService] Resposta da IA vazia na tentativa ${isRetry ? 2 : 1}.`);
+                 console.error(`[aiService] Resposta da IA vazia na tentativa ${isRetry ? 2 : 1}.`);
                  if (!isRetry) return attemptGeneration(true);
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-
+            // 1️⃣ Mini-sanitizer (quick cleanup)
             let responseData: any;
             try {
-                let textToParse = jsonText;
-                // Para modelos que não suportam o modo JSON nativamente, extraia de blocos de código.
-                if (isGemma || !finalGenerationConfig.responseMimeType) {
-                    const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
-                    if (match) {
-                        textToParse = match[1];
+                let textToParse = jsonText.trim();
+                 if (!textToParse.startsWith('{')) {
+                    const jsonMatch = textToParse.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        textToParse = jsonMatch[0];
                     }
                 }
                 responseData = JSON.parse(textToParse);
+                console.log("🧹 Após mini-sanitizador (parsing):", JSON.stringify(responseData, null, 2));
+
             } catch(e: any) {
-                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
-                 console.error("[geminiService] JSON inválido recebido:", jsonText);
-                if (!isRetry) {
-                    console.log("[geminiService] Tentando novamente com prompt de correção...");
-                    return await attemptGeneration(true);
-                }
-                throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
+                console.error(`[aiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
+                if (!isRetry) return attemptGeneration(true);
+                throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
             }
 
-            // Sanitização da Resposta Bruta (antes da validação Zod)
-            if (Array.isArray(responseData.logEntries)) {
-              responseData.logEntries = responseData.logEntries.map((entry: any) => {
-                if (typeof entry === "string") {
-                  try {
-                    const parsed = JSON.parse(entry);
-                    if (typeof parsed === "object" && parsed !== null) return parsed;
-                    return { type: "narration", content: entry };
-                  } catch {
-                    return { type: "narration", content: entry };
-                  }
-                }
-                return entry;
-              }).filter(Boolean); // Remove entradas nulas ou inválidas
-            }
+            const cleanedData = miniSanitize(responseData);
 
-            // Validação final com Zod
-            const validationResult = GameMasterResponseSchema.safeParse(responseData);
+            // 2️⃣ Validação estrutural com Zod
+            const validationResult = GameMasterResponseSchema.safeParse(cleanedData);
             if (!validationResult.success) {
-                console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
-                if (!isRetry) {
-                    console.warn("[geminiService] Tentando corrigir falha de validação...");
-                    return await attemptGeneration(true);
-                }
-                 throw createError(500, `A resposta da IA falhou na validação final: ${JSON.stringify(validationResult.error.flatten())}`);
+                console.warn("⚠️ Falha na validação Zod:", validationResult.error.flatten());
+                if (!isRetry) return attemptGeneration(true);
+                throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
             }
+            
+             // 3️⃣ Sanitização semântica / lógica
+            const finalResponse = sanitizeGameMasterResponse(validationResult.data, input.character);
+            console.log("✅ Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
 
-            return validationResult.data;
+            return finalResponse;
 
         } catch (error: any) {
-             if(error instanceof createError.HttpError) {
-                throw error;
-            }
-            console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-            const errorMessage = (error as any).details?.message || (error as any).message;
-            throw createError(500, `Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
+             if(error instanceof createError.HttpError) throw error;
+            console.error(`[aiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
+            throw createError(500, `Erro de comunicação com o Mestre de Jogo: ${error.message}`);
         }
     }
 
     return await attemptGeneration();
 };
-
-    

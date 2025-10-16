@@ -317,13 +317,14 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         installedHomebrew: installedHomebrewSummary,
     };
 
-    let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
-    
-    if (aiResponse.playerRollRequest && Object.keys(aiResponse.playerRollRequest).length > 0) {
-        return aiResponse;
-    }
+    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     
     if (isTestRun || !sessao) {
+        return aiResponse;
+    }
+
+    // Se a IA solicitar uma rolagem, retorne imediatamente sem salvar no log ou persistir estado.
+    if (aiResponse.playerRollRequest) {
         return aiResponse;
     }
 
@@ -342,10 +343,8 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             await logRepository.save(playerLog);
         }
         
-        const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        delete stateForLog.logEntries;
-        delete stateForLog.actionOptions;
-        
+        // Save the full, sanitized response as a special 'state' log for restoration
+        const stateForLog: GameMasterResponse = { ...aiResponse };
         const stateLog = new SessionLog();
         Object.assign(stateLog, {
             sessaoId: sessao.id,
