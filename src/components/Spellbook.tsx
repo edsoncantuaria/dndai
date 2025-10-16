@@ -25,26 +25,30 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                 return;
             };
             setIsSpellsLoading(true);
-            
-            const spellList = character.spells
-                .filter(s => s && s.spellName) 
+
+            // Separate spells that already have full details (like racial breath weapons)
+            const existingDetails = character.spells.filter(s => typeof s === 'object' && s.desc) as ApiSpell[];
+            const spellsToFetch = character.spells
+                .filter(s => typeof s === 'object' && s.spellName && !existingDetails.some(ed => ed.index === s.spellName))
                 .map(s => ({ index: s.spellName.toLowerCase().replace(/ /g, '-'), name: s.spellName, url: '' }));
 
-            if (spellList.length === 0) {
+
+            if (spellsToFetch.length === 0) {
+                setSpellDetails(existingDetails);
                 setIsSpellsLoading(false);
-                setSpellDetails([]);
                 return;
             }
 
             const results = await fetchDetailsInChunks(
-                spellList,
+                spellsToFetch,
                 DndApiService.getSpellDetails,
                 (loaded, total) => {
                     setLoadingProgress(`Carregando magias ${loaded} de ${total}...`);
                 }
             );
             
-            setSpellDetails(results as ApiSpell[]);
+            // Combine fetched spells with ones that already had details
+            setSpellDetails([...existingDetails, ...results as ApiSpell[]]);
             setIsSpellsLoading(false);
             setLoadingProgress(null);
         };
