@@ -167,9 +167,18 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        // If the stage is 'playing', render the Game component.
-        // GameScreen inside Game will handle its own loading state.
-        if (gameStage === 'playing') {
+        // Master loading screen for playing stage
+        if (gameStage === 'playing' && (isGameLoading || !character)) {
+             return (
+                <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
+                    <Loader2 className="h-12 w-12 animate-spin" />
+                    <p className="mt-4 text-lg">Carregando suas crônicas...</p>
+                </div>
+            );
+        }
+
+        // Once loaded, if the stage is 'playing', render the Game component.
+        if (gameStage === 'playing' && character) {
             return (
                 <Game
                     onCharacterCreated={handleCharacterCreated}
@@ -275,20 +284,20 @@ const GameContainer = () => {
         return (
             <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
                  <header className="mb-10" style={{ animationDelay: '200ms' }}>
-                    <h1 className="text-6xl md:text-8xl font-bold text-amber-50 font-serif text-shadow-amber">
+                    <h1 className="text-5xl md:text-8xl font-bold text-amber-50 font-serif text-shadow-amber">
                         Crônicas de Aventuras
                     </h1>
-                    <p className="text-stone-400 text-lg mt-4">Uma experiência de RPG gerada por Inteligência Artificial</p>
+                    <p className="text-stone-400 text-base md:text-lg mt-4">Uma experiência de RPG gerada por Inteligência Artificial</p>
                 </header>
                  <main className="w-full flex flex-col items-center gap-4" style={{ animationDelay: '400ms' }}>
-                    <button onClick={() => setGameStage('session_list')} className="menu-button btn-new max-w-sm text-2xl py-5">
-                       <BookOpen className="mr-3 h-7 w-7"/> Continuar Aventura
+                    <button onClick={() => setGameStage('session_list')} className="menu-button btn-new max-w-sm text-xl md:text-2xl py-4 md:py-5">
+                       <BookOpen className="mr-3 h-6 w-6 md:h-7 md:w-7"/> Continuar Aventura
                     </button>
-                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-import max-w-sm text-2xl py-5">
-                        <Sword className="mr-3 h-7 w-7"/> Nova Jornada
+                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-import max-w-sm text-xl md:text-2xl py-4 md:py-5">
+                        <Sword className="mr-3 h-6 w-6 md:h-7 md:w-7"/> Nova Jornada
                     </button>
-                    <button onClick={() => setGameStage('homebrew_store')} className="menu-button btn-import max-w-sm text-lg py-3 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-800 border-purple-600 hover:border-purple-500">
-                        <FlaskConical className="mr-3 h-6 w-6"/> Laboratório Homebrew
+                    <button onClick={() => setGameStage('homebrew_store')} className="menu-button btn-import max-w-sm text-base md:text-lg py-3 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-800 border-purple-600 hover:border-purple-500">
+                        <FlaskConical className="mr-3 h-5 w-5 md:h-6 md:w-6"/> Laboratório Homebrew
                     </button>
                 </main>
                  <footer className="mt-12 flex justify-center gap-6">
