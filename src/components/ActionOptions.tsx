@@ -151,7 +151,9 @@ const ActionOptions: React.FC = () => {
         let actionText: string;
         if (typeof action === 'object') {
             if (action.skill) {
-                actionText = `Eu tento usar ${translateApiString(action.skill)}: ${action.text}`;
+                // Remove a parte entre parênteses do texto principal, se houver
+                const cleanText = action.text.replace(/\s*\([^)]*\)\s*$/, '');
+                actionText = `Eu tento usar ${translateApiString(action.skill)}: ${cleanText}`;
             } else {
                 actionText = action.text;
             }
@@ -218,7 +220,7 @@ const ActionOptions: React.FC = () => {
                         {actionOptions.map((action, index) => {
                             const actionText = typeof action === 'object' ? action.text : action;
                             const skillName = typeof action === 'object' && action.skill ? `(${translateApiString(action.skill)})` : null;
-                            const display_text = skillName ? `${actionText} ${skillName}` : actionText;
+                            const display_text = actionText; // Agora não inclui a perícia no texto
 
                             if (!actionText || typeof actionText !== 'string') return null;
     
@@ -230,7 +232,7 @@ const ActionOptions: React.FC = () => {
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                 >
-                                    {display_text}
+                                    {display_text} {skillName && <span className="text-xs text-amber-300/80 ml-1">{skillName}</span>}
                                 </button>
                             )
                         })}
@@ -277,7 +279,7 @@ const ActionOptions: React.FC = () => {
                 )}
                 
                 {isOpen && (
-                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[50vh] overflow-y-auto">
+                     <div className="fixed bottom-[11rem] top-20 right-4 left-4 bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp overflow-y-auto">
                         {renderActionContent()}
                     </div>
                 )}
