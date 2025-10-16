@@ -80,27 +80,23 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
  * Remove nulls, normaliza números e booleanos básicos antes de validar com Zod.
  */
 const miniSanitize = (raw: any): any => {
-  if (!raw || typeof raw !== "object") return {};
-
+  if (!raw || typeof raw !== 'object') return {};
   const clean = { ...raw };
 
   for (const key of Object.keys(clean)) {
     const val = clean[key];
-
     if (val === null || val === undefined) {
-        if (Array.isArray(clean[key])) {
+        if (key === 'actionOptions' || key === 'logEntries' || key === 'newHomebrewContent') {
             clean[key] = [];
-        } else if (typeof clean[key] === 'object') {
-             clean[key] = {};
+        } else if (typeof clean[key] === 'object' && clean[key] !== null) {
+            clean[key] = {};
         }
         continue;
     }
-    
-    if (typeof val === "string" && ["null", "undefined", "NaN"].includes(val.trim().toLowerCase())) {
+    if (typeof val === 'string' && ['null', 'undefined', 'NaN'].includes(val.trim().toLowerCase())) {
       clean[key] = undefined;
     }
   }
-
   return clean;
 };
   
@@ -156,9 +152,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             if (!response || response.promptFeedback?.blockReason) {
                 const reason = response.promptFeedback?.blockReason;
-                const blockMessage = `A resposta foi bloqueada. Motivo: ${reason}.`;
+                const blockMessage = `A resposta da IA foi bloqueada. Motivo: ${reason}. Detalhes: ${JSON.stringify(response.promptFeedback)}`;
                 if(reason === 'SAFETY') {
-                     throw createError(400, `Sua ação foi bloqueada pelos filtros de segurança. Tente reformular sua ação. Detalhes: ${JSON.stringify(response.promptFeedback)}`);
+                     throw createError(400, `Sua ação foi bloqueada pelos filtros de segurança da IA. Tente reformular sua ação de uma maneira diferente.`);
                 }
                 console.error(`[aiService] ${blockMessage}`);
                 throw createError(500, blockMessage);
@@ -174,7 +170,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-            // 1️⃣ Mini-sanitizer (quick cleanup)
             let responseData: any;
             try {
                 let textToParse = jsonText.trim();
@@ -185,15 +180,16 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     }
                 }
                 responseData = JSON.parse(textToParse);
-                console.log("🧹 Após mini-sanitizador (parsing):", JSON.stringify(responseData, null, 2));
-
             } catch(e: any) {
                 console.error(`[aiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
                 if (!isRetry) return attemptGeneration(true);
                 throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
             }
 
+            // 1️⃣ Mini-sanitizer (quick cleanup)
             const cleanedData = miniSanitize(responseData);
+            console.log("🧹 Após mini-sanitizador:", JSON.stringify(cleanedData, null, 2));
+
 
             // 2️⃣ Validação estrutural com Zod
             const validationResult = GameMasterResponseSchema.safeParse(cleanedData);
