@@ -355,7 +355,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         // Omit large, transient, or already logged data from the state log
         delete stateForLog.logEntries;
         delete stateForLog.actionOptions;
-        delete stateForLog.systemLog;
         
         const stateLog = new SessionLog();
         Object.assign(stateLog, {

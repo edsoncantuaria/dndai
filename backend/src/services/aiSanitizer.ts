@@ -45,30 +45,28 @@ export const sanitizeGameMasterResponse = (responseData: any): GameMasterRespons
   }).filter(Boolean); // Remove quaisquer entradas que resultaram em 'null'
 
   // 2. Campos opcionais complexos não podem ser null
-  responseData.combatState ??= {};
-  responseData.updatedCharacter ??= {};
-  responseData.playerRollRequest ??= null; // playerRollRequest PODE ser null
-  responseData.newHomebrewContent ??= [];
-
-  // 3. worldState sempre como objeto
-  responseData.worldState ??= {};
-
-  // 4. actionOptions sempre como array
-  if (!Array.isArray(responseData.actionOptions)) {
-    responseData.actionOptions = [];
-  } else {
-    // Filtra quaisquer valores nulos/falsos que a IA possa ter colocado no array
-    responseData.actionOptions = responseData.actionOptions.filter(Boolean);
+  if(responseData.combatState === null) responseData.combatState = undefined;
+  if(responseData.updatedCharacter === null) responseData.updatedCharacter = undefined;
+  if(responseData.playerRollRequest === null) responseData.playerRollRequest = undefined;
+  if(responseData.newHomebrewContent === null) responseData.newHomebrewContent = undefined;
+  
+  if (typeof responseData.worldState === 'string') {
+    try {
+        responseData.worldState = JSON.parse(responseData.worldState);
+    } catch {
+        responseData.worldState = null; 
+    }
+  }
+  
+  if (responseData.worldState === null || typeof responseData.worldState !== 'object') {
+     responseData.worldState = undefined;
   }
 
-  // 5. systemLog sempre como string ou null
-  responseData.systemLog = (typeof responseData.systemLog === 'string') ? responseData.systemLog : null;
-  
   // Garante que os estados de jogo sejam nulos ou objetos, nunca strings
-  responseData.levelUpState ??= null;
-  responseData.shopState ??= null;
-  responseData.lootOffer ??= null;
-  responseData.useHitDiceRequest ??= null;
+  if(responseData.levelUpState === null) responseData.levelUpState = undefined;
+  if(responseData.shopState === null) responseData.shopState = undefined;
+  if(responseData.lootOffer === null) responseData.lootOffer = undefined;
+  if(responseData.useHitDiceRequest === null) responseData.useHitDiceRequest = undefined;
 
 
   return responseData as GameMasterResponse;
