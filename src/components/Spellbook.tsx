@@ -26,19 +26,30 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             };
             setIsSpellsLoading(true);
 
-            // Separate spells that already have full details (like racial breath weapons)
-            const existingDetails = character.spells.filter(s => typeof s === 'object' && s.desc) as ApiSpell[];
-            const spellsToFetch = character.spells
-                .filter(s => {
-                    if (typeof s !== 'object' || !s.spellName) return false;
-                    // ** FIX START **: Do not attempt to fetch breath weapons
-                    if (s.spellName.startsWith('breath-weapon')) return false;
-                    // Do not fetch if we already have the details
-                    return !existingDetails.some(ed => ed.index === s.spellName);
-                })
-                .map(s => ({ index: s.spellName.toLowerCase().replace(/ /g, '-'), name: s.spellName, url: '' }));
+            // Separate spells that already have full details from those that need fetching.
+            // This correctly handles special abilities like Breath Weapon.
+            const existingDetails: ApiSpell[] = [];
+            const spellsToFetch: { index: string; name: string; url: string; }[] = [];
 
-
+            for (const spell of character.spells) {
+                // If it's a full object with a description, it's already detailed.
+                if (typeof spell === 'object' && 'desc' in spell && spell.desc) {
+                    existingDetails.push(spell as ApiSpell);
+                }
+                // If it's a reference object, add it to the fetch list.
+                else if (typeof spell === 'object' && 'spellName' in spell && spell.spellName) {
+                    // CRITICAL FIX: Do not attempt to fetch special abilities that don't exist in the spells API.
+                    if (!spell.spellName.startsWith('breath-weapon')) {
+                        spellsToFetch.push({
+                            index: spell.spellName.toLowerCase().replace(/ /g, '-'),
+                            name: spell.spellName,
+                            url: ''
+                        });
+                    }
+                }
+            }
+            
+            // If there's nothing new to fetch, just set the existing ones and finish.
             if (spellsToFetch.length === 0) {
                 setSpellDetails(existingDetails);
                 setIsSpellsLoading(false);
@@ -91,7 +102,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
         .map(key => parseInt(key.replace('level', '')))
         .sort((a, b) => a - b);
         
-    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
+    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id.toString() === character.id.toString() : true;
 
     return (
         <div className="p-4 space-y-4">
@@ -126,7 +137,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                     <Loader2 className="animate-spin" />
                     <span className="ml-2">{loadingProgress || 'Consultando grimório...'}</span>
                 </div>
-            ) : (!character.spells || character.spells.length === 0) ? (
+            ) : (!spellDetails || spellDetails.length === 0) ? (
                 <p className="text-stone-400 italic">Você não conhece nenhuma magia.</p>
             ) : (
                 <div className="space-y-4">
@@ -136,7 +147,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                                 {levelKey === 'Nível 0' ? 'Truques' : levelKey}
                             </h4>
                             <div className="space-y-2">
-                                {groupedSpells[levelKey].map(spell => {
+                                {groupedSpells[levelKey].sort((a,b) => a.name.localeCompare(b.name)).map(spell => {
                                     const canCast = spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0;
                                     return (
                                         <NewSpellCard 
