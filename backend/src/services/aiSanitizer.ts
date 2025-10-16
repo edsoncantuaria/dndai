@@ -3,7 +3,7 @@ import { GameMasterResponse } from "../schemas/gameSchemas.js";
 
 /**
  * Sanitiza a resposta bruta do modelo para garantir que ela esteja em conformidade com o schema esperado,
- * corrigindo erros comuns de formatação da IA, como strings JSON encapsuladas, valores nulos e objetos incompletos.
+ * corrigindo erros comuns de formatação da IA.
  * @param responseData Os dados brutos da IA.
  * @returns Um objeto GameMasterResponse que tem mais probabilidade de passar na validação Zod.
  */
@@ -16,68 +16,65 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
   const sanitationLogs: string[] = [];
 
   // 1. Sanitize logEntries: Ensure it's an array of valid objects.
-  if (!Array.isArray(sanitized.logEntries)) {
-    sanitized.logEntries = [];
-    sanitationLogs.push('logEntries was not an array.');
-  } else {
+  if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
       if (!entry) return null;
 
-      if (typeof entry === 'string') {
-        try {
-          const parsed = JSON.parse(entry);
-          if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
-            return parsed;
-          }
-          if (entry.trim()) return { type: 'narration', content: entry };
-        } catch {
-          if (entry.trim() && !['type', 'narration', 'content'].includes(entry)) {
-            return { type: 'narration', content: entry };
+      let content = entry;
+      let type = 'narration'; // Default type
+
+      if (typeof entry === 'object' && entry !== null) {
+        content = entry.content;
+        type = entry.type || 'narration';
+      }
+
+      if (typeof content === 'string') {
+        // Remove XML-like tags, e.g., <narration>
+        content = content.replace(/<\/?narration>/g, '').trim();
+        // Check if the string is a JSON object string
+        if (content.startsWith('{') && content.endsWith('}')) {
+          try {
+            return JSON.parse(content);
+          } catch {
+            // It's not a valid JSON, so treat it as a narration string
           }
         }
-      }
-      if (typeof entry === 'object' && entry.type && entry.content) {
-        return entry;
+        return { type, content };
       }
       return null;
-    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null);
+    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null && entry.content.trim() !== '');
+  } else {
+    sanitized.logEntries = [];
+    sanitationLogs.push('logEntries was not an array.');
   }
   
   // 2. Sanitize newHomebrewContent
-  if (!Array.isArray(sanitized.newHomebrewContent)) {
-    sanitized.newHomebrewContent = [];
-    sanitationLogs.push('newHomebrewContent was not an array.');
+  if (Array.isArray(sanitized.newHomebrewContent)) {
+      sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
+        if (!item) return null;
+        if (typeof item === 'string') {
+          try {
+            const parsed = JSON.parse(item);
+            return (parsed && typeof parsed === 'object') ? parsed : null;
+          } catch { return null; }
+        }
+        return (typeof item === 'object') ? item : null;
+      }).filter((item): item is Exclude<typeof item, null> => item !== null);
   } else {
-    sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
-      if (!item) return null;
-      if (typeof item === 'string') {
-        try {
-          const parsed = JSON.parse(item);
-          return (parsed && typeof parsed === 'object') ? parsed : null;
-        } catch { return null; }
-      }
-      return (typeof item === 'object') ? item : null;
-    }).filter((item): item is Exclude<typeof item, null> => item !== null);
+    sanitized.newHomebrewContent = [];
   }
 
-  // 3. Ensure complex optional fields are undefined if null, allowing Zod defaults to work.
+  // 3. Ensure complex optional fields are undefined if null or not objects, allowing Zod defaults to work.
   const fieldsToSanitize: (keyof GameMasterResponse)[] = [
     'worldState', 'combatState', 'playerRollRequest', 'updatedCharacter', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
 
   fieldsToSanitize.forEach(field => {
-      if (sanitized[field] === null) {
-          sanitized[field] = undefined;
-          sanitationLogs.push(`${field} was null, set to undefined.`);
-      } else if (typeof sanitized[field] === 'string') {
-          try {
-              const parsed = JSON.parse(sanitized[field] as string);
-              sanitized[field] = parsed;
-              sanitationLogs.push(`Parsed JSON string for ${field}.`);
-          } catch {
-             sanitized[field] = undefined; // Set to undefined if parsing fails
-             sanitationLogs.push(`Failed to parse JSON string for ${field}, set to undefined.`);
+      if (sanitized[field] === null || typeof sanitized[field] !== 'object') {
+          if (sanitized[field] !== undefined) {
+             sanitationLogs.push(`${field} was ${sanitized[field] === null ? 'null' : 'not an object'}, set to undefined.`);
           }
+          sanitized[field] = undefined;
       }
   });
 
