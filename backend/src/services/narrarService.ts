@@ -18,7 +18,6 @@ import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as HomebrewService from './homebrewService.js';
-import { sanitizeGameMasterResponse } from './aiSanitizer.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -320,11 +319,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     
-    if (!aiResponse) {
-        throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
-    }
-    
-    if (aiResponse.playerRollRequest) {
+    if (aiResponse.playerRollRequest && Object.keys(aiResponse.playerRollRequest).length > 0) {
         return aiResponse;
     }
     
@@ -348,7 +343,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        // Omit large, transient, or already logged data from the state log
         delete stateForLog.logEntries;
         delete stateForLog.actionOptions;
         
@@ -363,12 +357,13 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
-                 if (entry?.content && typeof entry.content === 'string') {
+                 const content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : entry.content;
+                 if (content) {
                     const newLog = new SessionLog();
                     Object.assign(newLog, {
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
-                        response: entry.content,
+                        response: content,
                         type: entry.type || 'narration',
                         rollResult: entry.rollResult,
                     });
@@ -391,7 +386,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
 
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
-        if (Object.keys(updatesToPersist).length > 1 || updatesToPersist.worldState) { 
+        if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 
             await persistCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
         }
         

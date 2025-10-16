@@ -76,9 +76,9 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
   }
 
   // 4. Sanitize outros campos complexos opcionais para evitar null
-  if (sanitized.combatState === null) sanitized.combatState = {};
-  if (sanitized.playerRollRequest === null) sanitized.playerRollRequest = {};
-  if (sanitized.updatedCharacter === null) sanitized.updatedCharacter = {};
+  if (sanitized.combatState === null || typeof sanitized.combatState !== 'object') sanitized.combatState = {};
+  if (sanitized.playerRollRequest === null || typeof sanitized.playerRollRequest !== 'object') sanitized.playerRollRequest = {};
+  if (sanitized.updatedCharacter === null || typeof sanitized.updatedCharacter !== 'object') sanitized.updatedCharacter = {};
   
   // 5. Garante que actionOptions seja um array
   if (!Array.isArray(sanitized.actionOptions)) {
