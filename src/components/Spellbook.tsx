@@ -27,7 +27,6 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             setIsSpellsLoading(true);
 
             // Separate spells that already have full details from those that need fetching.
-            // This correctly handles special abilities like Breath Weapon.
             const existingDetails: ApiSpell[] = [];
             const spellsToFetch: { index: string; name: string; url: string; }[] = [];
 
@@ -38,34 +37,28 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                 }
                 // If it's a reference object, add it to the fetch list.
                 else if (typeof spell === 'object' && 'spellName' in spell && spell.spellName) {
-                    // CRITICAL FIX: Do not attempt to fetch special abilities that don't exist in the spells API.
-                    if (!spell.spellName.startsWith('breath-weapon')) {
-                        spellsToFetch.push({
-                            index: spell.spellName.toLowerCase().replace(/ /g, '-'),
-                            name: spell.spellName,
-                            url: ''
-                        });
-                    }
+                    spellsToFetch.push({
+                        index: spell.spellName.toLowerCase().replace(/ /g, '-'),
+                        name: spell.spellName,
+                        url: ''
+                    });
                 }
             }
             
-            // If there's nothing new to fetch, just set the existing ones and finish.
-            if (spellsToFetch.length === 0) {
-                setSpellDetails(existingDetails);
-                setIsSpellsLoading(false);
-                return;
+            let fetchedSpells: ApiSpell[] = [];
+            if (spellsToFetch.length > 0) {
+                const results = await fetchDetailsInChunks(
+                    spellsToFetch,
+                    DndApiService.getSpellDetails,
+                    (loaded, total) => {
+                        setLoadingProgress(`Carregando magias ${loaded} de ${total}...`);
+                    }
+                );
+                fetchedSpells = results as ApiSpell[];
             }
-
-            const results = await fetchDetailsInChunks(
-                spellsToFetch,
-                DndApiService.getSpellDetails,
-                (loaded, total) => {
-                    setLoadingProgress(`Carregando magias ${loaded} de ${total}...`);
-                }
-            );
             
             // Combine fetched spells with ones that already had details
-            setSpellDetails([...existingDetails, ...results as ApiSpell[]]);
+            setSpellDetails([...existingDetails, ...fetchedSpells]);
             setIsSpellsLoading(false);
             setLoadingProgress(null);
         };

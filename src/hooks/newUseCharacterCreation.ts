@@ -536,27 +536,10 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             const details = await DndApiService.getTraitDetails(draconicAncestry);
             setSelectedAncestryDetails(details);
 
-            if (details?.trait_specific?.breath_weapon && details.trait_specific.damage_type) {
-                const bw = details.trait_specific.breath_weapon;
-                const breathWeaponSpell: ApiSpell = {
-                    index: `breath-weapon-${details.trait_specific.damage_type.index}`,
-                    name: `Arma de Sopro (${translateApiString(details.trait_specific.damage_type.name)})`,
-                    desc: [bw.desc],
-                    higher_level: [],
-                    range: `${bw.area_of_effect.size} pés em ${bw.area_of_effect.type === 'line' ? 'linha' : 'cone'}`,
-                    components: [],
-                    material: '',
-                    ritual: false,
-                    duration: 'Instantânea',
-                    casting_time: bw.usage?.type || '1 Ação',
-                    level: 0, 
-                    school: { name: 'Evocação', index: 'evocation', url:'' },
-                    classes: [],
-                    subclasses: [],
-                    damage: bw.damage ? { damage_type: bw.damage[0].damage_type, damage_at_character_level: bw.damage[0].damage_at_character_level } : undefined
-                };
-                setChosenRacialSpells(prev => ({...prev, 'breath-weapon': [breathWeaponSpell.index]}));
-                setRacialSpellOptions(prev => [...prev.filter(s => !s.index.startsWith('breath-weapon-')), breathWeaponSpell]);
+            if (details?.trait_specific?.damage_type?.index) {
+                const damageType = details.trait_specific.damage_type.index;
+                const breathWeaponIndex = `breath-weapon-${damageType}`;
+                setChosenRacialSpells(prev => ({ ...prev, 'Draconic Ancestry': [breathWeaponIndex] }));
             }
         };
         fetchAncestryDetails();
