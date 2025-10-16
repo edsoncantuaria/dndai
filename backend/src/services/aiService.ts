@@ -80,26 +80,26 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
  * Remove nulls, normaliza números e booleanos básicos antes de validar com Zod.
  */
 const miniSanitize = (raw: any): any => {
-  if (!raw || typeof raw !== 'object') return {};
-  const clean = { ...raw };
+    if (!raw || typeof raw !== 'object') return {};
+    const clean: { [key: string]: any } = {};
 
-  for (const key of Object.keys(clean)) {
-    const val = clean[key];
-    if (val === null || val === undefined) {
-        if (key === 'actionOptions' || key === 'logEntries' || key === 'newHomebrewContent') {
-            clean[key] = [];
-        } else if (typeof val === 'object' && val !== null) {
-            // Se for um objeto nulo, transforma em objeto vazio para não quebrar a validação inicial.
-            // O sanitizador semântico vai decidir o que fazer com ele depois.
-            clean[key] = {};
+    for (const key of Object.keys(raw)) {
+        const val = raw[key];
+
+        // 1. Skip null or undefined values, effectively removing them.
+        if (val === null || val === undefined) {
+            continue;
         }
-        continue;
+
+        // 2. Turn empty objects for specific keys into undefined, removing them.
+        if ((key === 'combatState' || key === 'playerRollRequest') && typeof val === 'object' && Object.keys(val).length === 0) {
+            continue;
+        }
+
+        // 3. Keep valid values.
+        clean[key] = val;
     }
-    if (typeof val === 'string' && ['null', 'undefined', 'NaN'].includes(val.trim().toLowerCase())) {
-      clean[key] = undefined;
-    }
-  }
-  return clean;
+    return clean;
 };
   
 
