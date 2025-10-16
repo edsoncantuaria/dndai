@@ -48,8 +48,28 @@ export const sanitizeGameMasterResponse = (responseData: any): GameMasterRespons
   if(responseData.combatState === null) responseData.combatState = undefined;
   if(responseData.updatedCharacter === null) responseData.updatedCharacter = undefined;
   if(responseData.playerRollRequest === null) responseData.playerRollRequest = undefined;
-  if(responseData.newHomebrewContent === null) responseData.newHomebrewContent = undefined;
   
+  // 3. Garante que newHomebrewContent seja um array de objetos
+  if (!Array.isArray(responseData.newHomebrewContent)) {
+    responseData.newHomebrewContent = [];
+  }
+  
+  responseData.newHomebrewContent = responseData.newHomebrewContent.map((item: any) => {
+    if (!item) return undefined; // remove null/undefined
+    if (typeof item === 'string') {
+      try {
+        const parsed = JSON.parse(item);
+        if (parsed && typeof parsed === 'object') return parsed;
+        return undefined; // A string não era um objeto JSON válido
+      } catch {
+        return undefined; // Falha no parse
+      }
+    }
+    if (typeof item === 'object') return item;
+    return undefined; // Descarta tipos inesperados
+  }).filter(Boolean); // Limpa os undefineds do array
+
+
   if (typeof responseData.worldState === 'string') {
     try {
         responseData.worldState = JSON.parse(responseData.worldState);
