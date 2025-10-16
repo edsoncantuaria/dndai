@@ -140,11 +140,11 @@ const WorldStateSchema = z.object({
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
 export const GameMasterResponseSchema = z.object({
-  logEntries: z.array(LogEntrySchema).optional().describe("Novas entradas do log de aventura."),
+  logEntries: z.array(LogEntrySchema).optional().default([]).describe("Novas entradas do log de aventura."),
   actionOptions: z.array(z.union([
     z.string(),
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
-  ])).optional().describe("Ações sugeridas para o jogador."),
+  ])).optional().default([]).describe("Ações sugeridas para o jogador."),
   updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
   combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
@@ -155,7 +155,7 @@ export const GameMasterResponseSchema = z.object({
   lootOffer: LootOfferSchema,
   useHitDiceRequest: UseHitDiceRequestSchema,
   worldState: WorldStateSchema.nullable().optional().describe("Atualizações do estado global do mundo."),
-  newHomebrewContent: z.array(CreateHomebrewSchema).nullable().optional().describe("Conteúdos homebrew criados pelo GM."),
+  newHomebrewContent: z.array(CreateHomebrewSchema).nullable().optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;

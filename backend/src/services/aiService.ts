@@ -139,7 +139,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-
             let responseData: any;
             try {
                 let textToParse = jsonText;
@@ -149,34 +148,30 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                         textToParse = match[1];
                     }
                 }
-                responseData = JSON.parse(textToParse);
+                 // Pré-processa campos que podem vir como string
+                const preProcessedData = JSON.parse(textToParse);
+                (['combatState', 'worldState', 'playerRollRequest'] as const).forEach(key => {
+                    if (typeof preProcessedData[key] === 'string') {
+                        try {
+                            preProcessedData[key] = JSON.parse(preProcessedData[key]);
+                        } catch {
+                            // Deixa como está, a validação Zod vai pegar
+                        }
+                    }
+                });
+                responseData = preProcessedData;
+
             } catch(e: any) {
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
-                 console.error("[geminiService] JSON inválido recebido:", jsonText);
+                console.error("[geminiService] JSON inválido recebido:", jsonText);
                 if (!isRetry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
                     return await attemptGeneration(true);
                 }
-                throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
+                throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // Sanitização da Resposta Bruta (antes da validação Zod)
-            if (Array.isArray(responseData.logEntries)) {
-              responseData.logEntries = responseData.logEntries.map((entry: any) => {
-                if (typeof entry === "string") {
-                  try {
-                    const parsed = JSON.parse(entry);
-                    if (typeof parsed === "object" && parsed !== null) return parsed;
-                    return { type: "narration", content: entry };
-                  } catch {
-                    return { type: "narration", content: entry };
-                  }
-                }
-                return entry;
-              }).filter(Boolean); // Remove entradas nulas ou inválidas
-            }
-
-            // Validação final com Zod
+            // Validação final com Zod. A sanitização mais pesada agora ocorre no narrarService.
             const validationResult = GameMasterResponseSchema.safeParse(responseData);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
@@ -192,7 +187,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         } catch (error: any) {
             console.error(`[geminiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
             const errorMessage = (error as any).details?.message || (error as any).message;
-            throw new Error(`Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
+            throw createError(500, `Erro de comunicação com o Mestre de Jogo: ${errorMessage}`);
         }
     }
 
