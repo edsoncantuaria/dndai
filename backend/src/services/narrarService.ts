@@ -116,21 +116,20 @@ const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], ch
     return savedEntries;
 };
 
-
-// Persiste as atualizações do personagem no banco de dados de forma inteligente.
 const persistCharacterUpdates = async (characterId: number, updates: any, queryRunner: QueryRunner) => {
-    const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items", "spells", "journal", "relationships", "relationships.quests"] });
+    const characterRepo = queryRunner.manager.getRepository(Character);
+    const character = await characterRepo.findOne({ where: { id: characterId }, relations: ["items", "spells", "journal", "relationships", "relationships.quests"] });
     if (!character) throw new Error("Personagem não encontrado para atualização.");
 
     // Update direct character fields
     const directFields = ['level', 'xp', 'storySoFar', 'factionReputation', 'worldState', 'currentRegion'];
     directFields.forEach(field => {
-        if (updates[field] !== undefined && updates[field] !== null) {
-            if (field === 'factionReputation') {
+        if (updates[field] !== undefined) {
+            if (field === 'factionReputation' && typeof updates.factionReputation === 'object') {
                 character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
-            } else if (field === 'worldState') {
+            } else if (field === 'worldState' && typeof updates.worldState === 'object') {
                 character.worldState = { ...(character.worldState || {}), ...updates.worldState };
-                 if (updates.worldState.currentRegion) {
+                if (updates.worldState.currentRegion) {
                     character.currentRegion = updates.worldState.currentRegion;
                 }
             } else {
@@ -138,45 +137,69 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
             }
         }
     });
-    await queryRunner.manager.save(character);
+    await characterRepo.save(character);
 
     // Update attributes
-    if (updates.attributes) {
+    if (updates.attributes && typeof updates.attributes === 'object') {
         await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
     }
 
     // Upsert Inventory (optimized)
-    if (updates.inventory) {
+    if (updates.inventory && Array.isArray(updates.inventory)) {
         const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-        const existingItemsMap = new Map((character.items || []).map(item => [item.itemData.index || item.name, item]));
-        
+        const existingItemsMap = new Map((character.items || []).map(item => [item.itemData?.index || item.name, item]));
+        const updatedItemKeys = new Set<string>();
+
         for (const itemData of updates.inventory) {
-            if (!itemData) continue;
+            if (!itemData || (!itemData.index && !itemData.name)) continue;
             const itemKey = itemData.index || itemData.name;
+            updatedItemKeys.add(itemKey);
             const existingItem = existingItemsMap.get(itemKey);
 
             if (itemData.quantity <= 0) {
-                if(existingItem) await itemsRepo.remove(existingItem);
+                if (existingItem) await itemsRepo.remove(existingItem);
                 continue;
             }
 
             if (existingItem) {
-                existingItem.quantity = itemData.quantity;
-                existingItem.equipped = itemData.equipped || false;
-                await itemsRepo.save(existingItem);
+                if (existingItem.quantity !== itemData.quantity || existingItem.equipped !== (itemData.equipped || false)) {
+                    existingItem.quantity = itemData.quantity;
+                    existingItem.equipped = itemData.equipped || false;
+                    await itemsRepo.save(existingItem);
+                }
             } else {
-                const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
+                const newItem = itemsRepo.create({
+                    characterId,
+                    name: itemData.name,
+                    quantity: itemData.quantity,
+                    equipped: itemData.equipped || false,
+                    itemData
+                });
                 await itemsRepo.save(newItem);
+            }
+        }
+        
+        // Remove items that are no longer in the inventory
+        for (const [key, item] of existingItemsMap.entries()) {
+            if (!updatedItemKeys.has(key)) {
+                await itemsRepo.remove(item);
             }
         }
     }
     
     // Upsert Spells (optimized)
-    if (updates.spells) {
+    if (updates.spells && Array.isArray(updates.spells)) {
         const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
-        await spellsRepo.delete({ characterId }); // Simple clear and re-add is fine for spells
-        const newSpells = updates.spells.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
-        if(newSpells.length > 0) await spellsRepo.save(newSpells);
+        const existingSpells = new Set((character.spells || []).map(s => s.spellName));
+        const newSpellsSet = new Set(updates.spells);
+        const spellsToAdd = updates.spells.filter((s: string) => !existingSpells.has(s));
+        const spellsToRemove = (character.spells || []).filter(s => !newSpellsSet.has(s.spellName));
+
+        if (spellsToRemove.length > 0) await spellsRepo.remove(spellsToRemove);
+        if (spellsToAdd.length > 0) {
+            const spellEntities = spellsToAdd.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
+            await spellsRepo.save(spellEntities);
+        }
     }
 
     // Upsert Journal
@@ -186,78 +209,87 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
 
     // Upsert Relationships and Quests (with deletion)
     if(updates.relationships && Array.isArray(updates.relationships)) {
+        const relationshipRepo = queryRunner.manager.getRepository(Relationship);
+        const questRepo = queryRunner.manager.getRepository(Quest);
+        
         for (const relData of updates.relationships) {
             if (!relData || !relData.npcId) continue;
             let relationship = (character.relationships || []).find(r => r.npcId === relData.npcId);
             if (!relationship) {
-                relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
+                relationship = relationshipRepo.create({ npcId: relData.npcId, characterId });
             }
             Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
-            const savedRel = await queryRunner.manager.save(relationship);
+            const savedRel = await relationshipRepo.save(relationship);
             
             // Sync Quests
-            if (relData.quests) {
-                const existingQuests = savedRel.quests || [];
+            if (relData.quests && Array.isArray(relData.quests)) {
+                const existingQuests = character.relationships.flatMap(r => r.quests).filter(q => q.relationshipId === savedRel.id);
                 const aiQuestIds = new Set(relData.quests.map((q: any) => q.id).filter(Boolean));
                 
-                // Delete quests not present in AI response
                 const questsToDelete = existingQuests.filter(q => !aiQuestIds.has(q.id));
-                if(questsToDelete.length > 0) await queryRunner.manager.remove(questsToDelete);
+                if(questsToDelete.length > 0) await questRepo.remove(questsToDelete);
 
-                // Upsert quests from AI response
                 for(const questData of relData.quests) {
+                    if(!questData || !questData.title) continue;
                     let quest = existingQuests.find(q => q.id === questData.id);
                     if(!quest) {
-                        quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
+                        quest = questRepo.create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
                     }
                     Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
-                    await queryRunner.manager.save(quest);
+                    await questRepo.save(quest);
                 }
+            } else if (savedRel.quests && savedRel.quests.length > 0) {
+                 await questRepo.remove(savedRel.quests);
             }
         }
     }
 };
 
-const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState: any): GameMasterResponse => {
-    const sanitized: GameMasterResponse = { ...response };
+const sanitizeAndProcessResponse = (response: any): GameMasterResponse => {
+    const sanitized: Partial<GameMasterResponse> = { ...response };
     const sanitizationLogs: string[] = [];
 
-    // Sanitize logEntries by ensuring they are objects
+    // Sanitize logEntries
     if (Array.isArray(sanitized.logEntries)) {
-        sanitized.logEntries = sanitized.logEntries.map((entry: any, index) => {
+        sanitized.logEntries = sanitized.logEntries.map((entry: any, index: number) => {
             if (typeof entry === 'string') {
                 sanitizationLogs.push(`Sanitized logEntries[${index}]: Converted string to object.`);
-                try {
-                    const parsed = JSON.parse(entry);
-                    if (typeof parsed === 'object' && parsed !== null) return parsed;
-                } catch {
-                    return { type: "narration", content: entry };
-                }
+                return { type: "narration", content: entry };
             }
-            if (entry === null || typeof entry !== 'object') {
-                 sanitizationLogs.push(`Sanitized logEntries[${index}]: Removed invalid/null entry.`);
+            if (entry === null || typeof entry !== 'object' || !entry.type || !entry.content) {
+                sanitizationLogs.push(`Sanitized logEntries[${index}]: Removed invalid/null entry.`);
                 return null;
             }
             return entry;
-        }).filter(Boolean) as any[];
-    } else if (sanitized.logEntries === null || sanitized.logEntries === undefined) {
-         sanitized.logEntries = [];
-         sanitizationLogs.push("Sanitized logEntries: Was null/undefined, set to [].");
+        }).filter(Boolean);
+    } else {
+        sanitized.logEntries = [];
+        sanitizationLogs.push("Sanitized logEntries: Was not an array, reset to [].");
     }
 
-    // Sanitize other optional fields that should be objects or arrays
-    const fieldsToSanitize = {
-        combatState: {}, worldState: {}, playerRollRequest: null,
-        levelUpState: null, shopState: null, lootOffer: null, useHitDiceRequest: null,
-        newHomebrewContent: [],
-    };
-
-    for (const key in fieldsToSanitize) {
-        const field = key as keyof typeof fieldsToSanitize;
-        if (sanitized[field] === null || sanitized[field] === undefined) {
-            sanitizationLogs.push(`Sanitized ${field}: Was null/undefined, set to default.`);
-            sanitized[field] = fieldsToSanitize[field] as any;
+    // Sanitize other optional fields
+    const fieldsToSanitize: (keyof GameMasterResponse)[] = [
+        'combatState', 'playerRollRequest', 'worldState', 'levelUpState', 
+        'shopState', 'lootOffer', 'useHitDiceRequest', 'systemLog'
+    ];
+    fieldsToSanitize.forEach(key => {
+        if (sanitized[key] === undefined || sanitized[key] === null) {
+            sanitized[key] = null as any; // Explicitly set to null if missing
+        } else if (typeof sanitized[key] !== 'object') {
+            sanitizationLogs.push(`Sanitized ${key}: Was not an object, set to null.`);
+            sanitized[key] = null as any;
         }
+    });
+    
+    // Ensure array fields are arrays
+    if (!Array.isArray(sanitized.newHomebrewContent)) {
+        sanitized.newHomebrewContent = [];
+        if (response.newHomebrewContent) sanitizationLogs.push("Sanitized newHomebrewContent: Was not an array, reset to [].");
+    }
+
+    if (!Array.isArray(sanitized.actionOptions)) {
+        sanitized.actionOptions = [];
+        if (response.actionOptions) sanitizationLogs.push("Sanitized actionOptions: Was not an array, reset to [].");
     }
 
     if (sanitizationLogs.length > 0) {
@@ -265,9 +297,8 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
         sanitized.systemLog = `${existingLog}SANITIZATION: ${sanitizationLogs.join(' ')}`;
     }
 
-    return sanitized;
+    return sanitized as GameMasterResponse;
 };
-
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
     let isTestRun = false;
@@ -336,25 +367,19 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     };
 
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
+
     if (!aiResponse) {
         return {
             logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu responder. Por favor, tente sua ação novamente.' }],
             actionOptions: ['Tentar a última ação novamente', 'Fazer algo diferente'],
             worldState: characterForAI.worldState,
-        }
+        } as GameMasterResponse;
     }
     
-    aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
+    aiResponse = sanitizeAndProcessResponse(aiResponse);
     
     if (aiResponse.playerRollRequest) {
-        if (aiResponse.systemLog) {
-            console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
-        }
-        return { 
-            ...aiResponse,
-            playerRollRequest: aiResponse.playerRollRequest, 
-            actionOptions: aiResponse.actionOptions || [] 
-        } as GameMasterResponse;
+        return aiResponse;
     }
     
     if (isTestRun || !sessao) {
@@ -367,48 +392,43 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
-        const logsToSave: SessionLog[] = [];
+        const logsToSave: Partial<SessionLog>[] = [];
 
         const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
         
         if(!isInternalAction) {
-            const playerLog = logRepository.create({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
-            logsToSave.push(playerLog);
+            logsToSave.push({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         }
         
-        // Otimização: Truncar dados pesados antes de salvar o log de estado
         const stateForLog = { ...aiResponse };
-        if(stateForLog.updatedCharacter?.inventory) {
-             stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]`;
+        if (stateForLog.updatedCharacter?.inventory) {
+            stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]` as any;
         }
-        if(stateForLog.updatedCharacter?.journal) {
-            stateForLog.updatedCharacter.journal = `[${stateForLog.updatedCharacter.journal.length} entries]`;
+        if (stateForLog.updatedCharacter?.journal) {
+            stateForLog.updatedCharacter.journal = `[${stateForLog.updatedCharacter.journal.length} entries]` as any;
         }
 
-        const stateLog = logRepository.create({
+        logsToSave.push({
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(stateForLog),
             type: 'state',
         });
-        logsToSave.push(stateLog);
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
                  if (entry?.content && typeof entry.content === 'string') {
-                    const newLog = logRepository.create({
+                    logsToSave.push({
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
                         response: entry.content,
                         type: entry.type || 'narration',
                         rollResult: entry.rollResult,
                     });
-                    logsToSave.push(newLog);
                 }
             }
         }
         if (logsToSave.length > 0) await logRepository.save(logsToSave);
-
 
         if (aiResponse.newHomebrewContent) {
             for (const newContent of aiResponse.newHomebrewContent) {
@@ -423,9 +443,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             }
         }
 
-        if (aiResponse.updatedCharacter || aiResponse.worldState) {
-            const updates = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
-            await persistCharacterUpdates(sessao.character!.id, updates, queryRunner);
+        const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
+        if (Object.keys(updatesToPersist).length > 0) {
+            await persistCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
         }
         
         await queryRunner.commitTransaction();
@@ -438,5 +458,3 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         await queryRunner.release();
     }
 };
-
-    
