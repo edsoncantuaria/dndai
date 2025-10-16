@@ -116,12 +116,15 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
 
     const handleTestSkill = () => {
+        // Here we simulate the modal submit directly for testing the flow
         handleSkillCheckSubmit('para testar a perícia.', tempModel);
+        onClose();
     };
 
     const handleTestAction = () => {
         if (!customAction.trim()) return;
         processPlayerAction(customAction, -1, tempModel);
+        onClose();
     };
     
     const handleSimulateShop = () => {
@@ -243,7 +246,7 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
                 </header>
                 <main className="p-6 space-y-4 overflow-y-auto">
                     <DiceTestSection />
-                    <SystemInteractionSection onClose={onClose} characters={characters} />
+                    <SystemInteractionSection onClose={onClose} characters={characters as Character[]} />
                 </main>
             </div>
         </div>
@@ -251,5 +254,3 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
 };
 
 export default SystemTestModal;
-
-    

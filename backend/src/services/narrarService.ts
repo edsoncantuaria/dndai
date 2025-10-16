@@ -14,11 +14,11 @@ import { Relationship } from '../entities/Relationship.js';
 import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterFlowInput, GameMasterResponse, CombatState } from '../schemas/gameSchemas.js';
-import { GameMasterResponseSchema } from '../schemas/gameSchemas.js';
 import { In, QueryRunner } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { v4 as uuidv4 } from 'uuid';
 import * as HomebrewService from './homebrewService.js';
+import { sanitizeGameMasterResponse } from './aiSanitizer.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -225,6 +225,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
             Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
             const savedRel = await relationshipRepo.save(relationship);
             
+            // Sync quests for this relationship
             const aiQuestIds = new Set((relData.quests || []).map((q: any) => q.id).filter(Boolean));
             const existingQuests = savedRel.quests || [];
             
@@ -250,112 +251,6 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         }
     }
 };
-
-/**
- * Sanitiza e processa a resposta da IA para garantir que esteja
- * de acordo com o schema do GameMasterResponse, aplicando defaults,
- * convertendo strings JSON e filtrando campos inválidos.
- * @param response Dados brutos vindos da IA
- * @returns GameMasterResponse validado e seguro
- */
-export const sanitizeAndProcessResponse = (
-  response: any,
-  characterState: any
-): GameMasterResponse => {
-  const sanitizationLogs: string[] = [];
-  const copyResponse = { ...response };
-
-  // Parse campos que podem vir como string JSON
-  (['combatState', 'worldState'] as const).forEach((key) => {
-    if (typeof copyResponse[key] === 'string') {
-      try {
-        copyResponse[key] = JSON.parse(copyResponse[key]);
-        sanitizationLogs.push(`Parsed ${key} from string.`);
-      } catch {
-        copyResponse[key] = null;
-        sanitizationLogs.push(`Failed to parse ${key}, set to null.`);
-      }
-    }
-  });
-
-  // Merge com characterState para garantir campos essenciais
-  if (copyResponse.worldState === null || typeof copyResponse.worldState !== 'object') {
-    copyResponse.worldState = characterState?.worldState || {
-      timeOfDay: 'Manhã',
-      weather: 'Ensolarado',
-      currentRegion: characterState?.currentRegion || 'Desconhecida',
-    };
-    sanitizationLogs.push('worldState fallback applied.');
-  } else {
-    copyResponse.worldState = {
-        ...(characterState?.worldState || {}),
-        timeOfDay: 'Manhã', weather: 'Ensolarado',
-        ...copyResponse.worldState,
-        currentRegion: copyResponse.worldState.currentRegion || characterState?.currentRegion || 'Desconhecida',
-    }
-  }
-
-  if (copyResponse.combatState === null || typeof copyResponse.combatState !== 'object') {
-    copyResponse.combatState = null; // Zod schema allows null
-  } else {
-     copyResponse.combatState = {
-        isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [],
-        ...copyResponse.combatState
-     }
-  }
-
-  // Garante que arrays existam
-  if (!Array.isArray(copyResponse.actionOptions)) {
-    copyResponse.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
-    sanitizationLogs.push('actionOptions fallback applied.');
-  } else {
-    copyResponse.actionOptions = copyResponse.actionOptions.filter(Boolean);
-    if (copyResponse.actionOptions.length === 0 && !copyResponse.playerRollRequest) {
-      copyResponse.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
-      sanitizationLogs.push('actionOptions was empty, fallback applied.');
-    }
-  }
-
-  if (!Array.isArray(copyResponse.newHomebrewContent)) {
-    copyResponse.newHomebrewContent = [];
-  }
-
-  // Parse logEntries válidas
-  if (Array.isArray(copyResponse.logEntries)) {
-    copyResponse.logEntries = copyResponse.logEntries
-      .map((entry: any) => {
-        if (entry && typeof entry === 'object' && entry.type && entry.content) return entry;
-        if(typeof entry === 'string') return { type: 'narration', content: entry };
-        return null;
-      })
-      .filter(Boolean);
-  } else {
-    copyResponse.logEntries = [];
-  }
-
-  // Usa Zod para validar e aplicar defaults finais
-  const parsed = GameMasterResponseSchema.safeParse(copyResponse);
-
-  if (!parsed.success) {
-    console.warn('[sanitizeAndProcessResponse] Validation errors:', parsed.error.format());
-    // Retorna fallback mínimo caso a IA tenha retornado algo completamente inválido
-    return GameMasterResponseSchema.parse({
-      logEntries: [{ type: 'system', content: 'O Mestre de Jogo não conseguiu gerar uma resposta válida.' }],
-      actionOptions: ['Tentar novamente', 'Descrever uma ação diferente'],
-      worldState: characterState?.worldState,
-    });
-  }
-
-  if (sanitizationLogs.length > 0) {
-    const existingLog = parsed.data.systemLog ? `${parsed.data.systemLog}\n` : '';
-    parsed.data.systemLog = `${existingLog}SANITIZATION: ${sanitizationLogs.join(' ')}`;
-    console.warn('[sanitizeAndProcessResponse] Sanitization applied:', sanitizationLogs);
-  }
-
-  return parsed.data;
-};
-
-
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
     let isTestRun = false;
@@ -424,7 +319,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     };
 
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
-
+    
     if (!aiResponse) {
         return {
             logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu formular uma resposta. Tente sua ação novamente ou com outras palavras.' }],
@@ -432,8 +327,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             worldState: characterForAI.worldState,
         } as GameMasterResponse;
     }
-    
-    aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
     if (aiResponse.playerRollRequest) {
         return aiResponse;
@@ -457,13 +350,14 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             logsToSave.push({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         }
         
-        // Otimização: Não salvar campos grandes e voláteis no log de estado.
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
         delete stateForLog.logEntries;
         delete stateForLog.actionOptions;
-        if(stateForLog.updatedCharacter?.inventory) delete stateForLog.updatedCharacter.inventory;
-        if(stateForLog.updatedCharacter?.journal) delete stateForLog.updatedCharacter.journal;
-
+        if(stateForLog.updatedCharacter) {
+             delete stateForLog.updatedCharacter.inventory;
+             delete stateForLog.updatedCharacter.journal;
+             delete stateForLog.updatedCharacter.relationships;
+        }
         
         logsToSave.push({
             sessaoId: sessao.id,

@@ -7,6 +7,7 @@ import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
 import createError from 'http-errors';
+import { sanitizeGameMasterResponse } from "./aiSanitizer.js";
 
 
 // Esta função agora aceita a chave de API como um argumento.
@@ -78,7 +79,6 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
-    // 1. Validação da entrada antes de enviar para a IA.
     const inputValidation = GameMasterFlowInputSchema.safeParse(input);
     if (!inputValidation.success) {
         console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
@@ -138,7 +138,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  if (!isRetry) return attemptGeneration(true);
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
-            
+
             let responseData: any;
             try {
                 let textToParse = jsonText;
@@ -160,41 +160,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             }
 
             // Sanitização da Resposta Bruta (antes da validação Zod)
-            if (Array.isArray(responseData.logEntries)) {
-                responseData.logEntries = responseData.logEntries.map((entry: any) => {
-                    // Se for string, tenta fazer o parse. Se falhar, trata como narração.
-                    if (typeof entry === 'string') {
-                        try {
-                            const parsed = JSON.parse(entry);
-                             // Se o parse resultar em um objeto válido com 'type' e 'content', use-o.
-                            if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
-                                return parsed;
-                            }
-                             // Se não, usa a string original como conteúdo de narração.
-                            return { type: "narration", content: entry };
-                        } catch {
-                            // Se o parse falhar, trata a string como conteúdo de narração.
-                            return { type: "narration", content: entry };
-                        }
-                    }
-                    // Se for um objeto, mas estiver incompleto, preenche com defaults.
-                    if (entry && typeof entry === 'object') {
-                        return {
-                            type: entry.type || 'narration',
-                            content: entry.content || 'A IA enviou uma narração vazia.',
-                            ...entry
-                        };
-                    }
-                    // Qualquer outro caso inválido (como null) será filtrado a seguir.
-                    return null;
-                }).filter(Boolean); // Filtra quaisquer entradas que resultaram em 'null'.
-            } else {
-                 responseData.logEntries = []; // Se não for um array, inicia como um array vazio.
-            }
-
+            const sanitizedResponse = sanitizeGameMasterResponse(responseData);
 
             // Validação final com Zod
-            const validationResult = GameMasterResponseSchema.safeParse(responseData);
+            const validationResult = GameMasterResponseSchema.safeParse(sanitizedResponse);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
                 if (!isRetry) {
