@@ -140,7 +140,7 @@ const WorldStateSchema = z.object({
 
 
 export const GameMasterResponseSchema = z.object({
-    logEntries: z.array(LogEntrySchema.nullable()).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
+    logEntries: z.array(LogEntrySchema).optional().describe("New entries for the adventure log, including narration, system messages, or combat details."),
     actionOptions: z.array(z.union([z.string(), z.object({ text: z.string(), action: z.string(), skill: z.string().optional() })])).optional().describe("A list of suggested actions for the player to take next."),
     updatedCharacter: z.any().optional().describe("An object containing ONLY the character fields that have been changed by the last action. E.g., { attributes: { hp: 25 }, inventory: [...] }"),
     combatState: CombatStateSchema.nullable().optional().describe("The complete state of combat, if it is active."),

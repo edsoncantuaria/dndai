@@ -36,13 +36,17 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const wisdomMod = calculateModifier(fullCharacter.attributes.wisdom);
     const intelligenceMod = calculateModifier(fullCharacter.attributes.intelligence);
     
-    const isProficientInPerception = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('perception'));
-    const isProficientInInsight = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('insight'));
-    const isProficientInInvestigation = fullCharacter.proficiencies.some(p => p.name.toLowerCase().includes('investigation'));
+    const proficiencies = Array.isArray(fullCharacter.proficiencies) ? fullCharacter.proficiencies : [];
+    const isProficientInPerception = proficiencies.some(p => p?.name?.toLowerCase().includes('perception'));
+    const isProficientInInsight = proficiencies.some(p => p?.name?.toLowerCase().includes('insight'));
+    const isProficientInInvestigation = proficiencies.some(p => p?.name?.toLowerCase().includes('investigation'));
 
     const passivePerception = 10 + wisdomMod + (isProficientInPerception ? proficiencyBonus : 0);
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
+
+    const inventory = Array.isArray(fullCharacter.items) ? fullCharacter.items : [];
+    const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells : [];
 
     return {
         id: fullCharacter.id, // Include ID for context
@@ -64,9 +68,9 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passivePerception,
         passiveInsight,
         passiveInvestigation,
-        proficiencies: fullCharacter.proficiencies.map(p => p.name),
-        inventory: fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})),
-        spells: fullCharacter.spells.map(s => s.spellName),
+        proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
+        inventory: inventory.map(item => ({...item.itemData, equipped: item.equipped})),
+        spells: spells.map(s => s?.spellName).filter(Boolean),
         feats: fullCharacter.feats || [],
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
@@ -79,6 +83,8 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
 
 const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null): Promise<JournalEntry[]> => {
     const savedEntries: JournalEntry[] = [];
+    if (!Array.isArray(entries)) return savedEntries;
+
     for (const entryData of entries) {
         if (!entryData || typeof entryData !== 'object') continue;
         let entry: JournalEntry | null = null;
@@ -102,7 +108,7 @@ const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], ch
         
         const savedEntry = await queryRunner.manager.save(entry);
 
-        if (entryData.subLocations && entryData.subLocations.length > 0) {
+        if (entryData.subLocations && Array.isArray(entryData.subLocations) && entryData.subLocations.length > 0) {
             await upsertJournalEntries(queryRunner, entryData.subLocations, characterId, savedEntry);
         }
         savedEntries.push(savedEntry);
@@ -142,11 +148,12 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
     // Upsert Inventory (optimized)
     if (updates.inventory) {
         const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-        const existingItemsMap = new Map(character.items.map(item => [item.itemData.index || item.name, item]));
+        const existingItemsMap = new Map((character.items || []).map(item => [item.itemData.index || item.name, item]));
         const itemsToUpsert: CharacterItem[] = [];
         const itemsToRemove: CharacterItem[] = [];
 
         for (const itemData of updates.inventory) {
+            if (!itemData) continue;
             const itemKey = itemData.index || itemData.name;
             const existingItem = existingItemsMap.get(itemKey);
 
@@ -182,13 +189,13 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
     }
 
     // Upsert Relationships and Quests (optimized)
-    if(updates.relationships) {
+    if(updates.relationships && Array.isArray(updates.relationships)) {
         const relationshipsToSave: Relationship[] = [];
         const questsToSave: Quest[] = [];
         
         for (const relData of updates.relationships) {
             if (!relData || !relData.npcId) continue;
-            let relationship = character.relationships.find(r => r.npcId === relData.npcId);
+            let relationship = (character.relationships || []).find(r => r.npcId === relData.npcId);
             if (!relationship) {
                 relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
             }
@@ -200,7 +207,7 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         const relMap = new Map(savedRelationships.map(r => [r.npcId, r]));
 
         for(const relData of updates.relationships) {
-            if (!relData.quests || !relData.npcId) continue;
+            if (!relData.quests || !Array.isArray(relData.quests) || !relData.npcId) continue;
             const savedRel = relMap.get(relData.npcId);
             if(!savedRel) continue;
 
@@ -224,15 +231,13 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
 
     // Sanitize logEntries by ensuring they are objects
     if (Array.isArray(sanitized.logEntries)) {
-        sanitized.logEntries = sanitized.logEntries.map((entry, index) => {
+        sanitized.logEntries = sanitized.logEntries.map((entry: any, index) => {
             if (typeof entry === 'string') {
                 sanitizationLogs.push(`Sanitized logEntries[${index}]: Converted string to object.`);
                 try {
-                    // It might be a stringified JSON
                     const parsed = JSON.parse(entry);
                     if (typeof parsed === 'object' && parsed !== null) return parsed;
                 } catch {
-                    // It's just a plain string
                     return { type: "narration", content: entry };
                 }
             }
@@ -241,20 +246,26 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
                 return null;
             }
             return entry;
-        }).filter(Boolean) as any[]; // Filter out nulls
+        }).filter(Boolean) as any[];
     } else if (sanitized.logEntries === null || sanitized.logEntries === undefined) {
          sanitized.logEntries = [];
          sanitizationLogs.push("Sanitized logEntries: Was null/undefined, set to [].");
     }
 
     // Sanitize other optional fields that should be objects or arrays
-    const fieldsToSanitize: (keyof GameMasterResponse)[] = ['combatState', 'worldState', 'playerRollRequest', 'newHomebrewContent', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'];
-    fieldsToSanitize.forEach(field => {
+    const fieldsToSanitize = {
+        combatState: {}, worldState: {}, playerRollRequest: null,
+        levelUpState: null, shopState: null, lootOffer: null, useHitDiceRequest: null,
+        newHomebrewContent: [],
+    };
+
+    for (const key in fieldsToSanitize) {
+        const field = key as keyof typeof fieldsToSanitize;
         if (sanitized[field] === null) {
             sanitizationLogs.push(`Sanitized ${field}: Was null, set to default.`);
-            sanitized[field] = Array.isArray(characterState[field]) ? [] : {};
+            sanitized[field] = fieldsToSanitize[field] as any;
         }
-    });
+    }
 
     if (sanitizationLogs.length > 0) {
         const existingLog = sanitized.systemLog ? `${sanitized.systemLog}\n` : '';
