@@ -161,6 +161,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             // Sanitização da Resposta Bruta (antes da validação Zod)
             const sanitizedResponse = sanitizeGameMasterResponse(responseData);
+             console.log('[sanitizeAndProcessResponse] Sanitization applied:', sanitizedResponse);
+
 
             // Validação final com Zod
             const validationResult = GameMasterResponseSchema.safeParse(sanitizedResponse);
@@ -173,12 +175,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                  throw createError(500, `A resposta da IA falhou na validação final: ${JSON.stringify(validationResult.error.flatten())}`);
             }
             
-            if (validationResult.data.systemLog) {
-                const existingLog = validationResult.data.systemLog;
-                validationResult.data.systemLog = `[Sanitizer] ${existingLog}`;
-            }
-
-
             return validationResult.data;
 
         } catch (error: any) {
