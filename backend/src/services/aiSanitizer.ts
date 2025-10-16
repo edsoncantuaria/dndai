@@ -183,17 +183,25 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((content: any) => {
         if (!content || typeof content !== 'object' || !content.name) return null;
         
+        let type = content.type;
+
         // Se o tipo é inválido ou ausente, tenta inferir.
-        if (!content.type || !VALID_HOMEBREW_TYPES.includes(content.type)) {
+        if (!type || !VALID_HOMEBREW_TYPES.includes(type)) {
             // Heurística: se tiver 'hit_points' e 'armor_class', é provavelmente um monstro.
-            if ('hit_points' in content && 'armor_class' in content) {
-                 sanitationLogs.push(`Conteúdo Homebrew "${content.name}" tinha tipo inválido, corrigido para "monster".`);
-                 content.type = 'monster';
-            } else {
+            if (('hit_points' in content || 'hit_dice' in content) && 'armor_class' in content) {
+                 sanitationLogs.push(`Conteúdo Homebrew "${content.name}" tinha tipo inválido '${type}', corrigido para "monster".`);
+                 type = 'monster';
+            } 
+            // Heurística para itens/armas
+            else if (['weapon', 'armor', 'gear', 'adventuring-gear'].includes(type) || 'cost' in content) {
+                 sanitationLogs.push(`Conteúdo Homebrew "${content.name}" tinha tipo inválido '${type}', corrigido para "item".`);
+                 type = 'item';
+            }
+            else {
                  return null; // Descarta se não for possível corrigir
             }
         }
-        return content;
+        return {...content, type: type};
     }).filter(Boolean);
   }
 
