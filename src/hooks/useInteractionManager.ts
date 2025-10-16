@@ -77,12 +77,12 @@ export const useInteractionManager = () => {
         processPlayerAction(actionText);
     }, [playerRollRequest]);
 
-    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string) => {
+    const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string, modelOverride?: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
         setSkillCheckRequest(null);
-        processPlayerAction(actionText);
+        processPlayerAction(actionText, -1, modelOverride);
     }, [skillCheckRequest]);
 
     const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
