@@ -54,17 +54,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     } = useGameStateContext();
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
-    const [showDiceModal, setShowDiceModal] = useState(false);
     
-    useEffect(() => {
-        // Controla a visibilidade do modal de dados com base no estado do playerRollRequest.
-        // Isso é mais robusto do que usar um setTimeout.
-        if (playerRollRequest) {
-            setShowDiceModal(true);
-        } else {
-            setShowDiceModal(false);
-        }
-    }, [playerRollRequest]);
+    // O useEffect para mostrar o modal de dados foi removido.
+    // A visibilidade agora é controlada diretamente pela existência do `playerRollRequest`.
+    // Isso evita o atraso e simplifica a lógica.
+    const showDiceModal = !!playerRollRequest;
 
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
@@ -97,14 +91,24 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
     
-    // Mostra um loader principal se o personagem ainda não carregou
-    if (!character) {
+    // Mostra um loader principal se o personagem ainda não carregou (ao iniciar ou carregar sessão).
+    if (isLoading && !character) {
         return (
            <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
                <Loader2 className="h-12 w-12 animate-spin mb-4" />
                <h2 className="text-2xl font-bold font-garamond text-amber-300">Carregando Aventura...</h2>
            </div>
        );
+    }
+
+    if (!character) {
+        // Fallback caso o personagem não carregue por algum motivo não coberto pelo isLoading
+        return (
+             <div className="flex flex-col items-center justify-center h-full text-center text-red-400">
+               <h2 className="text-2xl font-bold">Erro ao Carregar Personagem</h2>
+                <button onClick={returnToMenu} className="mt-4 px-4 py-2 bg-stone-700 rounded-md">Voltar ao Menu</button>
+           </div>
+        );
     }
     
     // Mostra um loader específico se estivermos aguardando a primeira narração.
@@ -125,9 +129,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
-                {playerRollRequest && (
+                {showDiceModal && (
                     <DiceRollModal 
-                        request={playerRollRequest}
+                        request={playerRollRequest!}
                         onRoll={handleRollResult}
                         onClose={() => setPlayerRollRequest(null)}
                         show={showDiceModal}
