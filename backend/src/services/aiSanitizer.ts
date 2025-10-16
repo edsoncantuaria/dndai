@@ -4,90 +4,83 @@ import { GameMasterResponse } from "../schemas/gameSchemas.js";
 /**
  * Sanitiza a resposta bruta do modelo para garantir:
  * 1. Nenhum campo crítico seja null.
- * 2. logEntries seja sempre um array de objetos { type, content }.
- * 3. Campos opcionais complexos (combatState, updatedCharacter, playerRollRequest, newHomebrewContent) tenham objetos ou arrays vazios.
+ * 2. logEntries e newHomebrewContent sejam sempre arrays de objetos.
+ * 3. Campos opcionais complexos (combatState, updatedCharacter, playerRollRequest) tenham objetos ou arrays vazios.
+ * @param responseData Os dados brutos da IA.
+ * @returns Um objeto GameMasterResponse que tem mais probabilidade de passar na validação Zod.
  */
-export const sanitizeGameMasterResponse = (responseData: any): GameMasterResponse => {
-
-  // 1. logEntries sempre como array de objetos
-  if (!Array.isArray(responseData.logEntries)) {
-    responseData.logEntries = [];
+export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMasterResponse> => {
+  if (!responseData || typeof responseData !== 'object') {
+    return {};
   }
+  const sanitized = { ...responseData };
 
-  responseData.logEntries = responseData.logEntries.map((entry: any) => {
-    // Se for string, tenta fazer o parse. Se falhar, trata como narração.
-    if (typeof entry === 'string') {
+  // 1. Sanitize logEntries
+  if (!Array.isArray(sanitized.logEntries)) {
+    sanitized.logEntries = [];
+  } else {
+    sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
+      if (!entry) return null;
+      if (typeof entry === 'string') {
         try {
-            const parsed = JSON.parse(entry);
-            // Se o parse resultar em um objeto válido com 'type' e 'content', use-o.
-            if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
-                return parsed;
-            }
-            // Se não, usa a string original como conteúdo de narração.
-            return { type: "narration", content: entry };
+          const parsed = JSON.parse(entry);
+          if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
+            return parsed;
+          }
+          // If it's a non-JSON string, wrap it.
+          return { type: 'narration', content: entry };
         } catch {
-            // Se o parse falhar, trata a string como conteúdo de narração.
-            return { type: "narration", content: entry };
+          // If parsing fails, treat it as narration content.
+          return { type: 'narration', content: entry };
         }
-    }
-
-    // Se for null ou não objeto, transforma em narração genérica
-    if (!entry || typeof entry !== "object") {
-      return { type: "system", content: "A IA enviou uma entrada de log inválida." };
-    }
-
-    // Preenche defaults para objetos incompletos
-    return {
-      type: entry.type || "narration",
-      content: entry.content || "A IA enviou uma narração vazia.",
-      ...entry // mantém campos extras caso existam
-    };
-  }).filter(Boolean); // Remove quaisquer entradas que resultaram em 'null'
-
-  // 2. Campos opcionais complexos não podem ser null
-  if(responseData.combatState === null) responseData.combatState = undefined;
-  if(responseData.updatedCharacter === null) responseData.updatedCharacter = undefined;
-  if(responseData.playerRollRequest === null) responseData.playerRollRequest = undefined;
-  
-  // 3. Garante que newHomebrewContent seja um array de objetos
-  if (!Array.isArray(responseData.newHomebrewContent)) {
-    responseData.newHomebrewContent = [];
-  }
-  
-  responseData.newHomebrewContent = responseData.newHomebrewContent.map((item: any) => {
-    if (!item) return undefined; // remove null/undefined
-    if (typeof item === 'string') {
-      try {
-        const parsed = JSON.parse(item);
-        if (parsed && typeof parsed === 'object') return parsed;
-        return undefined; // A string não era um objeto JSON válido
-      } catch {
-        return undefined; // Falha no parse
       }
-    }
-    if (typeof item === 'object') return item;
-    return undefined; // Descarta tipos inesperados
-  }).filter(Boolean); // Limpa os undefineds do array
+      if (typeof entry === 'object' && entry.type && entry.content) {
+        return entry;
+      }
+      return null;
+    }).filter(Boolean); // Remove nulls
+  }
+
+  // 2. Sanitize newHomebrewContent
+   if (!Array.isArray(sanitized.newHomebrewContent)) {
+    sanitized.newHomebrewContent = [];
+  } else {
+    sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
+      if (!item) return null;
+      if (typeof item === 'string') {
+        try {
+          const parsed = JSON.parse(item);
+          return (parsed && typeof parsed === 'object') ? parsed : null;
+        } catch {
+          return null; // Invalid JSON string
+        }
+      }
+      return (typeof item === 'object') ? item : null;
+    }).filter(Boolean); // Remove nulls
+  }
 
 
-  if (typeof responseData.worldState === 'string') {
+  // 3. Sanitize worldState
+  if (typeof sanitized.worldState === 'string') {
     try {
-        responseData.worldState = JSON.parse(responseData.worldState);
+        sanitized.worldState = JSON.parse(sanitized.worldState);
     } catch {
-        responseData.worldState = null; 
+        sanitized.worldState = null; // Let it be nulled to be caught by the next check
     }
   }
-  
-  if (responseData.worldState === null || typeof responseData.worldState !== 'object') {
-     responseData.worldState = undefined;
+  if (sanitized.worldState === null || typeof sanitized.worldState !== 'object') {
+    sanitized.worldState = undefined; // Use undefined to let Zod's default work
   }
 
-  // Garante que os estados de jogo sejam nulos ou objetos, nunca strings
-  if(responseData.levelUpState === null) responseData.levelUpState = undefined;
-  if(responseData.shopState === null) responseData.shopState = undefined;
-  if(responseData.lootOffer === null) responseData.lootOffer = undefined;
-  if(responseData.useHitDiceRequest === null) responseData.useHitDiceRequest = undefined;
+  // 4. Sanitize other complex optional fields to prevent null values
+  if (sanitized.combatState === null) sanitized.combatState = undefined;
+  if (sanitized.playerRollRequest === null) sanitized.playerRollRequest = undefined;
+  if (sanitized.updatedCharacter === null) sanitized.updatedCharacter = undefined;
+  
+  // 5. Ensure actionOptions is an array
+  if (!Array.isArray(sanitized.actionOptions)) {
+    sanitized.actionOptions = [];
+  }
 
-
-  return responseData as GameMasterResponse;
+  return sanitized;
 };

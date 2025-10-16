@@ -78,7 +78,7 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
   
 
 
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse> => {
     const inputValidation = GameMasterFlowInputSchema.safeParse(input);
     if (!inputValidation.success) {
         console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
@@ -115,7 +115,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         }),
     };
     
-    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse | null> => {
+    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse> => {
         try {
             let prompt = createPrompt(input, isGemma);
             if (isRetry) {

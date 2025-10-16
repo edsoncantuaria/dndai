@@ -321,11 +321,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     
     if (!aiResponse) {
-        return {
-            logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu formular uma resposta. Tente sua ação novamente ou com outras palavras.' }],
-            actionOptions: ['Tentar a última ação novamente', 'Descrever uma ação diferente'],
-            worldState: characterForAI.worldState,
-        } as GameMasterResponse;
+        throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
     }
     
     if (aiResponse.playerRollRequest) {
