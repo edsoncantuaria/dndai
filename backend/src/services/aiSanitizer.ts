@@ -1,5 +1,5 @@
 // backend/src/services/aiSanitizer.ts
-import { GameMasterResponse } from "../schemas/gameSchemas.js";
+import { GameMasterResponse, HomebrewContentType } from "../schemas/gameSchemas.js";
 
 /**
  * Normaliza a string 'timeOfDay' para um valor de enumeração conhecido.
@@ -56,6 +56,7 @@ const normalizeWeather = (weatherString: string): string => {
     return found || 'Ensolarado';
 };
 
+const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
 
 /**
  * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
@@ -132,8 +133,24 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       sanitized.combatState = undefined;
       sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
   }
+  
+  // 5. Sanitize newHomebrewContent to fix common AI mistakes.
+  if (Array.isArray(sanitized.newHomebrewContent)) {
+    sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
+      if (!item || typeof item !== 'object' || !item.type) return item;
+      
+      // FIX: AI often uses the monster's type (e.g., "Construct") as the homebrew content type.
+      // If the type is invalid but it has monster fields, correct it to "monster".
+      if (!VALID_HOMEBREW_TYPES.includes(item.type) && (item.armor_class || item.hit_points || item.actions)) {
+          sanitationLogs.push(`Corrigido tipo de homebrew inválido '${item.type}' para 'monster' para o item '${item.name}'.`);
+          item.type = 'monster';
+      }
+      return item;
+    });
+  }
 
-  // 5. Garante que os outros estados complexos sejam objetos válidos ou undefined, mas nunca null.
+
+  // 6. Garante que os outros estados complexos sejam objetos válidos ou undefined, mas nunca null.
   const fieldsToMakeUndefinedIfEmpty: (keyof GameMasterResponse)[] = [
     'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];

@@ -209,19 +209,19 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const cleanedData = miniSanitize(responseData);
             console.log("🧹 Após mini-sanitizador:", JSON.stringify(cleanedData, null, 2));
 
-            // 2️⃣ Validação estrutural com Zod
-            const validationResult = GameMasterResponseSchema.safeParse(cleanedData);
+            // 2️⃣ Sanitização semântica / lógica
+            const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character);
+            console.log("✅ Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
+            
+            // 3️⃣ Validação estrutural com Zod
+            const validationResult = GameMasterResponseSchema.safeParse(finalResponse);
             if (!validationResult.success) {
                 console.warn("⚠️ Falha na validação Zod:", validationResult.error.flatten());
                 if (!isRetry) return attemptGeneration(true);
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
             }
-            
-            // 3️⃣ Sanitização semântica / lógica
-            const finalResponse = sanitizeGameMasterResponse(validationResult.data, input.character);
-            console.log("✅ Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
 
-            return finalResponse;
+            return validationResult.data;
 
         } catch (error: any) {
              if(error instanceof createError.HttpError) throw error;
