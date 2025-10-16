@@ -269,7 +269,7 @@ const ActionOptions: React.FC = () => {
                 )}
                 
                 {isOpen && (
-                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[calc(100vh-12rem)] overflow-y-auto">
+                     <div className="fixed bottom-40 right-4 w-[calc(100%-2rem)] max-w-md bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp max-h-[50vh] overflow-y-auto">
                         {renderActionContent()}
                     </div>
                 )}
