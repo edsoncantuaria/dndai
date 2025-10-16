@@ -72,6 +72,7 @@ export const useInteractionManager = () => {
     // --- Action Handlers that depend on processPlayerAction ---
     const handleRollResult = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (result: { total: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
+        // CORREÇÃO: Usar o `result.total` que já inclui o modificador, em vez de somá-lo novamente.
         const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
         setPlayerRollRequest(null);
         processPlayerAction(actionText);
