@@ -64,6 +64,9 @@
     background-image: linear-gradient(to bottom right, black, #141312, #2c1a1a);
     font-family: var(--font-im-fell), serif;
   }
+  body.overscroll-contain {
+    overscroll-behavior: contain;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-cinzel), serif;
   }

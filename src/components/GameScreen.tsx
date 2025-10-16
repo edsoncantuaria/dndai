@@ -60,6 +60,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     // Isso evita o atraso e simplifica a lógica.
     const showDiceModal = !!playerRollRequest;
 
+    useEffect(() => {
+        if (isMobileSheetOpen) {
+            document.body.classList.add('overscroll-contain');
+        } else {
+            document.body.classList.remove('overscroll-contain');
+        }
+        // Cleanup on component unmount
+        return () => {
+            document.body.classList.remove('overscroll-contain');
+        }
+    }, [isMobileSheetOpen]);
+
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
 
