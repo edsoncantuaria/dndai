@@ -31,7 +31,9 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             const spellsToFetch = character.spells
                 .filter(s => {
                     if (typeof s !== 'object' || !s.spellName) return false;
-                    // Don't fetch if we already have the details
+                    // ** FIX START **: Do not attempt to fetch breath weapons
+                    if (s.spellName.startsWith('breath-weapon')) return false;
+                    // Do not fetch if we already have the details
                     return !existingDetails.some(ed => ed.index === s.spellName);
                 })
                 .map(s => ({ index: s.spellName.toLowerCase().replace(/ /g, '-'), name: s.spellName, url: '' }));
