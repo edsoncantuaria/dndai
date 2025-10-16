@@ -248,10 +248,10 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
 };
 
 const sanitizeAndProcessResponse = (response: any, characterState: any): GameMasterResponse => {
-    const sanitized: Partial<GameMasterResponse> = { ...response };
+    const sanitized: Partial<GameMasterResponse> = response ? { ...response } : {};
     const sanitizationLogs: string[] = [];
 
-    // Sanitize and parse stringified JSON fields
+    // Tenta fazer o parse de campos que podem vir como strings JSON
     (['worldState', 'combatState'] as const).forEach(key => {
         if (typeof sanitized[key] === 'string') {
             try {
@@ -260,35 +260,25 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
                     sanitized[key] = parsed;
                     sanitizationLogs.push(`Sanitized ${key}: Parsed from string.`);
                 } else {
-                     throw new Error('Parsed to non-object');
+                    throw new Error('Parsed to non-object');
                 }
             } catch (e) {
-                sanitized[key] = null; // Invalidate if parsing fails
+                sanitized[key] = null; // Invalida se o parse falhar
                 sanitizationLogs.push(`Sanitized ${key}: Invalid string, set to null.`);
             }
         }
     });
 
-    // Sanitize logEntries: filter nulls and parse stringified objects
+    // Sanitiza logEntries: filtra nulos e parseia objetos stringificados
     if (Array.isArray(sanitized.logEntries)) {
         sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
-            if (entry === null) return null;
-            if (typeof entry === 'string') {
-                try {
-                    const parsed = JSON.parse(entry);
-                    return (typeof parsed === 'object' && parsed !== null) ? parsed : { type: "narration", content: entry };
-                } catch {
-                    return { type: "narration", content: entry };
-                }
-            }
-            return (typeof entry === 'object' && entry.type && entry.content) ? entry : null;
-        }).filter(Boolean);
-    } else {
-        sanitized.logEntries = [];
-        sanitizationLogs.push("Sanitized logEntries: Was not an array, reset to [].");
+            if (entry === null || typeof entry !== 'object') return null;
+            if (entry.type && entry.content) return entry;
+            return null; // Descarta entradas malformadas
+        }).filter(Boolean); // Remove nulos
     }
 
-    // Default object fallbacks
+    // Fallbacks para objetos principais
     const defaultCombatState = { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] };
     const defaultWorldState = { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: characterState?.currentRegion || 'Desconhecida' };
     
@@ -300,8 +290,7 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
         ? { ...defaultWorldState, ...(characterState?.worldState || {}), ...sanitized.worldState }
         : (characterState?.worldState || defaultWorldState);
 
-
-    // Sanitize other optional fields
+    // Sanitiza campos opcionais que devem ser objetos ou nulos
     const optionalObjectFields: (keyof GameMasterResponse)[] = ['playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'];
     optionalObjectFields.forEach(key => {
         if (sanitized[key] !== undefined && (typeof sanitized[key] !== 'object' || sanitized[key] === null)) {
@@ -310,13 +299,14 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
         }
     });
     
+    // Garante que arrays sejam arrays
     if (!Array.isArray(sanitized.newHomebrewContent)) sanitized.newHomebrewContent = [];
     if (!Array.isArray(sanitized.actionOptions)) {
         sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
         sanitizationLogs.push("actionOptions was invalid, reset to fallback.");
     } else {
-        sanitized.actionOptions = sanitized.actionOptions.filter(Boolean); // Remove nulls
-        if (sanitized.actionOptions.length === 0) {
+        sanitized.actionOptions = sanitized.actionOptions.filter(Boolean); // Remove nulos
+        if (sanitized.actionOptions.length === 0 && !sanitized.playerRollRequest) {
              sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
              sanitizationLogs.push("actionOptions was empty after filtering, reset to fallback.");
         }
@@ -434,7 +424,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        // Otimização: Não salvamos campos pesados ou voláteis no log de estado.
         delete stateForLog.logEntries;
         delete stateForLog.actionOptions;
         
