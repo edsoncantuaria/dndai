@@ -43,10 +43,11 @@ export const useNewGameState = () => {
             return;
         }
 
-        // The 'sanitizeLogEntries' function in the backend now guarantees logEntries is an array of valid objects.
-        // Thus, we can trust the data structure here.
         if (!isRestoring && Array.isArray(response.logEntries)) {
-            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+            const newLogEntries = response.logEntries.map((entry: any) => {
+                if (!entry) return null;
+                return { ...entry, id: uuidv4() }
+            }).filter(Boolean);
             logState.addLogEntries(newLogEntries);
         }
 
@@ -54,7 +55,6 @@ export const useNewGameState = () => {
              characterState.updateCharacter(response.updatedCharacter);
         }
         
-        // Backend now guarantees worldState is an object if present.
         if (response.worldState) {
             characterState.updateCharacter({ worldState: response.worldState });
         }
@@ -69,7 +69,6 @@ export const useNewGameState = () => {
             interactionState.setActionOptions(response.actionOptions);
         }
         
-        // Backend now guarantees combatState is an object if present.
         if (response.combatState) interactionState.setCombatState(response.combatState);
         
         if (response.levelUpState) interactionState.setRequest({ type: 'levelUp', request: response.levelUpState });
@@ -85,13 +84,11 @@ export const useNewGameState = () => {
     const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         
-        // Allow test actions to proceed without a session ID by using a mock ID and character.
         let finalSessionId = currentSessionId;
         if (!finalSessionId) {
-            finalSessionId = -1; // Use a mock session ID for tests
+            finalSessionId = -1; 
             console.log("[processPlayerAction] No active session. Running in test mode.");
             if (!characterState.character) {
-                // If there's no character, create a temporary one for the test.
                 const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' });
                 characterState.setCharacter(mockCharacter);
             }
@@ -108,9 +105,10 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+
         if (!isInternalAction && finalSessionId !== -1) {
-            logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
+            logState.addLogEntry({ id: uuidv4(), type: 'action', content: action });
         }
 
         interactionState.setActionOptions([]); 
@@ -284,3 +282,5 @@ export const useNewGameState = () => {
 
     return memoizedValue;
 };
+
+    

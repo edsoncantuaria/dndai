@@ -27,7 +27,7 @@ export const updateUserSettings = async (userId: number, newSettings: z.infer<ty
     if (!user) {
         throw createError(404, 'Usuário não encontrado para atualizar as configurações.');
     }
-
+    
     // Merge new settings with existing ones to avoid overwriting everything.
     const settingsToSave = {
         ...(user.settings || {}),
@@ -51,3 +51,5 @@ export const setHomebrewDisclaimerAsAcknowledged = async (userId: number) => {
         throw createError(404, 'Usuário não encontrado para atualizar a confirmação.');
     }
 }
+
+    

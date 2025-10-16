@@ -82,7 +82,7 @@ export const useInteractionManager = () => {
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
         const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
         setSkillCheckRequest(null);
-        processPlayerAction(actionText, -1); // Use test session ID for direct skill tests
+        processPlayerAction(actionText);
     }, [skillCheckRequest]);
 
     const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
@@ -177,3 +177,5 @@ export const useInteractionManager = () => {
         triggerTestSkillCheck,
     };
 };
+
+    
