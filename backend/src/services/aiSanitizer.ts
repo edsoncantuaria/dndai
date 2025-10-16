@@ -4,8 +4,8 @@ import { GameMasterResponse } from "../schemas/gameSchemas.js";
 /**
  * Sanitiza a resposta bruta do modelo para garantir:
  * 1. Nenhum campo crítico seja null.
- * 2. logEntries e newHomebrewContent sejam sempre arrays de objetos.
- * 3. Campos opcionais complexos (combatState, updatedCharacter, playerRollRequest) tenham objetos ou arrays vazios.
+ * 2. logEntries e newHomebrewContent sejam sempre arrays de objetos válidos.
+ * 3. Campos opcionais complexos (combatState, updatedCharacter, playerRollRequest) tenham valores padrão seguros se forem nulos.
  * @param responseData Os dados brutos da IA.
  * @returns Um objeto GameMasterResponse que tem mais probabilidade de passar na validação Zod.
  */
@@ -28,11 +28,11 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
           if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
             return parsed;
           }
-          // Se o parse não resultar em um objeto válido, trata a string como narração
-          return { type: 'narration', content: entry };
+           // Se o parse não resultar em um objeto válido, mas a string tem conteúdo, trata como narração
+          if(entry.trim()) return { type: 'narration', content: entry };
         } catch {
-          // Se o parse falhar, trata a string como narração
-          return { type: 'narration', content: entry };
+          // Se o parse falhar, mas a string tem conteúdo, trata como narração
+          if(entry.trim()) return { type: 'narration', content: entry };
         }
       }
       // Se já for um objeto, garante que tenha os campos mínimos
@@ -40,7 +40,7 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
         return entry;
       }
       return null;
-    }).filter(Boolean); // Remove quaisquer entradas nulas/inválidas
+    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null); // Filtra quaisquer entradas nulas/inválidas
   }
 
 
@@ -59,28 +59,37 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
         }
       }
       return (typeof item === 'object') ? item : null;
-    }).filter(Boolean); // Remove quaisquer entradas nulas/inválidas
+    }).filter((item): item is Exclude<typeof item, null> => item !== null);
   }
 
 
-  // 3. Sanitize worldState: Garante que seja um objeto
-  if (typeof sanitized.worldState === 'string') {
-    try {
-        sanitized.worldState = JSON.parse(sanitized.worldState);
-    } catch {
-        sanitized.worldState = {}; // Fallback para objeto vazio
+  // 3. Garante que campos complexos opcionais não sejam `null`.
+  // Se forem nulos, Zod usará o `default` ou `optional` definido no schema.
+  if (sanitized.worldState === null) sanitized.worldState = undefined;
+  if (sanitized.combatState === null) sanitized.combatState = undefined;
+  if (sanitized.playerRollRequest === null) sanitized.playerRollRequest = undefined;
+  if (sanitized.updatedCharacter === null) sanitized.updatedCharacter = undefined;
+  if (sanitized.levelUpState === null) sanitized.levelUpState = undefined;
+  if (sanitized.shopState === null) sanitized.shopState = undefined;
+
+   // Se worldState ou combatState forem strings, tenta fazer o parse.
+    if (typeof sanitized.worldState === 'string') {
+        try {
+            sanitized.worldState = JSON.parse(sanitized.worldState);
+        } catch {
+            sanitized.worldState = undefined; // Deixa Zod usar o default
+        }
     }
-  }
-  if (sanitized.worldState === null || typeof sanitized.worldState !== 'object') {
-    sanitized.worldState = {}; // Garante que seja sempre um objeto
-  }
+    if (typeof sanitized.combatState === 'string') {
+        try {
+            sanitized.combatState = JSON.parse(sanitized.combatState);
+        } catch {
+            sanitized.combatState = undefined; // Deixa Zod usar o default
+        }
+    }
 
-  // 4. Sanitize outros campos complexos opcionais para evitar null
-  if (sanitized.combatState === null || typeof sanitized.combatState !== 'object') sanitized.combatState = {};
-  if (sanitized.playerRollRequest === null || typeof sanitized.playerRollRequest !== 'object') sanitized.playerRollRequest = {};
-  if (sanitized.updatedCharacter === null || typeof sanitized.updatedCharacter !== 'object') sanitized.updatedCharacter = {};
-  
-  // 5. Garante que actionOptions seja um array
+
+  // 4. Garante que actionOptions seja um array
   if (!Array.isArray(sanitized.actionOptions)) {
     sanitized.actionOptions = [];
   }

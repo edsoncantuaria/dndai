@@ -78,7 +78,7 @@ export const LevelUpStateSchema = z.object({
   isPending: z.boolean(),
   newLevel: z.number(),
   choices: z.any(),
-}).nullable().optional();
+});
 
 export const ShopStateSchema = z.object({
   isOpen: z.boolean(),
@@ -86,17 +86,17 @@ export const ShopStateSchema = z.object({
   name: z.string(),
   inventory: z.any(),
   sellPrices: z.any(),
-}).nullable().optional();
+});
 
 export const LootOfferSchema = z.object({
   items: z.any(),
   currency: z.object({ gp: z.number() }),
-}).nullable().optional();
+});
 
 export const UseHitDiceRequestSchema = z.object({
   maxDice: z.number(),
   hitDieValue: z.number(),
-}).nullable().optional();
+});
 
 /* -------------------------------- INVENTORY -------------------------------- */
 export const InventoryItemSchema = z.object({
@@ -140,22 +140,22 @@ const WorldStateSchema = z.object({
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
 export const GameMasterResponseSchema = z.object({
-  logEntries: z.array(LogEntrySchema).optional().default([]).describe("Novas entradas do log de aventura."),
+  logEntries: z.array(LogEntrySchema).default([]).describe("Novas entradas do log de aventura."),
   actionOptions: z.array(z.union([
     z.string(),
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
-  ])).optional().default([]).describe("Ações sugeridas para o jogador."),
+  ])).default([]).describe("Ações sugeridas para o jogador."),
   updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
-  combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
+  combatState: CombatStateSchema.optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
   ambientSound: z.string().optional().describe("ID do som ambiente (ex.: 'forest_night')."),
   systemLog: z.string().optional().nullable().describe("Log opcional para explicar decisões do GM."),
-  levelUpState: LevelUpStateSchema,
-  shopState: ShopStateSchema,
-  lootOffer: LootOfferSchema,
-  useHitDiceRequest: UseHitDiceRequestSchema,
-  worldState: WorldStateSchema.nullable().optional().describe("Atualizações do estado global do mundo."),
-  newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
+  levelUpState: LevelUpStateSchema.nullable().optional(),
+  shopState: ShopStateSchema.nullable().optional(),
+  lootOffer: LootOfferSchema.nullable().optional(),
+  useHitDiceRequest: UseHitDiceRequestSchema.nullable().optional(),
+  worldState: WorldStateSchema.optional().describe("Atualizações do estado global do mundo."),
+  newHomebrewContent: z.array(CreateHomebrewSchema).default([]).describe("Conteúdos homebrew criados pelo GM."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
