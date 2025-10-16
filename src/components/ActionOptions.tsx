@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import type { PlayerRollRequest } from '@/types';
+import { translateApiString } from '@/utils/translator';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -111,7 +111,6 @@ const ActionOptions: React.FC = () => {
         actionOptions,
         pendingLootOffer, 
         pendingHitDiceRequest, 
-        handleSkillCheck,
         playerRollRequest,
         combatState,
         character,
@@ -144,16 +143,17 @@ const ActionOptions: React.FC = () => {
     
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
-    const handleActionClick = (action: any) => {
-        processPlayerAction(action);
-        setIsOpen(false); // Close mobile modal on action
+    const handleActionClick = (action: string | { text: string; action: string; skill?: string }) => {
+        if (typeof action === 'object' && action.skill) {
+            const translatedSkill = translateApiString(action.skill);
+            processPlayerAction(`Eu tento usar ${translatedSkill}.`);
+        } else {
+            const actionValue = typeof action === 'object' ? action.action : action;
+            processPlayerAction(actionValue);
+        }
+        setIsOpen(false);
     };
 
-    const handleSkillClick = (skill: string) => {
-        handleSkillCheck(skill);
-        setIsOpen(false); // Close mobile modal on skill check
-    };
-    
     const handleCustomSubmit = (action: string) => {
         processPlayerAction(action);
         setIsOpen(false);
@@ -208,38 +208,21 @@ const ActionOptions: React.FC = () => {
                 {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
-                             if (typeof action === 'object' && action !== null && 'skill' in action && action.skill) {
-                                return (
-                                    <button
-                                        key={index}
-                                        onClick={() => handleSkillClick(action.skill!)}
-                                        disabled={isActionLocked}
-                                        className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                                        style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
-                                    >
-                                        {action.text}
-                                    </button>
-                                );
-                            }
+                            const actionText = typeof action === 'object' ? action.text : action;
+                            const skillName = typeof action === 'object' && action.skill ? `(${translateApiString(action.skill)})` : null;
+                            const display_text = skillName ? `${actionText} ${skillName}` : actionText;
 
-                            const actionText = (typeof action === 'object' && action !== null) 
-                                ? action.text
-                                : action;
-                            const actionValue = (typeof action === 'object' && action !== null && 'action' in action) 
-                                ? action.action
-                                : action;
-                            
                             if (!actionText || typeof actionText !== 'string') return null;
     
                             return (
                                 <button
                                     key={index}
-                                    onClick={() => handleActionClick(actionValue)}
+                                    onClick={() => handleActionClick(action)}
                                     disabled={isActionLocked}
                                     className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
                                     style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
                                 >
-                                    {actionText}
+                                    {display_text}
                                 </button>
                             )
                         })}

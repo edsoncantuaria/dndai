@@ -59,9 +59,12 @@ export const useNewGameState = () => {
             characterState.updateCharacter({ worldState: response.worldState });
         }
         
-        if(response.playerRollRequest) {
+        if(response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
             interactionState.setRequest({ type: 'roll', request: response.playerRollRequest });
-            interactionState.setActionOptions(response.actionOptions || []);
+            // Don't clear action options if a roll is requested; some might be contextual like "Cancel"
+            if (response.actionOptions !== undefined) {
+                interactionState.setActionOptions(response.actionOptions);
+            }
             return;
         }
 
@@ -85,14 +88,12 @@ export const useNewGameState = () => {
     const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         
-        // Allow test actions to proceed without a session ID by using a mock ID and character.
         let finalSessionId = currentSessionId;
-        if (!finalSessionId) {
+        if (finalSessionId === null || finalSessionId === undefined) {
             finalSessionId = -1; // Use a mock session ID for tests
             console.log("[processPlayerAction] No active session. Running in test mode.");
             if (!characterState.character) {
-                // If there's no character, create a temporary one for the test.
-                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' });
+                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' } as any);
                 characterState.setCharacter(mockCharacter);
             }
         }
@@ -108,9 +109,10 @@ export const useNewGameState = () => {
         setApiError(null);
         interactionState.clearTransientInteractions();
         
-        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.");
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+
         if (!isInternalAction && finalSessionId !== -1) {
-            logState.addLogEntry({ id: uuidv4(), type: 'action', content: action, response: action });
+            logState.addLogEntry({ id: uuidv4(), type: 'action', content: action });
         }
 
         interactionState.setActionOptions([]); 
@@ -284,5 +286,4 @@ export const useNewGameState = () => {
 
     return memoizedValue;
 };
-
-    
+`

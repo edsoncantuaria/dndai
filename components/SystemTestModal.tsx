@@ -1,7 +1,7 @@
 'use client';
-import React, 'react';
+import React from 'react';
 import type { PlayerRollRequest, Character } from '../types';
-import { Dices, BrainCircuit, Bot, Send } from 'lucide-react';
+import { Dices, BrainCircuit, Bot, Send, Store, Swords } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import DiceRollModal from './DiceRollModal';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -89,7 +89,9 @@ const DiceTestSection: React.FC = () => {
 
 const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Character[] }> = ({ onClose, characters }) => {
     const { 
-        triggerTestSkillCheck, 
+        triggerTestShop,
+        triggerTestCombat,
+        handleSkillCheckSubmit,
         processPlayerAction,
         setCharacter, 
     } = useGameStateContext();
@@ -106,7 +108,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         if (id) {
             const charData = await GameService.getCharacterById(Number(id));
             if(charData) {
-                const fullChar = await characterUtils.buildFrontendCharacter(charData);
+                const fullChar = await characterUtils.buildFrontendCharacter(charData as any);
                 setCharacter(fullChar);
             }
         } else {
@@ -116,12 +118,27 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
 
     const handleTestSkill = () => {
-        triggerTestSkillCheck(selectedSkill);
+        // Here we simulate the modal submit directly for testing the flow
+        handleSkillCheckSubmit(`para testar a perícia ${selectedSkill}`);
+        onClose();
     };
 
     const handleTestAction = () => {
         if (!customAction.trim()) return;
         processPlayerAction(customAction, -1, tempModel);
+        onClose();
+    };
+    
+    const handleSimulateShop = () => {
+        const shopPrompt = "Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades, iniciando o estado de uma loja chamada 'Itens Essenciais do Aventureiro'. Inclua pelo menos 3 itens variados no inventário da loja.";
+        processPlayerAction(shopPrompt, -1, tempModel);
+        onClose();
+    };
+
+    const handleSimulateCombat = () => {
+        const combatPrompt = "Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades, iniciando um combate com dois Goblins diferentes. O primeiro goblin deve estar a 10m e o segundo a 20m. Role a iniciativa para ambos e peça a iniciativa do jogador.";
+        processPlayerAction(combatPrompt, -1, tempModel);
+        onClose();
     };
 
 
@@ -193,6 +210,17 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     </button>
                 </div>
             </div>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-stone-400">5. Simular Cenários de UI</label>
+                <div className="grid grid-cols-2 gap-2">
+                     <button onClick={() => { triggerTestShop(); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
+                        <Store className="h-4 w-4"/> Testar UI da Loja
+                    </button>
+                     <button onClick={() => { triggerTestCombat(); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <Swords className="h-4 w-4"/> Testar UI de Combate
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
@@ -226,3 +254,4 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
 };
 
 export default SystemTestModal;
+`

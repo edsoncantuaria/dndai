@@ -54,19 +54,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     } = useGameStateContext();
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
-    const [showDiceModal, setShowDiceModal] = useState(false);
     
-    useEffect(() => {
-        if (playerRollRequest) {
-            // A small delay to allow the UI to update before showing the modal
-            const timer = setTimeout(() => {
-                setShowDiceModal(true);
-            }, 300); // 0.3 second delay
-            return () => clearTimeout(timer);
-        } else {
-            setShowDiceModal(false);
-        }
-    }, [playerRollRequest]);
+    // O useEffect para mostrar o modal de dados foi removido.
+    // A visibilidade agora é controlada diretamente pela existência do `playerRollRequest`.
+    // Isso evita o atraso e simplifica a lógica.
+    const showDiceModal = !!playerRollRequest;
 
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
@@ -127,9 +119,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
-                {playerRollRequest && showDiceModal && (
+                {showDiceModal && (
                     <DiceRollModal 
-                        request={playerRollRequest}
+                        request={playerRollRequest!}
                         onRoll={handleRollResult}
                         onClose={() => setPlayerRollRequest(null)}
                         show={showDiceModal}
@@ -202,3 +194,4 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
+`

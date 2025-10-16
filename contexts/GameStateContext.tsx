@@ -30,7 +30,7 @@ export interface GameStateContextType {
     deleteCharacter: (characterId: number) => Promise<boolean>;
     deleteSession: (sessionIdToDelete: number) => Promise<boolean>;
     startGame: (newSessionId?: number) => Promise<void>;
-    processPlayerAction: (action: string, sessionIdOverride?: number) => Promise<void>;
+    processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => Promise<void>;
     applyLevelUp: (selections: LevelUpSelections) => Promise<void>;
     toggleEquipped: (itemId: string) => void;
     useConsumable: (itemId: string) => void;
@@ -41,7 +41,6 @@ export interface GameStateContextType {
     clearGameState: () => void;
     nextTurn: () => void;
     loadGameSession: (id: number) => Promise<{ character: Character; logs: any[] } | null>;
-    handleSkillCheck: (skillName: string) => void;
     handleSkillCheckSubmit: (description: string) => void;
     castSpell: (spell: ApiSpell) => void;
     submitSpellCast: (spell: ApiSpell, description: string) => void;
@@ -52,7 +51,6 @@ export interface GameStateContextType {
     // Debug Triggers
     triggerTestShop: () => void;
     triggerTestCombat: () => void;
-    triggerTestSkillCheck: (skillName: string) => void;
 }
 
 
@@ -65,7 +63,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const contextValue = useMemo(() => ({
         ...gameState,
         // Ensure all functions are correctly bound and passed
-        handleSkillCheck: (skillName: string) => gameState.setSkillCheckRequest({ skillName }),
         castSpell: (spell: ApiSpell) => gameState.setSpellCastRequest({ spell }),
     }), [gameState]);
 
@@ -83,3 +80,4 @@ export const useGameStateContext = (): GameStateContextType => {
     }
     return context;
 };
+`
