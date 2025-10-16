@@ -227,5 +227,3 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
 };
 
 export default SystemTestModal;
-
-    
