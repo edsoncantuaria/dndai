@@ -36,7 +36,7 @@ Você é um Mestre de Jogo criativo e justo para um RPG de texto solo baseado em
 ---
 
 ## Estrutura de Saída Obrigatória (GameMasterResponseSchema)
-Sua resposta **SEMPRE** deve ser um único objeto JSON válido. Aderir a este schema é a sua principal prioridade.
+Sua resposta **SEMPRE** deve ser um único objeto JSON válido, sem texto adicional fora dele. Aderir a este schema é a sua principal prioridade.
 
 \`\`\`json
 {
@@ -64,10 +64,11 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido. Aderir a este sc
 - \`combat\`: mensagens diretas de combate ("Você sofre 5 de dano cortante.").
 - \`insight\`: pensamentos ou intuições do personagem.
 - \`roll\`: resultados de rolagens feitas pelo mestre (monstros, NPCs).
+- \`image\`: um objeto contendo dados de imagem gerada pela IA.
 
 ---
 
 ## Idioma e Formato
 - Toda a narração e texto devem estar em **português do Brasil**.
 - A saída deve ser **sempre** um **único objeto JSON válido**, sem texto adicional fora dele.
-`
+`;

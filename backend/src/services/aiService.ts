@@ -2,7 +2,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
-import { GenerationConfig } from '../schemas/validationSchemas.js'; // Ajustado para importar do backend
+import { GenerationConfig } from '../schemas/validationSchemas.js';
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
@@ -78,8 +78,12 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 
 
 export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse | null> => {
-    // Validate input before sending to AI
-    GameMasterFlowInputSchema.parse(input);
+    // 1. Validação da entrada antes de enviar para a IA.
+    const inputValidation = GameMasterFlowInputSchema.safeParse(input);
+    if (!inputValidation.success) {
+        console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
+        throw createError(400, "Dados de entrada para o Mestre de Jogo estão corrompidos.");
+    }
     
     if (!apiKey) {
       throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
@@ -97,7 +101,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         })
     });
     
-    // Convert Zod schema to plain JSON schema and remove unsupported properties
     const jsonSchema = zodToJsonSchema(GameMasterResponseSchema, "GameMasterResponseSchema");
     delete (jsonSchema as any).$ref;
     delete (jsonSchema as any).definitions;
@@ -140,7 +143,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             let responseData: any;
             try {
                 let textToParse = jsonText;
-                // For Gemma models, extract JSON from markdown code blocks
                 if (isGemma) {
                     const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
                     if (match) {
@@ -150,7 +152,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 responseData = JSON.parse(textToParse);
             } catch(e: any) {
                 console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
-                 console.error("[geminiService] JSON inválido recebido:", jsonText); // Log the bad JSON
+                 console.error("[geminiService] JSON inválido recebido:", jsonText);
                 if (!isRetry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
                     return await attemptGeneration(true);
@@ -158,7 +160,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // 🔧 Correção automática de strings JSON aninhadas em logEntries
+            // 2. Sanitização da Resposta Bruta (antes da validação Zod)
             if (Array.isArray(responseData.logEntries)) {
               responseData.logEntries = responseData.logEntries.map((entry: any) => {
                 if (typeof entry === "string") {
@@ -166,15 +168,14 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     const parsed = JSON.parse(entry);
                     if (typeof parsed === "object" && parsed !== null) return parsed;
                   } catch {
-                    // Se não for um JSON válido, converte em objeto de narração simples
                     return { type: "narration", content: entry };
                   }
                 }
-                return entry; // Retorna a entrada original se já for um objeto
-              });
+                return entry;
+              }).filter(Boolean); // Remove entradas nulas ou inválidas
             }
 
-            // Validação final com Zod
+            // 3. Validação final com Zod
             const validationResult = GameMasterResponseSchema.safeParse(responseData);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());

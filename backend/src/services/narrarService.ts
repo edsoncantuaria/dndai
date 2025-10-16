@@ -79,16 +79,14 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
 
 const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null) => {
     for (const entryData of entries) {
-        // Tenta encontrar a entrada por ID, se existir
         let entry: JournalEntry | null = null;
         if(entryData.id) {
             entry = await queryRunner.manager.findOne(JournalEntry, { where: { id: entryData.id } });
         }
         
-        // Se não encontrar, cria uma nova
         if (!entry) {
             entry = new JournalEntry();
-            entry.id = entryData.id || uuidv4(); // Usa o ID da IA ou gera um novo
+            entry.id = entryData.id || uuidv4();
             entry.characterId = characterId;
         }
         
@@ -116,104 +114,87 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
     await queryRunner.startTransaction();
 
     try {
-        const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items"] });
+        const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items", "spells", "journal", "relationships", "relationships.quests"] });
         if (!character) throw new Error("Personagem não encontrado para atualização.");
 
-        const directFields = ['level', 'xp', 'storySoFar', 'factionReputation'];
+        // Update direct character fields
+        const directFields = ['level', 'xp', 'storySoFar', 'factionReputation', 'worldState', 'currentRegion'];
         directFields.forEach(field => {
             if (updates[field] !== undefined) {
                 if (field === 'factionReputation' && updates[field]) {
-                    // Merge faction reputation instead of overwriting
                     character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
+                } else if (field === 'worldState' && updates.worldState) {
+                    character.worldState = { ...(character.worldState || {}), ...updates.worldState };
+                     if (updates.worldState.currentRegion) {
+                        character.currentRegion = updates.worldState.currentRegion;
+                    }
                 } else {
                     (character as any)[field] = updates[field];
                 }
             }
         });
-        
-        // Handle worldState separately to merge properties
-        if (updates.worldState) {
-            character.worldState = { ...(character.worldState || {}), ...updates.worldState };
-            // Specifically update currentRegion if it's part of the worldState update
-            if (updates.worldState.currentRegion) {
-                character.currentRegion = updates.worldState.currentRegion;
-            }
-        }
-
         await queryRunner.manager.save(character);
 
+        // Update attributes
         if (updates.attributes) {
             await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
         }
 
+        // Upsert Inventory
         if (updates.inventory) {
             const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-            const existingItemsMap = new Map(character.items.map(item => [item.itemData.index, item]));
+            const existingItemsMap = new Map(character.items.map(item => [item.itemData.index || item.name, item]));
             
             for (const itemData of updates.inventory) {
-                const existingItem = existingItemsMap.get(itemData.index);
+                const itemKey = itemData.index || itemData.name;
+                const existingItem = existingItemsMap.get(itemKey);
+
+                if (itemData.quantity <= 0) {
+                    if(existingItem) await itemsRepo.remove(existingItem);
+                    continue;
+                }
+
                 if (existingItem) {
-                    // Update existing item
                     existingItem.quantity = itemData.quantity;
                     existingItem.equipped = itemData.equipped || false;
                     await itemsRepo.save(existingItem);
-                    existingItemsMap.delete(itemData.index); // Remove from map to track which items were not in the update
                 } else {
-                    // Add new item
-                    const newItem = new CharacterItem();
-                    Object.assign(newItem, { characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
+                    const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
                     await itemsRepo.save(newItem);
                 }
             }
-            // Delete items that were in the DB but not in the update
-            const itemsToDelete = Array.from(existingItemsMap.values());
-            if (itemsToDelete.length > 0) {
-                await itemsRepo.remove(itemsToDelete);
-            }
         }
         
+        // Upsert Spells
         if (updates.spells) {
             const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
-            await spellsRepo.delete({ characterId });
-            const newSpells = updates.spells.map((spellName: string) => {
-                const newSpell = new CharacterSpell();
-                Object.assign(newSpell, { characterId, spellName });
-                return newSpell;
-            });
+            await spellsRepo.delete({ characterId }); // Simple clear and re-add is fine for spells
+            const newSpells = updates.spells.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
             await spellsRepo.save(newSpells);
         }
+
+        // Upsert Journal
         if(updates.journal) {
             await upsertJournalEntries(queryRunner, updates.journal, characterId);
         }
+
+        // Upsert Relationships and Quests
         if(updates.relationships) {
             for (const relData of updates.relationships) {
-                let relationship = await queryRunner.manager.findOne(Relationship, { where: { npcId: relData.npcId, characterId }});
+                let relationship = character.relationships.find(r => r.npcId === relData.npcId);
                 if (!relationship) {
-                    relationship = new Relationship();
-                    relationship.npcId = relData.npcId;
-                    relationship.characterId = characterId;
+                    relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
                 }
-                Object.assign(relationship, {
-                    name: relData.name,
-                    description: relData.description,
-                    status: relData.status,
-                    affinity: relData.affinity,
-                });
+                Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
                 const savedRel = await queryRunner.manager.save(relationship);
                 
                 if (relData.quests) {
                     for(const questData of relData.quests) {
-                        let quest = await queryRunner.manager.findOne(Quest, { where: { id: questData.id }});
+                        let quest = (savedRel.quests || []).find(q => q.id === questData.id);
                         if (!quest) {
-                            quest = new Quest();
-                            quest.id = questData.id || uuidv4();
-                            quest.relationshipId = savedRel.id;
+                            quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
                         }
-                        Object.assign(quest, {
-                            title: questData.title,
-                            status: questData.status,
-                            objectives: questData.objectives,
-                        });
+                        Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
                         await queryRunner.manager.save(quest);
                     }
                 }
@@ -233,40 +214,21 @@ const persistCharacterUpdates = async (characterId: number, updates: any) => {
 const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState: any): GameMasterResponse => {
     const sanitized: GameMasterResponse = { ...response };
 
-    // 1. Sanitize logEntries: Ensure it's an array of valid objects.
-    if (Array.isArray(sanitized.logEntries)) {
-        sanitized.logEntries = sanitized.logEntries
-            .map((entry: any) => {
-                if (typeof entry === 'string') {
-                    try {
-                        const parsed = JSON.parse(entry);
-                        // Check if parsing resulted in a valid log entry object
-                        if (typeof parsed === 'object' && parsed !== null && parsed.type && parsed.content) {
-                            return parsed;
-                        }
-                    } catch (e) {
-                        // If it's not a valid JSON object string, treat it as a simple narration string.
-                        return { type: 'narration', content: entry };
-                    }
-                }
-                // If it's already a valid-looking object
-                if (entry && typeof entry === 'object' && entry.type && entry.content) {
-                    return entry;
-                }
-                return null; // Discard invalid entries
-            })
-            .filter((entry): entry is any => entry !== null);
-    } else {
-        sanitized.logEntries = [];
-    }
-
-    // 2. Sanitize nullable/optional fields to prevent downstream errors.
+    // Sanitize nullable/optional fields to prevent downstream errors.
     sanitized.worldState = sanitized.worldState ?? characterState.worldState ?? {};
     sanitized.combatState = sanitized.combatState ?? undefined;
     sanitized.playerRollRequest = sanitized.playerRollRequest ?? undefined;
     sanitized.newHomebrewContent = sanitized.newHomebrewContent ?? undefined;
     sanitized.levelUpState = sanitized.levelUpState ?? undefined;
     sanitized.shopState = sanitized.shopState ?? undefined;
+    
+    // Ensure worldState is an object, falling back to the character's current state if null.
+    if (!sanitized.worldState || typeof sanitized.worldState !== 'object') {
+        sanitized.worldState = characterState.worldState || {};
+    } else {
+        // Merge, ensuring new properties from AI are added without losing old ones.
+        sanitized.worldState = { ...characterState.worldState, ...sanitized.worldState };
+    }
 
     return sanitized;
 };
@@ -282,7 +244,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (sessionId === -1) {
         isTestRun = true;
         user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
-        // Create a default character mock for testing
         characterForAI = {
             id: 1, name: 'Herói de Teste', race: 'Humano', characterClass: 'Guerreiro', level: 1,
             attributes: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10, hp: 10, ac: 10, conditions: [] },
@@ -347,7 +308,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
     
-    // --- Prioritize Player Roll Request ---
     if (aiResponse.playerRollRequest) {
         if (aiResponse.systemLog) {
             console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
@@ -359,7 +319,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         } as GameMasterResponse;
     }
     
-    // If it's a test run, we don't need to save anything to the database.
     if (isTestRun || !sessao) {
         return aiResponse;
     }
@@ -373,7 +332,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         await logRepository.save(playerLog);
     }
     
-    // Salva a resposta completa como um log de estado especial para restauração
     const stateLog = new SessionLog();
     Object.assign(stateLog, {
         sessaoId: sessao.id,
@@ -383,10 +341,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     });
     await logRepository.save(stateLog);
 
-    // Salva logs de narração limpos para exibição no histórico
     if (aiResponse.logEntries) {
         for (const entry of aiResponse.logEntries) {
-             if (entry.content && typeof entry.content === 'string') {
+             if (entry?.content && typeof entry.content === 'string') {
                 const newLog = new SessionLog();
                 Object.assign(newLog, {
                     sessaoId: sessao.id,
@@ -400,7 +357,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
 
-    // Persiste novo conteúdo homebrew criado pela IA
     if (aiResponse.newHomebrewContent) {
         for (const newContent of aiResponse.newHomebrewContent) {
             try {
@@ -414,11 +370,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
     }
 
-    // Aplica atualizações ao personagem no banco de dados
     if (aiResponse.updatedCharacter) {
         await persistCharacterUpdates(sessao.character!.id, aiResponse.updatedCharacter);
     } else if (aiResponse.worldState) {
-        // Persist worldState even if there are no other character updates
         await persistCharacterUpdates(sessao.character!.id, { worldState: aiResponse.worldState });
     }
     
