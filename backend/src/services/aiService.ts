@@ -162,21 +162,22 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             // Sanitização da Resposta Bruta (antes da validação Zod)
             if (Array.isArray(responseData.logEntries)) {
                 responseData.logEntries = responseData.logEntries.map((entry: any) => {
-                    // Case 1: Entry is a stringified JSON
+                    // Se for string, tenta fazer o parse. Se falhar, trata como narração.
                     if (typeof entry === 'string') {
                         try {
                             const parsed = JSON.parse(entry);
-                             if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
+                             // Se o parse resultar em um objeto válido com 'type' e 'content', use-o.
+                            if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
                                 return parsed;
                             }
-                             // The string is not a valid log entry object, treat it as narration content.
+                             // Se não, usa a string original como conteúdo de narração.
                             return { type: "narration", content: entry };
                         } catch {
-                            // The string is not JSON, treat it as narration content.
+                            // Se o parse falhar, trata a string como conteúdo de narração.
                             return { type: "narration", content: entry };
                         }
                     }
-                    // Case 2: Entry is an object, but might be incomplete
+                    // Se for um objeto, mas estiver incompleto, preenche com defaults.
                     if (entry && typeof entry === 'object') {
                         return {
                             type: entry.type || 'narration',
@@ -184,11 +185,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                             ...entry
                         };
                     }
-                    // Case 3: Entry is null, undefined, or some other invalid type
+                    // Qualquer outro caso inválido (como null) será filtrado a seguir.
                     return null;
-                }).filter(Boolean); // Filter out any null entries
+                }).filter(Boolean); // Filtra quaisquer entradas que resultaram em 'null'.
             } else {
-                 responseData.logEntries = []; // Default to empty array if not an array
+                 responseData.logEntries = []; // Se não for um array, inicia como um array vazio.
             }
 
 
