@@ -28,6 +28,7 @@ export const AVAILABLE_IMAGE_MODELS = [
     "imagen-4.0-fast-generate-001",
     "gemini-2.5-flash-image-preview",
     "imagen-3.0-generate-002",
+    "gemini-2.5-flash-image"
 ];
 
 // NEW: Lista completa de vozes nativas do Gemini
