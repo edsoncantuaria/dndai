@@ -252,11 +252,16 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
     const sanitizationLogs: string[] = [];
 
     // Sanitize and parse stringified JSON fields
-    (['worldState', 'combatState', 'playerRollRequest'] as const).forEach(key => {
+    (['worldState', 'combatState'] as const).forEach(key => {
         if (typeof sanitized[key] === 'string') {
             try {
-                sanitized[key] = JSON.parse(sanitized[key] as string);
-                sanitizationLogs.push(`Sanitized ${key}: Parsed from string.`);
+                const parsed = JSON.parse(sanitized[key] as string);
+                if (typeof parsed === 'object' && parsed !== null) {
+                    sanitized[key] = parsed;
+                    sanitizationLogs.push(`Sanitized ${key}: Parsed from string.`);
+                } else {
+                     throw new Error('Parsed to non-object');
+                }
             } catch (e) {
                 sanitized[key] = null; // Invalidate if parsing fails
                 sanitizationLogs.push(`Sanitized ${key}: Invalid string, set to null.`);
@@ -266,20 +271,18 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
 
     // Sanitize logEntries: filter nulls and parse stringified objects
     if (Array.isArray(sanitized.logEntries)) {
-        sanitized.logEntries = sanitized.logEntries.map((entry: any, index: number) => {
+        sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
             if (entry === null) return null;
             if (typeof entry === 'string') {
                 try {
                     const parsed = JSON.parse(entry);
-                    if (typeof parsed === 'object' && parsed !== null) return parsed;
-                    return { type: "narration", content: entry };
+                    return (typeof parsed === 'object' && parsed !== null) ? parsed : { type: "narration", content: entry };
                 } catch {
                     return { type: "narration", content: entry };
                 }
             }
-            if (typeof entry === 'object' && entry.type && entry.content) return entry;
-            return null;
-        }).filter(Boolean); // Remove null entries
+            return (typeof entry === 'object' && entry.type && entry.content) ? entry : null;
+        }).filter(Boolean);
     } else {
         sanitized.logEntries = [];
         sanitizationLogs.push("Sanitized logEntries: Was not an array, reset to [].");
@@ -287,14 +290,14 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
 
     // Default object fallbacks
     const defaultCombatState = { isActive: false, round: 1, turn: 0, combatants: [], initiativeOrder: [] };
-    const defaultWorldState = { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
+    const defaultWorldState = { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: characterState?.currentRegion || 'Desconhecida' };
     
     sanitized.combatState = (typeof sanitized.combatState === 'object' && sanitized.combatState !== null) 
         ? { ...defaultCombatState, ...sanitized.combatState } 
         : defaultCombatState;
 
     sanitized.worldState = (typeof sanitized.worldState === 'object' && sanitized.worldState !== null)
-        ? { ...(characterState?.worldState || defaultWorldState), ...sanitized.worldState }
+        ? { ...defaultWorldState, ...(characterState?.worldState || {}), ...sanitized.worldState }
         : (characterState?.worldState || defaultWorldState);
 
 
@@ -308,16 +311,14 @@ const sanitizeAndProcessResponse = (response: any, characterState: any): GameMas
     });
     
     if (!Array.isArray(sanitized.newHomebrewContent)) sanitized.newHomebrewContent = [];
-    if (!Array.isArray(sanitized.actionOptions) || sanitized.actionOptions.length === 0 || sanitized.actionOptions.some(opt => opt === null)) {
-        if (Array.isArray(sanitized.actionOptions) && sanitized.actionOptions.length > 0) {
-            sanitized.actionOptions = sanitized.actionOptions.filter(Boolean); // Remove nulls
-            if (sanitized.actionOptions.length === 0) {
-                 sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
-                 sanitizationLogs.push("actionOptions was empty after filtering, reset to fallback.");
-            }
-        } else {
+    if (!Array.isArray(sanitized.actionOptions)) {
+        sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
+        sanitizationLogs.push("actionOptions was invalid, reset to fallback.");
+    } else {
+        sanitized.actionOptions = sanitized.actionOptions.filter(Boolean); // Remove nulls
+        if (sanitized.actionOptions.length === 0) {
              sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
-             sanitizationLogs.push("actionOptions was invalid or empty, reset to fallback.");
+             sanitizationLogs.push("actionOptions was empty after filtering, reset to fallback.");
         }
     }
 
@@ -403,7 +404,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     if (!aiResponse) {
         return {
             logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu formular uma resposta. Tente sua ação novamente ou com outras palavras.' }],
-            actionOptions: ['Tentar a última ação novamente', 'Fazer algo diferente'],
+            actionOptions: ['Tentar a última ação novamente', 'Descrever uma ação diferente'],
             worldState: characterForAI.worldState,
         } as GameMasterResponse;
     }
@@ -433,15 +434,9 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        if (stateForLog.updatedCharacter) {
-            if (Array.isArray(stateForLog.updatedCharacter.inventory)) {
-                // Truncate inventory for logging to save space
-                stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]` as any;
-            }
-            if (Array.isArray(stateForLog.updatedCharacter.journal)) {
-                stateForLog.updatedCharacter.journal = `[${stateForLog.updatedCharacter.journal.length} entries]` as any;
-            }
-        }
+        // Otimização: Não salvamos campos pesados ou voláteis no log de estado.
+        delete stateForLog.logEntries;
+        delete stateForLog.actionOptions;
         
         logsToSave.push({
             sessaoId: sessao.id,
