@@ -94,7 +94,6 @@ export const mergeCharacterUpdates = async (
 
   // --- Attributes (Update direto) ---
   if (updates.attributes && typeof updates.attributes === 'object') {
-    // CORREÇÃO: Filtrar para garantir que apenas atributos válidos sejam atualizados.
     const validAttributeUpdates: Partial<CharacterAttributes> = {};
     const attributeKeys: (keyof CharacterAttributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'hp', 'ac'];
     
@@ -120,7 +119,6 @@ export const mergeCharacterUpdates = async (
       const key = item.index || item.name;
       updatedItemKeys.add(key);
       const existing = existingItemsMap.get(key);
-      // CORREÇÃO: Garantir que a quantidade seja sempre no mínimo 1.
       const quantity = item.quantity === undefined ? 1 : item.quantity;
       
       if (quantity <= 0) {
@@ -162,36 +160,66 @@ export const mergeCharacterUpdates = async (
   }
 
   // --- Relationships + Quests (Upsert/Delete recursivo) ---
-  if (updates.relationships && Array.isArray(updates.relationships)) {
-    const relationshipRepo = queryRunner.manager.getRepository(Relationship);
-    const questRepo = queryRunner.manager.getRepository(Quest);
-    const aiRelIds = new Set(updates.relationships.map((r: any) => r.npcId).filter(Boolean));
+    if (updates.relationships && Array.isArray(updates.relationships)) {
+        const relationshipRepo = queryRunner.manager.getRepository(Relationship);
+        const questRepo = queryRunner.manager.getRepository(Quest);
+        
+        // Sanitize and get all npcIds from the AI update
+        const sanitizedRels = sanitizeArray(updates.relationships);
+        const aiRelIds = new Set(sanitizedRels.map((r: any) => {
+            return r.npcId || r.name.toLowerCase().replace(/\s+/g, '_');
+        }).filter(Boolean));
 
-    for (const rel of character.relationships || []) {
-      if (!aiRelIds.has(rel.npcId)) await relationshipRepo.remove(rel);
+        // Delete relationships that are no longer in the AI's response
+        for (const rel of character.relationships || []) {
+            if (!aiRelIds.has(rel.npcId)) {
+                await relationshipRepo.remove(rel);
+            }
+        }
+
+        for (const relData of sanitizedRels) {
+            // Generate a unique npcId from the name if it's missing
+            const npcId = relData.npcId || relData.name.toLowerCase().replace(/\s+/g, '_');
+            if (!npcId) continue; // Skip if there's no name to generate an ID from
+
+            let rel = (character.relationships || []).find(r => r.npcId === npcId);
+            if (!rel) {
+                rel = relationshipRepo.create({ characterId, npcId });
+            }
+
+            Object.assign(rel, { 
+                name: relData.name, 
+                description: relData.description, 
+                status: relData.status, 
+                affinity: relData.affinity 
+            });
+            const savedRel = await relationshipRepo.save(rel);
+
+            const aiQuestIds = new Set((relData.quests || []).map((q: any) => q.id).filter(Boolean));
+            const existingQuests = savedRel.quests || [];
+
+            for (const q of existingQuests) {
+                if (!aiQuestIds.has(q.id)) {
+                    await questRepo.remove(q);
+                }
+            }
+            
+            for (const questData of sanitizeArray(relData.quests)) {
+                let quest = existingQuests.find(q => q.id === questData.id);
+                if (!quest) {
+                    quest = questRepo.create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
+                }
+
+                Object.assign(quest, { 
+                    title: questData.title, 
+                    status: questData.status, 
+                    objectives: questData.objectives 
+                });
+                await questRepo.save(quest);
+            }
+        }
     }
 
-    for (const relData of sanitizeArray(updates.relationships)) {
-      let rel = (character.relationships || []).find(r => r.npcId === relData.npcId);
-      if (!rel) rel = relationshipRepo.create({ characterId, npcId: relData.npcId });
-
-      Object.assign(rel, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
-      const savedRel = await relationshipRepo.save(rel);
-
-      const aiQuestIds = new Set((relData.quests || []).map((q: any) => q.id).filter(Boolean));
-      const existingQuests = savedRel.quests || [];
-
-      for (const q of existingQuests) if (!aiQuestIds.has(q.id)) await questRepo.remove(q);
-      
-      for (const questData of sanitizeArray(relData.quests)) {
-        let quest = existingQuests.find(q => q.id === questData.id);
-        if (!quest) quest = questRepo.create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
-
-        Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
-        await questRepo.save(quest);
-      }
-    }
-  }
 
   // --- Journal Entries (Upsert/Delete recursivo) ---
   if (updates.journal) {

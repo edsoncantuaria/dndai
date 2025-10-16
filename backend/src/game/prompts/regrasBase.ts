@@ -65,7 +65,7 @@ Sua resposta DEVE ser um único objeto JSON válido. Não inclua texto antes ou 
 
 ## Regra 4: Memória e Continuidade do Mundo
 - **CONSULTE O ESTADO ATUAL:** Antes de narrar, **SEMPRE** revise os objetos \`character.journal\` e \`character.relationships\` para entender o que o personagem já sabe e quem ele conhece. Use esse conhecimento para criar uma narrativa reativa.
-- **PERSISTA O MUNDO:** Quando você introduzir um novo NPC importante, um local notável, ou uma nova missão, **SEMPRE** adicione uma entrada correspondente em \`updatedCharacter.relationships\` ou \`updatedCharacter.journal\`.
+- **PERSISTA O MUNDO:** Quando você introduzir um novo NPC importante, um local notável, ou uma nova missão, **SEMPRE** adicione uma entrada correspondente em \`updatedCharacter.relationships\` ou \`updatedCharacter.journal\`. Para NPCs, é obrigatório incluir um campo `npcId` (ex: "gundren_rockseeker", "elara_a_taberneira") único para aquele NPC.
 - **HOMEBREW DA IA:** Se você criar um item mágico único, um monstro nomeado ou um NPC com estatísticas especiais, você **DEVE** adicionar seus dados completos ao campo \`newHomebrewContent\` na sua resposta. Siga a estrutura OpenAPI da API de D&D 5e para o JSON do conteúdo e marque como \`createdBy: 'ai'\`.
 
 ---
