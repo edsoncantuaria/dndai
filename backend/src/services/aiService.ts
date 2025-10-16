@@ -83,7 +83,7 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 const miniSanitize = (raw: any): any => {
     if (!raw || typeof raw !== 'object') return {};
     
-    const clean = { ...raw };
+    const clean: { [key: string]: any } = { ...raw };
 
     for (const key of Object.keys(clean)) {
         const val = clean[key];
@@ -108,7 +108,7 @@ const miniSanitize = (raw: any): any => {
         if (
             (key === 'combatState' || key === 'playerRollRequest') &&
             typeof val === 'object' &&
-            Object.keys(val).length === 0
+            (Object.keys(val).length === 0 || (key === 'combatState' && val.isActive === false))
         ) {
             delete clean[key];
             continue;
