@@ -1,5 +1,8 @@
 // backend/src/services/aiSanitizer.ts
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
+import { HomebrewContentType } from "../entities/HomebrewContent.js";
+
+const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
 
 /**
  * Normaliza a string 'timeOfDay' para um valor de enumeração conhecido.
@@ -158,6 +161,25 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       }
   }
 
+  // **NOVO**: Sanitize newHomebrewContent
+  if (Array.isArray(sanitized.newHomebrewContent)) {
+    sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((content: any) => {
+        if (!content || typeof content !== 'object' || !content.name) return null;
+        
+        // Se o tipo é inválido ou ausente, tenta inferir que é um monstro.
+        if (!content.type || !VALID_HOMEBREW_TYPES.includes(content.type)) {
+            // Heurística: se tiver 'hit_points' e 'armor_class', é provavelmente um monstro.
+            if ('hit_points' in content && 'armor_class' in content) {
+                 sanitationLogs.push(`Conteúdo Homebrew "${content.name}" tinha tipo inválido, corrigido para "monster".`);
+                 content.type = 'monster';
+            } else {
+                 return null; // Descarta se não for possível corrigir
+            }
+        }
+        return content;
+    }).filter(Boolean);
+  }
+
   // Sanitize campos opcionais para serem undefined em vez de null/vazios.
   const fieldsToMakeUndefinedIfEmpty: (keyof GameMasterResponse)[] = [
     'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
@@ -177,3 +199,6 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   return sanitized as GameMasterResponse;
 };
+
+
+    
