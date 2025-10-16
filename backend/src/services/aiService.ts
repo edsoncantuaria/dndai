@@ -88,7 +88,9 @@ const miniSanitize = (raw: any): any => {
     if (val === null || val === undefined) {
         if (key === 'actionOptions' || key === 'logEntries' || key === 'newHomebrewContent') {
             clean[key] = [];
-        } else if (typeof clean[key] === 'object' && clean[key] !== null) {
+        } else if (typeof val === 'object' && val !== null) {
+            // Se for um objeto nulo, transforma em objeto vazio para não quebrar a validação inicial.
+            // O sanitizador semântico vai decidir o que fazer com ele depois.
             clean[key] = {};
         }
         continue;

@@ -146,7 +146,7 @@ export const GameMasterResponseSchema = z.object({
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
   ])).optional().default([]).describe("Ações sugeridas para o jogador."),
   updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
-  combatState: CombatStateSchema.optional().describe("Estado completo do combate, se ativo."),
+  combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
   ambientSound: z.string().optional().describe("ID do som ambiente (ex.: 'forest_night')."),
   systemLog: z.string().optional().nullable().describe("Log opcional para explicar decisões do GM."),

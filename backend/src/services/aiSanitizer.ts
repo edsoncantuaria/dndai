@@ -6,22 +6,35 @@ const EMPTY_COMBAT_STATE = { isActive: false, round: 0, turn: 0, combatants: [],
 /**
  * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
  * Atua como a camada final de "senso de jogo" antes de retornar a resposta.
- * @param responseData A resposta da IA, já validada estruturalmente pelo Zod.
+ * @param responseData A resposta da IA, que pode conter campos nulos ou malformados.
  * @param currentCharacter O estado atual do personagem, para fallback.
- * @returns Um objeto GameMasterResponse logicamente coerente.
+ * @returns Um objeto GameMasterResponse logicamente coerente e seguro.
  */
-export const sanitizeGameMasterResponse = (responseData: GameMasterResponse, currentCharacter?: any): GameMasterResponse => {
-  const sanitized = { ...responseData };
+export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?: any): GameMasterResponse => {
+  if (!responseData || typeof responseData !== 'object') {
+    return {
+      logEntries: [{ type: 'system', content: 'A resposta da IA foi inválida ou vazia.' }],
+      actionOptions: [],
+    };
+  }
+
+  const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
 
   // 1. Sanitize logEntries: Garante que é um array de objetos válidos e com conteúdo.
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
-      if (!entry || typeof entry !== 'object') return null;
+      if (!entry || typeof entry !== 'object' || !entry.content) return null;
       let { type = 'narration', content } = entry;
-      if (typeof content === 'string') {
-        content = content.replace(/<\/?narration>/g, '').trim();
-      }
+      // Trata caso onde o content é um JSON stringificado
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed && typeof parsed.content === 'string') {
+          content = parsed.content;
+        }
+      } catch (e) { /* Não é um JSON, ignora */ }
+      
+      content = String(content).replace(/<\/?narration>/g, '').trim();
       return content ? { type, content, rollResult: entry.rollResult } : null;
     }).filter(Boolean);
   } else {
@@ -40,11 +53,10 @@ export const sanitizeGameMasterResponse = (responseData: GameMasterResponse, cur
     sanitized.worldState = currentCharacter?.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
     sanitationLogs.push('worldState era inválido, restaurado para o estado anterior ou padrão.');
   } else {
-    // Merge, para não perder dados se a IA omitir um campo
     sanitized.worldState = { ...(currentCharacter?.worldState || {}), ...sanitized.worldState };
   }
 
-  // 4. Garante que os estados complexos sejam objetos válidos ou undefined, mas nunca null.
+  // 4. Garante que os estados complexos sejam objetos válidos ou undefined, mas nunca null ou {}.
   const fieldsToSanitize: (keyof GameMasterResponse)[] = [
     'combatState', 'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
@@ -52,13 +64,14 @@ export const sanitizeGameMasterResponse = (responseData: GameMasterResponse, cur
   fieldsToSanitize.forEach(field => {
       if (sanitized[field] === null || (typeof sanitized[field] === 'object' && Object.keys(sanitized[field]!).length === 0)) {
            (sanitized as any)[field] = undefined;
-           sanitationLogs.push(`${field} era nulo ou vazio, definido como undefined.`);
+           sanitationLogs.push(`${String(field)} era nulo ou vazio, definido como undefined.`);
       }
   });
   
-  // 5. Se o combate não estiver ativo, garante que o estado do combate está limpo.
-  if (!sanitized.combatState?.isActive) {
-      sanitized.combatState = EMPTY_COMBAT_STATE;
+  // 5. Se o combate não estiver ativo, garante que o estado do combate está ausente.
+  if (sanitized.combatState && !sanitized.combatState.isActive) {
+      sanitized.combatState = undefined;
+      sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
   }
 
   // Anexa os logs de sanitização ao systemLog para depuração.
@@ -67,5 +80,5 @@ export const sanitizeGameMasterResponse = (responseData: GameMasterResponse, cur
     sanitized.systemLog = `[Sanitizer Lógico] Correções: ${sanitationLogs.join(', ')}${existingLog}`;
   }
 
-  return sanitized;
+  return sanitized as GameMasterResponse;
 };
