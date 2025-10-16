@@ -7,10 +7,11 @@ import { useGameLog } from './useGameLog';
 import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry } from '../types';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import { sanitizeGameMasterResponse } from '@/utils/sanitizeGameResponse';
 
 
 export const useNewGameState = () => {
@@ -37,15 +38,13 @@ export const useNewGameState = () => {
     }, [characterState, logState, interactionState]);
 
 
-    const handleApiResponse = useCallback((response: any, isRestoring: boolean = false) => {
+    const handleApiResponse = useCallback((response: GameMasterResponse, isRestoring: boolean = false) => {
         if (!response) {
             setApiError('O Mestre parece distraído. A resposta da IA foi vazia.');
             return;
         }
 
-        // The 'sanitizeLogEntries' function in the backend now guarantees logEntries is an array of valid objects.
-        // Thus, we can trust the data structure here.
-        if (!isRestoring && Array.isArray(response.logEntries)) {
+        if (!isRestoring && response.logEntries) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             logState.addLogEntries(newLogEntries);
         }
@@ -54,14 +53,12 @@ export const useNewGameState = () => {
              characterState.updateCharacter(response.updatedCharacter);
         }
         
-        // Backend now guarantees worldState is an object if present.
         if (response.worldState) {
             characterState.updateCharacter({ worldState: response.worldState });
         }
         
         if(response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
             interactionState.setRequest({ type: 'roll', request: response.playerRollRequest });
-            // Don't clear action options if a roll is requested; some might be contextual like "Cancel"
             if (response.actionOptions !== undefined) {
                 interactionState.setActionOptions(response.actionOptions);
             }
@@ -72,7 +69,6 @@ export const useNewGameState = () => {
             interactionState.setActionOptions(response.actionOptions);
         }
         
-        // Backend now guarantees combatState is an object if present.
         if (response.combatState) interactionState.setCombatState(response.combatState);
         
         if (response.levelUpState) interactionState.setRequest({ type: 'levelUp', request: response.levelUpState });
@@ -118,8 +114,12 @@ export const useNewGameState = () => {
         interactionState.setActionOptions([]); 
         
         try {
-            const responseData = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
-            console.log("[processPlayerAction] Resposta da IA recebida:", responseData);
+            const rawResponse = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
+            console.log("[processPlayerAction] Resposta da IA recebida (bruta):", rawResponse);
+            
+            const responseData = sanitizeGameMasterResponse(rawResponse);
+            console.log("[processPlayerAction] Resposta da IA sanitizada:", responseData);
+
             handleApiResponse(responseData);
         } catch (error: any) {
             console.error("[processPlayerAction] Error processing player action:", error);
@@ -162,18 +162,16 @@ export const useNewGameState = () => {
                 
                 if (lastStateLog?.response) {
                      try {
-                        const lastState = JSON.parse(lastStateLog.response);
-                        // Restore state from the last full snapshot, but DO NOT add its logEntries again.
+                        const parsedState = JSON.parse(lastStateLog.response);
+                        const lastState = sanitizeGameMasterResponse(parsedState);
                         handleApiResponse(lastState, true); 
                     } catch(e) {
                         console.error("Failed to parse last GM state from log, requesting refresh.", e);
                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                 } else if (displayLogs.length === 0) {
-                    // This is a brand new session, start the game.
                     await startGame(id);
                 } else {
-                    // Session has logs but no state snapshot, request a refresh from the GM.
                      await processPlayerAction("Recarregar estado atual e obter opções.", id);
                 }
 
@@ -240,7 +238,6 @@ export const useNewGameState = () => {
     }, [sessionId, clearGameState]);
 
     const memoizedValue = useMemo(() => ({
-        // Core State
         character: characterState.character,
         log: logState.log,
         sessionId,
@@ -248,8 +245,6 @@ export const useNewGameState = () => {
         isLoading,
         apiError,
         ambientSound,
-
-        // Core Functions
         clearApiError,
         getApiKey,
         createCharacter,
@@ -259,8 +254,6 @@ export const useNewGameState = () => {
         processPlayerAction,
         clearGameState,
         loadGameSession,
-
-        // Interaction Handlers (delegated from interactionManager)
         handleRollResult: interactionState.handleRollResult(processPlayerAction),
         handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(processPlayerAction),
         submitSpellCast: interactionState.submitSpellCast(processPlayerAction),
@@ -272,8 +265,6 @@ export const useNewGameState = () => {
         buyItem: interactionState.handleBuyItem(processPlayerAction),
         sellItem: interactionState.handleSellItem(processPlayerAction),
         nextTurn: interactionState.nextTurn(processPlayerAction),
-
-        // Direct setters are mostly internal now, but exposing some for compatibility
         setCharacter: characterState.setCharacter,
         setLog: logState.setLog,
         setSessionId,
