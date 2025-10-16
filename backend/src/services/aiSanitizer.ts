@@ -15,81 +15,71 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
   const sanitized: Partial<GameMasterResponse> & { systemLog?: string | null } = { ...responseData };
   const sanitationLogs: string[] = [];
 
-  // 1. Sanitize logEntries: Ensure it's an array of valid objects.
+  // 1. Sanitize logEntries: Garante que é um array de objetos válidos.
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
       if (!entry) return null;
-
+      
       let content = entry;
-      let type = 'narration'; // Default type
+      let type = 'narration'; // Tipo padrão
 
       if (typeof entry === 'object' && entry !== null) {
         content = entry.content;
         type = entry.type || 'narration';
       }
 
+      // Remove tags XML como <narration>
       if (typeof content === 'string') {
-        // Remove XML-like tags, e.g., <narration>
         content = content.replace(/<\/?narration>/g, '').trim();
-        // Check if the string is a JSON object string
-        if (content.startsWith('{') && content.endsWith('}')) {
+      }
+
+      // Se o conteúdo for um JSON stringificado dentro de um logEntry, faz o parse.
+      if (typeof content === 'string' && content.startsWith('{') && content.endsWith('}')) {
           try {
             return JSON.parse(content);
           } catch {
-            // It's not a valid JSON, so treat it as a narration string
+            // Se o parse falhar, trata como string normal.
           }
-        }
-        return { type, content };
       }
-      return null;
-    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null && entry.content.trim() !== '');
+
+      return { type, content };
+    }).filter((entry): entry is Exclude<typeof entry, null> => entry !== null && entry.content && (typeof entry.content !== 'string' || entry.content.trim() !== ''));
   } else {
     sanitized.logEntries = [];
-    sanitationLogs.push('logEntries was not an array.');
+    sanitationLogs.push('logEntries não era um array, foi resetado para [].');
   }
   
   // 2. Sanitize newHomebrewContent
   if (Array.isArray(sanitized.newHomebrewContent)) {
-      sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
-        if (!item) return null;
-        if (typeof item === 'string') {
-          try {
-            const parsed = JSON.parse(item);
-            return (parsed && typeof parsed === 'object') ? parsed : null;
-          } catch { return null; }
-        }
-        return (typeof item === 'object') ? item : null;
-      }).filter((item): item is Exclude<typeof item, null> => item !== null);
+      sanitized.newHomebrewContent = sanitized.newHomebrewContent.filter((item: any) => item && typeof item === 'object');
   } else {
     sanitized.newHomebrewContent = [];
   }
 
-  // 3. Ensure complex optional fields are undefined if null or not objects, allowing Zod defaults to work.
+  // 3. Garante que campos de objeto complexos sejam 'undefined' se forem nulos ou não forem objetos.
+  // Isso permite que os valores padrão do Zod ou a validação 'optional' funcionem corretamente.
   const fieldsToSanitize: (keyof GameMasterResponse)[] = [
     'worldState', 'combatState', 'playerRollRequest', 'updatedCharacter', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
 
   fieldsToSanitize.forEach(field => {
-      if (sanitized[field] === null || typeof sanitized[field] !== 'object') {
-          if (sanitized[field] !== undefined) {
-             sanitationLogs.push(`${field} was ${sanitized[field] === null ? 'null' : 'not an object'}, set to undefined.`);
-          }
-          sanitized[field] = undefined;
+      if (sanitized[field] === null || (typeof sanitized[field] === 'object' && Object.keys(sanitized[field]!).length === 0)) {
+           sanitized[field] = undefined;
+           sanitationLogs.push(`${field} era nulo ou vazio, definido como undefined.`);
       }
   });
 
-  // 4. Ensure actionOptions is an array.
+  // 4. Garante que actionOptions seja um array.
   if (!Array.isArray(sanitized.actionOptions)) {
     sanitized.actionOptions = [];
-     sanitationLogs.push('actionOptions fallback applied.');
+     sanitationLogs.push('actionOptions não era um array, foi resetado para [].');
   }
 
-  // Append sanitation logs to the system log for debugging.
+  // Anexa os logs de sanitização ao systemLog para depuração.
   if (sanitationLogs.length > 0) {
     const existingLog = sanitized.systemLog ? ` | ${sanitized.systemLog}` : '';
-    sanitized.systemLog = `[Sanitizer] Applied corrections: ${sanitationLogs.join(', ')}${existingLog}`;
+    sanitized.systemLog = `[Sanitizer] Correções aplicadas: ${sanitationLogs.join(', ')}${existingLog}`;
   }
-
 
   return sanitized;
 };

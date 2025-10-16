@@ -140,11 +140,11 @@ const WorldStateSchema = z.object({
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
 export const GameMasterResponseSchema = z.object({
-  logEntries: z.array(LogEntrySchema).default([]).describe("Novas entradas do log de aventura."),
+  logEntries: z.array(LogEntrySchema).optional().default([]).describe("Novas entradas do log de aventura."),
   actionOptions: z.array(z.union([
     z.string(),
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
-  ])).default([]).describe("Ações sugeridas para o jogador."),
+  ])).optional().default([]).describe("Ações sugeridas para o jogador."),
   updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
   combatState: CombatStateSchema.optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
