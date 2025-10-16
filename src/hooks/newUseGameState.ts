@@ -85,11 +85,11 @@ export const useNewGameState = () => {
         const currentSessionId = sessionIdOverride ?? sessionId;
         
         let finalSessionId = currentSessionId;
-        if (!finalSessionId) {
+        if (finalSessionId === null || finalSessionId === undefined) {
             finalSessionId = -1; 
             console.log("[processPlayerAction] No active session. Running in test mode.");
             if (!characterState.character) {
-                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' });
+                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' } as any);
                 characterState.setCharacter(mockCharacter);
             }
         }

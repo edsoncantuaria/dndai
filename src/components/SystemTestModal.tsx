@@ -2,7 +2,7 @@
 'use client';
 import React from 'react';
 import type { PlayerRollRequest, Character } from '../types';
-import { Dices, BrainCircuit, Bot, Send } from 'lucide-react';
+import { Dices, BrainCircuit, Bot, Send, Store, Swords } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
 import DiceRollModal from './DiceRollModal';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -90,7 +90,9 @@ const DiceTestSection: React.FC = () => {
 
 const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Character[] }> = ({ onClose, characters }) => {
     const { 
-        triggerTestSkillCheck, 
+        triggerTestSkillCheck,
+        triggerTestShop,
+        triggerTestCombat, 
         processPlayerAction,
         setCharacter, 
     } = useGameStateContext();
@@ -154,7 +156,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                 >
                     <option value="">Nenhum (usar herói padrão)</option>
                     {characters.map(char => (
-                        <option key={char.id} value={char.id.toString()}>{char.name} - {char.characterClass} Nv {char.level}</option>
+                        <option key={char.id} value={char.id}>{char.name} - {char.characterClass} Nv {char.level}</option>
                     ))}
                 </select>
             </div>
@@ -194,6 +196,19 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     </button>
                 </div>
             </div>
+
+             <div className="space-y-2">
+                <label className="block text-sm font-medium text-stone-400">5. Testar Estados de UI</label>
+                <div className="grid grid-cols-2 gap-2">
+                    <button onClick={triggerTestShop} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
+                        <Store className="h-4 w-4"/> Testar UI da Loja
+                    </button>
+                    <button onClick={triggerTestCombat} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <Swords className="h-4 w-4"/> Testar UI de Combate
+                    </button>
+                </div>
+            </div>
+
         </div>
     );
 };
@@ -227,3 +242,5 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
 };
 
 export default SystemTestModal;
+
+    
