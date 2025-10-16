@@ -144,13 +144,8 @@ const ActionOptions: React.FC = () => {
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: string | { text: string; action: string; skill?: string }) => {
-        if (typeof action === 'object' && action.skill) {
-            const translatedSkill = translateApiString(action.skill);
-            processPlayerAction(`Eu tento usar ${translatedSkill}.`);
-        } else {
-            const actionValue = typeof action === 'object' ? action.action : action;
-            processPlayerAction(actionValue);
-        }
+        const actionText = typeof action === 'object' ? action.text : action;
+        processPlayerAction(actionText);
         setIsOpen(false);
     };
 
