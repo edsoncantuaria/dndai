@@ -97,15 +97,12 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         }
         
         const itemPromises = characterData.inventory.map(async (itemData: any) => {
-            // Handle special descriptive items by making them reusable homebrew content
-            if (itemData.index === 'signet-ring' || itemData.index === 'scroll-of-pedigree' || itemData.index === 'clothes-fine') {
-                 const reusableContent = await getOrCreateReusableItem(userId, itemData.name, {
-                    ...itemData,
-                    desc: itemData.desc || [`Um item com uma história para ser descoberta.`]
-                });
-                return { ...reusableContent, quantity: itemData.quantity || 1, equipped: false, id: '' };
-            }
-            return { ...itemData, quantity: itemData.quantity || 1 };
+            const details = await DndApiService.getEquipmentDetails(itemData.index);
+            return { 
+                ...details, 
+                ...itemData, 
+                quantity: itemData.quantity || 1 
+            };
         });
 
         const detailedItems = await Promise.all(itemPromises);
