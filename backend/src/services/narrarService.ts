@@ -45,11 +45,11 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
-    const inventory = Array.isArray(fullCharacter.items) ? fullCharacter.items : [];
-    const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells : [];
+    const inventory = Array.isArray(fullCharacter.items) ? fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})) : [];
+    const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells.map(s => s?.spellName).filter(Boolean) : [];
 
     return {
-        id: fullCharacter.id, // Include ID for context
+        id: fullCharacter.id,
         name: fullCharacter.name,
         race: fullCharacter.race,
         characterClass: fullCharacter.characterClass,
@@ -69,8 +69,8 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passiveInsight,
         passiveInvestigation,
         proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
-        inventory: inventory.map(item => ({...item.itemData, equipped: item.equipped})),
-        spells: spells.map(s => s?.spellName).filter(Boolean),
+        inventory,
+        spells,
         feats: fullCharacter.feats || [],
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
@@ -179,7 +179,6 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
             }
         }
         
-        // Remove items that are no longer in the inventory
         for (const [key, item] of existingItemsMap.entries()) {
             if (!updatedItemKeys.has(key)) {
                 await itemsRepo.remove(item);
@@ -202,16 +201,22 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         }
     }
 
-    // Upsert Journal
     if(updates.journal) {
         await upsertJournalEntries(queryRunner, updates.journal, characterId);
     }
-
-    // Upsert Relationships and Quests (with deletion)
-    if(updates.relationships && Array.isArray(updates.relationships)) {
+    
+    if (updates.relationships && Array.isArray(updates.relationships)) {
         const relationshipRepo = queryRunner.manager.getRepository(Relationship);
         const questRepo = queryRunner.manager.getRepository(Quest);
-        
+        const currentRelIds = new Set(updates.relationships.map((r: any) => r.npcId));
+
+        // Remove relationships (and their quests) that are no longer in the AI response
+        for (const existingRel of (character.relationships || [])) {
+            if (!currentRelIds.has(existingRel.npcId)) {
+                await relationshipRepo.remove(existingRel);
+            }
+        }
+
         for (const relData of updates.relationships) {
             if (!relData || !relData.npcId) continue;
             let relationship = (character.relationships || []).find(r => r.npcId === relData.npcId);
@@ -222,30 +227,28 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
             const savedRel = await relationshipRepo.save(relationship);
             
             // Sync Quests
-            if (relData.quests && Array.isArray(relData.quests)) {
-                const existingQuests = character.relationships.flatMap(r => r.quests).filter(q => q.relationshipId === savedRel.id);
-                const aiQuestIds = new Set(relData.quests.map((q: any) => q.id).filter(Boolean));
-                
-                const questsToDelete = existingQuests.filter(q => !aiQuestIds.has(q.id));
-                if(questsToDelete.length > 0) await questRepo.remove(questsToDelete);
+            const existingQuests = (savedRel.quests || []);
+            const aiQuestIds = new Set((relData.quests || []).map((q: any) => q.id).filter(Boolean));
 
-                for(const questData of relData.quests) {
-                    if(!questData || !questData.title) continue;
+            const questsToDelete = existingQuests.filter(q => !aiQuestIds.has(q.id));
+            if (questsToDelete.length > 0) await questRepo.remove(questsToDelete);
+
+            if (relData.quests && Array.isArray(relData.quests)) {
+                for (const questData of relData.quests) {
+                    if (!questData || !questData.title) continue;
                     let quest = existingQuests.find(q => q.id === questData.id);
-                    if(!quest) {
+                    if (!quest) {
                         quest = questRepo.create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
                     }
                     Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
                     await questRepo.save(quest);
                 }
-            } else if (savedRel.quests && savedRel.quests.length > 0) {
-                 await questRepo.remove(savedRel.quests);
             }
         }
     }
 };
 
-const sanitizeAndProcessResponse = (response: any): GameMasterResponse => {
+const sanitizeAndProcessResponse = (response: any, characterState: any): GameMasterResponse => {
     const sanitized: Partial<GameMasterResponse> = { ...response };
     const sanitizationLogs: string[] = [];
 
@@ -267,30 +270,35 @@ const sanitizeAndProcessResponse = (response: any): GameMasterResponse => {
         sanitizationLogs.push("Sanitized logEntries: Was not an array, reset to [].");
     }
 
-    // Sanitize other optional fields
     const fieldsToSanitize: (keyof GameMasterResponse)[] = [
         'combatState', 'playerRollRequest', 'worldState', 'levelUpState', 
-        'shopState', 'lootOffer', 'useHitDiceRequest', 'systemLog'
+        'shopState', 'lootOffer', 'useHitDiceRequest'
     ];
+
     fieldsToSanitize.forEach(key => {
-        if (sanitized[key] === undefined || sanitized[key] === null) {
-            sanitized[key] = null as any; // Explicitly set to null if missing
-        } else if (typeof sanitized[key] !== 'object') {
-            sanitizationLogs.push(`Sanitized ${key}: Was not an object, set to null.`);
-            sanitized[key] = null as any;
+        if (typeof sanitized[key] !== 'object') {
+             if (key === 'combatState') {
+                sanitized.combatState = { isActive: true, round: 1, turn: 0, combatants: [], initiativeOrder: [] };
+                sanitizationLogs.push(`Sanitized ${key}: Was not an object, created default combat state.`);
+             } else if (key === 'worldState') {
+                 sanitized.worldState = characterState.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado' };
+                 sanitizationLogs.push(`Sanitized ${key}: Was not an object, created default world state.`);
+             } else if (sanitized[key] !== undefined) {
+                 sanitized[key] = null as any;
+                 sanitizationLogs.push(`Sanitized ${key}: Was not an object, set to null.`);
+            }
         }
     });
     
-    // Ensure array fields are arrays
     if (!Array.isArray(sanitized.newHomebrewContent)) {
         sanitized.newHomebrewContent = [];
-        if (response.newHomebrewContent) sanitizationLogs.push("Sanitized newHomebrewContent: Was not an array, reset to [].");
     }
 
-    if (!Array.isArray(sanitized.actionOptions)) {
-        sanitized.actionOptions = [];
-        if (response.actionOptions) sanitizationLogs.push("Sanitized actionOptions: Was not an array, reset to [].");
+    if (!Array.isArray(sanitized.actionOptions) || sanitized.actionOptions.length === 0) {
+        sanitized.actionOptions = ['Tentar novamente', 'Descrever uma ação diferente'];
+        if(response.actionOptions !== undefined) sanitizationLogs.push("actionOptions inválido ou vazio, resetado para opções de fallback.");
     }
+
 
     if (sanitizationLogs.length > 0) {
         const existingLog = sanitized.systemLog ? `${sanitized.systemLog}\n` : '';
@@ -299,6 +307,7 @@ const sanitizeAndProcessResponse = (response: any): GameMasterResponse => {
 
     return sanitized as GameMasterResponse;
 };
+
 
 export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
     let isTestRun = false;
@@ -370,13 +379,13 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     if (!aiResponse) {
         return {
-            logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu responder. Por favor, tente sua ação novamente.' }],
+            logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu formular uma resposta. Tente sua ação novamente ou com outras palavras.' }],
             actionOptions: ['Tentar a última ação novamente', 'Fazer algo diferente'],
             worldState: characterForAI.worldState,
         } as GameMasterResponse;
     }
     
-    aiResponse = sanitizeAndProcessResponse(aiResponse);
+    aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
     if (aiResponse.playerRollRequest) {
         return aiResponse;
@@ -400,12 +409,12 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             logsToSave.push({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
         }
         
-        const stateForLog = { ...aiResponse };
-        if (stateForLog.updatedCharacter?.inventory) {
-            stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]` as any;
+        const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
+        if (Array.isArray(stateForLog.updatedCharacter?.inventory)) {
+            stateForLog.updatedCharacter!.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]` as any;
         }
-        if (stateForLog.updatedCharacter?.journal) {
-            stateForLog.updatedCharacter.journal = `[${stateForLog.updatedCharacter.journal.length} entries]` as any;
+        if (Array.isArray(stateForLog.updatedCharacter?.journal)) {
+            stateForLog.updatedCharacter!.journal = `[${stateForLog.updatedCharacter.journal.length} entries]` as any;
         }
 
         logsToSave.push({
@@ -444,8 +453,19 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         }
 
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
-        if (Object.keys(updatesToPersist).length > 0) {
+        if (Object.keys(updatesToPersist).length > 1) { // Check if more than just worldState is present
             await persistCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
+        } else if (aiResponse.worldState) {
+            // Persist only worldState if it's the only update
+            const charRepo = queryRunner.manager.getRepository(Character);
+            const charToUpdate = await charRepo.findOneBy({id: sessao.character!.id});
+            if(charToUpdate) {
+                charToUpdate.worldState = { ...(charToUpdate.worldState || {}), ...aiResponse.worldState };
+                 if (aiResponse.worldState.currentRegion) {
+                    charToUpdate.currentRegion = aiResponse.worldState.currentRegion;
+                }
+                await charRepo.save(charToUpdate);
+            }
         }
         
         await queryRunner.commitTransaction();
