@@ -51,6 +51,10 @@ const LootOfferDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
     if (!pendingLootOffer) return null;
 
+    const hasItems = pendingLootOffer.items && pendingLootOffer.items.length > 0;
+    const hasCurrency = pendingLootOffer.currency && pendingLootOffer.currency.gp > 0;
+    if (!hasItems && !hasCurrency) return null;
+
     return (
         <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn">
             <h4 className="font-semibold text-amber-300">Tesouro Encontrado!</h4>
@@ -143,8 +147,17 @@ const ActionOptions: React.FC = () => {
     
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
-    const handleActionClick = (action: string | { text: string; action: string; skill?: string }) => {
-        const actionText = typeof action === 'object' ? action.text : action;
+    const handleActionClick = (action: string | { text: string; action: string; skill?: string; }) => {
+        let actionText: string;
+        if (typeof action === 'object') {
+            if (action.skill) {
+                actionText = `Eu tento usar ${translateApiString(action.skill)}: ${action.text}`;
+            } else {
+                actionText = action.text;
+            }
+        } else {
+            actionText = action;
+        }
         processPlayerAction(actionText);
         setIsOpen(false);
     };
