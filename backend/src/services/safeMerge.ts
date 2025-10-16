@@ -94,8 +94,19 @@ export const mergeCharacterUpdates = async (
 
   // --- Attributes (Update direto) ---
   if (updates.attributes && typeof updates.attributes === 'object') {
-    // É importante usar a entidade correta aqui
-    await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
+    // CORREÇÃO: Filtrar para garantir que apenas atributos válidos sejam atualizados.
+    const validAttributeUpdates: Partial<CharacterAttributes> = {};
+    const attributeKeys: (keyof CharacterAttributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'hp', 'ac'];
+    
+    for (const key of attributeKeys) {
+        if (updates.attributes[key] !== undefined) {
+            (validAttributeUpdates as any)[key] = updates.attributes[key];
+        }
+    }
+    
+    if (Object.keys(validAttributeUpdates).length > 0) {
+      await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, validAttributeUpdates);
+    }
   }
 
   // --- Inventory (Merge item por item) ---
@@ -109,6 +120,7 @@ export const mergeCharacterUpdates = async (
       const key = item.index || item.name;
       updatedItemKeys.add(key);
       const existing = existingItemsMap.get(key);
+      // CORREÇÃO: Garantir que a quantidade seja sempre no mínimo 1.
       const quantity = item.quantity === undefined ? 1 : item.quantity;
       
       if (quantity <= 0) {
