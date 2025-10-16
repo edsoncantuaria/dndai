@@ -82,40 +82,42 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
  */
 const miniSanitize = (raw: any): any => {
     if (!raw || typeof raw !== 'object') return {};
-    
+  
     const clean: { [key: string]: any } = { ...raw };
-
+  
     for (const key of Object.keys(clean)) {
-        const val = clean[key];
-        
-        // Trata valores nulos, indefinidos ou strings que representam nulidade.
-        if (
-            val === null ||
-            val === undefined ||
-            (typeof val === 'string' && ['null', 'undefined', 'nan'].includes(val.trim().toLowerCase()))
-        ) {
-            // Garante que campos de array críticos se tornem arrays vazios.
-            if (['actionOptions', 'logEntries', 'newHomebrewContent'].includes(key)) {
-                clean[key] = [];
-            } else {
-                // Outros campos nulos/inválidos são removidos para validação .optional() do Zod.
-                delete clean[key];
-            }
-            continue;
+      const val = clean[key];
+  
+      // 🔸 Remove valores inválidos
+      if (
+        val === null ||
+        val === undefined ||
+        (typeof val === 'string' && ['null', 'undefined', 'nan'].includes(val.trim().toLowerCase()))
+      ) {
+        if (['actionOptions', 'logEntries', 'newHomebrewContent'].includes(key)) {
+          clean[key] = [];
+        } else {
+          clean[key] = null;
         }
-
-        // Converte objetos vazios para campos específicos em undefined, para que a validação `.optional()` do Zod funcione.
-        if (
-            (key === 'combatState' || key === 'playerRollRequest') &&
-            typeof val === 'object' &&
-            (Object.keys(val).length === 0 || (key === 'combatState' && val.isActive === false))
-        ) {
-            delete clean[key];
-            continue;
+        continue;
+      }
+  
+      // 🔸 Trata combatState e playerRollRequest especificamente
+      if (['combatState', 'playerRollRequest'].includes(key)) {
+        if (typeof val !== 'object' || Object.keys(val).length === 0) {
+          clean[key] = null; // ✅ Envia null, conforme o schema
+          continue;
         }
+  
+        if (key === 'combatState' && (!('isActive' in val) || !val.isActive)) {
+          clean[key] = null; // ✅ combate não ativo → null
+          continue;
+        }
+      }
     }
+  
     return clean;
-};
+  };
   
 
 /**
