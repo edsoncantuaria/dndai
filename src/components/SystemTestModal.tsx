@@ -246,7 +246,7 @@ const SystemTestModal: React.FC<{ isOpen: boolean; onClose: () => void; characte
                 </header>
                 <main className="p-6 space-y-4 overflow-y-auto">
                     <DiceTestSection />
-                    <SystemInteractionSection onClose={onClose} characters={characters as Character[]} />
+                    <SystemInteractionSection onClose={onClose} characters={characters} />
                 </main>
             </div>
         </div>

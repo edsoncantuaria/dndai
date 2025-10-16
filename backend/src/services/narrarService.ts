@@ -342,44 +342,45 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
-        const logsToSave: Partial<SessionLog>[] = [];
-
+        
         const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
         
         if(!isInternalAction) {
-            logsToSave.push({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
+            const playerLog = new SessionLog();
+            Object.assign(playerLog, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
+            await logRepository.save(playerLog);
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
+        // Omit large, transient, or already logged data from the state log
         delete stateForLog.logEntries;
         delete stateForLog.actionOptions;
-        if(stateForLog.updatedCharacter) {
-             delete stateForLog.updatedCharacter.inventory;
-             delete stateForLog.updatedCharacter.journal;
-             delete stateForLog.updatedCharacter.relationships;
-        }
+        delete stateForLog.systemLog;
         
-        logsToSave.push({
+        const stateLog = new SessionLog();
+        Object.assign(stateLog, {
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(stateForLog),
             type: 'state',
         });
+        await logRepository.save(stateLog);
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
                  if (entry?.content && typeof entry.content === 'string') {
-                    logsToSave.push({
+                    const newLog = new SessionLog();
+                    Object.assign(newLog, {
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
                         response: entry.content,
                         type: entry.type || 'narration',
                         rollResult: entry.rollResult,
                     });
+                     await logRepository.save(newLog);
                 }
             }
         }
-        if (logsToSave.length > 0) await logRepository.save(logsToSave);
 
         if (aiResponse.newHomebrewContent) {
             for (const newContent of aiResponse.newHomebrewContent) {

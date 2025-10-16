@@ -58,7 +58,7 @@ export const sanitizeGameMasterResponse = (responseData: any): GameMasterRespons
     responseData.actionOptions = [];
   } else {
     // Filtra quaisquer valores nulos/falsos que a IA possa ter colocado no array
-    responseData.actionOptions = responseData.actionOpaque.filter(Boolean);
+    responseData.actionOptions = responseData.actionOptions.filter(Boolean);
   }
 
   // 5. systemLog sempre como string ou null
