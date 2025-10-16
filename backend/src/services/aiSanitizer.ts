@@ -1,12 +1,10 @@
 // backend/src/services/aiSanitizer.ts
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
 
-const EMPTY_COMBAT_STATE = { isActive: false, round: 0, turn: 0, combatants: [], initiativeOrder: [] };
-
 /**
  * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
  * Atua como a camada final de "senso de jogo" antes de retornar a resposta.
- * @param responseData A resposta da IA, que pode conter campos nulos ou malformados.
+ * @param responseData A resposta da IA, que PODE conter campos nulos ou malformados.
  * @param currentCharacter O estado atual do personagem, para fallback.
  * @returns Um objeto GameMasterResponse logicamente coerente e seguro.
  */
@@ -25,8 +23,8 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
       if (!entry || typeof entry !== 'object' || !entry.content) return null;
-      let { type = 'narration', content } = entry;
-      // Trata caso onde o content é um JSON stringificado
+      // Trata casos onde 'content' é um JSON stringificado ou tem tags extras.
+      let content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : String(entry.content);
       try {
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed.content === 'string') {
@@ -34,8 +32,8 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
         }
       } catch (e) { /* Não é um JSON, ignora */ }
       
-      content = String(content).replace(/<\/?narration>/g, '').trim();
-      return content ? { type, content, rollResult: entry.rollResult } : null;
+      content = content.replace(/<\/?narration>/g, '').trim();
+      return content ? { type: entry.type || 'narration', content, rollResult: entry.rollResult } : null;
     }).filter(Boolean);
   } else {
     sanitized.logEntries = [];
@@ -49,30 +47,31 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   }
   
   // 3. Garante que worldState seja sempre um objeto, usando o estado anterior como fallback.
-  if (!sanitized.worldState || typeof sanitized.worldState !== 'object') {
+  if (!sanitized.worldState || typeof sanitized.worldState !== 'object' || Object.keys(sanitized.worldState).length === 0) {
     sanitized.worldState = currentCharacter?.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
     sanitationLogs.push('worldState era inválido, restaurado para o estado anterior ou padrão.');
   } else {
+    // Merge para não perder dados
     sanitized.worldState = { ...(currentCharacter?.worldState || {}), ...sanitized.worldState };
   }
 
-  // 4. Garante que os estados complexos sejam objetos válidos ou undefined, mas nunca null ou {}.
-  const fieldsToSanitize: (keyof GameMasterResponse)[] = [
-    'combatState', 'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
+  // 4. Se o combate não estiver ativo, garante que o estado do combate está ausente para evitar confusão na UI.
+  if (sanitized.combatState && !sanitized.combatState.isActive) {
+      sanitized.combatState = undefined;
+      sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
+  }
+
+  // 5. Garante que os outros estados complexos sejam objetos válidos ou undefined, mas nunca null.
+  const fieldsToMakeUndefinedIfEmpty: (keyof GameMasterResponse)[] = [
+    'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
 
-  fieldsToSanitize.forEach(field => {
+  fieldsToMakeUndefinedIfEmpty.forEach(field => {
       if (sanitized[field] === null || (typeof sanitized[field] === 'object' && Object.keys(sanitized[field]!).length === 0)) {
            (sanitized as any)[field] = undefined;
            sanitationLogs.push(`${String(field)} era nulo ou vazio, definido como undefined.`);
       }
   });
-  
-  // 5. Se o combate não estiver ativo, garante que o estado do combate está ausente.
-  if (sanitized.combatState && !sanitized.combatState.isActive) {
-      sanitized.combatState = undefined;
-      sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
-  }
 
   // Anexa os logs de sanitização ao systemLog para depuração.
   if (sanitationLogs.length > 0) {

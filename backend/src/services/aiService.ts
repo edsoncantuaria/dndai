@@ -76,30 +76,29 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 }
 
 /**
- * 🔹 Mini-sanitizador inline:
- * Limpa a resposta bruta da IA, removendo nulls, strings inválidas e
- * garantindo que campos de array críticos tenham um valor padrão seguro.
+ * 🔹 Mini-sanitizador inline (Pré-Zod):
+ * Limpa a resposta bruta da IA, removendo nulls, strings inválidas e objetos vazios
+ * para garantir que ela passe na validação estrutural do Zod.
  */
 const miniSanitize = (raw: any): any => {
     if (!raw || typeof raw !== 'object') return {};
     
-    // Cria uma cópia para não modificar o objeto original diretamente durante a iteração
     const clean = { ...raw };
 
     for (const key of Object.keys(clean)) {
         const val = clean[key];
         
-        // Verifica se o valor é null, undefined, ou uma string que representa nulidade.
+        // Trata valores nulos, indefinidos ou strings que representam nulidade.
         if (
             val === null ||
             val === undefined ||
             (typeof val === 'string' && ['null', 'undefined', 'nan'].includes(val.trim().toLowerCase()))
         ) {
-            // Garante que campos que devem ser arrays se tornem arrays vazios.
+            // Garante que campos de array críticos se tornem arrays vazios.
             if (['actionOptions', 'logEntries', 'newHomebrewContent'].includes(key)) {
                 clean[key] = [];
             } else {
-                // Outros campos nulos/inválidos são removidos para validação opcional.
+                // Outros campos nulos/inválidos são removidos para validação .optional() do Zod.
                 delete clean[key];
             }
             continue;
@@ -115,7 +114,6 @@ const miniSanitize = (raw: any): any => {
             continue;
         }
     }
-
     return clean;
 };
   
@@ -205,10 +203,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
             }
 
-            // 1️⃣ Mini-sanitizer (quick cleanup)
+            // 1️⃣ Mini-sanitizer (limpeza pré-validação)
             const cleanedData = miniSanitize(responseData);
             console.log("🧹 Após mini-sanitizador:", JSON.stringify(cleanedData, null, 2));
-
 
             // 2️⃣ Validação estrutural com Zod
             const validationResult = GameMasterResponseSchema.safeParse(cleanedData);
@@ -218,7 +215,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
             }
             
-             // 3️⃣ Sanitização semântica / lógica
+            // 3️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(validationResult.data, input.character);
             console.log("✅ Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
 
