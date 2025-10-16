@@ -77,7 +77,8 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     };
 };
 
-const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null) => {
+const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null): Promise<JournalEntry[]> => {
+    const savedEntries: JournalEntry[] = [];
     for (const entryData of entries) {
         if (!entryData || typeof entryData !== 'object') continue;
         let entry: JournalEntry | null = null;
@@ -104,7 +105,9 @@ const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], ch
         if (entryData.subLocations && entryData.subLocations.length > 0) {
             await upsertJournalEntries(queryRunner, entryData.subLocations, characterId, savedEntry);
         }
+        savedEntries.push(savedEntry);
     }
+    return savedEntries;
 };
 
 
@@ -136,37 +139,41 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
     }
 
-    // Upsert Inventory
+    // Upsert Inventory (optimized)
     if (updates.inventory) {
         const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
         const existingItemsMap = new Map(character.items.map(item => [item.itemData.index || item.name, item]));
-        
+        const itemsToUpsert: CharacterItem[] = [];
+        const itemsToRemove: CharacterItem[] = [];
+
         for (const itemData of updates.inventory) {
             const itemKey = itemData.index || itemData.name;
             const existingItem = existingItemsMap.get(itemKey);
 
             if (itemData.quantity <= 0) {
-                if(existingItem) await itemsRepo.remove(existingItem);
+                if(existingItem) itemsToRemove.push(existingItem);
                 continue;
             }
 
             if (existingItem) {
                 existingItem.quantity = itemData.quantity;
                 existingItem.equipped = itemData.equipped || false;
-                await itemsRepo.save(existingItem);
+                itemsToUpsert.push(existingItem);
             } else {
                 const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
-                await itemsRepo.save(newItem);
+                itemsToUpsert.push(newItem);
             }
         }
+        if(itemsToUpsert.length > 0) await itemsRepo.save(itemsToUpsert);
+        if(itemsToRemove.length > 0) await itemsRepo.remove(itemsToRemove);
     }
     
-    // Upsert Spells
+    // Upsert Spells (optimized)
     if (updates.spells) {
         const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
         await spellsRepo.delete({ characterId }); // Simple clear and re-add is fine for spells
         const newSpells = updates.spells.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
-        await spellsRepo.save(newSpells);
+        if(newSpells.length > 0) await spellsRepo.save(newSpells);
     }
 
     // Upsert Journal
@@ -174,8 +181,11 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         await upsertJournalEntries(queryRunner, updates.journal, characterId);
     }
 
-    // Upsert Relationships and Quests
+    // Upsert Relationships and Quests (optimized)
     if(updates.relationships) {
+        const relationshipsToSave: Relationship[] = [];
+        const questsToSave: Quest[] = [];
+        
         for (const relData of updates.relationships) {
             if (!relData || !relData.npcId) continue;
             let relationship = character.relationships.find(r => r.npcId === relData.npcId);
@@ -183,52 +193,72 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
                 relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
             }
             Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
-            const savedRel = await queryRunner.manager.save(relationship);
-            
-            if (relData.quests) {
-                for(const questData of relData.quests) {
-                    if (!questData || !questData.title) continue;
-                    let quest = (savedRel.quests || []).find(q => q.id === questData.id);
-                    if (!quest) {
-                        quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
-                    }
-                    Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
-                    await queryRunner.manager.save(quest);
+            relationshipsToSave.push(relationship);
+        }
+
+        const savedRelationships = await queryRunner.manager.save(relationshipsToSave);
+        const relMap = new Map(savedRelationships.map(r => [r.npcId, r]));
+
+        for(const relData of updates.relationships) {
+            if (!relData.quests || !relData.npcId) continue;
+            const savedRel = relMap.get(relData.npcId);
+            if(!savedRel) continue;
+
+            for(const questData of relData.quests) {
+                if (!questData || !questData.title) continue;
+                let quest = (savedRel.quests || []).find(q => q.id === questData.id);
+                if (!quest) {
+                    quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
                 }
+                Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
+                questsToSave.push(quest);
             }
         }
+        if(questsToSave.length > 0) await queryRunner.manager.save(questsToSave);
     }
 };
 
 const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState: any): GameMasterResponse => {
     const sanitized: GameMasterResponse = { ...response };
+    const sanitizationLogs: string[] = [];
 
-    // Sanitize nullable/optional fields to prevent downstream errors.
-    sanitized.worldState = sanitized.worldState ?? characterState.worldState ?? {};
-    sanitized.combatState = sanitized.combatState ?? undefined;
-    sanitized.playerRollRequest = sanitized.playerRollRequest ?? undefined;
-    sanitized.newHomebrewContent = sanitized.newHomebrewContent ?? [];
-    sanitized.levelUpState = sanitized.levelUpState ?? undefined;
-    sanitized.shopState = sanitized.shopState ?? undefined;
-    
-    // Ensure logEntries is an array of objects
+    // Sanitize logEntries by ensuring they are objects
     if (Array.isArray(sanitized.logEntries)) {
-        sanitized.logEntries = sanitized.logEntries.map(entry => {
+        sanitized.logEntries = sanitized.logEntries.map((entry, index) => {
             if (typeof entry === 'string') {
-                return { type: 'narration', content: entry };
+                sanitizationLogs.push(`Sanitized logEntries[${index}]: Converted string to object.`);
+                try {
+                    // It might be a stringified JSON
+                    const parsed = JSON.parse(entry);
+                    if (typeof parsed === 'object' && parsed !== null) return parsed;
+                } catch {
+                    // It's just a plain string
+                    return { type: "narration", content: entry };
+                }
+            }
+            if (entry === null || typeof entry !== 'object') {
+                 sanitizationLogs.push(`Sanitized logEntries[${index}]: Removed invalid/null entry.`);
+                return null;
             }
             return entry;
-        }).filter(entry => entry && typeof entry === 'object'); // Filter out null/invalid entries
-    } else {
-        sanitized.logEntries = [];
+        }).filter(Boolean) as any[]; // Filter out nulls
+    } else if (sanitized.logEntries === null || sanitized.logEntries === undefined) {
+         sanitized.logEntries = [];
+         sanitizationLogs.push("Sanitized logEntries: Was null/undefined, set to [].");
     }
 
-    // Ensure worldState is an object, falling back to the character's current state if null.
-    if (!sanitized.worldState || typeof sanitized.worldState !== 'object') {
-        sanitized.worldState = characterState.worldState || {};
-    } else {
-        // Merge, ensuring new properties from AI are added without losing old ones.
-        sanitized.worldState = { ...characterState.worldState, ...sanitized.worldState };
+    // Sanitize other optional fields that should be objects or arrays
+    const fieldsToSanitize: (keyof GameMasterResponse)[] = ['combatState', 'worldState', 'playerRollRequest', 'newHomebrewContent', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'];
+    fieldsToSanitize.forEach(field => {
+        if (sanitized[field] === null) {
+            sanitizationLogs.push(`Sanitized ${field}: Was null, set to default.`);
+            sanitized[field] = Array.isArray(characterState[field]) ? [] : {};
+        }
+    });
+
+    if (sanitizationLogs.length > 0) {
+        const existingLog = sanitized.systemLog ? `${sanitized.systemLog}\n` : '';
+        sanitized.systemLog = `${existingLog}SANITIZATION: ${sanitizationLogs.join(' ')}`;
     }
 
     return sanitized;
@@ -329,38 +359,39 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
+        const logsToSave: SessionLog[] = [];
 
         const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+        
         if(!isInternalAction) {
-            const playerLog = new SessionLog();
-            Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
-            await logRepository.save(playerLog);
+            const playerLog = logRepository.create({ sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
+            logsToSave.push(playerLog);
         }
         
-        const stateLog = new SessionLog();
-        Object.assign(stateLog, {
+        const stateLog = logRepository.create({
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(aiResponse),
             type: 'state',
         });
-        await logRepository.save(stateLog);
+        logsToSave.push(stateLog);
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
                  if (entry?.content && typeof entry.content === 'string') {
-                    const newLog = new SessionLog();
-                    Object.assign(newLog, {
+                    const newLog = logRepository.create({
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
                         response: entry.content,
                         type: entry.type || 'narration',
                         rollResult: entry.rollResult,
                     });
-                    await logRepository.save(newLog);
+                    logsToSave.push(newLog);
                 }
             }
         }
+        if (logsToSave.length > 0) await logRepository.save(logsToSave);
+
 
         if (aiResponse.newHomebrewContent) {
             for (const newContent of aiResponse.newHomebrewContent) {

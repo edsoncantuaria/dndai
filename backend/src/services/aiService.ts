@@ -131,14 +131,14 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             const response = result.response;
             const jsonText = response.text();
             
+            console.log("📜 Resposta bruta da IA:", jsonText);
+            
             if (!jsonText) {
                  console.error(`[geminiService] Resposta da IA vazia na tentativa ${isRetry ? 2 : 1}.`);
                  if (!isRetry) return attemptGeneration(true);
                  throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
             }
             
-            console.log("📜 Resposta bruta da IA:", jsonText);
-
 
             let responseData: any;
             try {
@@ -160,13 +160,14 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw new Error(`O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // 2. Sanitização da Resposta Bruta (antes da validação Zod)
+            // Sanitização da Resposta Bruta (antes da validação Zod)
             if (Array.isArray(responseData.logEntries)) {
               responseData.logEntries = responseData.logEntries.map((entry: any) => {
                 if (typeof entry === "string") {
                   try {
                     const parsed = JSON.parse(entry);
                     if (typeof parsed === "object" && parsed !== null) return parsed;
+                    return { type: "narration", content: entry };
                   } catch {
                     return { type: "narration", content: entry };
                   }
@@ -175,7 +176,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
               }).filter(Boolean); // Remove entradas nulas ou inválidas
             }
 
-            // 3. Validação final com Zod
+            // Validação final com Zod
             const validationResult = GameMasterResponseSchema.safeParse(responseData);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
