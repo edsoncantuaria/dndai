@@ -15,7 +15,7 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
   }
   const sanitized = { ...responseData };
 
-  // 1. Sanitize logEntries
+  // 1. Sanitize logEntries: Garante que seja um array de objetos válidos.
   if (!Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = [];
   } else {
@@ -24,24 +24,27 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
       if (typeof entry === 'string') {
         try {
           const parsed = JSON.parse(entry);
+          // Certifica-se de que o objeto parseado tenha a estrutura mínima
           if (parsed && typeof parsed === 'object' && parsed.type && parsed.content) {
             return parsed;
           }
-          // If it's a non-JSON string, wrap it.
+          // Se o parse não resultar em um objeto válido, trata a string como narração
           return { type: 'narration', content: entry };
         } catch {
-          // If parsing fails, treat it as narration content.
+          // Se o parse falhar, trata a string como narração
           return { type: 'narration', content: entry };
         }
       }
+      // Se já for um objeto, garante que tenha os campos mínimos
       if (typeof entry === 'object' && entry.type && entry.content) {
         return entry;
       }
       return null;
-    }).filter(Boolean); // Remove nulls
+    }).filter(Boolean); // Remove quaisquer entradas nulas/inválidas
   }
 
-  // 2. Sanitize newHomebrewContent
+
+  // 2. Sanitize newHomebrewContent: Garante que seja um array de objetos válidos.
    if (!Array.isArray(sanitized.newHomebrewContent)) {
     sanitized.newHomebrewContent = [];
   } else {
@@ -52,32 +55,32 @@ export const sanitizeGameMasterResponse = (responseData: any): Partial<GameMaste
           const parsed = JSON.parse(item);
           return (parsed && typeof parsed === 'object') ? parsed : null;
         } catch {
-          return null; // Invalid JSON string
+          return null; // Descarta JSON string inválida
         }
       }
       return (typeof item === 'object') ? item : null;
-    }).filter(Boolean); // Remove nulls
+    }).filter(Boolean); // Remove quaisquer entradas nulas/inválidas
   }
 
 
-  // 3. Sanitize worldState
+  // 3. Sanitize worldState: Garante que seja um objeto
   if (typeof sanitized.worldState === 'string') {
     try {
         sanitized.worldState = JSON.parse(sanitized.worldState);
     } catch {
-        sanitized.worldState = null; // Let it be nulled to be caught by the next check
+        sanitized.worldState = {}; // Fallback para objeto vazio
     }
   }
   if (sanitized.worldState === null || typeof sanitized.worldState !== 'object') {
-    sanitized.worldState = undefined; // Use undefined to let Zod's default work
+    sanitized.worldState = {}; // Garante que seja sempre um objeto
   }
 
-  // 4. Sanitize other complex optional fields to prevent null values
-  if (sanitized.combatState === null) sanitized.combatState = undefined;
-  if (sanitized.playerRollRequest === null) sanitized.playerRollRequest = undefined;
-  if (sanitized.updatedCharacter === null) sanitized.updatedCharacter = undefined;
+  // 4. Sanitize outros campos complexos opcionais para evitar null
+  if (sanitized.combatState === null) sanitized.combatState = {};
+  if (sanitized.playerRollRequest === null) sanitized.playerRollRequest = {};
+  if (sanitized.updatedCharacter === null) sanitized.updatedCharacter = {};
   
-  // 5. Ensure actionOptions is an array
+  // 5. Garante que actionOptions seja um array
   if (!Array.isArray(sanitized.actionOptions)) {
     sanitized.actionOptions = [];
   }
