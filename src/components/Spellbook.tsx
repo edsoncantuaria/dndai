@@ -19,37 +19,46 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
     const [loadingProgress, setLoadingProgress] = useState<string | null>(null);
     const [breathWeaponUsed, setBreathWeaponUsed] = useState(false);
 
-    // Efeito para resetar o uso da Arma de Sopro quando o personagem se cura (indicativo de descanso)
+    // Efeito para resetar o uso da Arma de Sopro quando o personagem se cura totalmente (indicativo de descanso longo)
     useEffect(() => {
-        setBreathWeaponUsed(false);
-    }, [character?.hp.current, character?.hp.max]);
+        if (character && character.hp.current === character.hp.max) {
+            setBreathWeaponUsed(false);
+        }
+    }, [character?.hp]);
 
     useEffect(() => {
         const fetchSpells = async () => {
-            if (!character || !character.spells || character.spells.length === 0) {
+            if (!character || !character.spells) {
                 setSpellDetails([]);
                 return;
-            };
+            }
             setIsSpellsLoading(true);
 
-            // Separate spells that already have full details from those that need fetching.
             const existingDetails: ApiSpell[] = [];
-            const spellsToFetch: { index: string; name: string; url: string; }[] = [];
+            const spellsToFetch: { index: string, name: string, url: string }[] = [];
 
-            for (const spell of character.spells) {
-                // If it's a full object with a description, it's already detailed.
-                if (typeof spell === 'object' && 'desc' in spell && spell.desc) {
-                    existingDetails.push(spell as ApiSpell);
-                }
-                // If it's a reference object, add it to the fetch list.
-                else if (typeof spell === 'object' && 'spellName' in spell && spell.spellName) {
-                    if (!spell.spellName.startsWith('breath-weapon')) {
-                        spellsToFetch.push({
-                            index: spell.spellName.toLowerCase().replace(/ /g, '-'),
-                            name: spell.spellName,
-                            url: ''
-                        });
+            // A 'character.spells' pode conter strings (índices) ou objetos.
+            for (const spellIdentifier of character.spells) {
+                const spellIndex = typeof spellIdentifier === 'string' 
+                    ? spellIdentifier 
+                    : (spellIdentifier as any).spellName || (spellIdentifier as any).index;
+
+                if (!spellIndex) continue;
+
+                // Se a magia for uma "Arma de Sopro", tratamos de forma especial
+                if (spellIndex.startsWith('breath-weapon-')) {
+                    // Busca os detalhes da nossa API interna (que lê o JSON local)
+                    const breathWeaponDetails = await DndApiService.getSpellDetails(spellIndex);
+                    if (breathWeaponDetails) {
+                        existingDetails.push(breathWeaponDetails);
                     }
+                } else {
+                    // Para magias normais, adiciona à lista para buscar em lote
+                    spellsToFetch.push({
+                        index: spellIndex.toLowerCase().replace(/ /g, '-'),
+                        name: spellIndex,
+                        url: ''
+                    });
                 }
             }
             
@@ -62,7 +71,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                         setLoadingProgress(`Carregando magias ${loaded} de ${total}...`);
                     }
                 );
-                fetchedSpells = results as ApiSpell[];
+                fetchedSpells = results.filter((s): s is ApiSpell => s !== null);
             }
             
             setSpellDetails([...existingDetails, ...fetchedSpells]);
@@ -108,7 +117,7 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
         .map(key => parseInt(key.replace('level', '')))
         .sort((a, b) => a - b);
         
-    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id.toString() === character.id.toString() : true;
+    const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
 
     return (
         <div className="p-4 space-y-4">
