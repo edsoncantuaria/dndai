@@ -1,9 +1,9 @@
 // src/components/Spellbook.tsx
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import * as DndApiService from '../services/dndApiService';
-import type { ApiSpell, CharacterSpell } from '../types';
+import type { ApiSpell } from '../types';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import NewSpellCard from './Spells/NewSpellCard';
 import { Book, Loader2 } from 'lucide-react';
@@ -17,6 +17,12 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
     const [spellDetails, setSpellDetails] = useState<ApiSpell[]>([]);
     const [isSpellsLoading, setIsSpellsLoading] = useState(false);
     const [loadingProgress, setLoadingProgress] = useState<string | null>(null);
+    const [breathWeaponUsed, setBreathWeaponUsed] = useState(false);
+
+    // Efeito para resetar o uso da Arma de Sopro quando o personagem se cura (indicativo de descanso)
+    useEffect(() => {
+        setBreathWeaponUsed(false);
+    }, [character?.hp.current, character?.hp.max]);
 
     useEffect(() => {
         const fetchSpells = async () => {
@@ -37,11 +43,13 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                 }
                 // If it's a reference object, add it to the fetch list.
                 else if (typeof spell === 'object' && 'spellName' in spell && spell.spellName) {
-                    spellsToFetch.push({
-                        index: spell.spellName.toLowerCase().replace(/ /g, '-'),
-                        name: spell.spellName,
-                        url: ''
-                    });
+                    if (!spell.spellName.startsWith('breath-weapon')) {
+                        spellsToFetch.push({
+                            index: spell.spellName.toLowerCase().replace(/ /g, '-'),
+                            name: spell.spellName,
+                            url: ''
+                        });
+                    }
                 }
             }
             
@@ -57,7 +65,6 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                 fetchedSpells = results as ApiSpell[];
             }
             
-            // Combine fetched spells with ones that already had details
             setSpellDetails([...existingDetails, ...fetchedSpells]);
             setIsSpellsLoading(false);
             setLoadingProgress(null);
@@ -65,11 +72,17 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
 
         fetchSpells();
     }, [character?.spells]);
-
-    const handleCastSpell = (spell: ApiSpell) => {
+    
+    const handleCastSpell = useCallback((spell: ApiSpell) => {
         if(onModalAction) onModalAction();
+        
+        if (spell.index.startsWith('breath-weapon')) {
+            setBreathWeaponUsed(true);
+        }
+
         castSpell(spell);
-    }
+    }, [onModalAction, castSpell]);
+
 
     const groupedSpells = useMemo(() => {
         return spellDetails.reduce((acc, spell) => {
@@ -141,7 +154,18 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                             </h4>
                             <div className="space-y-2">
                                 {groupedSpells[levelKey].sort((a,b) => a.name.localeCompare(b.name)).map(spell => {
-                                    const canCast = spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0;
+                                    let canCast = true;
+                                    let usesLeft = undefined;
+                                    let maxUses = undefined;
+
+                                    if (spell.index.startsWith('breath-weapon')) {
+                                        usesLeft = breathWeaponUsed ? 0 : 1;
+                                        maxUses = 1;
+                                        canCast = !breathWeaponUsed;
+                                    } else {
+                                        canCast = spell.level === 0 || (character.spellSlots[`level${spell.level}` as keyof typeof character.spellSlots]?.current || 0) > 0;
+                                    }
+                                    
                                     return (
                                         <NewSpellCard 
                                             key={spell.index} 
@@ -149,6 +173,8 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
                                             onCast={handleCastSpell}
                                             canCast={canCast}
                                             isActionLoading={isActionLoading || !!playerRollRequest || !isPlayerTurn}
+                                            usesLeft={usesLeft}
+                                            maxUses={maxUses}
                                         />
                                     );
                                 })}

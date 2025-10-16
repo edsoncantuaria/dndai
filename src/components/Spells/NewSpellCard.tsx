@@ -15,6 +15,8 @@ interface NewSpellCardProps {
     canCast?: boolean;
     isActionLoading?: boolean;
     defaultExpanded?: boolean;
+    usesLeft?: number;
+    maxUses?: number;
 }
 
 const NewSpellCard: React.FC<NewSpellCardProps> = ({ 
@@ -26,7 +28,9 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
     onCast, 
     canCast, 
     isActionLoading, 
-    defaultExpanded = false 
+    defaultExpanded = false,
+    usesLeft,
+    maxUses
 }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const translatedSpell = translateSpell(spell);
@@ -41,12 +45,21 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
             onCast(spell); // Pass the original spell object
         }
     };
+    
+    const hasUses = usesLeft !== undefined && maxUses !== undefined;
 
     const cardContent = (
         <>
             <div className="flex justify-between items-start w-full cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
                 <div className="flex-grow">
-                    <h4 className="font-semibold text-stone-200 group-hover:text-amber-300 transition-colors" title={spell.name}>{translatedSpell.name}</h4>
+                    <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-stone-200 group-hover:text-amber-300 transition-colors" title={spell.name}>{translatedSpell.name}</h4>
+                        {hasUses && (
+                             <span className={`px-2 py-0.5 text-xs font-mono font-bold rounded-full ${usesLeft > 0 ? 'bg-sky-800 text-sky-200' : 'bg-stone-700 text-stone-400'}`}>
+                                {usesLeft}/{maxUses}
+                            </span>
+                        )}
+                    </div>
                     <p className="text-xs text-stone-400">{spell.level === 0 ? 'Truque' : `Nível ${spell.level}`} de {translateMagicSchool(spell.school.name)}</p>
                 </div>
                 <div className="flex items-center pl-2">
@@ -55,7 +68,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             onClick={handleCastClick}
                             disabled={!canCast || isActionLoading}
                             className="mr-2 p-1.5 rounded-md bg-amber-700/80 hover:bg-amber-600/80 text-stone-100 font-semibold text-sm transition-colors disabled:bg-stone-600/50 disabled:text-stone-400 disabled:cursor-not-allowed"
-                            title={canCast ? "Conjurar Magia" : "Sem espaços de magia"}
+                            title={canCast ? "Conjurar Magia" : hasUses && usesLeft === 0 ? "Uso já gasto" : "Sem espaços de magia"}
                         >
                             <Sparkles className="h-4 w-4" />
                         </button>
