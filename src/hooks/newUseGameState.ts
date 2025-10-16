@@ -282,5 +282,3 @@ export const useNewGameState = () => {
 
     return memoizedValue;
 };
-
-    
