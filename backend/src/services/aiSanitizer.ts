@@ -1,5 +1,5 @@
 // backend/src/services/aiSanitizer.ts
-import { GameMasterResponse, HomebrewContentType } from "../schemas/gameSchemas.js";
+import { GameMasterResponse } from "../schemas/gameSchemas.js";
 
 /**
  * Normaliza a string 'timeOfDay' para um valor de enumeração conhecido.
@@ -20,7 +20,6 @@ const normalizeTimeOfDay = (timeOfDayString: string): string => {
         return 'Noite';
     }
     
-    // Se não for um valor esperado, o frontend o exibirá como está, mas não quebrará.
     return timeOfDayString; 
 };
 
@@ -38,7 +37,7 @@ const normalizeWeather = (weatherString: string): string => {
         'chovendo': 'Chuva',
         'nevando': 'Neve',
         'tempestuoso': 'Tempestade',
-        'ensolarado': 'Ensolarado', // Inclui o typo 'ensonarado'
+        'ensolarado': 'Ensolarado',
         'ensonarado': 'Ensolarado',
         'nublado': 'Nublado',
         'nevoeiro': 'Nevoeiro',
@@ -50,13 +49,10 @@ const normalizeWeather = (weatherString: string): string => {
         }
     }
     
-    // Se não for um valor esperado, retorna o mais próximo ou o padrão.
     const knownWeathers = ['Ensolarado', 'Nublado', 'Chuva', 'Tempestade', 'Neve', 'Nevoeiro'];
     const found = knownWeathers.find(w => lowerCaseWeather.includes(w.toLowerCase()));
     return found || 'Ensolarado';
 };
-
-const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
 
 /**
  * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
@@ -76,18 +72,17 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
 
-  // 1. Sanitize logEntries: Garante que é um array de objetos válidos e com conteúdo.
+  // Sanitize logEntries
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
       if (!entry || typeof entry !== 'object' || !entry.content) return null;
-      // Trata casos onde 'content' é um JSON stringificado ou tem tags extras.
       let content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : String(entry.content);
       try {
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed.content === 'string') {
           content = parsed.content;
         }
-      } catch (e) { /* Não é um JSON, ignora */ }
+      } catch (e) { /* Ignore */ }
       
       content = content.replace(/<\/?narration>/g, '').trim();
       return content ? { type: entry.type || 'narration', content, rollResult: entry.rollResult } : null;
@@ -96,19 +91,18 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitized.logEntries = [];
     sanitationLogs.push('logEntries não era um array, resetado para [].');
   }
-
-  // 2. Garante que actionOptions seja um array, mesmo que vazio.
+  
+  // Sanitize actionOptions
   if (!Array.isArray(sanitized.actionOptions)) {
     sanitized.actionOptions = [];
     sanitationLogs.push('actionOptions não era um array, resetado para [].');
   }
   
-  // 3. Garante que worldState seja sempre um objeto e normaliza seus campos.
+  // Sanitize worldState
   if (!sanitized.worldState || typeof sanitized.worldState !== 'object' || Object.keys(sanitized.worldState).length === 0) {
     sanitized.worldState = currentCharacter?.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
     sanitationLogs.push('worldState era inválido, restaurado para o estado anterior ou padrão.');
   } else {
-    // Merge para não perder dados e normaliza os valores.
     const originalTimeOfDay = sanitized.worldState.timeOfDay;
     const originalWeather = sanitized.worldState.weather;
     const normalizedTimeOfDay = normalizeTimeOfDay(originalTimeOfDay);
@@ -128,29 +122,43 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }
   }
 
-  // 4. Se o combate não estiver ativo, garante que o estado do combate está ausente para evitar confusão na UI.
-  if (sanitized.combatState && !sanitized.combatState.isActive) {
-      sanitized.combatState = undefined;
-      sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
-  }
-  
-  // 5. Sanitize newHomebrewContent to fix common AI mistakes.
-  if (Array.isArray(sanitized.newHomebrewContent)) {
-    sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((item: any) => {
-      if (!item || typeof item !== 'object' || !item.type) return item;
-      
-      // FIX: AI often uses the monster's type (e.g., "Construct") as the homebrew content type.
-      // If the type is invalid but it has monster fields, correct it to "monster".
-      if (!VALID_HOMEBREW_TYPES.includes(item.type) && (item.armor_class || item.hit_points || item.actions)) {
-          sanitationLogs.push(`Corrigido tipo de homebrew inválido '${item.type}' para 'monster' para o item '${item.name}'.`);
-          item.type = 'monster';
+  // **NOVO**: Sanitize combatState de forma agressiva
+  if (sanitized.combatState) {
+      if (!sanitized.combatState.isActive) {
+          sanitized.combatState = undefined;
+          sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
+      } else {
+          // Garante que `combatants` seja um array e limpa cada combatente.
+          if (!Array.isArray(sanitized.combatState.combatants)) {
+              sanitized.combatState.combatants = [];
+          }
+
+          sanitized.combatState.combatants = sanitized.combatState.combatants.map((c: any) => {
+              if (!c || typeof c !== 'object') return null; // Descarta combatentes inválidos
+
+              // Se a IA incluiu o objeto completo do jogador, limpa para o formato esperado.
+              if (c.type === 'player' || c.isPlayer) {
+                  return {
+                      id: c.id || 'player',
+                      name: c.name || currentCharacter?.name || 'Player',
+                      hp: c.attributes?.hp || { current: 1, max: 1 },
+                      ac: c.attributes?.ac,
+                      isPlayer: true,
+                      initiative: c.initiative === null ? undefined : c.initiative,
+                      // Mantenha apenas campos essenciais do schema
+                  };
+              }
+
+              // Para NPCs/Monstros, garanta que `initiative` não seja nulo.
+              return {
+                  ...c,
+                  initiative: c.initiative === null ? undefined : c.initiative,
+              };
+          }).filter(Boolean); // Remove quaisquer entradas nulas
       }
-      return item;
-    });
   }
 
-
-  // 6. Garante que os outros estados complexos sejam objetos válidos ou undefined, mas nunca null.
+  // Sanitize campos opcionais para serem undefined em vez de null/vazios.
   const fieldsToMakeUndefinedIfEmpty: (keyof GameMasterResponse)[] = [
     'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
   ];
@@ -162,7 +170,6 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       }
   });
 
-  // Anexa os logs de sanitização ao systemLog para depuração.
   if (sanitationLogs.length > 0) {
     const existingLog = sanitized.systemLog ? ` | ${sanitized.systemLog}` : '';
     sanitized.systemLog = `[Sanitizer Lógico] Correções: ${sanitationLogs.join(', ')}${existingLog}`;
