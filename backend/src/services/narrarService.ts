@@ -149,30 +149,26 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
     if (updates.inventory) {
         const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
         const existingItemsMap = new Map((character.items || []).map(item => [item.itemData.index || item.name, item]));
-        const itemsToUpsert: CharacterItem[] = [];
-        const itemsToRemove: CharacterItem[] = [];
-
+        
         for (const itemData of updates.inventory) {
             if (!itemData) continue;
             const itemKey = itemData.index || itemData.name;
             const existingItem = existingItemsMap.get(itemKey);
 
             if (itemData.quantity <= 0) {
-                if(existingItem) itemsToRemove.push(existingItem);
+                if(existingItem) await itemsRepo.remove(existingItem);
                 continue;
             }
 
             if (existingItem) {
                 existingItem.quantity = itemData.quantity;
                 existingItem.equipped = itemData.equipped || false;
-                itemsToUpsert.push(existingItem);
+                await itemsRepo.save(existingItem);
             } else {
                 const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
-                itemsToUpsert.push(newItem);
+                await itemsRepo.save(newItem);
             }
         }
-        if(itemsToUpsert.length > 0) await itemsRepo.save(itemsToUpsert);
-        if(itemsToRemove.length > 0) await itemsRepo.remove(itemsToRemove);
     }
     
     // Upsert Spells (optimized)
@@ -188,11 +184,8 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
         await upsertJournalEntries(queryRunner, updates.journal, characterId);
     }
 
-    // Upsert Relationships and Quests (optimized)
+    // Upsert Relationships and Quests (with deletion)
     if(updates.relationships && Array.isArray(updates.relationships)) {
-        const relationshipsToSave: Relationship[] = [];
-        const questsToSave: Quest[] = [];
-        
         for (const relData of updates.relationships) {
             if (!relData || !relData.npcId) continue;
             let relationship = (character.relationships || []).find(r => r.npcId === relData.npcId);
@@ -200,28 +193,28 @@ const persistCharacterUpdates = async (characterId: number, updates: any, queryR
                 relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
             }
             Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
-            relationshipsToSave.push(relationship);
-        }
+            const savedRel = await queryRunner.manager.save(relationship);
+            
+            // Sync Quests
+            if (relData.quests) {
+                const existingQuests = savedRel.quests || [];
+                const aiQuestIds = new Set(relData.quests.map((q: any) => q.id).filter(Boolean));
+                
+                // Delete quests not present in AI response
+                const questsToDelete = existingQuests.filter(q => !aiQuestIds.has(q.id));
+                if(questsToDelete.length > 0) await queryRunner.manager.remove(questsToDelete);
 
-        const savedRelationships = await queryRunner.manager.save(relationshipsToSave);
-        const relMap = new Map(savedRelationships.map(r => [r.npcId, r]));
-
-        for(const relData of updates.relationships) {
-            if (!relData.quests || !Array.isArray(relData.quests) || !relData.npcId) continue;
-            const savedRel = relMap.get(relData.npcId);
-            if(!savedRel) continue;
-
-            for(const questData of relData.quests) {
-                if (!questData || !questData.title) continue;
-                let quest = (savedRel.quests || []).find(q => q.id === questData.id);
-                if (!quest) {
-                    quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
+                // Upsert quests from AI response
+                for(const questData of relData.quests) {
+                    let quest = existingQuests.find(q => q.id === questData.id);
+                    if(!quest) {
+                        quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
+                    }
+                    Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
+                    await queryRunner.manager.save(quest);
                 }
-                Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
-                questsToSave.push(quest);
             }
         }
-        if(questsToSave.length > 0) await queryRunner.manager.save(questsToSave);
     }
 };
 
@@ -261,8 +254,8 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
 
     for (const key in fieldsToSanitize) {
         const field = key as keyof typeof fieldsToSanitize;
-        if (sanitized[field] === null) {
-            sanitizationLogs.push(`Sanitized ${field}: Was null, set to default.`);
+        if (sanitized[field] === null || sanitized[field] === undefined) {
+            sanitizationLogs.push(`Sanitized ${field}: Was null/undefined, set to default.`);
             sanitized[field] = fieldsToSanitize[field] as any;
         }
     }
@@ -344,7 +337,11 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
 
     let aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
     if (!aiResponse) {
-        throw createError(500, 'O Mestre de Jogo não conseguiu formular uma resposta.');
+        return {
+            logEntries: [{ type: 'system', content: 'O Mestre de Jogo está confuso e não conseguiu responder. Por favor, tente sua ação novamente.' }],
+            actionOptions: ['Tentar a última ação novamente', 'Fazer algo diferente'],
+            worldState: characterForAI.worldState,
+        }
     }
     
     aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
@@ -379,10 +376,19 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             logsToSave.push(playerLog);
         }
         
+        // Otimização: Truncar dados pesados antes de salvar o log de estado
+        const stateForLog = { ...aiResponse };
+        if(stateForLog.updatedCharacter?.inventory) {
+             stateForLog.updatedCharacter.inventory = `[${stateForLog.updatedCharacter.inventory.length} items]`;
+        }
+        if(stateForLog.updatedCharacter?.journal) {
+            stateForLog.updatedCharacter.journal = `[${stateForLog.updatedCharacter.journal.length} entries]`;
+        }
+
         const stateLog = logRepository.create({
             sessaoId: sessao.id,
             prompt: 'GM Full State',
-            response: JSON.stringify(aiResponse),
+            response: JSON.stringify(stateForLog),
             type: 'state',
         });
         logsToSave.push(stateLog);
@@ -432,3 +438,5 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         await queryRunner.release();
     }
 };
+
+    
