@@ -40,7 +40,7 @@ Sua resposta DEVE ser um único objeto JSON válido. Não inclua texto antes ou 
 
 1.  **Ação do Jogador:** Após qualquer narração, você **SEMPRE** deve apresentar de 2 a 4 opções de ação ('actionOptions') claras e contextuais para guiar o jogador. Esta é a principal forma de interação.
 2.  **Sua Resposta:** Sua resposta JSON **SEMPRE DEVE** conter o campo 'actionOptions'. Se o jogo estiver aguardando a entrada do jogador, este campo não pode estar vazio. Se você não fornecer opções, o jogo irá travar.
-3.  **Ações com Perícias:** Se uma 'actionOption' sugerida claramente envolve uma perícia, inclua um campo `"skill"` no objeto da ação com o nome da perícia em inglês (ex: `"skill": "Stealth"`).
+3.  **Ações com Perícias:** Se uma 'actionOption' sugerida claramente envolve uma perícia, inclua um campo "skill" no objeto da ação com o nome da perícia em inglês (ex: "skill": "Stealth").
 
 ---
 
