@@ -41,7 +41,7 @@ const normalizeWeather = (weatherString: string): string => {
         'nevando': 'Neve',
         'tempestuoso': 'Tempestade',
         'ensolarado': 'Ensolarado',
-        'ensonarado': 'Ensolarado',
+        'ensonarado': 'Ensolarado', // Corrigindo erro de digitação comum da IA
         'nublado': 'Nublado',
         'nevoeiro': 'Nevoeiro',
     };
@@ -96,7 +96,22 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   }
   
   // Sanitize actionOptions
-  if (!Array.isArray(sanitized.actionOptions)) {
+  if (Array.isArray(sanitized.actionOptions)) {
+    sanitized.actionOptions = sanitized.actionOptions.map(option => {
+        if (typeof option === 'string') {
+            return option;
+        }
+        if (typeof option === 'object' && option !== null && option.text) {
+            // If it's an object with `text` but missing `action`, create a default action.
+            if (!option.action) {
+                option.action = option.text.toLowerCase().replace(/[^a-z0-9]+/g, '_').substring(0, 50);
+                sanitationLogs.push(`actionOption "${option.text}" teve um campo 'action' gerado automaticamente.`);
+            }
+            return option;
+        }
+        return null; // Discard invalid options
+    }).filter(Boolean);
+  } else {
     sanitized.actionOptions = [];
     sanitationLogs.push('actionOptions não era um array, resetado para [].');
   }
@@ -140,21 +155,23 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
               if (!c || typeof c !== 'object') return null; // Descarta combatentes inválidos
 
               // Se a IA incluiu o objeto completo do jogador, limpa para o formato esperado.
-              if (c.type === 'player' || c.isPlayer) {
+              if (c.id === 'player' || c.name === currentCharacter?.name || c.isPlayer) {
                   return {
-                      id: c.id || 'player',
-                      name: c.name || currentCharacter?.name || 'Player',
-                      hp: c.attributes?.hp || { current: 1, max: 1 },
-                      ac: c.attributes?.ac,
+                      id: 'player',
+                      name: currentCharacter?.name || 'Player',
+                      hp: c.hp || currentCharacter?.attributes?.hp,
+                      ac: c.ac || currentCharacter?.attributes?.ac,
                       isPlayer: true,
                       initiative: c.initiative === null ? undefined : c.initiative,
-                      // Mantenha apenas campos essenciais do schema
                   };
               }
-
-              // Para NPCs/Monstros, garanta que `initiative` não seja nulo.
+              // Para NPCs/Monstros, garanta que `initiative` não seja nulo e que o HP seja um objeto.
+              const currentHp = typeof c.hp === 'object' ? c.hp.current : c.hp;
+              const maxHp = typeof c.hp === 'object' ? c.hp.max : c.maxHp;
+              
               return {
                   ...c,
+                  hp: { current: currentHp, max: maxHp },
                   initiative: c.initiative === null ? undefined : c.initiative,
               };
           }).filter(Boolean); // Remove quaisquer entradas nulas
@@ -166,7 +183,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitized.newHomebrewContent = sanitized.newHomebrewContent.map((content: any) => {
         if (!content || typeof content !== 'object' || !content.name) return null;
         
-        // Se o tipo é inválido ou ausente, tenta inferir que é um monstro.
+        // Se o tipo é inválido ou ausente, tenta inferir.
         if (!content.type || !VALID_HOMEBREW_TYPES.includes(content.type)) {
             // Heurística: se tiver 'hit_points' e 'armor_class', é provavelmente um monstro.
             if ('hit_points' in content && 'armor_class' in content) {
@@ -199,6 +216,3 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   return sanitized as GameMasterResponse;
 };
-
-
-    
