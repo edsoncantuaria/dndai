@@ -1,5 +1,5 @@
 // backend/src/services/safeMerge.ts
-import { QueryRunner } from 'typeorm';
+import { In, QueryRunner } from 'typeorm';
 import { Character } from '../entities/Character.js';
 import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
@@ -109,18 +109,19 @@ export const mergeCharacterUpdates = async (
       const key = item.index || item.name;
       updatedItemKeys.add(key);
       const existing = existingItemsMap.get(key);
+      const quantity = item.quantity === undefined ? 1 : item.quantity;
       
-      if (item.quantity <= 0) {
+      if (quantity <= 0) {
         if (existing) await itemsRepo.remove(existing);
         continue;
       }
       if (existing) {
-        existing.quantity = item.quantity;
+        existing.quantity = quantity;
         existing.equipped = item.equipped || false;
         existing.itemData = item; // Atualiza os dados completos
         await itemsRepo.save(existing);
       } else {
-        const newItem = itemsRepo.create({ characterId, name: item.name, quantity: item.quantity, equipped: item.equipped || false, itemData: item });
+        const newItem = itemsRepo.create({ characterId, name: item.name, quantity: quantity, equipped: item.equipped || false, itemData: item });
         await itemsRepo.save(newItem);
       }
     }
