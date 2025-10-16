@@ -23,7 +23,7 @@ ${regrasInventario}
 ${regrasCombate}
 `;
 
-const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
+const createPrompt = (input: GameMasterFlowInput) => {
     const { character, playerAction, gameLog, combatState, installedHomebrew } = input;
     
     // Create a leaner character object for the prompt
@@ -67,11 +67,7 @@ ${homebrewContext}
 
 A ação do jogador é: "${playerAction}"
 
-Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
-  
-    if (isGemma) {
-        return `${systemInstruction}\n\n${mainPrompt}`;
-    }
+Com base em tudo, continue a aventura.`;
   
     return mainPrompt;
 }
@@ -89,35 +85,20 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
       throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
     }
     const genAI = getGenAI(apiKey);
-    const isGemma = modelName.toLowerCase().includes('gemma');
 
     const model = genAI.getGenerativeModel({
         model: modelName,
-        ...(!isGemma && {
-            systemInstruction: {
-                role: "model",
-                parts: [{ text: systemInstruction }],
-            },
-        })
+        systemInstruction: {
+            role: "model",
+            parts: [{ text: systemInstruction }],
+        },
     });
-    
-    const jsonSchema = zodToJsonSchema(GameMasterResponseSchema, "GameMasterResponseSchema");
-    delete (jsonSchema as any).$ref;
-    delete (jsonSchema as any).definitions;
-    delete (jsonSchema as any).$schema;
 
-
-    const finalGenerationConfig: any = {
-        ...generationConfig,
-        ...(!isGemma && { 
-            responseMimeType: "application/json", 
-            responseSchema: jsonSchema 
-        }),
-    };
+    const finalGenerationConfig: any = { ...generationConfig };
     
     const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse> => {
         try {
-            let prompt = createPrompt(input, isGemma);
+            let prompt = createPrompt(input);
             if (isRetry) {
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
             }
@@ -141,16 +122,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             let responseData: any;
             try {
-                let textToParse = jsonText;
-                if (isGemma) {
-                    const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
-                    if (match) {
-                        textToParse = match[1];
-                    }
-                }
+                // Tenta extrair JSON de um bloco de código, comum em alguns modelos.
+                const match = jsonText.match(/```json\s*([\s\S]*?)\s*```/);
+                const textToParse = match ? match[1] : jsonText;
                 responseData = JSON.parse(textToParse);
             } catch(e: any) {
-                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
+                console.error(`[geminiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e.message);
                 console.error("[geminiService] JSON inválido recebido:", jsonText);
                 if (!isRetry) {
                     console.log("[geminiService] Tentando novamente com prompt de correção...");
@@ -159,12 +136,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido, mesmo após a correção: ${e.message}`);
             }
 
-            // Sanitize the raw response BEFORE validation
             const sanitizedResponse = sanitizeGameMasterResponse(responseData);
             console.log('[sanitizeAndProcessResponse] Sanitization applied:', sanitizedResponse.systemLog);
 
-
-            // Final validation with Zod on the sanitized data
             const validationResult = GameMasterResponseSchema.safeParse(sanitizedResponse);
             if (!validationResult.success) {
                 console.error("[geminiService] Validação Zod falhou:", validationResult.error.flatten());
