@@ -77,28 +77,45 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
 
 /**
  * 🔹 Mini-sanitizador inline:
- * Remove nulls, normaliza números e booleanos básicos antes de validar com Zod.
+ * Limpa a resposta bruta da IA, removendo nulls, strings inválidas e
+ * garantindo que campos de array críticos tenham um valor padrão seguro.
  */
 const miniSanitize = (raw: any): any => {
     if (!raw || typeof raw !== 'object') return {};
-    const clean: { [key: string]: any } = {};
+    
+    // Cria uma cópia para não modificar o objeto original diretamente durante a iteração
+    const clean = { ...raw };
 
-    for (const key of Object.keys(raw)) {
-        const val = raw[key];
-
-        // 1. Skip null or undefined values, effectively removing them.
-        if (val === null || val === undefined) {
+    for (const key of Object.keys(clean)) {
+        const val = clean[key];
+        
+        // Verifica se o valor é null, undefined, ou uma string que representa nulidade.
+        if (
+            val === null ||
+            val === undefined ||
+            (typeof val === 'string' && ['null', 'undefined', 'nan'].includes(val.trim().toLowerCase()))
+        ) {
+            // Garante que campos que devem ser arrays se tornem arrays vazios.
+            if (['actionOptions', 'logEntries', 'newHomebrewContent'].includes(key)) {
+                clean[key] = [];
+            } else {
+                // Outros campos nulos/inválidos são removidos para validação opcional.
+                delete clean[key];
+            }
             continue;
         }
 
-        // 2. Turn empty objects for specific keys into undefined, removing them.
-        if ((key === 'combatState' || key === 'playerRollRequest') && typeof val === 'object' && Object.keys(val).length === 0) {
+        // Converte objetos vazios para campos específicos em undefined, para que a validação `.optional()` do Zod funcione.
+        if (
+            (key === 'combatState' || key === 'playerRollRequest') &&
+            typeof val === 'object' &&
+            Object.keys(val).length === 0
+        ) {
+            delete clean[key];
             continue;
         }
-
-        // 3. Keep valid values.
-        clean[key] = val;
     }
+
     return clean;
 };
   
