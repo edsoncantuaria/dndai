@@ -52,7 +52,7 @@ Sua resposta **SEMPRE** deve ser um único objeto JSON válido, sem texto adicio
 \`\`\`
 
 **REGRAS CRÍTICAS DE FORMATAÇÃO JSON:**
-- **NUNCA USE NULL:** Para campos opcionais que são objetos ou arrays (como \`combatState\`, \`playerRollRequest\`, \`updatedCharacter\`, \`newHomebrewContent\`), se o campo não for aplicável, **NÃO** o inclua na resposta ou use um objeto/array vazio (\`{}\` ou \`[]\`). **NUNCA** retorne \`null\`.
+- **NUNCA USE NULL:** Para campos opcionais que são objetos ou arrays (como \`combatState\`, \`playerRollRequest\`, \`updatedCharacter\`, \`newHomebrewContent\`), se o campo não for aplicável, **OMITA O CAMPO OU USE UM OBJETO/ARRAY VAZIO** (\`{}\` ou \`[]\`). **NUNCA** retorne \`null\` para esses campos.
 - **logEntries DEVE SER UMA LISTA DE OBJETOS:** O campo \`logEntries\` **DEVE** sempre ser um array de OBJETOS, onde cada objeto tem os campos \`type\` e \`content\`. Ex: \`[{ "type": "narration", "content": "O sol se põe." }]\`. **NUNCA** retorne um array de strings ou de strings JSON.
 - **updatedCharacter:** **SEMPRE** retorne **APENAS** as propriedades que mudaram. Ex: \`{ "attributes": { "hp": 8 }, "xp": 50 }\`. **NUNCA** retorne o objeto de personagem inteiro.
 

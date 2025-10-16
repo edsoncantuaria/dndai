@@ -79,6 +79,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
 
 const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], characterId: number, parent: JournalEntry | null = null) => {
     for (const entryData of entries) {
+        if (!entryData || typeof entryData !== 'object') continue;
         let entry: JournalEntry | null = null;
         if(entryData.id) {
             entry = await queryRunner.manager.findOne(JournalEntry, { where: { id: entryData.id } });
@@ -108,106 +109,94 @@ const upsertJournalEntries = async (queryRunner: QueryRunner, entries: any[], ch
 
 
 // Persiste as atualizações do personagem no banco de dados de forma inteligente.
-const persistCharacterUpdates = async (characterId: number, updates: any) => {
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+const persistCharacterUpdates = async (characterId: number, updates: any, queryRunner: QueryRunner) => {
+    const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items", "spells", "journal", "relationships", "relationships.quests"] });
+    if (!character) throw new Error("Personagem não encontrado para atualização.");
 
-    try {
-        const character = await queryRunner.manager.getRepository(Character).findOne({ where: { id: characterId }, relations: ["items", "spells", "journal", "relationships", "relationships.quests"] });
-        if (!character) throw new Error("Personagem não encontrado para atualização.");
-
-        // Update direct character fields
-        const directFields = ['level', 'xp', 'storySoFar', 'factionReputation', 'worldState', 'currentRegion'];
-        directFields.forEach(field => {
-            if (updates[field] !== undefined) {
-                if (field === 'factionReputation' && updates[field]) {
-                    character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
-                } else if (field === 'worldState' && updates.worldState) {
-                    character.worldState = { ...(character.worldState || {}), ...updates.worldState };
-                     if (updates.worldState.currentRegion) {
-                        character.currentRegion = updates.worldState.currentRegion;
-                    }
-                } else {
-                    (character as any)[field] = updates[field];
+    // Update direct character fields
+    const directFields = ['level', 'xp', 'storySoFar', 'factionReputation', 'worldState', 'currentRegion'];
+    directFields.forEach(field => {
+        if (updates[field] !== undefined && updates[field] !== null) {
+            if (field === 'factionReputation') {
+                character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
+            } else if (field === 'worldState') {
+                character.worldState = { ...(character.worldState || {}), ...updates.worldState };
+                 if (updates.worldState.currentRegion) {
+                    character.currentRegion = updates.worldState.currentRegion;
                 }
+            } else {
+                (character as any)[field] = updates[field];
             }
-        });
-        await queryRunner.manager.save(character);
-
-        // Update attributes
-        if (updates.attributes) {
-            await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
         }
+    });
+    await queryRunner.manager.save(character);
 
-        // Upsert Inventory
-        if (updates.inventory) {
-            const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-            const existingItemsMap = new Map(character.items.map(item => [item.itemData.index || item.name, item]));
+    // Update attributes
+    if (updates.attributes) {
+        await queryRunner.manager.getRepository(CharacterAttributes).update({ characterId }, updates.attributes);
+    }
+
+    // Upsert Inventory
+    if (updates.inventory) {
+        const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
+        const existingItemsMap = new Map(character.items.map(item => [item.itemData.index || item.name, item]));
+        
+        for (const itemData of updates.inventory) {
+            const itemKey = itemData.index || itemData.name;
+            const existingItem = existingItemsMap.get(itemKey);
+
+            if (itemData.quantity <= 0) {
+                if(existingItem) await itemsRepo.remove(existingItem);
+                continue;
+            }
+
+            if (existingItem) {
+                existingItem.quantity = itemData.quantity;
+                existingItem.equipped = itemData.equipped || false;
+                await itemsRepo.save(existingItem);
+            } else {
+                const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
+                await itemsRepo.save(newItem);
+            }
+        }
+    }
+    
+    // Upsert Spells
+    if (updates.spells) {
+        const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
+        await spellsRepo.delete({ characterId }); // Simple clear and re-add is fine for spells
+        const newSpells = updates.spells.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
+        await spellsRepo.save(newSpells);
+    }
+
+    // Upsert Journal
+    if(updates.journal) {
+        await upsertJournalEntries(queryRunner, updates.journal, characterId);
+    }
+
+    // Upsert Relationships and Quests
+    if(updates.relationships) {
+        for (const relData of updates.relationships) {
+            if (!relData || !relData.npcId) continue;
+            let relationship = character.relationships.find(r => r.npcId === relData.npcId);
+            if (!relationship) {
+                relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
+            }
+            Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
+            const savedRel = await queryRunner.manager.save(relationship);
             
-            for (const itemData of updates.inventory) {
-                const itemKey = itemData.index || itemData.name;
-                const existingItem = existingItemsMap.get(itemKey);
-
-                if (itemData.quantity <= 0) {
-                    if(existingItem) await itemsRepo.remove(existingItem);
-                    continue;
-                }
-
-                if (existingItem) {
-                    existingItem.quantity = itemData.quantity;
-                    existingItem.equipped = itemData.equipped || false;
-                    await itemsRepo.save(existingItem);
-                } else {
-                    const newItem = itemsRepo.create({ characterId, name: itemData.name, quantity: itemData.quantity, equipped: itemData.equipped || false, itemData });
-                    await itemsRepo.save(newItem);
-                }
-            }
-        }
-        
-        // Upsert Spells
-        if (updates.spells) {
-            const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
-            await spellsRepo.delete({ characterId }); // Simple clear and re-add is fine for spells
-            const newSpells = updates.spells.map((spellName: string) => spellsRepo.create({ characterId, spellName }));
-            await spellsRepo.save(newSpells);
-        }
-
-        // Upsert Journal
-        if(updates.journal) {
-            await upsertJournalEntries(queryRunner, updates.journal, characterId);
-        }
-
-        // Upsert Relationships and Quests
-        if(updates.relationships) {
-            for (const relData of updates.relationships) {
-                let relationship = character.relationships.find(r => r.npcId === relData.npcId);
-                if (!relationship) {
-                    relationship = queryRunner.manager.getRepository(Relationship).create({ npcId: relData.npcId, characterId });
-                }
-                Object.assign(relationship, { name: relData.name, description: relData.description, status: relData.status, affinity: relData.affinity });
-                const savedRel = await queryRunner.manager.save(relationship);
-                
-                if (relData.quests) {
-                    for(const questData of relData.quests) {
-                        let quest = (savedRel.quests || []).find(q => q.id === questData.id);
-                        if (!quest) {
-                            quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
-                        }
-                        Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
-                        await queryRunner.manager.save(quest);
+            if (relData.quests) {
+                for(const questData of relData.quests) {
+                    if (!questData || !questData.title) continue;
+                    let quest = (savedRel.quests || []).find(q => q.id === questData.id);
+                    if (!quest) {
+                        quest = queryRunner.manager.getRepository(Quest).create({ id: questData.id || uuidv4(), relationshipId: savedRel.id });
                     }
+                    Object.assign(quest, { title: questData.title, status: questData.status, objectives: questData.objectives });
+                    await queryRunner.manager.save(quest);
                 }
             }
         }
-        
-        await queryRunner.commitTransaction();
-    } catch (error) {
-        await queryRunner.rollbackTransaction();
-        console.error("Erro ao persistir atualizações do personagem:", error);
-        throw createError(500, 'Falha ao salvar atualizações do personagem.');
-    } finally {
-        await queryRunner.release();
     }
 };
 
@@ -218,10 +207,22 @@ const sanitizeAndProcessResponse = (response: GameMasterResponse, characterState
     sanitized.worldState = sanitized.worldState ?? characterState.worldState ?? {};
     sanitized.combatState = sanitized.combatState ?? undefined;
     sanitized.playerRollRequest = sanitized.playerRollRequest ?? undefined;
-    sanitized.newHomebrewContent = sanitized.newHomebrewContent ?? undefined;
+    sanitized.newHomebrewContent = sanitized.newHomebrewContent ?? [];
     sanitized.levelUpState = sanitized.levelUpState ?? undefined;
     sanitized.shopState = sanitized.shopState ?? undefined;
     
+    // Ensure logEntries is an array of objects
+    if (Array.isArray(sanitized.logEntries)) {
+        sanitized.logEntries = sanitized.logEntries.map(entry => {
+            if (typeof entry === 'string') {
+                return { type: 'narration', content: entry };
+            }
+            return entry;
+        }).filter(entry => entry && typeof entry === 'object'); // Filter out null/invalid entries
+    } else {
+        sanitized.logEntries = [];
+    }
+
     // Ensure worldState is an object, falling back to the character's current state if null.
     if (!sanitized.worldState || typeof sanitized.worldState !== 'object') {
         sanitized.worldState = characterState.worldState || {};
@@ -307,7 +308,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     
     aiResponse = sanitizeAndProcessResponse(aiResponse, characterForAI);
     
-    
     if (aiResponse.playerRollRequest) {
         if (aiResponse.systemLog) {
             console.log("[narrarService] System Log para Player Roll Request:", aiResponse.systemLog);
@@ -323,58 +323,70 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         return aiResponse;
     }
 
-    const logRepository = AppDataSource.getRepository(SessionLog);
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
-    if(!isInternalAction) {
-        const playerLog = new SessionLog();
-        Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
-        await logRepository.save(playerLog);
-    }
-    
-    const stateLog = new SessionLog();
-    Object.assign(stateLog, {
-        sessaoId: sessao.id,
-        prompt: 'GM Full State',
-        response: JSON.stringify(aiResponse),
-        type: 'state',
-    });
-    await logRepository.save(stateLog);
+    try {
+        const logRepository = queryRunner.manager.getRepository(SessionLog);
 
-    if (aiResponse.logEntries) {
-        for (const entry of aiResponse.logEntries) {
-             if (entry?.content && typeof entry.content === 'string') {
-                const newLog = new SessionLog();
-                Object.assign(newLog, {
-                    sessaoId: sessao.id,
-                    prompt: 'GM Narration',
-                    response: entry.content,
-                    type: entry.type || 'narration',
-                    rollResult: entry.rollResult,
-                });
-                await logRepository.save(newLog);
-            }
+        const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+        if(!isInternalAction) {
+            const playerLog = new SessionLog();
+            Object.assign(playerLog, { sessaoId: sessao.id, prompt: playerAction, response: playerAction, type: 'action' });
+            await logRepository.save(playerLog);
         }
-    }
+        
+        const stateLog = new SessionLog();
+        Object.assign(stateLog, {
+            sessaoId: sessao.id,
+            prompt: 'GM Full State',
+            response: JSON.stringify(aiResponse),
+            type: 'state',
+        });
+        await logRepository.save(stateLog);
 
-    if (aiResponse.newHomebrewContent) {
-        for (const newContent of aiResponse.newHomebrewContent) {
-            try {
-                const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
-                if (!existing) {
-                    await HomebrewService.createHomebrewContent(userId, newContent);
+        if (aiResponse.logEntries) {
+            for (const entry of aiResponse.logEntries) {
+                 if (entry?.content && typeof entry.content === 'string') {
+                    const newLog = new SessionLog();
+                    Object.assign(newLog, {
+                        sessaoId: sessao.id,
+                        prompt: 'GM Narration',
+                        response: entry.content,
+                        type: entry.type || 'narration',
+                        rollResult: entry.rollResult,
+                    });
+                    await logRepository.save(newLog);
                 }
-            } catch (error) {
-                console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
             }
         }
-    }
 
-    if (aiResponse.updatedCharacter) {
-        await persistCharacterUpdates(sessao.character!.id, aiResponse.updatedCharacter);
-    } else if (aiResponse.worldState) {
-        await persistCharacterUpdates(sessao.character!.id, { worldState: aiResponse.worldState });
+        if (aiResponse.newHomebrewContent) {
+            for (const newContent of aiResponse.newHomebrewContent) {
+                try {
+                    const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
+                    if (!existing) {
+                        await HomebrewService.createHomebrewContent(userId, newContent);
+                    }
+                } catch (error) {
+                    console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
+                }
+            }
+        }
+
+        if (aiResponse.updatedCharacter || aiResponse.worldState) {
+            const updates = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
+            await persistCharacterUpdates(sessao.character!.id, updates, queryRunner);
+        }
+        
+        await queryRunner.commitTransaction();
+        return aiResponse;
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Erro na transação de narração:", error);
+        throw createError(500, 'Falha ao salvar o progresso da aventura.');
+    } finally {
+        await queryRunner.release();
     }
-    
-    return aiResponse;
 };
