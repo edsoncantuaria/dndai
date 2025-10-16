@@ -6,7 +6,7 @@ import { Dices, Check, Loader2, Target } from 'lucide-react';
 
 interface DiceRollModalProps {
   request: PlayerRollRequest;
-  onRoll: (result: { total: number; rolls: number[] }) => void;
+  onRoll: (result: { rawRoll: number; rolls: number[] }) => void;
   onClose: () => void;
   show: boolean;
 }
@@ -19,7 +19,7 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
   const [isRolling, setIsRolling] = useState(false);
   const [isDiceboxReady, setIsDiceboxReady] = useState(false);
   const [rollResult, setRollResult] = useState<{ total: number; rolls: number[] } | null>(null);
-  const [rollStatus, setRollStatus] = useState<RollStatus>('normal');
+  const [status, setStatus] = useState<RollStatus>('normal');
   const [hasRolled, setHasRolled] = useState(false);
 
   // Initialize DiceBox
@@ -86,40 +86,42 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
 
       const isD20Roll = request.dice === '1d20';
       if (isD20Roll && finalRawRoll === 20) {
-        setRollStatus('critical-success');
+        setStatus('critical-success');
       } else if (isD20Roll && finalRawRoll === 1) {
-        setRollStatus('critical-failure');
+        setStatus('critical-failure');
       } else if (request.dc !== undefined) {
-        setRollStatus(total >= request.dc ? 'success' : 'failure');
+        setStatus(total >= request.dc ? 'success' : 'failure');
       } else {
-        setRollStatus('normal');
+        setStatus('normal');
       }
-
+      
+      // Store the final calculated total and raw rolls for display
       setTimeout(() => {
-        setRollResult({ total, rolls: diceValues });
+        setRollResult({ total, rolls: diceValues, rawRoll: finalRawRoll });
         setIsRolling(false);
       }, 1500);
 
     } catch (e) {
-      console.error("Erro na rolagem de dados 3D:", e);
-      const fallbackRoll = Math.floor(Math.random() * 20) + 1;
-      const total = fallbackRoll + (request.modifier || 0);
-      if (request.dc) {
-         setRollStatus(total >= request.dc ? 'success' : 'failure');
-      }
-      setRollResult({ total, rolls: [fallbackRoll] });
-      setIsRolling(false);
+        console.error("Erro na rolagem de dados 3D:", e);
+        const fallbackRoll = Math.floor(Math.random() * 20) + 1;
+        const total = fallbackRoll + (request.modifier || 0);
+        if (request.dc) {
+            setStatus(total >= request.dc ? 'success' : 'failure');
+        }
+        setRollResult({ total, rolls: [fallbackRoll], rawRoll: fallbackRoll });
+        setIsRolling(false);
     }
   }, [request, isRolling, isDiceboxReady, hasRolled]);
 
   const handleContinue = () => {
     if (rollResult) {
-      onRoll(rollResult);
+      // Pass the raw roll and the individual dice rolls to the manager
+      onRoll({ rawRoll: rollResult.rawRoll, rolls: rollResult.rolls });
     }
   };
 
   const getResultPresentation = () => {
-    switch (rollStatus) {
+    switch (status) {
       case 'critical-success':
         return { color: 'text-green-400', text: 'Sucesso Crítico!' };
       case 'success':

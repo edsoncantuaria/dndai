@@ -1,4 +1,3 @@
-// src/contexts/GameStateContext.tsx
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
@@ -45,7 +44,7 @@ export interface GameStateContextType {
     handleSkillCheckSubmit: (description: string, modelOverride?: string) => void;
     castSpell: (spell: ApiSpell) => void;
     submitSpellCast: (spell: ApiSpell, description: string) => void;
-    handleRollResult: (result: { total: number; rolls: number[]; }) => void;
+    handleRollResult: (result: { rawRoll: number; rolls: number[]; }) => void;
     setCharacter: React.Dispatch<React.SetStateAction<Character | null>>;
     setLog: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setSessionId: React.Dispatch<React.SetStateAction<number | null>>;

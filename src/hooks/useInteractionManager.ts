@@ -70,9 +70,10 @@ export const useInteractionManager = () => {
     }, [clearTransientInteractions]);
 
     // --- Action Handlers that depend on processPlayerAction ---
-    const handleRollResult = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (result: { total: number; rolls: number[] }) => {
+    const handleRollResult = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (result: { rawRoll: number; rolls: number[] }) => {
         if (!playerRollRequest) return;
-        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${result.total}.`;
+        const total = result.rawRoll + (playerRollRequest.modifier || 0);
+        const actionText = `O resultado da minha rolagem de ${playerRollRequest.reason} foi ${total}. (Dado: ${result.rawRoll} + Mod: ${playerRollRequest.modifier})`;
         setPlayerRollRequest(null);
         processPlayerAction(actionText);
     }, [playerRollRequest]);
