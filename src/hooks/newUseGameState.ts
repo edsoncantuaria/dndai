@@ -43,11 +43,10 @@ export const useNewGameState = () => {
             return;
         }
 
+        // The 'sanitizeLogEntries' function in the backend now guarantees logEntries is an array of valid objects.
+        // Thus, we can trust the data structure here.
         if (!isRestoring && Array.isArray(response.logEntries)) {
-            const newLogEntries = response.logEntries.map((entry: any) => {
-                if (!entry) return null;
-                return { ...entry, id: uuidv4() }
-            }).filter(Boolean);
+            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             logState.addLogEntries(newLogEntries);
         }
 
@@ -55,13 +54,17 @@ export const useNewGameState = () => {
              characterState.updateCharacter(response.updatedCharacter);
         }
         
+        // Backend now guarantees worldState is an object if present.
         if (response.worldState) {
             characterState.updateCharacter({ worldState: response.worldState });
         }
         
-        if(response.playerRollRequest) {
+        if(response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
             interactionState.setRequest({ type: 'roll', request: response.playerRollRequest });
-            interactionState.setActionOptions(response.actionOptions || []);
+            // Don't clear action options if a roll is requested; some might be contextual like "Cancel"
+            if (response.actionOptions !== undefined) {
+                interactionState.setActionOptions(response.actionOptions);
+            }
             return;
         }
 
@@ -69,6 +72,7 @@ export const useNewGameState = () => {
             interactionState.setActionOptions(response.actionOptions);
         }
         
+        // Backend now guarantees combatState is an object if present.
         if (response.combatState) interactionState.setCombatState(response.combatState);
         
         if (response.levelUpState) interactionState.setRequest({ type: 'levelUp', request: response.levelUpState });
@@ -86,7 +90,7 @@ export const useNewGameState = () => {
         
         let finalSessionId = currentSessionId;
         if (finalSessionId === null || finalSessionId === undefined) {
-            finalSessionId = -1; 
+            finalSessionId = -1; // Use a mock session ID for tests
             console.log("[processPlayerAction] No active session. Running in test mode.");
             if (!characterState.character) {
                 const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' } as any);

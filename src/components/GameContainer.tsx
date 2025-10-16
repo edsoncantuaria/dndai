@@ -359,12 +359,10 @@ const GameContainer = () => {
             <SystemTestModal
                 isOpen={showTestModal}
                 onClose={() => setShowTestModal(false)}
-                characters={characters}
+                characters={characters as Character[]}
             />
         </>
     );
 };
 
 export default GameContainer;
-
-    

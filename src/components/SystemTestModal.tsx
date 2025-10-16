@@ -89,6 +89,8 @@ const DiceTestSection: React.FC = () => {
 
 const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Character[] }> = ({ onClose, characters }) => {
     const { 
+        triggerTestShop,
+        triggerTestCombat,
         handleSkillCheckSubmit,
         processPlayerAction,
         setCharacter, 
@@ -106,7 +108,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         if (id) {
             const charData = await GameService.getCharacterById(Number(id));
             if(charData) {
-                const fullChar = await characterUtils.buildFrontendCharacter(charData);
+                const fullChar = await characterUtils.buildFrontendCharacter(charData as any);
                 setCharacter(fullChar);
             }
         } else {
@@ -117,7 +119,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
     const handleTestSkill = () => {
         // Here we simulate the modal submit directly for testing the flow
-        handleSkillCheckSubmit('para testar a perícia.', tempModel);
+        handleSkillCheckSubmit(`para testar a perícia ${selectedSkill}`);
         onClose();
     };
 
@@ -208,19 +210,17 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     </button>
                 </div>
             </div>
-
             <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-400">5. Simular Cenários de Lógica</label>
+                <label className="block text-sm font-medium text-stone-400">5. Simular Cenários de UI</label>
                 <div className="grid grid-cols-2 gap-2">
-                    <button onClick={handleSimulateShop} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
-                        <Store className="h-4 w-4"/> Simular Loja
+                     <button onClick={() => { triggerTestShop(); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
+                        <Store className="h-4 w-4"/> Testar UI da Loja
                     </button>
-                    <button onClick={handleSimulateCombat} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
-                        <Swords className="h-4 w-4"/> Simular Combate
+                     <button onClick={() => { triggerTestCombat(); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-red-800 hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <Swords className="h-4 w-4"/> Testar UI de Combate
                     </button>
                 </div>
             </div>
-
         </div>
     );
 };

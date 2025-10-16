@@ -1,3 +1,4 @@
+// src/contexts/GameStateContext.tsx
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
@@ -41,8 +42,7 @@ export interface GameStateContextType {
     clearGameState: () => void;
     nextTurn: () => void;
     loadGameSession: (id: number) => Promise<{ character: Character; logs: any[] } | null>;
-    handleSkillCheck: (skillName: string) => void;
-    handleSkillCheckSubmit: (description: string) => void;
+    handleSkillCheckSubmit: (description: string, modelOverride?: string) => void;
     castSpell: (spell: ApiSpell) => void;
     submitSpellCast: (spell: ApiSpell, description: string) => void;
     handleRollResult: (result: { total: number; rolls: number[]; }) => void;
@@ -65,7 +65,6 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const contextValue = useMemo(() => ({
         ...gameState,
         // Ensure all functions are correctly bound and passed
-        handleSkillCheck: (skillName: string) => gameState.setSkillCheckRequest({ skillName }),
         castSpell: (spell: ApiSpell) => gameState.setSpellCastRequest({ spell }),
     }), [gameState]);
 
