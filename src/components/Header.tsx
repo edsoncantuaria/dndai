@@ -136,11 +136,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* HP */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Heart className="h-4 w-4 text-red-300"/>
                                     <div className="font-mono font-semibold text-sm sm:text-base"><span className="whitespace-nowrap">{hp?.current} / {hp?.max}</span></div>
                                     <div className="hidden sm:block text-xs font-bold text-red-300 uppercase">Vida</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Pontos de Vida</p>
@@ -150,11 +150,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* AC */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Shield className="h-4 w-4 text-blue-300"/>
                                     <div className="font-mono font-semibold text-sm sm:text-base">{ac?.value}</div>
                                     <div className="hidden sm:block text-xs font-bold text-blue-300 uppercase">CA</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Classe de Armadura</p>
@@ -164,11 +164,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* Initiative */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Zap className="h-4 w-4 text-green-300"/>
                                     <div className="font-mono font-semibold text-sm sm:text-base">{initiativeBonus >= 0 ? `+${initiativeBonus}`: initiativeBonus}</div>
                                     <div className="hidden sm:block text-xs font-bold text-green-300 uppercase">Iniciativa</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Iniciativa</p>
@@ -178,11 +178,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* Passive Perception */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Eye className="h-4 w-4 text-stone-400"/>
                                     <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.perception}</p>
                                     <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Percepção</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Percepção Passiva</p>
@@ -192,11 +192,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* Passive Insight */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Brain className="h-4 w-4 text-stone-400"/>
                                     <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.insight}</p>
                                     <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Intuição</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Intuição Passiva</p>
@@ -206,11 +206,11 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         {/* Passive Investigation */}
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <div className="flex flex-col items-center justify-center">
+                                <button className="flex flex-col items-center justify-center">
                                     <Search className="h-4 w-4 text-stone-400"/>
                                     <p className="font-mono font-semibold text-sm sm:text-base">{passiveScores.investigation}</p>
                                     <div className="hidden sm:block text-xs font-bold text-stone-400 uppercase">Investig.</div>
-                                </div>
+                                </button>
                             </TooltipTrigger>
                             <TooltipContent>
                                 <p>Investigação Passiva</p>
