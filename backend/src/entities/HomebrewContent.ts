@@ -16,13 +16,6 @@ export class HomebrewContent {
     @Column({ type: 'int' })
     authorId: number;
 
-    @Column({
-        type: 'enum',
-        enum: ['user', 'ai'],
-        default: 'user'
-    })
-    createdBy: 'user' | 'ai';
-
     @Index()
     @Column({
         type: 'enum',
@@ -39,6 +32,13 @@ export class HomebrewContent {
     @Index()
     @Column({ type: 'boolean', default: false })
     isPublic: boolean;
+    
+    @Column({
+        type: 'enum',
+        enum: ['user', 'ai'],
+        default: 'user'
+    })
+    createdBy: 'user' | 'ai';
 
     @CreateDateColumn()
     createdAt: Date;

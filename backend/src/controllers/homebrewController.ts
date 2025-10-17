@@ -71,25 +71,3 @@ export const getContentById = async (req: Request, res: Response, next: NextFunc
         next(error);
     }
 };
-
-
-// Nova função para buscar por nome
-export const findContentByName = async (req: Request, res: Response, next: NextFunction) => {
-    const { name, type } = req.query;
-
-    if (!name || !type) {
-        return next(createError(400, "Os parâmetros 'name' e 'type' são obrigatórios."));
-    }
-
-    try {
-        const content = await HomebrewService.findHomebrewContentByName(name as string, type as HomebrewContentType);
-        if (content) {
-            res.status(200).json(content);
-        } else {
-            // Retorna 404, que será tratado como "não encontrado" pelo cliente.
-            res.status(404).json({ message: 'Conteúdo não encontrado.'});
-        }
-    } catch (error) {
-        next(error);
-    }
-};

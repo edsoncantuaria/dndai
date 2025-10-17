@@ -4,7 +4,6 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
-import { ILike } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -21,14 +20,14 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     newContent.name = data.name;
     newContent.content = data.content;
     newContent.isPublic = data.isPublic || false;
-    newContent.createdBy = data.createdBy || 'user'; // Assumir 'user' se não especificado
-
+    newContent.createdBy = data.createdBy || 'user'; // REVALIDATE START: Default to 'user'
+    
     try {
         const savedContent = await homebrewRepo.save(newContent);
         return savedContent;
     } catch (error: any) {
         // Lidar com possíveis erros de banco de dados, como violações de constraint
-        console.error("Erro ao salvar conteúdo homebrew:", error);
+        console.error("Erro ao salvar conteúdo homebrew:", error); // TEMP LOG
         throw createError(500, 'Falha ao salvar o conteúdo no banco de dados.');
     }
 };
@@ -38,15 +37,12 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
  * @param type Opcional. Filtra o conteúdo por tipo.
  * @returns Uma lista de conteúdos homebrew.
  */
-export const getPublicHomebrewContent = async (type?: HomebrewContentType, createdBy?: 'user' | 'ai') => {
+export const getPublicHomebrewContent = async (type?: HomebrewContentType) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const whereCondition: { isPublic: boolean; type?: HomebrewContentType, createdBy?: 'user' | 'ai' } = { isPublic: true };
+    const whereCondition: { isPublic: boolean; type?: HomebrewContentType } = { isPublic: true };
 
     if (type) {
         whereCondition.type = type;
-    }
-    if (createdBy) {
-        whereCondition.createdBy = createdBy;
     }
 
     return homebrewRepo.find({
@@ -81,29 +77,10 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
         throw createError(404, 'Conteúdo Homebrew não encontrado.');
     }
 
-    // Se o conteúdo não for público e não for da IA, apenas o autor pode vê-lo.
-    if (!content.isPublic && content.createdBy !== 'ai' && content.authorId !== userId) {
+    // Se o conteúdo não for público, apenas o autor pode vê-lo.
+    if (!content.isPublic && content.authorId !== userId) {
         throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
     }
 
-    return content;
-};
-
-/**
- * Encontra um conteúdo homebrew pelo nome e tipo.
- * Útil para verificar se um item reutilizável já existe.
- * @param name O nome do conteúdo a ser encontrado.
- * @param type O tipo do conteúdo.
- * @returns O conteúdo homebrew encontrado ou null.
- */
-export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    // Usamos ILike para fazer uma busca case-insensitive no PostgreSQL, ou Like para MySQL
-    const content = await homebrewRepo.findOne({
-        where: {
-            name: ILike(name),
-            type: type,
-        }
-    });
     return content;
 };

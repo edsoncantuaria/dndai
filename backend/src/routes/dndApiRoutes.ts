@@ -20,14 +20,15 @@ const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}
 
 // Rota específica para servir os dados completos do backgrounds.json
 router.get('/backgrounds-data', async (req, res, next) => {
-    console.log('[Backend Route] Requisição para /backgrounds-data');
+    // TEMP LOG
+    console.debug('[Backend Route] Requisição para /backgrounds-data');
     try {
         const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
         const fileContent = await fs.readFile(filePath, 'utf-8');
         const data = JSON.parse(fileContent);
         res.json(data);
     } catch (error) {
-        console.error('Erro ao carregar backgrounds.json:', error);
+        console.error('Erro ao carregar backgrounds.json:', error); // TEMP LOG
         next(createError(500, 'Falha ao carregar dados de antecedentes.'));
     }
 });
@@ -36,21 +37,24 @@ router.get('/backgrounds-data', async (req, res, next) => {
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const resource = req.params.resource as HomebrewContentType;
-    console.log(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
+    // TEMP LOG
+    console.debug(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
 
-    // CORREÇÃO: Se a requisição for para 'backgrounds', servir diretamente do arquivo local.
+    // REVALIDATE START
+    // Se a requisição for para 'backgrounds', servir diretamente do arquivo local.
     if (resource === 'backgrounds') {
         try {
-            console.log('[Backend Route] Rota de /backgrounds detectada. Servindo JSON local.');
+            console.debug('[Backend Route] Rota de /backgrounds detectada. Servindo JSON local.'); // TEMP LOG
             const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
             const fileContent = await fs.readFile(filePath, 'utf-8');
             const data = JSON.parse(fileContent);
             return res.json(data);
         } catch (error) {
-            console.error('Erro ao carregar backgrounds.json para /:resource:', error);
+            console.error('Erro ao carregar backgrounds.json para /:resource:', error); // TEMP LOG
             return next(createError(500, 'Falha ao carregar dados de antecedentes.'));
         }
     }
+    // REVALIDATE END
 
 
     try {
@@ -87,24 +91,27 @@ router.get('/:resource', async (req, res, next) => {
 // Rota para buscar detalhes de um recurso específico
 router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
-    console.log(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
+    // TEMP LOG
+    console.debug(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
 
     try {
         let data;
+        // REVALIDATE START: Verifica se o índice é um UUID para buscar no Homebrew
         if (isUuid(index)) {
-             console.log(`[Backend Route] ID é um UUID, buscando no HomebrewService.`);
+             console.debug(`[Backend Route] ID é um UUID, buscando no HomebrewService.`); // TEMP LOG
              const hbContent = await HomebrewService.getHomebrewContentById(index);
              if (!hbContent) {
                 return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              }
              data = hbContent.content;
         } else {
-            console.log(`[Backend Route] ID não é UUID, buscando no DndApiService.`);
+            // REVALIDATE END
+            console.debug(`[Backend Route] ID não é UUID, buscando no DndApiService.`); // TEMP LOG
             data = await DndApiService.getDetails(resource, index);
         }
         
         if (!data) {
-            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`);
+            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`); // TEMP LOG
             return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         }
         res.json(data);
@@ -116,9 +123,11 @@ router.get('/:resource/:index', async (req, res, next) => {
 // Rota específica para níveis de classe (que tem uma estrutura de URL diferente)
 router.get('/classes/:classIndex/levels', async (req, res, next) => {
     const { classIndex } = req.params;
-    console.log(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
+    // TEMP LOG
+    console.debug(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
     try {
         let data;
+        // REVALIDATE START: Adiciona lógica para buscar níveis de classes homebrew
         if (isUuid(classIndex)) {
             const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
             if (!hbContent) {
@@ -137,6 +146,7 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
             data = levelsData;
 
         } else {
+        // REVALIDATE END
             data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
         }
 
@@ -149,10 +159,11 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
     }
 });
 
+// REVALIDATE START: Adiciona rotas para magias de classe e níveis de subclasse para homebrew
 // Rota para magias de classe
 router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
-    console.log(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
+    console.debug(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`); // TEMP LOG
     try {
         if (isUuid(classIndex)) {
              const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
@@ -177,7 +188,7 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
 // Rota para níveis de subclasse
 router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
     const { subclassIndex } = req.params;
-    console.log(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`);
+    console.debug(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`); // TEMP LOG
     try {
         let data;
         if (isUuid(subclassIndex)) {
@@ -204,6 +215,7 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
         next(error);
     }
 });
+// REVALIDATE END
 
 
 export default router;
