@@ -1,6 +1,6 @@
 // src/components/NewCreationCharacter/NewStep7_Feats.tsx
 'use client';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import type { Feat } from '@/types';
@@ -14,28 +14,27 @@ interface Props {
 const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const {
         isVariantHuman,
-        availableFeats,
-        isFeatsLoading,
+        details: { availableFeats },
+        loadingStates,
         selectedFeat,
-        handleFeatSelection,
+        setField,
+        fetchFeats,
     } = hook;
+    
+    useEffect(() => {
+        if (isVariantHuman) {
+            fetchFeats();
+        }
+    }, [isVariantHuman, fetchFeats]);
 
-    // This step is only relevant for Variant Humans or other future races that get a feat at level 1.
     if (!isVariantHuman) {
-        // Silently call nextStep if this step is not applicable
         React.useEffect(() => {
             nextStep();
         }, [nextStep]);
-        
-        return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Avançando para a próxima etapa...</p>
-            </div>
-        );
+        return null; // Render nothing, as the effect will navigate away
     }
     
-    if (isFeatsLoading) {
+    if (loadingStates.feats) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
@@ -59,7 +58,7 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                 type="radio"
                                 name="feat-selection"
                                 checked={selectedFeat === feat.index}
-                                onChange={() => handleFeatSelection(feat.index)}
+                                onChange={() => setField('selectedFeat', feat.index)}
                                 className="form-radio h-5 w-5 text-amber-500 bg-stone-900 border-stone-600 focus:ring-amber-500 mt-1"
                             />
                             <div>

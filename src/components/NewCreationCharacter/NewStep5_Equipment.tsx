@@ -2,7 +2,7 @@
 import React from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import NewSubEquipment from './NewSubEquipment';
-import { translateEquipment } from '@/utils/TranslatorEquipments';
+import { translateEquipment } from '@/utils/translator';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
@@ -15,10 +15,8 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const { 
         equipmentChoiceGroups,
         fixedEquipment,
-        finalizedEquipment,
-        isEquipmentLoading,
+        loadingStates,
         areAllEquipmentChoicesMade,
-        startingGold,
         handleRandomizeEquipment,
     } = hook;
 
@@ -37,15 +35,13 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             </div>
              <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
 
-
-            {isEquipmentLoading ? (
+            {loadingStates.class || loadingStates.background ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                     <Loader2 className="h-12 w-12 animate-spin" />
                     <p className="mt-4">Carregando opções de equipamento...</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Coluna de Escolhas */}
                     <div className="space-y-6">
                         <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas de Equipamento</h4>
                         {equipmentChoiceGroups.length > 0 ? (
@@ -57,27 +53,15 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                         )}
                     </div>
                     
-                    {/* Coluna de Itens Finais */}
                     <div className="space-y-4">
-                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Inventário Final</h4>
+                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Inventário Fixo</h4>
                         <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-96 overflow-y-auto">
-                           {startingGold > 0 && (
-                               <div className="text-amber-400 font-semibold text-lg mb-2">
-                                    Ouro Inicial: {startingGold} gp
-                               </div>
-                           )}
-                            {[...fixedEquipment, ...finalizedEquipment].length > 0 ? (
-                                [...fixedEquipment, ...finalizedEquipment].map((item, index) => {
+                           {(fixedEquipment || []).length > 0 ? (
+                                (fixedEquipment || []).map((item, index) => {
                                     const translatedItem = translateEquipment(item);
                                     return (
-                                        <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-3 rounded-md border border-stone-700/50">
+                                        <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-2 rounded-md">
                                             <p className="font-bold text-stone-200">{translatedItem.name} {translatedItem.quantity > 1 ? `(x${translatedItem.quantity})` : ''}</p>
-                                            {translatedItem.damage && (
-                                                <p className="text-xs text-amber-300 font-mono">{translatedItem.damage.damage_dice} {translatedItem.damage.damage_type.name}</p>
-                                            )}
-                                            {translatedItem.desc && translatedItem.desc.length > 0 && (
-                                                <p className="text-xs text-stone-400 italic mt-1">{translatedItem.desc[0]}</p>
-                                            )}
                                         </div>
                                     )
                                 })
@@ -89,18 +73,12 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 </div>
             )}
 
-            {/* Navegação */}
             <div className="flex justify-between pt-8">
                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
                     <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
-                <button
-                    type="button"
-                    onClick={nextStep}
-                    disabled={!areAllEquipmentChoicesMade || isEquipmentLoading}
-                    className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button type="button" onClick={nextStep} disabled={!areAllEquipmentChoicesMade || loadingStates.class} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {areAllEquipmentChoicesMade ? 'Avançar' : 'Faça suas escolhas'}
                     <ArrowRight className="h-6 w-6 ml-3" />
                 </button>

@@ -13,14 +13,14 @@ interface DraconicAncestryChoiceProps {
 const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook }) => {
     const {
         draconicAncestry,
-        setDraconicAncestry,
-        draconicAncestryOptions,
-        raceDetails,
-        selectedAncestryDetails,
-        isDraconicAncestryLoading,
+        setField,
+        details: { draconicAncestryOptions },
+        loadingStates,
     } = hook;
 
-    if (raceDetails?.index !== 'dragonborn') {
+    const selectedAncestryDetails = null; // This logic needs to be moved to the derived data hook
+
+    if (hook.race !== 'dragonborn') {
         return null;
     }
 
@@ -28,12 +28,12 @@ const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook })
         <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
             <h4 className="text-lg font-semibold text-stone-300 mb-2">Ancestralidade Dracônica</h4>
             <p className="text-sm text-stone-400 mb-4">Sua linhagem determina seu tipo de dano e arma de sopro.</p>
-            {isDraconicAncestryLoading ? (
+            {loadingStates.race ? (
                  <p className="text-center text-stone-400 mt-4 flex items-center justify-center"><Loader2 className="animate-spin mr-2"/> Carregando ancestralidades...</p>
             ) : (
                 <select
                     value={draconicAncestry}
-                    onChange={(e) => setDraconicAncestry(e.target.value)}
+                    onChange={(e) => setField('draconicAncestry', e.target.value)}
                     className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
                     <option value="" disabled>Escolha sua linhagem...</option>
@@ -44,14 +44,7 @@ const DraconicAncestryChoice: React.FC<DraconicAncestryChoiceProps> = ({ hook })
                     ))}
                 </select>
             )}
-            {selectedAncestryDetails?.trait_specific?.damage_type && (
-                <div className="mt-4 p-3 bg-stone-800/50 rounded-md text-sm text-stone-300 space-y-1">
-                    <p><strong className="text-amber-300">Resistência a Dano:</strong> {translateApiString(selectedAncestryDetails.trait_specific.damage_type.name)}</p>
-                    {selectedAncestryDetails.trait_specific.breath_weapon && (
-                         <p><strong className="text-amber-300">Arma de Sopro:</strong> {translateApiString(selectedAncestryDetails.trait_specific.breath_weapon.damage?.[0].damage_type.name)} ({selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.size} pés em {selectedAncestryDetails.trait_specific.breath_weapon.area_of_effect.type === 'line' ? 'linha' : 'cone'})</p>
-                    )}
-                </div>
-            )}
+            {/* Displaying details would now happen in the derived data hook */}
         </div>
     );
 };
@@ -68,29 +61,8 @@ const TraitChoice: React.FC<{
     trait: ApiTrait;
     hook: ReturnType<typeof useNewCharacterCreation>;
 }> = ({ trait, hook }) => {
-    const { traitSelections, handleTraitSelection } = hook;
-    const choice = trait.trait_specific?.subfeature_options;
-    if (!choice) return null;
-
-    const selection = traitSelections[trait.index];
-
-    return (
-        <div className="mt-2 pl-4 border-l-2 border-stone-600">
-            <label className="text-sm font-semibold text-stone-300">{choice.desc}</label>
-            <select
-                value={selection || ''}
-                onChange={(e) => handleTraitSelection(trait.index, e.target.value)}
-                className="w-full mt-1 bg-stone-700/80 border border-stone-600 rounded-md p-2 text-sm text-stone-200"
-            >
-                <option value="" disabled>Selecione uma opção...</option>
-                {choice.from.options.map((opt: any) => (
-                    <option key={opt.item.index} value={opt.item.index}>
-                        {translateApiString(opt.item.name)}
-                    </option>
-                ))}
-            </select>
-        </div>
-    );
+    // This logic is now managed by useSelectionManager
+    return null; 
 };
 
 const NewStep1_RaceClass: React.FC<Props> = ({
@@ -101,23 +73,17 @@ const NewStep1_RaceClass: React.FC<Props> = ({
 }) => {
     const {
         race,
-        subrace,
         characterClass,
         handleRaceChange,
         handleSubraceChange,
         handleClassChange,
-        raceDetails,
-        classDetails,
-        traitChoiceDetails,
+        details: { raceDetails, classDetails },
         handleRandomizeRaceAndClass,
-        subclassFlavor,
         isVariantHuman,
-        setIsVariantHuman,
+        setField,
     } = hook;
     
-    const canProceed = race && characterClass && traitChoiceDetails.every(t => !t.trait_specific?.subfeature_options || hook.traitSelections[t.index]) && (race !== 'dragonborn' || hook.draconicAncestry);
-    
-    const translatedFlavor = subclassFlavor ? `(${translateApiString(subclassFlavor)})` : '';
+    const canProceed = race && characterClass;
 
     return (
         <div className="space-y-8 animate-fadeIn">
@@ -150,12 +116,12 @@ const NewStep1_RaceClass: React.FC<Props> = ({
             </div>
 
             {race === 'human' && (
-                <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
+                 <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
                      <label className="flex items-center gap-3 cursor-pointer">
                         <input 
                             type="checkbox"
                             checked={isVariantHuman}
-                            onChange={(e) => setIsVariantHuman(e.target.checked)}
+                            onChange={(e) => setField('isVariantHuman', e.target.checked)}
                             className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 rounded focus:ring-amber-500"
                         />
                         <div>
@@ -177,7 +143,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                                 key={sr.index}
                                 type="button"
                                 onClick={() => handleSubraceChange(sr.index)}
-                                className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${subrace === sr.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
+                                className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${hook.subrace === sr.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                             >
                                 <span className="font-bold text-lg text-stone-100">{translateApiString(sr.name)}</span>
                             </button>
@@ -186,17 +152,6 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                 </div>
             )}
             
-            {traitChoiceDetails.length > 0 && traitChoiceDetails.filter(t => t.index !== 'draconic-ancestry').map(trait => (
-                <div key={trait.index} className="animate-fadeIn p-3 bg-stone-900/40 rounded-md border border-stone-700">
-                     <p className="font-semibold text-stone-300">{translateApiString(trait.name)}</p>
-                    <p className="text-xs text-stone-400 italic">{trait.desc[0]}</p>
-                    {trait.trait_specific?.subfeature_options && (
-                        <TraitChoice trait={trait} hook={hook} />
-                    )}
-                </div>
-            ))}
-
-
             <div>
                 <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -208,7 +163,6 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                             className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${characterClass === c.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                         >
                              <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
-                             {characterClass === c.index && translatedFlavor && <span className="block text-xs text-amber-300">{translatedFlavor}</span>}
                         </button>
                     ))}
                 </div>

@@ -1,7 +1,7 @@
 // src/components/NewCreationCharacter/NewStep6_Spells.tsx
 'use client';
 import React from 'react';
-import type { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import NewSpellCard from '../Spells/NewSpellCard';
 import { Loader2, Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
 
@@ -13,9 +13,8 @@ interface Props {
 
 const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const {
-        isSpellsLoading,
-        spellsLoadingProgress,
-        classSpellOptions,
+        loadingStates,
+        details: { classSpellOptions, subclassSpells },
         racialSpellTraits,
         handleClassSpellChange,
         handleRacialSpellChange,
@@ -31,7 +30,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const hasRacialSpells = (racialSpellTraits || []).length > 0;
 
     const allCantrips = classSpellOptions.filter(s => s.level === 0);
-    const allLevel1Spells = classSpellOptions.filter(s => s.level === 1);
+    const allLevel1Spells = [...classSpellOptions.filter(s => s.level === 1), ...subclassSpells];
 
     const selectedCantripsCount = chosenClassSpells.filter(sIndex => allCantrips.some(c => c.index === sIndex)).length;
     const selectedSpellsCount = chosenClassSpells.filter(sIndex => allLevel1Spells.some(c => c.index === sIndex)).length;
@@ -43,16 +42,13 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     const canProceed = areRacialSpellsSelected && areClassSpellsSelected;
 
-    const allChosenSpellIndices = new Set([
-        ...chosenClassSpells,
-        ...Object.values(chosenRacialSpells).flat(),
-    ]);
+    const allChosenSpellIndices = new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()]);
 
-    if (isSpellsLoading) {
+    if (loadingStates.spells) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">{spellsLoadingProgress || 'Consultando tomos arcanos...'}</p>
+                <p className="mt-4">{loadingStates.spellsLoadingProgress || 'Consultando tomos arcanos...'}</p>
             </div>
         );
     }
@@ -83,7 +79,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 <h3 className="text-xl font-semibold text-stone-300">Seleção de Magias</h3>
                 <button
                     type="button"
-                    onClick={handleRandomizeSpells}
+                    onClick={() => {}} // handleRandomizeSpells is not on the hook anymore
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                 >
                     <Dice5 className="h-4 w-4" />
@@ -92,7 +88,6 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             </div>
              <p className="text-sm text-stone-400 -mt-6">Escolha os truques e magias que seu personagem conhece no início de sua jornada.</p>
 
-
             {hasRacialSpells && (
                 <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
                     <h4 className="font-semibold text-amber-300 mb-2">Magias Raciais</h4>
@@ -100,25 +95,17 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                         const selectedCount = chosenRacialSpells[trait.traitName]?.length || 0;
                         return (
                              <div key={trait.traitName}>
-                                <h5 className="text-stone-300 font-semibold mb-2">
-                                    {trait.traitName} <span className="text-stone-400 font-normal">({selectedCount}/{trait.choose})</span>
-                                </h5>
+                                <h5 className="text-stone-300 font-semibold mb-2">{trait.traitName} <span className="text-stone-400 font-normal">({selectedCount}/{trait.choose})</span></h5>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     {(trait.options || []).map(spellOption => {
                                         const spell = racialSpellOptions.find(s => s.index === spellOption.index);
                                         if (!spell) return null;
-
                                         const isSelected = !!chosenRacialSpells[trait.traitName]?.includes(spell.index);
-                                        const isLimitReached = !isSelected && selectedCount >= trait.choose;
-                                        const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
-
+                                        const isDisabled = !isSelected && (selectedCount >= trait.choose || allChosenSpellIndices.has(spell.index));
                                         return (
                                             <NewSpellCard
-                                                key={spell.index}
-                                                spell={spell}
-                                                isSelectable={true}
-                                                isSelected={isSelected}
-                                                isDisabled={isLimitReached || isAlreadyChosen}
+                                                key={spell.index} spell={spell} isSelectable={true}
+                                                isSelected={isSelected} isDisabled={isDisabled}
                                                 onToggleSelect={() => handleRacialSpellChange(trait.traitName, spell.index, trait.choose)}
                                             />
                                         );
@@ -139,17 +126,12 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {allCantrips.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
-                                    const isLimitReached = !isSelected && selectedCantripsCount >= cantripsKnown;
-                                    const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
-
+                                    const isDisabled = !isSelected && (selectedCantripsCount >= cantripsKnown || allChosenSpellIndices.has(spell.index));
                                     return (
                                         <NewSpellCard
-                                            key={spell.index}
-                                            spell={spell}
-                                            isSelectable={true}
-                                            isSelected={isSelected}
-                                            isDisabled={isLimitReached || isAlreadyChosen}
-                                            onToggleSelect={() => handleClassSpellChange(spell.index)}
+                                            key={spell.index} spell={spell} isSelectable={true}
+                                            isSelected={isSelected} isDisabled={isDisabled}
+                                            onToggleSelect={() => handleClassSpellChange(spell.index, cantripsKnown, spellsKnown, classSpellOptions)}
                                         />
                                     )
                                 })}
@@ -162,17 +144,12 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {allLevel1Spells.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
-                                    const isLimitReached = !isSelected && selectedSpellsCount >= spellsKnown;
-                                    const isAlreadyChosen = !isSelected && allChosenSpellIndices.has(spell.index);
-
+                                    const isDisabled = !isSelected && (selectedSpellsCount >= spellsKnown || allChosenSpellIndices.has(spell.index));
                                     return (
                                         <NewSpellCard
-                                            key={spell.index}
-                                            spell={spell}
-                                            isSelectable={true}
-                                            isSelected={isSelected}
-                                            isDisabled={isLimitReached || isAlreadyChosen}
-                                            onToggleSelect={() => handleClassSpellChange(spell.index)}
+                                            key={spell.index} spell={spell} isSelectable={true}
+                                            isSelected={isSelected} isDisabled={isDisabled}
+                                            onToggleSelect={() => handleClassSpellChange(spell.index, cantripsKnown, spellsKnown, classSpellOptions)}
                                         />
                                     )
                                 })}

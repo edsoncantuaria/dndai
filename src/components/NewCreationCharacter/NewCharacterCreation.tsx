@@ -1,5 +1,4 @@
 // src/components/NewCreationCharacter/NewCharacterCreation.tsx
-'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
 import { useGameStateContext } from '@/contexts/GameStateContext';
@@ -65,7 +64,6 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             setShowConfirmationModal(false);
             const result = await createCharacter(finalCharacterData);
             if (result) {
-                // Avisa o componente pai que a criação terminou com sucesso.
                 onCharacterCreated();
             }
         } else {
@@ -103,7 +101,6 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         }
     };
     
-    // Se o personagem estiver sendo criado/carregado, mostra um loader.
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">

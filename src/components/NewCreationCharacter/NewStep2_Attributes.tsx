@@ -3,7 +3,7 @@ import React from 'react';
 import type { Attributes } from '@/types';
 import { translateAttribute } from '@/utils/translator';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Dice5, Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star, PlusSquare } from 'lucide-react';
+import { Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star, PlusSquare } from 'lucide-react';
 import { getCostForScore } from '@/utils/creationHelpers';
 
 interface Props {
@@ -15,13 +15,7 @@ interface Props {
 const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
 const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
-    const {
-        baseAttributes,
-        points,
-        handleAttributeChange,
-        handleSuggestAttributes,
-        characterClass,
-    } = hook;
+    const { baseAttributes, points, handleAttributeChange, handleSuggestAttributes } = hook;
 
     return (
         <div className="space-y-4">
@@ -31,8 +25,8 @@ const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
                     <button
                         type="button"
                         onClick={handleSuggestAttributes}
-                        disabled={!characterClass}
-                        title={!characterClass ? "Selecione uma classe primeiro" : "Sugerir atributos para a classe selecionada"}
+                        disabled={!hook.characterClass}
+                        title={!hook.characterClass ? "Selecione uma classe primeiro" : "Sugerir atributos para a classe selecionada"}
                         className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Star className="h-4 w-4" />
@@ -54,21 +48,11 @@ const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
                         <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center flex flex-col justify-between">
                             <label className="font-bold text-lg text-stone-200 font-garamond">{translateAttribute(attr)}</label>
                             <div className="flex items-center justify-center gap-3 my-3">
-                                <button
-                                    type="button"
-                                    onClick={() => handleAttributeChange(attr, -1)}
-                                    disabled={currentScore <= 8}
-                                    className="p-2 rounded-full bg-stone-700 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
+                                <button type="button" onClick={() => handleAttributeChange(attr, -1)} disabled={currentScore <= 8} className="p-2 rounded-full bg-stone-700 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                                     <Minus className="h-5 w-5" />
                                 </button>
                                 <p className="text-4xl font-bold text-amber-300 w-16">{currentScore}</p>
-                                <button
-                                    type="button"
-                                    onClick={() => handleAttributeChange(attr, 1)}
-                                    disabled={currentScore >= 15 || points < costToIncrease}
-                                    className="p-2 rounded-full bg-stone-700 hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
+                                <button type="button" onClick={() => handleAttributeChange(attr, 1)} disabled={currentScore >= 15 || points < costToIncrease} className="p-2 rounded-full bg-stone-700 hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                                     <Plus className="h-5 w-5" />
                                 </button>
                             </div>
@@ -85,16 +69,11 @@ const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 
 const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
     const { baseAttributes, handleRollAttributes } = hook;
-
     return (
         <div className="space-y-4">
             <div className="flex justify-between items-center flex-wrap gap-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
                 <h3 className="text-xl font-semibold text-stone-300">Rolagem de Dados (4d6, descarte o menor)</h3>
-                <button
-                    type="button"
-                    onClick={handleRollAttributes}
-                    className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-2 px-4 rounded-md transition-colors"
-                >
+                <button type="button" onClick={handleRollAttributes} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-2 px-4 rounded-md transition-colors">
                     <RefreshCw className="h-4 w-4" />
                     Rolar Novamente
                 </button>
@@ -111,17 +90,16 @@ const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
     );
 };
 
-
 const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const { 
         attributeMethod, 
-        setAttributeMethod, 
+        setField,
         racialBonuses, 
         finalAttributes, 
         points, 
         isVariantHuman, 
         variantHumanBonusSelections,
-        handleVariantHumanBonusSelection 
+        handleVariantHumanBonusSelection,
     } = hook;
     const canProceed = (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) && (!isVariantHuman || variantHumanBonusSelections.length === 2);
 
@@ -131,8 +109,8 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 <div className="text-center space-y-4">
                     <h3 className="text-xl font-semibold text-stone-300">Como você quer determinar seus atributos?</h3>
                     <div className="flex justify-center gap-4">
-                        <button onClick={() => setAttributeMethod('point-buy')} className="menu-button btn-new">Compra de Pontos</button>
-                        <button onClick={() => setAttributeMethod('roll')} className="menu-button btn-import">Rolar Dados</button>
+                        <button onClick={() => setField('attributeMethod', 'point-buy')} className="menu-button btn-new">Compra de Pontos</button>
+                        <button onClick={() => setField('attributeMethod', 'roll')} className="menu-button btn-import">Rolar Dados</button>
                     </div>
                 </div>
             ) : (
@@ -153,7 +131,11 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                             return (
                                 <button
                                     key={attr}
-                                    onClick={() => handleVariantHumanBonusSelection(attr)}
+                                    onClick={() => hook.setField('variantHumanBonusSelections', (prev: any) => {
+                                        if (isSelected) return prev.filter((a: any) => a !== attr);
+                                        if (prev.length < 2) return [...prev, attr];
+                                        return prev;
+                                    })}
                                     disabled={isDisabled}
                                     className={`p-2 rounded-md border-2 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed ${isSelected ? 'bg-amber-800/70 border-amber-500' : 'bg-stone-800/50 border-stone-700 hover:border-amber-600'}`}
                                 >
@@ -190,20 +172,11 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             )}
 
             <div className="flex justify-between pt-8">
-                 <button
-                    type="button"
-                    onClick={prevStep}
-                    className="menu-button btn-import max-w-xs"
-                >
+                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
                     <ArrowLeft className="h-6 w-6 mr-3"/>
                     Voltar
                 </button>
-                <button
-                    type="button"
-                    onClick={nextStep}
-                    disabled={!canProceed}
-                    className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {canProceed ? 'Avançar' : 'Faça suas escolhas'}
                     <ArrowRight className="h-6 w-6 ml-3"/>
                 </button>
