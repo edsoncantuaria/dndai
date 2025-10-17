@@ -58,6 +58,21 @@ Ao iniciar, o TypeORM irá se conectar ao banco de dados e, como a opção `sync
 
 O servidor estará rodando em `http://localhost:8071`.
 
+### 5. Populando o Banco de Dados (Seeding)
+
+Para que o jogo funcione com as traduções e os dados base (antecedentes, magias, itens), você precisa popular o banco de dados. Isso é feito através de um script que lê os arquivos de dados e os insere na tabela de conteúdo "homebrew".
+
+**Importante:** Execute este comando sempre que você limpar ou recriar o banco de dados.
+
+```bash
+npm run seed:data
+```
+
+Este comando irá:
+- Garantir que um usuário "Sistema" exista.
+- Ler os arquivos de tradução de magias, equipamentos e os dados de antecedentes.
+- Inserir ou atualizar esses dados na tabela `homebrew_content`, marcando-os como públicos para que possam ser usados no jogo.
+
 ## Testando a API (Exemplos)
 
 Você pode usar ferramentas como o [Postman](https://www.postman.com/), [Insomnia](https://insomnia.rest/) ou `curl` para testar os endpoints.
