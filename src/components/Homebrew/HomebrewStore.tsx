@@ -52,7 +52,7 @@ const BundleCard: React.FC<{
                         <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                 </div>
-                <p className="text-xs text-stone-400 mb-2">por {isOwner ? 'Você' : 'Comunidade'} • Contém {bundle.contentCount} itens.</p>
+                <p className="text-xs text-stone-400 mb-2">por {isOwner ? 'Você' : bundle.author?.username || 'Comunidade'} • Contém {bundle.contentCount} itens.</p>
                 <p className="text-sm text-stone-300">{bundle.description}</p>
             </div>
 
@@ -127,7 +127,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
             } else if (activeTab === 'community') {
                  const publicContent = await HomebrewService.listHomebrewContent('public');
-                 contentResult = publicContent.filter(c => c.authorId !== user?.id);
+                 contentResult = publicContent; // Não filtra mais o conteúdo do próprio usuário
             } else if (activeTab === 'mine') {
                 if (user) {
                     const myContent = await HomebrewService.listHomebrewContent('mine');
@@ -313,7 +313,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     </div>
                                 </div>
                                 <p className="text-xs text-stone-400 mt-1">
-                                    {isFromAI ? 'Criado por: Mestre IA' : (isOwner ? 'Criado por: Você' : 'Criado por: Comunidade')}
+                                    {isFromAI ? 'Criado por: Mestre IA' : (isOwner ? 'Criado por: Você' : `Criado por: ${item.author?.username || 'Comunidade'}`)}
                                 </p>
                                 {item.bundle && <p className="text-xs text-purple-400 mt-1">Parte do pacote: {item.bundle.name}</p>}
                             </div>
@@ -366,30 +366,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const renderMyCreationsTab = () => {
         const myContent = content.filter(c => c.authorId === user?.id && !c.bundleId);
-        const myBundles = bundles.filter(b => b.authorId === user?.id);
         
         return (
              <div className="space-y-8">
                 <div>
-                    <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Meus Pacotes</h2>
-                    {myBundles.length > 0 ? (
-                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {myBundles.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())).map(bundle => (
-                                 <BundleCard
-                                    key={bundle.id}
-                                    bundle={bundle}
-                                    isOwner={true}
-                                    installedIds={installedIds}
-                                    onInstall={handleBundleInstallClick}
-                                    onUninstall={(b) => handleUninstallClick(b, 'bundle')}
-                                    onEdit={handleEditBundle}
-                                    onDelete={handleDeleteClick}
-                                />
-                            ))}
-                        </div>
-                    ) : <p className="text-stone-500 italic text-center py-4">Você ainda não criou nenhum pacote.</p>}
-                </div>
-                 <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Minhas Criações Avulsas</h2>
                     {renderContentGrid(myContent)}
                 </div>
@@ -408,7 +388,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         
         switch (activeTab) {
             case 'bundles': return renderBundlesTab();
-            case 'community': return renderContentGrid(content.filter(c => c.authorId !== user?.id));
+            case 'community': return renderContentGrid(content);
             case 'mine': return renderMyCreationsTab();
             default: return null;
         }

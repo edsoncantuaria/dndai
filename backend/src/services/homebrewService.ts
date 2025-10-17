@@ -76,7 +76,7 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
         isPublic: true,
-        bundleId: IsNull() // Apenas conteúdo que não está em um pacote.
+        bundleId: IsNull()
     };
     const { page = 1, limit = 100 } = pagination || {};
 
@@ -85,8 +85,11 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
 
     return homebrewRepo.find({
         where: whereCondition,
-        relations: ['bundle'],
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundleId"],
+        relations: ['bundle', 'author'],
+        select: {
+            id: true, name: true, type: true, authorId: true, createdAt: true, createdBy: true, isPublic: true, content: true, bundleId: true,
+            author: { id: true, username: true } // Seleciona o username do autor
+        },
         take: limit,
         skip: (page - 1) * limit,
     });
@@ -100,8 +103,11 @@ export const getHomebrewContentByAuthor = async (authorId: number, type?: Homebr
 
     return homebrewRepo.find({
         where: whereCondition,
-        relations: ['bundle'],
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundleId"],
+        relations: ['bundle', 'author'],
+        select: {
+            id: true, name: true, type: true, authorId: true, createdAt: true, createdBy: true, isPublic: true, content: true, bundleId: true,
+            author: { id: true, username: true }
+        },
         take: limit,
         skip: (page - 1) * limit,
     });

@@ -7,6 +7,7 @@ export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 's
 export interface HomebrewContent {
     id: string;
     authorId: number;
+    author?: { id: number, username: string };
     type: HomebrewContentType;
     name: string;
     content: any; // O objeto JSON completo
@@ -22,6 +23,7 @@ export interface HomebrewContent {
 export interface HomebrewBundle {
     id: string;
     authorId: number;
+    author?: { id: number, username: string };
     name: string;
     description: string;
     isPublic: boolean;
