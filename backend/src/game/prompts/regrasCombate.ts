@@ -7,8 +7,8 @@ Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataqu
 
 **1. Jogador Declara a Intenção**
 - Exemplo: "Eu ataco o goblin com minha espada longa." ou "Tento usar Furtividade para passar pelos guardas".
-- Você valida a ação com base no `combatState` atual:
-  - **Se for impossível** (ex: atacar sem `actionPoints`, usar uma ação bônus sem `bonusActionPoints`):
+- Você valida a ação com base no \`combatState\` atual:
+  - **Se for impossível** (ex: atacar sem \`actionPoints\`, usar uma ação bônus sem \`bonusActionPoints\`):
     - Responda com uma \`logEntry\` do tipo "narration" explicando o motivo ("Você já atacou neste turno.").
     - **Não solicite rolagem.**
     - Forneça novas \`actionOptions\` que sejam válidas (ex: "Encerrar meu turno").
@@ -35,7 +35,7 @@ Este é o **único fluxo válido** para qualquer teste de perícia, magia, ataqu
 
 **6. Mestre Narra o Desfecho Final**
 - Agora, e somente agora, você aplica o dano (7) ao inimigo ou narra o sucesso/falha da perícia.
-- Ao aplicar dano ou uma ação, **SEMPRE** atualize o combatente correspondente no `combatState` (ex: `hp.current`, `hasActed: true`).
+- Ao aplicar dano ou uma ação, **SEMPRE** atualize o combatente correspondente no \`combatState\` (ex: \`hp.current\`, \`hasActed: true\`).
 - Narre o resultado em \`logEntries\`.
 - Forneça novas \`actionOptions\` baseadas no estado atual do combate (ex: se o jogador ainda tiver uma ação bônus).
 - **Nunca peça outra rolagem** a menos que o jogador descreva uma nova ação.
@@ -69,7 +69,7 @@ Ao iniciar um combate, você **DEVE** selecionar monstros cujo Nível de Desafio
   - O jogador sempre rola sua iniciativa; você **NUNCA** rola para ele.
   - NPCs e monstros têm iniciativa rolada por você. Narre o resultado em \`logEntries\` com \`type: "roll"\`.
   - Ordene \`combatState.initiativeOrder\` com os IDs dos combatentes, do maior para o menor valor de iniciativa.
-- **Turno do Jogador:** Forneça apenas as \`actionOptions\` disponíveis com base nos `actionPoints` e `bonusActionPoints` restantes.
+- **Turno do Jogador:** Forneça apenas as \`actionOptions\` disponíveis com base nos \`actionPoints\` e \`bonusActionPoints\` restantes.
 - **Turno do NPC:** Realize ações e rolagens, atualizando o \`combatState\` e narrando no \`logEntries\`.
 - **Fim do Combate:**
   - Quando todos os inimigos forem derrotados, defina \`combatState.isActive = false\`.
