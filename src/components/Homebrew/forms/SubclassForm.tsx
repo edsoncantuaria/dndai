@@ -1,6 +1,6 @@
 // src/components/Homebrew/forms/SubclassForm.tsx
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService';
 import { translateApiString } from '@/utils/translator';
@@ -35,11 +35,15 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const fetchClasses = async () => {
             try {
                 setIsLoading(true);
-                const officialClasses = await DndApiService.getClasses();
-                const homebrewClassesPromise = HomebrewService.listHomebrewContent('public', 'class');
-                const myHomebrewClassesPromise = user ? HomebrewService.listHomebrewContent('mine', 'class') : Promise.resolve([]);
+                const officialClassesPromise = DndApiService.getClasses();
+                const homebrewClassesPromise = HomebrewService.listHomebrewContent('public', undefined, 'class');
+                const myHomebrewClassesPromise = user ? HomebrewService.listHomebrewContent('mine', undefined, 'class') : Promise.resolve([]);
 
-                const [homebrewClasses, myHomebrewClasses] = await Promise.all([homebrewClassesPromise, myHomebrewClassesPromise]);
+                const [officialClasses, homebrewClasses, myHomebrewClasses] = await Promise.all([
+                    officialClassesPromise,
+                    homebrewClassesPromise,
+                    myHomebrewClassesPromise
+                ]);
 
                 const all = [...(officialClasses?.results || [])];
                 const myIds = new Set((myHomebrewClasses).map(c => c.id));
@@ -49,7 +53,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
                 setClasses(all.sort((a,b) => a.name.localeCompare(b.name)));
                 
-                if(initialData?.class.index && !all.some(c => c.index === initialData.class.index)) {
+                if(initialData && initialData.class && initialData.class.index && !all.some(c => c.index === initialData.class.index)) {
                     setClasses(prev => [initialData.class, ...prev]);
                 }
 
@@ -133,7 +137,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     required
                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                 >
-                    <option value="" disabled>Selecione a classe...</option>
+                    <option value="" disabled>Selecione a classe principal...</option>
                     {classes.map(c => <option key={c.index} value={c.index}>{translateApiString(c.name)}</option>)}
                 </select>
             </div>
