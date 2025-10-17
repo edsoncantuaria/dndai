@@ -59,7 +59,7 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState, model?: string): Promise<GameMasterResponse> => {
+export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState, model?: string, useAiHomebrew?: boolean): Promise<GameMasterResponse> => {
     
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token && sessionId !== -1) {
@@ -74,7 +74,7 @@ export const processPlayerAction = async (sessionId: number, prompt: string, api
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ prompt, apiKey, combatState, model }),
+        body: JSON.stringify({ prompt, apiKey, combatState, model, useAiHomebrew }),
     });
 
     if (!response.ok) {

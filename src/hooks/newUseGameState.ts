@@ -16,7 +16,7 @@ import { sanitizeGameMasterResponse } from '@/utils/sanitizeGameResponse';
 
 export const useNewGameState = () => {
     const { user } = useAuth();
-    const { apiKey, model } = useSettingsContext();
+    const { apiKey, model, useAiHomebrew } = useSettingsContext();
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export const useNewGameState = () => {
         interactionState.setActionOptions([]); 
         
         try {
-            const rawResponse = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model);
+            const rawResponse = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model, useAiHomebrew);
             const responseData = sanitizeGameMasterResponse(rawResponse);
             
             handleApiResponse(responseData);
@@ -121,7 +121,7 @@ export const useNewGameState = () => {
         } finally {
             setIsLoading(false); 
         }
-    }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState, model, characterState]);
+    }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState, model, characterState, useAiHomebrew]);
     
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;

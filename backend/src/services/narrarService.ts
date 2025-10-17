@@ -74,7 +74,14 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     };
 };
 
-export const processPlayerTurn = async (sessionId: number, userId: number, playerAction: string, apiKey: string, currentCombatState?: CombatState, modelOverride?: string): Promise<GameMasterResponse> => {
+export const processPlayerTurn = async (
+    sessionId: number, 
+    userId: number, 
+    playerAction: string, 
+    apiKey: string, 
+    currentCombatState?: CombatState, 
+    useAiHomebrew?: boolean
+): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
     let user: User | null = null;
@@ -111,7 +118,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = modelOverride || user?.settings?.model || "gemini-2.5-flash";
+    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
     const generationConfig = user?.settings?.generationConfig || {};
     
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
@@ -130,6 +137,7 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
+        useAiHomebrew: useAiHomebrew ?? true, // Passa a configuração para a IA
     };
 
     const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);

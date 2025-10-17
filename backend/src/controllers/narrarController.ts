@@ -7,7 +7,7 @@ import createError from 'http-errors';
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
     // Extrai a apiKey e o resto do corpo da requisição
-    const { prompt: playerAction, combatState: currentCombatState, apiKey } = req.body;
+    const { prompt: playerAction, combatState: currentCombatState, apiKey, useAiHomebrew } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -31,7 +31,8 @@ export const narrar = async (req: AuthRequest, res: Response, next: NextFunction
             userId, 
             playerAction,
             apiKey, // Passa a chave de API para o serviço
-            currentCombatState
+            currentCombatState,
+            useAiHomebrew // Passa a configuração de homebrew
         );
         
         res.status(200).json(aiResponse);

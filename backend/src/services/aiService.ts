@@ -14,13 +14,25 @@ const getGenAI = (apiKey: string) => {
     return new GoogleGenerativeAI(apiKey);
 }
 
-const systemInstruction = `
+const createSystemInstruction = (useAiHomebrew: boolean): string => {
+    const homebrewRule = useAiHomebrew
+        ? "Você PODE criar conteúdo homebrew (itens, monstros, etc.) e deve adicioná-los ao campo `newHomebrewContent`."
+        : "Você NÃO PODE criar conteúdo homebrew. O campo `newHomebrewContent` DEVE estar sempre vazio. Use apenas itens e monstros oficiais do SRD 5e.";
+
+    return `
 ${regrasBase}
 
 ${regrasInventario}
 
 ${regrasCombate}
+
+---
+## Regra Especial: Conteúdo Homebrew
+- ${homebrewRule}
+---
 `;
+};
+
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const { character, playerAction, gameLog, combatState } = input;
@@ -62,7 +74,9 @@ A ação do jogador é: "${playerAction}"
 
 Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
   
+    // For Gemma, the full instruction goes into the user prompt
     if (isGemma) {
+        const systemInstruction = createSystemInstruction(input.useAiHomebrew ?? true);
         return `${systemInstruction}\n\n${mainPrompt}`;
     }
   
@@ -129,6 +143,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     }
     const genAI = getGenAI(apiKey);
     const isGemma = modelName.toLowerCase().includes('gemma');
+
+    const systemInstruction = createSystemInstruction(input.useAiHomebrew ?? true);
 
     const model = genAI.getGenerativeModel({
         model: modelName,
