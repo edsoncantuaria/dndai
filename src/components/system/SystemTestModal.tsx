@@ -8,7 +8,7 @@ import * as characterUtils from '../../utils/characterUtils';
 import { translateApiString } from '@/utils/translator';
 import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 import * as GameService from '@/services/gameService';
-import * as AiService from '@/services/aiService'; // Importar o serviço de IA
+import * as AiService from '@/services/aiService'; // Importar o serviço de IA do frontend
 import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2, Image as ImageIcon } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
 import Image from 'next/image';
