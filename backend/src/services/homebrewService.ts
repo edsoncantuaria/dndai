@@ -82,11 +82,11 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
 
     if (type) whereCondition.type = type;
     if (createdBy) whereCondition.createdBy = createdBy;
-    else whereCondition.createdBy = 'user'; // Default to user-created content for 'community'
 
     return homebrewRepo.find({
         where: whereCondition,
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content"],
+        relations: ['bundle'],
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundleId"],
         take: limit,
         skip: (page - 1) * limit,
     });
@@ -166,6 +166,7 @@ export const getBundles = async (options: { userId?: number; scope?: 'public' | 
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const query = bundleRepo.createQueryBuilder('bundle')
         .leftJoinAndSelect('bundle.author', 'author')
+        .leftJoinAndSelect('bundle.contents', 'contents') // Carrega o conteúdo completo
         .loadRelationCountAndMap('bundle.contentCount', 'bundle.contents')
         .take(limit)
         .skip((page - 1) * limit);

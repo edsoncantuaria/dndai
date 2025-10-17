@@ -41,7 +41,7 @@ const BundleCard: React.FC<{
     const [isExpanded, setIsExpanded] = useState(false);
     
     // Um pacote é considerado "instalado" se todos os seus conteúdos estiverem instalados.
-    const isBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
+    const isBundleInstalled = (bundle.contents || []).every(c => installedIds.has(c.id));
 
     return (
         <div className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
@@ -56,7 +56,7 @@ const BundleCard: React.FC<{
                 <p className="text-sm text-stone-300">{bundle.description}</p>
             </div>
 
-            {isExpanded && (
+            {isExpanded && (bundle.contents || []).length > 0 && (
                 <div className="mt-3 pt-3 border-t border-stone-700 max-h-40 overflow-y-auto pr-2">
                     <ul className="list-disc list-inside space-y-1 text-sm text-stone-300">
                         {bundle.contents.map(c => <li key={c.id}>{c.name} <span className="text-xs text-stone-500">({translateApiString(c.type)})</span></li>)}
@@ -96,7 +96,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [bundleToEdit, setBundleToEdit] = useState<HomebrewService.HomebrewBundle | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('bundles');
     const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
-    const [searchTerm, setSearchTerm] = useState(''); // Estado para o termo de busca
+    const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [content, setContent] = useState<HomebrewService.HomebrewContent[]>([]);
     const [bundles, setBundles] = useState<HomebrewService.HomebrewBundle[]>([]);
@@ -126,11 +126,13 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 const myBundleIds = new Set(myBundles.map(b => b.id));
                 bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
             } else if (activeTab === 'community') {
-                 const publicContent = await HomebrewService.listPublicHomebrewContent();
+                 const publicContent = await HomebrewService.getPublicHomebrewContent();
                  contentResult = publicContent.filter(c => c.authorId !== user?.id);
             } else if (activeTab === 'mine') {
-                const myContent = await HomebrewService.getHomebrewContentByAuthor(user!.id);
-                contentResult = myContent;
+                if (user) {
+                    const myContent = await HomebrewService.getHomebrewContentByAuthor(user.id);
+                    contentResult = myContent;
+                }
             }
             
             setContent(contentResult.sort((a, b) => a.name.localeCompare(b.name)));
@@ -180,7 +182,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         if (type === 'item') {
             deps = await HomebrewService.getHomebrewDependencies(item.id);
         } else {
-            const allDepsPromises = (item as HomebrewService.HomebrewBundle).contents.map(c => HomebrewService.getHomebrewDependencies(c.id));
+            const allDepsPromises = ((item as HomebrewService.HomebrewBundle).contents || []).map(c => HomebrewService.getHomebrewDependencies(c.id));
             const allDepsArrays = await Promise.all(allDepsPromises);
             deps = Array.from(new Map(allDepsArrays.flat().map(dep => [dep.id, dep])).values());
         }
@@ -323,9 +325,11 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 )}
                                 <button
                                     onClick={() => isInstalled ? handleUninstallClick(item, 'item') : handleInstallClick(item)}
-                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-                                        isInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
-                                    }`}
+                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors`}
+                                    style={{
+                                        backgroundColor: isInstalled ? 'rgb(127 29 29 / 0.8)' : 'rgb(217 119 6)',
+                                        color: isInstalled ? 'rgb(254 202 202)' : 'rgb(28 25 23)',
+                                    }}
                                     title={isInstalled ? 'Desinstalar' : 'Instalar'}
                                 >
                                     {isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
@@ -368,7 +372,22 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
              <div className="space-y-8">
                 <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Meus Pacotes</h2>
-                    {myBundles.length > 0 ? renderBundlesTab() : <p className="text-stone-500 italic text-center py-4">Você ainda não criou nenhum pacote.</p>}
+                    {myBundles.length > 0 ? (
+                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {myBundles.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())).map(bundle => (
+                                 <BundleCard
+                                    key={bundle.id}
+                                    bundle={bundle}
+                                    isOwner={true}
+                                    installedIds={installedIds}
+                                    onInstall={handleBundleInstallClick}
+                                    onUninstall={(b) => handleUninstallClick(b, 'bundle')}
+                                    onEdit={handleEditBundle}
+                                    onDelete={handleDeleteClick}
+                                />
+                            ))}
+                        </div>
+                    ) : <p className="text-stone-500 italic text-center py-4">Você ainda não criou nenhum pacote.</p>}
                 </div>
                  <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Minhas Criações Avulsas</h2>
@@ -389,7 +408,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         
         switch (activeTab) {
             case 'bundles': return renderBundlesTab();
-            case 'community': return renderContentGrid(content);
+            case 'community': return renderContentGrid(content.filter(c => c.authorId !== user?.id));
             case 'mine': return renderMyCreationsTab();
             default: return null;
         }
@@ -462,7 +481,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </button>
                         </div>
                     </div>
-                    {activeTab !== 'mine' && (
+                    {(activeTab === 'community' || activeTab === 'bundles') && (
                         <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-stone-900/50 rounded-lg border border-stone-700">
                             <div className="relative flex-grow">
                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500"/>
