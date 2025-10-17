@@ -34,6 +34,9 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
         const savedContent = await homebrewRepo.save(newContent);
         return savedContent;
     } catch (error: any) {
+        if (error.code === 'ER_DUP_ENTRY') {
+            throw createError(409, `Um conteúdo com o nome "${data.name}" ou índice derivado já existe.`);
+        }
         console.error("Erro ao salvar conteúdo homebrew:", error);
         throw createError(500, 'Falha ao salvar o conteúdo no banco de dados.');
     }
@@ -77,6 +80,29 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
     }
 };
 
+/**
+ * Deleta um conteúdo homebrew. Apenas o autor pode deletar.
+ * @param contentId O ID do conteúdo a ser deletado.
+ * @param authorId O ID do usuário tentando deletar.
+ */
+export const deleteHomebrewContent = async (contentId: string, authorId: number) => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const content = await homebrewRepo.findOneBy({ id: contentId });
+
+    if (!content) {
+        throw createError(404, 'Conteúdo Homebrew não encontrado.');
+    }
+    if (content.authorId !== authorId) {
+        throw createError(403, 'Você não tem permissão para deletar este conteúdo.');
+    }
+    // Não pode deletar conteúdo criado pela IA
+    if (content.createdBy === 'ai') {
+        throw createError(403, 'Conteúdo gerado pela IA não pode ser deletado.');
+    }
+
+    await homebrewRepo.remove(content);
+};
+
 
 /**
  * Lista todo o conteúdo homebrew público.
@@ -94,6 +120,9 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
     }
     if (createdBy) {
         whereCondition.createdBy = createdBy;
+    } else {
+        // Por padrão, a aba "Comunidade" não mostra o que foi gerado por IA
+        whereCondition.createdBy = 'user';
     }
 
     return homebrewRepo.find({
@@ -122,7 +151,8 @@ export const getHomebrewContentByAuthor = async (authorId: number, type?: Homebr
 
     return homebrewRepo.find({
         where: whereCondition,
-        relations: ['author'],
+        relations: ['bundle'], // Carrega a informação do bundle
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundle"],
         take: limit,
         skip: (page - 1) * limit,
     });
@@ -259,19 +289,18 @@ export const checkIfNameExists = async (name: string, type: HomebrewContentType)
 
 // --- Bundle Functions ---
 
-export const getBundles = async (userId?: number, scope?: 'public' | 'mine') => {
+export const getBundles = async (options: { userId?: number; scope?: 'public' | 'mine'; page: number; limit: number }) => {
+    const { userId, scope, page, limit } = options;
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const query = bundleRepo.createQueryBuilder('bundle')
         .leftJoinAndSelect('bundle.author', 'author')
-        .leftJoinAndSelect('bundle.contents', 'contents');
+        .leftJoinAndSelect('bundle.contents', 'contents')
+        .take(limit)
+        .skip((page - 1) * limit);
 
     if (scope === 'mine' && userId) {
         query.where('bundle.authorId = :userId', { userId });
-    } else if (scope === 'public') {
-        query.where('bundle.isPublic = true');
-    } else if (userId) { // Se não houver scope, mas houver userId, mostra publicos e do usuario
-        query.where('bundle.isPublic = true OR bundle.authorId = :userId', { userId });
-    } else { // Se não houver userId nem scope, mostra apenas publicos
+    } else { // O escopo padrão ou explícito de 'public' mostra apenas os públicos.
         query.where('bundle.isPublic = true');
     }
     

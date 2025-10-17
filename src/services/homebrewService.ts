@@ -44,24 +44,27 @@ export interface BundleData {
     isPublic?: boolean;
 }
 
-
 /**
  * Busca conteúdo homebrew.
- * @param scope 'public' para conteúdo da comunidade, 'mine' para conteúdo do usuário logado.
+ * @param scope 'public', 'mine', ou 'ai' para filtrar o conteúdo.
  * @param type Opcional. Filtra por tipo de conteúdo.
- * @param createdBy 'user' ou 'ai' para filtrar pela origem.
+ * @param page A página a ser buscada.
+ * @param limit O número de itens por página.
  */
-export const listHomebrewContent = async (scope: 'public' | 'mine', type?: HomebrewContentType, createdBy?: 'user' | 'ai'): Promise<HomebrewContent[]> => {
-    const params = new URLSearchParams({ scope });
+export const listHomebrewContent = async (scope: 'public' | 'mine' | 'ai', type?: HomebrewContentType, page: number = 1, limit: number = 100): Promise<HomebrewContent[]> => {
+    const params = new URLSearchParams({ scope, page: String(page), limit: String(limit) });
     if (type) {
         params.append('type', type);
     }
-    if (createdBy) {
-        params.append('createdBy', createdBy);
+    // O escopo 'ai' é tratado pelo backend agora.
+    if (scope === 'ai') {
+        params.append('createdBy', 'ai');
     }
+
     const endpoint = `/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
+
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -98,9 +101,12 @@ export const getHomebrewDependencies = async (id: string): Promise<HomebrewConte
 
 /**
  * Lista os pacotes (bundles) disponíveis.
+ * @param scope 'public' para pacotes da comunidade, 'mine' para os pacotes do usuário.
+ * @param page A página a ser buscada.
+ * @param limit O número de itens por página.
  */
-export const listHomebrewBundles = async (scope?: 'public' | 'mine'): Promise<HomebrewBundle[]> => {
-    const params = new URLSearchParams();
+export const listHomebrewBundles = async (scope?: 'public' | 'mine', page: number = 1, limit: number = 100): Promise<HomebrewBundle[]> => {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (scope) {
         params.append('scope', scope);
     }

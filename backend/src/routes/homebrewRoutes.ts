@@ -5,6 +5,7 @@ import {
     listContent, 
     getContentById, 
     updateContent,
+    deleteContent, // Importa a função de deletar
     getDependencies,
     listBundles,
     getBundleContents,
@@ -50,6 +51,9 @@ router.get('/:id', getContentById);
 
 // Rota para atualizar um conteúdo
 router.put('/:id', authMiddleware, updateContent);
+
+// Rota para deletar um conteúdo (protegida)
+router.delete('/:id', authMiddleware, deleteContent);
 
 // Rota para obter dependências de um conteúdo
 router.get('/:id/dependencies', getDependencies);

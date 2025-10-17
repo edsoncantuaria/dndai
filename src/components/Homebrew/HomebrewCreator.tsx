@@ -28,7 +28,7 @@ interface Props {
 
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit }) => {
     const [type, setType] = useState<HomebrewService.HomebrewContentType>(contentToEdit?.type || 'race');
-    const [contentData, setContentData] = useState<any>(contentToEdit?.content || null);
+    const [contentData, setContentData] = useState<any>(contentToEdit?.content || {});
     const [isPublic, setIsPublic] = useState(contentToEdit?.isPublic || false);
     const [isLoading, setIsLoading] = useState(false);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
@@ -55,6 +55,20 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
         setIsLoading(true);
         try {
+            // Verificar se o nome já existe (apenas para criações novas)
+            if (!contentToEdit) {
+                const { exists } = await HomebrewService.checkNameExists(contentData.name, type);
+                if (exists) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Nome Duplicado',
+                        description: `Um conteúdo do tipo '${translateApiString(type)}' com um nome ou índice similar já existe. Por favor, escolha outro nome.`,
+                    });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+            
             const dataToSave: HomebrewService.CreateHomebrewData = {
                 name: contentData.name,
                 type,
@@ -129,7 +143,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                     setType(e.target.value as HomebrewService.HomebrewContentType);
                                     // Reset data when type changes if not editing
                                     if (!contentToEdit) {
-                                        setContentData(null);
+                                        setContentData({});
                                     }
                                 }}
                                 className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"

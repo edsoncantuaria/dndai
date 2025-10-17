@@ -46,11 +46,29 @@ export const updateContent = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
+// Deletar um conteúdo homebrew (Apenas o autor pode)
+export const deleteContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+
+    try {
+        await HomebrewService.deleteHomebrewContent(id, userId);
+        res.status(204).send(); // Retorna 204 No Content em caso de sucesso.
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 // Listar conteúdos homebrew (públicos ou do usuário) com paginação
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const type = req.query.type as HomebrewContentType | undefined;
-    const scope = req.query.scope as 'public' | 'mine' | undefined;
-    const createdBy = req.query.createdBy as 'user' | 'ai' | undefined;
+    const scope = req.query.scope as 'public' | 'mine' | 'ai' | undefined;
+    const createdBy = scope === 'ai' ? 'ai' : (req.query.createdBy as 'user' | 'ai' | undefined);
     const userId = req.user?.userId;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 100;
