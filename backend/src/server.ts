@@ -18,6 +18,7 @@ import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
 import dndApiRoutes from './routes/dndApiRoutes.js';
 import homebrewRoutes from './routes/homebrewRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/dnds', dndApiRoutes);
 app.use('/api/homebrew', homebrewRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {

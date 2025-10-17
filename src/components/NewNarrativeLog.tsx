@@ -1,78 +1,67 @@
+// src/components/NewNarrativeLog.tsx
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
-import { textToSpeech } from '@/ai/flows/textToSpeech';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { generateImage } from '@/services/aiService';
 import Image from 'next/image';
 
-const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
-    const [audioData, setAudioData] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
+const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
+    const [error, setError] = useState<string | null>(null);
+    const { imageModel } = useSettingsContext();
     const { getApiKey } = useGameStateContext();
 
-    const handlePlay = async () => {
-        if (isPlaying && audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlaying(false);
-            return;
-        }
-
-        if (audioData && audioRef.current) {
-            audioRef.current.play();
-            setIsPlaying(true);
-            return;
-        }
-        
-        setIsLoading(true);
-        try {
-            const apiKeyToUse = getApiKey();
-            if (!apiKeyToUse) {
-                console.warn("Chave de API não encontrada para TTS, pulando.");
-                return; 
-            }
-            const response = await textToSpeech(text, ttsModel, ttsVoice, apiKeyToUse);
-            if (response?.media) {
-                setAudioData(response.media);
-            }
-        } catch (error) {
-            console.error("Error generating speech:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     useEffect(() => {
-        if (audioData && audioRef.current) {
-            audioRef.current.src = audioData;
-            audioRef.current.play()
-                .then(() => setIsPlaying(true))
-                .catch(e => console.error("Audio play failed:", e));
+        const imageContent = entry.content as any;
+        if (imageContent.status === 'generating' && imageContent.prompt && !imageUrl && !isLoading) {
+            const generate = async () => {
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const apiKey = getApiKey();
+                    if (!apiKey) throw new Error("API Key not found");
+                    const result = await generateImage({
+                        prompt: imageContent.prompt,
+                        model: imageModel,
+                        apiKey
+                    });
+                    if (result?.imageUrl) {
+                        setImageUrl(result.imageUrl);
+                    } else {
+                        throw new Error("A IA não retornou uma imagem.");
+                    }
+                } catch (err: any) {
+                    setError(err.message || 'Falha ao gerar imagem.');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            generate();
         }
-    }, [audioData]);
+    }, [entry.content, imageUrl, isLoading, getApiKey, imageModel]);
 
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.muted = isMuted;
-            audioRef.current.volume = volume;
-        }
-    }, [isMuted, volume]);
-
-    const handleAudioEnded = () => {
-        setIsPlaying(false);
-    };
+    const displayUrl = imageUrl || (typeof entry.content === 'object' && (entry.content as any).imageUrl) || null;
 
     return (
-        <div className="inline-block ml-2">
-            <button onClick={handlePlay} disabled={isLoading} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className={`h-4 w-4 ${isPlaying ? 'text-amber-400' : ''}`} />}
-            </button>
-            {audioData && <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />}
+        <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
+            {displayUrl ? (
+                <Image src={displayUrl} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
+            ) : (
+                <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                    {isLoading ? (
+                        <>
+                            <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
+                            <span>Gerando imagem...</span>
+                        </>
+                    ) : (
+                        <span>{error || 'Aguardando para gerar imagem...'}</span>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -103,7 +92,6 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
                 {textContent}
             </p>
-            <AudioPlayer text={textContent} />
         </div>
     );
 };
@@ -220,24 +208,7 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
              contentComponent = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
         case 'image':
-            const imageContent = entry.content as any;
-            contentComponent = (
-                <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                    {imageContent.status === 'done' && imageContent.url ? (
-                        <Image src={imageContent.url} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
-                    ) : (
-                        <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                            {imageContent.status === 'generating' && 
-                                <>
-                                    <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
-                                    <span>Gerando imagem...</span>
-                                </>
-                            }
-                            {imageContent.status === 'failed' && 'Falha ao gerar imagem.'}
-                        </div>
-                    )}
-                </div>
-            );
+            contentComponent = <ImageEntry entry={entry} />;
             break;
         default:
              // If the type is unknown or invalid, render nothing.
