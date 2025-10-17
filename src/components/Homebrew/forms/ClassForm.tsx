@@ -1,4 +1,3 @@
-
 // src/components/Homebrew/forms/ClassForm.tsx
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -40,15 +39,23 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }));
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
 
+    useEffect(() => {
+        if (initialData && Object.keys(initialData).length > 0) {
+            setClassData(prev => ({
+                ...prev,
+                ...initialData,
+                proficiencies: initialData.proficiencies || [],
+                proficiency_choices: initialData.proficiency_choices || [],
+                saving_throws: initialData.saving_throws || [],
+                features: initialData.features || [],
+            }));
+        }
+    }, [initialData]);
+
     // Update parent component whenever data changes
     useEffect(() => {
-        const fullData = {
-            ...classData,
-            index: classData.official_index || classData.name.toLowerCase().replace(/\s+/g, '-') || `custom-class-${Date.now()}`
-        };
-        const { official_index, ...finalData } = fullData;
-        onDataChange(finalData);
-    }, [classData, onDataChange]);
+        onDataChange(classData);
+    }, [classData]);
 
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
         setClassData(prev => ({ ...prev, [field]: value }));

@@ -19,7 +19,14 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     newContent.authorId = authorId;
     newContent.type = data.type;
     newContent.name = data.name;
-    newContent.content = data.content;
+    
+    // Garante que o objeto 'content' tenha um 'index'
+    const contentPayload = { ...data.content };
+    if (!contentPayload.index) {
+        contentPayload.index = data.name.toLowerCase().replace(/\s+/g, '-');
+    }
+    
+    newContent.content = contentPayload;
     newContent.isPublic = data.isPublic || false;
     newContent.createdBy = data.createdBy || 'user';
     newContent.dependencies = data.dependencies || [];

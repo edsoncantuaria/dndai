@@ -25,18 +25,23 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         prerequisites: [],
         official_index: '',
         ...initialData,
-        // Garante que 'desc' seja sempre um array.
         desc: initialData?.desc || [''],
     }));
 
     useEffect(() => {
-        const fullData = {
-            ...featData,
-            index: featData.official_index || featData.name.toLowerCase().replace(/\s+/g, '-') || `custom-feat-${Date.now()}`
-        };
-        const { official_index, ...finalData } = fullData;
-        onDataChange(finalData);
-    }, [featData, onDataChange]);
+        if (initialData && Object.keys(initialData).length > 0) {
+            setFeatData(prev => ({
+                ...prev,
+                ...initialData,
+                desc: initialData.desc || [''],
+                prerequisites: initialData.prerequisites || [],
+            }));
+        }
+    }, [initialData]);
+
+    useEffect(() => {
+        onDataChange(featData);
+    }, [featData]);
 
     const handleFieldChange = (field: keyof typeof featData, value: any) => {
         setFeatData(prev => ({ ...prev, [field]: value }));
