@@ -1,10 +1,10 @@
 // backend/src/services/aiImageService.ts
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import createError from 'http-errors';
 
 interface GenerateImageInput {
     prompt: string;
-    model: string; // Embora o modelo venha do cliente, vamos usar um otimizado para imagem aqui.
+    model: string; 
     apiKey: string;
 }
 
@@ -19,41 +19,28 @@ export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInpu
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        // Usaremos o gemini-1.5-pro que tem uma excelente capacidade de interpretação de prompt para gerar prompts de imagem
-        const textModel = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
-        // O modelo de imagem real
-        const imageModel = genAI.getGenerativeModel({ model: "imagen-3.0-generate-002" });
+        const imageModel = genAI.getGenerativeModel({ model: model });
 
-        // 1. Refinar o prompt do usuário para criar um prompt de imagem mais rico
-        const imagePromptRefinement = await textModel.generateContent(
-            `Refine o seguinte prompt de usuário em um prompt de geração de imagem detalhado e cinematográfico para um cenário de fantasia sombria, estilo D&D. Foque em iluminação dramática, texturas realistas e uma composição épica. Prompt do usuário: "${prompt}"`
-        );
-        const refinedPrompt = imagePromptRefinement.response.text();
+        // Gera a imagem diretamente com o prompt e modelo fornecidos
+        const result = await imageModel.generateContent(prompt);
+        const response = await result.response;
         
-        console.log(`[aiImageService] Prompt refinado: ${refinedPrompt}`);
+        // A API para modelos 'imagen' pode retornar os dados de forma diferente.
+        // Acessamos o primeiro candidato e extraímos os dados base64 da imagem.
+        const imageData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
 
-        // 2. Gerar a imagem com o prompt refinado
-        const result = await imageModel.generateContent({
-            prompt: refinedPrompt,
-            // Adicionar um prefixo comum para melhorar o estilo
-            // prompt: `Uma pintura digital épica e cinematográfica de: ${refinedPrompt}. Estilo de fantasia sombria, arte de alta qualidade, iluminação dramática, D&D.`,
-            count: 1, // Gerar uma imagem
-            mime_type: "image/jpeg"
-        });
-
-        const firstImage = result.response.images?.[0];
-
-        if (!firstImage || !firstImage.image) {
+        if (!imageData || !imageData.data) {
+            console.error('Resposta da API de imagem inesperada:', JSON.stringify(response, null, 2));
             throw new Error("A API não retornou dados de imagem válidos.");
         }
         
         // A imagem vem em base64, então criamos a data URI
-        const imageUrl = `data:image/jpeg;base64,${firstImage.image}`;
+        const imageUrl = `data:${imageData.mimeType};base64,${imageData.data}`;
 
         return { imageUrl };
 
     } catch (error: any) {
-        console.error(`[aiImageService] Erro ao gerar imagem:`, error);
+        console.error(`[aiImageService] Erro ao gerar imagem com o modelo ${model}:`, error);
         if (error.message.includes('API key not valid')) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
