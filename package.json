@@ -15,8 +15,6 @@
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
-    "@genkit-ai/google-genai": "^1.1.2",
-    "@google/generative-ai": "^0.15.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-tooltip": "^1.1.2",
@@ -24,7 +22,6 @@
     "clsx": "^2.1.1",
     "data-urls": "^6.0.0",
     "framer-motion": "^11.3.19",
-    "genkit": "^1.1.2",
     "lucide-react": "^0.408.0",
     "next": "15.3.3",
     "react": "^18.3.1",

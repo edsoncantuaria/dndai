@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Wand } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
-import { createHomebrewContent } from '@/ai/flows/createHomebrewFlow';
+import { createHomebrewContent } from '@/services/aiService'; // Atualizado para o novo serviço de API
 import { HomebrewContentType } from '@/services/homebrewService';
 import { translateApiString } from '@/utils/translator';
 import { useSettingsContext } from '@/contexts/SettingsContext';
@@ -36,9 +36,11 @@ const AiCreator: React.FC<Props> = ({ isOpen, onClose, onContentGenerated }) => 
         try {
             const apiKey = getApiKey();
             if (!apiKey) {
-                throw new Error('Chave de API não encontrada.');
+                throw new Error('Chave de API não encontrada nas configurações.');
             }
+            // Chama o novo serviço que aponta para o backend
             const result = await createHomebrewContent({ prompt, type, apiKey });
+
             if (result && result.content) {
                 onContentGenerated(result.content, type);
                 toast({ title: 'Conteúdo Gerado!', description: 'O formulário foi preenchido com a sugestão da IA. Revise e salve.' });
