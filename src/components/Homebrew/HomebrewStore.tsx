@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
 import HomebrewCreator from './HomebrewCreator';
@@ -31,6 +31,7 @@ const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.Reac
 const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
     const [view, setView] = useState<View>('list');
     const [activeTab, setActiveTab] = useState<Tab>('public');
+    const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
     const [isLoading, setIsLoading] = useState(false);
     const [content, setContent] = useState<HomebrewService.HomebrewContent[]>([]);
     const { toast } = useToast();
@@ -43,13 +44,15 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const fetchContentAndInstalledIds = useCallback(async () => {
         setIsLoading(true);
         try {
+            const filterType = typeFilter === 'all' ? undefined : typeFilter;
             let contentPromise;
+            
             if (activeTab === 'public') {
-                contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'user');
+                contentPromise = HomebrewService.listHomebrewContent('public', filterType, 'user');
             } else if (activeTab === 'ai') {
-                contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'ai');
+                contentPromise = HomebrewService.listHomebrewContent('public', filterType, 'ai');
             } else {
-                contentPromise = HomebrewService.listHomebrewContent('mine');
+                contentPromise = HomebrewService.listHomebrewContent('mine', filterType);
             }
             
             const [contentResult, sessionsResult] = await Promise.all([
@@ -74,13 +77,13 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         } finally {
             setIsLoading(false);
         }
-    }, [activeTab, toast, activeSessionId]);
+    }, [activeTab, toast, activeSessionId, typeFilter]);
     
     useEffect(() => {
         if (view === 'list') {
             fetchContentAndInstalledIds();
         }
-    }, [view, activeTab, fetchContentAndInstalledIds]);
+    }, [view, activeTab, fetchContentAndInstalledIds, typeFilter]);
 
     const handleInstallToggle = async (contentId: string) => {
         if (!activeSessionId) {
@@ -125,16 +128,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         </button>
                          <button onClick={() => setActiveTab('ai')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'ai' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             <Bot className="h-5 w-5"/> IA
-                             <TooltipProvider>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Info className="h-4 w-4 text-stone-500 cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>Conteúdo gerado pela IA é ativado automaticamente e não precisa ser instalado.</p>
-                                    </TooltipContent>
-                                </Tooltip>
-                            </TooltipProvider>
                         </button>
                         <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             Minhas Criações
@@ -144,13 +137,27 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         <Plus className="h-5 w-5"/> Criar Novo
                     </button>
                 </div>
+
+                <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-stone-900/50 rounded-lg border border-stone-700">
+                    <span className="text-sm font-semibold text-stone-400 mr-2">Filtrar por tipo:</span>
+                    <button onClick={() => setTypeFilter('all')} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                        <Grip className="h-4 w-4"/> Todos
+                    </button>
+                    {CONTENT_TYPES.map(type => (
+                        <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                           {CONTENT_TYPE_ICONS[type]} {translateApiString(type)}
+                        </button>
+                    ))}
+                </div>
+
+
                  <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 min-h-[40vh] max-h-[60vh] overflow-y-auto">
                     {isLoading ? (
                         <div className="flex justify-center items-center h-full text-stone-400">
                             <Loader2 className="h-8 w-8 animate-spin mr-3" /> Carregando...
                         </div>
                     ) : content.length === 0 ? (
-                        <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado.</p>
+                        <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado para os filtros selecionados.</p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {content.map(item => {
@@ -176,7 +183,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                                     onClick={() => handleInstallToggle(item.id)}
                                                     disabled={!activeSessionId}
                                                     className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                                        isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                                                        isInstalled ? 'bg-green-800 text-green-200 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
                                                     }`}
                                                 >
                                                     {isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
@@ -189,7 +196,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                                         className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
                                                         title="Desinstalar"
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Minus className="h-4 w-4" />
                                                     </button>
                                                 )}
                                             </>
@@ -198,6 +205,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                              <div className="w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold bg-green-900/50 text-green-300 border border-green-800">
                                                 <CheckCircle className="h-4 w-4"/>
                                                 Sempre Ativo
+                                                 <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <Info className="h-4 w-4 text-stone-400 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p>Conteúdo da IA é ativado automaticamente em todas as sessões.</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
                                             </div>
                                         )}
                                     </div>
