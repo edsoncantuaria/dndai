@@ -6,12 +6,14 @@ import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
 import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
-import type { GameMasterFlowInput, GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
+import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
 import { mergeCharacterUpdates } from './safeMerge.js';
 import * as SessaoService from './sessaoService.js';
+import redisClient from '../database/redis-client.js';
+
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -124,6 +126,8 @@ export const processPlayerTurn = async (
     let user: User | null = null;
     let characterForAI: any = null;
     let homebrewSummaryForAI = "";
+    
+    const cacheKey = `session:${sessionId}:homebrew_summary`;
 
     if (sessionId === -1) {
         isTestRun = true;
@@ -151,12 +155,27 @@ export const processPlayerTurn = async (
             throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
         }
 
-        // Traduz o conteúdo homebrew em um resumo para a IA
-        if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
-            const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
-            const summaries = installedContent.map(summarizeHomebrewForAI).filter(Boolean);
-            if (summaries.length > 0) {
-                homebrewSummaryForAI = `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${summaries.join('\n- ')}\n`;
+        // Tenta buscar o resumo do cache
+        let cachedSummary: string | null = null;
+        if (redisClient && redisClient.isOpen) {
+            cachedSummary = await redisClient.get(cacheKey);
+        }
+
+        if (cachedSummary) {
+            console.log(`[Cache] HIT: Resumo de homebrew para sessão ${sessionId}.`);
+            homebrewSummaryForAI = cachedSummary;
+        } else {
+             console.log(`[Cache] MISS: Gerando resumo para sessão ${sessionId}.`);
+            if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
+                const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
+                const summaries = installedContent.map(summarizeHomebrewForAI).filter(Boolean);
+                if (summaries.length > 0) {
+                    homebrewSummaryForAI = `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${summaries.join('\n- ')}\n`;
+                    // Salva o novo resumo no cache por 24 horas
+                     if (redisClient && redisClient.isOpen) {
+                        await redisClient.set(cacheKey, homebrewSummaryForAI, { EX: 86400 }); 
+                    }
+                }
             }
         }
     }
@@ -212,7 +231,8 @@ export const processPlayerTurn = async (
             await logRepository.save(playerLog);
         }
         
-        const stateForLog: GameMasterResponse = { ...aiResponse };
+        const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
+        delete stateForLog.logEntries; // Omit log entries from the state log to avoid duplication.
         const stateLog = new SessionLog();
         Object.assign(stateLog, {
             sessaoId: sessao.id,
