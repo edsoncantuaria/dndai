@@ -71,13 +71,22 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         // Garante que o objeto damage exista antes de tentar acessá-lo.
         const damageExists = fullData.damage && typeof fullData.damage === 'object';
 
-        if (!fullData.attack_type) delete fullData.attack_type;
+        if (!fullData.attack_type) {
+            delete fullData.attack_type;
+        }
         
+        // Mantém o objeto de dano, mas limpa suas propriedades internas se não for um feitiço de ataque
         if (!fullData.attack_type || !damageExists || !fullData.damage.damage_type?.index) {
-            delete fullData.damage;
+             if (damageExists) {
+                fullData.damage = { damage_type: { index: '', name: '' }}; // Reseta em vez de deletar
+            }
         } else {
-            if (Object.keys(fullData.damage.damage_at_character_level || {}).length === 0) delete fullData.damage.damage_at_character_level;
-            if (Object.keys(fullData.damage.damage_at_slot_level || {}).length === 0) delete fullData.damage.damage_at_slot_level;
+            if (Object.keys(fullData.damage.damage_at_character_level || {}).length === 0) {
+                delete fullData.damage.damage_at_character_level;
+            }
+            if (Object.keys(fullData.damage.damage_at_slot_level || {}).length === 0) {
+                delete fullData.damage.damage_at_slot_level;
+            }
         }
 
         fullData.index = spellData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
@@ -168,7 +177,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
-                    <select value={spellData.school.index} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <select value={spellData.school?.index || ''} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                         {magicSchools.map(s => <option key={s.index} value={s.index}>{translateMagicSchool(s.name)}</option>)}
                     </select>
                 </div>

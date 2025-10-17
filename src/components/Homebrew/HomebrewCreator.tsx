@@ -89,16 +89,17 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     };
 
     const renderFormForType = () => {
+        const initialData = contentToEdit?.type === type ? contentToEdit.content : {};
         switch (type) {
-            case 'race': return <RaceForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'subrace': return <SubraceForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'class': return <ClassForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'subclass': return <SubclassForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'spell': return <SpellForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'item': return <ItemForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'monster': return <MonsterForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'background': return <BackgroundForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
-            case 'feat': return <FeatForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'race': return <RaceForm onDataChange={setContentData} initialData={initialData} />;
+            case 'subrace': return <SubraceForm onDataChange={setContentData} initialData={initialData} />;
+            case 'class': return <ClassForm onDataChange={setContentData} initialData={initialData} />;
+            case 'subclass': return <SubclassForm onDataChange={setContentData} initialData={initialData} />;
+            case 'spell': return <SpellForm onDataChange={setContentData} initialData={initialData} />;
+            case 'item': return <ItemForm onDataChange={setContentData} initialData={initialData} />;
+            case 'monster': return <MonsterForm onDataChange={setContentData} initialData={initialData} />;
+            case 'background': return <BackgroundForm onDataChange={setContentData} initialData={initialData} />;
+            case 'feat': return <FeatForm onDataChange={setContentData} initialData={initialData} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
         }
@@ -124,7 +125,13 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                             <select
                                 id="homebrew-type"
                                 value={type}
-                                onChange={(e) => setType(e.target.value as HomebrewService.HomebrewContentType)}
+                                onChange={(e) => {
+                                    setType(e.target.value as HomebrewService.HomebrewContentType);
+                                    // Reset data when type changes if not editing
+                                    if (!contentToEdit) {
+                                        setContentData(null);
+                                    }
+                                }}
                                 className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                                 disabled={!!contentToEdit} // Desabilita a troca de tipo ao editar
                             >
