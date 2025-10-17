@@ -1,16 +1,14 @@
 // src/components/system/SystemTestModal.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import type { PlayerRollRequest, Character } from '../types';
-import { Dices, BrainCircuit, Bot, Send, Store, Swords } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
-import DiceRollModal from './DiceRollModal';
+import type { PlayerRollRequest, Character } from '../../types';
+import DiceRollModal from '../DiceRollModal';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import * as characterUtils from '../utils/characterUtils';
+import * as characterUtils from '../../utils/characterUtils';
 import { translateApiString } from '@/utils/translator';
 import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 import * as GameService from '@/services/gameService';
-import { Loader2 } from 'lucide-react';
+import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2 } from 'lucide-react';
 
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100', 'd12', 'd20'];
@@ -36,7 +34,7 @@ const DiceTestSection: React.FC = () => {
         setRollRequest(newRollRequest);
     };
 
-    const handleRollComplete = (result: { total: number; rolls: number[] }) => {
+    const handleRollComplete = (result: { rawRoll: number; rolls: number[] }) => {
         console.log("Resultado final do teste de dados:", result);
         setRollRequest(null);
     };
@@ -92,7 +90,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
     const { 
         triggerTestShop,
         triggerTestCombat,
-        triggerTestSkillCheck,
+        handleSkillCheckSubmit,
         processPlayerAction,
         setCharacter, 
     } = useGameStateContext();
@@ -119,7 +117,8 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
 
     const handleTestSkill = () => {
-        triggerTestSkillCheck(selectedSkill);
+        // Here we simulate the modal submit directly for testing the flow
+        handleSkillCheckSubmit(`para testar a perícia ${selectedSkill}`);
         onClose();
     };
 

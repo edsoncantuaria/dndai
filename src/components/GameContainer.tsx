@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './SystemTestModal';
 import * as GameService from '@/services/gameService';
@@ -14,6 +14,7 @@ import ActionModal from './ui/ActionModal';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import HomebrewStore from './Homebrew/HomebrewStore';
+import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
@@ -37,6 +38,7 @@ const GameContainer = () => {
     const [characters, setCharacters] = useState<Character[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
+    const [showArchitectureModal, setShowArchitectureModal] = useState(false); // Novo estado
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
@@ -102,23 +104,9 @@ const GameContainer = () => {
     const handleNewGameFromVault = useCallback(async (char: Character) => {
         setGameStage('playing'); // Switch stage to show loading in GameScreen
         try {
-            let homebrewIds: string[] = [];
-            const userContent = await HomebrewService.listHomebrewContent('mine');
-            homebrewIds = homebrewIds.concat(userContent.map(c => c.id));
-            
-            if (useAiHomebrew) {
-                const aiContent = await HomebrewService.listHomebrewContent('public', undefined, 'ai');
-                homebrewIds = homebrewIds.concat(aiContent.map(c => c.id));
-            }
-            
-            const newSessionResponse = await GameService.createGameSession(
-                `Aventura de ${char.name}`, 
-                char.id, 
-                [...new Set(homebrewIds)]
-            );
-
-            if (newSessionResponse && newSessionResponse.sessao) {
-                await loadGameSession(newSessionResponse.sessao.id);
+            const { sessao } = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
+            if (sessao) {
+                await loadGameSession(sessao.id);
             } else {
                 throw new Error("Failed to create a new session from the server.");
             }
@@ -126,7 +114,7 @@ const GameContainer = () => {
             console.error("[GameContainer] Failed to start new game session:", error);
             setGameStage('main_menu');
         }
-    }, [useAiHomebrew, loadGameSession]);
+    }, [loadGameSession]);
     
     const handleCharacterCreated = () => {
         setGameStage('character_vault');
@@ -309,11 +297,18 @@ const GameContainer = () => {
                         <Settings className="h-5 w-5"/> Configurações
                     </button>
                      <button 
+                        onClick={() => setShowArchitectureModal(true)} 
+                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
+                        title="Arquitetura de Dados"
+                    >
+                        <GitMerge className="h-5 w-5"/> Arquitetura
+                    </button>
+                     <button 
                         onClick={() => setShowTestModal(true)} 
                         className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
                         title="Testes do Sistema"
                     >
-                        <Beaker className="h-5 w-5"/> Testes do Sistema
+                        <Beaker className="h-5 w-5"/> Testes
                     </button>
                 </footer>
             </div>
@@ -360,6 +355,10 @@ const GameContainer = () => {
                 isOpen={showTestModal}
                 onClose={() => setShowTestModal(false)}
                 characters={characters as Character[]}
+            />
+            <ArchitectureHelpModal
+                isOpen={showArchitectureModal}
+                onClose={() => setShowArchitectureModal(false)}
             />
         </>
     );
