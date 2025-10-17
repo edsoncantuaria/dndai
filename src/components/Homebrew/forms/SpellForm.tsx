@@ -6,6 +6,7 @@ import { translateApiString, translateMagicSchool } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import ItemSelector from '../ItemSelector';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [spellData, setSpellData] = useState(() => ({
         name: '',
         desc: [''],
@@ -167,10 +169,12 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
                 <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={spellData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fire-bolt (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={spellData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fire-bolt (opcional)"/>
+                </div>
+            )}
             <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
                 <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />

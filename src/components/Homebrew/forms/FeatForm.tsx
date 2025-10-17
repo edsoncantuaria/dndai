@@ -5,6 +5,7 @@ import { translateAttribute } from '@/utils/translator';
 import * as characterUtils from '@/utils/characterUtils';
 import type { Attributes } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Prerequisite {
     ability_score: { index: string; name: string, url: string };
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [featData, setFeatData] = useState(initialData || {
         name: '',
         desc: [''],
@@ -62,10 +64,12 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="feat-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Talento</label>
                 <input id="feat-name" type="text" value={featData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre de Armas de Haste"/>
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={featData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: grappler (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={featData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: grappler (opcional)"/>
+                </div>
+            )}
             <div>
                 <label htmlFor="feat-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
                 <textarea id="feat-desc" value={featData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={5} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva os benefícios e as regras do talento."/>

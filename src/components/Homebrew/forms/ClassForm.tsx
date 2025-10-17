@@ -6,6 +6,7 @@ import { translateApiString, translateAttribute } from '@/utils/translator';
 import type { ApiListItem } from '@/types';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import FeatureCreator from './FeatureCreator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -25,6 +26,7 @@ const ALL_WEAPON_PROFS: ApiListItem[] = [
 ]
 
 const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [classData, setClassData] = useState(initialData || {
         name: '',
         hit_die: 8,
@@ -149,10 +151,12 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
                 />
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={classData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: barbarian (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={classData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: barbarian (opcional)"/>
+                </div>
+            )}
             <div>
                 <label htmlFor="hit-die" className="block text-sm font-medium text-stone-300 mb-1">
                     Dado de Vida

@@ -6,6 +6,7 @@ import * as DndApiService from '@/services/dndApiService';
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [subraceData, setSubraceData] = useState(initialData || {
         name: '',
         desc: '',
@@ -124,10 +126,12 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="subrace-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Sub-raça</label>
                 <input id="subrace-name" type="text" value={subraceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Elfo da Floresta, Anão Cinzento"/>
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={subraceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: high-elf (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={subraceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: high-elf (opcional)"/>
+                </div>
+            )}
             <div>
                 <label htmlFor="subrace-parent-race" className="block text-sm font-medium text-stone-300 mb-1">Raça Principal</label>
                 <select id="subrace-parent-race" value={subraceData.race.index} onChange={e => handleRaceChange(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">

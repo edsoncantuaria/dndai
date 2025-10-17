@@ -8,6 +8,7 @@ import type { ApiListItem } from '@/types';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
 import ActionCreator from './ActionCreator';
+import { useAuth } from '@/contexts/AuthContext';
 
 
 interface Props {
@@ -27,6 +28,7 @@ const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitu
 
 
 const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [monsterData, setMonsterData] = useState(initialData || {
         name: '',
         size: 'Medium',
@@ -238,10 +240,12 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
                 />
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={monsterData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: goblin (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={monsterData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: goblin (opcional)"/>
+                </div>
+            )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <label htmlFor="monster-size" className="block text-sm font-medium text-stone-300 mb-1">Tamanho</label>

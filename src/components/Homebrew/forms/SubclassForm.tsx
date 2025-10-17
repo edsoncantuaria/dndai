@@ -6,6 +6,7 @@ import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import FeatureCreator from './FeatureCreator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [subclassData, setSubclassData] = useState(initialData || {
         name: '',
         subclass_flavor: '',
@@ -114,10 +116,12 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="subclass-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Subclasse</label>
                 <input id="subclass-name" type="text" value={subclassData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre das Runas" />
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={subclassData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fiend (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={subclassData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fiend (opcional)"/>
+                </div>
+            )}
             <div>
                 <label htmlFor="subclass-class" className="block text-sm font-medium text-stone-300 mb-1">Classe Original</label>
                 <select 

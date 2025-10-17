@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [raceData, setRaceData] = useState(() => ({
         name: '',
         speed: 30,
@@ -76,10 +78,12 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="race-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Raça</label>
                 <input id="race-name" type="text" value={raceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Povo Gato, Githzerai"/>
             </div>
-             <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={raceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: human, half-elf (opcional)"/>
-            </div>
+             {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={raceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: human, half-elf (opcional)"/>
+                </div>
+            )}
             <div>
                 <label htmlFor="race-speed" className="block text-sm font-medium text-stone-300 mb-1">Velocidade</label>
                 <input id="race-speed" type="number" value={raceData.speed} onChange={e => handleFieldChange('speed', Number(e.target.value))} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />

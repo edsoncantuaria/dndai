@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import * as characterUtils from '@/utils/characterUtils';
 import { translateApiString, translateAttribute } from '@/utils/translator';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -26,6 +27,7 @@ const defaultBgData = {
 
 
 const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [bgData, setBgData] = useState({
         ...defaultBgData,
         ...initialData,
@@ -68,10 +70,12 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     <label className="block text-sm font-medium text-stone-300 mb-1">Nome do Antecedente</label>
                     <input type="text" value={bgData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
                 </div>
-                 <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                    <input type="text" value={bgData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: acolyte (opcional)"/>
-                </div>
+                {user?.id === 1 && (
+                    <div>
+                        <label className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                        <input type="text" value={bgData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: acolyte (opcional)"/>
+                    </div>
+                )}
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Idiomas Adicionais</label>
                     <input type="number" min="0" max="4" value={bgData.language_options.choose} onChange={e => handleFieldChange('language_options', {...bgData.language_options, choose: Number(e.target.value) })} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />

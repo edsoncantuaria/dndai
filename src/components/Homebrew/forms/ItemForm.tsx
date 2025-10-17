@@ -5,6 +5,7 @@ import * as DndApiService from '@/services/dndApiService';
 import { translateApiString } from '@/utils/translator';
 import { Loader2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -14,6 +15,7 @@ interface Props {
 const RARITIES = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary", "Artifact"];
 
 const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const { user } = useAuth();
     const [itemData, setItemData] = useState(initialData || {
         name: '',
         desc: [''],
@@ -99,10 +101,12 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="item-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Item</label>
                 <input id="item-name" type="text" value={itemData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
             </div>
-            <div>
-                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                <input id="official_index" type="text" value={itemData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: longsword (opcional)"/>
-            </div>
+            {user?.id === 1 && (
+                <div>
+                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={itemData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: longsword (opcional)"/>
+                </div>
+            )}
              <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
                 <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
