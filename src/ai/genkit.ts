@@ -1,3 +1,4 @@
+'use client';
 import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 
@@ -5,9 +6,7 @@ import { googleAI } from '@genkit-ai/googleai';
 // The key will be passed dynamically where needed.
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiVersion: 'v1beta',
-    }),
+    googleAI(),
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
