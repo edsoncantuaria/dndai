@@ -11,11 +11,11 @@ interface Props {
 }
 
 const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
-    const [raceData, setRaceData] = useState(initialData || {
+    const [raceData, setRaceData] = useState(() => ({
         name: '',
         speed: 30,
-        ability_bonuses: [] as { ability_score: { index: string; name: string, url: string }; bonus: number }[],
-        traits: [] as ApiListItem[],
+        ability_bonuses: [],
+        traits: [],
         alignment: "Varia muito, mas tende a...",
         age: "Atingem a maturidade por volta dos X anos e vivem até Y.",
         size: "Medium",
@@ -25,7 +25,8 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         languages: [],
         subraces: [],
         dependencies: [],
-    });
+        ...initialData,
+    }));
     
     useEffect(() => {
         const traitIds = raceData.traits.map((t: ApiListItem) => t.index);
