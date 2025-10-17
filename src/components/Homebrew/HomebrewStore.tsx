@@ -11,6 +11,7 @@ import { translateApiString } from '@/utils/translator';
 import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
+import AiCreator from './AiCreator'; // Importar o novo componente
 
 type View = 'list' | 'create' | 'edit';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
@@ -117,6 +118,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const installedIds = useMemo(() => new Set(user?.installedHomebrewIds || []), [user]);
     const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
+    const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false); // Novo estado para o modal da IA
+
 
     const fetchContentAndBundles = useCallback(async () => {
         setIsLoading(true);
@@ -267,11 +270,24 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             setItemToDelete(null);
         }
     };
+    
+    // Nova função para lidar com o conteúdo gerado pela IA
+    const handleAiContentCreated = (generatedContent: any, type: HomebrewService.HomebrewContentType) => {
+        setContentToEdit({
+            id: '',
+            authorId: user?.id || 0,
+            type: type,
+            name: generatedContent.name,
+            content: generatedContent,
+            isPublic: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            createdBy: 'user',
+        });
+        setView('create'); // Abre a tela de criação, mas pré-populada
+    };
 
-    if (view === 'create') {
-        return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndBundles(); }} onCancel={() => setView('list')} />;
-    }
-    if (view === 'edit') {
+    if (view === 'create' || view === 'edit') {
         return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndBundles(); }} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
     }
 
@@ -510,7 +526,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                              ))}
                         </div>
                         <div className="flex gap-2 mt-2 sm:mt-0">
-                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
+                             <button onClick={() => setIsAiCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
+                                <Bot className="h-5 w-5"/> Gerar com IA
+                            </button>
+                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
                                 <PackagePlus className="h-5 w-5"/> Criar Pacote
                             </button>
                             <button onClick={() => { setView('create'); setContentToEdit(null); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
@@ -580,6 +599,11 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 onClose={() => setIsBundleCreatorOpen(false)}
                 onBundleCreated={fetchContentAndBundles}
                 bundleToEdit={bundleToEdit}
+            />
+            <AiCreator
+                isOpen={isAiCreatorOpen}
+                onClose={() => setIsAiCreatorOpen(false)}
+                onContentGenerated={handleAiContentCreated}
             />
         </>
     );
