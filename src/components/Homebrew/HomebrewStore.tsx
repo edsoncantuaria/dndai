@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Search } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
 import HomebrewCreator from './HomebrewCreator';
@@ -10,7 +10,7 @@ import { translateApiString } from '@/utils/translator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 
 type View = 'list' | 'create';
-type Tab = 'public' | 'mine';
+type Tab = 'public' | 'mine' | 'ai'; // Adicionado 'ai'
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
@@ -30,8 +30,20 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const fetchContentAndInstalledIds = useCallback(async () => {
         setIsLoading(true);
         try {
+            let contentPromise;
+            if (activeTab === 'public') {
+                // Aba comunidade mostra apenas conteúdo público de usuários
+                contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'user');
+            } else if (activeTab === 'ai') {
+                // Nova aba IA mostra apenas conteúdo público da IA
+                contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'ai');
+            } else {
+                // Aba 'mine' mostra o conteúdo do usuário
+                contentPromise = HomebrewService.listHomebrewContent('mine');
+            }
+            
             const [contentResult, sessionsResult] = await Promise.all([
-                HomebrewService.listHomebrewContent(activeTab),
+                contentPromise,
                 GameService.getGameSessions()
             ]);
 
@@ -108,6 +120,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                      <div className="border-b border-stone-700">
                         <button onClick={() => setActiveTab('public')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'public' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             Comunidade
+                        </button>
+                         <button onClick={() => setActiveTab('ai')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'ai' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
+                            <Bot className="h-5 w-5"/> IA
                         </button>
                         <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             Minhas Criações
