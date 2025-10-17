@@ -30,22 +30,33 @@ router.get('/:resource', async (req, res, next) => {
         const apiPromise = DndApiService.getResourceList(resource);
         
         // Busca todo o conteúdo público E o conteúdo do próprio usuário, pois ambos são "instaláveis"
-        const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource);
+        const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource, 'user'); // Apenas user, AI será tratada separadamente
         const userHomebrewPromise = HomebrewService.getHomebrewContentByAuthor(userId, resource);
-        
-        const [apiData, publicHomebrew, userHomebrew] = await Promise.all([apiPromise, publicHomebrewPromise, userHomebrewPromise]);
-        
-        // Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
-        const allInstallableHomebrew = [...userHomebrew, ...publicHomebrew.filter(phb => !userHomebrew.some(uhb => uhb.id === phb.id))];
+        const aiContentPromise = HomebrewService.getPublicHomebrewContent(resource, 'ai'); // Conteúdo da IA é sempre parte da base
 
+        const [apiData, publicHomebrew, userHomebrew, aiContent] = await Promise.all([apiPromise, publicHomebrewPromise, userHomebrewPromise, aiContentPromise]);
+        
         const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
 
-        // Adiciona conteúdo oficial
+        // 1. Adiciona conteúdo oficial
         (apiData?.results || []).forEach(item => {
             finalResultsMap.set(item.index, item);
         });
+        
+        // 2. Adiciona TODO o conteúdo da IA, tratando-o como parte da base
+        aiContent.forEach(aiItem => {
+             const displayName = `(IA) ${aiItem.name}`;
+             finalResultsMap.set(aiItem.content.index || aiItem.id, {
+                index: aiItem.content.index || aiItem.id,
+                name: displayName,
+                url: `/api/dnds/${resource}/${aiItem.id}`
+             });
+        });
 
-        // Adiciona homebrew instalado, que pode sobrescrever o oficial ou ser novo
+        // 3. Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
+        const allInstallableHomebrew = [...userHomebrew, ...publicHomebrew.filter(phb => !userHomebrew.some(uhb => uhb.id === phb.id))];
+
+        // 4. Adiciona homebrew instalado (que não seja da IA), que pode sobrescrever o oficial ou ser novo
         const installedHomebrew = allInstallableHomebrew.filter(hb => installedIds.has(hb.id));
 
         installedHomebrew.forEach(hb => {

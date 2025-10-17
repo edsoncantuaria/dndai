@@ -11,6 +11,7 @@ import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
 import { mergeCharacterUpdates } from './safeMerge.js';
+import * as SessaoService from './sessaoService.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
@@ -203,15 +204,16 @@ export const processPlayerTurn = async (
                 try {
                     const existing = await HomebrewService.findHomebrewByOfficialIndex(newContent.content.index, newContent.type);
                     if (!existing) {
-                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true }); // Torna público
-                        // Auto-instala o conteúdo criado pela IA na sessão atual.
-                        await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
+                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' }); // Torna público E marca como IA
+                       // Auto-instala o conteúdo criado pela IA na sessão atual para uso imediato.
+                       await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
                     }
                 } catch (error) {
                     console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
                 }
             }
         }
+
 
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
         if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 

@@ -123,7 +123,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             const [publicBundles, myBundles, publicContent, myContent, aiContent] = await Promise.all([
                 HomebrewService.listBundles('public'),
                 user ? HomebrewService.listBundles('mine') : Promise.resolve([]),
-                HomebrewService.listHomebrewContent('public', 'user'), // Apenas da comunidade
+                HomebrewService.listHomebrewContent('public', 'user'), // Apenas user, AI será tratada separadamente
                 user ? HomebrewService.listHomebrewContent('mine') : Promise.resolve([]),
                 HomebrewService.listHomebrewContent('public', 'ai'),
             ]);
@@ -313,10 +313,11 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         backgroundColor: isInstalled ? 'rgb(127 29 29 / 0.8)' : 'rgb(217 119 6)',
                                         color: isInstalled ? 'rgb(254 202 202)' : 'rgb(28 25 23)',
                                     }}
-                                    title={isInstalled ? 'Desinstalar' : 'Instalar'}
+                                    disabled={isFromAI}
+                                    title={isFromAI ? "Conteúdo da IA é sempre ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
                                 >
                                     {isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                                    {isInstalled ? 'Desinstalar' : 'Instalar'}
+                                    {isFromAI ? "Sempre Ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
                                 </button>
                             </div>
                         </div>
@@ -358,7 +359,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     
     const renderCommunityTab = () => {
         const communityContent = content.filter(c => c.isPublic && c.authorId !== user?.id && !c.bundleId && c.createdBy === 'user');
-        return renderContentGrid(communityContent);
+        const myPublicContent = content.filter(c => c.isPublic && c.authorId === user?.id && !c.bundleId && c.createdBy === 'user');
+        return renderContentGrid([...communityContent, ...myPublicContent]);
     };
 
     const renderMyCreationsTab = () => {
