@@ -1,5 +1,6 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import * as authService from '@/services/authService'; // Importa authService
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
@@ -69,8 +70,8 @@ interface SettingsContextType {
     setIsMuted: (isMuted: boolean) => void;
     playMenuMusic: boolean;
     setPlayMenuMusic: (play: boolean) => void;
-    useAiHomebrew: boolean; // Novo campo
-    setUseAiHomebrew: (use: boolean) => void; // Novo setter
+    useAiHomebrew: boolean;
+    setUseAiHomebrew: (use: boolean) => void;
     getApiKey: () => string | undefined;
     saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject'>>) => Promise<void>;
 }
@@ -92,24 +93,14 @@ const defaultSettings = {
     volume: 0.3,
     isMuted: false,
     playMenuMusic: true,
-    useAiHomebrew: true, // Padrão é usar o conteúdo da IA
+    useAiHomebrew: true,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const saveSettingsToDB = async (settings: Partial<any>) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
-
     try {
-        await fetch(`https://backend-5e.edsin-server.space/api/users/me/settings`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(settings),
-        });
+        await authService.saveUserSettings(settings);
     } catch (error) {
         console.error("Failed to save settings to DB:", error);
     }
@@ -171,7 +162,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
-            if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew); // Carregar a nova configuração
+            if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew);
             if (settings.apiKey) setApiKey(settings.apiKey);
         }
     }, []);

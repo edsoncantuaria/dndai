@@ -10,7 +10,7 @@ import type { z } from 'zod';
 // Configurações padrão para novos usuários
 const defaultSettings = {
     model: "gemini-2.5-flash",
-    ttsModel: "gemini-2.5-flash-preview-tts",
+    ttsModel: "gemini-2.5-flash-native-audio-preview-09-2025",
     imageModel: "imagen-3.0-generate-002",
     ttsVoice: "Charon",
     generationConfig: {
@@ -22,6 +22,7 @@ const defaultSettings = {
     volume: 0.3,
     isMuted: false,
     playMenuMusic: true,
+    useAiHomebrew: true,
 };
 
 export const registerUser = async (userData: z.infer<typeof RegisterSchema>) => {

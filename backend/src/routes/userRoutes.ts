@@ -8,6 +8,6 @@ const router = Router();
 router.get('/me', authMiddleware, getMe);
 router.put('/me/settings', authMiddleware, updateSettings);
 router.post('/me/acknowledge-homebrew', authMiddleware, acknowledgeHomebrewDisclaimer);
-router.patch('/me/homebrew', authMiddleware, updateUserHomebrew); // Nova rota
+router.patch('/me/homebrew', authMiddleware, updateUserHomebrew);
 
 export default router;

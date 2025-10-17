@@ -54,3 +54,13 @@ export const acknowledgeHomebrewDisclaimer = async () => {
         method: 'POST',
     });
 };
+
+/**
+ * Salva as configurações de um usuário no backend.
+ */
+export const saveUserSettings = async (settings: any) => {
+    return apiClient<{ success: boolean, message: string, settings: any }>('/users/me/settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+    });
+};
