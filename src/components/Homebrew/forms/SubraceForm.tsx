@@ -15,17 +15,18 @@ interface Props {
 
 const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [subraceData, setSubraceData] = useState(initialData || {
+    const [subraceData, setSubraceData] = useState(() => ({
         name: '',
         desc: '',
         race: { index: '', name: '', url: '' },
-        ability_bonuses: [] as { ability_score: { index: string; name: string, url: string }; bonus: number }[],
-        racial_traits: [] as ApiListItem[],
-        starting_proficiencies: [] as ApiListItem[],
-        languages: [] as ApiListItem[],
+        ability_bonuses: [],
+        racial_traits: [],
+        starting_proficiencies: [],
+        languages: [],
         dependencies: [],
         official_index: '',
-    });
+        ...(initialData || {}),
+    }));
     const [races, setRaces] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -34,12 +35,12 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         try {
             const officialRaces = await DndApiService.getRaces();
             const homebrewRaces = await DndApiService.listHomebrewContent('public', 'race');
-            const myHomebrewRaces = user ? await DndApiService.listHomebrewContent('mine', 'race') : [];
+            const myHomebrewRaces = user ? await DndApiService.listHomebrewContent('mine', 'race') : Promise.resolve([]);
 
             const all = [...(officialRaces?.results || [])];
-            const myIds = new Set(myHomebrewRaces.map(r => r.id));
+            const myIds = new Set((await myHomebrewRaces).map(r => r.id));
 
-            all.push(...myHomebrewRaces.map(r => ({ index: r.id, name: `(Meu) ${r.name}`, url: '' })));
+            all.push(...(await myHomebrewRaces).map(r => ({ index: r.id, name: `(Meu) ${r.name}`, url: '' })));
             all.push(...homebrewRaces.filter(r => !myIds.has(r.id)).map(r => ({ index: r.id, name: `(H) ${r.name}`, url: '' })));
 
             setRaces(all.sort((a,b) => a.name.localeCompare(b.name)));
