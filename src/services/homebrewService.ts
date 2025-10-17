@@ -36,6 +36,13 @@ export interface CreateHomebrewData {
     dependencies?: string[];
 }
 
+export interface CreateBundleData {
+    name: string;
+    description: string;
+    contentIds: string[];
+}
+
+
 /**
  * Busca conteúdo homebrew.
  * @param scope 'public' para conteúdo da comunidade, 'mine' para conteúdo do usuário logado.
@@ -93,6 +100,19 @@ export const getHomebrewDependencies = async (id: string): Promise<HomebrewConte
 export const listHomebrewBundles = async (): Promise<HomebrewBundle[]> => {
     return apiClient<HomebrewBundle[]>('/homebrew/bundles');
 };
+
+/**
+ * Cria um novo pacote de conteúdo.
+ * @param data Os dados do novo pacote.
+ */
+export const createHomebrewBundle = async (data: CreateBundleData): Promise<HomebrewBundle> => {
+    const response = await apiClient<{ bundle: HomebrewBundle }>('/homebrew/bundles', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+    return response.bundle;
+};
+
 
 /**
  * Obtém o conteúdo de um pacote (bundle) específico.

@@ -1,5 +1,5 @@
 // backend/src/entities/HomebrewBundle.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { User } from './User.js';
 import { HomebrewContent } from './HomebrewContent.js';
 
@@ -24,18 +24,7 @@ export class HomebrewBundle {
     @Column({ type: 'boolean', default: false })
     isPublic: boolean;
     
-    @ManyToMany(() => HomebrewContent)
-    @JoinTable({
-        name: 'homebrew_bundle_items',
-        joinColumn: {
-            name: 'bundleId',
-            referencedColumnName: 'id'
-        },
-        inverseJoinColumn: {
-            name: 'contentId',
-            referencedColumnName: 'id'
-        }
-    })
+    @OneToMany(() => HomebrewContent, content => content.bundle)
     contents: HomebrewContent[];
 
     @CreateDateColumn()

@@ -1,10 +1,11 @@
 // backend/src/services/homebrewService.ts
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewContent.js';
+import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
-import { FindManyOptions, In } from 'typeorm';
+import { FindManyOptions, In, Like, IsNull, Not } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -210,4 +211,100 @@ export const getHomebrewDependencies = async (
 
     // Retorna uma lista única de dependências
     return Array.from(new Map(allDependencies.map(item => [item.id, item])).values());
+};
+
+/**
+ * Verifica se um nome (que será convertido para um índice) já existe para um tipo específico.
+ * @param name O nome do conteúdo.
+ * @param type O tipo do conteúdo.
+ * @returns `true` se o nome já existe, `false` caso contrário.
+ */
+export const checkIfNameExists = async (name: string, type: HomebrewContentType): Promise<boolean> => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const index = name.toLowerCase().replace(/\s+/g, '-');
+    
+    const count = await homebrewRepo.count({
+        where: [
+            { type, name: Like(name) },
+            { type, content: Like(`%"index":"${index}"%`) }
+        ]
+    });
+    
+    return count > 0;
+};
+
+// --- Bundle Functions ---
+
+/**
+ * Lista todos os pacotes públicos e os criados pelo usuário.
+ * @param userId O ID do usuário para buscar seus pacotes privados.
+ */
+export const getPublicAndUserBundles = async (userId?: number) => {
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const query = bundleRepo.createQueryBuilder('bundle')
+        .leftJoinAndSelect('bundle.author', 'author')
+        .leftJoinAndSelect('bundle.contents', 'contents')
+        .where('bundle.isPublic = true');
+    
+    if (userId) {
+        query.orWhere('bundle.authorId = :userId', { userId });
+    }
+    
+    return query.getMany();
+};
+
+/**
+ * Obtém todo o conteúdo de um pacote específico.
+ * @param bundleId O ID do pacote.
+ */
+export const getContentsOfBundle = async (bundleId: string): Promise<HomebrewContent[]> => {
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const bundle = await bundleRepo.findOne({
+        where: { id: bundleId },
+        relations: ['contents']
+    });
+
+    if (!bundle) {
+        throw createError(404, 'Pacote não encontrado.');
+    }
+    return bundle.contents;
+};
+
+/**
+ * Cria um novo pacote de conteúdo.
+ * @param authorId ID do criador.
+ * @param name Nome do pacote.
+ * @param description Descrição do pacote.
+ * @param contentIds IDs dos conteúdos a serem incluídos.
+ */
+export const createBundle = async (authorId: number, name: string, description: string, contentIds: string[]) => {
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const contentRepo = AppDataSource.getRepository(HomebrewContent);
+
+    // Verifica se os conteúdos existem e pertencem ao autor
+    const contents = await contentRepo.find({
+        where: { id: In(contentIds), authorId: authorId }
+    });
+
+    if (contents.length !== contentIds.length) {
+        throw createError(403, 'Um ou mais itens de conteúdo não foram encontrados ou você não tem permissão para usá-los.');
+    }
+    
+    // Verifica se algum dos conteúdos já pertence a outro bundle
+    const contentAlreadyInBundle = await contentRepo.count({
+        where: { id: In(contentIds), bundle: { id: Not(IsNull()) } }
+    });
+
+    if (contentAlreadyInBundle > 0) {
+        throw createError(409, 'Um ou mais dos itens selecionados já pertencem a outro pacote. Um item só pode estar em um pacote.');
+    }
+
+    const newBundle = new HomebrewBundle();
+    newBundle.authorId = authorId;
+    newBundle.name = name;
+    newBundle.description = description;
+    newBundle.contents = contents;
+    newBundle.isPublic = false; // Pacotes começam como privados
+
+    return await bundleRepo.save(newBundle);
 };

@@ -7,20 +7,21 @@ import {
     updateContent, 
     getDependencies,
     listBundles,
-    getBundleContents
+    getBundleContents,
+    createBundle,
+    checkName
 } from '../controllers/homebrewController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-// Rota para listar bundles (pacotes) - Requer autenticação para ver os pacotes do usuário
+// --- Bundles ---
+router.post('/bundles', authMiddleware, createBundle);
 router.get('/bundles', authMiddleware, listBundles);
-
-// Rota para ver o conteúdo de um bundle específico
 router.get('/bundles/:id/contents', getBundleContents);
 
-
-// Rota para criar um novo conteúdo - Requer autenticação
+// --- Content ---
+router.post('/check-name', authMiddleware, checkName);
 router.post('/', authMiddleware, createContent);
 
 // Rota para listar conteúdos - Aberta, mas pode ter filtros

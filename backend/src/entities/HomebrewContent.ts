@@ -1,6 +1,7 @@
 // backend/src/entities/HomebrewContent.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index, OneToOne } from 'typeorm';
 import { User } from './User.js';
+import { HomebrewBundle } from './HomebrewBundle.js'; // Importar Bundle
 
 export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
 
@@ -42,6 +43,12 @@ export class HomebrewContent {
     
     @Column({ type: 'simple-json', nullable: true })
     dependencies: string[]; // Armazena os IDs de outros conteúdos homebrew
+    
+    @ManyToOne(() => HomebrewBundle, bundle => bundle.contents, { nullable: true, onDelete: 'SET NULL' })
+    bundle: HomebrewBundle;
+    
+    @Column({ type: 'varchar', length: 36, nullable: true })
+    bundleId: string | null;
 
     @CreateDateColumn()
     createdAt: Date;

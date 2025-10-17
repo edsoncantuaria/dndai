@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
 import HomebrewCreator from './HomebrewCreator';
@@ -318,7 +318,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                                 onClick={() => handleInstallClick(item)}
                                                 disabled={!activeSessionId || isStructural || isOwner}
                                                 className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                                    isInstalled || isOwner ? 'bg-green-800 text-green-200 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                                                    isOwner ? 'bg-green-800 text-green-200 cursor-default' : (isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900')
                                                 }`}
                                                 title={isOwner ? "Seu conteúdo está sempre ativo." : (isStructural ? "Conteúdo estrutural é adicionado na criação do personagem." : (isInstalled ? 'Instalado' : 'Instalar'))}
                                             >
@@ -379,4 +379,3 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 };
 
 export default HomebrewStore;
-

@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as HomebrewService from '../services/homebrewService.js';
-import { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
+import { CreateHomebrewSchema, CreateBundleSchema } from '../schemas/validationSchemas.js';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import createError from 'http-errors';
 
@@ -104,6 +104,21 @@ export const getDependencies = async (req: Request, res: Response, next: NextFun
     }
 };
 
+// Verificar se um nome/índice já existe
+export const checkName = async (req: Request, res: Response, next: NextFunction) => {
+    const { name, type } = req.body;
+    if (!name || !type) {
+        return next(createError(400, 'Nome e tipo são obrigatórios para verificação.'));
+    }
+    try {
+        const exists = await HomebrewService.checkIfNameExists(name, type);
+        res.status(200).json({ exists });
+    } catch (error) {
+        next(error);
+    }
+};
+
+
 // --- Funções de Bundle ---
 
 export const listBundles = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -112,6 +127,24 @@ export const listBundles = async (req: AuthRequest, res: Response, next: NextFun
         const bundles = await HomebrewService.getPublicAndUserBundles(userId);
         res.status(200).json(bundles);
     } catch (error) {
+        next(error);
+    }
+};
+
+export const createBundle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+
+    try {
+        const { name, description, contentIds } = CreateBundleSchema.parse(req.body);
+        const newBundle = await HomebrewService.createBundle(userId, name, description, contentIds);
+        res.status(201).json({ message: "Pacote criado com sucesso!", bundle: newBundle });
+    } catch (error: any) {
+        if (error.name === 'ZodError') {
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };

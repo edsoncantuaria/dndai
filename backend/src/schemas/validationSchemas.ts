@@ -36,7 +36,7 @@ export const SettingsSchema = z.object({
     volume: z.number().min(0).max(1),
     isMuted: z.boolean(),
     playMenuMusic: z.boolean(),
-    useAiHomebrew: z.boolean().default(true), // Novo campo
+    useAiHomebrew: z.boolean().default(true),
 });
 
 // --- Sessao ---
@@ -102,5 +102,12 @@ export const CreateHomebrewSchema = z.object({
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),
     createdBy: z.enum(['user', 'ai']).optional().default('user'),
-    dependencies: z.array(z.string()).optional(), // Novo campo de dependências
+    dependencies: z.array(z.string()).optional(),
+});
+
+// --- Bundle ---
+export const CreateBundleSchema = z.object({
+    name: z.string().min(1, "O nome do pacote é obrigatório."),
+    description: z.string().min(1, "A descrição é obrigatória."),
+    contentIds: z.array(z.string()).min(1, "O pacote deve ter pelo menos um item."),
 });
