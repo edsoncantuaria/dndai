@@ -6,6 +6,7 @@ import ActionModal from '../ui/ActionModal';
 import { BookOpen } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
 import { HomebrewContentType } from '@/services/homebrewService';
+import ExampleViewer from './ExampleViewer'; // Importa o novo componente
 
 interface Props {
     isOpen: boolean;
@@ -24,16 +25,14 @@ const ExampleModal: React.FC<Props> = ({ isOpen, onClose, contentType, exampleDa
         >
             <div className="space-y-4 text-stone-300 text-sm leading-relaxed">
                 <p>
-                    Abaixo está um exemplo da estrutura JSON para um(a) <strong className="text-amber-300">{translateApiString(contentType)}</strong>.
-                    Seu conteúdo deve seguir este formato para ser corretamente interpretado pela IA e pelo sistema de jogo.
+                    Abaixo está um exemplo de como os dados de um(a) <strong className="text-amber-300">{translateApiString(contentType)}</strong> são estruturados. Use isso como guia para preencher os campos.
                 </p>
-                <div className="bg-stone-950/70 p-4 rounded-md border border-stone-700 max-h-96 overflow-y-auto">
-                    <pre className="text-xs text-cyan-300 whitespace-pre-wrap break-words">
-                        {JSON.stringify(exampleData, null, 2)}
-                    </pre>
+                {/* Substitui o <pre> pelo novo componente ExampleViewer */}
+                <div className="bg-stone-950/70 p-4 rounded-md border border-stone-700 max-h-[60vh] overflow-y-auto">
+                   <ExampleViewer contentType={contentType} data={exampleData} />
                 </div>
                 <p className="text-xs text-stone-500 italic">
-                    Esta estrutura é baseada na API de D&D 5e e pode ser consultada no arquivo `openapi.yaml` do projeto.
+                    Esta estrutura é baseada na API de D&D 5e e pode ser consultada no arquivo openapi.yaml do projeto.
                 </p>
             </div>
         </ActionModal>
