@@ -42,11 +42,7 @@ export const generateImage = async (req: AuthRequest, res: Response, next: NextF
             return next(createError(400, 'Prompt, modelo e chave de API são obrigatórios.'));
         }
 
-        // Por enquanto, vamos mockar a resposta para evitar chamadas de API de imagem
-        // const result = await AiImageService.generateImage({ prompt, model, apiKey });
-        const mockImageUrl = `https://picsum.photos/seed/${encodeURIComponent(prompt)}/1024/576`;
-
-        const result = { imageUrl: mockImageUrl };
+        const result = await AiImageService.generateImage({ prompt, model, apiKey });
         
         if (result && result.imageUrl) {
             res.status(200).json(result);
