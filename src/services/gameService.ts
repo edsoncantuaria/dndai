@@ -1,6 +1,6 @@
 // src/services/gameService.ts
 import { apiClient } from './apiClient';
-import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from "@/types";
+import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse, HomebrewContent } from "@/types";
 
 // --- Character Management ---
 
@@ -58,7 +58,7 @@ export const processPlayerAction = async (
     apiKey: string, 
     combatState?: CombatState, 
     model?: string,
-    useAiHomebrew?: boolean, // Adicionado
+    useAiHomebrew?: boolean,
 ): Promise<GameMasterResponse> => {
     return apiClient<GameMasterResponse>(`/narrar/${sessionId}`, {
         method: 'POST',
@@ -67,7 +67,17 @@ export const processPlayerAction = async (
             apiKey,
             combatState,
             model,
-            useAiHomebrew, // Adicionado ao corpo da requisição
+            useAiHomebrew,
         }),
     });
+};
+
+// --- Homebrew Details ---
+export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | null> => {
+    try {
+        return await apiClient<HomebrewContent>(`/homebrew/${id}`);
+    } catch (error) {
+        console.error(`Failed to fetch homebrew details for id: ${id}`, error);
+        return null;
+    }
 };

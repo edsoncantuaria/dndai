@@ -1,3 +1,4 @@
+
 // src/hooks/newUseGameState.ts
 'use client';
 
@@ -7,20 +8,26 @@ import { useGameLog } from './useGameLog';
 import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse } from '../types';
+import * as HomebrewService from '../services/homebrewService';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { sanitizeGameMasterResponse } from '@/utils/sanitizeGameResponse';
+import { useToast } from './use-toast';
 
 
 export const useNewGameState = () => {
-    const { user } = useAuth();
+    const { user, revalidateUserSession } = useAuth();
     const { apiKey, model, useAiHomebrew } = useSettingsContext();
+    const { toast } = useToast();
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
+    
+    const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
+
 
     const characterState = useCharacterState();
     const logState = useGameLog();
@@ -39,8 +46,6 @@ export const useNewGameState = () => {
 
 
     const handleApiResponse = useCallback((response: GameMasterResponse, isRestoring: boolean = false) => {
-        // The sanitize function guarantees a valid object, so we don't need to check for response existence.
-
         if (!isRestoring && response.logEntries) {
             const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
             logState.addLogEntries(newLogEntries);
@@ -135,43 +140,63 @@ export const useNewGameState = () => {
         setApiError(null);
         try {
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
+            const userInstalledIds = new Set(user?.installedHomebrewIds || []);
+            const sessionRequiredIds = sessionDetails.homebrewContentIds || [];
+            
+            const missingIds = sessionRequiredIds.filter(id => !userInstalledIds.has(id));
 
-            if (sessionDetails && sessionDetails.character) {
-                const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
-                
-                const displayLogs = (sessionDetails.logs || [])
-                    .filter(log => log.type !== 'state') 
-                    .map(log => ({
-                        id: log.id?.toString() || uuidv4(),
-                        type: log.type as LogEntry['type'],
-                        content: log.response,
-                        rollResult: log.rollResult,
-                    }));
-                
-                characterState.setCharacter(fullCharacter);
-                logState.setLog(displayLogs);
-                setSessionId(id);
+            const loadSessionContent = async () => {
+                if (sessionDetails && sessionDetails.character) {
+                    const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
+                    const displayLogs = (sessionDetails.logs || []).filter(log => log.type !== 'state').map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
+                    characterState.setCharacter(fullCharacter);
+                    logState.setLog(displayLogs);
+                    setSessionId(id);
 
-                const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
-                
-                if (lastStateLog?.response) {
-                     try {
-                        const parsedState = JSON.parse(lastStateLog.response);
-                        const lastState = sanitizeGameMasterResponse(parsedState);
-                        handleApiResponse(lastState, true); 
-                    } catch(e) {
-                        console.error("Failed to parse last GM state from log, requesting refresh.", e);
-                        await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                    const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
+                    if (lastStateLog?.response) {
+                         try {
+                            const parsedState = JSON.parse(lastStateLog.response);
+                            const lastState = sanitizeGameMasterResponse(parsedState);
+                            handleApiResponse(lastState, true); 
+                        } catch(e) {
+                            await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                        }
+                    } else if (displayLogs.length === 0) {
+                        await startGame(id);
+                    } else {
+                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
-                } else if (displayLogs.length === 0) {
-                    await startGame(id);
-                } else {
-                     await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                    return { character: fullCharacter, logs: displayLogs };
                 }
+                return null;
+            };
 
-                return { character: fullCharacter, logs: displayLogs };
+            if (missingIds.length > 0) {
+                const deps = await Promise.all(missingIds.map(id => GameService.getHomebrewDetails(id)));
+                setReinstallModal({
+                    open: true,
+                    deps: deps.filter((d): d is HomebrewContent => !!d),
+                    onConfirm: async () => {
+                        try {
+                             setIsLoading(true);
+                            for (const depId of missingIds) {
+                                await HomebrewService.updateUserHomebrew(depId, 'install');
+                            }
+                            await revalidateUserSession();
+                            toast({ title: 'Dependências restauradas!', description: 'O conteúdo necessário para a sessão foi instalado.'});
+                            setReinstallModal({ open: false, deps: [], onConfirm: () => {} });
+                            await loadSessionContent();
+                        } catch (err: any) {
+                            setApiError(`Falha ao reinstalar dependências: ${err.message}`);
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    },
+                });
+                return null; // Don't proceed with loading yet
             } else {
-                throw new Error("Dados da sessão ou do personagem estão faltando.");
+                return await loadSessionContent();
             }
         } catch(err: any) {
             setApiError(err.message);
@@ -180,7 +205,7 @@ export const useNewGameState = () => {
         } finally {
              setIsLoading(false);
         }
-    }, [clearGameState, handleApiResponse, processPlayerAction, startGame, characterState, logState]);
+    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, characterState, logState, toast, revalidateUserSession]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
@@ -236,6 +261,8 @@ export const useNewGameState = () => {
         log: logState.log,
         sessionId,
         ...interactionState,
+        reinstallModal, // Expor o estado do modal
+        setReinstallModal, // Expor o setter
         isLoading,
         apiError,
         ambientSound,
@@ -263,7 +290,7 @@ export const useNewGameState = () => {
         setLog: logState.setLog,
         setSessionId,
     }), [
-        characterState, logState, sessionId, interactionState, 
+        characterState, logState, sessionId, interactionState, reinstallModal,
         isLoading, apiError, ambientSound,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
         startGame, processPlayerAction, clearGameState, loadGameSession

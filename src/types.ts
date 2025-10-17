@@ -600,4 +600,21 @@ export interface SessaoIA {
   logs?: LogEntry[];
   createdAt: string;
   updatedAt: string;
+  homebrewContentIds?: string[];
+}
+
+export interface HomebrewContent {
+    id: string;
+    authorId: number;
+    author?: { id: number, username: string };
+    type: 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
+    name: string;
+    content: any;
+    isPublic: boolean;
+    createdAt: string;
+    updatedAt: string;
+    createdBy: 'user' | 'ai';
+    dependencies?: string[];
+    bundleId?: string | null;
+    bundle?: { name: string, id: string };
 }

@@ -31,6 +31,10 @@ export class SessaoIA {
 
     @OneToMany(() => SessionLog, log => log.sessao, { cascade: true, eager: true })
     logs: SessionLog[];
+    
+    @Index()
+    @Column({ type: 'simple-json', nullable: true })
+    homebrewContentIds: string[]; // Armazena IDs de todo o conteúdo necessário para esta sessão
 
     @CreateDateColumn()
     createdAt: Date;

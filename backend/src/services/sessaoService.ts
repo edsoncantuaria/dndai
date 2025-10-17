@@ -6,6 +6,7 @@ import { Character } from '../entities/Character.js';
 import { IsNull, In } from 'typeorm';
 import createError from 'http-errors';
 import { buildFullCharacterObject } from './characterService.js';
+import * as HomebrewService from './homebrewService.js';
 import type { z } from 'zod';
 import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 
@@ -14,10 +15,18 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     
     const characterRepository = AppDataSource.getRepository(Character);
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const userRepository = AppDataSource.getRepository(User);
 
-    const character = await characterRepository.findOne({ where: { id: characterId, userId } });
+    const [character, user] = await Promise.all([
+        characterRepository.findOne({ where: { id: characterId, userId } }),
+        userRepository.findOneBy({ id: userId }),
+    ]);
+    
     if (!character) {
         throw createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.');
+    }
+    if (!user) {
+        throw createError(404, 'Usuário não encontrado.');
     }
 
     const existingSession = await sessaoRepository.findOne({ where: { characterId, userId, deletedAt: IsNull() } });
@@ -27,11 +36,17 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
         return { sessao: sessaoParaRetorno, isNew: false };
     }
     
+    // Buscar todas as dependências do conteúdo instalado no usuário
+    const dependencyPromises = (user.installedHomebrewIds || []).map(id => HomebrewService.getHomebrewDependencies(id));
+    const dependencyArrays = await Promise.all(dependencyPromises);
+    const allDependentIds = new Set(dependencyArrays.flat().map(dep => dep.id));
+    
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
     novaSessao.characterId = character.id;
     novaSessao.userId = userId;
     novaSessao.apiKey = '';
+    novaSessao.homebrewContentIds = Array.from(allDependentIds); // Salva a "fotografia" das dependências
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

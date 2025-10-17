@@ -1,8 +1,9 @@
+
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useNewGameState } from '../hooks/newUseGameState';
-import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo } from '../types';
+import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent } from '../types';
 
 // Define a mais específica para o valor do contexto
 export interface GameStateContextType {

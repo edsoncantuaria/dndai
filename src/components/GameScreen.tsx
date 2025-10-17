@@ -21,16 +21,52 @@ import AmbientPlayer from './AmbientPlayer';
 import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
-import { User, Backpack, BookOpen, Map, Users, TrendingUp } from 'lucide-react';
+import ActionModal from './ui/ActionModal'; // Importar o ActionModal
+import { User, Backpack, BookOpen, Map, Users, TrendingUp, Loader2, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
-import { Loader2 } from 'lucide-react';
+
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
 
 interface GameScreenProps {
     returnToMenu: () => void;
 }
+
+const ReinstallDependenciesModal: React.FC = () => {
+    const { reinstallModal, setReinstallModal, isLoading } = useGameStateContext();
+
+    if (!reinstallModal.open) return null;
+
+    return (
+        <ActionModal
+            isOpen={true}
+            title="Dependências Faltando"
+            onClose={() => setReinstallModal({ open: false, deps: [], onConfirm: () => {} })}
+            actions={[
+                {
+                    text: `Reinstalar (${reinstallModal.deps.length})`,
+                    onClick: reinstallModal.onConfirm,
+                    variant: 'primary',
+                    disabled: isLoading,
+                    icon: isLoading ? <Loader2 className="animate-spin h-4 w-4" /> : <Download className="h-4 w-4" />
+                }
+            ]}
+        >
+            <p className="text-stone-300 mb-4">
+                Para continuar esta aventura, o seguinte conteúdo homebrew precisa ser reinstalado. Isso não afetará suas outras sessões.
+            </p>
+            <div className="max-h-60 overflow-y-auto bg-stone-800/50 p-3 rounded-md border border-stone-700">
+                <ul className="list-disc list-inside text-stone-300 space-y-1">
+                    {reinstallModal.deps.map(dep => (
+                        <li key={dep.id}>{dep.name}</li>
+                    ))}
+                </ul>
+            </div>
+        </ActionModal>
+    );
+};
+
 
 const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
@@ -55,9 +91,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
     
-    // O useEffect para mostrar o modal de dados foi removido.
-    // A visibilidade agora é controlada diretamente pela existência do `playerRollRequest`.
-    // Isso evita o atraso e simplifica a lógica.
     const showDiceModal = !!playerRollRequest;
 
     useEffect(() => {
@@ -66,7 +99,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         } else {
             document.body.classList.remove('overscroll-contain');
         }
-        // Cleanup on component unmount
         return () => {
             document.body.classList.remove('overscroll-contain');
         }
@@ -103,7 +135,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
     
-    // Mostra um loader principal se o personagem ainda não carregou (ao iniciar ou carregar sessão).
     if (isLoading && !character) {
         return (
            <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
@@ -114,7 +145,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     }
 
     if (!character) {
-        // Fallback caso o personagem não carregue por algum motivo não coberto pelo isLoading
         return (
              <div className="flex flex-col items-center justify-center h-full text-center text-red-400">
                <h2 className="text-2xl font-bold">Erro ao Carregar Personagem</h2>
@@ -123,7 +153,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         );
     }
     
-    // Mostra um loader específico se estivermos aguardando a primeira narração.
     if (isLoading && log.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
@@ -138,6 +167,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         <>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
                 <Vignette />
+                <ReinstallDependenciesModal />
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
