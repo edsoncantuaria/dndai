@@ -5,7 +5,7 @@ import {
     listContent, 
     getContentById, 
     updateContent,
-    deleteContent, // Importa a função de deletar
+    deleteContent,
     getDependencies,
     listBundles,
     getBundleContents,
@@ -21,7 +21,6 @@ const router = Router();
 // --- Bundles ---
 router.post('/bundles', authMiddleware, createBundle);
 router.get('/bundles', (req, res, next) => {
-    // Permite listar bundles publicos sem auth, mas requer auth para 'mine'
     if (req.query.scope === 'mine') {
         return authMiddleware(req as any, res, next);
     }
@@ -36,8 +35,6 @@ router.delete('/bundles/:id', authMiddleware, deleteBundle);
 router.post('/check-name', authMiddleware, checkName);
 router.post('/', authMiddleware, createContent);
 
-// Rota para listar conteúdos - Aberta, mas pode ter filtros
-// A autenticação é opcional aqui para permitir listar conteúdo "meu"
 router.get('/', (req, res, next) => {
     if (req.query.scope === 'mine') {
         return authMiddleware(req as any, res, next);
@@ -46,16 +43,9 @@ router.get('/', (req, res, next) => {
 }, listContent);
 
 
-// Rota para obter um conteúdo específico - Aberta, pois a lógica de permissão está no serviço
 router.get('/:id', getContentById);
-
-// Rota para atualizar um conteúdo
 router.put('/:id', authMiddleware, updateContent);
-
-// Rota para deletar um conteúdo (protegida)
 router.delete('/:id', authMiddleware, deleteContent);
-
-// Rota para obter dependências de um conteúdo
 router.get('/:id/dependencies', getDependencies);
 
 

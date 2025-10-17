@@ -12,12 +12,6 @@ interface PaginationOptions {
     limit: number;
 }
 
-/**
- * Cria um novo conteúdo homebrew.
- * @param authorId O ID do usuário que está criando o conteúdo.
- * @param data Os dados do conteúdo homebrew validados.
- * @returns O conteúdo homebrew salvo.
- */
 export const createHomebrewContent = async (authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
 
@@ -42,13 +36,6 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     }
 };
 
-/**
- * Atualiza um conteúdo homebrew existente.
- * @param contentId O ID do conteúdo a ser atualizado.
- * @param authorId O ID do usuário que está tentando atualizar (para verificação de permissão).
- * @param data Os novos dados para o conteúdo.
- * @returns O conteúdo atualizado.
- */
 export const updateHomebrewContent = async (contentId: string, authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const contentToUpdate = await homebrewRepo.findOneBy({ id: contentId });
@@ -56,253 +43,132 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
     if (!contentToUpdate) {
         throw createError(404, 'Conteúdo Homebrew não encontrado.');
     }
-
     if (contentToUpdate.authorId !== authorId) {
         throw createError(403, 'Você não tem permissão para editar este conteúdo.');
     }
-    
+    if (contentToUpdate.createdBy === 'ai') {
+        throw createError(403, 'Conteúdo gerado pela IA não pode ser editado.');
+    }
     if (contentToUpdate.bundleId) {
         throw createError(409, 'Este conteúdo não pode ser editado pois pertence a um pacote. Remova-o do pacote para editar.');
     }
 
-    // Atualiza os campos
     contentToUpdate.name = data.name;
     contentToUpdate.content = data.content;
     contentToUpdate.isPublic = data.isPublic || false;
     contentToUpdate.dependencies = data.dependencies || [];
 
     try {
-        const updatedContent = await homebrewRepo.save(contentToUpdate);
-        return updatedContent;
+        return await homebrewRepo.save(contentToUpdate);
     } catch (error: any) {
         console.error("Erro ao atualizar conteúdo homebrew:", error);
         throw createError(500, 'Falha ao atualizar o conteúdo no banco de dados.');
     }
 };
 
-/**
- * Deleta um conteúdo homebrew. Apenas o autor pode deletar.
- * @param contentId O ID do conteúdo a ser deletado.
- * @param authorId O ID do usuário tentando deletar.
- */
 export const deleteHomebrewContent = async (contentId: string, authorId: number) => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const content = await homebrewRepo.findOneBy({ id: contentId });
-
-    if (!content) {
-        throw createError(404, 'Conteúdo Homebrew não encontrado.');
-    }
-    if (content.authorId !== authorId) {
-        throw createError(403, 'Você não tem permissão para deletar este conteúdo.');
-    }
-    // Não pode deletar conteúdo criado pela IA
-    if (content.createdBy === 'ai') {
-        throw createError(403, 'Conteúdo gerado pela IA não pode ser deletado.');
-    }
-
-    await homebrewRepo.remove(content);
+    // This function is now disabled to prevent accidental deletion.
+    // We can re-enable it if a 'soft delete' or 'archive' feature is desired later.
+    throw createError(403, 'A exclusão de criações individuais está desabilitada.');
 };
 
-
-/**
- * Lista todo o conteúdo homebrew público.
- * @param type Opcional. Filtra o conteúdo por tipo.
- * @param createdBy Opcional. Filtra por quem criou ('user' ou 'ai').
- * @returns Uma lista de conteúdos homebrew.
- */
 export const getPublicHomebrewContent = async (type?: HomebrewContentType, createdBy?: 'user' | 'ai', pagination?: PaginationOptions) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { isPublic: true };
     const { page = 1, limit = 100 } = pagination || {};
 
-    if (type) {
-        whereCondition.type = type;
-    }
-    if (createdBy) {
-        whereCondition.createdBy = createdBy;
-    } else {
-        // Por padrão, a aba "Comunidade" não mostra o que foi gerado por IA
-        whereCondition.createdBy = 'user';
-    }
+    if (type) whereCondition.type = type;
+    if (createdBy) whereCondition.createdBy = createdBy;
+    else whereCondition.createdBy = 'user'; // Default to user-created content for 'community'
 
     return homebrewRepo.find({
         where: whereCondition,
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "content"],
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content"],
         take: limit,
         skip: (page - 1) * limit,
     });
 };
 
-/**
- * Lista todo o conteúdo homebrew criado por um usuário específico.
- * @param authorId O ID do usuário.
- * @param type Opcional. Filtra o conteúdo por tipo.
- * @returns Uma lista de conteúdos homebrew do usuário.
- */
 export const getHomebrewContentByAuthor = async (authorId: number, type?: HomebrewContentType, pagination?: PaginationOptions) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { authorId };
     const { page = 1, limit = 100 } = pagination || {};
-
-
-    if (type) {
-        whereCondition.type = type;
-    }
+    if (type) whereCondition.type = type;
 
     return homebrewRepo.find({
         where: whereCondition,
-        relations: ['bundle'], // Carrega a informação do bundle
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundle"],
+        relations: ['bundle'],
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "isPublic", "content", "bundleId"],
         take: limit,
         skip: (page - 1) * limit,
     });
 };
 
-/**
- * Obtém os detalhes completos de um único conteúdo homebrew.
- * @param contentId O ID do conteúdo.
- * @param userId Opcional. O ID do usuário solicitante para verificação de permissão.
- * @returns O objeto de conteúdo homebrew completo.
- */
 export const getHomebrewContentById = async (contentId: string, userId?: number) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const content = await homebrewRepo.findOneBy({ id: contentId });
-
-    if (!content) {
-        throw createError(404, 'Conteúdo Homebrew não encontrado.');
-    }
-
-    // Se o conteúdo não for público, apenas o autor pode vê-lo.
-    if (!content.isPublic && content.authorId !== userId) {
-        throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
-    }
-
+    if (!content) throw createError(404, 'Conteúdo Homebrew não encontrado.');
+    if (!content.isPublic && content.authorId !== userId) throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
     return content;
 };
 
-
-/**
- * Obtém múltiplos conteúdos homebrew por uma lista de IDs.
- * @param contentIds Um array de IDs de conteúdo.
- * @param type Opcional. Filtra o conteúdo por tipo.
- * @returns Uma lista de objetos de conteúdo homebrew.
- */
 export const getMultipleHomebrewContentByIds = async (contentIds: string[], type?: HomebrewContentType): Promise<HomebrewContent[]> => {
     if (contentIds.length === 0) return [];
-    
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
-        id: In(contentIds) 
-    };
-    
-    if (type) {
-        whereCondition.type = type;
-    }
-    
+    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { id: In(contentIds) };
+    if (type) whereCondition.type = type;
     return homebrewRepo.find({ where: whereCondition });
 };
 
-
-/**
- * Encontra um conteúdo homebrew que sobrescreve um item oficial, usando o `index` do item oficial.
- * @param officialIndex O `index` do conteúdo oficial (ex: 'longsword', 'fireball').
- * @param type O tipo do conteúdo.
- * @returns O primeiro conteúdo homebrew encontrado ou null.
- */
 export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    
-    // Esta é uma consulta que olha dentro do campo JSON `content`.
-    // A sintaxe pode variar ligeiramente entre bancos de dados.
-    // Para MySQL/PostgreSQL, JSON_EXTRACT ou ->> funciona.
     return homebrewRepo
         .createQueryBuilder("hb")
         .where("hb.type = :type", { type })
         .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
-        .andWhere("hb.isPublic = true") // Garante que apenas conteúdo público possa sobrescrever
+        .andWhere("hb.isPublic = true")
         .getOne();
 };
 
-
-/**
- * Busca recursivamente todas as dependências de um item homebrew.
- * @param contentId O ID do conteúdo homebrew inicial.
- * @param visited Um set para evitar loops de dependência infinitos.
- * @returns Um array de objetos HomebrewContent, incluindo o item original e todas as suas dependências.
- */
-export const getHomebrewDependencies = async (
-    contentId: string,
-    visited = new Set<string>()
-): Promise<HomebrewContent[]> => {
-    if (visited.has(contentId)) {
-        return []; // Evita recursão infinita
-    }
+export const getHomebrewDependencies = async (contentId: string, visited = new Set<string>()): Promise<HomebrewContent[]> => {
+    if (visited.has(contentId)) return [];
     visited.add(contentId);
-
     const repo = AppDataSource.getRepository(HomebrewContent);
     const content = await repo.findOne({ where: { id: contentId }, relations: ['bundle', 'bundle.contents'] });
-
-    if (!content) {
-        return [];
-    }
-    
-    // Se o conteúdo pertence a um bundle, todas as outras partes do bundle são consideradas dependências.
+    if (!content) return [];
     const bundleDependencies = content.bundle ? content.bundle.contents.filter(c => c.id !== content.id) : [];
-
     const allDependencies = [content, ...bundleDependencies];
-
-    const allDependencyIds = new Set([
-        ...(content.dependencies || []),
-        ...bundleDependencies.flatMap(c => c.dependencies || [])
-    ]);
-
+    const allDependencyIds = new Set([...(content.dependencies || []), ...bundleDependencies.flatMap(c => c.dependencies || [])]);
     if (allDependencyIds.size > 0) {
         for (const depId of allDependencyIds) {
             const nestedDependencies = await getHomebrewDependencies(depId, visited);
             allDependencies.push(...nestedDependencies);
         }
     }
-
-    // Retorna uma lista única de dependências
     return Array.from(new Map(allDependencies.map(item => [item.id, item])).values());
 };
 
-/**
- * Verifica se um nome (que será convertido para um índice) já existe para um tipo específico.
- * @param name O nome do conteúdo.
- * @param type O tipo do conteúdo.
- * @returns `true` se o nome já existe, `false` caso contrário.
- */
 export const checkIfNameExists = async (name: string, type: HomebrewContentType): Promise<boolean> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const index = name.toLowerCase().replace(/\s+/g, '-');
-    
     const count = await homebrewRepo.count({
-        where: [
-            { type, name: Like(name) },
-            { type, content: Like(`%"index":"${index}"%`) }
-        ]
+        where: [{ type, name: Like(name) }, { type, content: Like(`%"index":"${index}"%`) }]
     });
-    
     return count > 0;
 };
 
 // --- Bundle Functions ---
-
 export const getBundles = async (options: { userId?: number; scope?: 'public' | 'mine'; page: number; limit: number }) => {
     const { userId, scope, page, limit } = options;
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const query = bundleRepo.createQueryBuilder('bundle')
         .leftJoinAndSelect('bundle.author', 'author')
-        .leftJoinAndSelect('bundle.contents', 'contents')
+        .loadRelationCountAndMap('bundle.contentCount', 'bundle.contents')
         .take(limit)
         .skip((page - 1) * limit);
 
-    if (scope === 'mine' && userId) {
-        query.where('bundle.authorId = :userId', { userId });
-    } else { // O escopo padrão ou explícito de 'public' mostra apenas os públicos.
-        query.where('bundle.isPublic = true');
-    }
+    if (scope === 'mine' && userId) query.where('bundle.authorId = :userId', { userId });
+    else query.where('bundle.isPublic = true');
     
     return query.getMany();
 };
@@ -313,51 +179,25 @@ export const getContentsOfBundle = async (bundleId: string): Promise<HomebrewCon
         where: { id: bundleId },
         relations: ['contents']
     });
-
-    if (!bundle) {
-        throw createError(404, 'Pacote não encontrado.');
-    }
+    if (!bundle) throw createError(404, 'Pacote não encontrado.');
     return bundle.contents;
 };
 
 export const createBundle = async (authorId: number, data: z.infer<typeof CreateBundleSchema>) => {
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const contentRepo = AppDataSource.getRepository(HomebrewContent);
-
-    // Verifica se os conteúdos existem e pertencem ao autor
-    const contents = await contentRepo.find({
-        where: { id: In(data.contentIds), authorId: authorId }
-    });
-
-    if (contents.length !== data.contentIds.length) {
-        throw createError(403, 'Um ou mais itens de conteúdo não foram encontrados ou você não tem permissão para usá-los.');
-    }
-    
-    // Verifica se algum dos conteúdos já pertence a outro bundle
-    const contentAlreadyInBundle = await contentRepo.count({
-        where: { id: In(data.contentIds), bundleId: Not(IsNull()) }
-    });
-
-    if (contentAlreadyInBundle > 0) {
-        throw createError(409, 'Um ou mais dos itens selecionados já pertencem a outro pacote. Um item só pode estar em um pacote.');
-    }
-
-    const newBundle = new HomebrewBundle();
-    newBundle.authorId = authorId;
-    newBundle.name = data.name;
-    newBundle.description = data.description;
-    newBundle.contents = contents;
-    newBundle.isPublic = data.isPublic || false;
-
+    const contents = await contentRepo.find({ where: { id: In(data.contentIds), authorId } });
+    if (contents.length !== data.contentIds.length) throw createError(403, 'Um ou mais itens de conteúdo não foram encontrados ou você não tem permissão para usá-los.');
+    const contentAlreadyInBundle = await contentRepo.count({ where: { id: In(data.contentIds), bundleId: Not(IsNull()) } });
+    if (contentAlreadyInBundle > 0) throw createError(409, 'Um ou mais dos itens selecionados já pertencem a outro pacote.');
+    const newBundle = bundleRepo.create({ ...data, authorId, contents });
     return await bundleRepo.save(newBundle);
 };
-
 
 export const updateBundle = async (bundleId: string, authorId: number, data: Partial<z.infer<typeof CreateBundleSchema>>) => {
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const contentRepo = AppDataSource.getRepository(HomebrewContent);
-    const bundle = await bundleRepo.findOne({ where: { id: bundleId }, relations: ['contents']});
-
+    const bundle = await bundleRepo.findOne({ where: { id: bundleId }, relations: ['contents'] });
     if (!bundle) throw createError(404, 'Pacote não encontrado.');
     if (bundle.authorId !== authorId) throw createError(403, 'Você não tem permissão para editar este pacote.');
 
@@ -366,26 +206,13 @@ export const updateBundle = async (bundleId: string, authorId: number, data: Par
     if (data.isPublic !== undefined) bundle.isPublic = data.isPublic;
 
     if (data.contentIds) {
-        // Dissocia os itens antigos do bundle
-        await contentRepo.update({ bundleId: bundle.id }, { bundleId: null });
-        
-        // Associa os novos itens ao bundle
-        const newContents = await contentRepo.find({ where: { id: In(data.contentIds), authorId }});
-        if (newContents.length !== data.contentIds.length) {
-            throw createError(400, 'Alguns itens de conteúdo não foram encontrados ou não pertencem a você.');
-        }
-        
-        const alreadyInAnotherBundle = await contentRepo.count({
-             where: { id: In(data.contentIds), bundleId: Not(IsNull()) }
-        });
-
-        if (alreadyInAnotherBundle > 0) {
-            throw createError(409, 'Um ou mais itens já pertencem a outro pacote.');
-        }
-
+        await contentRepo.update({ bundleId: bundle.id }, { bundle: null });
+        const newContents = await contentRepo.find({ where: { id: In(data.contentIds), authorId } });
+        if (newContents.length !== data.contentIds.length) throw createError(400, 'Alguns itens de conteúdo não foram encontrados ou não pertencem a você.');
+        const alreadyInAnotherBundle = await contentRepo.count({ where: { id: In(data.contentIds), bundleId: Not(IsNull()) } });
+        if (alreadyInAnotherBundle > 0) throw createError(409, 'Um ou mais itens já pertencem a outro pacote.');
         bundle.contents = newContents;
     }
-
     return await bundleRepo.save(bundle);
 }
 
@@ -394,9 +221,6 @@ export const deleteBundle = async (bundleId: string, authorId: number) => {
     const contentRepo = AppDataSource.getRepository(HomebrewContent);
     const bundle = await bundleRepo.findOneBy({ id: bundleId, authorId });
     if (!bundle) throw createError(404, 'Pacote não encontrado ou você não tem permissão.');
-    
-    // Dissocia os itens de conteúdo do bundle antes de excluí-lo
-    await contentRepo.update({ bundleId: bundleId }, { bundleId: null });
-    
+    await contentRepo.update({ bundleId }, { bundle: null });
     await bundleRepo.remove(bundle);
 }

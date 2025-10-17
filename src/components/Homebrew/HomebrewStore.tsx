@@ -13,7 +13,7 @@ import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
 
 type View = 'list' | 'create' | 'edit' | 'edit-bundle';
-type Tab = 'bundles' | 'public' | 'mine' | 'ai';
+type Tab = 'bundles' | 'community' | 'mine';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -118,45 +118,32 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const fetchContentAndInstalledIds = useCallback(async () => {
         setIsLoading(true);
         try {
+            const filterType = typeFilter === 'all' ? undefined : typeFilter;
+            
+            // Shared promise for session details
             const sessionsResultPromise = activeSessionId ? GameService.getSessionDetails(activeSessionId) : Promise.resolve(null);
             
-            const publicBundlesPromise = HomebrewService.listHomebrewBundles('public');
-            const myBundlesPromise = user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]);
-
-            const filterType = typeFilter === 'all' ? undefined : typeFilter;
-            const publicContentPromise = HomebrewService.listHomebrewContent('public', filterType);
-            const myContentPromise = user ? HomebrewService.listHomebrewContent('mine', filterType) : Promise.resolve([]);
-            const aiContentPromise = HomebrewService.listHomebrewContent('public', filterType, 'ai');
-            
-            const [
-                publicBundles, myBundles, 
-                publicContent, myContent, aiContent,
-                sessionsResult
-            ] = await Promise.all([
-                publicBundlesPromise, myBundlesPromise,
-                publicContentPromise, myContentPromise, aiContentPromise,
-                sessionsResultPromise
-            ]);
-
-            const allBundles = [...myBundles, ...publicBundles.filter(pb => !myBundles.some(mb => mb.id === pb.id))];
-            
             if (activeTab === 'bundles') {
-                setBundles(allBundles.sort((a,b) => a.name.localeCompare(b.name)));
-            } else if (activeTab === 'public') {
-                setContent(publicContent);
-            } else if (activeTab === 'mine') {
-                setContent(myContent);
-            } else if (activeTab === 'ai') {
-                setContent(aiContent);
+                const [publicBundles, myBundles, sessionsResult] = await Promise.all([
+                    HomebrewService.listHomebrewBundles('public'),
+                    user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]),
+                    sessionsResultPromise
+                ]);
+                 const allBundles = [...myBundles, ...publicBundles.filter(pb => !myBundles.some(mb => mb.id === pb.id))];
+                 setBundles(allBundles.sort((a, b) => a.name.localeCompare(b.name)));
+                 if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
             } else {
-                 setContent([]);
-                 setBundles([]);
-            }
-
-            if (sessionsResult) {
-                setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
-            } else {
-                 setInstalledIds(new Set());
+                 let contentPromise;
+                 if (activeTab === 'community') {
+                     contentPromise = HomebrewService.listHomebrewContent('public', filterType, 1, 100);
+                 } else if (activeTab === 'mine') {
+                     contentPromise = user ? HomebrewService.listHomebrewContent('mine', filterType, 1, 100) : Promise.resolve([]);
+                 } else {
+                     contentPromise = Promise.resolve([]);
+                 }
+                const [contentResult, sessionsResult] = await Promise.all([contentPromise, sessionsResultPromise]);
+                setContent(contentResult);
+                if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
             }
         } catch (error: any) {
             toast({
@@ -266,25 +253,21 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     
     const handleEditBundle = (bundle: HomebrewService.HomebrewBundle) => {
         setBundleToEdit(bundle);
-        setView('edit-bundle');
+        setIsBundleCreatorOpen(true);
     };
 
-    const handleDeleteClick = (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle') => {
+    const handleDeleteClick = (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'bundle') => {
         setItemToDelete({ item, type });
     };
 
     const confirmDeletion = async () => {
-        if (!itemToDelete) return;
+        if (!itemToDelete || itemToDelete.type !== 'bundle') return;
         
         setIsLoading(true);
         try {
-            if (itemToDelete.type === 'bundle') {
-                await HomebrewService.deleteHomebrewBundle(itemToDelete.item.id);
-            } else {
-                await HomebrewService.deleteHomebrewContent(itemToDelete.item.id);
-            }
-            toast({ title: 'Item Excluído', description: `"${itemToDelete.item.name}" foi removido permanentemente.` });
-            fetchContentAndInstalledIds(); // Refresh
+            await HomebrewService.deleteHomebrewBundle(itemToDelete.item.id);
+            toast({ title: 'Pacote Excluído', description: `"${itemToDelete.item.name}" foi removido permanentemente.` });
+            fetchContentAndInstalledIds();
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Falha na Exclusão', description: error.message });
         } finally {
@@ -299,10 +282,68 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     if (view === 'edit') {
         return <HomebrewCreator onContentCreated={() => setView('list')} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
     }
-     if (view === 'edit-bundle') {
-        return <BundleCreator isOpen={true} onClose={() => setView('list')} onBundleCreated={fetchContentAndInstalledIds} bundleToEdit={bundleToEdit} />;
-    }
 
+
+    const renderContentGrid = () => {
+        if (content.length === 0) {
+            return <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado para os filtros selecionados.</p>;
+        }
+
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {content.map(item => {
+                    const isInstalled = installedIds.has(item.id);
+                    const isOwner = item.authorId === user?.id;
+                    const isFromAI = item.createdBy === 'ai';
+                    
+                    return (
+                        <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
+                            <div>
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
+                                    <div className="flex items-center gap-1.5 text-xs text-stone-400 capitalize bg-stone-700/50 px-2 py-1 rounded-full">
+                                         {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-4 w-4"/>}
+                                         {translateApiString(item.type)}
+                                    </div>
+                                </div>
+                                {isFromAI && <p className="text-xs text-stone-500 mt-1">Criado por: Mestre IA</p>}
+                            </div>
+                            <div className="mt-4 flex gap-2">
+                                {isOwner && (
+                                    <>
+                                        <button onClick={() => handleEdit(item)} className="p-2 bg-blue-800/80 hover:bg-blue-700 rounded-md text-blue-200 transition-colors" title="Editar">
+                                            <Edit className="h-4 w-4" />
+                                        </button>
+                                    </>
+                                )}
+                                <button
+                                    onClick={() => handleInstallClick(item)}
+                                    disabled={!activeSessionId}
+                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
+                                        isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                                    }`}
+                                    title={isInstalled ? 'Instalado' : 'Instalar'}
+                                >
+                                    {isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                                    {isInstalled ? 'Instalado' : 'Instalar'}
+                                </button>
+                                {isInstalled && !item.bundleId && (
+                                     <button
+                                        onClick={() => handleUninstall(item.id)}
+                                        disabled={!activeSessionId || item.bundleId !== null}
+                                        className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
+                                        title={item.bundleId !== null ? "Item pertence a um pacote." : "Desinstalar"}
+                                    >
+                                        <Minus className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
 
     return (
         <>
@@ -319,18 +360,15 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                              <button onClick={() => setActiveTab('bundles')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'bundles' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 <Package className="h-5 w-5"/> Pacotes
                             </button>
-                            <button onClick={() => setActiveTab('public')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'public' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
+                            <button onClick={() => setActiveTab('community')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'community' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 Comunidade
-                            </button>
-                             <button onClick={() => setActiveTab('ai')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'ai' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
-                                <Bot className="h-5 w-5"/> IA
                             </button>
                             <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 Minhas Criações
                             </button>
                         </div>
                         <div className="flex gap-2">
-                             <button onClick={() => setIsBundleCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
+                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
                                 <PackagePlus className="h-5 w-5"/> Criar Pacote
                             </button>
                             <button onClick={() => { setView('create'); setContentToEdit(null); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
@@ -338,7 +376,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </button>
                         </div>
                     </div>
-
                     {activeTab !== 'bundles' && (
                         <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-stone-900/50 rounded-lg border border-stone-700">
                             <span className="text-sm font-semibold text-stone-400 mr-2">Filtrar por tipo:</span>
@@ -352,8 +389,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             ))}
                         </div>
                     )}
-
-
                      <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 min-h-[40vh] max-h-[60vh] overflow-y-auto">
                         {isLoading ? (
                             <div className="flex justify-center items-center h-full text-stone-400">
@@ -379,68 +414,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 <p className="text-stone-500 italic text-center py-10">Nenhum pacote de conteúdo encontrado.</p>
                             )
                         ) : (
-                            content.length === 0 ? (
-                                <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado para os filtros selecionados.</p>
-                            ) : (
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {content.map(item => {
-                                    const isInstalled = installedIds.has(item.id);
-                                    const isOwner = item.authorId === user?.id;
-                                    const isStructural = ['race', 'subrace', 'class', 'subclass', 'background'].includes(item.type);
-                                    
-                                    return (
-                                    <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
-                                        <div>
-                                            <div className="flex justify-between items-start">
-                                                <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
-                                                <div className="flex items-center gap-1.5 text-xs text-stone-400 capitalize bg-stone-700/50 px-2 py-1 rounded-full">
-                                                     {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-4 w-4"/>}
-                                                     {translateApiString(item.type)}
-                                                </div>
-                                            </div>
-                                             <p className="text-xs text-stone-500 mt-1">
-                                                Criado por: {item.createdBy === 'ai' ? 'Mestre IA' : (isOwner ? 'Você' : 'Comunidade')}
-                                            </p>
-                                        </div>
-                                        <div className="mt-4 flex gap-2">
-                                            {isOwner && (
-                                                <>
-                                                    <button onClick={() => handleEdit(item)} className="p-2 bg-blue-800/80 hover:bg-blue-700 rounded-md text-blue-200 transition-colors" title="Editar">
-                                                        <Edit className="h-4 w-4" />
-                                                    </button>
-                                                    <button onClick={() => handleDeleteClick(item, 'item')} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors" title="Excluir">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
-                                                </>
-                                            )}
-
-                                            <button
-                                                onClick={() => handleInstallClick(item)}
-                                                disabled={!activeSessionId || isOwner}
-                                                className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                                    isOwner ? 'bg-green-800 text-green-200 cursor-default' : (isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900')
-                                                }`}
-                                                title={isOwner ? "Seu conteúdo está sempre ativo." : (isInstalled ? 'Instalado' : 'Instalar')}
-                                            >
-                                                {isOwner ? <CheckCircle className="h-4 w-4"/> : (isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>)}
-                                                {isOwner ? 'Sempre Ativo' : (isInstalled ? 'Instalado' : 'Instalar')}
-                                            </button>
-                                            
-                                            {isInstalled && !isOwner && !isStructural && (
-                                                <button
-                                                    onClick={() => handleUninstall(item.id)}
-                                                    disabled={!activeSessionId}
-                                                    className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
-                                                    title="Desinstalar"
-                                                >
-                                                    <Minus className="h-4 w-4" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )})}
-                            </div>
-                        ))}
+                            renderContentGrid()
+                        )}
                     </div>
                 </main>
                 <footer className="mt-8">
@@ -481,24 +456,78 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     ]}
                 >
                     <p className="text-stone-300 mb-2">
-                        Tem certeza que deseja excluir {itemToDelete.type === 'bundle' ? 'este pacote' : 'esta criação'}?
+                        Tem certeza que deseja excluir este pacote?
                     </p>
                     <p className="text-sm text-yellow-400 bg-yellow-900/40 p-3 rounded-md border border-yellow-700">
-                        {itemToDelete.type === 'bundle' 
-                            ? 'Os itens dentro do pacote não serão excluídos, apenas desvinculados.'
-                            : 'Esta ação é irreversível.'
-                        }
+                        Os itens dentro do pacote não serão excluídos, apenas desvinculados, e poderão ser encontrados em "Minhas Criações".
                     </p>
                 </ActionModal>
             )}
-
-            <BundleCreator 
+             <BundleCreator 
                 isOpen={isBundleCreatorOpen}
                 onClose={() => setIsBundleCreatorOpen(false)}
                 onBundleCreated={fetchContentAndInstalledIds}
+                bundleToEdit={bundleToEdit}
             />
         </>
     );
 };
 
 export default HomebrewStore;
+
+```
+  </change>
+  <change>
+    <file>/home/user/studio/backend/src/routes/homebrewRoutes.ts</file>
+    <content><![CDATA[// backend/src/routes/homebrewRoutes.ts
+import { Router } from 'express';
+import { 
+    createContent, 
+    listContent, 
+    getContentById, 
+    updateContent,
+    deleteContent,
+    getDependencies,
+    listBundles,
+    getBundleContents,
+    createBundle,
+    updateBundle,
+    deleteBundle,
+    checkName
+} from '../controllers/homebrewController.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
+
+const router = Router();
+
+// --- Bundles ---
+router.post('/bundles', authMiddleware, createBundle);
+router.get('/bundles', (req, res, next) => {
+    if (req.query.scope === 'mine') {
+        return authMiddleware(req as any, res, next);
+    }
+    next();
+}, listBundles);
+router.get('/bundles/:id/contents', getBundleContents);
+router.put('/bundles/:id', authMiddleware, updateBundle);
+router.delete('/bundles/:id', authMiddleware, deleteBundle);
+
+
+// --- Content ---
+router.post('/check-name', authMiddleware, checkName);
+router.post('/', authMiddleware, createContent);
+
+router.get('/', (req, res, next) => {
+    if (req.query.scope === 'mine') {
+        return authMiddleware(req as any, res, next);
+    }
+    next();
+}, listContent);
+
+
+router.get('/:id', getContentById);
+router.put('/:id', authMiddleware, updateContent);
+router.delete('/:id', authMiddleware, deleteContent);
+router.get('/:id/dependencies', getDependencies);
+
+
+export default router;

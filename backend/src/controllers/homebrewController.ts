@@ -67,8 +67,8 @@ export const deleteContent = async (req: AuthRequest, res: Response, next: NextF
 // Listar conteúdos homebrew (públicos ou do usuário) com paginação
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const type = req.query.type as HomebrewContentType | undefined;
-    const scope = req.query.scope as 'public' | 'mine' | 'ai' | undefined;
-    const createdBy = scope === 'ai' ? 'ai' : (req.query.createdBy as 'user' | 'ai' | undefined);
+    const scope = req.query.scope as 'public' | 'mine' | undefined;
+    const createdBy = req.query.createdBy as 'user' | 'ai' | undefined;
     const userId = req.user?.userId;
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 100;
