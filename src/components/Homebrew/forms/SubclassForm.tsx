@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import * as DndApiService from '@/services/dndApiService';
 import { translateApiString } from '@/utils/translator';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import FeatureCreator from './FeatureCreator';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,10 +32,10 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fetchClasses = async () => {
             try {
-                // Modificado para buscar tanto as oficiais quanto as homebrew
+                setIsLoading(true);
                 const officialClasses = await DndApiService.getClasses();
                 const homebrewClasses = await DndApiService.listHomebrewContent('public', 'class');
-                const myHomebrewClasses = await DndApiService.listHomebrewContent('mine', 'class');
+                const myHomebrewClasses = user ? await DndApiService.listHomebrewContent('mine', 'class') : [];
 
                 const all = [...(officialClasses?.results || [])];
                 const myIds = new Set(myHomebrewClasses.map(c => c.id));
@@ -45,7 +45,6 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
                 setClasses(all.sort((a,b) => a.name.localeCompare(b.name)));
                 
-                // Se estiver editando e a classe for homebrew, garanta que ela esteja na lista.
                 if(initialData?.class.index && !all.some(c => c.index === initialData.class.index)) {
                     setClasses(prev => [initialData.class, ...prev]);
                 }
@@ -57,7 +56,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             }
         };
         fetchClasses();
-    }, [initialData]);
+    }, [user, initialData]);
 
     useEffect(() => {
         const fullData = {
@@ -76,7 +75,6 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const selectedClass = classes.find(c => c.index === classIndex);
         if (selectedClass) {
             handleFieldChange('class', selectedClass);
-            // Adiciona a classe como dependência se for homebrew
             if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classIndex)) {
                 setSubclassData(prev => ({ ...prev, dependencies: [classIndex] }));
             } else {

@@ -7,6 +7,7 @@ import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
 import TraitCreator from './TraitCreator'; // Importar o novo componente
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
     selectedTraits: ApiListItem[];
@@ -14,6 +15,7 @@ interface Props {
 }
 
 const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) => {
+    const { user } = useAuth(); // Usar o hook de autenticação
     const [allTraits, setAllTraits] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -25,7 +27,9 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
             const officialTraitsPromise = DndApiService.getTraits();
             // Busca tanto os traços públicos quanto os do próprio usuário
             const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'feat');
-            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'feat');
+            // Só busca "mine" se o usuário estiver logado.
+            const myHomebrewPromise = user ? HomebrewService.listHomebrewContent('mine', 'feat') : Promise.resolve([]);
+
 
             const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 officialTraitsPromise,
@@ -53,7 +57,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [user]);
 
     useEffect(() => {
         fetchTraits();

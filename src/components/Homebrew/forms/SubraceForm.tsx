@@ -34,7 +34,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         try {
             const officialRaces = await DndApiService.getRaces();
             const homebrewRaces = await DndApiService.listHomebrewContent('public', 'race');
-            const myHomebrewRaces = await DndApiService.listHomebrewContent('mine', 'race');
+            const myHomebrewRaces = user ? await DndApiService.listHomebrewContent('mine', 'race') : [];
 
             const all = [...(officialRaces?.results || [])];
             const myIds = new Set(myHomebrewRaces.map(r => r.id));
@@ -53,7 +53,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         } finally {
             setIsLoading(false);
         }
-    }, [initialData]);
+    }, [user, initialData]);
 
     useEffect(() => {
         fetchRaces();

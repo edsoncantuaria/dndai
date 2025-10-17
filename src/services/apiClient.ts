@@ -5,12 +5,12 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-ser
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
- * Lança um erro se o token não for encontrado, garantindo que as chamadas não prossigam sem autenticação.
+ * Retorna null se o token não for encontrado, permitindo que a chamada decida como proceder.
  */
-const getAuthHeaders = (): HeadersInit => {
+const getAuthHeaders = (): HeadersInit | null => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (!token) {
-        throw new Error("Token de autenticação não encontrado. Por favor, faça o login novamente.");
+        return null;
     }
     return {
         'Content-Type': 'application/json',
@@ -27,14 +27,29 @@ const getAuthHeaders = (): HeadersInit => {
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
  */
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-    const { headers, ...customOptions } = options;
+    const { headers: customHeaders, ...customOptions } = options;
 
-    const isPublicRoute = endpoint.startsWith('/auth/') || endpoint.startsWith('/dnds/');
+    const isPublicRoute = endpoint.startsWith('/auth/');
+    
+    let authHeaders: HeadersInit | null = {};
+
+    if (!isPublicRoute) {
+        authHeaders = getAuthHeaders();
+        // Se a rota não for pública e não houver token, a chamada não deve ser feita.
+        // O erro é lançado dentro de getAuthHeaders se for uma rota que necessita.
+        // No caso do TraitSelector, ele agora verifica o `user` antes de chamar, então isso não deve ser um problema.
+        if (!authHeaders && endpoint.includes('mine')) {
+             throw new Error("Token de autenticação não fornecido ou mal formatado.");
+        }
+    }
+
 
     const requestOptions: RequestInit = {
-        headers: isPublicRoute
-            ? { 'Content-Type': 'application/json', ...headers }
-            : { ...getAuthHeaders(), ...headers },
+        headers: {
+            'Content-Type': 'application/json',
+            ...(authHeaders || {}),
+            ...customHeaders,
+        },
         ...customOptions
     };
 
@@ -55,7 +70,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     
     // Se a resposta não tiver conteúdo (ex: DELETE com status 204), retorna um objeto de sucesso.
     if (response.status === 204 || response.headers.get('content-length') === '0') {
-        return { success: true } as T;
+        return { success: true } as unknown as T;
     }
 
     return await response.json() as T;
