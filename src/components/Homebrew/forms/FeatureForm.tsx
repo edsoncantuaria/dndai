@@ -4,14 +4,26 @@ import React, { useState, useEffect } from 'react';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const FeatureForm: React.FC<Props> = ({ onDataChange }) => {
-    const [featureData, setFeatureData] = useState({
+const FeatureForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [featureData, setFeatureData] = useState(() => ({
         name: '',
         level: 1,
         desc: [''],
-    });
+        ...(initialData || {}),
+        desc: initialData?.desc || [''],
+    }));
+
+    useEffect(() => {
+        if (initialData) {
+            setFeatureData({
+                ...initialData,
+                desc: initialData.desc || [''],
+            });
+        }
+    }, [initialData]);
 
     // Update parent component whenever data changes
     useEffect(() => {
@@ -20,7 +32,7 @@ const FeatureForm: React.FC<Props> = ({ onDataChange }) => {
             index: `${featureData.name.toLowerCase().replace(/\s+/g, '-')}-level-${featureData.level}`
         };
         onDataChange(fullData);
-    }, [featureData]);
+    }, [featureData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof featureData, value: any) => {
         setFeatureData(prev => ({ ...prev, [field]: value }));

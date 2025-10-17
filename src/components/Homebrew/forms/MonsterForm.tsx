@@ -70,12 +70,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
 
     useEffect(() => {
-        const fullData = {
-            ...monsterData,
-            index: monsterData.official_index || (monsterData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-monster-${Date.now()}`
-        };
-        const { official_index, ...finalData } = fullData;
-        onDataChange(finalData);
+        onDataChange(monsterData);
     }, [monsterData, onDataChange]);
 
      useEffect(() => {
@@ -406,9 +401,3 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     initialData={creatorModal.data}
                 />
             )}
-
-        </div>
-    );
-};
-
-export default MonsterForm;

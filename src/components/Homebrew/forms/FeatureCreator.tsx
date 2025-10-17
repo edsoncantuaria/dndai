@@ -1,6 +1,6 @@
 // src/components/Homebrew/forms/FeatureCreator.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import ActionModal from '../../ui/ActionModal';
@@ -11,10 +11,11 @@ interface Props {
     onClose: () => void;
     onFeatureCreated: (newFeature: any) => void;
     classId: string;
+    initialData?: any;
 }
 
-const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, classId }) => {
-    const [featureData, setFeatureData] = useState<any>(null);
+const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, classId, initialData }) => {
+    const [featureData, setFeatureData] = useState<any>(initialData || null);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -30,8 +31,8 @@ const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, cl
 
         onFeatureCreated(featureData);
         toast({
-            title: 'Característica Adicionada',
-            description: `"${featureData.name}" foi adicionada. Salve a classe/subclasse para persistir.`,
+            title: initialData ? 'Característica Atualizada' : 'Característica Adicionada',
+            description: `"${featureData.name}" foi salva. Salve a classe/subclasse para persistir.`,
         });
         handleClose();
     };
@@ -44,15 +45,15 @@ const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, cl
     return (
         <ActionModal
             isOpen={isOpen}
-            title="Criar Nova Característica"
+            title={initialData ? "Editar Característica" : "Criar Nova Característica"}
             onClose={handleClose}
             actions={[
                 { text: "Cancelar", onClick: handleClose, variant: 'secondary' },
-                { text: "Adicionar Característica", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
+                { text: initialData ? "Atualizar" : "Adicionar", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
             <div className="space-y-4">
-                <FeatureForm onDataChange={setFeatureData} />
+                <FeatureForm onDataChange={setFeatureData} initialData={initialData} />
             </div>
         </ActionModal>
     );

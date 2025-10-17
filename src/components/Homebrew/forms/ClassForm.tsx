@@ -38,6 +38,8 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         ...initialData,
     }));
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
+    const [editingFeature, setEditingFeature] = useState<{feature: any, index: number} | null>(null);
+
 
     useEffect(() => {
         if (initialData && Object.keys(initialData).length > 0) {
@@ -55,20 +57,36 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     // Update parent component whenever data changes
     useEffect(() => {
         onDataChange(classData);
-    }, [classData]);
+    }, [classData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
         setClassData(prev => ({ ...prev, [field]: value }));
     };
     
-    const handleFeatureCreated = (newFeature: any) => {
-        const updatedFeatures = [...classData.features, newFeature].sort((a, b) => a.level - b.level);
-        handleFieldChange('features', updatedFeatures);
+    const handleFeatureCreated = (feature: any) => {
+        if (editingFeature !== null) {
+            const updatedFeatures = [...classData.features];
+            updatedFeatures[editingFeature.index] = feature;
+            handleFieldChange('features', updatedFeatures.sort((a, b) => a.level - b.level));
+        } else {
+            const updatedFeatures = [...classData.features, feature].sort((a, b) => a.level - b.level);
+            handleFieldChange('features', updatedFeatures);
+        }
     }
 
-    const handleRemoveFeature = (featureIndex: string) => {
-        handleFieldChange('features', classData.features.filter((f:any) => f.index !== featureIndex));
+    const handleRemoveFeature = (featureIndex: number) => {
+        handleFieldChange('features', classData.features.filter((_, i) => i !== featureIndex));
     }
+    
+    const openEditModal = (feature: any, index: number) => {
+        setEditingFeature({ feature, index });
+        setIsFeatureCreatorOpen(true);
+    };
+
+    const openCreateModal = () => {
+        setEditingFeature(null);
+        setIsFeatureCreatorOpen(true);
+    };
 
 
     const handleSavingThrowToggle = (attrIndex: string) => {
@@ -133,6 +151,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const selectedSkillOptions = skillChoiceGroup?.from.options.map((opt:any) => opt.item.name.replace('Skill: ', '')) || [];
     
     const groupedFeatures = useMemo(() => {
+        if (!classData.features) return {};
         return classData.features.reduce((acc: any, feature: any) => {
             const level = `Nível ${feature.level}`;
             if (!acc[level]) {
@@ -264,7 +283,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
              <div className="pt-4 border-t border-stone-700">
                 <div className="flex justify-between items-center mb-2">
                     <h4 className="text-lg font-bold text-amber-300">Características de Classe</h4>
-                    <button type="button" onClick={() => setIsFeatureCreatorOpen(true)} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                    <button type="button" onClick={openCreateModal} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
                         <Plus className="h-4 w-4" /> Adicionar
                     </button>
                 </div>
@@ -280,9 +299,14 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                             <p className="font-semibold text-stone-200">{feature.name}</p>
                                             <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
                                         </div>
-                                        <button type="button" onClick={() => handleRemoveFeature(feature.index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
-                                            <Trash2 className="h-4 w-4"/>
-                                        </button>
+                                        <div className="flex flex-shrink-0 ml-2 gap-2">
+                                            <button type="button" onClick={() => openEditModal(feature, classData.features.findIndex(f => f.index === feature.index))} className="text-blue-400 hover:text-blue-300">
+                                                <Edit className="h-4 w-4"/>
+                                            </button>
+                                            <button type="button" onClick={() => handleRemoveFeature(classData.features.findIndex(f => f.index === feature.index))} className="text-red-500 hover:text-red-400">
+                                                <Trash2 className="h-4 w-4"/>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                                 </div>
@@ -298,6 +322,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 onClose={() => setIsFeatureCreatorOpen(false)}
                 onFeatureCreated={handleFeatureCreated}
                 classId={classData.name.toLowerCase().replace(/\s+/g, '-')}
+                initialData={editingFeature?.feature}
             />
         </div>
     );
