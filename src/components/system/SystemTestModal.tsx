@@ -8,7 +8,10 @@ import * as characterUtils from '../../utils/characterUtils';
 import { translateApiString } from '@/utils/translator';
 import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 import * as GameService from '@/services/gameService';
-import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2 } from 'lucide-react';
+import * as AiService from '@/services/aiService'; // Importar o serviço de IA
+import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2, Image as ImageIcon } from 'lucide-react';
+import ActionModal from '../ui/ActionModal';
+import Image from 'next/image';
 
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100', 'd12', 'd20'];
@@ -95,12 +98,18 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         setCharacter, 
     } = useGameStateContext();
 
-    const { model: currentModel } = useSettingsContext();
+    const { model: currentModel, imageModel, getApiKey } = useSettingsContext();
     const [tempModel, setTempModel] = useState(currentModel);
     
     const [selectedSkill, setSelectedSkill] = useState<string>('Acrobatics');
     const [customAction, setCustomAction] = useState<string>('');
     const [selectedCharacterId, setSelectedCharacterId] = useState<string>('');
+
+    // State for Image Generation Test
+    const [imagePrompt, setImagePrompt] = useState<string>('Um dragão dourado dormindo em uma montanha de moedas de ouro');
+    const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
+    const [generatedImageUrl, setGeneratedImageUrl] = useState<string | null>(null);
+    const [showImageModal, setShowImageModal] = useState<boolean>(false);
 
     const handleCharacterSelect = useCallback(async (id: string) => {
         setSelectedCharacterId(id);
@@ -117,7 +126,6 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
 
 
     const handleTestSkill = () => {
-        // Here we simulate the modal submit directly for testing the flow
         handleSkillCheckSubmit(`para testar a perícia ${selectedSkill}`);
         onClose();
     };
@@ -128,16 +136,30 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         onClose();
     };
     
-    const handleSimulateShop = () => {
-        const shopPrompt = "Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades, iniciando o estado de uma loja chamada 'Itens Essenciais do Aventureiro'. Inclua pelo menos 3 itens variados no inventário da loja.";
-        processPlayerAction(shopPrompt, -1, tempModel);
-        onClose();
-    };
-
-    const handleSimulateCombat = () => {
-        const combatPrompt = "Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades, iniciando um combate com dois Goblins diferentes. O primeiro goblin deve estar a 10m e o segundo a 20m. Role a iniciativa para ambos e peça a iniciativa do jogador.";
-        processPlayerAction(combatPrompt, -1, tempModel);
-        onClose();
+    const handleGenerateImage = async () => {
+        if (!imagePrompt.trim()) return;
+        setIsGeneratingImage(true);
+        setGeneratedImageUrl(null);
+        try {
+            const apiKey = getApiKey();
+            if(!apiKey) throw new Error("Chave de API não encontrada");
+            const result = await AiService.generateImage({
+                prompt: imagePrompt,
+                model: imageModel,
+                apiKey
+            });
+            if (result?.imageUrl) {
+                setGeneratedImageUrl(result.imageUrl);
+                setShowImageModal(true);
+            } else {
+                throw new Error("A IA não conseguiu gerar a imagem.");
+            }
+        } catch (error: any) {
+            console.error("Image generation test failed:", error);
+            // You might want to show a toast here
+        } finally {
+            setIsGeneratingImage(false);
+        }
     };
 
 
@@ -209,8 +231,24 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     </button>
                 </div>
             </div>
+             <div className="space-y-2">
+                <label htmlFor="image-test-input" className="block text-sm font-medium text-stone-400">5. Testar Geração de Imagem</label>
+                <div className="flex gap-2">
+                    <input
+                        id="image-test-input"
+                        type="text"
+                        value={imagePrompt}
+                        onChange={(e) => setImagePrompt(e.target.value)}
+                        placeholder="Ex: Um dragão dourado..."
+                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                    />
+                    <button onClick={handleGenerateImage} disabled={!imagePrompt.trim() || isGeneratingImage} className="px-3 py-2 rounded-md font-semibold text-white bg-purple-700 hover:bg-purple-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                        {isGeneratingImage ? <Loader2 className="h-4 w-4 animate-spin"/> : <ImageIcon className="h-4 w-4"/>} Gerar
+                    </button>
+                </div>
+            </div>
             <div className="space-y-2">
-                <label className="block text-sm font-medium text-stone-400">5. Simular Cenários de UI</label>
+                <label className="block text-sm font-medium text-stone-400">6. Simular Cenários de UI</label>
                 <div className="grid grid-cols-2 gap-2">
                      <button onClick={() => { triggerTestShop(); onClose(); }} className="px-3 py-2 rounded-md font-semibold text-white bg-indigo-700 hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2">
                         <Store className="h-4 w-4"/> Testar UI da Loja
@@ -220,6 +258,16 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                     </button>
                 </div>
             </div>
+            {showImageModal && generatedImageUrl && (
+                <ActionModal
+                    isOpen={showImageModal}
+                    title="Imagem Gerada"
+                    onClose={() => setShowImageModal(false)}
+                    actions={[{ text: "Fechar", onClick: () => setShowImageModal(false), variant: 'primary'}]}
+                >
+                    <Image src={generatedImageUrl} alt="Imagem de teste gerada pela IA" width={1024} height={576} className="w-full h-auto rounded-md" />
+                </ActionModal>
+            )}
         </div>
     );
 };
