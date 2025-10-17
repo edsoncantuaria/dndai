@@ -134,3 +134,4 @@ curl -X POST http://localhost:8071/api/narrar/1 \
 ```
 
 A cada chamada para este endpoint, a interação é salva no banco de dados e associada à sessão correta.
+
