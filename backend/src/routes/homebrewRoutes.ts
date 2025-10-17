@@ -45,7 +45,8 @@ router.get('/', (req, res, next) => {
 
 router.get('/:id', getContentById);
 router.put('/:id', authMiddleware, updateContent);
-router.delete('/:id', authMiddleware, deleteContent);
+// A rota de delete foi desabilitada conforme a regra de negócio
+// router.delete('/:id', authMiddleware, deleteContent); 
 router.get('/:id/dependencies', getDependencies);
 
 
