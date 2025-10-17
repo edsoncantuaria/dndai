@@ -28,10 +28,10 @@ export const deleteCharacterById = async (characterId: number) => {
 
 // --- Session Management ---
 
-export const createGameSession = async (nome: string, characterId: number, homebrewIds?: string[]) => {
+export const createGameSession = async (nome: string, characterId: number) => {
     return apiClient<{ sessao: SessaoIA, isNew: boolean }>('/sessoes', {
         method: 'POST',
-        body: JSON.stringify({ nome, characterId, homebrewIds }),
+        body: JSON.stringify({ nome, characterId }),
     });
 };
 
@@ -46,13 +46,6 @@ export const getSessionDetails = async (sessionId: number): Promise<SessaoIA> =>
 export const deleteSessionById = async (sessionId: number) => {
      return apiClient<{ message: string }>(`/sessoes/${sessionId}`, {
         method: 'DELETE',
-    });
-};
-
-export const updateSessionHomebrew = async (sessionId: number, homebrewId: string, action: 'install' | 'uninstall') => {
-    return apiClient<{ sessao: SessaoIA, message: string }>(`/sessoes/${sessionId}/homebrew`, {
-        method: 'PATCH',
-        body: JSON.stringify({ homebrewId, action }),
     });
 };
 

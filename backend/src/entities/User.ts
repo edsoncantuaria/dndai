@@ -1,5 +1,5 @@
 // backend/src/entities/User.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn, DeleteDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, JoinColumn, DeleteDateColumn, Index } from 'typeorm';
 import { LicenseKey } from './LicenseKey.js';
 import { SessaoIA } from './SessaoIA.js';
 import { Character } from './Character.js';
@@ -28,6 +28,10 @@ export class User {
     
     @Column({ type: 'boolean', default: false })
     acknowledgedHomebrewDisclaimer: boolean;
+
+    @Index()
+    @Column({ type: 'simple-json', nullable: true })
+    installedHomebrewIds: string[];
 
     @OneToOne(() => LicenseKey)
     @JoinColumn({ name: 'licenseKeyId' })

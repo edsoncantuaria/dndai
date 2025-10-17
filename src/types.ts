@@ -589,7 +589,6 @@ export interface SessaoIA {
   nome: string;
   userId: number;
   characterId: number | null;
-  homebrewContentIds?: string[]; // Adicionado
   character?: {
     id: number;
     name: string;

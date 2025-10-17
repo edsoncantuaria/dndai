@@ -50,3 +50,25 @@ export const acknowledgeHomebrewDisclaimer = async (req: AuthRequest, res: Respo
         next(error);
     }
 };
+
+export const updateUserHomebrew = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Não autorizado.'));
+    }
+    
+    const { homebrewId, action } = req.body;
+    if (!homebrewId || (action !== 'install' && action !== 'uninstall')) {
+        return next(createError(400, 'ID do Homebrew e ação (install/uninstall) são obrigatórios.'));
+    }
+
+    try {
+        const updatedUser = await UserService.updateUserHomebrewInstallation(userId, homebrewId, action);
+        res.status(200).json({
+            message: `Conteúdo homebrew ${action === 'install' ? 'instalado' : 'desinstalado'} com sucesso!`,
+            user: updatedUser
+        });
+    } catch (error) {
+        next(error);
+    }
+};

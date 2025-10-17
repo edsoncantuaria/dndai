@@ -2,52 +2,66 @@
 import { Router } from 'express';
 import * as DndApiService from '../services/dndApiService.js';
 import * as HomebrewService from '../services/homebrewService.js';
-import * as SessaoService from '../services/sessaoService.js';
+import * as UserService from '../services/userService.js';
 import createError from 'http-errors';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
+import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
+// Todas as rotas agora usam autenticação para obter o contexto do usuário
+router.use(authMiddleware);
+
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const resource = req.params.resource as HomebrewContentType;
-    // Opcional: Se um sessionId for fornecido, podemos mesclar o conteúdo instalado.
-    // Se não, mostramos o conteúdo público disponível para instalação.
-    const sessionId = req.query.sessionId as string | undefined;
+    const userId = (req as any).user?.userId;
 
-    console.debug(`[Backend Route] GET /dnds/${resource} (Sessão: ${sessionId || 'N/A'})`);
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
 
     try {
-        const apiPromise = DndApiService.getResourceList(resource);
+        const user = await UserService.getUserProfile(userId);
+        const installedIds = new Set(user.installedHomebrewIds || []);
 
-        // 1. Pegar o conteúdo público para exibir na "Oficina Homebrew" ou na criação de personagem
+        const apiPromise = DndApiService.getResourceList(resource);
+        
+        // Busca todo o conteúdo público E o conteúdo do próprio usuário, pois ambos são "instaláveis"
         const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource);
+        const userHomebrewPromise = HomebrewService.getHomebrewContentByAuthor(userId, resource);
         
-        const [apiData, publicHomebrew] = await Promise.all([apiPromise, publicHomebrewPromise]);
+        const [apiData, publicHomebrew, userHomebrew] = await Promise.all([apiPromise, publicHomebrewPromise, userHomebrewPromise]);
         
+        // Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
+        const allInstallableHomebrew = [...userHomebrew, ...publicHomebrew.filter(phb => !userHomebrew.some(uhb => uhb.id === phb.id))];
+
         const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
 
-        // 2. Adiciona o conteúdo oficial primeiro
+        // Adiciona conteúdo oficial
         (apiData?.results || []).forEach(item => {
             finalResultsMap.set(item.index, item);
         });
 
-        // 3. Adiciona o conteúdo homebrew PÚBLICO à lista, sobressaindo se o index for igual a um oficial, ou adicionando se for novo.
-        publicHomebrew.forEach(hb => {
+        // Adiciona homebrew instalado, que pode sobrescrever o oficial ou ser novo
+        const installedHomebrew = allInstallableHomebrew.filter(hb => installedIds.has(hb.id));
+
+        installedHomebrew.forEach(hb => {
             const officialIndex = hb.content.index;
-            // Se o homebrew sobrescreve um item oficial
+            const displayName = `(H) ${hb.name}`;
+
             if (officialIndex && finalResultsMap.has(officialIndex)) {
                  finalResultsMap.set(officialIndex, {
                     index: officialIndex,
-                    name: `(H) ${hb.name}`, // Indica que é uma versão Homebrew de um item oficial
+                    name: displayName,
                     url: `/api/dnds/${resource}/${officialIndex}`
                 });
-            } else { // Se é um conteúdo totalmente novo, usa seu UUID como index
+            } else {
                  finalResultsMap.set(hb.id, {
                     index: hb.id,
-                    name: `(H) ${hb.name}`,
+                    name: displayName,
                     url: `/api/dnds/${resource}/${hb.id}`
                 });
             }
@@ -55,12 +69,10 @@ router.get('/:resource', async (req, res, next) => {
         
         const finalResults = Array.from(finalResultsMap.values()).sort((a,b) => a.name.localeCompare(b.name));
         
-        const response = {
+        return res.json({
             count: finalResults.length,
             results: finalResults,
-        };
-
-        return res.json(response);
+        });
 
     } catch (error) {
         next(error);
@@ -71,26 +83,22 @@ router.get('/:resource', async (req, res, next) => {
 // Rota para buscar detalhes de um recurso específico
 router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
-    console.debug(`[Backend Route] GET /dnds/${resource}/${index}`);
+    const userId = (req as any).user?.userId;
 
     try {
-        // Se for um UUID, é definitivamente um homebrew novo
         if (isUuid(index)) {
-             const hbContent = await HomebrewService.getHomebrewContentById(index); // userId opcional, valida permissão se privado
+             const hbContent = await HomebrewService.getHomebrewContentById(index, userId);
              if (!hbContent) return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              return res.json(hbContent.content);
         }
 
-        // Se não for UUID, pode ser um homebrew que sobrescreve um oficial, ou apenas um oficial
         const homebrewOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType);
         if (homebrewOverride) {
-            console.debug(`[Backend Route] Encontrada sobrescrita homebrew para ${index}.`);
             const officialData = await DndApiService.getDetails(resource, index);
             const mergedData = { ...(officialData || {}), ...homebrewOverride.content, name: homebrewOverride.name, desc: homebrewOverride.content.desc || officialData?.desc };
             return res.json(mergedData);
         }
         
-        // Se não houver homebrew, busca na API oficial
         const officialData = await DndApiService.getDetails(resource, index);
         if (!officialData) return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         return res.json(officialData);
@@ -101,34 +109,28 @@ router.get('/:resource/:index', async (req, res, next) => {
 });
 
 
-// Rota específica para níveis de classe (que tem uma estrutura de URL diferente)
+// Rota específica para níveis de classe
 router.get('/classes/:classIndex/levels', async (req, res, next) => {
     const { classIndex } = req.params;
-    console.debug(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
     try {
         let data;
         if (isUuid(classIndex)) {
-            const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
+            const hbContent = await HomebrewService.getHomebrewContentById(classIndex, (req as any).user?.userId);
             if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
             const features = (hbContent.content as any).features || [];
             
-            // Simular a estrutura de API para níveis
-            const levelsData = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
+            data = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
                 level: level,
                 features: features.filter((f: any) => f.level === level)
             }));
-
-            data = levelsData;
 
         } else {
             data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
         }
 
-        if (!data) {
-            return next(createError(404, `Níveis para a classe '${classIndex}' não encontrados.`));
-        }
+        if (!data) return next(createError(404, `Níveis para a classe '${classIndex}' não encontrados.`));
         res.json(data);
     } catch (error) {
         next(error);
@@ -138,10 +140,9 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
 // Rota para magias de classe
 router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
-    console.debug(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
     try {
         if (isUuid(classIndex)) {
-             const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
+             const hbContent = await HomebrewService.getHomebrewContentById(classIndex, (req as any).user?.userId);
              if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
@@ -150,9 +151,7 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
         }
 
         const data = await DndApiService.getDetails('classes', `${classIndex}/spells`);
-        if (!data) {
-            return next(createError(404, `Magias para a classe '${classIndex}' não encontradas.`));
-        }
+        if (!data) return next(createError(404, `Magias para a classe '${classIndex}' não encontradas.`));
         res.json(data);
     } catch (error) {
         next(error);
@@ -162,11 +161,10 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
 // Rota para níveis de subclasse
 router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
     const { subclassIndex } = req.params;
-    console.debug(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`);
     try {
         let data;
         if (isUuid(subclassIndex)) {
-            const hbContent = await HomebrewService.getHomebrewContentById(subclassIndex);
+            const hbContent = await HomebrewService.getHomebrewContentById(subclassIndex, (req as any).user?.userId);
             if (!hbContent) {
                 return next(createError(404, `Subclasse homebrew com ID '${subclassIndex}' não encontrada.`));
             }
@@ -180,9 +178,7 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
             data = await DndApiService.getDetails('subclasses', `${subclassIndex}/levels`);
         }
 
-        if (!data) {
-            return next(createError(404, `Níveis para a subclasse '${subclassIndex}' não encontrados.`));
-        }
+        if (!data) return next(createError(404, `Níveis para a subclasse '${subclassIndex}' não encontrados.`));
         res.json(data);
     } catch (error) {
         next(error);

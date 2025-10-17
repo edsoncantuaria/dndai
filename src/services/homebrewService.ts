@@ -115,3 +115,10 @@ export const checkNameExists = async (name: string, type: HomebrewContentType): 
         body: JSON.stringify({ name, type }),
     });
 };
+
+export const updateUserHomebrew = async (homebrewId: string, action: 'install' | 'uninstall') => {
+    return apiClient<{ user: any, message: string }>(`/users/me/homebrew`, {
+        method: 'PATCH',
+        body: JSON.stringify({ homebrewId, action }),
+    });
+};
