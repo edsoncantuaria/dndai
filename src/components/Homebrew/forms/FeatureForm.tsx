@@ -20,7 +20,7 @@ const FeatureForm: React.FC<Props> = ({ onDataChange }) => {
             index: `${featureData.name.toLowerCase().replace(/\s+/g, '-')}-level-${featureData.level}`
         };
         onDataChange(fullData);
-    }, [featureData, onDataChange]);
+    }, [featureData]);
 
     const handleFieldChange = (field: keyof typeof featureData, value: any) => {
         setFeatureData(prev => ({ ...prev, [field]: value }));

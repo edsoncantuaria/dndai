@@ -80,7 +80,7 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             delete finalData.rarity;
         }
         onDataChange(finalData);
-    }, [itemData, onDataChange]);
+    }, [itemData]);
 
 
     const handleFieldChange = (field: keyof typeof itemData, value: any) => {
@@ -116,8 +116,8 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
             )}
              <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
+                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                 <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
             </div>
              <div className="flex items-center gap-4">
                  <label className="flex items-center gap-2 cursor-pointer">

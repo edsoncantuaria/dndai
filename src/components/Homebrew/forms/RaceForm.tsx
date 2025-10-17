@@ -38,11 +38,11 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const fullData = {
             ...raceData,
             dependencies: homebrewTraitIds,
-            index: raceData.official_index || raceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
+            index: raceData.official_index || (raceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
         };
         const { official_index, ...finalData } = fullData; // Remove o campo auxiliar
         onDataChange(finalData);
-    }, [raceData, onDataChange]);
+    }, [raceData]);
 
 
     const handleFieldChange = (field: keyof typeof raceData, value: any) => {
@@ -54,7 +54,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     const handleBonusChange = (index: number, field: 'ability_score' | 'bonus', value: string | number) => {
-        const newBonuses = [...raceData.ability_bonuses];
+        const newBonuses = [...(raceData.ability_bonuses || [])];
         const abilityScoreIndex = value as string;
         if (field === 'ability_score') {
             newBonuses[index].ability_score = { index: abilityScoreIndex, name: abilityScoreIndex.toUpperCase(), url: `/api/ability-scores/${abilityScoreIndex}` };
@@ -65,11 +65,11 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     const addBonus = () => {
-        handleFieldChange('ability_bonuses', [...raceData.ability_bonuses, { ability_score: { index: 'str', name: 'STR', url: '/api/ability-scores/str' }, bonus: 1 }]);
+        handleFieldChange('ability_bonuses', [...(raceData.ability_bonuses || []), { ability_score: { index: 'str', name: 'STR', url: '/api/ability-scores/str' }, bonus: 1 }]);
     };
 
     const removeBonus = (index: number) => {
-        handleFieldChange('ability_bonuses', raceData.ability_bonuses.filter((_, i) => i !== index));
+        handleFieldChange('ability_bonuses', (raceData.ability_bonuses || []).filter((_, i) => i !== index));
     };
 
     return (
@@ -91,7 +91,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <h5 className="text-sm font-medium text-stone-300 mb-2">Bônus de Atributo</h5>
                 <div className="space-y-2">
-                    {raceData.ability_bonuses.map((bonus, index) => (
+                    {(raceData.ability_bonuses || []).map((bonus, index) => (
                         <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
                             <select value={bonus.ability_score.index} onChange={e => handleBonusChange(index, 'ability_score', e.target.value)} className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
                                 <option value="str">Força</option>

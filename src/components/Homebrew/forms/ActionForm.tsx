@@ -39,7 +39,7 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
     useEffect(() => {
         onDataChange(actionData);
-    }, [actionData, onDataChange]);
+    }, [actionData]);
 
     const handleFieldChange = (field: keyof typeof actionData, value: any) => {
         setActionData(prev => ({ ...prev, [field]: value }));

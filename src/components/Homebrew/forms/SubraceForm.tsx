@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
-import * as HomebrewService from '@/services/homebrewService'; // Importação correta
+import * as HomebrewService from '@/services/homebrewService';
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
@@ -35,9 +35,8 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         setIsLoading(true);
         try {
             const officialRaces = await DndApiService.getRaces();
-            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
-            const homebrewRaces = await HomebrewService.listHomebrewContent('public', 'race');
-            const myHomebrewRaces = user ? await HomebrewService.listHomebrewContent('mine', 'race') : Promise.resolve([]);
+            const homebrewRaces = await HomebrewService.listHomebrewContent('public', undefined, 'race');
+            const myHomebrewRaces = user ? await HomebrewService.listHomebrewContent('mine', undefined, 'race') : [];
 
             const all = [...(officialRaces?.results || [])];
             const myIds = new Set(myHomebrewRaces.map(r => r.id));
@@ -70,7 +69,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [subraceData, onDataChange]);
+    }, [subraceData]);
 
     const handleFieldChange = (field: keyof typeof subraceData, value: any) => {
         setSubraceData(prev => ({ ...prev, [field]: value }));

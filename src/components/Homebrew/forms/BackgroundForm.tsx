@@ -42,7 +42,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [bgData, onDataChange]);
+    }, [bgData]);
 
     const handleFieldChange = (field: keyof typeof bgData, value: any) => {
         setBgData(prev => ({ ...prev, [field]: value }));

@@ -94,10 +94,10 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             }
         }
 
-        fullData.index = spellData.official_index || spellData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
+        fullData.index = spellData.official_index || (spellData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [spellData, onDataChange]);
+    }, [spellData]);
 
     const handleFieldChange = (field: keyof typeof spellData, value: any) => {
         setSpellData(prev => ({ ...prev, [field]: value }));
