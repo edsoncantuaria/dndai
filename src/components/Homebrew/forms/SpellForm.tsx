@@ -93,7 +93,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
 
     const handleScalingChange = (type: 'character' | 'slot', index: number, field: 'level' | 'dice', value: string) => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
-        const currentScaling = Object.entries(spellData.damage[key]);
+        const currentScaling = Object.entries(spellData.damage[key] || {});
         
         let newLevel = currentScaling[index]?.[0] || '';
         let newDice = currentScaling[index]?.[1] || '';
@@ -144,6 +144,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
     
     const scalingType = spellData.level === 0 ? 'character' : 'slot';
     const scalingLabel = scalingType === 'character' ? 'Nível do Personagem' : 'Nível da Magia';
+    const scalingData = spellData.damage[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level'] || {};
 
     return (
         <div className="space-y-4">
@@ -226,10 +227,10 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
                         </div>
                     </div>
                      <p className="text-xs text-stone-400">Dano base e escalonamento por {scalingLabel}.</p>
-                    {Object.entries(spellData.damage[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level']).map(([level, dice], index) => (
+                    {Object.entries(scalingData).map(([level, dice], index) => (
                         <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
                              <input type="number" placeholder={scalingLabel} value={level} onChange={(e) => handleScalingChange(scalingType, index, 'level', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
-                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"/>
+                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice as string} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"/>
                             <button type="button" onClick={() => removeScalingEntry(scalingType, level)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
                         </div>
                     ))}
