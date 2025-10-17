@@ -14,17 +14,23 @@ interface Props {
 
 const RARITIES = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary", "Artifact"];
 
+const defaultItemData = {
+    name: '',
+    desc: [''],
+    equipment_category: { index: 'adventuring-gear', name: 'Adventuring Gear' },
+    cost: { quantity: 0, unit: 'gp' },
+    weight: 0,
+    rarity: { name: 'Common' },
+    isMagic: false,
+    official_index: '',
+};
+
 const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [itemData, setItemData] = useState(initialData || {
-        name: '',
-        desc: [''],
-        equipment_category: { index: 'adventuring-gear', name: 'Adventuring Gear' },
-        cost: { quantity: 0, unit: 'gp' },
-        weight: 0,
-        rarity: { name: 'Common' },
-        isMagic: false,
-        official_index: '',
+    const [itemData, setItemData] = useState({
+        ...defaultItemData,
+        ...(initialData || {}),
+        desc: initialData?.desc || [''],
     });
     const [equipmentCategories, setEquipmentCategories] = useState<ApiListItem[]>([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -32,8 +38,10 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         if(initialData) {
             setItemData({
+                ...defaultItemData,
                 ...initialData,
                 isMagic: !!initialData.rarity,
+                desc: initialData.desc || [''],
             });
         }
     }, [initialData]);
