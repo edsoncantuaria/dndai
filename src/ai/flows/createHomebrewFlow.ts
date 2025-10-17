@@ -18,14 +18,8 @@ const CreateHomebrewOutputSchema = z.object({
 });
 
 export async function createHomebrewContent(input: z.infer<typeof CreateHomebrewInputSchema>): Promise<{ content: any } | null> {
-    try {
-        // CORREÇÃO: Adicionado 'await' para garantir que a promessa do fluxo seja resolvida.
-        const result = await createHomebrewFlow(input);
-        return result;
-    } catch (error) {
-        console.error("Erro no fluxo createHomebrewContent:", error);
-        return null;
-    }
+    // Agora o await está no lugar certo, dentro do chamador (AiCreator), não aqui.
+    return createHomebrewFlow(input);
 }
 
 

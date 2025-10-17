@@ -49,7 +49,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const handleLoadExample = () => {
         const exampleData = EXAMPLES[type];
         if(exampleData) {
-            // Usamos um estado separado para o exemplo para que o useEffect em cada form possa detectá-lo como uma nova prop
             setExampleToLoad(exampleData);
              toast({
                 title: 'Exemplo Carregado',
@@ -58,9 +57,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         }
     };
     
-    // Este useEffect agora garante que o 'index' seja sempre adicionado
     useEffect(() => {
-        // Se houver um nome e nenhum índice, gere um
         if (contentData.name && !contentData.index) {
              setContentData((prev: any) => ({
                 ...prev,
@@ -73,7 +70,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        // Garante que o objeto final tenha o index
         const finalContentData = {
             ...contentData,
             index: contentData.official_index || contentData.index || contentData.name.toLowerCase().replace(/\s+/g, '-')
@@ -136,7 +132,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         }
     };
     
-    // Memoize the initialData prop to prevent re-renders
     const initialDataForForm = useMemo(() => {
         if (exampleToLoad) return exampleToLoad;
         if (contentToEdit?.type === type) return contentToEdit.content;
@@ -184,10 +179,9 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                     onChange={(e) => {
                                         const newType = e.target.value as HomebrewService.HomebrewContentType;
                                         setType(newType);
-                                        // Reset data when type changes, unless we are editing the same type
                                         if (!contentToEdit || contentToEdit.type !== newType) {
                                             setContentData({});
-                                            setExampleToLoad(null); // Também reseta o exemplo
+                                            setExampleToLoad(null);
                                         }
                                     }}
                                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
