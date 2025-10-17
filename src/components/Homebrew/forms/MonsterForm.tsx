@@ -1,3 +1,4 @@
+
 // src/components/Homebrew/forms/MonsterForm.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
@@ -401,3 +402,8 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     initialData={creatorModal.data}
                 />
             )}
+        </div>
+    );
+};
+
+export default MonsterForm;
