@@ -98,7 +98,7 @@ export const useDerivedCharacterData = (
             backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
         
-        return { equipmentChoiceGroups, fixedEquipment };
+        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
     const finalProficiencies = useMemo(() => {
