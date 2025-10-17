@@ -13,7 +13,7 @@ interface Props {
 }
 
 const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
-    const [spellData, setSpellData] = useState(initialData || {
+    const [spellData, setSpellData] = useState(() => ({
         name: '',
         desc: [''],
         level: 0,
@@ -29,8 +29,10 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             damage_type: { index: '', name: ''},
             damage_at_character_level: {} as Record<string, string>,
             damage_at_slot_level: {} as Record<string, string>,
-        }
-    });
+        },
+        ...initialData
+    }));
+
     const [magicSchools, setMagicSchools] = useState<ApiListItem[]>([]);
     const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
