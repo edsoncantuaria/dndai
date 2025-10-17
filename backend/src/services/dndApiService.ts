@@ -68,7 +68,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
  * Obtém uma lista de recursos de um endpoint principal (ex: 'races', 'classes').
  */
 export const getResourceList = (resource: string) => {
-    return fetchWithCache<{ results: any[] }>(`/${resource}`);
+    return fetchWithCache<{ count: number, results: any[] }>(`/${resource}`);
 }
 
 /**
@@ -79,3 +79,7 @@ export const getResourceList = (resource: string) => {
 export const getDetails = (resource: string, index: string) => {
      return fetchWithCache<any>(`/${resource}/${index}`);
 }
+
+export const getEquipmentDetails = (index: string) => {
+    return fetchWithCache<any>(`/equipment/${index}`);
+};

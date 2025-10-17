@@ -6,11 +6,9 @@ import { apiClient } from './apiClient';
 let backgroundsDataCache: ApiBackground[] | null = null;
 
 const getBackgroundsData = async (): Promise<ApiBackground[]> => {
-    // REVALIDATE START
     if (backgroundsDataCache && backgroundsDataCache.length > 0) {
         return backgroundsDataCache;
     }
-    // REVALIDATE END
     const data = await apiClient<{ results: ApiBackground[] }>('/dnds/backgrounds-data');
     backgroundsDataCache = data.results || [];
     return backgroundsDataCache;
@@ -41,9 +39,11 @@ export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dn
 export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(index)) {
+        // It's a homebrew background, fetch from the homebrew endpoint
         const data = await apiClient<any>(`/homebrew/${index}`);
         return data.content as ApiBackground;
     }
+    // It's an official background, fetch from the local JSON data.
     const allBackgrounds = await getBackgroundsData();
     const background = allBackgrounds.find(bg => bg.index === index);
     if (!background) {
@@ -54,14 +54,16 @@ export const getBackgroundDetails = async (index: string): Promise<ApiBackground
 };
 
 export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);
-export const getSubclassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/subclasses/${index}/levels`);
+export const getSubclassLevels = (index: string) => apiClient<ApiSubclass[]>(`/dnds/subclasses/${index}/levels`);
 export const getSpellsForClass = (index: string) => apiClient<{ results: ApiListItem[] }>(`/dnds/classes/${index}/spells`);
 export const getEquipmentForCategory = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // For traits, they can be official or homebrew feats/traits
     if (uuidRegex.test(index)) {
+        // Assume it's a homebrew feat for now
         const data = apiClient<any>(`/homebrew/${index}`);
         return data.content;
     }

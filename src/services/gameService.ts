@@ -59,27 +59,22 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
 
 // --- Gameplay Actions ---
 
-export const processPlayerAction = async (sessionId: number, prompt: string, apiKey: string, combatState?: CombatState, model?: string, useAiHomebrew?: boolean): Promise<GameMasterResponse> => {
-    
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token && sessionId !== -1) {
-        throw new Error("Token de autenticação não encontrado.");
-    }
-    
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api'}/narrar/${sessionId}`, {
+export const processPlayerAction = async (
+    sessionId: number, 
+    prompt: string, 
+    apiKey: string, 
+    combatState?: CombatState, 
+    model?: string,
+    useAiHomebrew?: boolean, // Adicionado
+): Promise<GameMasterResponse> => {
+    return apiClient<GameMasterResponse>(`/narrar/${sessionId}`, {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify({ prompt, apiKey, combatState, model, useAiHomebrew }),
+        body: JSON.stringify({
+            prompt,
+            apiKey,
+            combatState,
+            model,
+            useAiHomebrew, // Adicionado ao corpo da requisição
+        }),
     });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Erro de comunicação desconhecido.' }));
-        throw new Error(errorData.message || 'Ocorreu um erro ao se comunicar com o Mestre.');
-    }
-    return response.json();
 };
