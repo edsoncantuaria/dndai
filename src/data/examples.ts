@@ -139,10 +139,10 @@ export const EXAMPLES: Record<HomebrewContentType, any> = {
       }
     ],
     "proficiencies": [
-      { "name": "Todas as Armaduras" },
-      { "name": "Escudos" },
-      { "name": "Armas Simples" },
-      { "name": "Armas Marciais" }
+      { "index": "all-armor", "name": "Todas as Armaduras" },
+      { "index": "shields", "name": "Escudos" },
+      { "index": "simple-weapons", "name": "Armas Simples" },
+      { "index": "martial-weapons", "name": "Armas Marciais" }
     ],
     "saving_throws": [
       { "index": "str", "name": "STR" },
