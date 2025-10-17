@@ -48,7 +48,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
             setRaces(all.sort((a,b) => a.name.localeCompare(b.name)));
             
-            if (initialData?.race.index && !all.some(r => r.index === initialData.race.index)) {
+            if (initialData && initialData.race && initialData.race.index && !all.some(r => r.index === initialData.race.index)) {
                 setRaces(prev => [initialData.race, ...prev]);
             }
 
