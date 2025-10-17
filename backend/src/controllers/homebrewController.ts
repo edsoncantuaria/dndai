@@ -111,7 +111,7 @@ export const checkName = async (req: Request, res: Response, next: NextFunction)
         return next(createError(400, 'Nome e tipo são obrigatórios para verificação.'));
     }
     try {
-        const exists = await HomebrewService.checkIfNameExists(name, type);
+        const exists = await HomebrewService.checkIfNameExists(name, type as HomebrewContentType);
         res.status(200).json({ exists });
     } catch (error) {
         next(error);
@@ -124,9 +124,11 @@ export const checkName = async (req: Request, res: Response, next: NextFunction)
 export const listBundles = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const scope = req.query.scope as 'public' | 'mine' | undefined;
     const userId = req.user?.userId;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 100;
 
     try {
-        const bundles = await HomebrewService.getBundles(userId, scope);
+        const bundles = await HomebrewService.getBundles({ userId, scope, page, limit });
         res.status(200).json(bundles);
     } catch (error) {
         next(error);

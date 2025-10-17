@@ -19,7 +19,13 @@ const router = Router();
 
 // --- Bundles ---
 router.post('/bundles', authMiddleware, createBundle);
-router.get('/bundles', authMiddleware, listBundles);
+router.get('/bundles', (req, res, next) => {
+    // Permite listar bundles publicos sem auth, mas requer auth para 'mine'
+    if (req.query.scope === 'mine') {
+        return authMiddleware(req as any, res, next);
+    }
+    next();
+}, listBundles);
 router.get('/bundles/:id/contents', getBundleContents);
 router.put('/bundles/:id', authMiddleware, updateBundle);
 router.delete('/bundles/:id', authMiddleware, deleteBundle);
