@@ -25,6 +25,28 @@ export const createContent = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
+// Atualizar um conteúdo homebrew existente
+export const updateContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+
+    try {
+        const validatedData = CreateHomebrewSchema.parse(req.body);
+        const updatedContent = await HomebrewService.updateHomebrewContent(id, userId, validatedData);
+        res.status(200).json({ message: 'Conteúdo Homebrew atualizado com sucesso!', content: updatedContent });
+    } catch (error: any) {
+        if (error.name === 'ZodError') {
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
+        next(error);
+    }
+};
+
+
 // Listar conteúdos homebrew (públicos ou do usuário)
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const type = req.query.type as HomebrewContentType | undefined;
@@ -68,6 +90,17 @@ export const getContentById = async (req: Request, res: Response, next: NextFunc
     try {
         const content = await HomebrewService.getHomebrewContentById(id, userId);
         res.status(200).json(content);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// Nova função para obter dependências
+export const getDependencies = async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    try {
+        const dependencies = await HomebrewService.getHomebrewDependencies(id);
+        res.status(200).json(dependencies);
     } catch (error) {
         next(error);
     }

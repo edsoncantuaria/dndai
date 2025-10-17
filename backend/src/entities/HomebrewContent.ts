@@ -2,7 +2,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { User } from './User.js';
 
-export type HomebrewContentType = 'race' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
+export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
 
 @Entity('homebrew_content')
 export class HomebrewContent {
@@ -19,7 +19,7 @@ export class HomebrewContent {
     @Index()
     @Column({
         type: 'enum',
-        enum: ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'],
+        enum: ['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'],
     })
     type: HomebrewContentType;
 
@@ -39,6 +39,9 @@ export class HomebrewContent {
         default: 'user'
     })
     createdBy: 'user' | 'ai';
+    
+    @Column({ type: 'simple-json', nullable: true })
+    dependencies: string[]; // Armazena os IDs de outros conteúdos homebrew
 
     @CreateDateColumn()
     createdAt: Date;

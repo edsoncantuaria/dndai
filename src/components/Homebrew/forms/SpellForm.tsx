@@ -9,10 +9,11 @@ import ItemSelector from '../ItemSelector';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const SpellForm: React.FC<Props> = ({ onDataChange }) => {
-    const [spellData, setSpellData] = useState({
+const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [spellData, setSpellData] = useState(initialData || {
         name: '',
         desc: [''],
         level: 0,
@@ -64,8 +65,8 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-     const updateParent = (newData: any) => {
-        const fullData = { ...newData };
+    useEffect(() => {
+        const fullData = { ...spellData };
 
         if(!fullData.attack_type) delete fullData.attack_type;
         
@@ -76,14 +77,12 @@ const SpellForm: React.FC<Props> = ({ onDataChange }) => {
             if (Object.keys(fullData.damage.damage_at_slot_level || {}).length === 0) delete fullData.damage.damage_at_slot_level;
         }
 
-        fullData.index = newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
+        fullData.index = spellData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
         onDataChange(fullData);
-    };
+    }, [spellData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof spellData, value: any) => {
-        const newData = { ...spellData, [field]: value };
-        setSpellData(newData);
-        updateParent(newData);
+        setSpellData(prev => ({ ...prev, [field]: value }));
     };
     
     const handleDamageChange = (field: keyof typeof spellData.damage, value: any) => {

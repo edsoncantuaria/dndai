@@ -22,6 +22,7 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     newContent.content = data.content;
     newContent.isPublic = data.isPublic || false;
     newContent.createdBy = data.createdBy || 'user';
+    newContent.dependencies = data.dependencies || [];
     
     try {
         const savedContent = await homebrewRepo.save(newContent);
@@ -31,6 +32,41 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
         throw createError(500, 'Falha ao salvar o conteúdo no banco de dados.');
     }
 };
+
+/**
+ * Atualiza um conteúdo homebrew existente.
+ * @param contentId O ID do conteúdo a ser atualizado.
+ * @param authorId O ID do usuário que está tentando atualizar (para verificação de permissão).
+ * @param data Os novos dados para o conteúdo.
+ * @returns O conteúdo atualizado.
+ */
+export const updateHomebrewContent = async (contentId: string, authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const contentToUpdate = await homebrewRepo.findOneBy({ id: contentId });
+
+    if (!contentToUpdate) {
+        throw createError(404, 'Conteúdo Homebrew não encontrado.');
+    }
+
+    if (contentToUpdate.authorId !== authorId) {
+        throw createError(403, 'Você não tem permissão para editar este conteúdo.');
+    }
+
+    // Atualiza os campos
+    contentToUpdate.name = data.name;
+    contentToUpdate.content = data.content;
+    contentToUpdate.isPublic = data.isPublic || false;
+    contentToUpdate.dependencies = data.dependencies || [];
+
+    try {
+        const updatedContent = await homebrewRepo.save(contentToUpdate);
+        return updatedContent;
+    } catch (error: any) {
+        console.error("Erro ao atualizar conteúdo homebrew:", error);
+        throw createError(500, 'Falha ao atualizar o conteúdo no banco de dados.');
+    }
+};
+
 
 /**
  * Lista todo o conteúdo homebrew público.
@@ -138,4 +174,40 @@ export const findHomebrewByOfficialIndex = async (officialIndex: string, type: H
         .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
         .andWhere("hb.isPublic = true") // Garante que apenas conteúdo público possa sobrescrever
         .getOne();
+};
+
+
+/**
+ * Busca recursivamente todas as dependências de um item homebrew.
+ * @param contentId O ID do conteúdo homebrew inicial.
+ * @param visited Um set para evitar loops de dependência infinitos.
+ * @returns Um array de objetos HomebrewContent, incluindo o item original e todas as suas dependências.
+ */
+export const getHomebrewDependencies = async (
+    contentId: string,
+    visited = new Set<string>()
+): Promise<HomebrewContent[]> => {
+    if (visited.has(contentId)) {
+        return []; // Evita recursão infinita
+    }
+    visited.add(contentId);
+
+    const repo = AppDataSource.getRepository(HomebrewContent);
+    const content = await repo.findOneBy({ id: contentId });
+
+    if (!content) {
+        return [];
+    }
+
+    const allDependencies = [content];
+
+    if (content.dependencies && content.dependencies.length > 0) {
+        for (const depId of content.dependencies) {
+            const nestedDependencies = await getHomebrewDependencies(depId, visited);
+            allDependencies.push(...nestedDependencies);
+        }
+    }
+
+    // Retorna uma lista única de dependências
+    return Array.from(new Map(allDependencies.map(item => [item.id, item])).values());
 };

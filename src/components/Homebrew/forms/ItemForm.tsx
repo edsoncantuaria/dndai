@@ -8,12 +8,13 @@ import type { ApiListItem } from '@/types';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
 const RARITIES = ["Common", "Uncommon", "Rare", "Very Rare", "Legendary", "Artifact"];
 
-const ItemForm: React.FC<Props> = ({ onDataChange }) => {
-    const [itemData, setItemData] = useState({
+const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [itemData, setItemData] = useState(initialData || {
         name: '',
         desc: [''],
         equipment_category: { index: 'adventuring-gear', name: 'Adventuring Gear' },
@@ -24,6 +25,15 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
     });
     const [equipmentCategories, setEquipmentCategories] = useState<ApiListItem[]>([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+
+    useEffect(() => {
+        if(initialData) {
+            setItemData({
+                ...initialData,
+                isMagic: !!initialData.rarity,
+            });
+        }
+    }, [initialData]);
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -49,10 +59,10 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const updateParent = (newData: any) => {
+    useEffect(() => {
         const fullData = {
-            ...newData,
-            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
+            ...itemData,
+            index: itemData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
         };
         // Remove 'isMagic' field before sending up, it's just for form state
         const { isMagic, ...finalData } = fullData;
@@ -60,12 +70,11 @@ const ItemForm: React.FC<Props> = ({ onDataChange }) => {
             delete finalData.rarity;
         }
         onDataChange(finalData);
-    };
+    }, [itemData, onDataChange]);
+
 
     const handleFieldChange = (field: keyof typeof itemData, value: any) => {
-        const newData = { ...itemData, [field]: value };
-        setItemData(newData);
-        updateParent(newData);
+        setItemData(prev => ({...prev, [field]: value}));
     };
 
     const handleCategoryChange = (index: string) => {

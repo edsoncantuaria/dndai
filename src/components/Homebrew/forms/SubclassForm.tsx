@@ -5,19 +5,21 @@ import * as DndApiService from '@/services/dndApiService';
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
-import FeatureCreator from '../FeatureCreator';
+import FeatureCreator from './FeatureCreator';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const SubclassForm: React.FC<Props> = ({ onDataChange }) => {
-    const [subclassData, setSubclassData] = useState({
+const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [subclassData, setSubclassData] = useState(initialData || {
         name: '',
         subclass_flavor: '',
         desc: [''],
         class: { index: '', name: '', url: '' },
         features: [] as any[],
+        dependencies: [],
     });
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -27,8 +29,24 @@ const SubclassForm: React.FC<Props> = ({ onDataChange }) => {
     useEffect(() => {
         const fetchClasses = async () => {
             try {
-                const classList = await DndApiService.getClasses();
-                setClasses(classList?.results || []);
+                // Modificado para buscar tanto as oficiais quanto as homebrew
+                const officialClasses = await DndApiService.getClasses();
+                const homebrewClasses = await DndApiService.listHomebrewContent('public', 'class');
+                const myHomebrewClasses = await DndApiService.listHomebrewContent('mine', 'class');
+
+                const all = [...(officialClasses?.results || [])];
+                const myIds = new Set(myHomebrewClasses.map(c => c.id));
+
+                all.push(...myHomebrewClasses.map(c => ({ index: c.id, name: `(Meu) ${c.name}`, url: ''})));
+                all.push(...homebrewClasses.filter(c => !myIds.has(c.id)).map(c => ({ index: c.id, name: `(H) ${c.name}`, url: ''})));
+
+                setClasses(all.sort((a,b) => a.name.localeCompare(b.name)));
+                
+                // Se estiver editando e a classe for homebrew, garanta que ela esteja na lista.
+                if(initialData?.class.index && !all.some(c => c.index === initialData.class.index)) {
+                    setClasses(prev => [initialData.class, ...prev]);
+                }
+
             } catch (error) {
                 console.error("Falha ao buscar classes:", error);
             } finally {
@@ -36,7 +54,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange }) => {
             }
         };
         fetchClasses();
-    }, []);
+    }, [initialData]);
 
     useEffect(() => {
         const fullData = {
@@ -54,6 +72,12 @@ const SubclassForm: React.FC<Props> = ({ onDataChange }) => {
         const selectedClass = classes.find(c => c.index === classIndex);
         if (selectedClass) {
             handleFieldChange('class', selectedClass);
+            // Adiciona a classe como dependência se for homebrew
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classIndex)) {
+                setSubclassData(prev => ({ ...prev, dependencies: [classIndex] }));
+            } else {
+                setSubclassData(prev => ({ ...prev, dependencies: [] }));
+            }
         }
     };
     
@@ -127,13 +151,13 @@ const SubclassForm: React.FC<Props> = ({ onDataChange }) => {
                             <div key={level}>
                                 <h5 className="font-semibold text-stone-300 text-md border-b border-stone-600 pb-1 mb-2">{level}</h5>
                                 <div className="space-y-2">
-                                {groupedFeatures[level].map((feature: any) => (
-                                    <div key={feature.index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
+                                {groupedFeatures[level].map((feature: any, index: number) => (
+                                    <div key={feature.index || index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
                                         <div>
                                             <p className="font-semibold text-stone-200">{feature.name}</p>
                                             <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
                                         </div>
-                                        <button onClick={() => handleRemoveFeature(feature.index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
+                                        <button type="button" onClick={() => handleRemoveFeature(feature.index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
                                             <Trash2 className="h-4 w-4"/>
                                         </button>
                                     </div>

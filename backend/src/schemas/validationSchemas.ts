@@ -92,14 +92,15 @@ export const NewCharacterInfoSchema = z.object({
     hitDie: z.number(),
     subclass: z.string().nullable(),
     level: z.number().optional().default(1),
-    homebrewIds: z.array(z.string().uuid()).optional(), // IDs para raça, classe, antecedente.
+    homebrewIds: z.array(z.string()).optional(), // IDs para raça, classe, antecedente.
 });
 
 // --- Homebrew ---
 export const CreateHomebrewSchema = z.object({
-    type: z.enum(['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat']),
+    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat']),
     name: z.string().min(1, "O nome do conteúdo é obrigatório."),
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),
-    createdBy: z.enum(['user', 'ai']).optional().default('user'), // Novo campo
+    createdBy: z.enum(['user', 'ai']).optional().default('user'),
+    dependencies: z.array(z.string()).optional(), // Novo campo de dependências
 });

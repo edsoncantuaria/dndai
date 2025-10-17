@@ -10,10 +10,11 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     onActionCreated: (newAction: any) => void;
+    initialData?: any;
 }
 
-const ActionCreator: React.FC<Props> = ({ isOpen, onClose, onActionCreated }) => {
-    const [actionData, setActionData] = useState<any>(null);
+const ActionCreator: React.FC<Props> = ({ isOpen, onClose, onActionCreated, initialData }) => {
+    const [actionData, setActionData] = useState<any>(initialData || null);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -29,8 +30,8 @@ const ActionCreator: React.FC<Props> = ({ isOpen, onClose, onActionCreated }) =>
 
         onActionCreated(actionData);
         toast({
-            title: 'Ação Adicionada',
-            description: `"${actionData.name}" foi adicionada.`,
+            title: initialData ? 'Ação Atualizada' : 'Ação Adicionada',
+            description: `"${actionData.name}" foi salva.`,
         });
         handleClose();
     };
@@ -43,15 +44,15 @@ const ActionCreator: React.FC<Props> = ({ isOpen, onClose, onActionCreated }) =>
     return (
         <ActionModal
             isOpen={isOpen}
-            title="Criar Nova Ação de Monstro"
+            title={initialData ? "Editar Ação" : "Criar Nova Ação"}
             onClose={handleClose}
             actions={[
                 { text: "Cancelar", onClick: handleClose, variant: 'secondary' },
-                { text: "Salvar Ação", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
+                { text: initialData ? "Atualizar Ação" : "Salvar Ação", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
             <div className="space-y-4">
-                <ActionForm onDataChange={setActionData} />
+                <ActionForm onDataChange={setActionData} initialData={initialData} />
             </div>
         </ActionModal>
     );

@@ -1,6 +1,6 @@
 // src/components/Homebrew/forms/SubraceForm.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import { translateApiString } from '@/utils/translator';
@@ -9,10 +9,11 @@ import TraitSelector from '../TraitSelector';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const SubraceForm: React.FC<Props> = ({ onDataChange }) => {
-    const [subraceData, setSubraceData] = useState({
+const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [subraceData, setSubraceData] = useState(initialData || {
         name: '',
         desc: '',
         race: { index: '', name: '', url: '' },
@@ -20,23 +21,42 @@ const SubraceForm: React.FC<Props> = ({ onDataChange }) => {
         racial_traits: [] as ApiListItem[],
         starting_proficiencies: [] as ApiListItem[],
         languages: [] as ApiListItem[],
+        dependencies: [],
     });
     const [races, setRaces] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchRaces = async () => {
-            try {
-                const raceList = await DndApiService.getRaces();
-                setRaces(raceList?.results || []);
-            } catch (error) {
-                console.error("Failed to fetch races:", error);
-            } finally {
-                setIsLoading(false);
+    const fetchRaces = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            const officialRaces = await DndApiService.getRaces();
+            const homebrewRaces = await DndApiService.listHomebrewContent('public', 'race');
+            const myHomebrewRaces = await DndApiService.listHomebrewContent('mine', 'race');
+
+            const all = [...(officialRaces?.results || [])];
+            const myIds = new Set(myHomebrewRaces.map(r => r.id));
+
+            all.push(...myHomebrewRaces.map(r => ({ index: r.id, name: `(Meu) ${r.name}`, url: '' })));
+            all.push(...homebrewRaces.filter(r => !myIds.has(r.id)).map(r => ({ index: r.id, name: `(H) ${r.name}`, url: '' })));
+
+            setRaces(all.sort((a,b) => a.name.localeCompare(b.name)));
+            
+            // If editing and the parent race is homebrew, ensure it's in the list
+            if (initialData?.race.index && !all.some(r => r.index === initialData.race.index)) {
+                setRaces(prev => [initialData.race, ...prev]);
             }
-        };
+
+        } catch (error) {
+            console.error("Failed to fetch races:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [initialData]);
+
+    useEffect(() => {
         fetchRaces();
-    }, []);
+    }, [fetchRaces]);
+
 
     useEffect(() => {
         const fullData = {
@@ -54,7 +74,25 @@ const SubraceForm: React.FC<Props> = ({ onDataChange }) => {
         const selectedRace = races.find(r => r.index === raceIndex);
         if (selectedRace) {
             handleFieldChange('race', selectedRace);
+            // Se a raça principal for homebrew, adicione-a como dependência
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raceIndex)) {
+                setSubraceData(prev => ({ ...prev, dependencies: [raceIndex] }));
+            } else {
+                setSubraceData(prev => ({ ...prev, dependencies: [] }));
+            }
         }
+    };
+    
+    const handleTraitsChange = (newTraits: ApiListItem[]) => {
+        const traitIds = newTraits.map(t => t.index);
+        const homebrewTraitIds = traitIds.filter(id => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+        const raceDep = subraceData.dependencies.filter(dep => !dep.startsWith('feat-'));
+        
+        setSubraceData(prev => ({
+            ...prev,
+            racial_traits: newTraits,
+            dependencies: Array.from(new Set([...raceDep, ...homebrewTraitIds]))
+        }));
     };
 
     const handleBonusChange = (index: number, field: 'ability_score' | 'bonus', value: string | number) => {
@@ -120,7 +158,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange }) => {
              <div>
                 <TraitSelector
                     selectedTraits={subraceData.racial_traits}
-                    onSelectionChange={(newTraits) => handleFieldChange('racial_traits', newTraits)}
+                    onSelectionChange={handleTraitsChange}
                 />
             </div>
         </div>

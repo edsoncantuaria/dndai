@@ -8,10 +8,11 @@ import { translateApiString } from '@/utils/translator';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const ActionForm: React.FC<Props> = ({ onDataChange }) => {
-    const [actionData, setActionData] = useState({
+const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [actionData, setActionData] = useState(initialData || {
         name: '',
         desc: '',
         attack_bonus: 0,

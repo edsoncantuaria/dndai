@@ -13,10 +13,11 @@ interface Prerequisite {
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const FeatForm: React.FC<Props> = ({ onDataChange }) => {
-    const [featData, setFeatData] = useState({
+const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [featData, setFeatData] = useState(initialData || {
         name: '',
         desc: [''],
         prerequisites: [] as Prerequisite[],

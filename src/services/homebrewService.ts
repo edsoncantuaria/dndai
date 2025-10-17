@@ -2,7 +2,7 @@
 import { apiClient } from './apiClient';
 
 // Tipos baseados em backend/src/entities/HomebrewContent.ts
-export type HomebrewContentType = 'race' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
+export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
 
 export interface HomebrewContent {
     id: string;
@@ -14,6 +14,7 @@ export interface HomebrewContent {
     createdAt: string;
     updatedAt: string;
     createdBy: 'user' | 'ai';
+    dependencies?: string[];
 }
 
 export interface CreateHomebrewData {
@@ -22,6 +23,7 @@ export interface CreateHomebrewData {
     content: any;
     isPublic?: boolean;
     createdBy?: 'user' | 'ai';
+    dependencies?: string[];
 }
 
 /**
@@ -52,4 +54,25 @@ export const createHomebrewContent = async (data: CreateHomebrewData): Promise<H
         body: JSON.stringify(data),
     });
     return response.content;
+};
+
+/**
+ * Atualiza um conteúdo homebrew existente.
+ * @param id O ID do conteúdo a ser atualizado.
+ * @param data Os novos dados para o conteúdo.
+ */
+export const updateHomebrewContent = async (id: string, data: Partial<CreateHomebrewData>): Promise<HomebrewContent> => {
+     const response = await apiClient<{ content: HomebrewContent }>(`/homebrew/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+    return response.content;
+}
+
+/**
+ * Busca as dependências de um item homebrew.
+ * @param id O ID do conteúdo homebrew.
+ */
+export const getHomebrewDependencies = async (id: string): Promise<HomebrewContent[]> => {
+    return apiClient<HomebrewContent[]>(`/homebrew/${id}/dependencies`);
 };

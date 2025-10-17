@@ -7,10 +7,11 @@ import TraitSelector from '../TraitSelector';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const RaceForm: React.FC<Props> = ({ onDataChange }) => {
-    const [raceData, setRaceData] = useState({
+const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [raceData, setRaceData] = useState(initialData || {
         name: '',
         speed: 30,
         ability_bonuses: [] as { ability_score: { index: string; name: string, url: string }; bonus: number }[],
@@ -23,11 +24,16 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
         language_options: { choose: 0, from: { option_set_type: "resource_list", resource_list_url: "/api/languages" } },
         languages: [],
         subraces: [],
+        dependencies: [],
     });
     
     useEffect(() => {
+        const traitIds = raceData.traits.map((t: ApiListItem) => t.index);
+        const homebrewTraitIds = traitIds.filter((id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+        
         const fullData = {
             ...raceData,
+            dependencies: homebrewTraitIds,
             index: raceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
         };
         onDataChange(fullData);
@@ -36,6 +42,10 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
 
     const handleFieldChange = (field: keyof typeof raceData, value: any) => {
         setRaceData(prev => ({ ...prev, [field]: value }));
+    };
+    
+    const handleTraitsChange = (newTraits: ApiListItem[]) => {
+        handleFieldChange('traits', newTraits);
     };
 
     const handleBonusChange = (index: number, field: 'ability_score' | 'bonus', value: string | number) => {
@@ -90,7 +100,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
              <div>
                 <TraitSelector
                     selectedTraits={raceData.traits}
-                    onSelectionChange={(newTraits) => handleFieldChange('traits', newTraits)}
+                    onSelectionChange={handleTraitsChange}
                 />
             </div>
              <div>

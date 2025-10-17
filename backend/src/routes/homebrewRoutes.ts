@@ -1,6 +1,6 @@
 // backend/src/routes/homebrewRoutes.ts
 import { Router } from 'express';
-import { createContent, listContent, getContentById } from '../controllers/homebrewController.js';
+import { createContent, listContent, getContentById, updateContent, getDependencies } from '../controllers/homebrewController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -22,8 +22,11 @@ router.get('/', (req, res, next) => {
 // Rota para obter um conteúdo específico - Aberta, pois a lógica de permissão está no serviço
 router.get('/:id', getContentById);
 
-// Rotas para Update e Delete podem ser adicionadas aqui no futuro
-// router.put('/:id', authMiddleware, updateContent);
-// router.delete('/:id', authMiddleware, deleteContent);
+// Rota para atualizar um conteúdo
+router.put('/:id', authMiddleware, updateContent);
+
+// Rota para obter dependências de um conteúdo
+router.get('/:id/dependencies', getDependencies);
+
 
 export default router;

@@ -1,6 +1,6 @@
 // src/components/Homebrew/HomebrewCreator.tsx
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Info } from 'lucide-react';
@@ -14,7 +14,7 @@ import MonsterForm from './forms/MonsterForm';
 import BackgroundForm from './forms/BackgroundForm';
 import FeatForm from './forms/FeatForm';
 import HomebrewHelpModal from './HomebrewHelpModal';
-import SubraceForm from './forms/SubraceForm'; // Importar o novo formulário
+import SubraceForm from './forms/SubraceForm'; 
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -23,15 +23,24 @@ const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
 interface Props {
     onContentCreated: () => void;
     onCancel: () => void;
+    contentToEdit?: HomebrewService.HomebrewContent | null;
 }
 
-const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
-    const [type, setType] = useState<HomebrewService.HomebrewContentType>('race');
-    const [contentData, setContentData] = useState<any>(null);
-    const [isPublic, setIsPublic] = useState(false);
+const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit }) => {
+    const [type, setType] = useState<HomebrewService.HomebrewContentType>(contentToEdit?.type || 'race');
+    const [contentData, setContentData] = useState<any>(contentToEdit?.content || null);
+    const [isPublic, setIsPublic] = useState(contentToEdit?.isPublic || false);
     const [isLoading, setIsLoading] = useState(false);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const { toast } = useToast();
+
+    useEffect(() => {
+        if (contentToEdit) {
+            setType(contentToEdit.type);
+            setContentData(contentToEdit.content);
+            setIsPublic(contentToEdit.isPublic);
+        }
+    }, [contentToEdit]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -46,16 +55,32 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
 
         setIsLoading(true);
         try {
-            await HomebrewService.createHomebrewContent({ name: contentData.name, type, content: contentData, isPublic });
-            toast({
-                title: 'Conteúdo Criado!',
-                description: `"${contentData.name}" foi adicionado à sua oficina.`,
-            });
+            const dataToSave: HomebrewService.CreateHomebrewData = {
+                name: contentData.name,
+                type,
+                content: contentData,
+                isPublic,
+                dependencies: contentData.dependencies || [],
+            };
+            
+            if (contentToEdit) {
+                await HomebrewService.updateHomebrewContent(contentToEdit.id, dataToSave);
+                 toast({
+                    title: 'Conteúdo Atualizado!',
+                    description: `"${contentData.name}" foi salvo com sucesso.`,
+                });
+            } else {
+                await HomebrewService.createHomebrewContent(dataToSave);
+                toast({
+                    title: 'Conteúdo Criado!',
+                    description: `"${contentData.name}" foi adicionado à sua oficina.`,
+                });
+            }
             onContentCreated();
         } catch (error: any) {
             toast({
                 variant: 'destructive',
-                title: 'Falha ao Criar',
+                title: contentToEdit ? 'Falha ao Atualizar' : 'Falha ao Criar',
                 description: error.message || 'Ocorreu um erro ao salvar seu conteúdo.',
             });
         } finally {
@@ -65,15 +90,15 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
 
     const renderFormForType = () => {
         switch (type) {
-            case 'race': return <RaceForm onDataChange={setContentData} />;
-            case 'subrace': return <SubraceForm onDataChange={setContentData} />;
-            case 'class': return <ClassForm onDataChange={setContentData} />;
-            case 'subclass': return <SubclassForm onDataChange={setContentData} />;
-            case 'spell': return <SpellForm onDataChange={setContentData} />;
-            case 'item': return <ItemForm onDataChange={setContentData} />;
-            case 'monster': return <MonsterForm onDataChange={setContentData} />;
-            case 'background': return <BackgroundForm onDataChange={setContentData} />;
-            case 'feat': return <FeatForm onDataChange={setContentData} />;
+            case 'race': return <RaceForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'subrace': return <SubraceForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'class': return <ClassForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'subclass': return <SubclassForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'spell': return <SpellForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'item': return <ItemForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'monster': return <MonsterForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'background': return <BackgroundForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
+            case 'feat': return <FeatForm onDataChange={setContentData} initialData={contentToEdit?.content} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
         }
@@ -84,7 +109,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
             <div className="bg-stone-800/50 p-4 sm:p-6 rounded-lg border border-stone-700 w-full max-w-4xl mx-auto flex flex-col animate-fadeIn max-h-[90vh]">
                 <header className="mb-8 flex-shrink-0 text-center">
                     <h1 className="text-4xl md:text-5xl font-bold text-amber-50 font-serif text-shadow-amber flex items-center justify-center gap-3">
-                        Criador de Homebrew
+                        {contentToEdit ? 'Editando Conteúdo' : 'Criador de Homebrew'}
                         <button onClick={() => setIsHelpModalOpen(true)} className="text-stone-400 hover:text-amber-300 transition-colors">
                             <Info className="h-6 w-6"/>
                         </button>
@@ -101,6 +126,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                                 value={type}
                                 onChange={(e) => setType(e.target.value as HomebrewService.HomebrewContentType)}
                                 className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
+                                disabled={!!contentToEdit} // Desabilita a troca de tipo ao editar
                             >
                                 {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{translateApiString(t)}</option>)}
                             </select>
@@ -135,7 +161,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
                                 className="menu-button btn-new flex items-center justify-center gap-2 text-lg px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FlaskConical className="h-5 w-5"/>}
-                                Salvar Criação
+                                {contentToEdit ? 'Atualizar Criação' : 'Salvar Criação'}
                             </button>
                         </div>
                     </footer>

@@ -7,10 +7,11 @@ import { translateApiString } from '@/utils/translator';
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
-const BackgroundForm: React.FC<Props> = ({ onDataChange }) => {
-    const [bgData, setBgData] = useState({
+const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [bgData, setBgData] = useState(initialData || {
         name: '',
         starting_proficiencies: [] as ApiListItem[],
         feature: { name: '', desc: [''] },
@@ -23,18 +24,16 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange }) => {
         starting_equipment_options: [],
     });
 
-     const updateParent = (newData: any) => {
+     useEffect(() => {
         const fullData = {
-            ...newData,
-            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
+            ...bgData,
+            index: bgData.name.toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
         };
         onDataChange(fullData);
-    };
+    }, [bgData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof bgData, value: any) => {
-        const newData = { ...bgData, [field]: value };
-        setBgData(newData);
-        updateParent(newData);
+        setBgData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleListChange = (type: 'personality_traits' | 'ideals' | 'bonds' | 'flaws', index: number, value: string) => {

@@ -5,13 +5,14 @@ import { translateApiString, translateAttribute } from '@/utils/translator';
 import { Attributes } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
-import ActionCreator from '../ActionCreator';
+import ActionCreator from './ActionCreator';
 
 
 interface Props {
     onDataChange: (data: any) => void;
+    initialData?: any;
 }
 
 const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"];
@@ -25,8 +26,8 @@ const ALIGNMENTS = [
 const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
 
-const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
-    const [monsterData, setMonsterData] = useState({
+const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
+    const [monsterData, setMonsterData] = useState(initialData || {
         name: '',
         size: 'Medium',
         type: 'Beast',
@@ -57,7 +58,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
     const [conditions, setConditions] = useState<ApiListItem[]>([]);
     const [skills, setSkills] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [creatorModal, setCreatorModal] = useState<{ open: boolean, type: 'actions' | 'special_abilities' | 'legendary_actions' | null }>({ open: false, type: null});
+    const [creatorModal, setCreatorModal] = useState<{ open: boolean, type: 'actions' | 'special_abilities' | 'legendary_actions' | null, data?: any, index?: number }>({ open: false, type: null });
 
 
     useEffect(() => {
@@ -145,12 +146,24 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
 
     const handleActionCreated = (newAction: any) => {
         if (!creatorModal.type) return;
-        handleFieldChange(creatorModal.type, [...monsterData[creatorModal.type], newAction]);
+
+        if(creatorModal.index !== undefined) {
+             const updatedActions = [...monsterData[creatorModal.type]];
+             updatedActions[creatorModal.index] = newAction;
+             handleFieldChange(creatorModal.type, updatedActions);
+        } else {
+             handleFieldChange(creatorModal.type, [...monsterData[creatorModal.type], newAction]);
+        }
     };
 
     const handleRemoveAction = (type: 'actions' | 'special_abilities' | 'legendary_actions', index: number) => {
         const newActions = monsterData[type].filter((_, i) => i !== index);
         handleFieldChange(type, newActions);
+    };
+    
+    const openEditModal = (type: 'actions' | 'special_abilities' | 'legendary_actions', index: number) => {
+        const actionToEdit = monsterData[type][index];
+        setCreatorModal({ open: true, type, data: actionToEdit, index });
     };
 
 
@@ -174,7 +187,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
         <div className="pt-4 border-t border-stone-700/50">
             <div className="flex justify-between items-center mb-4">
                 <h4 className="text-lg font-bold text-amber-300">{title}</h4>
-                <button type="button" onClick={() => setCreatorModal({ open: true, type })} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                <button type="button" onClick={() => setCreatorModal({ open: true, type, index: undefined, data: null })} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
                     <Plus className="h-4 w-4" /> Adicionar
                 </button>
             </div>
@@ -185,9 +198,14 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
                             <p className="font-semibold text-stone-200">{action.name}</p>
                             <p className="text-xs text-stone-400 mt-1">{action.desc}</p>
                         </div>
-                        <button type="button" onClick={() => handleRemoveAction(type, index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
-                            <Trash2 className="h-4 w-4"/>
-                        </button>
+                        <div className="flex gap-2">
+                             <button type="button" onClick={() => openEditModal(type, index)} className="ml-2 text-blue-400 hover:text-blue-300 flex-shrink-0">
+                                <Edit className="h-4 w-4"/>
+                            </button>
+                            <button type="button" onClick={() => handleRemoveAction(type, index)} className="ml-2 text-red-500 hover:text-red-400 flex-shrink-0">
+                                <Trash2 className="h-4 w-4"/>
+                            </button>
+                        </div>
                     </div>
                 ))}
                 {monsterData[type].length === 0 && (
@@ -370,6 +388,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange }) => {
                     isOpen={creatorModal.open}
                     onClose={() => setCreatorModal({ open: false, type: null })}
                     onActionCreated={handleActionCreated}
+                    initialData={creatorModal.data}
                 />
             )}
 
