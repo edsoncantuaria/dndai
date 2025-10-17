@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import * as HomebrewService from '@/services/homebrewService'; // Importação correta
+import * as HomebrewService from '@/services/homebrewService';
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import type { ApiListItem } from '@/types';
@@ -16,7 +16,7 @@ interface Props {
 
 const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [subclassData, setSubclassData] = useState(initialData || {
+    const [subclassData, setSubclassData] = useState(() => ({
         name: '',
         subclass_flavor: '',
         desc: [''],
@@ -24,7 +24,8 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         features: [] as any[],
         dependencies: [],
         official_index: '',
-    });
+        ...(initialData || {}),
+    }));
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
@@ -35,9 +36,10 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             try {
                 setIsLoading(true);
                 const officialClasses = await DndApiService.getClasses();
-                // CORREÇÃO: Usar HomebrewService para listHomebrewContent
-                const homebrewClasses = await HomebrewService.listHomebrewContent('public', 'class');
-                const myHomebrewClasses = user ? await HomebrewService.listHomebrewContent('mine', 'class') : Promise.resolve([]);
+                const homebrewClassesPromise = HomebrewService.listHomebrewContent('public', 'class');
+                const myHomebrewClassesPromise = user ? HomebrewService.listHomebrewContent('mine', 'class') : Promise.resolve([]);
+
+                const [homebrewClasses, myHomebrewClasses] = await Promise.all([homebrewClassesPromise, myHomebrewClassesPromise]);
 
                 const all = [...(officialClasses?.results || [])];
                 const myIds = new Set((myHomebrewClasses).map(c => c.id));
@@ -63,11 +65,11 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...subclassData,
-            index: subclassData.official_index || subclassData.name.toLowerCase().replace(/\s+/g, '-') || `custom-subclass-${Date.now()}`
+            index: subclassData.official_index || (subclassData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-subclass-${Date.now()}`
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [subclassData, onDataChange]);
+    }, [subclassData]);
 
     const handleFieldChange = (field: keyof typeof subclassData, value: any) => {
         setSubclassData(prev => ({ ...prev, [field]: value }));
@@ -95,7 +97,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     const groupedFeatures = useMemo(() => {
-        return subclassData.features.reduce((acc: any, feature: any) => {
+        return (subclassData.features || []).reduce((acc: any, feature: any) => {
             const level = `Nível ${feature.level}`;
             if (!acc[level]) {
                 acc[level] = [];
@@ -160,7 +162,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                             <div key={level}>
                                 <h5 className="font-semibold text-stone-300 text-md border-b border-stone-600 pb-1 mb-2">{level}</h5>
                                 <div className="space-y-2">
-                                {groupedFeatures[level].map((feature: any, index: number) => (
+                                {(groupedFeatures[level] || []).map((feature: any, index: number) => (
                                     <div key={feature.index || index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
                                         <div>
                                             <p className="font-semibold text-stone-200">{feature.name}</p>
