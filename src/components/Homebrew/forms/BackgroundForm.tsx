@@ -3,25 +3,33 @@
 import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import * as characterUtils from '@/utils/characterUtils';
-import { translateApiString } from '@/utils/translator';
+import { translateApiString, translateAttribute } from '@/utils/translator';
 
 interface Props {
     onDataChange: (data: any) => void;
     initialData?: any;
 }
 
+const defaultBgData = {
+    name: '',
+    starting_proficiencies: [] as ApiListItem[],
+    feature: { name: '', desc: [''] },
+    personality_traits: { choose: 2, type: 'personality_traits', from: { option_set_type: 'options_array', options: Array(8).fill('').map(() => ({option_type: 'string', string: ''}))}},
+    ideals: { choose: 1, type: 'ideals', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'ideal', desc: ''}))}},
+    bonds: { choose: 1, type: 'bonds', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'string', string: ''}))}},
+    flaws: { choose: 1, type: 'flaws', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'string', string: ''}))}},
+    language_options: { choose: 0, type: 'languages', from: { option_set_type: "resource_list", resource_list_url: "/api/languages" } },
+    starting_equipment: [],
+    starting_equipment_options: [],
+};
+
+
 const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
-    const [bgData, setBgData] = useState(initialData || {
-        name: '',
-        starting_proficiencies: [] as ApiListItem[],
-        feature: { name: '', desc: [''] },
-        personality_traits: { choose: 2, type: 'personality_traits', from: { option_set_type: 'options_array', options: Array(8).fill('').map(() => ({option_type: 'string', string: ''}))}},
-        ideals: { choose: 1, type: 'ideals', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'ideal', desc: ''}))}},
-        bonds: { choose: 1, type: 'bonds', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'string', string: ''}))}},
-        flaws: { choose: 1, type: 'flaws', from: { option_set_type: 'options_array', options: Array(6).fill('').map(() => ({option_type: 'string', string: ''}))}},
-        language_options: { choose: 0, type: 'languages', from: { option_set_type: "resource_list", resource_list_url: "/api/languages" } },
-        starting_equipment: [],
-        starting_equipment_options: [],
+    const [bgData, setBgData] = useState({
+        ...defaultBgData,
+        ...initialData,
+        feature: { ...defaultBgData.feature, ...(initialData?.feature || {}) },
+        language_options: { ...defaultBgData.language_options, ...(initialData?.language_options || {}) },
     });
 
      useEffect(() => {
