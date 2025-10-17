@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import * as HomebrewService from '@/services/homebrewService';
+import * as HomebrewService from '@/services/homebrewService'; // Importação correta
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
@@ -25,7 +25,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         setIsLoading(true);
         try {
             const officialTraitsPromise = DndApiService.getTraits();
-            // Busca tanto os traços públicos quanto os do próprio usuário
+            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
             const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'feat');
             // Só busca "mine" se o usuário estiver logado.
             const myHomebrewPromise = user ? HomebrewService.listHomebrewContent('mine', 'feat') : Promise.resolve([]);

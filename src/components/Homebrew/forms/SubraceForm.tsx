@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
+import * as HomebrewService from '@/services/homebrewService'; // Importação correta
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
@@ -34,13 +35,14 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         setIsLoading(true);
         try {
             const officialRaces = await DndApiService.getRaces();
-            const homebrewRaces = await DndApiService.listHomebrewContent('public', 'race');
-            const myHomebrewRaces = user ? await DndApiService.listHomebrewContent('mine', 'race') : Promise.resolve([]);
+            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
+            const homebrewRaces = await HomebrewService.listHomebrewContent('public', 'race');
+            const myHomebrewRaces = user ? await HomebrewService.listHomebrewContent('mine', 'race') : Promise.resolve([]);
 
             const all = [...(officialRaces?.results || [])];
-            const myIds = new Set((await myHomebrewRaces).map(r => r.id));
+            const myIds = new Set(myHomebrewRaces.map(r => r.id));
 
-            all.push(...(await myHomebrewRaces).map(r => ({ index: r.id, name: `(Meu) ${r.name}`, url: '' })));
+            all.push(...myHomebrewRaces.map(r => ({ index: r.id, name: `(Meu) ${r.name}`, url: '' })));
             all.push(...homebrewRaces.filter(r => !myIds.has(r.id)).map(r => ({ index: r.id, name: `(H) ${r.name}`, url: '' })));
 
             setRaces(all.sort((a,b) => a.name.localeCompare(b.name)));

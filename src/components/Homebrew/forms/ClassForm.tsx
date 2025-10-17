@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as characterUtils from '@/utils/characterUtils';
 import { translateApiString, translateAttribute } from '@/utils/translator';
 import type { ApiListItem } from '@/types';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import FeatureCreator from './FeatureCreator';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -58,7 +58,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }
 
     const handleRemoveFeature = (featureIndex: string) => {
-        handleFieldChange('features', classData.features.filter(f => f.index !== featureIndex));
+        handleFieldChange('features', classData.features.filter((f:any) => f.index !== featureIndex));
     }
 
 
@@ -120,11 +120,11 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         handleFieldChange('proficiency_choices', newChoices);
     };
 
-    const skillChoiceGroup = classData.proficiency_choices.find(c => c.type === 'proficiencies' && c.desc.includes("skills"));
+    const skillChoiceGroup = classData.proficiency_choices.find((c: any) => c.type === 'proficiencies' && c.desc.includes("skills"));
     const selectedSkillOptions = skillChoiceGroup?.from.options.map((opt:any) => opt.item.name.replace('Skill: ', '')) || [];
     
     const groupedFeatures = useMemo(() => {
-        return classData.features.reduce((acc, feature) => {
+        return classData.features.reduce((acc: any, feature: any) => {
             const level = `Nível ${feature.level}`;
             if (!acc[level]) {
                 acc[level] = [];
@@ -175,14 +175,14 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label className="block text-sm font-medium text-stone-300 mb-2">Testes de Resistência (Escolha 2)</label>
                 <div className="grid grid-cols-3 gap-2">
                     {Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).map(attr => (
-                        <label key={attr} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.saving_throws.some(s => s.index === attr) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                        <label key={attr} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.saving_throws.some((s:any) => s.index === attr) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
                             <input type="checkbox"
-                                checked={classData.saving_throws.some(s => s.index === attr)}
+                                checked={classData.saving_throws.some((s:any) => s.index === attr)}
                                 onChange={() => handleSavingThrowToggle(attr)}
-                                disabled={classData.saving_throws.length >= 2 && !classData.saving_throws.some(s => s.index === attr)}
+                                disabled={classData.saving_throws.length >= 2 && !classData.saving_throws.some((s:any) => s.index === attr)}
                                 className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                             />
-                            {translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr])}
+                            {translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP])}
                         </label>
                     ))}
                 </div>
@@ -193,9 +193,9 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                         {ALL_ARMOR_PROFS.map(prof => (
-                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some(p => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some((p:any) => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
                                 <input type="checkbox"
-                                    checked={classData.proficiencies.some(p => p.index === prof.index)}
+                                    checked={classData.proficiencies.some((p:any) => p.index === prof.index)}
                                     onChange={() => handleProficiencyToggle(prof)}
                                     className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                                 />
@@ -205,9 +205,9 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     </div>
                      <div className="grid grid-cols-2 gap-2">
                         {ALL_WEAPON_PROFS.map(prof => (
-                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some(p => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some((p:any) => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
                                 <input type="checkbox"
-                                    checked={classData.proficiencies.some(p => p.index === prof.index)}
+                                    checked={classData.proficiencies.some((p:any) => p.index === prof.index)}
                                     onChange={() => handleProficiencyToggle(prof)}
                                     className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                                 />

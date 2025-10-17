@@ -2,6 +2,7 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import * as DndApiService from '@/services/dndApiService';
+import * as HomebrewService from '@/services/homebrewService'; // Importação correta
 import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import type { ApiListItem } from '@/types';
@@ -34,13 +35,14 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             try {
                 setIsLoading(true);
                 const officialClasses = await DndApiService.getClasses();
-                const homebrewClasses = await DndApiService.listHomebrewContent('public', 'class');
-                const myHomebrewClasses = user ? await DndApiService.listHomebrewContent('mine', 'class') : [];
+                // CORREÇÃO: Usar HomebrewService para listHomebrewContent
+                const homebrewClasses = await HomebrewService.listHomebrewContent('public', 'class');
+                const myHomebrewClasses = user ? await HomebrewService.listHomebrewContent('mine', 'class') : Promise.resolve([]);
 
                 const all = [...(officialClasses?.results || [])];
-                const myIds = new Set(myHomebrewClasses.map(c => c.id));
+                const myIds = new Set((myHomebrewClasses).map(c => c.id));
 
-                all.push(...myHomebrewClasses.map(c => ({ index: c.id, name: `(Meu) ${c.name}`, url: ''})));
+                all.push(...(myHomebrewClasses).map(c => ({ index: c.id, name: `(Meu) ${c.name}`, url: ''})));
                 all.push(...homebrewClasses.filter(c => !myIds.has(c.id)).map(c => ({ index: c.id, name: `(H) ${c.name}`, url: ''})));
 
                 setClasses(all.sort((a,b) => a.name.localeCompare(b.name)));
@@ -89,11 +91,11 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     const handleRemoveFeature = (featureIndex: string) => {
-        handleFieldChange('features', subclassData.features.filter(f => f.index !== featureIndex));
+        handleFieldChange('features', subclassData.features.filter((f: any) => f.index !== featureIndex));
     };
 
     const groupedFeatures = useMemo(() => {
-        return subclassData.features.reduce((acc, feature) => {
+        return subclassData.features.reduce((acc: any, feature: any) => {
             const level = `Nível ${feature.level}`;
             if (!acc[level]) {
                 acc[level] = [];

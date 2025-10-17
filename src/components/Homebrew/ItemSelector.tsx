@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import * as HomebrewService from '@/services/homebrewService';
+import * as HomebrewService from '@/services/homebrewService'; // Importação correta
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
@@ -22,13 +22,14 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
         setIsLoading(true);
         try {
             const officialItemsPromise = DndApiService.getEquipment();
-            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'item');
-            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'item');
+            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
+            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', undefined, 'item');
+            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', undefined, 'item');
 
             const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 officialItemsPromise,
                 publicHomebrewPromise,
-                myHomebrewPromise,
+                myHomebrewResult,
             ]);
 
             const official = officialResult?.results || [];
