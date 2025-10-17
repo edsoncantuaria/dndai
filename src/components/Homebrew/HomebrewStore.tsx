@@ -40,7 +40,7 @@ const BundleCard: React.FC<{
 }> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     
-    // Um pacote é considerado "instalado" se todos os seus conteúdos estiverem instalados.
+    // A pacote é considerado "instalado" se todos os seus conteúdos estiverem instalados.
     const isBundleInstalled = (bundle.contents || []).every(c => installedIds.has(c.id));
 
     return (
@@ -101,7 +101,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [content, setContent] = useState<HomebrewService.HomebrewContent[]>([]);
     const [bundles, setBundles] = useState<HomebrewService.HomebrewBundle[]>([]);
     const { toast } = useToast();
-    const { user, setUser } = useAuth();
+    const { user, revalidateUserSession } = useAuth();
     
     const [installCandidate, setInstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
     const [uninstallCandidate, setUninstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
@@ -127,7 +127,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
             } else if (activeTab === 'community') {
                  const publicContent = await HomebrewService.listHomebrewContent('public');
-                 contentResult = publicContent; // Não filtra mais o conteúdo do próprio usuário
+                 contentResult = publicContent.filter(c => c.bundleId === null);
             } else if (activeTab === 'mine') {
                 if (user) {
                     const myContent = await HomebrewService.listHomebrewContent('mine');
@@ -200,14 +200,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
         setIsLoading(true);
         try {
-            let updatedUser;
             for (const id of idsToInstall) {
-                const response = await HomebrewService.updateUserHomebrew(id, 'install');
-                updatedUser = response.user;
+                await HomebrewService.updateUserHomebrew(id, 'install');
             }
-            if (updatedUser) {
-                setUser(updatedUser);
-            }
+            await revalidateUserSession();
             toast({
                 title: 'Instalação Concluída!',
                 description: `${idsToInstall.length} ite${idsToInstall.length > 1 ? 'ns foram adicionados' : 'm foi adicionado'} à sua conta.`,
@@ -224,14 +220,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const confirmUninstallation = async (idsToUninstall: string[]) => {
         setIsLoading(true);
         try {
-            let updatedUser;
             for (const id of idsToUninstall) {
-                const response = await HomebrewService.updateUserHomebrew(id, 'uninstall');
-                updatedUser = response.user;
+                await HomebrewService.updateUserHomebrew(id, 'uninstall');
             }
-             if (updatedUser) {
-                setUser(updatedUser);
-            }
+            await revalidateUserSession();
             toast({
                 title: 'Desinstalação Concluída!',
                 description: `${idsToUninstall.length} ite${idsToUninstall.length > 1 ? 'ns foram removidos' : 'm foi removido'} da sua conta.`,

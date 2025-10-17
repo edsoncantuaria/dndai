@@ -11,6 +11,7 @@ interface User {
     licenseKey?: { isActivated: boolean };
     settings?: any;
     acknowledgedHomebrewDisclaimer?: boolean;
+    installedHomebrewIds?: string[];
 }
 
 interface AuthContextType {
@@ -25,11 +26,12 @@ interface AuthContextType {
     saveApiKey: (apiKey: string) => Promise<boolean>;
     logout: () => void;
     acknowledgeHomebrew: () => Promise<void>;
+    revalidateUserSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const API_URL = 'https://backend-5e.edsin-server.space/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -38,8 +40,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
-    // Recalculate hasApiKey whenever apiKey changes.
     const hasApiKey = !!apiKey;
+
+    const revalidateUserSession = useCallback(async () => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                const response = await fetch(`${API_URL}/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const userData: User = await response.json();
+                    setUser(userData);
+                    setIsLicenseActive(userData.licenseKey?.isActivated || false);
+                    if (userData.settings) {
+                        loadSettings(userData.settings);
+                    }
+                } else {
+                    logout();
+                }
+            } catch (e) {
+                console.error('Falha na revalidação da sessão', e);
+                logout();
+            }
+        }
+    }, [loadSettings]);
 
     const logout = useCallback(() => {
         setUser(null);
@@ -55,57 +81,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
     useEffect(() => {
         const validateSession = async () => {
-            const token = localStorage.getItem('token');
-            if (token) {
-                try {
-                    const response = await fetch(`${API_URL}/users/me`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-
-                    if (response.ok) {
-                        const userData: User = await response.json();
-                        setUser(userData);
-                        setIsLicenseActive(userData.licenseKey?.isActivated || false);
-
-                        // If user has settings in DB, load them.
-                        if (userData.settings) {
-                           loadSettings(userData.settings);
-                        } else if (isSettingsLoaded) {
-                           // If user has NO settings in DB, but settings ARE loaded in the context (from localStorage),
-                           // then this is the first login on this machine, and we should sync local to DB.
-                           await saveSettingsToDB(getSettingsObject());
-                        }
-                    } else {
-                        // Token is invalid
-                        logout();
-                    }
-                } catch (e) {
-                    console.error('Falha na validação da sessão', e);
-                    logout();
-                }
-            }
+            setIsLoading(true);
+            await revalidateUserSession();
             setIsLoading(false);
         };
         validateSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSettingsLoaded]);
+    }, [revalidateUserSession]);
 
     const login = async (credentials: authService.LoginCredentials) => {
         setIsLoading(true);
         try {
             const response = await authService.loginUser(credentials);
             if (response && response.user && response.token) {
-                const userData: User = response.user;
-                setUser(userData);
-                setIsLicenseActive(userData.licenseKey?.isActivated || false);
                 localStorage.setItem('token', response.token);
-
-                if (userData.settings) {
-                    loadSettings(userData.settings);
-                } else {
-                    // New user or user without settings, sync local settings (if any) to DB
-                    await saveSettingsToDB(getSettingsObject());
-                }
+                await revalidateUserSession(); 
 
                 toast({
                     title: "Login bem-sucedido!",
@@ -164,13 +153,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             const response = await authService.activateUserLicense(licenseKey);
             if (response.success) {
-                setIsLicenseActive(true);
+                await revalidateUserSession();
                 toast({
                     title: "Licença Ativada!",
                     description: "Sua jornada pode começar.",
                 });
-                // Update user state to reflect license activation
-                setUser(prev => prev ? { ...prev, licenseKey: { isActivated: true } } : null);
                 return true;
             }
             throw new Error(response.message || 'Falha na ativação da licença.');
@@ -187,7 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        setApiKey(newApiKey); // This will trigger the useEffect in SettingsContext to save to DB
+        setApiKey(newApiKey);
         toast({
             title: "Chave de API Salva!",
             description: "Sua chave foi salva em sua conta.",
@@ -225,6 +212,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         saveApiKey,
         logout,
         acknowledgeHomebrew,
+        revalidateUserSession
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
