@@ -4,7 +4,6 @@ import fetch from 'node-fetch'; // Usando node-fetch no backend
 import 'dotenv/config';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
-const CACHE_DURATION_SECONDS = 60 * 60 * 24; // Cache por 24 horas
 
 /**
  * Busca dados da API D&D 5e com cache no Redis.
@@ -49,9 +48,8 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         if (redisClient && redisClient.isOpen) {
             try {
                 console.log(`[Cache] SET: ${cacheKey}`);
-                await redisClient.set(cacheKey, JSON.stringify(data), {
-                    EX: CACHE_DURATION_SECONDS, // Define o tempo de expiração
-                });
+                // Remove a expiração para tornar o cache persistente
+                await redisClient.set(cacheKey, JSON.stringify(data));
             } catch (error) {
                  console.error(`[Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
             }
