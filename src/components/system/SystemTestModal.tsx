@@ -8,10 +8,11 @@ import * as characterUtils from '../../utils/characterUtils';
 import { translateApiString } from '@/utils/translator';
 import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 import * as GameService from '@/services/gameService';
-import * as AiService from '@/services/aiService'; // Importar o serviço de IA do frontend
+import * as AiService from '@/services/aiService'; // CORRETO: Importa o serviço do frontend
 import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2, Image as ImageIcon } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
 import Image from 'next/image';
+import { useToast } from '@/hooks/use-toast';
 
 
 const DICE_TYPES = ['d4', 'd6', 'd8', 'd10', 'd100', 'd12', 'd20'];
@@ -98,6 +99,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         setCharacter, 
     } = useGameStateContext();
 
+    const { toast } = useToast();
     const { model: currentModel, imageModel, getApiKey } = useSettingsContext();
     const [tempModel, setTempModel] = useState(currentModel);
     
@@ -155,8 +157,12 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                 throw new Error("A IA não conseguiu gerar a imagem.");
             }
         } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Falha na Geração de Imagem',
+                description: error.message || 'Ocorreu um erro desconhecido.'
+            });
             console.error("Image generation test failed:", error);
-            // You might want to show a toast here
         } finally {
             setIsGeneratingImage(false);
         }

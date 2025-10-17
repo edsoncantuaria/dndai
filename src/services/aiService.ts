@@ -29,6 +29,6 @@ export const generateImage = async (payload: GenerateImagePayload): Promise<{ im
         return result;
     } catch (error) {
         console.error('Error in generateImage service:', error);
-        return null;
+        throw error; // Lança o erro para que o chamador possa tratá-lo.
     }
 }
