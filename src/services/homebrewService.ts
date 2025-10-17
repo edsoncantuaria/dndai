@@ -48,13 +48,15 @@ export interface BundleData {
     isPublic?: boolean;
 }
 
-export const listHomebrewContent = async (scope: 'public' | 'mine', type?: HomebrewContentType, page: number = 1, limit: number = 100): Promise<HomebrewContent[]> => {
+export const listHomebrewContent = async (scope: 'public' | 'mine', createdBy?: 'user' | 'ai', type?: HomebrewContentType, page: number = 1, limit: number = 100): Promise<HomebrewContent[]> => {
     const params = new URLSearchParams({ scope, page: String(page), limit: String(limit) });
     if (type) {
         params.append('type', type);
     }
+    if (createdBy) {
+        params.append('createdBy', createdBy);
+    }
     
-    // Simplificado: 'ai' é apenas um filtro no backend, o frontend pode tratar como 'public'.
     const endpoint = `/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
@@ -79,7 +81,7 @@ export const getHomebrewDependencies = async (id: string): Promise<HomebrewConte
     return apiClient<HomebrewContent[]>(`/homebrew/${id}/dependencies`);
 };
 
-export const listHomebrewBundles = async (scope?: 'public' | 'mine', page: number = 1, limit: number = 100): Promise<HomebrewBundle[]> => {
+export const listBundles = async (scope?: 'public' | 'mine', page: number = 1, limit: number = 100): Promise<HomebrewBundle[]> => {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (scope) {
         params.append('scope', scope);
@@ -87,7 +89,7 @@ export const listHomebrewBundles = async (scope?: 'public' | 'mine', page: numbe
     return apiClient<HomebrewBundle[]>(`/homebrew/bundles?${params.toString()}`);
 };
 
-export const createHomebrewBundle = async (data: BundleData): Promise<HomebrewBundle> => {
+export const createBundle = async (data: BundleData): Promise<HomebrewBundle> => {
     const response = await apiClient<{ bundle: HomebrewBundle }>('/homebrew/bundles', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -95,7 +97,7 @@ export const createHomebrewBundle = async (data: BundleData): Promise<HomebrewBu
     return response.bundle;
 };
 
-export const updateHomebrewBundle = async (id: string, data: Partial<BundleData>): Promise<HomebrewBundle> => {
+export const updateBundle = async (id: string, data: Partial<BundleData>): Promise<HomebrewBundle> => {
     const response = await apiClient<{ bundle: HomebrewBundle }>(`/homebrew/bundles/${id}`, {
         method: 'PUT',
         body: JSON.stringify(data),
@@ -103,7 +105,7 @@ export const updateHomebrewBundle = async (id: string, data: Partial<BundleData>
     return response.bundle;
 };
 
-export const deleteHomebrewBundle = async (id: string): Promise<void> => {
+export const deleteBundle = async (id: string): Promise<void> => {
     await apiClient<void>(`/homebrew/bundles/${id}`, { method: 'DELETE' });
 };
 

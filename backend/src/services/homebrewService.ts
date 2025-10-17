@@ -76,7 +76,7 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
         isPublic: true,
-        bundleId: IsNull()
+        // bundleId: IsNull() // Removido para incluir tudo o que é publico
     };
     const { page = 1, limit = 100 } = pagination || {};
 
