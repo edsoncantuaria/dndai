@@ -28,15 +28,16 @@ const ALL_WEAPON_PROFS: ApiListItem[] = [
 
 const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [classData, setClassData] = useState(initialData || {
+    const [classData, setClassData] = useState(() => ({
         name: '',
         hit_die: 8,
-        proficiencies: [] as ApiListItem[],
-        proficiency_choices: [] as any[],
-        saving_throws: [] as ApiListItem[],
-        features: [] as any[],
+        proficiencies: [],
+        proficiency_choices: [],
+        saving_throws: [],
+        features: [],
         official_index: '',
-    });
+        ...initialData,
+    }));
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
 
     // Update parent component whenever data changes
@@ -47,7 +48,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [classData]);
+    }, [classData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
         setClassData(prev => ({ ...prev, [field]: value }));
