@@ -4,7 +4,7 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import createError from 'http-errors';
 import type { z } from 'zod';
-import type { CreateHomebrewSchema, CreateBundleSchema } from '../schemas/validationSchemas.js';
+import type { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
 import { FindManyOptions, In, Like, IsNull, Not } from 'typeorm';
 
 interface PaginationOptions {
@@ -74,7 +74,10 @@ export const deleteHomebrewContent = async (contentId: string, authorId: number)
 
 export const getPublicHomebrewContent = async (type?: HomebrewContentType, createdBy?: 'user' | 'ai', pagination?: PaginationOptions) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { isPublic: true };
+    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
+        isPublic: true,
+        bundleId: IsNull() // Apenas conteúdo que não está em um pacote.
+    };
     const { page = 1, limit = 100 } = pagination || {};
 
     if (type) whereCondition.type = type;
@@ -194,7 +197,7 @@ export const createBundle = async (authorId: number, data: z.infer<typeof Create
     return await bundleRepo.save(newBundle);
 };
 
-export const updateBundle = async (bundleId: string, authorId: number, data: Partial<z.infer<typeof CreateBundleSchema>>) => {
+export const updateBundle = async (bundleId: string, authorId: number, data: Partial<z.infer<typeof UpdateBundleSchema>>) => {
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
     const contentRepo = AppDataSource.getRepository(HomebrewContent);
     const bundle = await bundleRepo.findOne({ where: { id: bundleId }, relations: ['contents'] });
