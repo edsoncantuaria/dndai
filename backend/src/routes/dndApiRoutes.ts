@@ -9,76 +9,53 @@ import { HomebrewContentType } from '../entities/HomebrewContent.js';
 
 const router = Router();
 
-// REVALIDATE START
-// Tipos de conteúdo que podem ser estendidos com homebrew.
 const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
     'races', 'classes', 'subclasses', 'spells', 'items', 'monsters', 'backgrounds', 'feats'
 ] as HomebrewContentType[];
 
-// Helper to check if a string is a UUID
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-// REVALIDATE END
-
-
-// Rota específica para servir os dados completos do backgrounds.json
-router.get('/backgrounds-data', async (req, res, next) => {
-    // TEMP LOG
-    console.debug('[Backend Route] Requisição para /backgrounds-data');
-    try {
-        const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
-        const fileContent = await fs.readFile(filePath, 'utf-8');
-        const data = JSON.parse(fileContent);
-        res.json(data);
-    } catch (error) {
-        console.error('Erro ao carregar backgrounds.json:', error); // TEMP LOG
-        next(createError(500, 'Falha ao carregar dados de antecedentes.'));
-    }
-});
-
 
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const resource = req.params.resource as HomebrewContentType;
-    // TEMP LOG
     console.debug(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
 
-    // REVALIDATE START
-    // Se a requisição for para 'backgrounds', servir diretamente do arquivo local.
-    if (resource === 'backgrounds') {
-        try {
-            console.debug('[Backend Route] Rota de /backgrounds detectada. Servindo JSON local.'); // TEMP LOG
-            const filePath = path.resolve(process.cwd(), 'data', 'backgrounds.json');
-            const fileContent = await fs.readFile(filePath, 'utf-8');
-            const data = JSON.parse(fileContent);
-            return res.json(data);
-        } catch (error) {
-            console.error('Erro ao carregar backgrounds.json para /:resource:', error); // TEMP LOG
-            return next(createError(500, 'Falha ao carregar dados de antecedentes.'));
-        }
-    }
-    // REVALIDATE END
-
-
     try {
-        // Busca os dados da API oficial
-        const apiData = await DndApiService.getResourceList(resource);
-        let finalResults = apiData?.results || [];
+        const apiPromise = DndApiService.getResourceList(resource);
+        let homebrewPromise = Promise.resolve<HomebrewService.HomebrewContent[]>([]);
 
-        // REVALIDATE START
-        // Se o recurso for extensível, busca e mescla com o homebrew público.
         if (HOMEBREW_EXTENSIBLE_RESOURCES.includes(resource)) {
-            const homebrewContent = await HomebrewService.getPublicHomebrewContent(resource);
-            
-            if (homebrewContent.length > 0) {
-                const homebrewResults = homebrewContent.map(hb => ({
-                    index: hb.id, // Usamos o ID do homebrew como índice
-                    name: `(H) ${hb.name}`, // Adiciona um prefixo para indicar que é homebrew
-                    url: `/api/dnds/${resource}/${hb.id}` // Aponta para a nossa própria API
-                }));
-                finalResults = [...finalResults, ...homebrewResults];
-            }
+            homebrewPromise = HomebrewService.getPublicHomebrewContent(resource);
         }
-        // REVALIDATE END
+
+        const [apiData, homebrewContent] = await Promise.all([apiPromise, homebrewPromise]);
+        
+        const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
+
+        // Adiciona o conteúdo oficial primeiro
+        (apiData?.results || []).forEach(item => {
+            finalResultsMap.set(item.index, item);
+        });
+
+        // Sobrescreve com o conteúdo homebrew onde os índices correspondem
+        homebrewContent.forEach(hb => {
+            // Se o conteúdo homebrew é uma tradução/sobrescrita de um item oficial
+            if (hb.content.index && finalResultsMap.has(hb.content.index)) {
+                 finalResultsMap.set(hb.content.index, {
+                    index: hb.content.index,
+                    name: hb.content.name, // Usa o nome traduzido
+                    url: `/api/dnds/${resource}/${hb.content.index}`
+                });
+            } else { // Se é um conteúdo totalmente novo
+                 finalResultsMap.set(hb.id, {
+                    index: hb.id,
+                    name: `(H) ${hb.name}`,
+                    url: `/api/dnds/${resource}/${hb.id}`
+                });
+            }
+        });
+        
+        const finalResults = Array.from(finalResultsMap.values());
         
         const response = {
             count: finalResults.length,
@@ -92,33 +69,40 @@ router.get('/:resource', async (req, res, next) => {
     }
 });
 
+
 // Rota para buscar detalhes de um recurso específico
 router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
-    // TEMP LOG
     console.debug(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
 
     try {
-        let data;
-        // REVALIDATE START: Verifica se o índice é um UUID para buscar no Homebrew
+        // 1. Tenta buscar um homebrew que sobrescreve o conteúdo oficial
+        const translatedContent = await HomebrewService.findHomebrewContentByName(index, resource as HomebrewContentType);
+        if (translatedContent) {
+            console.debug(`[Backend Route] Encontrada tradução/sobrescrita homebrew para ${index}.`);
+            return res.json(translatedContent.content);
+        }
+
+        // 2. Se não for tradução, verifica se é um ID de homebrew novo
         if (isUuid(index)) {
-             console.debug(`[Backend Route] ID é um UUID, buscando no HomebrewService.`); // TEMP LOG
+             console.debug(`[Backend Route] ID é um UUID, buscando no HomebrewService.`);
              const hbContent = await HomebrewService.getHomebrewContentById(index);
              if (!hbContent) {
                 return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              }
-             data = hbContent.content;
-        } else {
-            // REVALIDATE END
-            console.debug(`[Backend Route] ID não é UUID, buscando no DndApiService.`); // TEMP LOG
-            data = await DndApiService.getDetails(resource, index);
+             return res.json(hbContent.content);
         }
         
+        // 3. Se nada for encontrado, busca na API oficial
+        console.debug(`[Backend Route] ID não é UUID, buscando no DndApiService.`);
+        const data = await DndApiService.getDetails(resource, index);
+        
         if (!data) {
-            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`); // TEMP LOG
+            console.error(`[Backend Route] Nenhum dado retornado do serviço para: ${resource}/${index}`);
             return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         }
-        res.json(data);
+        return res.json(data);
+
     } catch (error) {
         next(error);
     }
@@ -127,30 +111,25 @@ router.get('/:resource/:index', async (req, res, next) => {
 // Rota específica para níveis de classe (que tem uma estrutura de URL diferente)
 router.get('/classes/:classIndex/levels', async (req, res, next) => {
     const { classIndex } = req.params;
-    // TEMP LOG
     console.debug(`[Backend Route] Recebida requisição para níveis da classe: ${classIndex}`);
     try {
         let data;
-        // REVALIDATE START: Adiciona lógica para buscar níveis de classes homebrew
         if (isUuid(classIndex)) {
             const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
             if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
-            // Para classes homebrew, os níveis (features) estão dentro do próprio objeto de conteúdo
             const features = (hbContent.content as any).features || [];
             
             // Simular a estrutura de API para níveis
             const levelsData = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
                 level: level,
                 features: features.filter((f: any) => f.level === level)
-                // Outros dados de nível como prof_bonus podem ser calculados se necessário
             }));
 
             data = levelsData;
 
         } else {
-        // REVALIDATE END
             data = await DndApiService.getDetails('classes', `${classIndex}/levels`);
         }
 
@@ -163,18 +142,16 @@ router.get('/classes/:classIndex/levels', async (req, res, next) => {
     }
 });
 
-// REVALIDATE START: Adiciona rotas para magias de classe e níveis de subclasse para homebrew
 // Rota para magias de classe
 router.get('/classes/:classIndex/spells', async (req, res, next) => {
     const { classIndex } = req.params;
-    console.debug(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`); // TEMP LOG
+    console.debug(`[Backend Route] Recebida requisição para magias da classe: ${classIndex}`);
     try {
         if (isUuid(classIndex)) {
              const hbContent = await HomebrewService.getHomebrewContentById(classIndex);
              if (!hbContent) {
                 return next(createError(404, `Classe homebrew com ID '${classIndex}' não encontrada.`));
             }
-            // Assumindo que classes homebrew podem ter uma lista de magias em sua estrutura
             const spells = (hbContent.content as any).spells || { count: 0, results: [] };
              return res.json(spells);
         }
@@ -192,7 +169,7 @@ router.get('/classes/:classIndex/spells', async (req, res, next) => {
 // Rota para níveis de subclasse
 router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
     const { subclassIndex } = req.params;
-    console.debug(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`); // TEMP LOG
+    console.debug(`[Backend Route] Recebida requisição para níveis da subclasse: ${subclassIndex}`);
     try {
         let data;
         if (isUuid(subclassIndex)) {
@@ -202,7 +179,6 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
             }
             const features = (hbContent.content as any).features || [];
             
-            // Simular a estrutura de API para níveis
             data = Array.from({length: 20}, (_, i) => i + 1).map(level => ({
                 level: level,
                 features: features.filter((f: any) => f.level === level)
@@ -219,7 +195,5 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
         next(error);
     }
 });
-// REVALIDATE END
-
 
 export default router;

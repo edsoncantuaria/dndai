@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
-    "dev:log": "tsx watch src/server.ts 2>&1 | tee logs/server_$(date +'%Y-%m-%d_%H-%M-%S').log"
+    "dev:log": "tsx watch src/server.ts 2>&1 | tee logs/server_$(date +'%Y-%m-%d_%H-%M-%S').log",
+    "seed:data": "tsx src/scripts/migrate-data.ts"
   },
   "keywords": [
     "rpg",
