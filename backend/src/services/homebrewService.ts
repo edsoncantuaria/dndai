@@ -4,7 +4,7 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
-import { FindManyOptions, Like } from 'typeorm';
+import { FindManyOptions, In } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -51,7 +51,7 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
 
     return homebrewRepo.find({
         where: whereCondition,
-        select: ["id", "name", "type", "authorId", "createdAt", "createdBy"], // Retorna apenas um resumo
+        select: ["id", "name", "type", "authorId", "createdAt", "createdBy", "content"], // Adicionado content para debug e uso
     });
 };
 
@@ -71,6 +71,7 @@ export const getHomebrewContentByAuthor = async (authorId: number, type?: Homebr
 
     return homebrewRepo.find({
         where: whereCondition,
+        relations: ['author'],
     });
 };
 
@@ -96,18 +97,45 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
     return content;
 };
 
+
 /**
- * Encontra um conteúdo homebrew pelo nome e tipo.
- * @param name O nome do conteúdo (case-insensitive).
+ * Obtém múltiplos conteúdos homebrew por uma lista de IDs.
+ * @param contentIds Um array de IDs de conteúdo.
+ * @param type Opcional. Filtra o conteúdo por tipo.
+ * @returns Uma lista de objetos de conteúdo homebrew.
+ */
+export const getMultipleHomebrewContentByIds = async (contentIds: string[], type?: HomebrewContentType): Promise<HomebrewContent[]> => {
+    if (contentIds.length === 0) return [];
+    
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
+        id: In(contentIds) 
+    };
+    
+    if (type) {
+        whereCondition.type = type;
+    }
+    
+    return homebrewRepo.find({ where: whereCondition });
+};
+
+
+/**
+ * Encontra um conteúdo homebrew que sobrescreve um item oficial, usando o `index` do item oficial.
+ * @param officialIndex O `index` do conteúdo oficial (ex: 'longsword', 'fireball').
  * @param type O tipo do conteúdo.
  * @returns O primeiro conteúdo homebrew encontrado ou null.
  */
-export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    return homebrewRepo.findOne({
-        where: {
-            name: Like(name), // Like para busca case-insensitive na maioria dos DBs
-            type: type,
-        },
-    });
+    
+    // Esta é uma consulta que olha dentro do campo JSON `content`.
+    // A sintaxe pode variar ligeiramente entre bancos de dados.
+    // Para MySQL/PostgreSQL, JSON_EXTRACT ou ->> funciona.
+    return homebrewRepo
+        .createQueryBuilder("hb")
+        .where("hb.type = :type", { type })
+        .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
+        .andWhere("hb.isPublic = true") // Garante que apenas conteúdo público possa sobrescrever
+        .getOne();
 };

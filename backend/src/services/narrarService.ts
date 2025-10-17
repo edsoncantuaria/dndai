@@ -112,6 +112,12 @@ export const processPlayerTurn = async (
         if (!characterForAI) {
             throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
         }
+
+        // NOVO: Adiciona o conteúdo homebrew instalado ao contexto da IA
+        if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
+            const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
+            characterForAI.homebrewContent = installedContent.map(c => c.content);
+        }
     }
     
     if (!apiKey) {
@@ -195,9 +201,11 @@ export const processPlayerTurn = async (
         if (aiResponse.newHomebrewContent) {
             for (const newContent of aiResponse.newHomebrewContent) {
                 try {
-                    const existing = await HomebrewService.findHomebrewContentByName(newContent.name, newContent.type);
+                    const existing = await HomebrewService.findHomebrewByOfficialIndex(newContent.content.index, newContent.type);
                     if (!existing) {
-                        await HomebrewService.createHomebrewContent(userId, newContent);
+                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true }); // Torna público
+                        // Auto-instala o conteúdo criado pela IA na sessão atual.
+                        await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
                     }
                 } catch (error) {
                     console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);

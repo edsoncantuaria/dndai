@@ -23,11 +23,10 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
 
     const existingSession = await sessaoRepository.findOne({ where: { characterId, userId, deletedAt: IsNull() } });
     if (existingSession) {
-        // Se a sessão já existe, atualizamos os homebrews instalados.
-        existingSession.homebrewContentIds = homebrewIds || [];
-        const sessaoAtualizada = await sessaoRepository.save(existingSession);
+        // A lógica de "getOrCreate" é mais para iniciar, então vamos retornar a existente.
+        // A instalação de homebrews deve ser uma ação separada e explícita.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { apiKey, ...sessaoParaRetorno } = sessaoAtualizada;
+        const { apiKey, ...sessaoParaRetorno } = existingSession;
         return { sessao: sessaoParaRetorno, isNew: false };
     }
 
@@ -70,10 +69,16 @@ export const getSessoesForUser = async (userId: number) => {
     });
 };
 
-export const getSessaoDetails = async (sessionId: number, userId: number) => {
+export const getSessaoDetails = async (sessionId: number, userId?: number) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    
+    const whereClause: any = { id: sessionId, deletedAt: IsNull() };
+    if (userId) {
+        whereClause.userId = userId;
+    }
+
     const sessao = await sessaoRepository.findOne({
-        where: { id: sessionId, userId, deletedAt: IsNull() },
+        where: whereClause,
         relations: ['logs', 'character']
     });
 

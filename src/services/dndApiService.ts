@@ -1,22 +1,46 @@
 // src/services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
+import { useGameStateContext } from '@/contexts/GameStateContext';
+
+/**
+ * Função auxiliar para adicionar o sessionId aos parâmetros de consulta.
+ * O hook `useGameStateContext` só pode ser chamado dentro de um componente React,
+ * então vamos obter o sessionId de uma forma diferente ou passá-lo como argumento.
+ * 
+ * Por simplicidade agora, vamos assumir que o `apiClient` pode ser modificado para
+ * opcionalmente injetar o sessionId se disponível em um contexto. 
+ * Temporariamente, vamos criar um wrapper para fazer isso.
+ */
+const apiClientWithSession = (endpoint: string) => {
+    // Esta é uma abordagem simplificada. Em um app real, você obteria o session ID de um contexto
+    // ou de outra fonte de estado global. Por enquanto, vamos simular que ele pode ser nulo.
+    const sessionId = localStorage.getItem('activeSessionId'); // Simulação
+    
+    let finalEndpoint = endpoint;
+    if (sessionId) {
+        const separator = endpoint.includes('?') ? '&' : '?';
+        finalEndpoint = `${endpoint}${separator}sessionId=${sessionId}`;
+    }
+    return apiClient(finalEndpoint);
+}
+
 
 // --- Funções Principais (agora chamam nosso backend, que já tem a lógica de cache e homebrew) ---
 
-export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/dnds/races');
-export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/dnds/classes');
-export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/dnds/alignments');
-export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/dnds/skills');
-export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/dnds/languages');
-export const getBackgrounds = () => apiClient<{ count: number, results: ApiListItem[] }>('/dnds/backgrounds');
-export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/dnds/feats');
-export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/dnds/traits');
-export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/dnds/magic-schools');
-export const getDamageTypes = () => apiClient<{ results: ApiListItem[] }>('/dnds/damage-types');
-export const getEquipment = () => apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
-export const getEquipmentCategories = () => apiClient<{ results: ApiListItem[] }>('/dnds/equipment-categories');
-export const getConditions = () => apiClient<{ results: ApiListItem[] }>('/dnds/conditions');
+export const getRaces = () => apiClientWithSession('/dnds/races') as Promise<{ results: ApiListItem[] }>;
+export const getClasses = () => apiClientWithSession('/dnds/classes') as Promise<{ results: ApiListItem[] }>;
+export const getAlignments = () => apiClientWithSession('/dnds/alignments') as Promise<{ results: ApiListItem[] }>;
+export const getSkills = () => apiClientWithSession('/dnds/skills') as Promise<{ results: ApiListItem[] }>;
+export const getLanguages = () => apiClientWithSession('/dnds/languages') as Promise<{ results: ApiListItem[] }>;
+export const getBackgrounds = () => apiClientWithSession('/dnds/backgrounds') as Promise<{ count: number, results: ApiListItem[] }>;
+export const getFeats = () => apiClientWithSession('/dnds/feats') as Promise<{ results: ApiListItem[] }>;
+export const getTraits = () => apiClientWithSession('/dnds/traits') as Promise<{ results: ApiListItem[] }>;
+export const getMagicSchools = () => apiClientWithSession('/dnds/magic-schools') as Promise<{ results: ApiListItem[] }>;
+export const getDamageTypes = () => apiClientWithSession('/dnds/damage-types') as Promise<{ results: ApiListItem[] }>;
+export const getEquipment = () => apiClientWithSession('/dnds/equipment') as Promise<{ results: ApiListItem[] }>;
+export const getEquipmentCategories = () => apiClientWithSession('/dnds/equipment-categories') as Promise<{ results: ApiListItem[] }>;
+export const getConditions = () => apiClientWithSession('/dnds/conditions') as Promise<{ results: ApiListItem[] }>;
 
 
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/dnds/races/${index}`);

@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import * as DndApiService from '../services/dndApiService.js';
 import * as HomebrewService from '../services/homebrewService.js';
+import * as SessaoService from '../services/sessaoService.js';
 import createError from 'http-errors';
 import fs from 'fs/promises';
 import path from 'path';
@@ -13,40 +14,48 @@ const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
     'races', 'classes', 'subclasses', 'spells', 'items', 'monsters', 'backgrounds', 'feats'
 ] as HomebrewContentType[];
 
-const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Rota genérica para buscar listas de recursos (raças, classes, etc.)
 router.get('/:resource', async (req, res, next) => {
     const resource = req.params.resource as HomebrewContentType;
-    console.debug(`[Backend Route] Recebida requisição para o recurso: ${resource}`);
+    const sessionId = req.query.sessionId as string | undefined;
+    console.debug(`[Backend Route] Recebida requisição para o recurso: ${resource} (Sessão: ${sessionId || 'N/A'})`);
 
     try {
         const apiPromise = DndApiService.getResourceList(resource);
-        let homebrewPromise = Promise.resolve<HomebrewService.HomebrewContent[]>([]);
-
-        if (HOMEBREW_EXTENSIBLE_RESOURCES.includes(resource)) {
-            homebrewPromise = HomebrewService.getPublicHomebrewContent(resource);
+        
+        let installedHomebrewIds: string[] = [];
+        if (sessionId) {
+            // Se uma sessão estiver ativa, pegamos os IDs de homebrew instalados nela.
+            const session = await SessaoService.getSessaoDetails(parseInt(sessionId, 10)); // Não precisa de userId aqui, é apenas para dados
+            installedHomebrewIds = session.homebrewContentIds || [];
         }
+
+        const homebrewPromise = installedHomebrewIds.length > 0 
+            ? HomebrewService.getMultipleHomebrewContentByIds(installedHomebrewIds, resource) 
+            : Promise.resolve([]);
 
         const [apiData, homebrewContent] = await Promise.all([apiPromise, homebrewPromise]);
         
         const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
 
-        // Adiciona o conteúdo oficial primeiro
+        // 1. Adiciona o conteúdo oficial primeiro
         (apiData?.results || []).forEach(item => {
             finalResultsMap.set(item.index, item);
         });
 
-        // Sobrescreve com o conteúdo homebrew onde os índices correspondem
+        // 2. Sobrescreve com o conteúdo homebrew instalado onde os índices correspondem
         homebrewContent.forEach(hb => {
-            // Se o conteúdo homebrew é uma tradução/sobrescrita de um item oficial
-            if (hb.content.index && finalResultsMap.has(hb.content.index)) {
-                 finalResultsMap.set(hb.content.index, {
-                    index: hb.content.index,
-                    name: hb.content.name, // Usa o nome traduzido
-                    url: `/api/dnds/${resource}/${hb.content.index}`
+            const officialIndex = hb.content.index;
+            // Se o conteúdo homebrew sobrescreve um item oficial
+            if (officialIndex && finalResultsMap.has(officialIndex)) {
+                 finalResultsMap.set(officialIndex, {
+                    index: officialIndex,
+                    name: hb.name, // Usa o nome traduzido/customizado
+                    url: `/api/dnds/${resource}/${officialIndex}`
                 });
-            } else { // Se é um conteúdo totalmente novo
+            } else { // Se é um conteúdo totalmente novo, adiciona à lista
                  finalResultsMap.set(hb.id, {
                     index: hb.id,
                     name: `(H) ${hb.name}`,
@@ -65,6 +74,12 @@ router.get('/:resource', async (req, res, next) => {
         return res.json(response);
 
     } catch (error) {
+        // Se a sessão não for encontrada, apenas retorne os dados da API oficial.
+        if (error instanceof createError.HttpError && error.status === 404 && sessionId) {
+             console.warn(`[Backend Route] Sessão ${sessionId} não encontrada para mesclar homebrew. Retornando apenas dados oficiais.`);
+             const apiData = await DndApiService.getResourceList(resource);
+             return res.json(apiData);
+        }
         next(error);
     }
 });
@@ -76,21 +91,24 @@ router.get('/:resource/:index', async (req, res, next) => {
     console.debug(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
 
     try {
-        // 1. Tenta buscar um homebrew que sobrescreve o conteúdo oficial
-        const translatedContent = await HomebrewService.findHomebrewContentByName(index, resource as HomebrewContentType);
-        if (translatedContent) {
-            console.debug(`[Backend Route] Encontrada tradução/sobrescrita homebrew para ${index}.`);
-            return res.json(translatedContent.content);
-        }
-
-        // 2. Se não for tradução, verifica se é um ID de homebrew novo
+        // 1. Verifica se é um ID de homebrew
         if (isUuid(index)) {
              console.debug(`[Backend Route] ID é um UUID, buscando no HomebrewService.`);
-             const hbContent = await HomebrewService.getHomebrewContentById(index);
+             const hbContent = await HomebrewService.getHomebrewContentById(index); // Não precisa de userId para conteúdo público ou já filtrado
              if (!hbContent) {
                 return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              }
              return res.json(hbContent.content);
+        }
+
+        // 2. Se não for UUID, busca um homebrew que sobrescreve o conteúdo oficial pelo index
+        const translatedContent = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType);
+        if (translatedContent) {
+            console.debug(`[Backend Route] Encontrada tradução/sobrescrita homebrew para ${index}.`);
+            // Mescla a tradução com os dados oficiais para não perder campos
+            const officialData = await DndApiService.getDetails(resource, index);
+            const mergedData = { ...officialData, ...translatedContent.content, name: translatedContent.name, desc: translatedContent.content.desc || officialData.desc };
+            return res.json(mergedData);
         }
         
         // 3. Se nada for encontrado, busca na API oficial
