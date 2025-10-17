@@ -29,15 +29,16 @@ export const createContent = async (req: AuthRequest, res: Response, next: NextF
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const type = req.query.type as HomebrewContentType | undefined;
     const scope = req.query.scope as 'public' | 'mine' | undefined;
+    const createdBy = req.query.createdBy as 'user' | 'ai' | undefined; // REVALIDATE
     const userId = req.user?.userId;
 
     try {
         let content;
         if (scope === 'mine' && userId) {
-            content = await HomebrewService.getHomebrewContentByAuthor(userId);
+            content = await HomebrewService.getHomebrewContentByAuthor(userId, type); // REVALIDATE
         } else {
             // O padrão é listar conteúdo público
-            content = await HomebrewService.getPublicHomebrewContent(type);
+            content = await HomebrewService.getPublicHomebrewContent(type, createdBy); // REVALIDATE
         }
         res.status(200).json(content);
     } catch (error) {
