@@ -42,7 +42,6 @@ export const FullCombatantSchema = z.object({
   }).describe("Informações de HP do combatente."),
   ac: z.number().optional().describe("Classe de Armadura."),
   initiative: z.number().optional().describe("Score total de iniciativa."),
-  initiativeRoll: z.number().optional().describe("Rolagem bruta de d20 para iniciativa."),
   isPlayer: z.boolean().optional().default(false).describe("Se o combatente é o personagem do jogador."),
   conditions: z.array(z.string()).optional().default([]).describe("Lista de condições ativas (ex.: 'Grappled', 'Poisoned')."),
   distance: z.number().optional().describe("Distância em metros do jogador."),
@@ -52,8 +51,6 @@ export const FullCombatantSchema = z.object({
   bonusActionPoints: z.number().default(1).describe("Número de ações bônus disponíveis."),
   isDead: z.boolean().default(false).describe("Se o combatente está morto ou inconsciente."),
   readyAction: z.string().optional().describe("Descrição da ação preparada para um gatilho."),
-  readyWeapon: z.string().optional().describe("Arma usada em ação preparada."),
-  readySpell: z.string().optional().describe("Magia usada em ação preparada."),
   tempModifiers: z.any().optional().describe("Modificadores temporários de feitiços ou efeitos."),
   rollHistory: z.array(z.object({
     type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
@@ -72,6 +69,7 @@ export const CombatStateSchema = z.object({
   initiativeOrder: z.array(z.string()).optional().describe("IDs dos combatentes ordenados por iniciativa."),
   log: z.array(z.union([z.string(), LogEntrySchema])).optional().default([]).describe("Registro de eventos importantes do combate."),
 }).describe("Estado completo do combate.");
+
 
 /* -------------------------------- GAME STATES -------------------------------- */
 export const LevelUpStateSchema = z.object({

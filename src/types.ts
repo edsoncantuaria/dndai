@@ -354,22 +354,23 @@ export interface Combatant {
     id: string;
     name: string;
     isPlayer?: boolean;
-    hp?: { current: number; max: number };
-    maxHp?: number; // compatibilidade
+    hp?: { current: number; max: number; };
+    maxHp?: number;
     ac?: number;
     initiative?: number;
     initiativeRoll?: number;
-    conditions?: string[];
-    distance?: number;
+    isDead: boolean;
     hasMoved: boolean;
     hasActed: boolean;
     actionPoints: number;
     bonusActionPoints: number;
-    isDead: boolean;
     readyAction?: string;
-    tempModifiers?: any;
+    conditions?: string[];
     rollHistory?: any[];
+    tempModifiers?: any;
+    distance?: number;
 }
+
 
 export interface CombatState {
     isActive: boolean;

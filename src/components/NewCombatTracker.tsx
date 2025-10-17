@@ -44,9 +44,11 @@ const NewCombatTracker: React.FC = () => {
             if (!apiCombatant || !apiCombatant.name) return;
 
             const id = getCombatantId(apiCombatant);
-            if (!id || id === 'player') return;
+            if (!id) return;
+            
+            const isPlayer = id === 'player';
 
-            const existing = combatantMap.get(id) || {};
+            const existing = combatantMap.get(id) || (isPlayer ? playerCombatant : {});
             
             const currentHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.current : (typeof apiCombatant.hp === 'number' ? apiCombatant.hp : 1);
             const maxHp = typeof apiCombatant.hp === 'object' && apiCombatant.hp !== null ? apiCombatant.hp.max : (apiCombatant.maxHp ?? 1);
@@ -55,7 +57,7 @@ const NewCombatTracker: React.FC = () => {
                 ...existing,
                 ...apiCombatant,
                 id,
-                isPlayer: false, // Only the main character is the player
+                isPlayer,
                  hp: {
                     current: currentHp,
                     max: maxHp,
