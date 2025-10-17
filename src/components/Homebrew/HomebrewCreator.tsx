@@ -1,6 +1,6 @@
 // src/components/Homebrew/HomebrewCreator.tsx
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Info, BookOpen } from 'lucide-react';
@@ -35,6 +35,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const [isLoading, setIsLoading] = useState(false);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const [isExampleModalOpen, setIsExampleModalOpen] = useState(false);
+    const [exampleToLoad, setExampleToLoad] = useState<any | null>(null);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -45,9 +46,40 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         }
     }, [contentToEdit]);
 
+    const handleLoadExample = () => {
+        const exampleData = EXAMPLES[type];
+        if(exampleData) {
+            // Usamos um estado separado para o exemplo para que o useEffect em cada form possa detectá-lo como uma nova prop
+            setExampleToLoad(exampleData);
+             toast({
+                title: 'Exemplo Carregado',
+                description: `O formulário foi preenchido com dados de exemplo para "${translateApiString(type)}".`,
+            });
+        }
+    };
+    
+    // Este useEffect agora garante que o 'index' seja sempre adicionado
+    useEffect(() => {
+        // Se houver um nome e nenhum índice, gere um
+        if (contentData.name && !contentData.index) {
+             setContentData((prev: any) => ({
+                ...prev,
+                index: prev.official_index || prev.name.toLowerCase().replace(/\s+/g, '-')
+            }));
+        }
+    }, [contentData.name, contentData.index, contentData.official_index]);
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!contentData || !contentData.name) {
+        
+        // Garante que o objeto final tenha o index
+        const finalContentData = {
+            ...contentData,
+            index: contentData.official_index || contentData.index || contentData.name.toLowerCase().replace(/\s+/g, '-')
+        };
+
+        if (!finalContentData.name) {
              toast({
                 variant: 'destructive',
                 title: 'Dados Incompletos',
@@ -58,9 +90,8 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
         setIsLoading(true);
         try {
-            // Verificar se o nome já existe (apenas para criações novas)
             if (!contentToEdit) {
-                const { exists } = await HomebrewService.checkNameExists(contentData.name, type);
+                const { exists } = await HomebrewService.checkNameExists(finalContentData.name, type);
                 if (exists) {
                     toast({
                         variant: 'destructive',
@@ -73,24 +104,24 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             }
             
             const dataToSave: HomebrewService.CreateHomebrewData = {
-                name: contentData.name,
+                name: finalContentData.name,
                 type,
-                content: contentData,
+                content: finalContentData,
                 isPublic,
-                dependencies: contentData.dependencies || [],
+                dependencies: finalContentData.dependencies || [],
             };
             
             if (contentToEdit) {
                 await HomebrewService.updateHomebrewContent(contentToEdit.id, dataToSave);
                  toast({
                     title: 'Conteúdo Atualizado!',
-                    description: `"${contentData.name}" foi salvo com sucesso.`,
+                    description: `"${finalContentData.name}" foi salvo com sucesso.`,
                 });
             } else {
                 await HomebrewService.createHomebrewContent(dataToSave);
                 toast({
                     title: 'Conteúdo Criado!',
-                    description: `"${contentData.name}" foi adicionado à sua oficina.`,
+                    description: `"${finalContentData.name}" foi adicionado à sua oficina.`,
                 });
             }
             onContentCreated();
@@ -104,19 +135,26 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             setIsLoading(false);
         }
     };
+    
+    // Memoize the initialData prop to prevent re-renders
+    const initialDataForForm = useMemo(() => {
+        if (exampleToLoad) return exampleToLoad;
+        if (contentToEdit?.type === type) return contentToEdit.content;
+        return {};
+    }, [exampleToLoad, contentToEdit, type]);
+
 
     const renderFormForType = () => {
-        const initialData = contentToEdit?.type === type ? contentToEdit.content : {};
         switch (type) {
-            case 'race': return <RaceForm onDataChange={setContentData} initialData={initialData} />;
-            case 'subrace': return <SubraceForm onDataChange={setContentData} initialData={initialData} />;
-            case 'class': return <ClassForm onDataChange={setContentData} initialData={initialData} />;
-            case 'subclass': return <SubclassForm onDataChange={setContentData} initialData={initialData} />;
-            case 'spell': return <SpellForm onDataChange={setContentData} initialData={initialData} />;
-            case 'item': return <ItemForm onDataChange={setContentData} initialData={initialData} />;
-            case 'monster': return <MonsterForm onDataChange={setContentData} initialData={initialData} />;
-            case 'background': return <BackgroundForm onDataChange={setContentData} initialData={initialData} />;
-            case 'feat': return <FeatForm onDataChange={setContentData} initialData={initialData} />;
+            case 'race': return <RaceForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'subrace': return <SubraceForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'class': return <ClassForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'subclass': return <SubclassForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'spell': return <SpellForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'item': return <ItemForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'monster': return <MonsterForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'background': return <BackgroundForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'feat': return <FeatForm onDataChange={setContentData} initialData={initialDataForForm} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
         }
@@ -144,26 +182,37 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                     id="homebrew-type"
                                     value={type}
                                     onChange={(e) => {
-                                        setType(e.target.value as HomebrewService.HomebrewContentType);
-                                        // Reset data when type changes if not editing
-                                        if (!contentToEdit) {
+                                        const newType = e.target.value as HomebrewService.HomebrewContentType;
+                                        setType(newType);
+                                        // Reset data when type changes, unless we are editing the same type
+                                        if (!contentToEdit || contentToEdit.type !== newType) {
                                             setContentData({});
+                                            setExampleToLoad(null); // Também reseta o exemplo
                                         }
                                     }}
                                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
-                                    disabled={!!contentToEdit} // Desabilita a troca de tipo ao editar
+                                    disabled={!!contentToEdit}
                                 >
                                     {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{translateApiString(t)}</option>)}
                                 </select>
                             </div>
                             <button 
                                 type="button" 
+                                onClick={handleLoadExample}
+                                className="flex-shrink-0 px-3 py-2 bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-md flex items-center gap-2"
+                                title="Carregar Exemplo no Formulário"
+                            >
+                                <BookOpen className="h-4 w-4" />
+                                <span className="hidden sm:inline">Carregar Exemplo</span>
+                            </button>
+                             <button 
+                                type="button" 
                                 onClick={() => setIsExampleModalOpen(true)}
                                 className="flex-shrink-0 px-3 py-2 bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-md flex items-center gap-2"
                                 title="Ver Exemplo de Estrutura"
                             >
-                                <BookOpen className="h-4 w-4" />
-                                <span className="hidden sm:inline">Exemplo</span>
+                                <Info className="h-4 w-4" />
+                                <span className="hidden sm:inline">Info</span>
                             </button>
                         </div>
                         
@@ -192,7 +241,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                             </button>
                             <button
                                 type="submit"
-                                disabled={isLoading || !contentData}
+                                disabled={isLoading || !contentData.name}
                                 className="menu-button btn-new flex items-center justify-center gap-2 text-lg px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <FlaskConical className="h-5 w-5"/>}
