@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",
-    "@genkit-ai/googleai": "^1.1.2",
+    "@genkit-ai/google-genai": "^1.1.2",
     "@google/generative-ai": "^0.15.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-toast": "^1.2.1",
