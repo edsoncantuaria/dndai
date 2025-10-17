@@ -35,8 +35,10 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         setIsLoading(true);
         try {
             const officialRaces = await DndApiService.getRaces();
-            const homebrewRaces = await HomebrewService.listHomebrewContent('public', undefined, 'race');
-            const myHomebrewRaces = user ? await HomebrewService.listHomebrewContent('mine', undefined, 'race') : [];
+            const homebrewRacesPromise = HomebrewService.listHomebrewContent('public', undefined, 'race');
+            const myHomebrewRacesPromise = user ? HomebrewService.listHomebrewContent('mine', undefined, 'race') : Promise.resolve([]);
+
+            const [homebrewRaces, myHomebrewRaces] = await Promise.all([homebrewRacesPromise, myHomebrewRacesPromise]);
 
             const all = [...(officialRaces?.results || [])];
             const myIds = new Set(myHomebrewRaces.map(r => r.id));
