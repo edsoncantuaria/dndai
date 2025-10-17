@@ -1,9 +1,24 @@
 // backend/src/routes/homebrewRoutes.ts
 import { Router } from 'express';
-import { createContent, listContent, getContentById, updateContent, getDependencies } from '../controllers/homebrewController.js';
+import { 
+    createContent, 
+    listContent, 
+    getContentById, 
+    updateContent, 
+    getDependencies,
+    listBundles,
+    getBundleContents
+} from '../controllers/homebrewController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
+
+// Rota para listar bundles (pacotes) - Requer autenticação para ver os pacotes do usuário
+router.get('/bundles', authMiddleware, listBundles);
+
+// Rota para ver o conteúdo de um bundle específico
+router.get('/bundles/:id/contents', getBundleContents);
+
 
 // Rota para criar um novo conteúdo - Requer autenticação
 router.post('/', authMiddleware, createContent);
@@ -11,7 +26,6 @@ router.post('/', authMiddleware, createContent);
 // Rota para listar conteúdos - Aberta, mas pode ter filtros
 // A autenticação é opcional aqui para permitir listar conteúdo "meu"
 router.get('/', (req, res, next) => {
-    // Se o escopo for 'mine', exige autenticação.
     if (req.query.scope === 'mine') {
         return authMiddleware(req as any, res, next);
     }

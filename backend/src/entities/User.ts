@@ -3,6 +3,8 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { LicenseKey } from './LicenseKey.js';
 import { SessaoIA } from './SessaoIA.js';
 import { Character } from './Character.js';
+import { HomebrewContent } from './HomebrewContent.js';
+import { HomebrewBundle } from './HomebrewBundle.js';
 
 @Entity('users')
 export class User {
@@ -36,6 +38,12 @@ export class User {
 
     @OneToMany(() => Character, (character) => character.user)
     characters: Character[];
+    
+    @OneToMany(() => HomebrewContent, (content) => content.author)
+    homebrewContents: HomebrewContent[];
+
+    @OneToMany(() => HomebrewBundle, (bundle) => bundle.author)
+    homebrewBundles: HomebrewBundle[];
 
     @CreateDateColumn()
     createdAt: Date;

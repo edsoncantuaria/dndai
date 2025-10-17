@@ -17,6 +17,16 @@ export interface HomebrewContent {
     dependencies?: string[];
 }
 
+export interface HomebrewBundle {
+    id: string;
+    authorId: number;
+    name: string;
+    description: string;
+    isPublic: boolean;
+    contents: HomebrewContent[];
+    createdAt: string;
+}
+
 export interface CreateHomebrewData {
     type: HomebrewContentType;
     name: string;
@@ -75,4 +85,19 @@ export const updateHomebrewContent = async (id: string, data: Partial<CreateHome
  */
 export const getHomebrewDependencies = async (id: string): Promise<HomebrewContent[]> => {
     return apiClient<HomebrewContent[]>(`/homebrew/${id}/dependencies`);
+};
+
+/**
+ * Lista os pacotes (bundles) disponíveis.
+ */
+export const listHomebrewBundles = async (): Promise<HomebrewBundle[]> => {
+    return apiClient<HomebrewBundle[]>('/homebrew/bundles');
+};
+
+/**
+ * Obtém o conteúdo de um pacote (bundle) específico.
+ * @param id O ID do pacote.
+ */
+export const getBundleContents = async (id: string): Promise<HomebrewContent[]> => {
+    return apiClient<HomebrewContent[]>(`/homebrew/bundles/${id}/contents`);
 };

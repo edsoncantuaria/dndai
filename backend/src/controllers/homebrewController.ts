@@ -71,19 +71,17 @@ export const listContent = async (req: AuthRequest, res: Response, next: NextFun
 // Obter um conteúdo homebrew específico por ID
 export const getContentById = async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
-    // O userId pode não estar presente para conteúdo público, então tratamos como opcional.
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(' ')[1];
     let userId: number | undefined;
 
     if (token) {
-        // Tentativa de verificar o token sem quebrar se for inválido
         try {
             const jwt = (await import('jsonwebtoken')).default;
             const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as { userId: number };
             userId = decoded.userId;
         } catch (e) {
-            // Token inválido ou expirado, o usuário não está autenticado.
+            // Token inválido, usuário não autenticado.
         }
     }
 
@@ -95,12 +93,34 @@ export const getContentById = async (req: Request, res: Response, next: NextFunc
     }
 };
 
-// Nova função para obter dependências
+// Obter dependências de um conteúdo
 export const getDependencies = async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
     try {
         const dependencies = await HomebrewService.getHomebrewDependencies(id);
         res.status(200).json(dependencies);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// --- Funções de Bundle ---
+
+export const listBundles = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    try {
+        const bundles = await HomebrewService.getPublicAndUserBundles(userId);
+        res.status(200).json(bundles);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getBundleContents = async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    try {
+        const contents = await HomebrewService.getContentsOfBundle(id);
+        res.status(200).json(contents);
     } catch (error) {
         next(error);
     }

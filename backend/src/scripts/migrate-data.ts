@@ -4,6 +4,7 @@ import 'dotenv/config';
 import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
+import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import { TRANSLATIONS_SPELLS } from '../../data/TranslatorSpells.js';
 import { TRANSLATIONS_EQUIPMENT } from '../../data/TranslatorEquipments.js';
 import backgroundsData from '../../data/backgrounds.json' assert { type: 'json' };
@@ -11,38 +12,48 @@ import bcrypt from 'bcryptjs';
 
 const SYSTEM_USER_ID = 1;
 
-async function upsertHomebrew(authorId: number, type: any, name: string, content: any) {
+async function upsertHomebrew(authorId: number, type: any, name: string, content: any): Promise<HomebrewContent> {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-
-    // Usa o 'index' do conteúdo (que é o nome oficial em inglês) como chave
     const index = content.index || name.toLowerCase().replace(/\s+/g, '-');
     
-    let existing = await homebrewRepo.findOne({
-        where: {
-            authorId,
-            type,
-            content: { index: index }
-        }
-    });
+    let existing = await homebrewRepo.findOne({ where: { authorId, type, name: content.name } });
 
     if (existing) {
-        console.log(`Atualizando '${name}'...`);
+        console.log(`Atualizando '${content.name}'...`);
         existing.content = content;
-        existing.name = content.name;
         existing.isPublic = true;
-        await homebrewRepo.save(existing);
+        return await homebrewRepo.save(existing);
     } else {
-        console.log(`Criando '${name}'...`);
+        console.log(`Criando '${content.name}'...`);
         const newContent = new HomebrewContent();
         newContent.authorId = authorId;
         newContent.type = type;
-        newContent.name = content.name; // Usa o nome traduzido
-        newContent.content = { ...content, index: index }; // Garante que o index original seja salvo
+        newContent.name = content.name;
+        newContent.content = { ...content, index: index };
         newContent.isPublic = true;
-        newContent.createdBy = 'user'; // Considera como criado pelo 'sistema'
-        await homebrewRepo.save(newContent);
+        newContent.createdBy = 'user';
+        return await homebrewRepo.save(newContent);
     }
 }
+
+async function createOrUpdateBundle(name: string, description: string, contents: HomebrewContent[]) {
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    let bundle = await bundleRepo.findOne({ where: { name, authorId: SYSTEM_USER_ID } });
+
+    if (!bundle) {
+        bundle = new HomebrewBundle();
+        bundle.name = name;
+        bundle.authorId = SYSTEM_USER_ID;
+        bundle.isPublic = true;
+    }
+    
+    bundle.description = description;
+    bundle.contents = contents;
+
+    await bundleRepo.save(bundle);
+    console.log(`Pacote '${name}' salvo com ${contents.length} itens.`);
+}
+
 
 async function migrate() {
     console.log('Iniciando conexão com o banco de dados...');
@@ -51,7 +62,6 @@ async function migrate() {
 
     const userRepo = AppDataSource.getRepository(User);
     
-    // 1. Garante que o usuário do sistema exista
     let systemUser = await userRepo.findOneBy({ id: SYSTEM_USER_ID });
     if (!systemUser) {
         console.log('Usuário do sistema não encontrado. Criando um novo...');
@@ -65,31 +75,47 @@ async function migrate() {
         console.log('Usuário do sistema criado com ID:', systemUser.id);
     }
 
-    // 2. Migrar Magias
+    const migratedSpells: HomebrewContent[] = [];
+    const migratedEquipments: HomebrewContent[] = [];
+    const migratedBackgrounds: HomebrewContent[] = [];
+
     console.log('\n--- Migrando Traduções de Magias ---');
     for (const [englishName, translation] of Object.entries(TRANSLATIONS_SPELLS)) {
-        await upsertHomebrew(SYSTEM_USER_ID, 'spell', englishName, {
+        const spell = await upsertHomebrew(SYSTEM_USER_ID, 'spell', englishName, {
             ...translation,
-            name: translation.name, // O nome principal é o traduzido
-            index: englishName.toLowerCase().replace(/\s+/g, '-'), // O index é o original em inglês
+            name: translation.name,
+            index: englishName.toLowerCase().replace(/\s+/g, '-'),
         });
+        migratedSpells.push(spell);
     }
 
-    // 3. Migrar Equipamentos
     console.log('\n--- Migrando Traduções de Equipamentos ---');
     for (const [englishIndex, translation] of Object.entries(TRANSLATIONS_EQUIPMENT)) {
-        await upsertHomebrew(SYSTEM_USER_ID, 'item', englishIndex, {
+        const item = await upsertHomebrew(SYSTEM_USER_ID, 'item', englishIndex, {
             ...translation,
             name: translation.name,
             index: englishIndex,
         });
+        migratedEquipments.push(item);
     }
+    
+    await createOrUpdateBundle(
+        "Traduções PT-BR (Itens e Magias)",
+        "Um pacote essencial que traduz a maioria dos itens e magias do SRD para o português do Brasil. Recomendado para todas as aventuras.",
+        [...migratedSpells, ...migratedEquipments]
+    );
 
-    // 4. Migrar Antecedentes
     console.log('\n--- Migrando Antecedentes Traduzidos ---');
     for (const background of backgroundsData.results) {
-        await upsertHomebrew(SYSTEM_USER_ID, 'background', background.index, background);
+        const bg = await upsertHomebrew(SYSTEM_USER_ID, 'background', background.index, background);
+        migratedBackgrounds.push(bg);
     }
+    
+    await createOrUpdateBundle(
+        "Antecedentes (SRD Traduzido)",
+        "Contém todos os antecedentes disponíveis no Documento de Referência do Sistema (SRD), traduzidos para o português.",
+        migratedBackgrounds
+    );
 
 
     console.log('\nMigração de dados concluída com sucesso!');
