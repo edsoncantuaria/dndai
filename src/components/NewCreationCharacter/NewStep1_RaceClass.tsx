@@ -3,9 +3,9 @@ import React, { useState } from 'react';
 import type { ApiListItem, ApiTrait } from '@/types';
 import { translateApiString, translateAttribute } from '@/utils/translator';
 import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Dice5, ArrowRight, Loader2, Info, Check, ShieldCheck, BookOpen, Star, Sparkles } from 'lucide-react';
+import { Dice5, ArrowRight, Loader2, Info, Check, ShieldCheck, BookOpen, Star, Sparkles, Eye } from 'lucide-react';
 import * as DndApiService from '@/services/dndApiService';
-import LevelCard from '../LevelCard';
+import ClassDetailsModal from './ClassDetailsModal';
 
 const TraitDisplay: React.FC<{ trait: ApiListItem }> = ({ trait }) => {
     const [details, setDetails] = useState<ApiTrait | null>(null);
@@ -35,24 +35,26 @@ const TraitDisplay: React.FC<{ trait: ApiListItem }> = ({ trait }) => {
 }
 
 const RaceDetailsDisplay: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
-    const { raceDetails, subraceDetails, racialBonuses } = hook;
+    const { details: { raceDetails, subraceDetails }, racialBonuses } = hook;
     
+    if (!raceDetails) return null;
+
     const finalTraits = Array.from(new Map([...(raceDetails?.traits || []), ...(subraceDetails?.racial_traits || [])].map(item => [item.index, item])).values());
 
     return (
         <div className="mt-4 p-4 bg-stone-900/50 border border-stone-700 rounded-lg animate-fadeIn space-y-3">
-             <h4 className="text-lg font-bold text-amber-300 font-garamond">{translateApiString(raceDetails?.name)} {subraceDetails ? `(${translateApiString(subraceDetails.name)})` : ''}</h4>
+             <h4 className="text-lg font-bold text-amber-300 font-garamond">{translateApiString(raceDetails.name)} {subraceDetails ? `(${translateApiString(subraceDetails.name)})` : ''}</h4>
              
              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                  <div>
                     <p className="font-semibold text-stone-400">Bônus de Atributo</p>
                     <p className="text-stone-200">
-                        {Object.entries(racialBonuses).map(([attr, bonus]) => `${translateAttribute(attr as any)} +${bonus}`).join(', ')}
+                        {Object.entries(racialBonuses).map(([attr, bonus]) => `${translateAttribute(attr as any)} +${bonus}`).join(', ') || 'Nenhum'}
                     </p>
                 </div>
                 <div>
                     <p className="font-semibold text-stone-400">Velocidade</p>
-                    <p className="text-stone-200">{raceDetails?.speed} pés</p>
+                    <p className="text-stone-200">{raceDetails.speed} pés</p>
                 </div>
             </div>
 
@@ -67,59 +69,6 @@ const RaceDetailsDisplay: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
         </div>
     )
 }
-
-const ClassDetailsDisplay: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
-    const { classDetails, classLevels } = hook.details;
-
-    if(!classDetails) return null;
-
-    return (
-        <div className="mt-4 p-4 bg-stone-900/50 border border-stone-700 rounded-lg animate-fadeIn space-y-4">
-             <h4 className="text-lg font-bold text-amber-300 font-garamond">{translateApiString(classDetails.name)}</h4>
-             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                 <div className="bg-stone-800/60 p-2 rounded">
-                    <p className="text-xs text-stone-400">Dado de Vida</p>
-                    <p className="font-bold text-lg text-stone-200">d{classDetails.hit_die}</p>
-                 </div>
-                 <div className="bg-stone-800/60 p-2 rounded col-span-2 md:col-span-1">
-                    <p className="text-xs text-stone-400">Resistências</p>
-                    <p className="font-bold text-md text-stone-200">{classDetails.saving_throws.map(st => st.name).join(', ')}</p>
-                 </div>
-                 {classDetails.spellcasting && (
-                     <div className="bg-stone-800/60 p-2 rounded">
-                        <p className="text-xs text-stone-400">Atributo de Magia</p>
-                        <p className="font-bold text-lg text-stone-200">{classDetails.spellcasting.spellcasting_ability.name}</p>
-                     </div>
-                 )}
-             </div>
-
-            <div>
-                <p className="font-semibold text-stone-400 text-sm mb-2">Proficiências</p>
-                <div className="flex flex-wrap gap-2">
-                    {classDetails.proficiencies.map(p => (
-                        <span key={p.index} className="px-2 py-1 text-xs bg-stone-700 text-stone-300 rounded-full">{translateApiString(p.name)}</span>
-                    ))}
-                </div>
-            </div>
-            
-            {classLevels && (
-                <div className="space-y-2 pt-4 border-t border-stone-700/50">
-                    <h5 className="font-semibold text-stone-300">Progressão de Nível</h5>
-                     {classLevels.map(level => (
-                        <LevelCard 
-                            key={level.level}
-                            level={level.level}
-                            classLevelData={level}
-                            isCurrent={level.level === 1}
-                            isPast={false}
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-};
-
 
 interface Props {
     hook: ReturnType<typeof useNewCharacterCreation>;
@@ -148,124 +97,145 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         setField,
     } = hook;
     
+    const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+    
     const canProceed = race && characterClass;
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                 <h3 className="text-xl font-semibold text-stone-300">Escolha sua Raça e Classe</h3>
-                <button
-                    type="button"
-                    onClick={() => handleRandomizeRaceAndClass(races, classes)}
-                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
-                >
-                    <Dice5 className="h-4 w-4" />
-                    Aleatório
-                </button>
-            </div>
-            
-            <div>
-                <h4 className="text-lg font-semibold text-stone-300 mb-4">Raça</h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {races.map(r => (
-                        <button
-                            key={r.index}
-                            type="button"
-                            onClick={() => handleRaceChange(r.index)}
-                            className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${race === r.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
-                        >
-                            <span className="font-bold text-lg text-stone-100">{translateApiString(r.name)}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            {loadingStates.race ? <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div> : race && raceDetails && <RaceDetailsDisplay hook={hook} />}
-
-            {race === 'human' && (
-                 <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
-                     <label className="flex items-center gap-3 cursor-pointer">
-                        <input 
-                            type="checkbox"
-                            checked={isVariantHuman}
-                            onChange={(e) => setField('isVariantHuman', e.target.checked)}
-                            className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 rounded focus:ring-amber-500"
-                        />
-                        <div>
-                            <h4 className="text-lg font-semibold text-stone-300">Humano Variante</h4>
-                            <p className="text-sm text-stone-400">Troque o bônus de +1 em todos os atributos por +1 em dois atributos, uma perícia e um talento inicial.</p>
-                        </div>
-                    </label>
-                </div>
-            )}
-
-            {race === 'dragonborn' && (
-                <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
-                    <h4 className="text-lg font-semibold text-stone-300 mb-2">Ancestralidade Dracônica</h4>
-                    <p className="text-sm text-stone-400 mb-4">Sua linhagem determina seu tipo de dano e arma de sopro.</p>
-                    <select
-                        value={hook.draconicAncestry}
-                        onChange={(e) => setField('draconicAncestry', e.target.value)}
-                        className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+        <>
+            <div className="space-y-8 animate-fadeIn">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-xl font-semibold text-stone-300">Escolha sua Raça e Classe</h3>
+                    <button
+                        type="button"
+                        onClick={() => handleRandomizeRaceAndClass(races, classes)}
+                        className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                     >
-                        <option value="" disabled>Escolha sua linhagem...</option>
-                        {draconicAncestryOptions.map(opt => (
-                            <option key={opt.index} value={opt.index}>
-                                {translateApiString(opt.name.replace('Draconic Ancestry: ', ''))}
-                            </option>
-                        ))}
-                    </select>
+                        <Dice5 className="h-4 w-4" />
+                        Aleatório
+                    </button>
                 </div>
-            )}
-
-            {raceDetails?.subraces?.length > 0 && (
-                <div className="animate-fadeIn">
-                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça (Opcional)</h4>
+                
+                <div>
+                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Raça</h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                        {raceDetails.subraces.map((sr: ApiListItem) => (
+                        {races.map(r => (
                             <button
-                                key={sr.index}
+                                key={r.index}
                                 type="button"
-                                onClick={() => handleSubraceChange(sr.index)}
-                                className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${subrace === sr.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
+                                onClick={() => handleRaceChange(r.index)}
+                                className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${race === r.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                             >
-                                <span className="font-bold text-lg text-stone-100">{translateApiString(sr.name)}</span>
+                                <span className="font-bold text-lg text-stone-100">{translateApiString(r.name)}</span>
                             </button>
                         ))}
                     </div>
                 </div>
-            )}
-            
-            <div>
-                <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {classes.map(c => (
-                        <button
-                            key={c.index}
-                            type="button"
-                            onClick={() => handleClassChange(c.index)}
-                            className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${characterClass === c.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
+                
+                {loadingStates.race ? <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div> : race && raceDetails && <RaceDetailsDisplay hook={hook} />}
+
+                {race === 'human' && (
+                    <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input 
+                                type="checkbox"
+                                checked={isVariantHuman}
+                                onChange={(e) => setField('isVariantHuman', e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 rounded focus:ring-amber-500"
+                            />
+                            <div>
+                                <h4 className="text-lg font-semibold text-stone-300">Humano Variante</h4>
+                                <p className="text-sm text-stone-400">Troque o bônus de +1 em todos os atributos por +1 em dois atributos, uma perícia e um talento inicial.</p>
+                            </div>
+                        </label>
+                    </div>
+                )}
+
+                {race === 'dragonborn' && (
+                    <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
+                        <h4 className="text-lg font-semibold text-stone-300 mb-2">Ancestralidade Dracônica</h4>
+                        <p className="text-sm text-stone-400 mb-4">Sua linhagem determina seu tipo de dano e arma de sopro.</p>
+                        <select
+                            value={hook.draconicAncestry}
+                            onChange={(e) => setField('draconicAncestry', e.target.value)}
+                            className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         >
-                             <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
+                            <option value="" disabled>Escolha sua linhagem...</option>
+                            {draconicAncestryOptions.map(opt => (
+                                <option key={opt.index} value={opt.index}>
+                                    {translateApiString(opt.name.replace('Draconic Ancestry: ', ''))}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
+                {raceDetails?.subraces?.length > 0 && (
+                    <div className="animate-fadeIn">
+                        <h4 className="text-lg font-semibold text-stone-300 mb-4">Sub-raça (Opcional)</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                            {raceDetails.subraces.map((sr: ApiListItem) => (
+                                <button
+                                    key={sr.index}
+                                    type="button"
+                                    onClick={() => handleSubraceChange(sr.index)}
+                                    className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${subrace === sr.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
+                                >
+                                    <span className="font-bold text-lg text-stone-100">{translateApiString(sr.name)}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                <div>
+                    <h4 className="text-lg font-semibold text-stone-300 mb-4">Classe</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {classes.map(c => (
+                            <button
+                                key={c.index}
+                                type="button"
+                                onClick={() => handleClassChange(c.index)}
+                                className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${characterClass === c.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
+                            >
+                                <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {loadingStates.class && <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div>}
+                
+                {characterClass && classDetails && !loadingStates.class && (
+                    <div className="flex justify-center mt-4 animate-fadeIn">
+                        <button type="button" onClick={() => setIsClassModalOpen(true)} className="flex items-center gap-2 text-amber-300 hover:text-amber-200 underline">
+                           <Eye className="h-4 w-4"/> Ver Detalhes da Classe {translateApiString(classDetails.name)}
                         </button>
-                    ))}
+                    </div>
+                )}
+
+
+                <div className="flex justify-end pt-8">
+                    <button
+                        type="button"
+                        onClick={nextStep}
+                        disabled={!canProceed}
+                        className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <ArrowRight className="h-6 w-6 mr-3"/>
+                        {canProceed ? 'Avançar' : 'Faça suas escolhas'}
+                    </button>
                 </div>
             </div>
-
-            {loadingStates.class ? <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div> : characterClass && classDetails && <ClassDetailsDisplay hook={hook} />}
-
-            <div className="flex justify-end pt-8">
-                <button
-                    type="button"
-                    onClick={nextStep}
-                    disabled={!canProceed}
-                    className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    <ArrowRight className="h-6 w-6 mr-3"/>
-                    {canProceed ? 'Avançar' : 'Faça suas escolhas'}
-                </button>
-            </div>
-        </div>
+            {classDetails && hook.details.classLevels && (
+                <ClassDetailsModal
+                    isOpen={isClassModalOpen}
+                    onClose={() => setIsClassModalOpen(false)}
+                    classDetails={classDetails}
+                    classLevels={hook.details.classLevels}
+                />
+            )}
+        </>
     );
 };
 
