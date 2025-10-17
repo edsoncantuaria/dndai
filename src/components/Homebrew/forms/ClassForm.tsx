@@ -1,3 +1,4 @@
+
 // src/components/Homebrew/forms/ClassForm.tsx
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
@@ -46,7 +47,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [classData, onDataChange]);
+    }, [classData]);
 
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
         setClassData(prev => ({ ...prev, [field]: value }));
