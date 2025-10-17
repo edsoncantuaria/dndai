@@ -1,19 +1,32 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
 import { translateApiString } from '@/utils/translator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 type View = 'list' | 'create';
-type Tab = 'public' | 'mine' | 'ai'; 
+type Tab = 'public' | 'mine' | 'ai';
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
+
+const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.ReactNode> = {
+    'race': <Heart className="h-4 w-4" />,
+    'class': <Swords className="h-4 w-4" />,
+    'subclass': <Swords className="h-4 w-4" />,
+    'spell': <ScrollText className="h-4 w-4" />,
+    'item': <Shield className="h-4 w-4" />,
+    'monster': <Bot className="h-4 w-4" />,
+    'background': <BookOpen className="h-4 w-4" />,
+    'feat': <BookOpen className="h-4 w-4" />,
+};
+
 
 const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
     const [view, setView] = useState<View>('list');
@@ -32,13 +45,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         try {
             let contentPromise;
             if (activeTab === 'public') {
-                // Aba comunidade mostra apenas conteúdo público de usuários
                 contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'user');
             } else if (activeTab === 'ai') {
-                // Nova aba IA mostra apenas conteúdo público da IA
                 contentPromise = HomebrewService.listHomebrewContent('public', undefined, 'ai');
             } else {
-                // Aba 'mine' mostra o conteúdo do usuário
                 contentPromise = HomebrewService.listHomebrewContent('mine');
             }
             
@@ -83,7 +93,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
         try {
             const { sessao } = await GameService.updateSessionHomebrew(activeSessionId, contentId, action);
-            // Re-sincronizar o estado dos IDs instalados com a resposta do servidor
             setInstalledIds(new Set(sessao.homebrewContentIds || []));
             
             toast({
@@ -116,6 +125,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         </button>
                          <button onClick={() => setActiveTab('ai')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'ai' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             <Bot className="h-5 w-5"/> IA
+                             <TooltipProvider>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Info className="h-4 w-4 text-stone-500 cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>Conteúdo gerado pela IA é ativado automaticamente e não precisa ser instalado.</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
                         </button>
                         <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                             Minhas Criações
@@ -137,31 +156,49 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             {content.map(item => {
                                 const isInstalled = installedIds.has(item.id);
                                 return (
-                                <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between">
+                                <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
                                     <div>
-                                        <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
-                                        <p className="text-sm text-stone-400 capitalize">{translateApiString(item.type)}</p>
+                                        <div className="flex justify-between items-start">
+                                            <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
+                                            <div className="flex items-center gap-1.5 text-xs text-stone-400 capitalize bg-stone-700/50 px-2 py-1 rounded-full">
+                                                 {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-4 w-4"/>}
+                                                 {translateApiString(item.type)}
+                                            </div>
+                                        </div>
+                                         <p className="text-xs text-stone-500 mt-1">
+                                            Criado por: {item.createdBy === 'ai' ? 'Mestre IA' : 'Comunidade'}
+                                        </p>
                                     </div>
                                     <div className="mt-4 flex gap-2">
-                                        <button
-                                            onClick={() => handleInstallToggle(item.id)}
-                                            disabled={!activeSessionId}
-                                            className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                                isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
-                                            }`}
-                                        >
-                                            {isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                                            {isInstalled ? 'Instalado' : 'Instalar'}
-                                        </button>
-                                        {isInstalled && (
-                                            <button
-                                                onClick={() => handleInstallToggle(item.id)}
-                                                disabled={!activeSessionId}
-                                                className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
-                                                title="Desinstalar"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+                                        {activeTab !== 'ai' && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleInstallToggle(item.id)}
+                                                    disabled={!activeSessionId}
+                                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
+                                                        isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                                                    }`}
+                                                >
+                                                    {isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                                                    {isInstalled ? 'Instalado' : 'Instalar'}
+                                                </button>
+                                                {isInstalled && (
+                                                    <button
+                                                        onClick={() => handleInstallToggle(item.id)}
+                                                        disabled={!activeSessionId}
+                                                        className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
+                                                        title="Desinstalar"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                        {activeTab === 'ai' && (
+                                             <div className="w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold bg-green-900/50 text-green-300 border border-green-800">
+                                                <CheckCircle className="h-4 w-4"/>
+                                                Sempre Ativo
+                                            </div>
                                         )}
                                     </div>
                                 </div>
