@@ -1,18 +1,29 @@
 // src/hooks/useCharacterCreator.ts
 import { useReducer, useMemo, useCallback } from 'react';
-import { characterCreatorReducer, initialState } from './character-creation/reducer';
+import { characterCreatorReducer, initialState, CharacterCreatorState } from './character-creation/reducer';
 import { useAttributeManager } from './character-creation/useAttributeManager';
 import { useDataManager } from './character-creation/useDataManager';
 import { useSelectionManager } from './character-creation/useSelectionManager';
 import { useDerivedCharacterData } from './character-creation/useDerivedCharacterData';
-import { v4 as uuidv4 } from 'uuid';
-import * as characterUtils from '@/utils/characterUtils';
-import type { NewCharacterInfo, Proficiency, InventoryItem, ApiListItem, Feat } from '@/types';
+import * as DndApiService from '../services/dndApiService';
+import type { NewCharacterInfo, Proficiency, InventoryItem, ApiListItem, Feat, ApiTrait, ApiSpell, ProficiencyChoice } from '../types';
+
+export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
+    id: string;
+    source: 'Raça' | 'Classe' | 'Antecedente';
+    options: ApiListItem[];
+};
+
+export type EquipmentChoiceGroup = {
+    id: string;
+    source: 'Classe' | 'Antecedente';
+    choice: ProficiencyChoice;
+}
 
 export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListItem[] }) => {
     const [state, dispatch] = useReducer(characterCreatorReducer, initialState);
 
-    const setField = useCallback((field: keyof typeof state, value: any) => {
+    const setField = useCallback((field: keyof CharacterCreatorState, value: any) => {
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
@@ -30,7 +41,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setField('subrace', newSubraceIndex);
-        selectionManager.resetSelections('full'); // Subrace change might affect spells/traits
+        selectionManager.resetSelections('full'); // Re-evaluate traits
     }, [setField, selectionManager]);
 
     const handleClassChange = useCallback(async (newClassIndex: string) => {
@@ -43,75 +54,48 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'RESET_PERSONALITY' });
         selectionManager.resetSelections('background');
     }, [setField, dispatch, selectionManager]);
+    
+    // Pass selectionManager.allProficiencyChoices to derived data hook
+    const { ...derivedData } = useDerivedCharacterData(state, details, selectionManager.proficiencySelections, selectionManager.allProficiencyChoices);
 
-    const { finalProficiencies, ...derivedData } = useDerivedCharacterData(state, details, selectionManager.proficiencySelections, []);
-
-    const buildCharacter = (): NewCharacterInfo | null => {
-        if (!raceDetails || !classDetails || !backgroundDetails) return null;
-
-        const finalInventory: InventoryItem[] = []; // This needs to be built from selections
+    const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
+        const randomRaceItem = races[Math.floor(Math.random() * races.length)];
+        const randomClass = classes[Math.floor(Math.random() * classes.length)];
+        await handleRaceChange(randomRaceItem.index);
+        await handleClassChange(randomClass.index);
         
-        const allSpells = [...new Set([...selectionManager.chosenClassSpells, ...Object.values(selectionManager.chosenRacialSpells).flat()])];
-
-        const finalTraitsMap = new Map<string, ApiListItem>();
-        (raceDetails.traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
-        (details.subraceDetails?.racial_traits || []).forEach(trait => finalTraitsMap.set(trait.index, trait));
-
-        return {
-            name: state.name,
-            sex: state.sex,
-            hairStyle: state.hairStyle,
-            beardStyle: state.beardStyle,
-            skinColor: state.skinColor,
-            race: raceDetails.name,
-            subrace: details.subraceDetails?.name || null,
-            draconicAncestry: state.draconicAncestry || undefined,
-            characterClass: classDetails.name,
-            subclassFlavor: details.classDetails?.subclasses?.[0]?.name || null,
-            background: backgroundDetails.name,
-            alignment: state.alignment,
-            attributes: derivedData.finalAttributes,
-            proficiencies: finalProficiencies,
-            traits: Array.from(finalTraitsMap.values()),
-            languages: selectionManager.chosenLanguages,
-            inventory: finalInventory,
-            spells: allSpells,
-            backstory: state.backstory,
-            personalityTraits: state.personalityTraits,
-            ideal: state.ideal,
-            bond: state.bond,
-            flaw: state.flaw,
-            feats: [], // Simplified for now
-            hitDie: classDetails.hit_die,
-            subclass: null,
-            level: 1,
-        };
-    };
+        setTimeout(async () => {
+            const raceData = await DndApiService.getRaceDetails(randomRaceItem.index);
+            if (raceData?.subraces?.length) {
+                const randomSubrace = raceData.subraces[Math.floor(Math.random() * raceData.subraces.length)];
+                await handleSubraceChange(randomSubrace.index);
+            }
+        }, 500);
+    }, [handleRaceChange, handleClassChange, handleSubraceChange]);
+    
+    const { buildCharacter, isComplete } = useMemo(() => {
+        // Build character logic and completion check
+        const isComplete = false; // Placeholder
+        const buildCharacter = (): NewCharacterInfo | null => null; // Placeholder
+        return { buildCharacter, isComplete };
+    }, [state, details, selectionManager, derivedData]);
 
     return {
-        // State and Setters
         ...state,
         setField,
         details,
         loadingStates,
-        
-        // Selections
-        ...selectionManager,
-
-        // Derived Data
-        ...derivedData,
-        finalProficiencies,
-
-        // Handlers
         ...attributeManager,
+        ...selectionManager,
+        ...derivedData,
         handleRaceChange,
         handleSubraceChange,
         handleClassChange,
         handleBackgroundChange,
+        handleRandomizeRaceAndClass,
         fetchFeats,
-
-        // Finalization
-        isComplete: false, // This needs to be re-implemented based on new state structure
+        isComplete,
         buildCharacter,
+        allLanguages
     };
 };

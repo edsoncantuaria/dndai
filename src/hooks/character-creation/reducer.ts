@@ -1,6 +1,5 @@
 // src/hooks/character-creation/reducer.ts
-import type { Attributes, ApiListItem, ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait } from '@/types';
-import { Action } from './types';
+import type { Attributes } from '@/types';
 
 export interface CharacterCreatorState {
     name: string;
@@ -52,10 +51,23 @@ export const initialState: CharacterCreatorState = {
     draconicAncestry: '',
 };
 
-export const characterCreatorReducer = (state: CharacterCreatorState, action: Action): CharacterCreatorState => {
+export type CharacterCreatorAction =
+    | { type: 'SET_FIELD'; payload: { field: keyof CharacterCreatorState; value: any } }
+    | { type: 'SET_BASE_ATTRIBUTES'; payload: Attributes }
+    | { type: 'SET_POINTS'; payload: number }
+    | { type: 'RESET_RACE_SELECTIONS' }
+    | { type: 'RESET_PERSONALITY' };
+
+
+export const characterCreatorReducer = (state: CharacterCreatorState, action: CharacterCreatorAction): CharacterCreatorState => {
     switch (action.type) {
         case 'SET_FIELD':
-            return { ...state, [action.payload.field]: action.payload.value };
+            const { field, value } = action.payload;
+            // If the field is a function, it's a state updater function (like from useState)
+            if (typeof value === 'function') {
+                return { ...state, [field]: value(state[field]) };
+            }
+            return { ...state, [field]: value };
         case 'SET_BASE_ATTRIBUTES':
             return { ...state, baseAttributes: action.payload };
         case 'SET_POINTS':

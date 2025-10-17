@@ -1,7 +1,7 @@
 // src/hooks/character-creation/useAttributeManager.ts
 import { useCallback } from 'react';
-import type { Attributes, CharacterCreatorState } from './reducer';
-import { Action } from './types';
+import type { Attributes } from '@/types';
+import type { CharacterCreatorState, CharacterCreatorAction } from './reducer';
 import { getCostForScore, getPointsForScore, rollAttribute } from '@/utils/creationHelpers';
 
 const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
@@ -19,7 +19,7 @@ const attributeSuggestions: Record<string, (keyof Attributes)[]> = {
     'wizard': ['intelligence', 'constitution', 'dexterity', 'wisdom', 'charisma', 'strength'],
 };
 
-export const useAttributeManager = (state: CharacterCreatorState, dispatch: React.Dispatch<Action>) => {
+export const useAttributeManager = (state: CharacterCreatorState, dispatch: React.Dispatch<CharacterCreatorAction>) => {
     const { baseAttributes, points, characterClass } = state;
 
     const handleAttributeChange = useCallback((attr: keyof Attributes, delta: 1 | -1) => {
