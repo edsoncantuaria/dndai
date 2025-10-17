@@ -30,7 +30,7 @@ export interface GameMasterResponse {
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
-    modularRules?: string[];
+    newHomebrewContent?: any[]; // Adicionado para criações da IA
 }
 
 
@@ -172,6 +172,7 @@ export interface NewCharacterInfo {
     subrace: string | null;
     draconicAncestry?: string;
     characterClass: string;
+    subclassFlavor: string | null;
     background: string;
     alignment: string;
     attributes: Attributes;
@@ -188,8 +189,8 @@ export interface NewCharacterInfo {
     feats: Feat[];
     hitDie: number;
     subclass: string | null;
+    homebrewIds?: string[];
 }
-
 
 export interface InventoryItem {
     id: string;
@@ -247,6 +248,8 @@ export interface LootOffer {
 }
 
 export interface Character {
+    id: number;
+    userId: number;
     name: string;
     sex: 'Masculino' | 'Feminino' | 'Outro';
     hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
@@ -304,7 +307,7 @@ export interface Character {
     };
     conditions: ApiCondition[];
     relationships: Relationship[];
-    journal: JournalEntryLocation[];
+    journal: JournalEntry[];
     currentRegion: string;
     hitDice: {
         current: number;
@@ -319,8 +322,8 @@ export interface Character {
 
 export interface LogEntry {
     id: string;
-    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll';
-    content: string;
+    type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
+    content: string | ImageLogEntryContent;
     rollResult?: {
         description: string;
         dice: string;
@@ -339,9 +342,9 @@ export interface Combatant {
     id: string;
     name: string;
     isPlayer?: boolean; // New optional property
-    hp?: number;
+    hp?: number | {current: number, max: number};
     maxHp?: number;
-    armorClass?: number;
+    ac?: number;
     initiative: number;
     initiativeRoll?: number;
     isDead: boolean;
@@ -432,7 +435,7 @@ export interface ApiTrait {
     parent?: ApiListItem;
     trait_specific?: {
         spell_options?: ProficiencyChoice;
-        subtrait_options?: ProficiencyChoice;
+        subfeature_options?: ProficiencyChoice;
         damage_type?: ApiListItem;
         breath_weapon?: {
             name: string;
@@ -533,13 +536,13 @@ export interface Relationship {
     quests: Quest[];
 }
 
-export interface JournalEntryLocation {
+export interface JournalEntry {
     id: string;
     name: string;
     region: string;
     summary: string;
     looted: boolean;
-    subLocations?: JournalEntryLocation[];
+    subLocations?: JournalEntry[];
 }
 
 export interface ApiSubclass {

@@ -6,7 +6,7 @@ import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
 import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
-import type { GameMasterFlowInput, GameMasterResponse, CombatState } from '../schemas/gameSchemas.js';
+import type { GameMasterFlowInput, GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
@@ -15,6 +15,32 @@ import * as SessaoService from './sessaoService.js';
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
+
+const summarizeHomebrewForAI = (content: HomebrewContent): string | null => {
+    if (!content || !content.content) return null;
+
+    const data = content.content;
+    const type = content.type;
+    let summary = `[${type.toUpperCase()}] ${data.name}: `;
+
+    switch (type) {
+        case 'spell':
+            summary += `${data.desc?.[0] || ''} (Lvl ${data.level} ${data.school?.name || ''}).`;
+            break;
+        case 'item':
+            summary += `${data.desc?.[0] || 'Um item.'}`;
+            if (data.rarity) summary += ` (Raridade: ${data.rarity.name})`;
+            break;
+        case 'monster':
+            summary += `CR ${data.challenge_rating}. ${data.size} ${data.type}. HP: ${data.hit_points}. AC: ${data.armor_class}.`;
+            break;
+        default:
+            summary += `${data.desc?.[0] || 'Conteúdo personalizado.'}`;
+            break;
+    }
+    return summary;
+};
+
 
 // Constrói um objeto de personagem otimizado para a IA.
 const buildOptimizedCharacterForAI = async (characterId: number) => {
@@ -64,7 +90,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passiveInvestigation,
         proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
         inventory,
-        spells,
+        spells: spells as ApiSpell[], // Cast to ApiSpell array
         feats: fullCharacter.feats || [],
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
@@ -87,6 +113,7 @@ export const processPlayerTurn = async (
     let sessao: SessaoIA | null = null;
     let user: User | null = null;
     let characterForAI: any = null;
+    let homebrewSummaryForAI = "";
 
     if (sessionId === -1) {
         isTestRun = true;
@@ -114,10 +141,13 @@ export const processPlayerTurn = async (
             throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
         }
 
-        // NOVO: Adiciona o conteúdo homebrew instalado ao contexto da IA
+        // Traduz o conteúdo homebrew em um resumo para a IA
         if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
             const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
-            characterForAI.homebrewContent = installedContent.map(c => c.content);
+            const summaries = installedContent.map(summarizeHomebrewForAI).filter(Boolean);
+            if (summaries.length > 0) {
+                homebrewSummaryForAI = `\n### Conteúdo Personalizado Ativo (Homebrew)\n${summaries.join('\n')}\n`;
+            }
         }
     }
     
@@ -141,10 +171,10 @@ export const processPlayerTurn = async (
 
     const gameMasterFlowInput: GameMasterFlowInput = {
         character: characterForAI,
-        playerAction,
+        playerAction: `${playerAction}${homebrewSummaryForAI}`, // Adiciona o resumo homebrew ao final da ação do jogador
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
-        useAiHomebrew: useAiHomebrew ?? true, // Passa a configuração para a IA
+        useAiHomebrew: useAiHomebrew ?? true,
     };
 
     const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
@@ -204,8 +234,7 @@ export const processPlayerTurn = async (
                 try {
                     const existing = await HomebrewService.findHomebrewByOfficialIndex(newContent.content.index, newContent.type);
                     if (!existing) {
-                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' }); // Torna público E marca como IA
-                       // Auto-instala o conteúdo criado pela IA na sessão atual para uso imediato.
+                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' });
                        await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
                     }
                 } catch (error) {
