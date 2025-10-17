@@ -17,6 +17,18 @@ const CreateHomebrewOutputSchema = z.object({
   content: z.any().describe('O objeto JSON completo representando o conteúdo homebrew gerado, aderindo à estrutura da API 5e.')
 });
 
+export async function createHomebrewContent(input: z.infer<typeof CreateHomebrewInputSchema>): Promise<{ content: any } | null> {
+    try {
+        // CORREÇÃO: Adicionado 'await' para garantir que a promessa do fluxo seja resolvida.
+        const result = await createHomebrewFlow(input);
+        return result;
+    } catch (error) {
+        console.error("Erro no fluxo createHomebrewContent:", error);
+        return null;
+    }
+}
+
+
 const createHomebrewFlow = ai.defineFlow(
   {
     name: 'createHomebrewFlow',
@@ -51,7 +63,6 @@ const createHomebrewFlow = ai.defineFlow(
         temperature: 0.5,
         responseMimeType: "application/json",
        },
-      system: systemPrompt,
       apiKey: apiKey,
     });
     
@@ -66,12 +77,3 @@ const createHomebrewFlow = ai.defineFlow(
     }
   }
 );
-
-export async function createHomebrewContent(input: z.infer<typeof CreateHomebrewInputSchema>): Promise<{ content: any } | null> {
-    try {
-        return await createHomebrewFlow(input);
-    } catch (error) {
-        console.error("Erro no fluxo createHomebrewContent:", error);
-        return null;
-    }
-}

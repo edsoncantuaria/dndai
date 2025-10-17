@@ -13,9 +13,9 @@ const GenerateImageOutputSchema = z.object({
   imageUrl: z.string().describe('The generated image URL in data URI format.'),
 });
 
-export async function generateImage(prompt: string, model: string, apiKey?: string): Promise<{ imageUrl: string } | null> {
+export async function generateImage(input: z.infer<typeof GenerateImageInputSchema>): Promise<{ imageUrl: string } | null> {
   try {
-    const result = await generateImageFlow({ prompt, model, apiKey });
+    const result = await generateImageFlow(input);
     return result;
   } catch (error) {
     console.error('Error in generateImage flow:', error);
