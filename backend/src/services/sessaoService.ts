@@ -110,3 +110,31 @@ export const deleteSessao = async (sessionId: number, userId: number) => {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.');
     }
 };
+
+export const updateHomebrewInstallation = async (sessionId: number, userId: number, homebrewId: string, action: 'install' | 'uninstall') => {
+    const sessaoRepo = AppDataSource.getRepository(SessaoIA);
+    const sessao = await sessaoRepo.findOne({ where: { id: sessionId, userId } });
+
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada.');
+    }
+
+    // Obter todas as dependências do item, incluindo ele mesmo
+    const dependencies = await HomebrewService.getHomebrewDependencies(homebrewId);
+    const allIds = dependencies.map(dep => dep.id);
+
+    let currentIds = new Set(sessao.homebrewContentIds || []);
+
+    if (action === 'install') {
+        allIds.forEach(id => currentIds.add(id));
+    } else {
+        allIds.forEach(id => currentIds.delete(id));
+    }
+    
+    sessao.homebrewContentIds = Array.from(currentIds);
+
+    await sessaoRepo.save(sessao);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { apiKey, ...sessaoSegura } = sessao;
+    return sessaoSegura;
+}

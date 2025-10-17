@@ -1,4 +1,3 @@
-
 // src/hooks/newUseGameState.ts
 'use client';
 
@@ -181,9 +180,8 @@ export const useNewGameState = () => {
                         try {
                              setIsLoading(true);
                             for (const depId of missingIds) {
-                                await HomebrewService.updateUserHomebrew(depId, 'install');
+                                await GameService.updateSessionHomebrew(id, depId, 'install');
                             }
-                            await revalidateUserSession();
                             toast({ title: 'Dependências restauradas!', description: 'O conteúdo necessário para a sessão foi instalado.'});
                             setReinstallModal({ open: false, deps: [], onConfirm: () => {} });
                             await loadSessionContent();
@@ -205,7 +203,7 @@ export const useNewGameState = () => {
         } finally {
              setIsLoading(false);
         }
-    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, characterState, logState, toast, revalidateUserSession]);
+    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, characterState, logState, toast]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {

@@ -49,6 +49,13 @@ export const deleteSessionById = async (sessionId: number) => {
     });
 };
 
+export const updateSessionHomebrew = async (sessionId: number, homebrewId: string, action: 'install' | 'uninstall') => {
+    return apiClient<{ sessao: SessaoIA, message: string }>(`/sessoes/${sessionId}/homebrew`, {
+        method: 'PATCH',
+        body: JSON.stringify({ homebrewId, action }),
+    });
+};
+
 
 // --- Gameplay Actions ---
 

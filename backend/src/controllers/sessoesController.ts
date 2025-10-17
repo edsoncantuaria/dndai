@@ -84,3 +84,29 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
         next(error);
     }
 };
+
+// Adicionar ou remover homebrew de uma sessão
+export const updateHomebrewInstallation = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+     if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+
+    const { homebrewId, action } = req.body;
+    if (!homebrewId || !['install', 'uninstall'].includes(action)) {
+        return next(createError(400, 'homebrewId e action (install/uninstall) são obrigatórios.'));
+    }
+
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
+
+    try {
+        const updatedSessao = await SessaoService.updateHomebrewInstallation(sessionIdNum, userId, homebrewId, action);
+        res.status(200).json({ message: `Conteúdo homebrew atualizado na sessão.`, sessao: updatedSessao });
+    } catch(error) {
+        next(error);
+    }
+};
