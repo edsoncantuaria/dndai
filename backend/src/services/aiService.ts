@@ -23,7 +23,7 @@ ${regrasCombate}
 `;
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-    const { character, playerAction, gameLog, combatState, installedHomebrew } = input;
+    const { character, playerAction, gameLog, combatState } = input;
     
     // Create a leaner character object for the prompt
     const characterForPrompt = character ? {
@@ -44,7 +44,6 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const characterContext = JSON.stringify(characterForPrompt, null, 2);
     const logContext = JSON.stringify(gameLog, null, 2); 
     const combatContextValue = combatState && combatState.isActive ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
-    const homebrewContext = installedHomebrew && installedHomebrew.length > 0 ? JSON.stringify(installedHomebrew, null, 2) : "Nenhum conteúdo homebrew instalado.";
   
     const mainPrompt = `### Estado do Personagem
 \`\`\`json
@@ -58,11 +57,6 @@ ${combatContextValue}
 
 ### Histórico Recente
 ${logContext}
-
-### Conteúdo Homebrew
-\`\`\`json
-${homebrewContext}
-\`\`\`
 
 A ação do jogador é: "${playerAction}"
 

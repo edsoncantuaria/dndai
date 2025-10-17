@@ -79,7 +79,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
     let sessao: SessaoIA | null = null;
     let user: User | null = null;
     let characterForAI: any = null;
-    let installedHomebrewSummary: any[] = [];
 
     if (sessionId === -1) {
         isTestRun = true;
@@ -93,7 +92,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         };
     } else {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-        const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
         const userRepository = AppDataSource.getRepository(User);
 
         user = await userRepository.findOneBy({ id: userId });
@@ -106,11 +104,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         characterForAI = await buildOptimizedCharacterForAI(sessao.character.id);
         if (!characterForAI) {
             throw createError(500, 'Falha ao carregar os dados completos do personagem para a IA.');
-        }
-        
-        if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
-            const homebrewItems = await homebrewRepo.find({ where: { id: In(sessao.homebrewContentIds) } });
-            installedHomebrewSummary = homebrewItems.map(item => ({ name: item.name, type: item.type }));
         }
     }
     
@@ -137,7 +130,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
         playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
-        installedHomebrew: installedHomebrewSummary,
     };
 
     const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
@@ -205,7 +197,6 @@ export const processPlayerTurn = async (sessionId: number, userId: number, playe
             }
         }
 
-        // A única mudança: usamos a nova função de merge
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
         if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 
              await mergeCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);

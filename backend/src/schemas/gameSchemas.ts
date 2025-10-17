@@ -167,6 +167,5 @@ export const GameMasterFlowInputSchema = z.object({
   playerAction: z.string().describe("Ação tomada pelo jogador."),
   gameLog: z.string().describe("Resumo do histórico recente do jogo em JSON."),
   combatState: CombatStateSchema.optional().describe("Estado do combate atual, se ativo."),
-  installedHomebrew: z.array(z.any()).optional().describe("Homebrew ativos na sessão (raças, classes, monstros, etc.)."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
