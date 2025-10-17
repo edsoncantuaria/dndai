@@ -7,7 +7,7 @@ import type { Attributes } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
 
 interface Prerequisite {
-    ability_score: { index: string; name: string };
+    ability_score: { index: string; name: string, url: string };
     minimum_score: number;
 }
 
@@ -36,8 +36,9 @@ const FeatForm: React.FC<Props> = ({ onDataChange }) => {
 
     const handlePrerequisiteChange = (index: number, field: 'ability_score' | 'minimum_score', value: string | number) => {
         const newPrerequisites = [...featData.prerequisites];
+        const abilityScoreIndex = value as string;
         if (field === 'ability_score') {
-            newPrerequisites[index].ability_score = { index: value as string, name: (value as string).toUpperCase(), url: '' };
+            newPrerequisites[index].ability_score = { index: abilityScoreIndex, name: (abilityScoreIndex as string).toUpperCase(), url: `/api/ability-scores/${abilityScoreIndex}` };
         } else {
             newPrerequisites[index].minimum_score = Number(value);
         }

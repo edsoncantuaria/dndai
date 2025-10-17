@@ -8,10 +8,8 @@ let backgroundsDataCache: ApiBackground[] | null = null;
 const getBackgroundsData = async (): Promise<ApiBackground[]> => {
     // REVALIDATE START
     if (backgroundsDataCache && backgroundsDataCache.length > 0) {
-        console.log("Serving backgrounds from memory cache.");
         return backgroundsDataCache;
     }
-    console.log("Fetching backgrounds from API for the first time.");
     // REVALIDATE END
     const data = await apiClient<{ results: ApiBackground[] }>('/dnds/backgrounds-data');
     backgroundsDataCache = data.results || [];
@@ -41,17 +39,14 @@ export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/dnds
 export const getClassDetails = (index: string) => apiClient<ApiClass>(`/dnds/classes/${index}`);
 export const getSubclassDetails = (index: string) => apiClient<ApiSubclass>(`/dnds/subclasses/${index}`);
 export const getBackgroundDetails = async (index: string): Promise<ApiBackground | null> => {
-    // Regex to check if the index is a UUID (for homebrew content)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (uuidRegex.test(index)) {
         const data = await apiClient<any>(`/homebrew/${index}`);
         return data.content as ApiBackground;
     }
-    // It's an official background, fetch from our cached local data
     const allBackgrounds = await getBackgroundsData();
     const background = allBackgrounds.find(bg => bg.index === index);
     if (!background) {
-        // This is a fallback and might indicate an issue if it's called often
         console.warn(`Background '${index}' not found in local cache, attempting API fallback.`);
         return apiClient<ApiBackground>(`/dnds/backgrounds/${index}`);
     }
@@ -65,22 +60,12 @@ export const getEquipmentForCategory = (index: string) => apiClient<{ equipment:
 
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => {
-    // Regex to check if the index is a UUID (for homebrew content)
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    
     if (uuidRegex.test(index)) {
-        return apiClient<any>(`/homebrew/${index}`).then(data => data.content as ApiTrait);
+        const data = apiClient<any>(`/homebrew/${index}`);
+        return data.content;
     }
     return apiClient<ApiTrait>(`/dnds/traits/${index}`);
-}
-export const getEquipmentDetails = (index: string) => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(index)) {
-        return apiClient<any>(`/homebrew/${index}`).then(data => data.content as Partial<InventoryItem>);
-    }
-    return apiClient<Partial<InventoryItem>>(`/dnds/equipment/${index}`);
-}
-export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
-export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
-export const getClassLevelDetails = (classIndex: string, level: number) => apiClient<ApiClassLevel>(`/dnds/classes/${classIndex}/levels/${level}`);
+};
 export const getFeatDetails = (index: string) => apiClient<Feat>(`/dnds/feats/${index}`);
+export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);

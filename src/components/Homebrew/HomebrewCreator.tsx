@@ -5,6 +5,14 @@ import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2 } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
+import RaceForm from './forms/RaceForm';
+import ClassForm from './forms/ClassForm';
+import SubclassForm from './forms/SubclassForm';
+import SpellForm from './forms/SpellForm';
+import ItemForm from './forms/ItemForm';
+import MonsterForm from './forms/MonsterForm';
+import BackgroundForm from './forms/BackgroundForm';
+import FeatForm from './forms/FeatForm';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -38,7 +46,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
             await HomebrewService.createHomebrewContent({ name: contentData.name, type, content: contentData, isPublic });
             toast({
                 title: 'Conteúdo Criado!',
-                description: `"${contentData.name}" foi adicionado ao seu laboratório.`,
+                description: `"${contentData.name}" foi adicionado à sua oficina.`,
             });
             onContentCreated();
         } catch (error: any) {
@@ -53,8 +61,18 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
     };
 
     const renderFormForType = () => {
-        // Placeholder for actual forms
-        return <p className="text-stone-400 italic text-center py-8">O editor para o tipo '{translateApiString(type)}' ainda não foi implementado.</p>;
+        switch (type) {
+            case 'race': return <RaceForm onDataChange={setContentData} />;
+            case 'class': return <ClassForm onDataChange={setContentData} />;
+            case 'subclass': return <SubclassForm onDataChange={setContentData} />;
+            case 'spell': return <SpellForm onDataChange={setContentData} />;
+            case 'item': return <ItemForm onDataChange={setContentData} />;
+            case 'monster': return <MonsterForm onDataChange={setContentData} />;
+            case 'background': return <BackgroundForm onDataChange={setContentData} />;
+            case 'feat': return <FeatForm onDataChange={setContentData} />;
+            default:
+                return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
+        }
     }
 
     return (

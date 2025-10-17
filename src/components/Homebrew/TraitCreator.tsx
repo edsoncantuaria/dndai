@@ -35,7 +35,6 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                 index: name.toLowerCase().replace(/\s+/g, '-'),
                 name: name,
                 desc: [description],
-                // Outros campos como proficiencies, etc. podem ser adicionados aqui no futuro
                 races: [], 
                 subraces: [],
                 proficiencies: []
@@ -45,7 +44,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                 name: name,
                 type: 'feat',
                 content: content,
-                isPublic: false, // Por padrão, as criações são privadas
+                isPublic: false,
             };
 
             const response = await HomebrewService.createHomebrewContent(data);
@@ -55,7 +54,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                 description: `"${name}" foi salvo com sucesso.`,
             });
             
-            onTraitCreated(response.content); // Envia o novo traço de volta para o seletor
+            onTraitCreated(response.content);
             handleClose();
 
         } catch (error: any) {
@@ -78,7 +77,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
     return (
         <ActionModal
             isOpen={isOpen}
-            title="Criar Nova Característica (Trait)"
+            title="Criar Nova Característica (Traço Racial)"
             onClose={handleClose}
             actions={[
                 { text: "Cancelar", onClick: handleClose, variant: 'secondary' },

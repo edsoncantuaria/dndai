@@ -1,6 +1,6 @@
 // src/components/Homebrew/forms/RaceForm.tsx
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
@@ -13,36 +13,36 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
     const [raceData, setRaceData] = useState({
         name: '',
         speed: 30,
-        ability_bonuses: [] as { ability_score: { index: string; name: string }; bonus: number }[],
+        ability_bonuses: [] as { ability_score: { index: string; name: string, url: string }; bonus: number }[],
         traits: [] as ApiListItem[],
-        alignment: "No typical alignment.",
-        age: "Varies.",
+        alignment: "Varia muito, mas tende a...",
+        age: "Atingem a maturidade por volta dos X anos e vivem até Y.",
         size: "Medium",
-        size_description: "Varies.",
+        size_description: "Têm entre X e Y de altura e pesam entre A e B.",
         starting_proficiencies: [],
-        language_options: { choose: 0, from: { options: [] } },
+        language_options: { choose: 0, from: { option_set_type: "resource_list", resource_list_url: "/api/languages" } },
         languages: [],
         subraces: [],
     });
-
-    const updateParent = (newData: any) => {
+    
+    useEffect(() => {
         const fullData = {
-            ...newData,
-            index: newData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
+            ...raceData,
+            index: raceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
         };
         onDataChange(fullData);
-    };
+    }, [raceData, onDataChange]);
+
 
     const handleFieldChange = (field: keyof typeof raceData, value: any) => {
-        const newData = { ...raceData, [field]: value };
-        setRaceData(newData);
-        updateParent(newData);
+        setRaceData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleBonusChange = (index: number, field: 'ability_score' | 'bonus', value: string | number) => {
         const newBonuses = [...raceData.ability_bonuses];
+        const abilityScoreIndex = value as string;
         if (field === 'ability_score') {
-            newBonuses[index].ability_score = { index: value as string, name: (value as string).toUpperCase() };
+            newBonuses[index].ability_score = { index: abilityScoreIndex, name: abilityScoreIndex.toUpperCase(), url: `/api/ability-scores/${abilityScoreIndex}` };
         } else {
             newBonuses[index].bonus = Number(value);
         }
@@ -50,7 +50,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
     };
 
     const addBonus = () => {
-        handleFieldChange('ability_bonuses', [...raceData.ability_bonuses, { ability_score: { index: 'str', name: 'STR' }, bonus: 1 }]);
+        handleFieldChange('ability_bonuses', [...raceData.ability_bonuses, { ability_score: { index: 'str', name: 'STR', url: '/api/ability-scores/str' }, bonus: 1 }]);
     };
 
     const removeBonus = (index: number) => {
@@ -61,7 +61,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
         <div className="space-y-4">
             <div>
                 <label htmlFor="race-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Raça</label>
-                <input id="race-name" type="text" value={raceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <input id="race-name" type="text" value={raceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Povo Gato, Githzerai"/>
             </div>
             <div>
                 <label htmlFor="race-speed" className="block text-sm font-medium text-stone-300 mb-1">Velocidade</label>
@@ -92,6 +92,18 @@ const RaceForm: React.FC<Props> = ({ onDataChange }) => {
                     selectedTraits={raceData.traits}
                     onSelectionChange={(newTraits) => handleFieldChange('traits', newTraits)}
                 />
+            </div>
+             <div>
+                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição de Tamanho</label>
+                 <textarea value={raceData.size_description} onChange={e => handleFieldChange('size_description', e.target.value)} rows={2} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-sm" placeholder="Ex: Têm entre 1,5m e 1,8m e constituição esguia."/>
+            </div>
+             <div>
+                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição de Idade</label>
+                 <textarea value={raceData.age} onChange={e => handleFieldChange('age', e.target.value)} rows={2} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-sm" placeholder="Ex: Atingem a maturidade aos 16 e vivem até 80 anos."/>
+            </div>
+             <div>
+                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição de Alinhamento</label>
+                 <textarea value={raceData.alignment} onChange={e => handleFieldChange('alignment', e.target.value)} rows={2} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-sm" placeholder="Ex: Tendem a ser caóticos e bons, valorizando a liberdade."/>
             </div>
         </div>
     );

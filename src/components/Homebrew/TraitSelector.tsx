@@ -38,7 +38,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
             const formatHomebrew = (items: HomebrewService.HomebrewContent[], source: string) => items.map(hb => ({
                 index: hb.id,
                 name: `${hb.name} (${source})`,
-                url: `/api/homebrew/${hb.id}`,
+                url: `/api/dnds/feats/${hb.id}`,
             }));
 
             const publicHomebrew = formatHomebrew(publicHomebrewResult, 'Comunidade');
@@ -47,7 +47,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
             // Combina e remove duplicatas (caso um item "meu" também seja "público")
             const combinedHomebrew = [...myHomebrew, ...publicHomebrew.filter(phb => !myHomebrew.some(mhb => mhb.index === phb.index))];
 
-            setAllTraits([...official, ...combinedHomebrew]);
+            setAllTraits([...official, ...combinedHomebrew].sort((a,b) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error("Failed to fetch traits:", error);
         } finally {
@@ -65,9 +65,9 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         const newApiListItem: ApiListItem = {
             index: newTraitContent.index, // Usa o index do conteúdo retornado
             name: `${newTraitContent.name} (Meu)`,
-            url: `/api/homebrew/${newTraitContent.index}`, // Usa o index na URL
+            url: `/api/dnds/feats/${newTraitContent.index}`, // Usa o index na URL
         };
-        setAllTraits(prev => [newApiListItem, ...prev]);
+        setAllTraits(prev => [newApiListItem, ...prev].sort((a,b) => a.name.localeCompare(b.name)));
         onSelectionChange([...selectedTraits, newApiListItem]);
     };
 

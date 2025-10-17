@@ -11,7 +11,7 @@ interface Props {
     isOpen: boolean;
     onClose: () => void;
     onFeatureCreated: (newFeature: any) => void;
-    classId: string; // Para associar a característica à classe correta
+    classId: string;
 }
 
 const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, classId }) => {
@@ -29,37 +29,14 @@ const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, cl
             return;
         }
 
-        setIsLoading(true);
-        try {
-            const data: HomebrewService.CreateHomebrewData = {
-                name: featureData.name,
-                type: 'feat',
-                content: {
-                    ...featureData,
-                    class: { index: classId, name: classId, url: '' } // Link to parent class
-                },
-                isPublic: false,
-            };
-
-            const response = await HomebrewService.createHomebrewContent(data);
-            
-            toast({
-                title: 'Característica Criada!',
-                description: `"${featureData.name}" foi salva com sucesso.`,
-            });
-            
-            onFeatureCreated(response.content);
-            handleClose();
-
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Falha ao Criar',
-                description: error.message || 'Ocorreu um erro ao salvar sua característica.',
-            });
-        } finally {
-            setIsLoading(false);
-        }
+        // Em vez de salvar no DB, apenas passamos de volta para o formulário da classe/subclasse.
+        // A característica será salva como parte do objeto da classe/subclasse.
+        onFeatureCreated(featureData);
+        toast({
+            title: 'Característica Adicionada',
+            description: `"${featureData.name}" foi adicionada. Salve a classe/subclasse para persistir.`,
+        });
+        handleClose();
     };
     
     const handleClose = () => {
@@ -70,11 +47,11 @@ const FeatureCreator: React.FC<Props> = ({ isOpen, onClose, onFeatureCreated, cl
     return (
         <ActionModal
             isOpen={isOpen}
-            title="Criar Nova Característica de Classe"
+            title="Criar Nova Característica"
             onClose={handleClose}
             actions={[
                 { text: "Cancelar", onClick: handleClose, variant: 'secondary' },
-                { text: "Salvar Característica", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
+                { text: "Adicionar Característica", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
             <div className="space-y-4">
