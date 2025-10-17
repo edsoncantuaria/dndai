@@ -26,27 +26,27 @@ export const createHomebrewContent = async (input: z.infer<typeof CreateHomebrew
 
         const exampleJson = EXAMPLES[type] ? JSON.stringify(EXAMPLES[type], null, 2) : "{}";
 
-        const systemPrompt = `
+        const systemInstruction = `
           Você é um especialista em Dungeons & Dragons 5ª Edição e um assistente de criação de conteúdo (homebrew).
-          Sua tarefa é converter um prompt de usuário em um objeto JSON estruturado que segue o schema da API D&D 5e.
-          Você DEVE retornar APENAS o objeto JSON, sem nenhum texto, explicação ou markdown (\`\`\`json) ao redor dele.
+          Sua tarefa é converter um prompt de usuário em um objeto JSON estruturado que segue o schema da API D&D 5e (documentada em openapi.yaml).
           
-          O JSON deve ser completo e conter todos os campos relevantes para o tipo de conteúdo solicitado, mesmo que você precise inferir alguns valores.
-          Use o seguinte exemplo como uma referência de estrutura para um conteúdo do tipo '${type}':
-
-          Exemplo de Estrutura:
-          \`\`\`json
-          ${exampleJson}
-          \`\`\`
-
-          Traduza todos os nomes, descrições e textos para o Português do Brasil.
-          O campo 'index' deve ser uma versão em minúsculas e separada por hífens do nome em inglês.
+          Regras Obrigatórias:
+          1.  Você DEVE retornar APENAS o objeto JSON, sem nenhum texto, explicação ou markdown (\`\`\`json) ao redor dele.
+          2.  O JSON deve ser completo e conter todos os campos relevantes para o tipo de conteúdo solicitado, inferindo valores quando necessário para manter a estrutura.
+          3.  Use o seguinte exemplo como uma referência de estrutura para um conteúdo do tipo '${type}':
+              \`\`\`json
+              ${exampleJson}
+              \`\`\`
+          4.  Traduza todos os nomes, descrições e textos para o Português do Brasil.
+          5.  O campo 'index' deve ser uma versão em minúsculas e separada por hífens do nome em inglês do conteúdo, se aplicável, ou uma versão similar do nome em português.
         `;
-
-        const fullPrompt = `${systemPrompt}\n\nGere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"`;
         
         const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: fullPrompt }] }],
+            contents: [{ role: "user", parts: [{ text: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"` }] }],
+            systemInstruction: {
+                role: "system",
+                parts: [{ text: systemInstruction }],
+            },
             generationConfig: {
                 responseMimeType: "application/json",
                 temperature: 0.5,
@@ -76,5 +76,3 @@ export const createHomebrewContent = async (input: z.infer<typeof CreateHomebrew
         throw createError(500, `Erro de comunicação com o serviço de IA: ${error.message}`);
     }
 };
-
-// Futuramente, podemos adicionar serviços para TTS e Geração de Imagem aqui.
