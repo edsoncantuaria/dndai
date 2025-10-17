@@ -53,7 +53,6 @@ export const AppDataSource = new DataSource({
         Quest,
         Relationship,
         HomebrewContent,
-        CharacterSnapshot,
     ], 
     
     migrations: [],
