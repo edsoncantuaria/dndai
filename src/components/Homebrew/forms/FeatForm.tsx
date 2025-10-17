@@ -19,12 +19,15 @@ interface Props {
 
 const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [featData, setFeatData] = useState(initialData || {
+    const [featData, setFeatData] = useState(() => ({
         name: '',
         desc: [''],
-        prerequisites: [] as Prerequisite[],
+        prerequisites: [],
         official_index: '',
-    });
+        ...initialData,
+        // Garante que 'desc' seja sempre um array.
+        desc: initialData?.desc || [''],
+    }));
 
     useEffect(() => {
         const fullData = {
@@ -86,7 +89,7 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
                             >
                                 {Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).map(attr => (
-                                    <option key={attr} value={attr}>{translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr])}</option>
+                                    <option key={attr} value={attr}>{translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP])}</option>
                                 ))}
                             </select>
                             <input 
