@@ -13,10 +13,11 @@ import ItemForm from './forms/ItemForm';
 import MonsterForm from './forms/MonsterForm';
 import BackgroundForm from './forms/BackgroundForm';
 import FeatForm from './forms/FeatForm';
-import HomebrewHelpModal from './HomebrewHelpModal'; // Importar o novo modal
+import HomebrewHelpModal from './HomebrewHelpModal';
+import SubraceForm from './forms/SubraceForm'; // Importar o novo formulário
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
-    'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
 
 interface Props {
@@ -29,7 +30,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
     const [contentData, setContentData] = useState<any>(null);
     const [isPublic, setIsPublic] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
-    const [isHelpModalOpen, setIsHelpModalOpen] = useState(false); // Estado para o modal de ajuda
+    const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
     const { toast } = useToast();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -65,6 +66,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel }) => {
     const renderFormForType = () => {
         switch (type) {
             case 'race': return <RaceForm onDataChange={setContentData} />;
+            case 'subrace': return <SubraceForm onDataChange={setContentData} />;
             case 'class': return <ClassForm onDataChange={setContentData} />;
             case 'subclass': return <SubclassForm onDataChange={setContentData} />;
             case 'spell': return <SpellForm onDataChange={setContentData} />;
