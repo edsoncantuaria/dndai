@@ -11,7 +11,6 @@ export interface HomebrewContent {
     name: string;
     content: any; // O objeto JSON completo
     isPublic: boolean;
-    createdBy: 'user' | 'ai';
     createdAt: string;
     updatedAt: string;
 }
@@ -21,28 +20,18 @@ export interface CreateHomebrewData {
     name: string;
     content: any;
     isPublic?: boolean;
-    createdBy?: 'user' | 'ai';
 }
 
 /**
  * Busca conteúdo homebrew.
  * @param scope 'public' para conteúdo da comunidade, 'mine' para conteúdo do usuário logado.
  * @param type Opcional. Filtra por tipo de conteúdo.
- * @param createdBy Opcional. Filtra pela origem do conteúdo ('user' ou 'ai').
  */
-export const listHomebrewContent = async (
-    scope: 'public' | 'mine',
-    type?: HomebrewContentType,
-    createdBy?: 'user' | 'ai'
-): Promise<HomebrewContent[]> => {
+export const listHomebrewContent = async (scope: 'public' | 'mine', type?: HomebrewContentType): Promise<HomebrewContent[]> => {
     const params = new URLSearchParams({ scope });
     if (type) {
         params.append('type', type);
     }
-    if (createdBy) {
-        params.append('createdBy', createdBy);
-    }
-    
     const endpoint = `/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
@@ -56,18 +45,4 @@ export const createHomebrewContent = async (data: CreateHomebrewData): Promise<{
         method: 'POST',
         body: JSON.stringify(data),
     });
-};
-
-/**
- * Encontra um conteúdo homebrew pelo nome e tipo.
- */
-export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
-    const params = new URLSearchParams({ name, type });
-    const endpoint = `/homebrew/find?${params.toString()}`;
-    try {
-        return await apiClient<HomebrewContent | null>(endpoint, { method: 'GET' });
-    } catch (error) {
-        // A API pode retornar 404 se não encontrar, o que é um resultado esperado, não um erro.
-        return null;
-    }
 };
