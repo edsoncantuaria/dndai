@@ -45,7 +45,8 @@ export class HomebrewContent {
     dependencies: string[]; // Armazena os IDs de outros conteúdos homebrew
     
     @ManyToOne(() => HomebrewBundle, bundle => bundle.contents, { nullable: true, onDelete: 'SET NULL' })
-    bundle: HomebrewBundle;
+    @JoinColumn({ name: 'bundleId' })
+    bundle: HomebrewBundle | null;
     
     @Column({ type: 'varchar', length: 36, nullable: true })
     bundleId: string | null;

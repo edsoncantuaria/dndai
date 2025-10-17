@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as GameService from '@/services/gameService';
 import HomebrewCreator from './HomebrewCreator';
@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
 
-type View = 'list' | 'create' | 'edit';
+type View = 'list' | 'create' | 'edit' | 'edit-bundle';
 type Tab = 'bundles' | 'public' | 'mine' | 'ai';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
@@ -31,10 +31,72 @@ const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.Reac
     'feat': <BookOpen className="h-4 w-4" />,
 };
 
+const BundleCard: React.FC<{
+    bundle: HomebrewService.HomebrewBundle;
+    isOwner: boolean;
+    installedIds: Set<string>;
+    activeSessionId: number | null;
+    onInstall: (bundle: HomebrewService.HomebrewBundle) => void;
+    onEdit: (bundle: HomebrewService.HomebrewBundle) => void;
+    onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
+}> = ({ bundle, isOwner, installedIds, activeSessionId, onInstall, onEdit, onDelete }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const allContentsOfBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
+
+    return (
+        <div className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
+            <div>
+                <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-lg text-amber-200">{bundle.name}</h3>
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="text-stone-400 hover:text-amber-300">
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+                <p className="text-xs text-stone-400 mb-2">Contém {bundle.contents.length} itens. {isOwner && '(Meu Pacote)'}</p>
+                <p className="text-sm text-stone-300">{bundle.description}</p>
+            </div>
+
+            {isExpanded && (
+                <div className="mt-3 pt-3 border-t border-stone-700 max-h-40 overflow-y-auto pr-2">
+                    <ul className="list-disc list-inside space-y-1 text-sm text-stone-300">
+                        {bundle.contents.map(c => <li key={c.id}>{c.name} <span className="text-xs text-stone-500">({translateApiString(c.type)})</span></li>)}
+                    </ul>
+                </div>
+            )}
+
+            <div className="mt-4 flex gap-2">
+                {isOwner ? (
+                    <>
+                        <button onClick={() => onEdit(bundle)} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
+                            <Edit className="h-4 w-4"/> Editar
+                        </button>
+                        <button onClick={() => onDelete(bundle)} className="p-2 bg-red-800 hover:bg-red-700 text-red-200 rounded-md transition-colors">
+                            <Trash2 className="h-5 w-5"/>
+                        </button>
+                    </>
+                ) : (
+                     <button
+                        onClick={() => onInstall(bundle)}
+                        disabled={!activeSessionId}
+                        className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
+                            allContentsOfBundleInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                        }`}
+                        title={!activeSessionId ? "Inicie uma sessão para instalar" : ""}
+                    >
+                        {allContentsOfBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                        {allContentsOfBundleInstalled ? 'Instalado' : 'Instalar Pacote'}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
 
 const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
     const [view, setView] = useState<View>('list');
     const [contentToEdit, setContentToEdit] = useState<HomebrewService.HomebrewContent | null>(null);
+    const [bundleToEdit, setBundleToEdit] = useState<HomebrewService.HomebrewBundle | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('bundles');
     const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
     const [isLoading, setIsLoading] = useState(false);
@@ -47,38 +109,48 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [installCandidate, setInstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
     const [dependenciesToInstall, setDependenciesToInstall] = useState<HomebrewService.HomebrewContent[]>([]);
 
-    const activeSessionId = sessionId;
+    const [itemToDelete, setItemToDelete] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
 
+    const activeSessionId = sessionId;
     const [installedIds, setInstalledIds] = useState<Set<string>>(new Set());
-    const [isCreatorOpen, setIsCreatorOpen] = useState(false);
+    const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
 
     const fetchContentAndInstalledIds = useCallback(async () => {
         setIsLoading(true);
         try {
             const sessionsResultPromise = activeSessionId ? GameService.getSessionDetails(activeSessionId) : Promise.resolve(null);
-            let contentPromise;
-
-            if (activeTab === 'bundles') {
-                contentPromise = HomebrewService.listHomebrewBundles();
-            } else if (activeTab === 'public') {
-                const filterType = typeFilter === 'all' ? undefined : typeFilter;
-                contentPromise = HomebrewService.listHomebrewContent('public', filterType, 'user');
-            } else if (activeTab === 'ai') {
-                const filterType = typeFilter === 'all' ? undefined : typeFilter;
-                contentPromise = HomebrewService.listHomebrewContent('public', filterType, 'ai');
-            } else { // 'mine'
-                const filterType = typeFilter === 'all' ? undefined : typeFilter;
-                contentPromise = HomebrewService.listHomebrewContent('mine', filterType);
-            }
             
-            const [contentResult, sessionsResult] = await Promise.all([contentPromise, sessionsResultPromise]);
+            const publicBundlesPromise = HomebrewService.listHomebrewBundles('public');
+            const myBundlesPromise = user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]);
 
+            const filterType = typeFilter === 'all' ? undefined : typeFilter;
+            const publicContentPromise = HomebrewService.listHomebrewContent('public', filterType);
+            const myContentPromise = user ? HomebrewService.listHomebrewContent('mine', filterType) : Promise.resolve([]);
+            const aiContentPromise = HomebrewService.listHomebrewContent('public', filterType, 'ai');
+            
+            const [
+                publicBundles, myBundles, 
+                publicContent, myContent, aiContent,
+                sessionsResult
+            ] = await Promise.all([
+                publicBundlesPromise, myBundlesPromise,
+                publicContentPromise, myContentPromise, aiContentPromise,
+                sessionsResultPromise
+            ]);
+
+            const allBundles = [...myBundles, ...publicBundles.filter(pb => !myBundles.some(mb => mb.id === pb.id))];
+            
             if (activeTab === 'bundles') {
-                setBundles((contentResult as HomebrewService.HomebrewBundle[]) || []);
-                setContent([]);
+                setBundles(allBundles.sort((a,b) => a.name.localeCompare(b.name)));
+            } else if (activeTab === 'public') {
+                setContent(publicContent);
+            } else if (activeTab === 'mine') {
+                setContent(myContent);
+            } else if (activeTab === 'ai') {
+                setContent(aiContent);
             } else {
-                setContent((contentResult as HomebrewService.HomebrewContent[]) || []);
-                setBundles([]);
+                 setContent([]);
+                 setBundles([]);
             }
 
             if (sessionsResult) {
@@ -97,7 +169,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         } finally {
             setIsLoading(false);
         }
-    }, [activeTab, toast, activeSessionId, typeFilter]);
+    }, [activeTab, toast, activeSessionId, typeFilter, user]);
     
     useEffect(() => {
         if (view === 'list') {
@@ -131,16 +203,20 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             toast({ variant: 'destructive', title: 'Nenhuma sessão ativa', description: 'Por favor, inicie ou continue um jogo para instalar pacotes.' });
             return;
         }
+        
+        const allDepsPromises = bundle.contents.map(c => HomebrewService.getHomebrewDependencies(c.id));
+        const allDepsArrays = await Promise.all(allDepsPromises);
+        const allUniqueDeps = Array.from(new Map(allDepsArrays.flat().map(dep => [dep.id, dep])).values());
 
-        const idsToInstall = bundle.contents.map(c => c.id).filter(id => !installedIds.has(id));
+        const idsToInstall = allUniqueDeps.filter(dep => !installedIds.has(dep.id));
+
         if (idsToInstall.length === 0) {
-            toast({ title: 'Tudo pronto!', description: 'Todo o conteúdo deste pacote já está instalado.' });
+            toast({ title: 'Tudo pronto!', description: 'Todo o conteúdo deste pacote e suas dependências já estão instalados.' });
             return;
         }
         
-        // Exibe o modal de confirmação mesmo se for apenas um item.
         setInstallCandidate({ item: bundle, type: 'bundle' });
-        setDependenciesToInstall(bundle.contents.filter(c => idsToInstall.includes(c.id)));
+        setDependenciesToInstall(idsToInstall);
     };
     
     const confirmInstallation = async (idsToInstall: string[]) => {
@@ -168,7 +244,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         }
     }
 
-
     const handleUninstall = async (contentId: string) => {
         if (!activeSessionId) return;
 
@@ -188,12 +263,44 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         setContentToEdit(item);
         setView('edit');
     };
+    
+    const handleEditBundle = (bundle: HomebrewService.HomebrewBundle) => {
+        setBundleToEdit(bundle);
+        setView('edit-bundle');
+    };
+
+    const handleDeleteClick = (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle') => {
+        setItemToDelete({ item, type });
+    };
+
+    const confirmDeletion = async () => {
+        if (!itemToDelete) return;
+        
+        setIsLoading(true);
+        try {
+            if (itemToDelete.type === 'bundle') {
+                await HomebrewService.deleteHomebrewBundle(itemToDelete.item.id);
+            } else {
+                await HomebrewService.deleteHomebrewContent(itemToDelete.item.id);
+            }
+            toast({ title: 'Item Excluído', description: `"${itemToDelete.item.name}" foi removido permanentemente.` });
+            fetchContentAndInstalledIds(); // Refresh
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha na Exclusão', description: error.message });
+        } finally {
+            setIsLoading(false);
+            setItemToDelete(null);
+        }
+    };
 
     if (view === 'create') {
         return <HomebrewCreator onContentCreated={() => setView('list')} onCancel={() => setView('list')} />;
     }
     if (view === 'edit') {
         return <HomebrewCreator onContentCreated={() => setView('list')} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
+    }
+     if (view === 'edit-bundle') {
+        return <BundleCreator isOpen={true} onClose={() => setView('list')} onBundleCreated={fetchContentAndInstalledIds} bundleToEdit={bundleToEdit} />;
     }
 
 
@@ -223,7 +330,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </button>
                         </div>
                         <div className="flex gap-2">
-                             <button onClick={() => setIsCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
+                             <button onClick={() => setIsBundleCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
                                 <PackagePlus className="h-5 w-5"/> Criar Pacote
                             </button>
                             <button onClick={() => { setView('create'); setContentToEdit(null); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-4 py-2">
@@ -255,30 +362,18 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         ) : activeTab === 'bundles' ? (
                             bundles.length > 0 ? (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {bundles.map(bundle => {
-                                    const allContentsOfBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
-                                    return (
-                                        <div key={bundle.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
-                                            <div>
-                                                <h3 className="font-bold text-lg text-amber-200">{bundle.name}</h3>
-                                                <p className="text-xs text-stone-400 mb-2">Contém {bundle.contents.length} itens.</p>
-                                                <p className="text-sm text-stone-300">{bundle.description}</p>
-                                            </div>
-                                             <div className="mt-4 flex gap-2">
-                                                <button
-                                                    onClick={() => handleBundleInstallClick(bundle)}
-                                                    disabled={!activeSessionId}
-                                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                                        allContentsOfBundleInstalled ? 'bg-green-800 text-green-200 hover:bg-green-700' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
-                                                    }`}
-                                                >
-                                                    {allContentsOfBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                                                    {allContentsOfBundleInstalled ? 'Instalado' : 'Instalar Pacote'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
+                                {bundles.map(bundle => (
+                                    <BundleCard
+                                        key={bundle.id}
+                                        bundle={bundle}
+                                        isOwner={bundle.authorId === user?.id}
+                                        installedIds={installedIds}
+                                        activeSessionId={activeSessionId}
+                                        onInstall={handleBundleInstallClick}
+                                        onEdit={handleEditBundle}
+                                        onDelete={(b) => handleDeleteClick(b, 'bundle')}
+                                    />
+                                ))}
                                 </div>
                             ) : (
                                 <p className="text-stone-500 italic text-center py-10">Nenhum pacote de conteúdo encontrado.</p>
@@ -309,18 +404,23 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         </div>
                                         <div className="mt-4 flex gap-2">
                                             {isOwner && (
-                                                <button onClick={() => handleEdit(item)} className="p-2 bg-blue-800/80 hover:bg-blue-700 rounded-md text-blue-200 transition-colors" title="Editar">
-                                                    <Edit className="h-4 w-4" />
-                                                </button>
+                                                <>
+                                                    <button onClick={() => handleEdit(item)} className="p-2 bg-blue-800/80 hover:bg-blue-700 rounded-md text-blue-200 transition-colors" title="Editar">
+                                                        <Edit className="h-4 w-4" />
+                                                    </button>
+                                                    <button onClick={() => handleDeleteClick(item, 'item')} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors" title="Excluir">
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </>
                                             )}
 
                                             <button
                                                 onClick={() => handleInstallClick(item)}
-                                                disabled={!activeSessionId || isStructural || isOwner}
+                                                disabled={!activeSessionId || isOwner}
                                                 className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
                                                     isOwner ? 'bg-green-800 text-green-200 cursor-default' : (isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900')
                                                 }`}
-                                                title={isOwner ? "Seu conteúdo está sempre ativo." : (isStructural ? "Conteúdo estrutural é adicionado na criação do personagem." : (isInstalled ? 'Instalado' : 'Instalar'))}
+                                                title={isOwner ? "Seu conteúdo está sempre ativo." : (isInstalled ? 'Instalado' : 'Instalar')}
                                             >
                                                 {isOwner ? <CheckCircle className="h-4 w-4"/> : (isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>)}
                                                 {isOwner ? 'Sempre Ativo' : (isInstalled ? 'Instalado' : 'Instalar')}
@@ -369,10 +469,33 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     </div>
                 </ActionModal>
             )}
+            
+            {itemToDelete && (
+                <ActionModal
+                    isOpen={!!itemToDelete}
+                    title={`Excluir "${itemToDelete.item.name}"?`}
+                    onClose={() => setItemToDelete(null)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setItemToDelete(null), variant: 'secondary' },
+                        { text: "Confirmar Exclusão", onClick: confirmDeletion, variant: 'destructive', disabled: isLoading }
+                    ]}
+                >
+                    <p className="text-stone-300 mb-2">
+                        Tem certeza que deseja excluir {itemToDelete.type === 'bundle' ? 'este pacote' : 'esta criação'}?
+                    </p>
+                    <p className="text-sm text-yellow-400 bg-yellow-900/40 p-3 rounded-md border border-yellow-700">
+                        {itemToDelete.type === 'bundle' 
+                            ? 'Os itens dentro do pacote não serão excluídos, apenas desvinculados.'
+                            : 'Esta ação é irreversível.'
+                        }
+                    </p>
+                </ActionModal>
+            )}
+
             <BundleCreator 
-                isOpen={isCreatorOpen}
-                onClose={() => setIsCreatorOpen(false)}
-                onBundleCreated={fetchContentAndInstalledIds} // Recarrega a lista
+                isOpen={isBundleCreatorOpen}
+                onClose={() => setIsBundleCreatorOpen(false)}
+                onBundleCreated={fetchContentAndInstalledIds}
             />
         </>
     );

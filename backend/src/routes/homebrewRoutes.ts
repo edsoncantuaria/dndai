@@ -4,11 +4,14 @@ import {
     createContent, 
     listContent, 
     getContentById, 
-    updateContent, 
+    updateContent,
+    deleteContent,
     getDependencies,
     listBundles,
     getBundleContents,
     createBundle,
+    updateBundle,
+    deleteBundle,
     checkName
 } from '../controllers/homebrewController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
@@ -19,6 +22,9 @@ const router = Router();
 router.post('/bundles', authMiddleware, createBundle);
 router.get('/bundles', authMiddleware, listBundles);
 router.get('/bundles/:id/contents', getBundleContents);
+router.put('/bundles/:id', authMiddleware, updateBundle);
+router.delete('/bundles/:id', authMiddleware, deleteBundle);
+
 
 // --- Content ---
 router.post('/check-name', authMiddleware, checkName);
@@ -39,6 +45,10 @@ router.get('/:id', getContentById);
 
 // Rota para atualizar um conteúdo
 router.put('/:id', authMiddleware, updateContent);
+
+// Rota para excluir um conteúdo
+router.delete('/:id', authMiddleware, deleteContent);
+
 
 // Rota para obter dependências de um conteúdo
 router.get('/:id/dependencies', getDependencies);

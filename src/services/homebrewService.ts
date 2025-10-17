@@ -36,10 +36,11 @@ export interface CreateHomebrewData {
     dependencies?: string[];
 }
 
-export interface CreateBundleData {
+export interface BundleData {
     name: string;
     description: string;
     contentIds: string[];
+    isPublic?: boolean;
 }
 
 
@@ -87,6 +88,15 @@ export const updateHomebrewContent = async (id: string, data: Partial<CreateHome
 }
 
 /**
+ * Deleta um conteúdo homebrew.
+ * @param id O ID do conteúdo a ser excluído.
+ */
+export const deleteHomebrewContent = async (id: string): Promise<void> => {
+    await apiClient<void>(`/homebrew/${id}`, { method: 'DELETE' });
+};
+
+
+/**
  * Busca as dependências de um item homebrew.
  * @param id O ID do conteúdo homebrew.
  */
@@ -97,20 +107,45 @@ export const getHomebrewDependencies = async (id: string): Promise<HomebrewConte
 /**
  * Lista os pacotes (bundles) disponíveis.
  */
-export const listHomebrewBundles = async (): Promise<HomebrewBundle[]> => {
-    return apiClient<HomebrewBundle[]>('/homebrew/bundles');
+export const listHomebrewBundles = async (scope?: 'public' | 'mine'): Promise<HomebrewBundle[]> => {
+    const params = new URLSearchParams();
+    if (scope) {
+        params.append('scope', scope);
+    }
+    return apiClient<HomebrewBundle[]>(`/homebrew/bundles?${params.toString()}`);
 };
 
 /**
  * Cria um novo pacote de conteúdo.
  * @param data Os dados do novo pacote.
  */
-export const createHomebrewBundle = async (data: CreateBundleData): Promise<HomebrewBundle> => {
+export const createHomebrewBundle = async (data: BundleData): Promise<HomebrewBundle> => {
     const response = await apiClient<{ bundle: HomebrewBundle }>('/homebrew/bundles', {
         method: 'POST',
         body: JSON.stringify(data),
     });
     return response.bundle;
+};
+
+/**
+ * Atualiza um pacote existente.
+ * @param id O ID do pacote a ser atualizado.
+ * @param data Os novos dados para o pacote.
+ */
+export const updateHomebrewBundle = async (id: string, data: Partial<BundleData>): Promise<HomebrewBundle> => {
+    const response = await apiClient<{ bundle: HomebrewBundle }>(`/homebrew/bundles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+    });
+    return response.bundle;
+};
+
+/**
+ * Deleta um pacote.
+ * @param id O ID do pacote a ser excluído.
+ */
+export const deleteHomebrewBundle = async (id: string): Promise<void> => {
+    await apiClient<void>(`/homebrew/bundles/${id}`, { method: 'DELETE' });
 };
 
 

@@ -109,5 +109,8 @@ export const CreateHomebrewSchema = z.object({
 export const CreateBundleSchema = z.object({
     name: z.string().min(1, "O nome do pacote é obrigatório."),
     description: z.string().min(1, "A descrição é obrigatória."),
-    contentIds: z.array(z.string()).min(1, "O pacote deve ter pelo menos um item."),
+    contentIds: z.array(z.string()),
+    isPublic: z.boolean().optional().default(false),
 });
+
+export const UpdateBundleSchema = CreateBundleSchema.partial();

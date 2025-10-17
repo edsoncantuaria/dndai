@@ -2,46 +2,52 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
-import type { HomebrewContent } from '@/services/homebrewService';
+import type { HomebrewContent, HomebrewBundle } from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, PackagePlus } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
 
 interface Props {
     isOpen: boolean;
     onClose: () => void;
     onBundleCreated: () => void;
+    bundleToEdit?: HomebrewBundle | null;
 }
 
-const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated }) => {
+const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated, bundleToEdit }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [isPublic, setIsPublic] = useState(false);
     const [availableContent, setAvailableContent] = useState<HomebrewContent[]>([]);
     const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(new Set());
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
+    useEffect(() => {
+        if (bundleToEdit) {
+            setName(bundleToEdit.name);
+            setDescription(bundleToEdit.description);
+            setIsPublic(bundleToEdit.isPublic);
+            setSelectedContentIds(new Set(bundleToEdit.contents.map(c => c.id)));
+        }
+    }, [bundleToEdit]);
+
     const fetchUnbundledContent = useCallback(async () => {
         setIsLoading(true);
         try {
-            // No backend, essa lógica seria mais eficiente.
-            // Aqui, pegamos todo o conteúdo "meu" e filtramos os que já estão em algum pacote.
             const myContent = await HomebrewService.listHomebrewContent('mine');
-            const bundles = await HomebrewService.listHomebrewBundles();
-            const bundledContentIds = new Set(bundles.flatMap(b => b.contents.map(c => c.id)));
-            
-            setAvailableContent(myContent.filter(c => !bundledContentIds.has(c.id)));
+            // Se estiver editando, inclua os itens do próprio bundle na lista de disponíveis.
+            const contentForThisBundle = bundleToEdit ? bundleToEdit.contents : [];
+            const available = myContent.filter(c => !c.bundleId || c.bundleId === bundleToEdit?.id);
 
+            const combined = Array.from(new Map([...available, ...contentForThisBundle].map(item => [item.id, item])).values());
+            setAvailableContent(combined);
         } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao buscar conteúdo',
-                description: error.message,
-            });
+            toast({ variant: 'destructive', title: 'Erro ao buscar conteúdo', description: error.message });
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, bundleToEdit]);
 
     useEffect(() => {
         if (isOpen) {
@@ -63,41 +69,31 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated }) =>
 
     const handleSubmit = async () => {
         if (!name.trim() || !description.trim()) {
-            toast({
-                variant: 'destructive',
-                title: 'Campos Obrigatórios',
-                description: 'Por favor, preencha o nome e a descrição do pacote.',
-            });
-            return;
-        }
-        if (selectedContentIds.size === 0) {
-            toast({
-                variant: 'destructive',
-                title: 'Nenhum Conteúdo Selecionado',
-                description: 'Você precisa selecionar pelo menos um item para criar um pacote.',
-            });
+            toast({ variant: 'destructive', title: 'Campos Obrigatórios', description: 'Preencha o nome e a descrição do pacote.' });
             return;
         }
 
         setIsLoading(true);
         try {
-            await HomebrewService.createHomebrewBundle({
+            const bundleData = {
                 name,
                 description,
+                isPublic,
                 contentIds: Array.from(selectedContentIds)
-            });
-            toast({
-                title: 'Pacote Criado!',
-                description: `O pacote "${name}" foi criado com sucesso.`,
-            });
+            };
+
+            if (bundleToEdit) {
+                await HomebrewService.updateHomebrewBundle(bundleToEdit.id, bundleData);
+                toast({ title: 'Pacote Atualizado!', description: `"${name}" foi salvo com sucesso.` });
+            } else {
+                await HomebrewService.createHomebrewBundle(bundleData);
+                toast({ title: 'Pacote Criado!', description: `O pacote "${name}" foi criado com sucesso.` });
+            }
+            
             onBundleCreated();
             handleClose();
         } catch (error: any) {
-             toast({
-                variant: 'destructive',
-                title: 'Falha ao Criar Pacote',
-                description: error.message,
-            });
+             toast({ variant: 'destructive', title: 'Falha na Operação', description: error.message });
         } finally {
             setIsLoading(false);
         }
@@ -106,18 +102,19 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated }) =>
     const handleClose = () => {
         setName('');
         setDescription('');
+        setIsPublic(false);
         setSelectedContentIds(new Set());
         onClose();
-    }
+    };
 
     return (
         <ActionModal
             isOpen={isOpen}
-            title="Criar Novo Pacote de Conteúdo"
+            title={bundleToEdit ? "Editar Pacote" : "Criar Novo Pacote"}
             onClose={handleClose}
             actions={[
                 { text: "Cancelar", onClick: handleClose, variant: 'secondary' },
-                { text: "Salvar Pacote", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
+                { text: bundleToEdit ? "Salvar Alterações" : "Salvar Pacote", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
             <div className="space-y-4">
@@ -144,6 +141,20 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated }) =>
                             <p className="text-center text-sm text-stone-500 italic p-4">Você não tem criações que não estejam em um pacote.</p>
                         )}
                     </div>
+                </div>
+                <div className="flex items-center justify-between bg-stone-800/60 p-3 rounded-md">
+                    <label htmlFor="bundle-public" className="flex flex-col cursor-pointer">
+                        <span className="text-stone-200 font-semibold">Tornar Público?</span>
+                        <span className="text-xs text-stone-400">Permitir que outros jogadores instalem seu pacote.</span>
+                    </label>
+                    <button
+                        type="button"
+                        id="bundle-public"
+                        onClick={() => setIsPublic(p => !p)}
+                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${isPublic ? 'bg-amber-600' : 'bg-stone-600'}`}
+                    >
+                        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </button>
                 </div>
             </div>
         </ActionModal>

@@ -2,7 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as HomebrewService from '../services/homebrewService.js';
-import { CreateHomebrewSchema, CreateBundleSchema } from '../schemas/validationSchemas.js';
+import { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import createError from 'http-errors';
 
@@ -46,6 +46,23 @@ export const updateContent = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
+// Excluir um conteúdo homebrew
+export const deleteContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    const { id } = req.params;
+
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+
+    try {
+        await HomebrewService.deleteHomebrewContent(id, userId);
+        res.status(204).send(); // 204 No Content
+    } catch (error) {
+        next(error);
+    }
+}
+
 
 // Listar conteúdos homebrew (públicos ou do usuário)
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -57,10 +74,9 @@ export const listContent = async (req: AuthRequest, res: Response, next: NextFun
     try {
         let content;
         if (scope === 'mine' && userId) {
-            content = await HomebrewService.getHomebrewContentByAuthor(userId, type); // REVALIDATE
+            content = await HomebrewService.getHomebrewContentByAuthor(userId, type);
         } else {
-            // O padrão é listar conteúdo público
-            content = await HomebrewService.getPublicHomebrewContent(type, createdBy); // REVALIDATE
+            content = await HomebrewService.getPublicHomebrewContent(type, createdBy);
         }
         res.status(200).json(content);
     } catch (error) {
@@ -122,9 +138,11 @@ export const checkName = async (req: Request, res: Response, next: NextFunction)
 // --- Funções de Bundle ---
 
 export const listBundles = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const scope = req.query.scope as 'public' | 'mine' | undefined;
     const userId = req.user?.userId;
+
     try {
-        const bundles = await HomebrewService.getPublicAndUserBundles(userId);
+        const bundles = await HomebrewService.getBundles(userId, scope);
         res.status(200).json(bundles);
     } catch (error) {
         next(error);
@@ -138,8 +156,8 @@ export const createBundle = async (req: AuthRequest, res: Response, next: NextFu
     }
 
     try {
-        const { name, description, contentIds } = CreateBundleSchema.parse(req.body);
-        const newBundle = await HomebrewService.createBundle(userId, name, description, contentIds);
+        const validatedData = CreateBundleSchema.parse(req.body);
+        const newBundle = await HomebrewService.createBundle(userId, validatedData);
         res.status(201).json({ message: "Pacote criado com sucesso!", bundle: newBundle });
     } catch (error: any) {
         if (error.name === 'ZodError') {
@@ -148,6 +166,42 @@ export const createBundle = async (req: AuthRequest, res: Response, next: NextFu
         next(error);
     }
 };
+
+
+export const updateBundle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+    
+    try {
+        const validatedData = UpdateBundleSchema.parse(req.body);
+        const updatedBundle = await HomebrewService.updateBundle(id, userId, validatedData);
+        res.status(200).json({ message: "Pacote atualizado com sucesso!", bundle: updatedBundle });
+    } catch (error: any) {
+        if (error.name === 'ZodError') {
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
+        next(error);
+    }
+};
+
+export const deleteBundle = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+
+    try {
+        await HomebrewService.deleteBundle(id, userId);
+        res.status(204).send();
+    } catch (error) {
+        next(error);
+    }
+};
+
 
 export const getBundleContents = async (req: Request, res: Response, next: NextFunction) => {
     const { id } = req.params;
