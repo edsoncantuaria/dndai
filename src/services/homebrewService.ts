@@ -15,6 +15,7 @@ export interface HomebrewContent {
     updatedAt: string;
     createdBy: 'user' | 'ai';
     dependencies?: string[];
+    bundleId?: string | null;
 }
 
 export interface HomebrewBundle {
@@ -88,15 +89,6 @@ export const updateHomebrewContent = async (id: string, data: Partial<CreateHome
 }
 
 /**
- * Deleta um conteúdo homebrew.
- * @param id O ID do conteúdo a ser excluído.
- */
-export const deleteHomebrewContent = async (id: string): Promise<void> => {
-    await apiClient<void>(`/homebrew/${id}`, { method: 'DELETE' });
-};
-
-
-/**
  * Busca as dependências de um item homebrew.
  * @param id O ID do conteúdo homebrew.
  */
@@ -155,4 +147,16 @@ export const deleteHomebrewBundle = async (id: string): Promise<void> => {
  */
 export const getBundleContents = async (id: string): Promise<HomebrewContent[]> => {
     return apiClient<HomebrewContent[]>(`/homebrew/bundles/${id}/contents`);
+};
+
+/**
+ * Verifica se um nome já existe para evitar duplicatas.
+ * @param name O nome a ser verificado.
+ * @param type O tipo de conteúdo.
+ */
+export const checkNameExists = async (name: string, type: HomebrewContentType): Promise<{ exists: boolean }> => {
+    return apiClient<{ exists: boolean }>('/homebrew/check-name', {
+        method: 'POST',
+        body: JSON.stringify({ name, type }),
+    });
 };

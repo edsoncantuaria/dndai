@@ -5,8 +5,6 @@ import { HomebrewContent } from './homebrewService';
 
 
 // --- Funções Principais (agora chamam nosso backend, que já tem a lógica de cache e homebrew) ---
-// O parâmetro `sessionId` foi removido pois a lógica agora está no backend
-// e as rotas são públicas, com o backend decidindo qual conteúdo servir.
 
 export const getRaces = () => apiClient('/dnds/races') as Promise<{ results: ApiListItem[] }>;
 export const getClasses = () => apiClient('/dnds/classes') as Promise<{ results: ApiListItem[] }>;
@@ -43,9 +41,15 @@ export const getEquipmentDetails = (index: string) => apiClient<InventoryItem>(`
 
 // Adicionado para listar conteúdo homebrew
 export const listHomebrewContent = (scope: 'public' | 'mine', type?: HomebrewContent['type'], createdBy?: 'user' | 'ai') => {
-    const params = new URLSearchParams();
-    if (scope) params.append('scope', scope);
-    if (type) params.append('type', type);
-    if (createdBy) params.append('createdBy', createdBy);
+    const params = new URLSearchParams({ scope });
+    if (type) {
+        params.append('type', type);
+    }
+    if (createdBy) {
+        params.append('createdBy', createdBy);
+    }
+    // Adiciona paginação para otimizar a carga inicial
+    params.append('page', '1');
+    params.append('limit', '100'); // Limite maior para carregar bastante conteúdo de uma vez
     return apiClient<HomebrewContent[]>(`/homebrew?${params.toString()}`);
 };

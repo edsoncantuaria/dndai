@@ -5,7 +5,6 @@ import {
     listContent, 
     getContentById, 
     updateContent,
-    deleteContent,
     getDependencies,
     listBundles,
     getBundleContents,
@@ -45,10 +44,6 @@ router.get('/:id', getContentById);
 
 // Rota para atualizar um conteúdo
 router.put('/:id', authMiddleware, updateContent);
-
-// Rota para excluir um conteúdo
-router.delete('/:id', authMiddleware, deleteContent);
-
 
 // Rota para obter dependências de um conteúdo
 router.get('/:id/dependencies', getDependencies);

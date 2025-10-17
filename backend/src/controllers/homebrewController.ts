@@ -46,37 +46,21 @@ export const updateContent = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
-// Excluir um conteúdo homebrew
-export const deleteContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userId = req.user?.userId;
-    const { id } = req.params;
-
-    if (!userId) {
-        return next(createError(401, 'Usuário não autenticado.'));
-    }
-
-    try {
-        await HomebrewService.deleteHomebrewContent(id, userId);
-        res.status(204).send(); // 204 No Content
-    } catch (error) {
-        next(error);
-    }
-}
-
-
-// Listar conteúdos homebrew (públicos ou do usuário)
+// Listar conteúdos homebrew (públicos ou do usuário) com paginação
 export const listContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const type = req.query.type as HomebrewContentType | undefined;
     const scope = req.query.scope as 'public' | 'mine' | undefined;
-    const createdBy = req.query.createdBy as 'user' | 'ai' | undefined; // REVALIDATE
+    const createdBy = req.query.createdBy as 'user' | 'ai' | undefined;
     const userId = req.user?.userId;
+    const page = parseInt(req.query.page as string, 10) || 1;
+    const limit = parseInt(req.query.limit as string, 10) || 100;
 
     try {
         let content;
         if (scope === 'mine' && userId) {
-            content = await HomebrewService.getHomebrewContentByAuthor(userId, type);
+            content = await HomebrewService.getHomebrewContentByAuthor(userId, type, { page, limit });
         } else {
-            content = await HomebrewService.getPublicHomebrewContent(type, createdBy);
+            content = await HomebrewService.getPublicHomebrewContent(type, createdBy, { page, limit });
         }
         res.status(200).json(content);
     } catch (error) {
