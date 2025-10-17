@@ -82,7 +82,7 @@ const BundleCard: React.FC<{
                     }`}
                 >
                     {isBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                    {isBundleInstalled ? 'Desinstalar' : 'Instalar Pacote'}
+                    {isBundleInstalled ? 'Desinstalar Pacote' : 'Instalar Pacote'}
                 </button>
             </div>
         </div>
@@ -126,11 +126,11 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 const myBundleIds = new Set(myBundles.map(b => b.id));
                 bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
             } else if (activeTab === 'community') {
-                 const publicContent = await HomebrewService.getPublicHomebrewContent();
+                 const publicContent = await HomebrewService.listHomebrewContent('public');
                  contentResult = publicContent.filter(c => c.authorId !== user?.id);
             } else if (activeTab === 'mine') {
                 if (user) {
-                    const myContent = await HomebrewService.getHomebrewContentByAuthor(user.id);
+                    const myContent = await HomebrewService.listHomebrewContent('mine');
                     contentResult = myContent;
                 }
             }
