@@ -10,8 +10,9 @@ import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
-import * as HomebrewService from './homebrewService.js';
 import * as DndApiService from './dndApiService.js';
+
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
@@ -25,16 +26,12 @@ export const buildFullCharacterObject = async (character: Character) => {
     });
     if (!fullCharacter) return character;
 
-    // A UI espera que `inventory` contenha os dados dos itens.
-    // O backend armazena `itemData` dentro da entidade CharacterItem.
-    // Mapeamos para o formato esperado.
     const inventory = fullCharacter.items.map((item: CharacterItem) => ({ 
         ...item.itemData, 
-        id: item.id.toString(), // Garante que o ID do item da tabela seja usado
+        id: item.id.toString(),
         quantity: item.quantity, 
         equipped: item.equipped 
     }));
-
 
     const characterData = {
         ...fullCharacter,
@@ -50,28 +47,13 @@ export const buildFullCharacterObject = async (character: Character) => {
     return characterData;
 };
 
-// REVALIDATE START
-// Helper to check if a string is a UUID
-const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-// REVALIDATE END
-
 export const createCharacter = async (userId: number, characterData: z.infer<typeof NewCharacterInfoSchema>) => {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-        // REVALIDATE START
-        let classDetails: any;
-        if (isUuid(characterData.characterClass)) {
-            const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass, userId);
-            classDetails = hbClass?.content;
-        } else {
-            // FIX: Convert class index to lowercase for API call
-            classDetails = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
-        }
-        // REVALIDATE END
-
+        const classDetails: any = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
@@ -84,31 +66,15 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
                 quantity: itemData.quantity || 1 
             };
         });
-
         const detailedItems = await Promise.all(itemPromises);
         
-        // Extract gold from pouches
-        let startingGold = 0;
-        const finalInventoryItems = detailedItems.filter(item => {
-            if (item.index === 'pouch' && item.desc?.[0]?.toLowerCase().includes('gp')) {
-                 const match = item.desc[0].match(/(\d+)\s*gp/);
-                if (match) {
-                    startingGold += parseInt(match[1], 10);
-                }
-                // Keep the pouch, but without the gold description for cleaner data.
-                item.desc = ['Uma simples bolsa de couro ou tecido.'];
-            }
-            return item.index !== 'gp'; // Filter out any explicit "gp" items if they exist
-        });
-
-
         const newCharacter = new Character();
         Object.assign(newCharacter, {
             userId,
             name: characterData.name,
             race: characterData.race,
             subrace: characterData.subrace,
-            characterClass: classDetails.name, // Usar o nome da classe, não o index
+            characterClass: classDetails.name,
             subclassFlavor: characterData.subclassFlavor,
             level: characterData.level,
             background: characterData.background,
@@ -122,6 +88,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             beardStyle: characterData.beardStyle,
             skinColor: characterData.skinColor,
             feats: characterData.feats || [],
+            homebrewContentIds: characterData.homebrewIds || [], // Salva os IDs de homebrew do personagem
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
@@ -144,12 +111,12 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         });
         await queryRunner.manager.save(proficiencies);
 
-        const items = finalInventoryItems.map(itemData => {
+        const items = detailedItems.map(itemData => {
             const charItem = new CharacterItem();
             charItem.character = savedCharacter;
             charItem.name = itemData.name;
             charItem.quantity = itemData.quantity;
-            charItem.itemData = itemData; // Store the full (potentially homebrewed) item data
+            charItem.itemData = itemData;
             charItem.equipped = itemData.equipped || false;
             return charItem;
         });
@@ -200,7 +167,6 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
 
-    // Verificar se existem sessões ativas para este personagem
     const activeSessions = await sessaoRepository.count({
         where: { characterId, userId, deletedAt: IsNull() }
     });
@@ -209,7 +175,6 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
         throw createError(409, 'Este personagem não pode ser excluído pois está vinculado a uma ou mais sessões de jogo. Por favor, exclua as sessões primeiro.');
     }
 
-    // Procede com a exclusão suave se não houver sessões
     const result = await characterRepository.softDelete({ id: characterId, userId });
 
     if (result.affected === 0) {

@@ -1,16 +1,19 @@
 // src/hooks/character-creation/useSelectionManager.ts
-import { useState, useCallback } from 'react';
-import type { ApiListItem, ApiSpell } from '@/types';
-import { fetchDetailsInChunks } from '@/utils/apiUtils';
-import { translateSpell } from '@/utils/translator';
-import * as DndApiService from '@/services/dndApiService';
+import { useState, useCallback, useMemo } from 'react';
+import type { ApiListItem, ApiSpell, Proficiency } from '@/types';
 import { ProficiencyChoiceWithSource } from '../useCharacterCreator';
 import type { CharacterCreatorState } from './reducer';
 
-export const useSelectionManager = (state: CharacterCreatorState) => {
-    const { isVariantHuman } = state;
+export const useSelectionManager = (
+    state: CharacterCreatorState,
+    allProficiencyChoices: ProficiencyChoiceWithSource[],
+    allFixedProficiencies: Map<string, Proficiency>,
+    allLanguages: ApiListItem[],
+    classSpellOptions: ApiSpell[],
+    subclassSpells: ApiSpell[]
+) => {
+    const { isVariantHuman, characterClass } = state;
     
-    // Selections
     const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
     const [equipmentSelections, setEquipmentSelections] = useState<Record<string, { main?: number, sub?: number }>>({});
     const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
@@ -20,6 +23,11 @@ export const useSelectionManager = (state: CharacterCreatorState) => {
     
     const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
+
+    const unavailableProficiencies = useMemo(() => {
+        return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
+    }, [allFixedProficiencies, proficiencySelections]);
+
 
     const resetSelections = useCallback((type: 'full' | 'class' | 'background') => {
         setProficiencySelections({});
@@ -119,6 +127,29 @@ export const useSelectionManager = (state: CharacterCreatorState) => {
         });
     }, []);
 
+    const handleRandomizeProficiencies = useCallback(() => {
+        const newSelections: Record<string, string[]> = {};
+        const usedProficiencies = new Set(allFixedProficiencies.keys());
+    
+        allProficiencyChoices.forEach(choice => {
+            const available = choice.options.filter((opt: any) => !usedProficiencies.has(opt.index));
+            const shuffled = [...available].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, choice.choose).map((opt: any) => opt.index);
+            
+            newSelections[choice.id] = selected;
+            selected.forEach(s => usedProficiencies.add(s));
+        });
+        setProficiencySelections(newSelections);
+    }, [allProficiencyChoices, allFixedProficiencies, proficiencySelections]);
+
+    const handleRandomizeLanguages = useCallback(() => {
+        if (languageChoicesCount <= 0) return;
+        const availableLangs = allLanguages.filter(lang => !baseLanguages.has(lang.name));
+        const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
+        setChosenLanguages(selected);
+    }, [languageChoicesCount, allLanguages, baseLanguages]);
+
 
     return {
         proficiencySelections,
@@ -129,6 +160,7 @@ export const useSelectionManager = (state: CharacterCreatorState) => {
         traitSelections,
         racialSpellOptions,
         racialSpellTraits,
+        unavailableProficiencies,
 
         setChosenLanguages,
         setEquipmentSelections,
@@ -142,5 +174,7 @@ export const useSelectionManager = (state: CharacterCreatorState) => {
         handleClassSpellChange,
         handleRacialSpellChange,
         handleVariantHumanBonusSelection,
+        handleRandomizeProficiencies,
+        handleRandomizeLanguages,
     };
 };

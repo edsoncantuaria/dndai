@@ -4,6 +4,7 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { ProficiencyChoiceWithSource } from '../useCharacterCreator';
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -14,7 +15,8 @@ export const useDerivedCharacterData = (
         backgroundDetails: ApiBackground | null;
     },
     proficiencySelections: Record<string, string[]>,
-    allProficiencyChoices: any[]
+    allProficiencyChoices: ProficiencyChoiceWithSource[],
+    allFixedProficiencies: Map<string, Proficiency>
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
@@ -40,7 +42,6 @@ export const useDerivedCharacterData = (
         addBonuses(raceDetails?.ability_bonuses || []);
         addBonuses(subraceDetails?.ability_bonuses || []);
         
-        // Handle choice-based bonuses
         const abilityBonusChoices = raceDetails?.ability_bonus_options;
         if (abilityBonusChoices?.from?.options?.[0]?.item?.index) {
             const selectionKey = abilityBonusChoices.from.options[0].item.index;
@@ -63,24 +64,7 @@ export const useDerivedCharacterData = (
             return acc;
         }, {} as characterUtils.Attributes),
     [state.baseAttributes, racialBonuses]);
-
-    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
-        const profs = new Map<string, Proficiency>();
-        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
-        
-        if (!isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
-        addProfs(subraceDetails?.starting_proficiencies);
-        addProfs(classDetails?.proficiencies);
-        addProfs(backgroundDetails?.starting_proficiencies);
-        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
-
-        return profs;
-    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
     
-    const unavailableProficiencies = useMemo(() => {
-        return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
-    }, [allFixedProficiencies, proficiencySelections]);
-
     const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
         const choiceGroups: any[] = [];
         let fixed: InventoryItem[] = [];
@@ -118,8 +102,6 @@ export const useDerivedCharacterData = (
     return {
         racialBonuses,
         finalAttributes,
-        allFixedProficiencies,
-        unavailableProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
         finalProficiencies

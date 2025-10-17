@@ -1,5 +1,5 @@
 // backend/src/entities/Character.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne, Index } from 'typeorm';
 import { User } from './User.js';
 import { SessaoIA } from './SessaoIA.js';
 import { CharacterAttributes } from './CharacterAttributes.js';
@@ -76,6 +76,10 @@ export class Character {
     @Column({ type: 'json', nullable: true })
     feats: any[];
     
+    @Index()
+    @Column({ type: 'simple-json', nullable: true })
+    homebrewContentIds: string[]; // Armazena IDs de raça, classe, antecedente, etc.
+
     // Relações com as novas entidades
     @OneToOne(() => CharacterAttributes, attributes => attributes.character, { cascade: true })
     attributes: CharacterAttributes;

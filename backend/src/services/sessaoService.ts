@@ -3,18 +3,17 @@ import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
-import { IsNull } from 'typeorm';
+import { IsNull, In } from 'typeorm';
 import createError from 'http-errors';
 import { buildFullCharacterObject } from './characterService.js';
 import type { z } from 'zod';
 import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 
 export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
-    const { nome, characterId, homebrewIds } = data;
+    const { nome, characterId } = data;
     
     const characterRepository = AppDataSource.getRepository(Character);
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-    const userRepository = AppDataSource.getRepository(User);
 
     const character = await characterRepository.findOne({ where: { id: characterId, userId } });
     if (!character) {
@@ -23,22 +22,18 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
 
     const existingSession = await sessaoRepository.findOne({ where: { characterId, userId, deletedAt: IsNull() } });
     if (existingSession) {
-        // A lógica de "getOrCreate" é mais para iniciar, então vamos retornar a existente.
-        // A instalação de homebrews deve ser uma ação separada e explícita.
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { apiKey, ...sessaoParaRetorno } = existingSession;
         return { sessao: sessaoParaRetorno, isNew: false };
     }
-
-    const user = await userRepository.findOneBy({ id: userId });
-    // A chave de API não é mais armazenada na sessão, será passada pelo frontend.
     
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
     novaSessao.characterId = character.id;
     novaSessao.userId = userId;
-    novaSessao.apiKey = ''; // Campo fica vazio, não é mais a fonte da verdade
-    novaSessao.homebrewContentIds = homebrewIds || []; // Salva os IDs de homebrew
+    novaSessao.apiKey = '';
+    // Copia os IDs de homebrew do personagem para a sessão no momento da criação
+    novaSessao.homebrewContentIds = character.homebrewContentIds || []; 
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -87,7 +82,6 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
     }
 
     if (sessao.character) {
-        // Rebuild the full character object to match frontend expectations
         sessao.character = await buildFullCharacterObject(sessao.character) as Character;
     }
 
@@ -108,11 +102,23 @@ export const deleteSessao = async (sessionId: number, userId: number) => {
 
 export const updateHomebrewInstallation = async (sessionId: number, userId: number, homebrewId: string, action: 'install' | 'uninstall') => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-    const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId } });
+    const characterRepository = AppDataSource.getRepository(Character);
+
+    const sessao = await sessaoRepository.findOne({ where: { id: sessionId, userId }, relations: ['character'] });
 
     if (!sessao) {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
     }
+    
+    // Lógica para impedir a desinstalação de conteúdo em uso
+    if (action === 'uninstall') {
+        const character = sessao.character;
+        if (character?.homebrewContentIds?.includes(homebrewId)) {
+            throw createError(409, 'Este conteúdo não pode ser desinstalado pois é uma parte estrutural do personagem (raça, classe, etc.).');
+        }
+        // Futuramente, poderia verificar itens equipados ou monstros em combate.
+    }
+
 
     let currentHomebrewIds = sessao.homebrewContentIds || [];
 
@@ -124,7 +130,7 @@ export const updateHomebrewInstallation = async (sessionId: number, userId: numb
         currentHomebrewIds = currentHomebrewIds.filter(id => id !== homebrewId);
     }
     
-    sessao.homebrewContentIds = [...new Set(currentHomebrewIds)]; // Garante unicidade
+    sessao.homebrewContentIds = [...new Set(currentHomebrewIds)];
 
     const updatedSessao = await sessaoRepository.save(sessao);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -1,22 +1,12 @@
 // src/services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
-import { useGameStateContext } from '@/contexts/GameStateContext';
 
 /**
- * Função auxiliar para adicionar o sessionId aos parâmetros de consulta.
- * O hook `useGameStateContext` só pode ser chamado dentro de um componente React,
- * então vamos obter o sessionId de uma forma diferente ou passá-lo como argumento.
- * 
- * Por simplicidade agora, vamos assumir que o `apiClient` pode ser modificado para
- * opcionalmente injetar o sessionId se disponível em um contexto. 
- * Temporariamente, vamos criar um wrapper para fazer isso.
+ * Função auxiliar para adicionar o sessionId aos parâmetros de consulta se ele existir.
+ * Isso permite que o backend sirva conteúdo homebrew específico da sessão quando aplicável.
  */
-const apiClientWithSession = (endpoint: string) => {
-    // Esta é uma abordagem simplificada. Em um app real, você obteria o session ID de um contexto
-    // ou de outra fonte de estado global. Por enquanto, vamos simular que ele pode ser nulo.
-    const sessionId = localStorage.getItem('activeSessionId'); // Simulação
-    
+const apiClientWithSession = (endpoint: string, sessionId?: number | null) => {
     let finalEndpoint = endpoint;
     if (sessionId) {
         const separator = endpoint.includes('?') ? '&' : '?';

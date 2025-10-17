@@ -191,6 +191,7 @@ export interface NewCharacterInfo {
     hitDie: number;
     subclass: string | null;
     level?: number;
+    homebrewIds?: string[];
 }
 
 export interface InventoryItem {
@@ -278,6 +279,7 @@ export interface Character {
     deletedAt?: string;
     personalityTraits: string[];
     draconicAncestry?: string;
+    homebrewContentIds?: string[];
 
     // Campos que podem ser calculados ou precisam ser mantidos no estado do frontend
     modifiers: Attributes;

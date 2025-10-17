@@ -31,9 +31,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
-    
+
     const allProficiencyChoices = useMemo(() => {
-        // This logic is now centralized here, as it's derived data.
         const choices: ProficiencyChoiceWithSource[] = [];
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
@@ -66,8 +65,22 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         return choices;
     }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
     
-    const { allFixedProficiencies, ...derivedData } = useDerivedCharacterData(state, details, allProficiencyChoices);
+    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
+        
+        if (!state.isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
+        addProfs(details.subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
+
+        return profs;
+    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
+
     const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells);
+    
+    const derivedData = useDerivedCharacterData(state, details, selectionManager.proficiencySelections, allProficiencyChoices, allFixedProficiencies);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -94,7 +107,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleRandomizeBackground = useCallback(async (backgrounds: ApiListItem[]) => {
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
         await handleBackgroundChange(randomBgItem.index);
-        // We need to fetch details to randomize personality
         setTimeout(async () => {
             const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
             if (!details) return;
@@ -119,7 +131,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 const randomFlaw = options[Math.floor(Math.random() * options.length)];
                 setField('flaw', randomFlaw.string);
             }
-        }, 500); // Timeout to allow state to update and details to fetch
+        }, 500);
     }, [handleBackgroundChange]);
     
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
@@ -140,10 +152,14 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     }, [handleRaceChange, handleClassChange, handleSubraceChange]);
     
     const { buildCharacter, isComplete } = useMemo(() => {
-        // The logic for isComplete and buildCharacter would be complex and depends on all hooks.
-        // This is a simplified representation.
-        const canProceedFromProficiencies = derivedData.canProceedFromProficiencies;
-        
+        const canProceedFromProficiencies = allProficiencyChoices.every(choice => (selectionManager.proficiencySelections[choice.id]?.length || 0) === choice.choose);
+        const areAllEquipmentChoicesMade = derivedData.equipmentChoiceGroups.every(group => selectionManager.equipmentSelections[group.id] && selectionManager.equipmentSelections[group.id].main !== undefined);
+        const cantripsKnown = details.classDetails?.spellcasting ? details.classDetails.spellcasting.info.find(i => i.name === 'Cantrips')?.desc[0]?.match(/\d+/)?.[0] || 0 : 0;
+        const spellsKnown = details.classDetails?.spellcasting ? details.classDetails.spellcasting.info.find(i => i.name === 'Spells Known of 1st-Level and Higher')?.desc[0]?.match(/\d+/)?.[0] || 0 : 0;
+        const areClassSpellsSelected = selectionManager.chosenClassSpells.filter(s => details.classSpellOptions.find(opt => opt.index === s)?.level === 0).length === Number(cantripsKnown) &&
+                                     selectionManager.chosenClassSpells.filter(s => details.classSpellOptions.find(opt => opt.index === s)?.level === 1).length === Number(spellsKnown);
+        const areRacialSpellsSelected = selectionManager.racialSpellTraits.every(trait => (selectionManager.chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose);
+
         const isPersonalityComplete = state.background ? (
             state.personalityTraits.length === (backgroundDetails?.personality_traits?.choose || 0) &&
             !!state.ideal && !!state.bond && !!state.flaw
@@ -153,13 +169,16 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             !!state.name && !!state.race && !!state.characterClass && !!state.background && !!state.alignment &&
             state.attributeMethod !== null && (state.attributeMethod === 'roll' || (state.attributeMethod === 'point-buy' && state.points === 0)) &&
             canProceedFromProficiencies &&
-            derivedData.areAllEquipmentChoicesMade &&
-            selectionManager.areClassSpellsSelected && 
-            selectionManager.areRacialSpellsSelected
+            areAllEquipmentChoicesMade &&
+            areClassSpellsSelected && 
+            areRacialSpellsSelected
         );
 
         const buildFn = (): NewCharacterInfo | null => {
             if (!isComplete) return null;
+            
+            const homebrewIds = [state.race, state.subrace, state.characterClass, state.background].filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
             return {
                 name: state.name,
                 sex: state.sex,
@@ -169,7 +188,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 race: raceDetails!.name,
                 subrace: details.subraceDetails?.name || null,
                 characterClass: classDetails!.name,
-                subclassFlavor: details.subclassFlavor || null,
+                subclassFlavor: details.classDetails?.subclasses?.[0]?.name || null,
                 background: backgroundDetails!.name,
                 alignment: state.alignment,
                 attributes: derivedData.finalAttributes,
@@ -186,11 +205,12 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 feats: [], // Feats logic needs to be fully integrated
                 hitDie: classDetails!.hit_die,
                 subclass: null,
+                homebrewIds,
             };
         };
 
         return { buildCharacter: buildFn, isComplete };
-    }, [state, details, selectionManager, derivedData]);
+    }, [state, details, selectionManager, derivedData, allProficiencyChoices]);
     
     return {
         ...state,
@@ -201,6 +221,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         ...attributeManager,
         ...selectionManager,
         ...derivedData,
+        allProficiencyChoices,
+        allFixedProficiencies,
         handleRaceChange,
         handleSubraceChange,
         handleClassChange,
