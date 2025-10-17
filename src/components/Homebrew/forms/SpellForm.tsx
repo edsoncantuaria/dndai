@@ -51,7 +51,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     const defaultSchool = schools.results[0];
                     handleFieldChange('school', { index: defaultSchool.index, name: defaultSchool.name });
                 }
-                 if (!spellData.damage.damage_type.index && damages?.results?.length > 0) {
+                 if (!spellData.damage?.damage_type?.index && damages?.results?.length > 0) {
                     const defaultDamage = damages.results[0];
                     handleDamageChange('damage_type', { index: defaultDamage.index, name: defaultDamage.name });
                 }
@@ -68,12 +68,15 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = { ...spellData };
 
-        if(!fullData.attack_type) delete fullData.attack_type;
+        // Garante que o objeto damage exista antes de tentar acessá-lo.
+        const damageExists = fullData.damage && typeof fullData.damage === 'object';
+
+        if (!fullData.attack_type) delete fullData.attack_type;
         
-        if (!fullData.attack_type || !fullData.damage?.damage_type?.index) {
+        if (!fullData.attack_type || !damageExists || !fullData.damage.damage_type?.index) {
             delete fullData.damage;
         } else {
-             if (Object.keys(fullData.damage.damage_at_character_level || {}).length === 0) delete fullData.damage.damage_at_character_level;
+            if (Object.keys(fullData.damage.damage_at_character_level || {}).length === 0) delete fullData.damage.damage_at_character_level;
             if (Object.keys(fullData.damage.damage_at_slot_level || {}).length === 0) delete fullData.damage.damage_at_slot_level;
         }
 
@@ -86,13 +89,13 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
     
     const handleDamageChange = (field: keyof typeof spellData.damage, value: any) => {
-        const newDamageData = { ...spellData.damage, [field]: value };
+        const newDamageData = { ...(spellData.damage || {}), [field]: value };
         handleFieldChange('damage', newDamageData);
     };
 
     const handleScalingChange = (type: 'character' | 'slot', index: number, field: 'level' | 'dice', value: string) => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
-        const currentScaling = Object.entries(spellData.damage[key] || {});
+        const currentScaling = Object.entries(spellData.damage?.[key] || {});
         
         let newLevel = currentScaling[index]?.[0] || '';
         let newDice = currentScaling[index]?.[1] || '';
@@ -113,15 +116,15 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
     const addScalingEntry = (type: 'character' | 'slot') => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
-        const currentEntries = Object.keys(spellData.damage[key] || {});
+        const currentEntries = Object.keys(spellData.damage?.[key] || {});
         const newKey = (currentEntries.length + 1).toString();
-        const newScaling = {...(spellData.damage[key] || {}), [newKey]: ''};
+        const newScaling = {...(spellData.damage?.[key] || {}), [newKey]: ''};
         handleDamageChange(key, newScaling);
     };
     
     const removeScalingEntry = (type: 'character' | 'slot', level: string) => {
         const key = type === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level';
-        const newScaling = {...spellData.damage[key]};
+        const newScaling = {...spellData.damage?.[key]};
         delete newScaling[level];
         handleDamageChange(key, newScaling);
     };
@@ -143,7 +146,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     
     const scalingType = spellData.level === 0 ? 'character' : 'slot';
     const scalingLabel = scalingType === 'character' ? 'Nível do Personagem' : 'Nível da Magia';
-    const scalingData = spellData.damage[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level'] || {};
+    const scalingData = spellData.damage?.[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level'] || {};
 
     return (
         <div className="space-y-4">
@@ -220,7 +223,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                          <div>
                             <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
-                            <select value={spellData.damage.damage_type.index} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                            <select value={spellData.damage?.damage_type?.index || ''} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                                 {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
                             </select>
                         </div>

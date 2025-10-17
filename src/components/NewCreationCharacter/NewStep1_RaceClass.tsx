@@ -151,7 +151,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     </div>
                 )}
 
-                {race === 'dragonborn' && (
+                {race === 'dragonborn' && draconicAncestryOptions && (
                     <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
                         <h4 className="text-lg font-semibold text-stone-300 mb-2">Ancestralidade Dracônica</h4>
                         <p className="text-sm text-stone-400 mb-4">Sua linhagem determina seu tipo de dano e arma de sopro.</p>
