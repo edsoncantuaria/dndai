@@ -21,6 +21,7 @@ export interface CreateHomebrewData {
     name: string;
     content: any;
     isPublic?: boolean;
+    createdBy?: 'user' | 'ai';
 }
 
 /**
@@ -34,11 +35,9 @@ export const listHomebrewContent = async (scope: 'public' | 'mine', type?: Homeb
     if (type) {
         params.append('type', type);
     }
-    // REVALIDATE START
     if (createdBy) {
         params.append('createdBy', createdBy);
     }
-    // REVALIDATE END
     const endpoint = `/homebrew?${params.toString()}`;
     return apiClient<HomebrewContent[]>(endpoint, { method: 'GET' });
 };
@@ -47,9 +46,10 @@ export const listHomebrewContent = async (scope: 'public' | 'mine', type?: Homeb
  * Cria um novo conteúdo homebrew.
  * @param data Os dados para o novo conteúdo.
  */
-export const createHomebrewContent = async (data: CreateHomebrewData): Promise<{ content: HomebrewContent }> => {
-    return apiClient<{ content: HomebrewContent }>('/homebrew', {
+export const createHomebrewContent = async (data: CreateHomebrewData): Promise<HomebrewContent> => {
+    const response = await apiClient<{ content: HomebrewContent }>('/homebrew', {
         method: 'POST',
         body: JSON.stringify(data),
     });
+    return response.content;
 };

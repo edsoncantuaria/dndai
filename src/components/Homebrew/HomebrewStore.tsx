@@ -10,7 +10,7 @@ import { translateApiString } from '@/utils/translator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 
 type View = 'list' | 'create';
-type Tab = 'public' | 'mine' | 'ai'; // Adicionado 'ai'
+type Tab = 'public' | 'mine' | 'ai'; 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
@@ -44,14 +44,13 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             
             const [contentResult, sessionsResult] = await Promise.all([
                 contentPromise,
-                GameService.getGameSessions()
+                activeSessionId ? GameService.getSessionDetails(activeSessionId) : Promise.resolve(null),
             ]);
 
-            setContent(contentResult);
+            setContent(contentResult || []);
 
-            if (activeSessionId) {
-                const activeSession = sessionsResult.find(s => s.id === activeSessionId);
-                setInstalledIds(new Set(activeSession?.homebrewContentIds || []));
+            if (sessionsResult) {
+                setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
             } else {
                  setInstalledIds(new Set());
             }
@@ -83,16 +82,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         const action = isInstalled ? 'uninstall' : 'install';
 
         try {
-            await GameService.updateSessionHomebrew(activeSessionId, contentId, action);
-            setInstalledIds(prev => {
-                const newSet = new Set(prev);
-                if (isInstalled) {
-                    newSet.delete(contentId);
-                } else {
-                    newSet.add(contentId);
-                }
-                return newSet;
-            });
+            const { sessao } = await GameService.updateSessionHomebrew(activeSessionId, contentId, action);
+            // Re-sincronizar o estado dos IDs instalados com a resposta do servidor
+            setInstalledIds(new Set(sessao.homebrewContentIds || []));
+            
             toast({
                 title: `Conteúdo ${isInstalled ? 'Desinstalado' : 'Instalado'}!`,
                 description: `O item foi ${isInstalled ? 'removido da' : 'adicionado à'} sua sessão ativa.`,
