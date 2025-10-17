@@ -69,3 +69,5 @@ export const getTraitDetails = (index: string) => {
 };
 export const getFeatDetails = (index: string) => apiClient<Feat>(`/dnds/feats/${index}`);
 export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
+export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
+export const getEquipmentDetails = (index: string) => apiClient<InventoryItem>(`/dnds/equipment/${index}`);
