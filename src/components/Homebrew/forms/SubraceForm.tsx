@@ -61,7 +61,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...subraceData,
-            index: subraceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-subrace-${Date.now()}`
+            index: (subraceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-subrace-${Date.now()}`
         };
         onDataChange(fullData);
     }, [subraceData, onDataChange]);
