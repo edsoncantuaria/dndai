@@ -1,4 +1,5 @@
 
+
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -123,18 +124,24 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             const [publicBundles, myBundles, publicContent, myContent, aiContent] = await Promise.all([
                 HomebrewService.listBundles('public'),
                 user ? HomebrewService.listBundles('mine') : Promise.resolve([]),
-                HomebrewService.listHomebrewContent('public', 'user'), // Apenas user, AI será tratada separadamente
+                HomebrewService.listHomebrewContent('public', 'user'),
                 user ? HomebrewService.listHomebrewContent('mine') : Promise.resolve([]),
                 HomebrewService.listHomebrewContent('public', 'ai'),
             ]);
-
-            const allBundles = [...myBundles, ...publicBundles.filter(pb => !myBundles.some(mb => mb.id === pb.id))];
-            
-            // Suas criações publicas devem aparecer na comunidade
-            const communityVisibleContent = [...publicContent, ...myContent.filter(mc => mc.isPublic)];
-            
-            setContent([...myContent, ...communityVisibleContent, ...aiContent].sort((a, b) => a.name.localeCompare(b.name)));
-            setBundles(allBundles.sort((a, b) => a.name.localeCompare(b.name)));
+    
+            // Combine all bundles ensuring user's bundles take precedence if IDs clash
+            const allBundlesMap = new Map<string, HomebrewService.HomebrewBundle>();
+            publicBundles.forEach(b => allBundlesMap.set(b.id, b));
+            myBundles.forEach(b => allBundlesMap.set(b.id, b));
+    
+            // Combine all content ensuring uniqueness
+            const allContentMap = new Map<string, HomebrewService.HomebrewContent>();
+            publicContent.forEach(c => allContentMap.set(c.id, c));
+            myContent.forEach(c => allContentMap.set(c.id, c));
+            aiContent.forEach(c => allContentMap.set(c.id, c));
+    
+            setContent(Array.from(allContentMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+            setBundles(Array.from(allBundlesMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
 
         } catch (error: any) {
             toast({
@@ -358,9 +365,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     };
     
     const renderCommunityTab = () => {
-        const communityContent = content.filter(c => c.isPublic && c.authorId !== user?.id && !c.bundleId && c.createdBy === 'user');
-        const myPublicContent = content.filter(c => c.isPublic && c.authorId === user?.id && !c.bundleId && c.createdBy === 'user');
-        return renderContentGrid([...communityContent, ...myPublicContent]);
+        const communityContent = content.filter(c => c.isPublic && !c.bundleId && c.createdBy === 'user');
+        return renderContentGrid(communityContent);
     };
 
     const renderMyCreationsTab = () => {
