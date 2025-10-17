@@ -1,8 +1,7 @@
-
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown, Search } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
@@ -40,7 +39,9 @@ const BundleCard: React.FC<{
     onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
 }> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const allContentsOfBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
+    
+    // Um pacote é considerado "instalado" se todos os seus conteúdos estiverem instalados.
+    const isBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
 
     return (
         <div className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
@@ -51,7 +52,7 @@ const BundleCard: React.FC<{
                         <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </button>
                 </div>
-                <p className="text-xs text-stone-400 mb-2">Contém {bundle.contentCount} itens. {isOwner && '(Meu Pacote)'}</p>
+                <p className="text-xs text-stone-400 mb-2">por {isOwner ? 'Você' : 'Comunidade'} • Contém {bundle.contentCount} itens.</p>
                 <p className="text-sm text-stone-300">{bundle.description}</p>
             </div>
 
@@ -75,13 +76,13 @@ const BundleCard: React.FC<{
                     </>
                 )}
                  <button
-                    onClick={() => allContentsOfBundleInstalled ? onUninstall(bundle) : onInstall(bundle)}
+                    onClick={() => isBundleInstalled ? onUninstall(bundle) : onInstall(bundle)}
                     className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-                        allContentsOfBundleInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                        isBundleInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
                     }`}
                 >
-                    {allContentsOfBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                    {allContentsOfBundleInstalled ? 'Desinstalar' : 'Instalar Pacote'}
+                    {isBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                    {isBundleInstalled ? 'Desinstalar' : 'Instalar Pacote'}
                 </button>
             </div>
         </div>
@@ -95,6 +96,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [bundleToEdit, setBundleToEdit] = useState<HomebrewService.HomebrewBundle | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('bundles');
     const [typeFilter, setTypeFilter] = useState<HomebrewService.HomebrewContentType | 'all'>('all');
+    const [searchTerm, setSearchTerm] = useState(''); // Estado para o termo de busca
     const [isLoading, setIsLoading] = useState(false);
     const [content, setContent] = useState<HomebrewService.HomebrewContent[]>([]);
     const [bundles, setBundles] = useState<HomebrewService.HomebrewBundle[]>([]);
@@ -113,8 +115,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const fetchContentAndInstalledIds = useCallback(async () => {
         setIsLoading(true);
         try {
-            const filterType = typeFilter === 'all' ? undefined : typeFilter;
-            
             let contentResult: HomebrewService.HomebrewContent[] = [];
             let bundlesResult: HomebrewService.HomebrewBundle[] = [];
             
@@ -125,18 +125,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 ]);
                 const myBundleIds = new Set(myBundles.map(b => b.id));
                 bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
-            }
-
-            if(activeTab === 'mine') {
-                 const myContent = await HomebrewService.listHomebrewContent('mine', filterType);
-                 contentResult = myContent;
             } else if (activeTab === 'community') {
-                 const publicContent = await HomebrewService.listHomebrewContent('public', filterType);
-                 contentResult = publicContent;
+                 const publicContent = await HomebrewService.listPublicHomebrewContent();
+                 contentResult = publicContent.filter(c => c.authorId !== user?.id);
+            } else if (activeTab === 'mine') {
+                const myContent = await HomebrewService.getHomebrewContentByAuthor(user!.id);
+                contentResult = myContent;
             }
-
-            setContent(contentResult.sort((a,b) => a.name.localeCompare(b.name)));
-            setBundles(bundlesResult.sort((a,b) => a.name.localeCompare(b.name)));
+            
+            setContent(contentResult.sort((a, b) => a.name.localeCompare(b.name)));
+            setBundles(bundlesResult.sort((a, b) => a.name.localeCompare(b.name)));
 
         } catch (error: any) {
             toast({
@@ -149,7 +147,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         } finally {
             setIsLoading(false);
         }
-    }, [activeTab, toast, typeFilter, user]);
+    }, [activeTab, toast, user]);
     
     useEffect(() => {
         if (view === 'list') {
@@ -194,7 +192,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         if (idsToInstall.length === 0) {
             setInstallCandidate(null);
             setDependencies([]);
-            if (idsToInstall.length === 0) toast({ title: 'Tudo pronto!', description: 'O conteúdo selecionado e suas dependências já estão instalados.' });
+            toast({ title: 'Tudo pronto!', description: 'O conteúdo selecionado e suas dependências já estão instalados.' });
             return;
         }
 
@@ -286,13 +284,18 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     }
 
     const renderContentGrid = (contentList: HomebrewService.HomebrewContent[]) => {
-        if (contentList.length === 0) {
+        const filteredContent = contentList.filter(item => 
+            (typeFilter === 'all' || item.type === typeFilter) &&
+            (item.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+
+        if (filteredContent.length === 0 && !isLoading) {
             return <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado para os filtros selecionados.</p>;
         }
 
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {contentList.map(item => {
+                {filteredContent.map(item => {
                     const isInstalled = installedIds.has(item.id);
                     const isOwner = item.authorId === user?.id;
                     const isFromAI = item.createdBy === 'ai';
@@ -307,7 +310,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                          {translateApiString(item.type)}
                                     </div>
                                 </div>
-                                {isFromAI && <p className="text-xs text-stone-500 mt-1">Criado por: Mestre IA</p>}
+                                <p className="text-xs text-stone-400 mt-1">
+                                    {isFromAI ? 'Criado por: Mestre IA' : (isOwner ? 'Criado por: Você' : 'Criado por: Comunidade')}
+                                </p>
                                 {item.bundle && <p className="text-xs text-purple-400 mt-1">Parte do pacote: {item.bundle.name}</p>}
                             </div>
                             <div className="mt-4 flex gap-2">
@@ -337,7 +342,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const renderBundlesTab = () => (
         bundles.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {bundles.map(bundle => (
+                {bundles.filter(b => b.name.toLowerCase().includes(searchTerm.toLowerCase())).map(bundle => (
                     <BundleCard
                         key={bundle.id}
                         bundle={bundle}
@@ -356,19 +361,18 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     );
 
     const renderMyCreationsTab = () => {
-        const myContent = content.filter(c => c.authorId === user?.id);
+        const myContent = content.filter(c => c.authorId === user?.id && !c.bundleId);
         const myBundles = bundles.filter(b => b.authorId === user?.id);
-        const myUnbundledContent = myContent.filter(c => !c.bundleId);
         
         return (
              <div className="space-y-8">
                 <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Meus Pacotes</h2>
-                    {renderBundlesTab()}
+                    {myBundles.length > 0 ? renderBundlesTab() : <p className="text-stone-500 italic text-center py-4">Você ainda não criou nenhum pacote.</p>}
                 </div>
                  <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Minhas Criações Avulsas</h2>
-                    {renderContentGrid(myUnbundledContent)}
+                    {renderContentGrid(myContent)}
                 </div>
             </div>
         );
@@ -385,7 +389,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         
         switch (activeTab) {
             case 'bundles': return renderBundlesTab();
-            case 'community': return renderContentGrid(content.filter(c => c.authorId !== user?.id));
+            case 'community': return renderContentGrid(content);
             case 'mine': return renderMyCreationsTab();
             default: return null;
         }
@@ -442,10 +446,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                              <button onClick={() => setActiveTab('bundles')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'bundles' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 <Package className="h-5 w-5"/> Pacotes
                             </button>
-                            <button onClick={() => setActiveTab('community')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'community' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
+                            <button onClick={() => setActiveTab('community')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'community' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 Comunidade
                             </button>
-                            <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
+                            <button onClick={() => setActiveTab('mine')} className={`px-4 py-2 text-lg font-semibold transition-colors flex items-center gap-2 ${activeTab === 'mine' ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
                                 Minhas Criações
                             </button>
                         </div>
@@ -458,17 +462,31 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </button>
                         </div>
                     </div>
-                    {activeTab === 'community' && (
-                        <div className="flex flex-wrap items-center gap-2 mb-4 p-2 bg-stone-900/50 rounded-lg border border-stone-700">
-                            <span className="text-sm font-semibold text-stone-400 mr-2">Filtrar por tipo:</span>
-                            <button onClick={() => setTypeFilter('all')} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-                                <Grip className="h-4 w-4"/> Todos
-                            </button>
-                            {CONTENT_TYPES.map(type => (
-                                <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-                                {CONTENT_TYPE_ICONS[type]} {translateApiString(type)}
+                    {activeTab !== 'mine' && (
+                        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-stone-900/50 rounded-lg border border-stone-700">
+                            <div className="relative flex-grow">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500"/>
+                                <input 
+                                    type="text"
+                                    placeholder="Buscar por nome..."
+                                    value={searchTerm}
+                                    onChange={e => setSearchTerm(e.target.value)}
+                                    className="w-full bg-stone-800 border-stone-700 rounded-full py-1.5 pl-9 pr-3 text-sm"
+                                />
+                            </div>
+                            {activeTab === 'community' && (
+                                <>
+                                <span className="text-sm font-semibold text-stone-400 ml-4">Filtrar:</span>
+                                <button onClick={() => setTypeFilter('all')} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                                    <Grip className="h-4 w-4"/> Todos
                                 </button>
-                            ))}
+                                {CONTENT_TYPES.map(type => (
+                                    <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                                    {CONTENT_TYPE_ICONS[type]} {translateApiString(type)}
+                                    </button>
+                                ))}
+                                </>
+                            )}
                         </div>
                     )}
                     <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 min-h-[40vh] max-h-[60vh] overflow-y-auto">
