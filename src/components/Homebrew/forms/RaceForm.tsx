@@ -14,7 +14,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const [raceData, setRaceData] = useState(() => ({
         name: '',
         speed: 30,
-        ability_bonuses: [],
+        ability_bonuses: [] as { ability_score: { index: string; name: string, url: string }; bonus: number }[],
         traits: [],
         alignment: "Varia muito, mas tende a...",
         age: "Atingem a maturidade por volta dos X anos e vivem até Y.",
@@ -25,6 +25,7 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         languages: [],
         subraces: [],
         dependencies: [],
+        official_index: '', // Novo campo para o índice
         ...initialData,
     }));
     
@@ -35,9 +36,10 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const fullData = {
             ...raceData,
             dependencies: homebrewTraitIds,
-            index: raceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
+            index: raceData.official_index || raceData.name.toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData; // Remove o campo auxiliar
+        onDataChange(finalData);
     }, [raceData, onDataChange]);
 
 
@@ -73,6 +75,10 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <label htmlFor="race-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Raça</label>
                 <input id="race-name" type="text" value={raceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Povo Gato, Githzerai"/>
+            </div>
+             <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={raceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: human, half-elf (opcional)"/>
             </div>
             <div>
                 <label htmlFor="race-speed" className="block text-sm font-medium text-stone-300 mb-1">Velocidade</label>

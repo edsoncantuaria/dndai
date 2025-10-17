@@ -20,8 +20,9 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         equipment_category: { index: 'adventuring-gear', name: 'Adventuring Gear' },
         cost: { quantity: 0, unit: 'gp' },
         weight: 0,
-        rarity: { name: 'Common' }, // Campo para raridade de item mágico
-        isMagic: false, // Flag para item mágico
+        rarity: { name: 'Common' },
+        isMagic: false,
+        official_index: '',
     });
     const [equipmentCategories, setEquipmentCategories] = useState<ApiListItem[]>([]);
     const [isLoadingCategories, setIsLoadingCategories] = useState(true);
@@ -62,10 +63,9 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...itemData,
-            index: itemData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
+            index: itemData.official_index || itemData.name.toLowerCase().replace(/\s+/g, '-') || `custom-item-${Date.now()}`
         };
-        // Remove 'isMagic' field before sending up, it's just for form state
-        const { isMagic, ...finalData } = fullData;
+        const { isMagic, official_index, ...finalData } = fullData;
         if (!isMagic) {
             delete finalData.rarity;
         }
@@ -98,6 +98,10 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <label htmlFor="item-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Item</label>
                 <input id="item-name" type="text" value={itemData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={itemData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: longsword (opcional)"/>
             </div>
              <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>

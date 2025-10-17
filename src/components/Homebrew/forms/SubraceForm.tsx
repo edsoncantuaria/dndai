@@ -22,6 +22,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         starting_proficiencies: [] as ApiListItem[],
         languages: [] as ApiListItem[],
         dependencies: [],
+        official_index: '',
     });
     const [races, setRaces] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +42,6 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
             setRaces(all.sort((a,b) => a.name.localeCompare(b.name)));
             
-            // If editing and the parent race is homebrew, ensure it's in the list
             if (initialData?.race.index && !all.some(r => r.index === initialData.race.index)) {
                 setRaces(prev => [initialData.race, ...prev]);
             }
@@ -61,9 +61,10 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...subraceData,
-            index: (subraceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-subrace-${Date.now()}`
+            index: subraceData.official_index || (subraceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-subrace-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [subraceData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof subraceData, value: any) => {
@@ -74,7 +75,6 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const selectedRace = races.find(r => r.index === raceIndex);
         if (selectedRace) {
             handleFieldChange('race', selectedRace);
-            // Se a raça principal for homebrew, adicione-a como dependência
             if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raceIndex)) {
                 setSubraceData(prev => ({ ...prev, dependencies: [raceIndex] }));
             } else {
@@ -123,6 +123,10 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <label htmlFor="subrace-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Sub-raça</label>
                 <input id="subrace-name" type="text" value={subraceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Elfo da Floresta, Anão Cinzento"/>
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={subraceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: high-elf (opcional)"/>
             </div>
             <div>
                 <label htmlFor="subrace-parent-race" className="block text-sm font-medium text-stone-300 mb-1">Raça Principal</label>

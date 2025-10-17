@@ -20,6 +20,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         class: { index: '', name: '', url: '' },
         features: [] as any[],
         dependencies: [],
+        official_index: '',
     });
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -59,9 +60,10 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...subclassData,
-            index: subclassData.name.toLowerCase().replace(/\s+/g, '-') || `custom-subclass-${Date.now()}`
+            index: subclassData.official_index || subclassData.name.toLowerCase().replace(/\s+/g, '-') || `custom-subclass-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [subclassData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof subclassData, value: any) => {
@@ -112,7 +114,10 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="subclass-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Subclasse</label>
                 <input id="subclass-name" type="text" value={subclassData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre das Runas" />
             </div>
-            
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={subclassData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fiend (opcional)"/>
+            </div>
             <div>
                 <label htmlFor="subclass-class" className="block text-sm font-medium text-stone-300 mb-1">Classe Original</label>
                 <select 

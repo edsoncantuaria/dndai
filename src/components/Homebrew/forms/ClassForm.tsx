@@ -32,6 +32,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         proficiency_choices: [] as any[],
         saving_throws: [] as ApiListItem[],
         features: [] as any[],
+        official_index: '',
     });
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);
 
@@ -39,9 +40,10 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...classData,
-            index: classData.name.toLowerCase().replace(/\s+/g, '-') || `custom-class-${Date.now()}`
+            index: classData.official_index || classData.name.toLowerCase().replace(/\s+/g, '-') || `custom-class-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [classData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof classData, value: any) => {
@@ -146,6 +148,10 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     required 
                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
                 />
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={classData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: barbarian (opcional)"/>
             </div>
             <div>
                 <label htmlFor="hit-die" className="block text-sm font-medium text-stone-300 mb-1">

@@ -30,6 +30,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             damage_at_character_level: {} as Record<string, string>,
             damage_at_slot_level: {} as Record<string, string>,
         },
+        official_index: '',
         ...initialData
     }));
 
@@ -91,8 +92,9 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             }
         }
 
-        fullData.index = spellData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
-        onDataChange(fullData);
+        fullData.index = spellData.official_index || spellData.name.toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [spellData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof spellData, value: any) => {
@@ -164,6 +166,10 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
              <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
                 <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={spellData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fire-bolt (opcional)"/>
             </div>
             <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>

@@ -21,14 +21,16 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         name: '',
         desc: [''],
         prerequisites: [] as Prerequisite[],
+        official_index: '',
     });
 
     useEffect(() => {
         const fullData = {
             ...featData,
-            index: featData.name.toLowerCase().replace(/\s+/g, '-') || `custom-feat-${Date.now()}`
+            index: featData.official_index || featData.name.toLowerCase().replace(/\s+/g, '-') || `custom-feat-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [featData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof featData, value: any) => {
@@ -59,6 +61,10 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <label htmlFor="feat-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Talento</label>
                 <input id="feat-name" type="text" value={featData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre de Armas de Haste"/>
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={featData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: grappler (opcional)"/>
             </div>
             <div>
                 <label htmlFor="feat-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>

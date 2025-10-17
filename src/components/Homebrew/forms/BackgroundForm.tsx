@@ -21,6 +21,7 @@ const defaultBgData = {
     language_options: { choose: 0, type: 'languages', from: { option_set_type: "resource_list", resource_list_url: "/api/languages" } },
     starting_equipment: [],
     starting_equipment_options: [],
+    official_index: '',
 };
 
 
@@ -35,9 +36,10 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
      useEffect(() => {
         const fullData = {
             ...bgData,
-            index: bgData.name.toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
+            index: bgData.official_index || bgData.name.toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [bgData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof bgData, value: any) => {
@@ -65,6 +67,10 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Nome do Antecedente</label>
                     <input type="text" value={bgData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                </div>
+                 <div>
+                    <label className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                    <input type="text" value={bgData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: acolyte (opcional)"/>
                 </div>
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Idiomas Adicionais</label>

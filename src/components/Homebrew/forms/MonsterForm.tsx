@@ -52,6 +52,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         special_abilities: [] as any[],
         actions: [] as any[],
         legendary_actions: [] as any[],
+        official_index: '',
     });
     
     const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
@@ -64,9 +65,10 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...monsterData,
-            index: monsterData.name.toLowerCase().replace(/\s+/g, '-') || `custom-monster-${Date.now()}`
+            index: monsterData.official_index || monsterData.name.toLowerCase().replace(/\s+/g, '-') || `custom-monster-${Date.now()}`
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData;
+        onDataChange(finalData);
     }, [monsterData, onDataChange]);
 
      useEffect(() => {
@@ -235,6 +237,10 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     required
                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
                 />
+            </div>
+            <div>
+                <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                <input id="official_index" type="text" value={monsterData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: goblin (opcional)"/>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
