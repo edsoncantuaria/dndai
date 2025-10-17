@@ -1,5 +1,6 @@
+
 // backend/src/services/aiCreationService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative_ai";
 import { z } from 'zod';
 import createError from 'http-errors';
 import { EXAMPLES } from '../../data/examples.js';
@@ -44,7 +45,7 @@ export const createHomebrewContent = async (input: z.infer<typeof CreateHomebrew
         const result = await model.generateContent({
             contents: [{ role: "user", parts: [{ text: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"` }] }],
             systemInstruction: {
-                role: "system",
+                role: "model",
                 parts: [{ text: systemInstruction }],
             },
             generationConfig: {
