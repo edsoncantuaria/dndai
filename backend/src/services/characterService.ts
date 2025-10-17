@@ -50,31 +50,10 @@ export const buildFullCharacterObject = async (character: Character) => {
     return characterData;
 };
 
+// REVALIDATE START
 // Helper to check if a string is a UUID
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
-
-// Helper to get or create a detailed, reusable homebrew item
-const getOrCreateReusableItem = async (userId: number, itemName: string, itemDetails: any) => {
-    const reusableItem = await HomebrewService.findHomebrewContentByName(itemName, 'item');
-    if (reusableItem) {
-        return reusableItem.content;
-    }
-    // If not found, create it as a new homebrew entry for future reuse
-    const newHomebrewItem = await HomebrewService.createHomebrewContent(userId, {
-        name: itemName,
-        type: 'item',
-        content: {
-            ...itemDetails,
-            index: itemDetails.index || itemName.toLowerCase().replace(/\s+/g, '-'),
-            name: itemName,
-        },
-        isPublic: true, // Make these descriptive items public by default
-        createdBy: 'ai', // Mark as AI-created
-    });
-    return newHomebrewItem.content;
-}
-
+// REVALIDATE END
 
 export const createCharacter = async (userId: number, characterData: z.infer<typeof NewCharacterInfoSchema>) => {
     const queryRunner = AppDataSource.createQueryRunner();
@@ -82,7 +61,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        
+        // REVALIDATE START
         let classDetails: any;
         if (isUuid(characterData.characterClass)) {
             const hbClass = await HomebrewService.getHomebrewContentById(characterData.characterClass, userId);
@@ -91,6 +70,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             // FIX: Convert class index to lowercase for API call
             classDetails = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
         }
+        // REVALIDATE END
 
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);

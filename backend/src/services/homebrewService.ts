@@ -4,6 +4,7 @@ import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewConten
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema } from '../schemas/validationSchemas.js';
+import { Like } from 'typeorm';
 
 /**
  * Cria um novo conteúdo homebrew.
@@ -84,3 +85,21 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
 
     return content;
 };
+
+// REVALIDATE START
+/**
+ * Encontra um conteúdo homebrew pelo nome e tipo.
+ * @param name O nome do conteúdo (case-insensitive).
+ * @param type O tipo do conteúdo.
+ * @returns O primeiro conteúdo homebrew encontrado ou null.
+ */
+export const findHomebrewContentByName = async (name: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    return homebrewRepo.findOne({
+        where: {
+            name: Like(name), // Like para busca case-insensitive na maioria dos DBs
+            type: type,
+        },
+    });
+};
+// REVALIDATE END

@@ -9,6 +9,7 @@ import { HomebrewContentType } from '../entities/HomebrewContent.js';
 
 const router = Router();
 
+// REVALIDATE START
 // Tipos de conteúdo que podem ser estendidos com homebrew.
 const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
     'races', 'classes', 'subclasses', 'spells', 'items', 'monsters', 'backgrounds', 'feats'
@@ -16,6 +17,7 @@ const HOMEBREW_EXTENSIBLE_RESOURCES: HomebrewContentType[] = [
 
 // Helper to check if a string is a UUID
 const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+// REVALIDATE END
 
 
 // Rota específica para servir os dados completos do backgrounds.json
@@ -62,6 +64,7 @@ router.get('/:resource', async (req, res, next) => {
         const apiData = await DndApiService.getResourceList(resource);
         let finalResults = apiData?.results || [];
 
+        // REVALIDATE START
         // Se o recurso for extensível, busca e mescla com o homebrew público.
         if (HOMEBREW_EXTENSIBLE_RESOURCES.includes(resource)) {
             const homebrewContent = await HomebrewService.getPublicHomebrewContent(resource);
@@ -75,6 +78,7 @@ router.get('/:resource', async (req, res, next) => {
                 finalResults = [...finalResults, ...homebrewResults];
             }
         }
+        // REVALIDATE END
         
         const response = {
             count: finalResults.length,
