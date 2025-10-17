@@ -12,8 +12,8 @@ import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterRespons
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
-import { sanitizeGameMasterResponse } from '@/utils/sanitizeGameResponse';
 import { useToast } from './use-toast';
+import { initializeWebSocket, sendMessage, addEventListener, removeEventListener, closeWebSocket } from '@/services/webSocketService';
 
 
 export const useNewGameState = () => {
@@ -41,6 +41,7 @@ export const useNewGameState = () => {
         interactionState.clearAllInteractions();
         setSessionId(null);
         setApiError(null);
+        closeWebSocket();
     }, [characterState, logState, interactionState]);
 
 
@@ -81,6 +82,26 @@ export const useNewGameState = () => {
 
     }, [logState, characterState, interactionState]);
 
+    // WebSocket event handlers
+    useEffect(() => {
+        const handleGameStateUpdate = (payload: GameMasterResponse) => handleApiResponse(payload);
+        const handleError = (payload: { message: string }) => setApiError(payload.message);
+        const handleStartLoading = () => setIsLoading(true);
+        const handleStopLoading = () => setIsLoading(false);
+
+        addEventListener('gameStateUpdate', handleGameStateUpdate);
+        addEventListener('error', handleError);
+        addEventListener('startLoading', handleStartLoading);
+        addEventListener('stopLoading', handleStopLoading);
+
+        return () => {
+            removeEventListener('gameStateUpdate', handleGameStateUpdate);
+            removeEventListener('error', handleError);
+            removeEventListener('startLoading', handleStartLoading);
+            removeEventListener('stopLoading', handleStopLoading);
+        };
+    }, [handleApiResponse]);
+
 
     const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
         const currentSessionId = sessionIdOverride ?? sessionId;
@@ -102,30 +123,25 @@ export const useNewGameState = () => {
              return;
         }
         
-        setIsLoading(true);
-        setApiError(null);
-        interactionState.clearTransientInteractions();
-        
         const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
 
         if (!isInternalAction && finalSessionId !== -1) {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action });
         }
 
+        interactionState.clearTransientInteractions();
         interactionState.setActionOptions([]); 
         
-        try {
-            const rawResponse = await GameService.processPlayerAction(finalSessionId, action, key, interactionState.combatState, modelOverride || model, useAiHomebrew);
-            const responseData = sanitizeGameMasterResponse(rawResponse);
-            
-            handleApiResponse(responseData);
-        } catch (error: any) {
-            console.error("[processPlayerAction] Error processing player action:", error);
-            setApiError(error.message || "Ocorreu um erro desconhecido.");
-        } finally {
-            setIsLoading(false); 
-        }
-    }, [sessionId, interactionState.combatState, handleApiResponse, getApiKey, logState, interactionState, model, characterState, useAiHomebrew]);
+        sendMessage('processAction', {
+            sessionId: finalSessionId,
+            prompt: action,
+            apiKey: key,
+            combatState: interactionState.combatState,
+            useAiHomebrew: useAiHomebrew,
+            model: modelOverride || model
+        });
+        
+    }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, characterState, useAiHomebrew]);
     
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;
@@ -138,6 +154,7 @@ export const useNewGameState = () => {
         setIsLoading(true);
         setApiError(null);
         try {
+            initializeWebSocket(); // Inicia a conexão WebSocket
             const sessionDetails: SessaoIA = await GameService.getSessionDetails(id);
             const userInstalledIds = new Set(user?.installedHomebrewIds || []);
             const sessionRequiredIds = sessionDetails.homebrewContentIds || [];
@@ -156,8 +173,7 @@ export const useNewGameState = () => {
                     if (lastStateLog?.response) {
                          try {
                             const parsedState = JSON.parse(lastStateLog.response);
-                            const lastState = sanitizeGameMasterResponse(parsedState);
-                            handleApiResponse(lastState, true); 
+                            handleApiResponse(parsedState, true);
                         } catch(e) {
                             await processPlayerAction("Recarregar estado atual e obter opções.", id);
                         }

@@ -1,22 +1,28 @@
 // backend/src/server.ts
-import 'reflect-metadata'; // Necessário para o TypeORM
-import 'dotenv/config'; // Carrega as variáveis do .env para process.env
+import 'reflect-metadata';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
+import http from 'http'; // Importar o módulo http
 import { AppDataSource } from './database/data-source.js';
 import errorMiddleware from './middlewares/errorMiddleware.js';
+import { configureWebSocket } from './websocket/webSocketServer.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
-import narrarRoutes from './routes/narrarRoutes.js';
+// A rota de narração será substituída pela lógica do WebSocket, mas pode ser mantida por enquanto se necessário
+// import narrarRoutes from './routes/narrarRoutes.js'; 
 import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
 import dndApiRoutes from './routes/dndApiRoutes.js';
 import homebrewRoutes from './routes/homebrewRoutes.js';
+import aiCreationRoutes from './routes/aiCreationRoutes.js';
+
 
 const app = express();
+const server = http.createServer(app); // Criar um servidor HTTP a partir do app Express
 
 // Configuração do CORS
 const allowedOrigins = [
@@ -37,7 +43,7 @@ const corsOptions: cors.CorsOptions = {
 
 // Log de requisições
 app.use((req, res, next) => {
-    console.log(`[Server] Recebida requisição: ${req.method} ${req.originalUrl}`);
+    console.log(`[Server] Recebida requisição HTTP: ${req.method} ${req.originalUrl}`);
     next();
 });
 
@@ -52,11 +58,13 @@ const PORT = process.env.PORT || 8071;
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/licenses', licenseRoutes);
-app.use('/api/narrar', narrarRoutes);
+// A rota /api/narrar agora é tratada pelo WebSocket, então podemos desativá-la
+// app.use('/api/narrar', narrarRoutes); 
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/dnds', dndApiRoutes);
 app.use('/api/homebrew', homebrewRoutes);
+app.use('/api/ai', aiCreationRoutes);
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {
@@ -71,8 +79,11 @@ const startServer = async () => {
         await AppDataSource.initialize();
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
         
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando em http://localhost:${PORT}`);
+        // Configurar o servidor WebSocket, passando o servidor HTTP
+        configureWebSocket(server);
+
+        server.listen(PORT, () => {
+            console.log(`Servidor HTTP e WebSocket rodando em http://localhost:${PORT}`);
         });
 
     } catch (error) {
