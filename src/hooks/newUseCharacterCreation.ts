@@ -422,6 +422,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setChosenLanguages([]);
             setTraitChoiceDetails([]); // Ensure racial trait choices are cleared
             setDraconicAncestryOptions([]); // Clear dragonborn options
+            setRacialSpellOptions([]);
+            setRacialSpellTraits([]);
             setSelectedFeat('');
             setIsVariantHuman(false);
             setVariantHumanBonusSelections([]);
@@ -472,7 +474,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setTraitChoiceDetails(traitDetails.filter((t): t is ApiTrait => !!t));
             
             const newRacialSpellTraits: { traitName: string; choose: number; options: ApiListItem[] }[] = [];
-            const spellOptionsToFetch = new Set<ApiListItem>();
+            let spellOptionsToFetch = new Set<ApiListItem>();
     
             // Special Case: High Elf Cantrip
             const highElfTrait = traitDetails.find(t => t?.index === 'high-elf-cantrip');
@@ -513,9 +515,57 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 }
             }
 
+            // REVALIDATE START
+            // Dynamic Breath Weapon spell generation for Dragonborn
+            const breathWeaponTrait = traitDetails.find(t => t?.index === 'breath-weapon');
+            if (breathWeaponTrait) {
+                const ancestryTrait = traitDetails.find(t => t?.index === 'draconic-ancestry');
+                if (ancestryTrait?.trait_specific?.subtrait_options?.from?.options) {
+                    for (const option of ancestryTrait.trait_specific.subtrait_options.from.options) {
+                         const details = await DndApiService.getTraitDetails(option.item.index);
+                         if (details?.trait_specific?.breath_weapon && details.trait_specific.damage_type) {
+                            const bw = details.trait_specific.breath_weapon;
+                            const breathWeaponSpell: ApiSpell = {
+                                index: `breath-weapon-${details.trait_specific.damage_type.index}`,
+                                name: `Arma de Sopro (${translateApiString(details.trait_specific.damage_type.name)})`,
+                                desc: [bw.desc],
+                                higher_level: [],
+                                range: `${bw.area_of_effect.size} pés em ${bw.area_of_effect.type === 'line' ? 'linha' : 'cone'}`,
+                                components: [],
+                                material: '',
+                                ritual: false,
+                                duration: 'Instantânea',
+                                casting_time: bw.usage?.type || '1 Ação',
+                                level: 0,
+                                school: { name: 'Evocação', index: 'evocation', url: '' },
+                                classes: [],
+                                subclasses: [],
+                                damage: bw.damage ? { damage_type: bw.damage[0].damage_type, damage_at_character_level: bw.damage[0].damage_at_character_level } : undefined
+                            };
+                            // Add this dynamically created spell to the options
+                            spellOptionsToFetch.add({ index: breathWeaponSpell.index, name: breathWeaponSpell.name, url: '' });
+                            // This is a bit of a hack: push it directly into the state that holds spell details
+                            setRacialSpellOptions(prev => {
+                                if (prev.some(p => p.index === breathWeaponSpell.index)) return prev;
+                                return [...prev, breathWeaponSpell];
+                            });
+                         }
+                    }
+                }
+            }
+            // REVALIDATE END
+
             if (spellOptionsToFetch.size > 0) {
                 const fetchedSpellDetails = await fetchDetailsInChunks(Array.from(spellOptionsToFetch), DndApiService.getSpellDetails, () => {});
-                setRacialSpellOptions(fetchedSpellDetails.filter((s): s is ApiSpell => s !== null).map(spell => translateSpell(spell) as ApiSpell));
+                 // Use a Set to filter out duplicates before setting state
+                const existingIndices = new Set(racialSpellOptions.map(s => s.index));
+                const newSpells = fetchedSpellDetails
+                    .filter((s): s is ApiSpell => s !== null && !existingIndices.has(s.index))
+                    .map(spell => translateSpell(spell) as ApiSpell);
+                
+                if (newSpells.length > 0) {
+                    setRacialSpellOptions(prev => [...prev, ...newSpells]);
+                }
             }
     
             setRacialSpellTraits(newRacialSpellTraits);
@@ -524,7 +574,7 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
         if (raceDetails) {
            fetchRacialTraitsAndSpells();
         }
-    }, [raceDetails, subraceDetails]);
+    }, [raceDetails, subraceDetails]); // Removed racialSpellOptions from dependency array to prevent loop
 
     useEffect(() => {
         const fetchAncestryDetails = async () => {
@@ -547,6 +597,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
 
     useEffect(() => {
         const finalizeEquipmentSelections = async () => {
+            if (!areAllEquipmentChoicesMade) return; // REVALIDATE START: Only run when all choices are made
+
             const finalItems: InventoryItem[] = [];
             const processedItems = new Set<string>();
 
@@ -554,7 +606,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                 const selection = equipmentSelections[group.id];
                 if (!selection) continue;
 
-                // Case 1: Direct category choice (e.g., Acolyte's Holy Symbol)
                 if (group.choice.from.option_set_type === 'equipment_category' && selection.sub !== undefined) {
                     const categoryUrl = group.choice.from.equipment_category?.url;
                     if (!categoryUrl) continue;
@@ -570,7 +621,6 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
                         }
                     }
                 } 
-                // Case 2: Nested choice (e.g., weapon choices)
                 else if (selection.main !== undefined) {
                     const mainOption = group.choice.from.options?.[selection.main];
                     if (!mainOption) continue;
@@ -611,9 +661,8 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
             setFinalizedEquipment(finalItems);
         };
     
-        if(areAllEquipmentChoicesMade) {
-            finalizeEquipmentSelections();
-        }
+        finalizeEquipmentSelections();
+        // REVALIDATE END
     }, [equipmentSelections, equipmentChoiceGroups, areAllEquipmentChoicesMade]);
     
     // --- ATTRIBUTE METHODS ---
@@ -787,13 +836,15 @@ export const useNewCharacterCreation = ({ allLanguages }: { allLanguages: ApiLis
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setSubrace(newSubraceIndex);
         setSubraceDetails(null);
-        setChosenRacialSpells({});
+        // REVALIDATE START: Clear racial spells on subrace change to avoid keeping spells from a previous subrace
+        setChosenRacialSpells(prev => ({...prev, [race]: []})); 
+        // REVALIDATE END
 
         if (newSubraceIndex) {
             const details = await DndApiService.getSubraceDetails(newSubraceIndex);
             setSubraceDetails(details);
         } 
-    }, []);
+    }, [race]); // Added race to dependencies
 
     const handleClassChange = useCallback(async (newClassIndex: string) => {
         setCharacterClass(newClassIndex);

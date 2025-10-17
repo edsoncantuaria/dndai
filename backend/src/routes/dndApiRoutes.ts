@@ -89,24 +89,6 @@ router.get('/:resource/:index', async (req, res, next) => {
     const { resource, index } = req.params;
     console.log(`[Backend Route] Recebida requisição para detalhes: ${resource}/${index}`);
 
-    // Rota especial para breath-weapon
-    if (resource === 'spells' && index.startsWith('breath-weapon-')) {
-        try {
-            const filePath = path.resolve(process.cwd(), 'data', 'breath-weapons.json');
-            const fileContent = await fs.readFile(filePath, 'utf-8');
-            const data = JSON.parse(fileContent);
-            const breathWeapon = data.results.find((bw: any) => bw.index === index);
-            if (breathWeapon) {
-                return res.json(breathWeapon);
-            }
-            return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
-        } catch (error) {
-            console.error(`Erro ao carregar breath-weapons.json para ${index}:`, error);
-            return next(createError(500, 'Falha ao carregar dados de arma de sopro.'));
-        }
-    }
-
-
     try {
         let data;
         if (isUuid(index)) {

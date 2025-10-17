@@ -6,9 +6,13 @@ import { apiClient } from './apiClient';
 let backgroundsDataCache: ApiBackground[] | null = null;
 
 const getBackgroundsData = async (): Promise<ApiBackground[]> => {
-    if (backgroundsDataCache) {
+    // REVALIDATE START
+    if (backgroundsDataCache && backgroundsDataCache.length > 0) {
+        console.log("Serving backgrounds from memory cache.");
         return backgroundsDataCache;
     }
+    console.log("Fetching backgrounds from API for the first time.");
+    // REVALIDATE END
     const data = await apiClient<{ results: ApiBackground[] }>('/dnds/backgrounds-data');
     backgroundsDataCache = data.results || [];
     return backgroundsDataCache;
