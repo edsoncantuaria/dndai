@@ -16,6 +16,11 @@ import * as SessaoService from './sessaoService.js';
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
 
+/**
+ * Traduz um objeto de conteúdo homebrew em uma string de resumo para a IA.
+ * @param content O objeto de conteúdo homebrew.
+ * @returns Uma string de resumo ou null se o conteúdo for inválido.
+ */
 const summarizeHomebrewForAI = (content: HomebrewContent): string | null => {
     if (!content || !content.content) return null;
 
@@ -23,22 +28,27 @@ const summarizeHomebrewForAI = (content: HomebrewContent): string | null => {
     const type = content.type;
     let summary = `[${type.toUpperCase()}] ${data.name}: `;
 
-    switch (type) {
-        case 'spell':
-            summary += `${data.desc?.[0] || ''} (Lvl ${data.level} ${data.school?.name || ''}).`;
-            break;
-        case 'item':
-            summary += `${data.desc?.[0] || 'Um item.'}`;
-            if (data.rarity) summary += ` (Raridade: ${data.rarity.name})`;
-            break;
-        case 'monster':
-            summary += `CR ${data.challenge_rating}. ${data.size} ${data.type}. HP: ${data.hit_points}. AC: ${data.armor_class}.`;
-            break;
-        default:
-            summary += `${data.desc?.[0] || 'Conteúdo personalizado.'}`;
-            break;
+    try {
+        switch (type) {
+            case 'spell':
+                summary += `${data.desc?.[0] || ''} (Nível ${data.level}, Escola: ${data.school?.name || 'Desconhecida'}).`;
+                break;
+            case 'item':
+                 summary += `${data.desc?.[0] || 'Um item.'}`;
+                 if (data.rarity) summary += ` (Raridade: ${data.rarity.name})`;
+                 break;
+            case 'monster':
+                summary += `ND ${data.challenge_rating || '?'}. ${data.size || ''} ${data.type || ''}. PV: ${data.hit_points || '?'}. CA: ${data.armor_class?.[0]?.value || data.armor_class || '?'}.`;
+                break;
+            default:
+                summary += `${(data.desc?.[0] || data.desc || 'Conteúdo personalizado.')?.substring(0, 150)}...`;
+                break;
+        }
+        return summary;
+    } catch (e) {
+        console.warn(`Falha ao sumarizar o conteúdo homebrew: ${data.name}`, e);
+        return null;
     }
-    return summary;
 };
 
 
@@ -146,7 +156,7 @@ export const processPlayerTurn = async (
             const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
             const summaries = installedContent.map(summarizeHomebrewForAI).filter(Boolean);
             if (summaries.length > 0) {
-                homebrewSummaryForAI = `\n### Conteúdo Personalizado Ativo (Homebrew)\n${summaries.join('\n')}\n`;
+                homebrewSummaryForAI = `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${summaries.join('\n- ')}\n`;
             }
         }
     }
@@ -229,10 +239,10 @@ export const processPlayerTurn = async (
             }
         }
 
-        if (aiResponse.newHomebrewContent) {
+        if (aiResponse.newHomebrewContent && Array.isArray(aiResponse.newHomebrewContent)) {
             for (const newContent of aiResponse.newHomebrewContent) {
                 try {
-                    const existing = await HomebrewService.findHomebrewByOfficialIndex(newContent.content.index, newContent.type);
+                    const existing = await HomebrewService.checkIfNameExists(newContent.name, newContent.type);
                     if (!existing) {
                        const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' });
                        await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');

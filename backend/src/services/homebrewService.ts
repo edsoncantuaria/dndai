@@ -23,7 +23,7 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     // Garante que o objeto 'content' tenha um 'index'
     const contentPayload = { ...data.content };
     if (!contentPayload.index) {
-        contentPayload.index = data.name.toLowerCase().replace(/\s+/g, '-');
+        contentPayload.index = data.name.toLowerCase().replace(/\s+/g, '-') || `custom-${data.type}-${Date.now()}`;
     }
     
     newContent.content = contentPayload;

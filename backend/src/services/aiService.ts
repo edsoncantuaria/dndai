@@ -89,7 +89,7 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
  * para garantir que ela passe na validação estrutural do Zod.
  */
 const miniSanitize = (raw: any): any => {
-    if (!raw || typeof raw !== 'object') return {};
+  if (!raw || typeof raw !== 'object') return {};
   
     const clean: { [key: string]: any } = { ...raw };
   
