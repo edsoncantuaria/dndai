@@ -16,6 +16,34 @@ interface Props {
     initialData?: any;
 }
 
+const defaultMonsterData = {
+    name: '',
+    size: 'Medium',
+    type: 'Beast',
+    alignment: 'Unaligned',
+    armor_class: 10,
+    hit_points: 10,
+    hit_dice: '2d8',
+    speed: { walk: '30 ft.'} as Record<string, string>,
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10,
+    proficiencies: [] as { proficiency: { index: string, name: string }, value: number }[],
+    damage_vulnerabilities: [] as string[],
+    damage_resistances: [] as string[],
+    damage_immunities: [] as string[],
+    condition_immunities: [] as { index: string, name: string }[],
+    senses: { passive_perception: 10 } as Record<string, any>,
+    languages: '',
+    special_abilities: [] as any[],
+    actions: [] as any[],
+    legendary_actions: [] as any[],
+    official_index: '',
+};
+
 const SIZES = ["Tiny", "Small", "Medium", "Large", "Huge", "Gargantuan"];
 const TYPES = ["Aberration", "Beast", "Celestial", "Construct", "Dragon", "Elemental", "Fey", "Fiend", "Giant", "Humanoid", "Monstrosity", "Ooze", "Plant", "Undead"];
 const ALIGNMENTS = [
@@ -29,32 +57,9 @@ const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitu
 
 const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [monsterData, setMonsterData] = useState(initialData || {
-        name: '',
-        size: 'Medium',
-        type: 'Beast',
-        alignment: 'Unaligned',
-        armor_class: 10,
-        hit_points: 10,
-        hit_dice: '2d8',
-        speed: { walk: '30 ft.'} as Record<string, string>,
-        strength: 10,
-        dexterity: 10,
-        constitution: 10,
-        intelligence: 10,
-        wisdom: 10,
-        charisma: 10,
-        proficiencies: [] as { proficiency: { index: string, name: string }, value: number }[],
-        damage_vulnerabilities: [] as string[],
-        damage_resistances: [] as string[],
-        damage_immunities: [] as string[],
-        condition_immunities: [] as { index: string, name: string }[],
-        senses: { passive_perception: 10 } as Record<string, any>,
-        languages: '',
-        special_abilities: [] as any[],
-        actions: [] as any[],
-        legendary_actions: [] as any[],
-        official_index: '',
+    const [monsterData, setMonsterData] = useState({
+        ...defaultMonsterData,
+        ...(initialData || {}),
     });
     
     const [damageTypes, setDamageTypes] = useState<ApiListItem[]>([]);
@@ -67,7 +72,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     useEffect(() => {
         const fullData = {
             ...monsterData,
-            index: monsterData.official_index || monsterData.name.toLowerCase().replace(/\s+/g, '-') || `custom-monster-${Date.now()}`
+            index: monsterData.official_index || (monsterData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-monster-${Date.now()}`
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
