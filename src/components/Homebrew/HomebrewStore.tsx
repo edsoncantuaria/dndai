@@ -38,9 +38,10 @@ const BundleCard: React.FC<{
     installedIds: Set<string>;
     activeSessionId: number | null;
     onInstall: (bundle: HomebrewService.HomebrewBundle) => void;
+    onUninstall: (bundle: HomebrewService.HomebrewBundle) => void;
     onEdit: (bundle: HomebrewService.HomebrewBundle) => void;
     onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
-}> = ({ bundle, isOwner, installedIds, activeSessionId, onInstall, onEdit, onDelete }) => {
+}> = ({ bundle, isOwner, installedIds, activeSessionId, onInstall, onUninstall, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const allContentsOfBundleInstalled = bundle.contents.every(c => installedIds.has(c.id));
 
@@ -66,28 +67,27 @@ const BundleCard: React.FC<{
             )}
 
             <div className="mt-4 flex gap-2">
-                {isOwner ? (
+                {isOwner && (
                     <>
-                        <button onClick={() => onEdit(bundle)} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
+                        <button onClick={() => onEdit(bundle)} className="flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
                             <Edit className="h-4 w-4"/> Editar
                         </button>
                         <button onClick={() => onDelete(bundle)} className="p-2 bg-red-800 hover:bg-red-700 text-red-200 rounded-md transition-colors">
                             <Trash2 className="h-5 w-5"/>
                         </button>
                     </>
-                ) : (
-                     <button
-                        onClick={() => onInstall(bundle)}
-                        disabled={!activeSessionId}
-                        className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                            allContentsOfBundleInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
-                        }`}
-                        title={!activeSessionId ? "Inicie uma sessão para instalar" : ""}
-                    >
-                        {allContentsOfBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                        {allContentsOfBundleInstalled ? 'Instalado' : 'Instalar Pacote'}
-                    </button>
                 )}
+                 <button
+                    onClick={() => allContentsOfBundleInstalled ? onUninstall(bundle) : onInstall(bundle)}
+                    disabled={!activeSessionId}
+                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
+                        allContentsOfBundleInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                    }`}
+                    title={!activeSessionId ? "Inicie uma sessão para gerenciar pacotes" : ""}
+                >
+                    {allContentsOfBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                    {allContentsOfBundleInstalled ? 'Desinstalar' : 'Instalar Pacote'}
+                </button>
             </div>
         </div>
     );
@@ -108,7 +108,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const { user } = useAuth();
     
     const [installCandidate, setInstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
-    const [dependenciesToInstall, setDependenciesToInstall] = useState<HomebrewService.HomebrewContent[]>([]);
+    const [uninstallCandidate, setUninstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
+    const [dependencies, setDependencies] = useState<HomebrewService.HomebrewContent[]>([]);
 
     const [itemToDelete, setItemToDelete] = useState<{item: HomebrewService.HomebrewBundle, type: 'bundle'} | null>(null);
 
@@ -124,35 +125,24 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             
             let contentResult: HomebrewService.HomebrewContent[] = [];
             let bundlesResult: HomebrewService.HomebrewBundle[] = [];
+            
+            const [publicBundles, myBundles, sessionsResult] = await Promise.all([
+                HomebrewService.listHomebrewBundles('public'),
+                user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]),
+                sessionsResultPromise
+            ]);
+            const myBundleIds = new Set(myBundles.map(b => b.id));
+            bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
 
-            if (activeTab === 'bundles') {
-                const [publicBundles, myBundles, sessionsResult] = await Promise.all([
-                    HomebrewService.listHomebrewBundles('public'),
-                    user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]),
-                    sessionsResultPromise
-                ]);
-                const myBundleIds = new Set(myBundles.map(b => b.id));
-                bundlesResult = [...myBundles, ...publicBundles.filter(b => !myBundleIds.has(b.id))];
+            if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
 
-                if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
 
-            } else if(activeTab === 'mine') {
-                 const [myContent, myBundles, sessionsResult] = await Promise.all([
-                    user ? HomebrewService.listHomebrewContent('mine', filterType) : Promise.resolve([]),
-                    user ? HomebrewService.listHomebrewBundles('mine') : Promise.resolve([]),
-                    sessionsResultPromise,
-                ]);
-                contentResult = myContent;
-                bundlesResult = myBundles;
-                if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
-
-            } else { // Community Tab
-                 const [publicContent, sessionsResult] = await Promise.all([
-                    HomebrewService.listHomebrewContent('public', filterType, 1, 100),
-                    sessionsResultPromise
-                ]);
-                contentResult = publicContent.filter(c => c.authorId !== user?.id); // Exclude own public content
-                if (sessionsResult) setInstalledIds(new Set(sessionsResult.homebrewContentIds || []));
+            if(activeTab === 'mine') {
+                 const myContent = await HomebrewService.listHomebrewContent('mine', filterType);
+                 contentResult = myContent;
+            } else if (activeTab === 'community') {
+                 const publicContent = await HomebrewService.listHomebrewContent('public', filterType);
+                 contentResult = publicContent; // Não filtra mais o conteúdo do próprio usuário
             }
 
             setContent(contentResult.sort((a,b) => a.name.localeCompare(b.name)));
@@ -182,45 +172,47 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             toast({ variant: 'destructive', title: 'Nenhuma sessão ativa', description: 'Por favor, inicie ou continue um jogo para instalar conteúdo.' });
             return;
         }
-
         try {
             const deps = await HomebrewService.getHomebrewDependencies(item.id);
             const depsToInstall = deps.filter(d => !installedIds.has(d.id));
-
-            if (depsToInstall.length > 1) { 
-                setInstallCandidate({ item, type: 'item' });
-                setDependenciesToInstall(depsToInstall);
-            } else {
-                await confirmInstallation([item.id]);
-            }
+            setInstallCandidate({ item, type: 'item' });
+            setDependencies(depsToInstall);
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Erro ao Verificar Dependências', description: error.message });
         }
     };
     
     const handleBundleInstallClick = async (bundle: HomebrewService.HomebrewBundle) => {
-        if (!activeSessionId) {
-            toast({ variant: 'destructive', title: 'Nenhuma sessão ativa', description: 'Por favor, inicie ou continue um jogo para instalar pacotes.' });
-            return;
-        }
-        
+        if (!activeSessionId) return;
         const allDepsPromises = bundle.contents.map(c => HomebrewService.getHomebrewDependencies(c.id));
         const allDepsArrays = await Promise.all(allDepsPromises);
         const allUniqueDeps = Array.from(new Map(allDepsArrays.flat().map(dep => [dep.id, dep])).values());
-
         const idsToInstall = allUniqueDeps.filter(dep => !installedIds.has(dep.id));
-
-        if (idsToInstall.length === 0) {
-            toast({ title: 'Tudo pronto!', description: 'Todo o conteúdo deste pacote e suas dependências já estão instalados.' });
-            return;
-        }
-        
         setInstallCandidate({ item: bundle, type: 'bundle' });
-        setDependenciesToInstall(idsToInstall);
+        setDependencies(idsToInstall);
+    };
+
+    const handleUninstallClick = async (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle') => {
+        if (!activeSessionId) return;
+        let deps: HomebrewService.HomebrewContent[] = [];
+        if (type === 'item') {
+            deps = await HomebrewService.getHomebrewDependencies(item.id);
+        } else {
+            const allDepsPromises = (item as HomebrewService.HomebrewBundle).contents.map(c => HomebrewService.getHomebrewDependencies(c.id));
+            const allDepsArrays = await Promise.all(allDepsPromises);
+            deps = Array.from(new Map(allDepsArrays.flat().map(dep => [dep.id, dep])).values());
+        }
+        setUninstallCandidate({ item, type });
+        setDependencies(deps);
     };
     
     const confirmInstallation = async (idsToInstall: string[]) => {
-        if (!activeSessionId) return;
+        if (!activeSessionId || idsToInstall.length === 0) {
+            setInstallCandidate(null);
+            setDependencies([]);
+            if (idsToInstall.length === 0) toast({ title: 'Tudo pronto!', description: 'O conteúdo selecionado e suas dependências já estão instalados.' });
+            return;
+        }
 
         setIsLoading(true);
         try {
@@ -239,33 +231,38 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
              toast({ variant: 'destructive', title: `Falha na Instalação`, description: error.message });
         } finally {
             setInstallCandidate(null);
-            setDependenciesToInstall([]);
+            setDependencies([]);
             setIsLoading(false);
         }
     }
 
-    const handleUninstall = async (contentId: string) => {
+    const confirmUninstallation = async (idsToUninstall: string[]) => {
         if (!activeSessionId) return;
-
+        setIsLoading(true);
         try {
-            const { sessao } = await GameService.updateSessionHomebrew(activeSessionId, contentId, 'uninstall');
-            setInstalledIds(new Set(sessao.homebrewContentIds || []));
+            let sessionData;
+            for (const id of idsToUninstall) {
+                sessionData = await GameService.updateSessionHomebrew(activeSessionId, id, 'uninstall');
+            }
+             if (sessionData) {
+                setInstalledIds(new Set(sessionData.sessao.homebrewContentIds || []));
+            }
             toast({
-                title: `Conteúdo Desinstalado!`,
-                description: `O item foi removido da sua sessão ativa.`,
+                title: 'Desinstalação Concluída!',
+                description: `${idsToUninstall.length} ite${idsToUninstall.length > 1 ? 'ns foram removidos' : 'm foi removido'} da sua sessão.`,
             });
         } catch (error: any) {
-             toast({ variant: 'destructive', title: `Falha na Desinstalação`, description: error.message });
+            toast({ variant: 'destructive', title: 'Falha na Desinstalação', description: error.message });
+        } finally {
+            setUninstallCandidate(null);
+            setDependencies([]);
+            setIsLoading(false);
         }
     };
 
     const handleEdit = (item: HomebrewService.HomebrewContent) => {
         if (item.bundleId) {
-            toast({
-                variant: 'destructive',
-                title: 'Conteúdo em Pacote',
-                description: 'Remova este item do pacote para poder editá-lo.',
-            });
+            toast({ variant: 'destructive', title: 'Conteúdo em Pacote', description: 'Remova este item do pacote para poder editá-lo.' });
             return;
         }
         setContentToEdit(item);
@@ -283,7 +280,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const confirmDeletion = async () => {
         if (!itemToDelete || itemToDelete.type !== 'bundle') return;
-        
         setIsLoading(true);
         try {
             await HomebrewService.deleteHomebrewBundle(itemToDelete.item.id);
@@ -298,10 +294,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     };
 
     if (view === 'create') {
-        return <HomebrewCreator onContentCreated={() => setView('list')} onCancel={() => setView('list')} />;
+        return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndInstalledIds(); }} onCancel={() => setView('list')} />;
     }
     if (view === 'edit') {
-        return <HomebrewCreator onContentCreated={() => setView('list')} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
+        return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndInstalledIds(); }} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
     }
 
     const renderContentGrid = (contentList: HomebrewService.HomebrewContent[]) => {
@@ -336,26 +332,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     </button>
                                 )}
                                 <button
-                                    onClick={() => handleInstallClick(item)}
+                                    onClick={() => isInstalled ? handleUninstallClick(item, 'item') : handleInstallClick(item)}
                                     disabled={!activeSessionId}
                                     className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors disabled:bg-stone-600 disabled:text-stone-400 disabled:cursor-not-allowed ${
-                                        isInstalled ? 'bg-green-800 text-green-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
+                                        isInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
                                     }`}
-                                    title={isInstalled ? 'Instalado' : 'Instalar'}
+                                    title={isInstalled ? 'Desinstalar' : !activeSessionId ? 'Inicie uma sessão para instalar' : 'Instalar'}
                                 >
-                                    {isInstalled ? <CheckCircle className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                                    {isInstalled ? 'Instalado' : 'Instalar'}
+                                    {isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                                    {isInstalled ? 'Desinstalar' : 'Instalar'}
                                 </button>
-                                {isInstalled && !item.bundleId && (
-                                     <button
-                                        onClick={() => handleUninstall(item.id)}
-                                        disabled={!activeSessionId}
-                                        className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md text-red-200 transition-colors disabled:opacity-50"
-                                        title={"Desinstalar"}
-                                    >
-                                        <Minus className="h-4 w-4" />
-                                    </button>
-                                )}
                             </div>
                         </div>
                     );
@@ -375,6 +361,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         installedIds={installedIds}
                         activeSessionId={activeSessionId}
                         onInstall={handleBundleInstallClick}
+                        onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                         onEdit={handleEditBundle}
                         onDelete={handleDeleteClick}
                     />
@@ -387,31 +374,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const renderMyCreationsTab = () => {
         const myUnbundledContent = content.filter(c => c.authorId === user?.id && !c.bundleId);
-        const myBundles = bundles.filter(b => b.authorId === user?.id);
-
+        
         return (
             <div className="space-y-8">
-                <div>
-                    <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Meus Pacotes</h2>
-                    {myBundles.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {myBundles.map(bundle => (
-                                <BundleCard
-                                    key={bundle.id}
-                                    bundle={bundle}
-                                    isOwner={true}
-                                    installedIds={installedIds}
-                                    activeSessionId={activeSessionId}
-                                    onInstall={() => {}}
-                                    onEdit={handleEditBundle}
-                                    onDelete={handleDeleteClick}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-stone-500 italic py-4">Você ainda não criou nenhum pacote.</p>
-                    )}
-                </div>
                  <div>
                     <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Minhas Criações Avulsas</h2>
                     {renderContentGrid(myUnbundledContent)}
@@ -431,11 +396,47 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         
         switch (activeTab) {
             case 'bundles': return renderBundlesTab();
-            case 'community': return renderContentGrid(content.filter(c => c.authorId !== user?.id));
+            case 'community': return renderContentGrid(content);
             case 'mine': return renderMyCreationsTab();
             default: return null;
         }
     };
+
+    const renderModal = () => {
+        const candidate = installCandidate || uninstallCandidate;
+        if (!candidate) return null;
+
+        const isInstall = !!installCandidate;
+        const title = isInstall ? "Confirmar Instalação" : "Confirmar Desinstalação";
+        const primaryActionText = isInstall ? `Instalar Tudo (${dependencies.length})` : `Desinstalar Tudo (${dependencies.length})`;
+        const onConfirm = () => isInstall ? confirmInstallation(dependencies.map(d => d.id)) : confirmUninstallation(dependencies.map(d => d.id));
+        const message = isInstall 
+            ? `Para instalar "${candidate.item.name}", os seguintes itens também precisam ser instalados:`
+            : `Desinstalar "${candidate.item.name}" também removerá suas dependências da sessão ativa:`;
+
+        return (
+            <ActionModal
+                isOpen={true}
+                title={title}
+                onClose={() => { setInstallCandidate(null); setUninstallCandidate(null); setDependencies([]); }}
+                actions={[
+                    { text: "Cancelar", onClick: () => { setInstallCandidate(null); setUninstallCandidate(null); setDependencies([]); }, variant: 'secondary' },
+                    { text: primaryActionText, onClick: onConfirm, variant: isInstall ? 'primary' : 'destructive', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : undefined }
+                ]}
+            >
+                <p className="text-stone-300 mb-4">{message}</p>
+                {dependencies.length > 0 ? (
+                    <div className="max-h-60 overflow-y-auto bg-stone-800/50 p-3 rounded-md border border-stone-700">
+                        <ul className="list-disc list-inside text-stone-300 space-y-1">
+                            {dependencies.map(dep => (
+                                <li key={dep.id}>{dep.name} <span className="text-xs text-stone-500">({translateApiString(dep.type)})</span></li>
+                            ))}
+                        </ul>
+                    </div>
+                ) : <p className="text-stone-400 italic">Nenhuma dependência necessária.</p>}
+            </ActionModal>
+        )
+    }
 
     return (
         <>
@@ -491,26 +492,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     </button>
                 </footer>
             </div>
-            {installCandidate && (
-                <ActionModal
-                    isOpen={!!installCandidate}
-                    title="Instalar Conteúdo"
-                    onClose={() => { setInstallCandidate(null); setDependenciesToInstall([]); }}
-                    actions={[
-                        { text: "Cancelar", onClick: () => { setInstallCandidate(null); setDependenciesToInstall([]); }, variant: 'secondary' },
-                        { text: `Instalar Tudo (${dependenciesToInstall.length})`, onClick: () => confirmInstallation(dependenciesToInstall.map(d => d.id)), variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : undefined }
-                    ]}
-                >
-                    <p className="text-stone-300 mb-4">Para instalar "{installCandidate.item.name}", os seguintes itens também precisam ser instalados na sua sessão:</p>
-                    <div className="max-h-60 overflow-y-auto bg-stone-800/50 p-3 rounded-md border border-stone-700">
-                        <ul className="list-disc list-inside text-stone-300 space-y-1">
-                            {dependenciesToInstall.map(dep => (
-                                <li key={dep.id}>{dep.name} <span className="text-xs text-stone-500">({translateApiString(dep.type)})</span></li>
-                            ))}
-                        </ul>
-                    </div>
-                </ActionModal>
-            )}
+            {renderModal()}
             
             {itemToDelete && (
                 <ActionModal
