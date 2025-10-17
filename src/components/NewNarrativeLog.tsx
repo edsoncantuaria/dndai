@@ -2,79 +2,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Speaker } from 'lucide-react';
-import { textToSpeech } from '@/ai/flows/textToSpeech';
-import { useSettingsContext } from '@/contexts/SettingsContext';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
 import Image from 'next/image';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 
+// O AudioPlayer foi temporariamente removido pois sua fonte de dados (fluxo de IA) foi movida para o backend.
+// A funcionalidade pode ser reimplementada com uma chamada de API para um endpoint de TTS no backend.
 const AudioPlayer: React.FC<{ text: string }> = ({ text }) => {
-    const [audioData, setAudioData] = useState<string | null>(null);
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const audioRef = useRef<HTMLAudioElement>(null);
-    const { ttsModel, ttsVoice, volume, isMuted } = useSettingsContext();
-    const { getApiKey } = useGameStateContext();
-
-    const handlePlay = async () => {
-        if (isPlaying && audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            setIsPlaying(false);
-            return;
-        }
-
-        if (audioData && audioRef.current) {
-            audioRef.current.play();
-            setIsPlaying(true);
-            return;
-        }
-        
-        setIsLoading(true);
-        try {
-            const apiKeyToUse = getApiKey();
-            if (!apiKeyToUse) {
-                console.warn("Chave de API não encontrada para TTS, pulando.");
-                return; 
-            }
-            const response = await textToSpeech(text, ttsModel, ttsVoice, apiKeyToUse);
-            if (response?.media) {
-                setAudioData(response.media);
-            }
-        } catch (error) {
-            console.error("Error generating speech:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        if (audioData && audioRef.current) {
-            audioRef.current.src = audioData;
-            audioRef.current.play()
-                .then(() => setIsPlaying(true))
-                .catch(e => console.error("Audio play failed:", e));
-        }
-    }, [audioData]);
-
-    useEffect(() => {
-        if (audioRef.current) {
-            audioRef.current.muted = isMuted;
-            audioRef.current.volume = volume;
-        }
-    }, [isMuted, volume]);
-
-    const handleAudioEnded = () => {
-        setIsPlaying(false);
-    };
-
-    return (
-        <div className="inline-block ml-2">
-            <button onClick={handlePlay} disabled={isLoading} className="text-stone-400 hover:text-amber-300 disabled:opacity-50">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Speaker className={`h-4 w-4 ${isPlaying ? 'text-amber-400' : ''}`} />}
-            </button>
-            {audioData && <audio ref={audioRef} onEnded={handleAudioEnded} className="hidden" />}
-        </div>
-    );
+    return null; // Funcionalidade desativada para corrigir o erro de build.
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
@@ -103,7 +38,7 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             <p className="text-stone-300 leading-relaxed flex-grow font-sans">
                 {textContent}
             </p>
-            <AudioPlayer text={textContent} />
+            {/* <AudioPlayer text={textContent} />  Temporariamente desativado */}
         </div>
     );
 };
