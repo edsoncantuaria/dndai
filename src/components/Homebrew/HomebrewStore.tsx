@@ -292,6 +292,19 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     const isOwner = item.authorId === user?.id;
                     const isFromAI = item.createdBy === 'ai';
                     
+                    const buttonStyle: React.CSSProperties = {};
+                    if(isFromAI) {
+                        buttonStyle.backgroundColor = 'rgb(22 101 52 / 0.8)'; // bg-green-800/80
+                        buttonStyle.color = 'rgb(187 247 208)'; // text-green-200
+                    } else if(isInstalled) {
+                        buttonStyle.backgroundColor = 'rgb(127 29 29 / 0.8)'; // bg-red-800/80
+                        buttonStyle.color = 'rgb(254 202 202)'; // text-red-200
+                    } else {
+                        buttonStyle.backgroundColor = 'rgb(217 119 6)'; // bg-amber-700
+                        buttonStyle.color = 'rgb(28 25 23)'; // text-stone-900
+                    }
+
+
                     return (
                         <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
                             <div>
@@ -316,14 +329,11 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 <button
                                     onClick={() => isInstalled ? handleUninstallClick(item, 'item') : handleInstallClick(item)}
                                     className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors`}
-                                    style={{
-                                        backgroundColor: isInstalled ? 'rgb(127 29 29 / 0.8)' : 'rgb(217 119 6)',
-                                        color: isInstalled ? 'rgb(254 202 202)' : 'rgb(28 25 23)',
-                                    }}
+                                    style={buttonStyle}
                                     disabled={isFromAI}
                                     title={isFromAI ? "Conteúdo da IA é sempre ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
                                 >
-                                    {isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
+                                    {isFromAI ? <CheckCircle className="h-4 w-4" /> : isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
                                     {isFromAI ? "Sempre Ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
                                 </button>
                             </div>
