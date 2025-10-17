@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FlaskConical, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, FlaskConical, Loader2, Info, BookOpen } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
 import RaceForm from './forms/RaceForm';
 import ClassForm from './forms/ClassForm';
@@ -15,6 +15,8 @@ import BackgroundForm from './forms/BackgroundForm';
 import FeatForm from './forms/FeatForm';
 import HomebrewHelpModal from './HomebrewHelpModal';
 import SubraceForm from './forms/SubraceForm'; 
+import ExampleModal from './ExampleModal';
+import { EXAMPLES } from '@/data/examples';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
@@ -32,6 +34,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const [isPublic, setIsPublic] = useState(contentToEdit?.isPublic || false);
     const [isLoading, setIsLoading] = useState(false);
     const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
+    const [isExampleModalOpen, setIsExampleModalOpen] = useState(false);
     const { toast } = useToast();
 
     useEffect(() => {
@@ -134,23 +137,34 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
                 <form onSubmit={handleSubmit} className="bg-stone-900/50 p-6 rounded-lg border border-stone-700 flex flex-col flex-grow overflow-hidden">
                     <div className="overflow-y-auto pr-4 space-y-6 flex-grow">
-                        <div>
-                            <label htmlFor="homebrew-type" className="block text-sm font-medium text-stone-300 mb-1">Tipo de Conteúdo</label>
-                            <select
-                                id="homebrew-type"
-                                value={type}
-                                onChange={(e) => {
-                                    setType(e.target.value as HomebrewService.HomebrewContentType);
-                                    // Reset data when type changes if not editing
-                                    if (!contentToEdit) {
-                                        setContentData({});
-                                    }
-                                }}
-                                className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
-                                disabled={!!contentToEdit} // Desabilita a troca de tipo ao editar
+                        <div className="flex items-end gap-2">
+                            <div className="flex-grow">
+                                <label htmlFor="homebrew-type" className="block text-sm font-medium text-stone-300 mb-1">Tipo de Conteúdo</label>
+                                <select
+                                    id="homebrew-type"
+                                    value={type}
+                                    onChange={(e) => {
+                                        setType(e.target.value as HomebrewService.HomebrewContentType);
+                                        // Reset data when type changes if not editing
+                                        if (!contentToEdit) {
+                                            setContentData({});
+                                        }
+                                    }}
+                                    className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
+                                    disabled={!!contentToEdit} // Desabilita a troca de tipo ao editar
+                                >
+                                    {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{translateApiString(t)}</option>)}
+                                </select>
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={() => setIsExampleModalOpen(true)}
+                                className="flex-shrink-0 px-3 py-2 bg-stone-700 hover:bg-stone-600 text-stone-300 rounded-md flex items-center gap-2"
+                                title="Ver Exemplo de Estrutura"
                             >
-                                {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{translateApiString(t)}</option>)}
-                            </select>
+                                <BookOpen className="h-4 w-4" />
+                                <span className="hidden sm:inline">Exemplo</span>
+                            </button>
                         </div>
                         
                         {renderFormForType()}
@@ -189,6 +203,14 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                 </form>
             </div>
              <HomebrewHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
+             {isExampleModalOpen && (
+                <ExampleModal 
+                    isOpen={isExampleModalOpen}
+                    onClose={() => setIsExampleModalOpen(false)}
+                    contentType={type}
+                    exampleData={EXAMPLES[type]}
+                />
+             )}
         </>
     );
 };
