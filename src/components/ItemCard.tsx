@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import type { InventoryItem } from '../types';
 import { Shield, ChevronDown, Hand } from 'lucide-react';
-import { translateEquipment } from '@/utils/translator';
 
 interface ItemCardProps {
     item: InventoryItem;
@@ -14,7 +13,9 @@ interface ItemCardProps {
 
 const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const translatedItem = translateEquipment(item);
+
+    // O item já vem traduzido do backend, não é mais necessário chamar a função translateEquipment.
+    const translatedItem = item;
 
     const canBeEquipped = !!(item.weapon_category || item.armor_category);
     const canBeUsed = item.consumable || item.usable;

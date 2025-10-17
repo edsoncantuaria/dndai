@@ -1,14 +1,5 @@
 // src/utils/translator.ts
 
-
-
-export const TRANSLATIONS_EQUIPMENT: Record<string, any> = {
-  "abacus": {
-    "name": "Ábaco"
-  },
-};
-
-
 export const TRANSLATIONS: Record<string, string> = {
     // Attributes
     'strength': 'Força',
@@ -196,18 +187,14 @@ export const TRANSLATIONS: Record<string, string> = {
     'Soldier': 'Soldado',
 
 
-    // Equipment & Items
-    'A simple puzzle box': 'Uma caixa de quebra-cabeça simples',
-    'A trophy from an animal you killed': 'Um troféu de um animal que você matou',
-    'Light Crossbow': 'Besta Leve',
-    'Dagger': 'Adaga',
-    'Shortsword': 'Espada Curta',
-    'Longsword': 'Espada Longa',
-    'Leather Armor': 'Armadura de Couro',
-    'Shield': 'Escudo',
-    'Explorer\'s Pack': 'Pacote do Explorador',
-    'Dungeoneer\'s Pack': 'Pacote do Aventureiro',
-    'Holy Symbol': 'Símbolo Sagrado',
+    // Equipment Categories from getOptionLabel
+    'Martial Melee Weapons': 'Arma Marcial Corpo a Corpo',
+    'Simple Weapons': 'Arma Simples',
+    'Holy Symbols': 'Símbolo Sagrado',
+    'Druidic Foci': 'Foco Druídico',
+    'Arcane Foci': 'Foco Arcano',
+    'Adventuring Gear': 'Equipamento de Aventura',
+    'Musical Instruments': 'Instrumento Musical',
     
     // Spells
     'Mage Hand': 'Mão Mágica',
@@ -315,21 +302,6 @@ export const normalizeProficiencyName = (name: string): string => {
 };
 
 export const translateAttribute = (s: keyof typeof TRANSLATIONS): string => translateApiString(s);
-export const translateEquipment = (s?: any): any => {
-    if (!s) return s;
-    if (typeof s === 'string') {
-        const translation = TRANSLATIONS[s];
-        return translation ? translation: s;
-    }
-    const translatedName = TRANSLATIONS[s.name] || s.name;
-    const translatedDesc = s.desc ? s.desc.map((d:string) => translateApiString(d)) : s.desc;
-    return { ...s, name: translatedName, desc: translatedDesc };
-};
-export const translateSpell = (s?: any): any => {
-    if (!s) return s;
-    const translatedName = TRANSLATIONS[s.name] || s.name;
-    return { ...s, name: translatedName };
-};
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);

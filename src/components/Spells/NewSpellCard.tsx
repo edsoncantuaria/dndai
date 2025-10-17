@@ -1,9 +1,8 @@
 'use client';
 import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
-import { translateMagicSchool, translateApiString } from '@/utils/translator';
+import { translateMagicSchool } from '@/utils/translator';
 import { ChevronDown, Sparkles } from 'lucide-react';
-import { translateSpell } from '@/utils/TranslatorSpells';
 
 interface NewSpellCardProps {
     spell: ApiSpell;
@@ -33,7 +32,9 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
     maxUses
 }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const translatedSpell = translateSpell(spell);
+    
+    // A magia já vem traduzida do backend.
+    const translatedSpell = spell;
 
     if (!translatedSpell || !translatedSpell.school) {
         return null;

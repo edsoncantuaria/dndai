@@ -1,6 +1,6 @@
 // src/utils/creationHelpers.ts
 import { ApiEquipmentOption } from "../types";
-import { translateEquipment } from "./TranslatorEquipments";
+import { translateApiString } from "./translator";
 
 /**
  * Point-buy costs for each attribute score in D&D 5e.
@@ -56,21 +56,21 @@ export const getOptionLabel = (option: ApiEquipmentOption, isCategoryDirect: boo
     if (!option) return 'Opção Inválida';
 
     if (isCategoryDirect) {
-        return `Qualquer ${translateEquipment((option as any).name)}`;
+        return `Qualquer ${translateApiString((option as any).name)}`;
     }
 
     switch (option.option_type) {
         case 'counted_reference':
             if (option.of) {
                 const count = (option.count || 1) > 1 ? `(x${option.count})` : '';
-                return `${translateEquipment(option.of.name)}${count}`;
+                return `${translateApiString(option.of.name)}${count}`;
             }
             return 'Item de Referência';
         
         case 'choice':
             if (option.choice?.from?.equipment_category) {
                 const categoryName = option.choice.desc || option.choice.from.equipment_category.name;
-                return `Qualquer ${translateEquipment(categoryName)}`;
+                return `Qualquer ${translateApiString(categoryName)}`;
             }
             return 'Outra Escolha';
 
