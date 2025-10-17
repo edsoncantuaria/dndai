@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import * as HomebrewService from '@/services/homebrewService'; // Importação correta
+import * as HomebrewService from '@/services/homebrewService';
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
@@ -15,21 +15,18 @@ interface Props {
 }
 
 const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) => {
-    const { user } = useAuth(); // Usar o hook de autenticação
+    const { user } = useAuth();
     const [allTraits, setAllTraits] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isCreatorOpen, setIsCreatorOpen] = useState(false); // Estado para o modal
+    const [isCreatorOpen, setIsCreatorOpen] = useState(false);
 
     const fetchTraits = useCallback(async () => {
         setIsLoading(true);
         try {
             const officialTraitsPromise = DndApiService.getTraits();
-            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
             const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'feat');
-            // Só busca "mine" se o usuário estiver logado.
             const myHomebrewPromise = user ? HomebrewService.listHomebrewContent('mine', 'feat') : Promise.resolve([]);
-
 
             const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 officialTraitsPromise,
@@ -48,7 +45,6 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
             const publicHomebrew = formatHomebrew(publicHomebrewResult, 'Comunidade');
             const myHomebrew = formatHomebrew(myHomebrewResult, 'Meu');
 
-            // Combina e remove duplicatas (caso um item "meu" também seja "público")
             const combinedHomebrew = [...myHomebrew, ...publicHomebrew.filter(phb => !myHomebrew.some(mhb => mhb.index === phb.index))];
 
             setAllTraits([...official, ...combinedHomebrew].sort((a,b) => a.name.localeCompare(b.name)));
@@ -63,18 +59,15 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         fetchTraits();
     }, [fetchTraits]);
     
-    // Callback para quando um novo traço é criado
     const handleTraitCreated = (newTraitContent: any) => {
-        // Adiciona o novo traço à lista local e o seleciona automaticamente
         const newApiListItem: ApiListItem = {
-            index: newTraitContent.index, // Usa o index do conteúdo retornado
+            index: newTraitContent.id,
             name: `${newTraitContent.name} (Meu)`,
-            url: `/api/dnds/feats/${newTraitContent.index}`, // Usa o index na URL
+            url: `/api/dnds/feats/${newTraitContent.id}`,
         };
         setAllTraits(prev => [newApiListItem, ...prev].sort((a,b) => a.name.localeCompare(b.name)));
         onSelectionChange([...selectedTraits, newApiListItem]);
     };
-
 
     const handleToggleTrait = (trait: ApiListItem) => {
         const isSelected = selectedTraits.some(st => st.index === trait.index);

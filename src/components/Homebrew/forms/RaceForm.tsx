@@ -27,22 +27,28 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         languages: [],
         subraces: [],
         dependencies: [],
-        official_index: '', // Novo campo para o índice
-        ...initialData,
+        official_index: '',
     }));
     
     useEffect(() => {
-        const traitIds = raceData.traits.map((t: ApiListItem) => t.index);
+        if (initialData && Object.keys(initialData).length > 0) {
+            setRaceData(prev => ({
+                ...prev,
+                ...initialData,
+                ability_bonuses: initialData.ability_bonuses || [],
+                traits: initialData.traits || [],
+            }));
+        }
+    }, [initialData]);
+
+    useEffect(() => {
+        const fullData = { ...raceData };
+        const traitIds = fullData.traits.map((t: ApiListItem) => t.index);
         const homebrewTraitIds = traitIds.filter((id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
         
-        const fullData = {
-            ...raceData,
-            dependencies: homebrewTraitIds,
-            index: raceData.official_index || (raceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
-        };
-        const { official_index, ...finalData } = fullData; // Remove o campo auxiliar
-        onDataChange(finalData);
-    }, [raceData]);
+        fullData.dependencies = homebrewTraitIds;
+        onDataChange(fullData);
+    }, [raceData, onDataChange]);
 
 
     const handleFieldChange = (field: keyof typeof raceData, value: any) => {

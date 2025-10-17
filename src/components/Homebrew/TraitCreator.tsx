@@ -9,7 +9,7 @@ import ActionModal from '../ui/ActionModal';
 interface Props {
     isOpen: boolean;
     onClose: () => void;
-    onTraitCreated: (newTrait: any) => void; // Callback to update the parent list
+    onTraitCreated: (newTrait: any) => void;
 }
 
 const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
@@ -30,7 +30,6 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
 
         setIsLoading(true);
         try {
-            // Construindo o objeto de conteúdo seguindo a estrutura da API
             const content = {
                 index: name.toLowerCase().replace(/\s+/g, '-'),
                 name: name,
@@ -54,7 +53,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                 description: `"${name}" foi salvo com sucesso.`,
             });
             
-            onTraitCreated(response.content);
+            onTraitCreated(response);
             handleClose();
 
         } catch (error: any) {
