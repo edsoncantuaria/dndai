@@ -11,9 +11,27 @@ import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import * as DndApiService from './dndApiService.js';
+import redisClient from '../database/redis-client.js';
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
+    const cacheKey = `character:${character.id}`;
+
+    // 1. Tenta buscar do cache
+    if (redisClient && redisClient.isOpen) {
+        try {
+            const cachedCharacter = await redisClient.get(cacheKey);
+            if (cachedCharacter) {
+                console.log(`[Cache] HIT: Carregando personagem ${character.id} do cache.`);
+                return JSON.parse(cachedCharacter);
+            }
+            console.log(`[Cache] MISS: Personagem ${character.id} não encontrado no cache.`);
+        } catch (error) {
+            console.error(`[Cache] Erro ao buscar personagem ${character.id} do Redis:`, error);
+        }
+    }
+
+
     const fullCharacter = await AppDataSource.getRepository(Character).findOne({
         where: { id: character.id },
         relations: [
@@ -42,6 +60,17 @@ export const buildFullCharacterObject = async (character: Character) => {
         feats: fullCharacter.feats || [],
     };
     
+    // 2. Salva o resultado no cache antes de retornar
+    if (redisClient && redisClient.isOpen) {
+        try {
+            // Cache por 1 hora para dados de personagem
+            await redisClient.set(cacheKey, JSON.stringify(characterData), { EX: 3600 });
+             console.log(`[Cache] SET: Personagem ${character.id} salvo no cache.`);
+        } catch (error) {
+            console.error(`[Cache] Erro ao salvar personagem ${character.id} no Redis:`, error);
+        }
+    }
+
     return characterData;
 };
 
@@ -177,5 +206,10 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
 
     if (result.affected === 0) {
         throw createError(404, 'Personagem não encontrado ou você não tem permissão para deletá-lo.');
+    }
+
+    // Invalida o cache
+    if (redisClient && redisClient.isOpen) {
+        await redisClient.del(`character:${characterId}`);
     }
 };
