@@ -51,16 +51,30 @@ async function ensureUserHex(userId: number): Promise<string> {
 }
 
 /**
- * Invalida o cache do usuário. Em uma implementação real, regeneraria o hex.
+ * Invalida o cache do usuário, deletando chaves antigas e gerando um novo hex.
  */
 export async function invalidateUserCache(userId: number) {
     const user = await userRepo().findOne({ where: { id: userId } });
     if (user) {
+        if (redisClient && redisClient.isOpen) {
+            try {
+                // Deleta chaves antigas associadas ao usuário para evitar cache zumbi
+                const keysToDelete = await redisClient.keys(`user:${userId}:*`);
+                if (keysToDelete.length > 0) {
+                    await redisClient.del(keysToDelete);
+                    console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
+                }
+            } catch (err) {
+                 console.error(`[Cache] Erro ao deletar chaves antigas para o usuário ${userId}:`, err);
+            }
+        }
+        // Gera um novo hex para forçar a regeneração do cache
         user.homebrewCacheHex = crypto.randomBytes(6).toString('hex');
         await userRepo().save(user);
         console.log(`[Cache] Cache invalidado e novo hex gerado para o usuário ${userId}.`);
     }
 }
+
 
 /**
  * Busca lista oficial, validando o cache.
@@ -72,9 +86,10 @@ async function getOfficialList(resource: string): Promise<any[]> {
       const cached = await redisClient.get(listKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        // Validação: Garante que o cache contenha uma lista com 'results'
+        if (parsed && Array.isArray(parsed.results) && parsed.results.length > 0) {
           console.log(`[dndApiService-Cache] HIT para chave: ${listKey}`);
-          return parsed;
+          return parsed.results;
         }
       }
     } catch (err) {
@@ -83,11 +98,12 @@ async function getOfficialList(resource: string): Promise<any[]> {
   }
 
   const data = await DndApi.getResourceList(resource);
-  const results = data || [];
+  const results = data?.results || [];
 
   if (redisClient && redisClient.isOpen && results.length > 0) {
     try {
-        await redisClient.set(listKey, JSON.stringify(results));
+        // Salva o objeto completo {count, results} para consistência
+        await redisClient.set(listKey, JSON.stringify(data));
     } catch(err) {
          console.error(`[Cache] Falha ao salvar no Redis ${listKey}:`, err);
     }
@@ -119,7 +135,7 @@ async function getOfficialDetails(resource: string, index: string): Promise<any 
        console.error(`[Cache] Falha ao salvar no Redis ${key}:`, err);
     }
   }
-  return data || {}; // Retorna objeto vazio em vez de nulo
+  return data || {}; // Retorna objeto vazio em vez de nulo para segurança no merge
 }
 
 
@@ -130,7 +146,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
   const normalizedResource = norm(resource);
   const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
   
-  const officialList = await getOfficialList(normalizedResource) || [];
+  const officialList = await getOfficialList(normalizedResource);
 
   const map = new Map<string, any>();
   // 1. Oficiais
@@ -140,19 +156,17 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     }
   }
   
-  // 2. Traduções
+  // 2. Traduções (otimizado com Map)
   const translations = await repo().find({ where: { type: 'translation', authorId: 1 } });
-  for (const t of translations) {
-      try {
-        const content = typeof t.content === 'string' ? JSON.parse(t.content) : t.content;
-        const key = norm(content.official_index || content.index);
-        if (map.has(key)) {
-            const existing = map.get(key);
-            // Sobrescreve apenas 'name' e 'desc', mantendo o resto.
-            map.set(key, { ...existing, ...content, name: content.name || existing.name, desc: content.desc || existing.desc });
-        }
-      } catch(e) {
-          console.error(`Falha ao aplicar tradução ${t.id}:`, e);
+  const tMap = new Map(translations.map(t => {
+      const content = typeof t.content === 'string' ? JSON.parse(t.content) : t.content;
+      return [norm(content.official_index || content.index), content];
+  }));
+
+  for (const [key, trans] of tMap.entries()) {
+      if (map.has(key)) {
+          const existing = map.get(key);
+          map.set(key, { ...existing, ...trans, name: trans.name || existing.name, desc: trans.desc || existing.desc });
       }
   }
 
@@ -221,6 +235,7 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
       const translation = await repo().findOne({
         where: {
             type: 'translation',
+            authorId: 1, // Apenas traduções do sistema
             content: Raw(alias => `JSON_UNQUOTE(JSON_EXTRACT(${alias}, '$.official_index')) = :index`, { index: normalizedIndex })
         }
       });
@@ -248,7 +263,7 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
              sqb.where('hb.id IN (:...ids)', { ids: installedIds })
                 .orWhere('hb.bundleId IN (:...ids)', { ids: installedIds });
           }))
-          .orderBy('hb.authorId', 'DESC');
+          .orderBy('hb.authorId', 'DESC'); // Prioriza o conteúdo do usuário sobre o público se houver conflito
         
         homebrew = await qb.getOne();
     }

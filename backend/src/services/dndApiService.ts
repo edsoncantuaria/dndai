@@ -11,12 +11,12 @@ const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 
 /**
  * Gera uma chave consistente para o cache Redis.
- * Ex: dnd5e:equipment:list ou dnd5e:equipment:greataxe
+ * Ex: dnd5e:v2014:equipment:list ou dnd5e:v2014:equipment:greataxe
  */
 const cacheKey = (resource: string, index?: string) => {
   return index
-    ? `dnd5e:${norm(resource)}:${norm(index)}`
-    : `dnd5e:${norm(resource)}:list`;
+    ? `dnd5e:v2014:${norm(resource)}:${norm(index)}`
+    : `dnd5e:v2014:${norm(resource)}:list`;
 };
 
 /**
@@ -30,7 +30,12 @@ async function fetchWithCache<T>(endpoint: string, redisKey: string): Promise<T 
       const cached = await redisClient.get(redisKey);
       if (cached) {
         console.log(`[DndApiService] Cache HIT: ${redisKey}`);
-        return JSON.parse(cached) as T;
+        const parsed = JSON.parse(cached);
+        // Validação robusta do cache
+        if (parsed && (Array.isArray(parsed.results) || typeof parsed === 'object')) {
+            return parsed as T;
+        }
+        console.warn(`[DndApiService] Cache INVÁLIDO para ${redisKey}. Buscando novamente.`);
       }
     } catch (err) {
       console.error(`[Cache] Erro ao ler chave ${redisKey}:`, err);
@@ -49,7 +54,7 @@ async function fetchWithCache<T>(endpoint: string, redisKey: string): Promise<T 
 
     const data = (await response.json()) as T;
 
-    if (redisClient && redisClient.isOpen) {
+    if (redisClient && redisClient.isOpen && data) {
       try {
         await redisClient.set(redisKey, JSON.stringify(data));
         console.log(`[Cache] SET persistente: ${redisKey}`);
@@ -75,10 +80,11 @@ export async function getResourceList(resource: string): Promise<{ count: number
 
 /**
  * Obtém detalhes de um item específico (ex: /classes/barbarian, /equipment/greataxe).
+ * Garante que sempre retorne um objeto, mesmo em caso de falha, para segurança no merge.
  */
 export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
   const key = cacheKey(resource, index);
-  return fetchWithCache<any>(`/${resource}/${index}`, key);
+  return await fetchWithCache<any>(`/${resource}/${index}`, key) || {}; // Retorna objeto vazio em falha
 }
 
 /**
