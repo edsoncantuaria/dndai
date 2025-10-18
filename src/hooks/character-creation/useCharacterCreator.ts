@@ -28,6 +28,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     }, []);
 
     const { details, loadingStates, fetchFeats } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
@@ -106,7 +107,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     
     const { buildCharacter, isComplete } = useMemo(() => {
         const isPersonalityComplete = state.background ? (
-            state.personalityTraits.length === (details.backgroundDetails?.personality_traits?.choose || 0) &&
+            state.personalityTraits.length === (backgroundDetails?.personality_traits?.choose || 0) &&
             !!state.ideal && !!state.bond && !!state.flaw
         ) : false;
 
@@ -124,7 +125,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             
             const homebrewIds = [state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]
                 .concat(Object.values(selectionManager.proficiencySelections).flat())
-                .concat(Object.values(selectionManager.finalizedEquipment).map(item => item.index))
+                .concat(Object.values(derivedData.finalizedEquipment).map((item: any) => item.index))
                 .concat(selectionManager.chosenClassSpells)
                 .concat(Object.values(selectionManager.chosenRacialSpells).flat())
                 .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));

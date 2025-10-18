@@ -1,11 +1,13 @@
 // src/hooks/character-creation/useSelectionManager.ts
-import { useCallback, useMemo, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { ApiListItem, ApiSpell, Proficiency } from '@/types';
 import { ProficiencyChoiceWithSource } from './useCharacterCreator';
 import type { CharacterCreatorState, CharacterCreatorAction } from './reducer';
 import type { Attributes } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import { fetchDetailsInChunks } from '@/utils/apiUtils';
+import * as characterUtils from '@/utils/characterUtils';
+
 
 export const useSelectionManager = (
     state: CharacterCreatorState,
@@ -45,13 +47,12 @@ export const useSelectionManager = (
         return profs;
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
     
-    
-    const allProficiencyChoices = useMemo(() => {
+    const allProficiencyChoices = useMemo<ProficiencyChoiceWithSource[]>(() => {
         if (!classDetails && !raceDetails && !backgroundDetails) return [];
         const choices: ProficiencyChoiceWithSource[] = [];
         const processChoice = (choice: any, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
-            const options = choice.from.options.map((opt: any) => opt.item).filter(Boolean);
+            const options = choice.from.options.map((opt: any) => opt.item).filter((item: ApiListItem | undefined) => item && !allFixedProficiencies.has(item.index));
             if (options.length > 0) {
                  choices.push({
                     ...choice,
@@ -68,7 +69,8 @@ export const useSelectionManager = (
         processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
         
         return choices;
-    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman, allFixedProficiencies]);
+    
     
     const unavailableProficiencies = useMemo(() => {
         const selectedInOtherGroups = new Set(Object.values(proficiencySelections).flat());
@@ -115,14 +117,22 @@ export const useSelectionManager = (
             return newLangs;
         });
     }, [setField]);
+
+    const languageChoicesCount = useMemo(() => {
+        let count = 0;
+        if (raceDetails?.language_options) count += raceDetails.language_options.choose;
+        if (backgroundDetails?.language_options) count += backgroundDetails.language_options.choose;
+        if (details.subraceDetails?.language_options) count += details.subraceDetails.language_options.choose;
+        return count;
+    }, [raceDetails, backgroundDetails, details.subraceDetails]);
     
-     const handleRandomizeLanguages = useCallback((baseLanguages: string[], languageChoicesCount: number) => {
+     const handleRandomizeLanguages = useCallback((baseLanguages: string[]) => {
         if (languageChoicesCount <= 0) return;
         const availableLangs = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
         const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
         setField('chosenLanguages', selected);
-    }, [allLanguages, setField]);
+    }, [allLanguages, languageChoicesCount, setField]);
 
      // --- SPELLS ---
 
@@ -168,15 +178,15 @@ export const useSelectionManager = (
 
     const { racialSpellTraits, racialSpellOptions } = useMemo(() => {
         const traitsWithOptions = (details.traitChoiceDetails || [])
-            .filter(t => t.trait_specific?.spell_options);
+            .filter((t:any) => t.trait_specific?.spell_options);
 
-        const traits = traitsWithOptions.map(t => ({
+        const traits = traitsWithOptions.map((t:any) => ({
             traitName: t.name,
             choose: t.trait_specific!.spell_options!.choose,
             options: t.trait_specific!.spell_options!.from.options.map((o: any) => o.item)
         }));
 
-        const allSpellRefs = traits.flatMap(t => t.options);
+        const allSpellRefs = traits.flatMap((t:any) => t.options);
         return { racialSpellTraits: traits, racialSpellOptions: allSpellRefs };
     }, [details.traitChoiceDetails]);
 
@@ -200,20 +210,20 @@ export const useSelectionManager = (
     }, [classDetails, characterClass, state.baseAttributes, state.level]);
 
     const areClassSpellsSelected = useMemo(() => {
-        const selectedCantripsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find(c => c.index === sIndex)?.level || 1) === 0).length;
-        const selectedSpellsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find(c => c.index === sIndex)?.level || 0) === 1).length;
+        const selectedCantripsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find((c:any) => c.index === sIndex)?.level || 1) === 0).length;
+        const selectedSpellsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find((c:any) => c.index === sIndex)?.level || 0) === 1).length;
         return selectedCantripsCount === cantripsKnown && selectedSpellsCount === spellsKnown;
     }, [chosenClassSpells, classSpellOptions, cantripsKnown, spellsKnown]);
 
     const areRacialSpellsSelected = useMemo(() => 
-        racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose),
+        racialSpellTraits.every((trait:any) => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose),
     [racialSpellTraits, chosenRacialSpells]);
 
     const canProceedFromProficiencies = useMemo(() => {
         const allChoicesMade = allProficiencyChoices.every(choice => (proficiencySelections[choice.id]?.length || 0) === choice.choose);
-        const allLangsChosen = state.chosenLanguages.filter(Boolean).length === derivedData.languageChoicesCount;
+        const allLangsChosen = state.chosenLanguages.filter(Boolean).length === languageChoicesCount;
         return allChoicesMade && allLangsChosen;
-    }, [allProficiencyChoices, proficiencySelections, state.chosenLanguages, derivedData.languageChoicesCount]);
+    }, [allProficiencyChoices, proficiencySelections, state.chosenLanguages, languageChoicesCount]);
 
 
     return {
@@ -239,6 +249,7 @@ export const useSelectionManager = (
         spellsKnown,
         racialSpellOptions,
         racialSpellTraits,
+        languageChoicesCount,
         setField,
     };
 };

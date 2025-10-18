@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import * as DndApiService from '@/services/dndApiService';
 import { ProficiencyChoiceWithSource } from './useCharacterCreator';
+import { useSelectionManager } from './useSelectionManager';
 
 
 export const useDerivedCharacterData = (
@@ -18,24 +19,21 @@ export const useDerivedCharacterData = (
         backgroundDetails: ApiBackground | null;
         availableFeats: Feat[];
     },
-    selectionManager: any
+    selectionManager: ReturnType<typeof useSelectionManager>
 ) => {
-    const { isVariantHuman, variantHumanBonusSelections, traitSelections, proficiencySelections, equipmentSelections, selectedFeat } = state;
+    const { isVariantHuman, variantHumanBonusSelections, proficiencySelections, equipmentSelections, selectedFeat } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
-    const { allProficiencyChoices, allEquipment } = selectionManager;
+    const { allProficiencyChoices, allFixedProficiencies } = selectionManager;
 
-    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
-        const profs = new Map<string, Proficiency>();
-        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => p && profs.set(p.index, { ...p }));
-        
-        if (!isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
-        addProfs(subraceDetails?.starting_proficiencies);
-        addProfs(classDetails?.proficiencies);
-        addProfs(backgroundDetails?.starting_proficiencies);
-        (classDetails?.saving_throws || []).forEach(st => st && profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
-
-        return profs;
-    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
+    const allEquipment = useMemo(() => {
+        // Esta lógica deve ser movida para useDataManager para ser mais eficiente,
+        // mas por enquanto, manteremos aqui para simplicidade.
+        const [equipment, setEquipment] = React.useState<InventoryItem[]>([]);
+        React.useEffect(() => {
+            DndApiService.getEquipment().then(res => setEquipment(res?.results || []));
+        }, []);
+        return equipment;
+    }, []);
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -70,11 +68,16 @@ export const useDerivedCharacterData = (
     
     const finalProficiencies = useMemo(() => {
         const profsMap = new Map<string, Proficiency>();
-        allFixedProficiencies.forEach((value, key) => profsMap.set(key, value));
+        // Add fixed proficiencies first
+        if (allFixedProficiencies) {
+            allFixedProficiencies.forEach((value, key) => profsMap.set(key, value));
+        }
 
-        Object.values(proficiencySelections).flat().forEach(profIndex => {
+        // Add selected proficiencies
+        Object.values(proficiencySelections || {}).flat().forEach(profIndex => {
             if (!profsMap.has(profIndex)) {
-                const choice = allProficiencyChoices.flatMap((c: any) => c.options).find((o: any) => o.index === profIndex);
+                // Find the full proficiency object from all possible choices
+                const choice = (allProficiencyChoices || []).flatMap(c => c.options).find(o => o.index === profIndex);
                 if (choice) {
                     profsMap.set(profIndex, choice as Proficiency);
                 }
@@ -115,7 +118,7 @@ export const useDerivedCharacterData = (
                 if (selection.sub === undefined) return null;
                 const categoryIndex = mainOption.choice.from.equipment_category.index;
                 const subOptions = (allEquipment || []).filter(item => 
-                    (item.equipment_category && item.equipment_category.index === categoryIndex) ||
+                    item.equipment_category && item.equipment_category.index === categoryIndex ||
                     (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
                 );
                 const subItem = subOptions[selection.sub];
@@ -147,14 +150,6 @@ export const useDerivedCharacterData = (
         return Array.from(langs);
     }, [raceDetails, subraceDetails]);
 
-    const languageChoicesCount = useMemo(() => {
-        let count = 0;
-        if (raceDetails?.language_options) count += raceDetails.language_options.choose;
-        if (backgroundDetails?.language_options) count += backgroundDetails.language_options.choose;
-        if (details.subraceDetails?.language_options) count += details.subraceDetails.language_options.choose;
-        return count;
-    }, [raceDetails, backgroundDetails, details.subraceDetails]);
-
     const finalFeats = useMemo(() => {
         const feats: Feat[] = [];
         if (isVariantHuman && selectedFeat) {
@@ -165,7 +160,6 @@ export const useDerivedCharacterData = (
     }, [isVariantHuman, selectedFeat, availableFeats]);
 
     return {
-        allFixedProficiencies,
         racialBonuses,
         finalAttributes,
         finalProficiencies,
@@ -174,7 +168,6 @@ export const useDerivedCharacterData = (
         finalizedEquipment,
         areAllEquipmentChoicesMade,
         baseLanguages,
-        languageChoicesCount,
         finalFeats,
     };
 };
