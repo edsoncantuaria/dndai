@@ -20,6 +20,20 @@ Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo e im
     - **Narração por Voz (TTS):** Ouça as narrações do Mestre de Jogo com vozes geradas por IA.
     - **Geração de Imagens:** Em momentos importantes, a IA gera ilustrações para dar vida ao mundo.
 
+## O Processo de Criação de Personagem
+
+O sistema de criação de personagens é uma das partes mais sofisticadas do frontend, projetado para ser um "wizard" (assistente) passo a passo que guia o jogador.
+
+-   **Arquitetura de Hooks:** Toda a lógica é centralizada em um hook principal, `useCharacterCreator`, que por sua vez orquestra hooks menores e especializados para gerenciar dados (`useDataManager`), seleções do usuário (`useSelectionManager`) e atributos (`useAttributeManager`). Essa composição garante que o estado seja consistente e reativo a cada escolha do jogador.
+-   **Fonte de Dados Unificada:** O assistente busca todas as opções (raças, classes, antecedentes, etc.) **exclusivamente** da nossa API unificada do backend (`/api/dnds/...`). Isso significa que qualquer conteúdo homebrew "instalado" pelo usuário aparece nativamente e de forma transparente nas listas de escolha.
+-   **Lógica de Regras no Frontend:** O hook `useCharacterCreator` é responsável por aplicar as regras da 5ª Edição durante a criação:
+    *   Calcula os bônus de atributo com base na raça e sub-raça.
+    *   Gerencia a distribuição de pontos de atributos no método "Point Buy" ou os resultados da rolagem de dados.
+    *   Agrega as proficiências concedidas automaticamente e apresenta apenas as opções válidas para escolha, evitando duplicatas.
+    *   Filtra e apresenta as opções de equipamento corretas com base nas escolhas de classe e antecedente.
+    *   Calcula o número de magias conhecidas e apresenta as listas corretas para seleção.
+-   **Finalização:** Ao final do processo, o hook compila todas as seleções em um único objeto `NewCharacterInfo`, que é enviado para o backend (`POST /api/characters`). O servidor então valida e persiste o novo personagem no banco de dados.
+
 ## Arquitetura e Tecnologias
 
 O projeto é construído sobre uma stack moderna, priorizando a componentização e a separação de responsabilidades.
