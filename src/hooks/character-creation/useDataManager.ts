@@ -1,6 +1,7 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
+import { apiClient } from '@/services/apiClient';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
 
@@ -31,7 +32,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await DndApiService.getEquipment();
+            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
