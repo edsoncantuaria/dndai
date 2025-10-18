@@ -1,8 +1,9 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
+import { apiClient } from '@/services/apiClient';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -24,79 +25,62 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         progress: 0,
     });
 
-    const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
     const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
-
+    // Pre-load all equipment data
     useEffect(() => {
         const fetchBaseEquipment = async () => {
-             setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await DndApiService.getEquipment();
-            if (equipmentResponse?.results) {
-                const itemDetails = await fetchDetailsInChunks(
-                    equipmentResponse.results,
-                    DndApiService.getEquipmentDetails,
-                    (loaded, total, progress) => {
-                        setLoadingStates({ isLoading: true, message: `Analisando Itens ${loaded} de ${total}...`, progress });
-                    }
-                );
-                const validItems = itemDetails.filter((item): item is InventoryItem => item !== null);
-                setAllEquipment(validItems);
+             setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+             try {
+                const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+                if (equipmentResponse?.results) {
+                    const itemDetails = await fetchDetailsInChunks(
+                        equipmentResponse.results,
+                        DndApiService.getEquipmentDetails,
+                        (loaded, total, progress) => {
+                            setLoadingStates({ isLoading: true, message: `Analisando Itens ${loaded} de ${total}...`, progress });
+                        }
+                    );
+                    const validItems = itemDetails.filter((item): item is InventoryItem => item !== null);
 
-                // Pre-populate cache from allEquipment
-                const newCache: Record<string, InventoryItem[]> = {};
-                validItems.forEach(item => {
-                    const eqCat = item.equipment_category?.index;
-                    const gearCat = (item as any).gear_category?.index;
-                    if (eqCat) {
-                        if (!newCache[eqCat]) newCache[eqCat] = [];
-                        newCache[eqCat].push(item);
-                    }
-                    if (gearCat) {
-                         if (!newCache[gearCat]) newCache[gearCat] = [];
-                        newCache[gearCat].push(item);
-                    }
-                });
-                setEquipmentCategoryCache(newCache);
-            }
-             setLoadingStates({ isLoading: false, message: '', progress: 0 });
+                    const newCache: Record<string, InventoryItem[]> = {};
+                    validItems.forEach(item => {
+                        const categories = [
+                            item.equipment_category?.index,
+                            (item as any).gear_category?.index,
+                            item.weapon_category?.toLowerCase() + '-weapons', // e.g. simple-weapons
+                            item.weapon_range?.toLowerCase() + '-weapons', // e.g. melee-weapons
+                            item.armor_category?.toLowerCase() + '-armor', // e.g. heavy-armor
+                        ].filter(Boolean);
+
+                         // Specific composite categories
+                        if (item.weapon_category === 'Martial' && item.weapon_range === 'Melee') {
+                            categories.push('martial-melee-weapons');
+                        }
+                        if (item.weapon_category === 'Simple' && item.weapon_range === 'Melee') {
+                            categories.push('simple-melee-weapons');
+                        }
+
+                        categories.forEach(cat => {
+                            if (!newCache[cat!]) newCache[cat!] = [];
+                            newCache[cat!].push(item);
+                        });
+                    });
+
+                    // Add composite weapon categories
+                    newCache['martial-weapons'] = [...(newCache['martial-melee-weapons'] || []), ...(newCache['martial-ranged-weapons'] || [])];
+                    newCache['simple-weapons'] = [...(newCache['simple-melee-weapons'] || []), ...(newCache['simple-ranged-weapons'] || [])];
+                    
+                    setEquipmentCategoryCache(newCache);
+                }
+             } catch (error) {
+                console.error("Falha catastrófica ao carregar equipamentos:", error);
+             } finally {
+                setLoadingStates({ isLoading: false, message: '', progress: 0 });
+             }
         };
         fetchBaseEquipment();
     }, []);
-
-    const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
-        if (!categoryIndex) return [];
-        if (equipmentCategoryCache[categoryIndex]) {
-            return equipmentCategoryCache[categoryIndex];
-        }
-
-        const filtered = allEquipment.filter(item => 
-            item.equipment_category?.index === categoryIndex || 
-            (item as any).gear_category?.index === categoryIndex
-        );
-
-        if (filtered.length > 0) {
-            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filtered }));
-            return filtered;
-        }
-        
-        // Fallback to API if not in the main list for some reason
-        setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
-        try {
-            const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
-            if (!categoryDetails || !categoryDetails.equipment) return [];
-            
-            const items = await fetchDetailsInChunks(categoryDetails.equipment, DndApiService.getEquipmentDetails, ()=>{});
-            const validItems = items.filter(Boolean) as InventoryItem[];
-            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: validItems }));
-            return validItems;
-        } catch (error) {
-            console.error(`Failed to fetch equipment category ${categoryIndex}:`, error);
-            return [];
-        } finally {
-            setLoadingStates({ isLoading: false, message: '', progress: 0 });
-        }
-    }, [equipmentCategoryCache, allEquipment]);
 
 
     // Fetch Race Details
@@ -182,7 +166,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         fetchClass();
     }, [characterClass]);
 
-    // Fetch Background Details and its equipment categories
+    // Fetch Background Details
     useEffect(() => {
         if (!background) {
             setBackgroundDetails(null);
@@ -192,28 +176,10 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setLoadingStates({ isLoading: true, message: 'Relembrando o passado...', progress: 50 });
             const details = await DndApiService.getBackgroundDetails(background);
             setBackgroundDetails(details);
-    
-            if (details?.starting_equipment_options) {
-                for (const choice of details.starting_equipment_options) {
-                    const processOptionSet = async (optionSet: any) => {
-                        if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
-                            await fetchEquipmentCategory(optionSet.equipment_category.index);
-                        } else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
-                            for (const option of optionSet.options) {
-                                if (option.option_type === 'choice' && option.choice?.from) {
-                                    await processOptionSet(option.choice.from);
-                                }
-                            }
-                        }
-                    };
-                    await processOptionSet(choice.from);
-                }
-            }
-    
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchBackground();
-    }, [background, fetchEquipmentCategory]);
+    }, [background]);
     
     // Fetch Racial Traits
     useEffect(() => {
@@ -258,7 +224,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             classSpellOptions,
             subclassSpells,
         },
-        allEquipment,
         equipmentCategoryCache,
         loadingStates,
         fetchFeats,
