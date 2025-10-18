@@ -15,26 +15,7 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 horas
 export async function getUnifiedList(resource: string, userId: number): Promise<any[]> {
     const publicCacheKey = `unified-public-list:${resource}`;
 
-    // 1. Busca o conteúdo específico do usuário primeiro (instalado e privado)
-    const userRepo = AppDataSource.getRepository(User);
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    
-    const user = await userRepo.findOneBy({ id: userId });
-    const installedIds = user?.installedHomebrewIds || [];
-
-    const userSpecificWhere: FindOptionsWhere<HomebrewContent>[] = [
-        { authorId: userId, type: resource as any }, // Privado do usuário
-    ];
-    if (installedIds.length > 0) {
-        userSpecificWhere.push({ id: In(installedIds), type: resource as any }); // Instalado pelo usuário
-    }
-
-    const userSpecificContent = await homebrewRepo.find({
-        where: userSpecificWhere,
-        select: ["id", "name", "content", "authorId", "isPublic"]
-    });
-
-    // 2. Busca a lista base pública (cache ou API)
+    // 1. Busca a lista base pública (cache ou API)
     let publicList: any[] = [];
     if (redisClient && redisClient.isOpen) {
         const cachedPublic = await redisClient.get(publicCacheKey);
@@ -47,7 +28,7 @@ export async function getUnifiedList(resource: string, userId: number): Promise<
     if (publicList.length === 0) {
         console.log(`[Cache] MISS: Construindo lista pública para ${resource}.`);
         const officialData = await getResourceList(resource);
-        const publicHomebrew = await homebrewRepo.find({
+        const publicHomebrew = await AppDataSource.getRepository(HomebrewContent).find({
             where: { isPublic: true, type: resource as any },
             select: ["id", "name", "content"]
         });
@@ -64,6 +45,25 @@ export async function getUnifiedList(resource: string, userId: number): Promise<
             await redisClient.set(publicCacheKey, JSON.stringify(publicList), { EX: CACHE_TTL_SECONDS });
         }
     }
+
+    // 2. Busca o conteúdo específico do usuário (instalado e privado)
+    const userRepo = AppDataSource.getRepository(User);
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    
+    const user = await userRepo.findOneBy({ id: userId });
+    const installedIds = user?.installedHomebrewIds || [];
+
+    const userSpecificWhere: FindOptionsWhere<HomebrewContent>[] = [
+        { authorId: userId, type: resource as any, isPublic: false }, // Privado do usuário
+    ];
+    if (installedIds.length > 0) {
+        userSpecificWhere.push({ id: In(installedIds), type: resource as any }); // Instalado pelo usuário
+    }
+
+    const userSpecificContent = await homebrewRepo.find({
+        where: userSpecificWhere,
+        select: ["id", "name", "content", "authorId", "isPublic"]
+    });
 
     // 3. Mescla a lista pública com o conteúdo do usuário, dando prioridade ao do usuário.
     const finalMap = new Map(publicList.map((item: any) => [item.index, item]));
@@ -91,7 +91,6 @@ export async function getUnifiedDetails(resource: string, index: string, userId:
         
         // Verifica se o usuário tem permissão para ver (se for privado e não for dele)
         if (!hbContent.isPublic && hbContent.authorId !== userId) {
-            // Ainda permite se estiver na lista de instalados do usuário.
             const user = await AppDataSource.getRepository(User).findOneBy({id: userId});
             if (!user?.installedHomebrewIds?.includes(hbContent.id)) {
                  throw createError(403, 'Acesso negado a este conteúdo privado.');
@@ -110,15 +109,19 @@ export async function getUnifiedDetails(resource: string, index: string, userId:
 
     if (installedIds.length > 0) {
         const installedOverride = await AppDataSource.getRepository(HomebrewContent).findOne({
-            where: {
-                id: In(installedIds),
-                content: { official_index: index } as any // TypeORM pode precisar de ajuda aqui
-            }
+            where: [
+                { id: In(installedIds), content: { official_index: index } as any },
+                { authorId: userId, content: { official_index: index } as any }
+            ]
         });
 
         if (installedOverride) {
-            console.log(`[UnifiedDetails] Sobrescrevendo '${index}' com conteúdo instalado pelo usuário.`);
-            return { ...officialData, ...installedOverride.content, name: `(Instalado) ${installedOverride.name}` };
+            console.log(`[UnifiedDetails] Sobrescrevendo '${index}' com conteúdo instalado/privado do usuário.`);
+            // Mescla os dados oficiais com as alterações do homebrew.
+            const mergedContent = { ...officialData, ...installedOverride.content };
+            // Garante que o nome seja o traduzido/customizado.
+            mergedContent.name = installedOverride.content.name || officialData.name;
+            return mergedContent;
         }
     }
     
