@@ -8,7 +8,7 @@ import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
-import NewStep5_Equipment from './NewStep5_Equipment';
+import NewStep5_Equipment2 from './NewStep5_Equipment2';
 import NewStep6_Spells from './NewStep6_Spells';
 import NewStep7_Feats from './NewStep7_Feats';
 import NewStep8_Finalize from './NewStep8_Finalize';
@@ -89,7 +89,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 4:
                 return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} allLanguages={allLanguages} />;
             case 5:
-                return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+                return <NewStep5_Equipment2 hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
                 return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 7:

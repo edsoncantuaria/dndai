@@ -45,11 +45,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            // Manter as sub-seleções se a opção principal não tiver mudado, ou limpar se mudou
-            const oldMain = prev[groupId]?.main;
             newSelections[groupId] = { 
                 main: mainOptionIndex, 
-                sub: oldMain === mainOptionIndex ? (prev[groupId]?.sub || {}) : {} 
+                sub: {} // Reset sub-choices when main choice changes
             };
             return newSelections;
         });

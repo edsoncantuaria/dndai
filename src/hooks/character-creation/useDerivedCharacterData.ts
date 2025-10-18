@@ -117,28 +117,26 @@ export const useDerivedCharacterData = (
             const mainOption = group.choice.from.options[selection.main];
             if (!mainOption) return;
 
+            const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
+                 if (subOpt.option_type === 'counted_reference' && subOpt.of) {
+                    const item = allEquipment.find(e => e.index === subOpt.of!.index);
+                    if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4() });
+                } else if (subOpt.option_type === 'choice') {
+                    const subSelection = selection.sub?.[subIndex];
+                    if (subSelection) {
+                        const item = allEquipment.find(e => e.index === subSelection);
+                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                    }
+                }
+            }
+
             if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                 const item = allEquipment.find(e => e.index === mainOption.of!.index);
                 if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4() });
             } else if (mainOption.option_type === 'multiple' && mainOption.items) {
-                 mainOption.items.forEach((subOpt: ApiEquipmentOption, subIndex: number) => {
-                    if (subOpt.option_type === 'counted_reference' && subOpt.of) {
-                        const item = allEquipment.find(e => e.index === subOpt.of!.index);
-                        if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4() });
-                    } else if (subOpt.option_type === 'choice') {
-                        const subSelection = selection.sub?.[subIndex];
-                        if (subSelection) {
-                            const item = allEquipment.find(e => e.index === subSelection);
-                            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
-                        }
-                    }
-                });
+                 mainOption.items.forEach(processSubOption);
             } else if (mainOption.option_type === 'choice') {
-                const subSelection = selection.sub?.[0];
-                if(subSelection) {
-                    const item = allEquipment.find(e => e.index === subSelection);
-                    if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
-                }
+                processSubOption(mainOption, 0);
             }
         });
 
@@ -200,5 +198,3 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
-
-    
