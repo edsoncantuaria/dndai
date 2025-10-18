@@ -6,7 +6,7 @@ import { getResourceList as fetchResourceList, getDetails as fetchDetails } from
 import { User } from '../entities/User.js';
 import { In, Brackets } from 'typeorm';
 
-const norm = (s?: string) => (s ?? '').toLowerCase().trim().replace(/\s+/g, '-');
+const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 const KEY = (r: string, i?: string) => (i ? `dnd5e:${r}:${i}` : `dnd5e:${r}:list`);
 
 export async function getUnifiedList(resource: string, userId?: number): Promise<any[]> {
@@ -34,32 +34,39 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     let allRelevantHomebrew: HomebrewContent[] = [];
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
 
-    try {
-        const queryBuilder = homebrewRepo.createQueryBuilder('hb')
-            .where('LOWER(hb.type) = :type', { type: normalizedResource });
-
-        const userInstalledIds = userId 
-            ? (await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] }))?.installedHomebrewIds || []
-            : [];
-            
+    if (userId) {
+        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
+        const userInstalledIds = user?.installedHomebrewIds || [];
         console.log(`[UnifiedService] Encontrados ${userInstalledIds.length} IDs de homebrew instalados para o usuário ${userId}`);
         
-        // CORREÇÃO: Simplificação da query para OR
         if (userInstalledIds.length > 0) {
-            queryBuilder.andWhere(new Brackets(qb => {
-                qb.where('hb.isPublic = :isPublic', { isPublic: true })
-                  .orWhere('hb.id IN (:...userInstalledIds)', { userInstalledIds });
-            }));
+             const queryBuilder = homebrewRepo.createQueryBuilder('hb')
+                .where('LOWER(hb.type) = :type', { type: normalizedResource })
+                .andWhere(new Brackets(qb => {
+                    qb.where('hb.isPublic = :isPublic', { isPublic: true })
+                      .orWhere('hb.id IN (:...userInstalledIds)', { userInstalledIds });
+                }));
+            allRelevantHomebrew = await queryBuilder.getMany();
         } else {
-            queryBuilder.andWhere('hb.isPublic = :isPublic', { isPublic: true });
+             allRelevantHomebrew = await homebrewRepo.find({
+                where: {
+                    type: normalizedResource as any,
+                    isPublic: true
+                }
+            });
         }
-        
-        allRelevantHomebrew = await queryBuilder.getMany();
-        console.log(`[UnifiedService] Query de Homebrew retornou ${allRelevantHomebrew.length} itens (públicos + instalados pelo usuário).`);
 
-    } catch (e) {
-        console.error("[UnifiedService] Erro ao buscar conteúdo homebrew:", e);
+    } else {
+        // Para usuários anônimos, busca apenas o conteúdo público
+        allRelevantHomebrew = await homebrewRepo.find({
+            where: {
+                type: normalizedResource as any,
+                isPublic: true
+            }
+        });
     }
+     console.log(`[UnifiedService] Query de Homebrew retornou ${allRelevantHomebrew.length} itens (públicos + instalados pelo usuário).`);
+
     
     // 3. Mescla as listas
     console.log(`[UnifiedService] Mesclando ${officialList.length} itens oficiais com ${allRelevantHomebrew.length} itens homebrew.`);
@@ -74,11 +81,15 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     allRelevantHomebrew.forEach(hb => {
         const content = hb.content as any;
         if (!content) return;
+
         const officialIndex = content.official_index ? norm(content.official_index) : null;
         const key = officialIndex || hb.id;
+        
+        let mergedData = { ...(officialIndex ? finalMap.get(key) || {} : {}), ...content };
+
         finalMap.set(key, { 
             index: hb.id, 
-            name: content.name || finalMap.get(key)?.name,
+            name: mergedData.name || finalMap.get(key)?.name,
             url: `/api/data/${normalizedResource}/${hb.id}`,
             source: 'homebrew',
             isHomebrew: true,
