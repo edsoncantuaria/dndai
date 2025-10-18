@@ -7,7 +7,6 @@ import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swo
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
-import { translateApiString } from '@/utils/translator';
 import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
@@ -66,7 +65,7 @@ const BundleCard: React.FC<{
             {isExpanded && (bundle.contents || []).length > 0 && (
                 <div className="mt-3 pt-3 border-t border-stone-700 max-h-40 overflow-y-auto pr-2">
                     <ul className="list-disc list-inside space-y-1 text-sm text-stone-300">
-                        {bundle.contents.map(c => <li key={c.id}>{c.name} <span className="text-xs text-stone-500">({translateApiString(c.type)})</span></li>)}
+                        {bundle.contents.map(c => <li key={c.id}>{c.name} <span className="text-xs text-stone-500">({c.type})</span></li>)}
                     </ul>
                 </div>
             )}
@@ -328,7 +327,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
                                     <div className="flex items-center gap-1.5 text-xs text-stone-400 capitalize bg-stone-700/50 px-2 py-1 rounded-full">
                                          {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-4 w-4"/>}
-                                         {translateApiString(item.type)}
+                                         {item.type}
                                     </div>
                                 </div>
                                 <p className="text-xs text-stone-400 mt-1">
@@ -490,7 +489,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     <div className="max-h-60 overflow-y-auto bg-stone-800/50 p-3 rounded-md border border-stone-700">
                         <ul className="list-disc list-inside text-stone-300 space-y-1">
                             {dependencies.map(dep => (
-                                <li key={dep.id}>{dep.name} <span className="text-xs text-stone-500">({translateApiString(dep.type)})</span></li>
+                                <li key={dep.id}>{dep.name} <span className="text-xs text-stone-500">({dep.type})</span></li>
                             ))}
                         </ul>
                     </div>
@@ -556,8 +555,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     <Grip className="h-4 w-4"/> Todos
                                 </button>
                                 {CONTENT_TYPES.map(type => (
-                                    <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-                                    {CONTENT_TYPE_ICONS[type]} {translateApiString(type)}
+                                    <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors capitalize ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
+                                    {CONTENT_TYPE_ICONS[type]} {type}
                                     </button>
                                 ))}
                                 </>
