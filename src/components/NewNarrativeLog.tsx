@@ -3,9 +3,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2 } from 'lucide-react';
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Image as ImageIcon } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { generateImage } from '@/services/aiService';
+import * as AiService from '../services/aiService';
 import Image from 'next/image';
 
 const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
@@ -24,7 +24,7 @@ const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
                 try {
                     const apiKey = getApiKey();
                     if (!apiKey) throw new Error("API Key not found");
-                    const result = await generateImage({
+                    const result = await AiService.generateImage({
                         prompt: imageContent.prompt,
                         model: imageModel,
                         apiKey

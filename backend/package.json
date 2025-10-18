@@ -30,10 +30,12 @@
     "genkit": "^1.1.2",
     "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
+    "minio": "^8.0.0",
     "mysql2": "^3.10.3",
     "redis": "^4.6.15",
     "reflect-metadata": "^0.2.2",
     "typeorm": "^0.3.20",
+    "uuid": "^10.0.0",
     "ws": "^8.18.0",
     "zod": "^3.23.8",
     "zod-to-json-schema": "^3.23.2"
@@ -43,7 +45,9 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/minio": "^7.1.1",
     "@types/node": "^20.14.10",
+    "@types/uuid": "^10.0.0",
     "@types/ws": "^8.5.10",
     "tsx": "^4.16.2",
     "typescript": "^5.5.3"

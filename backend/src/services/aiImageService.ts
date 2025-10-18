@@ -1,6 +1,8 @@
 // backend/src/services/aiImageService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import createError from 'http-errors';
+import minioClient from '../database/minio-client.js';
+import { v4 as uuidv4 } from 'uuid';
 
 interface GenerateImageInput {
     prompt: string;
@@ -9,7 +11,7 @@ interface GenerateImageInput {
 }
 
 interface GenerateImageOutput {
-    imageUrl: string; // Será uma data URI (base64)
+    imageUrl: string;
 }
 
 export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInput): Promise<GenerateImageOutput> => {
@@ -21,32 +23,48 @@ export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInpu
         const genAI = new GoogleGenerativeAI(apiKey);
         const imageModel = genAI.getGenerativeModel({ model: model });
 
-        // Gera a imagem diretamente com o prompt e modelo fornecidos
         const result = await imageModel.generateContent(prompt);
         const response = await result.response;
         
-        // A API para modelos 'imagen' pode retornar os dados de forma diferente.
-        // Acessamos o primeiro candidato e extraímos os dados base64 da imagem.
-        const imageData = response.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-
-        if (!imageData || !imageData.data) {
+        const firstPart = response.candidates?.[0]?.content?.parts?.[0];
+        if (!firstPart || !('inlineData' in firstPart) || !firstPart.inlineData) {
             console.error('Resposta da API de imagem inesperada:', JSON.stringify(response, null, 2));
             throw new Error("A API não retornou dados de imagem válidos.");
         }
         
-        // A imagem vem em base64, então criamos a data URI
-        const imageUrl = `data:${imageData.mimeType};base64,${imageData.data}`;
+        const imageData = firstPart.inlineData;
+        const imageBuffer = Buffer.from(imageData.data, 'base64');
+        const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
+        const fileExtension = imageData.mimeType.split('/')[1] || 'png';
+        const objectName = `${uuidv4()}.${fileExtension}`;
+
+        if (!minioClient) {
+            throw createError(503, 'Serviço de armazenamento de arquivos não está configurado.');
+        }
+
+        await minioClient.putObject(bucketName, objectName, imageBuffer, imageBuffer.length, {
+            'Content-Type': imageData.mimeType
+        });
+        
+        const useSSL = process.env.MINIO_USE_SSL === 'true';
+        const port = process.env.MINIO_PORT;
+        const protocol = useSSL ? 'https' : 'http';
+        const endpoint = process.env.MINIO_ENDPOINT;
+        const portString = (useSSL && port === '443') || (!useSSL && port === '80') ? '' : `:${port}`;
+        
+        // Constrói a URL pública.
+        const imageUrl = `${protocol}://${endpoint}${portString}/${bucketName}/${objectName}`;
 
         return { imageUrl };
 
     } catch (error: any) {
-        console.error(`[aiImageService] Erro ao gerar imagem com o modelo ${model}:`, error);
+        console.error(`[aiImageService] Erro ao gerar e fazer upload da imagem:`, error);
         if (error.message.includes('API key not valid')) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
         if (error.message.includes('404 Not Found')) {
             throw createError(404, `O modelo de imagem '${model}' não foi encontrado ou não está disponível para sua chave.`);
         }
-        throw createError(502, `Falha na comunicação com o serviço de geração de imagem: ${error.message}`);
+        throw createError(502, `Falha no processo de geração de imagem: ${error.message}`);
     }
 };
