@@ -14,10 +14,10 @@ export const useDerivedCharacterData = (
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
     },
-    proficiencySelections: Record<string, string[]>,
     allProficiencyChoices: any[],
-    equipmentSelections: Record<string, { main?: number, sub?: number }>,
-    allEquipment: InventoryItem[]
+    proficiencySelections?: Record<string, string[]>,
+    equipmentSelections?: Record<string, { main?: number, sub?: number }>,
+    allEquipment?: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
@@ -86,7 +86,7 @@ export const useDerivedCharacterData = (
         allFixedProficiencies.forEach((value, key) => profsMap.set(key, value));
 
         // Add selected proficiencies
-        Object.values(proficiencySelections).flat().forEach(profIndex => {
+        Object.values(proficiencySelections || {}).flat().forEach(profIndex => {
             if (!profsMap.has(profIndex)) {
                 // Find the full proficiency object from all possible choices
                 const choice = allProficiencyChoices.flatMap(c => c.options).find(o => o.index === profIndex);
@@ -117,7 +117,7 @@ export const useDerivedCharacterData = (
         }
 
         const finalized = choiceGroups.map(group => {
-            const selection = equipmentSelections[group.id];
+            const selection = (equipmentSelections || {})[group.id];
             if (!selection || selection.main === undefined) return null;
             const mainOption = group.choice.from.options[selection.main];
 
@@ -130,7 +130,7 @@ export const useDerivedCharacterData = (
             if (mainOption.option_type === 'choice') {
                 if (selection.sub === undefined) return null;
                 const categoryIndex = mainOption.choice.from.equipment_category.index;
-                const subOptions = allEquipment.filter(item => 
+                const subOptions = (allEquipment || []).filter(item => 
                     item.equipment_category?.index === categoryIndex ||
                     (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
                 );

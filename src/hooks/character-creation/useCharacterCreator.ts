@@ -32,8 +32,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const attributeManager = useAttributeManager(state, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details);
-
     const allProficiencyChoices = useMemo(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
@@ -67,15 +65,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         return choices;
     }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
     
-    const selectionManager = useSelectionManager(
-        state, 
-        allProficiencyChoices, 
-        derivedData.allFixedProficiencies,
-        allLanguages, 
-        derivedData.languageChoicesCount,
-        details.classSpellOptions, 
-        details.subclassSpells
-    );
+    const selectionManager = useSelectionManager(state, allProficiencyChoices, allLanguages);
+
+    const derivedData = useDerivedCharacterData(state, details, allProficiencyChoices, selectionManager.proficiencySelections, selectionManager.equipmentSelections, allEquipment);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -147,8 +139,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     }, [handleRaceChange, handleClassChange, handleSubraceChange]);
     
     const { buildCharacter, isComplete } = useMemo(() => {
-        const equipmentChoiceGroups = derivedData.equipmentChoiceGroups;
-        const areAllEquipmentChoicesMade = equipmentChoiceGroups.every(group => selectionManager.equipmentSelections[group.id] && selectionManager.equipmentSelections[group.id].main !== undefined);
+        const areAllEquipmentChoicesMade = derivedData.equipmentChoiceGroups.every(group => selectionManager.equipmentSelections[group.id] && selectionManager.equipmentSelections[group.id].main !== undefined);
         const cantripsKnown = details.classDetails?.spellcasting ? details.classDetails.spellcasting.info.find(i => i.name === 'Cantrips')?.desc[0]?.match(/\d+/)?.[0] || 0 : 0;
         const spellsKnown = details.classDetails?.spellcasting ? details.classDetails.spellcasting.info.find(i => i.name === 'Spells Known of 1st-Level and Higher')?.desc[0]?.match(/\d+/)?.[0] || 0 : 0;
         const areClassSpellsSelected = selectionManager.chosenClassSpells.filter(s => details.classSpellOptions.find(opt => opt.index === s)?.level === 0).length === Number(cantripsKnown) &&
@@ -173,38 +164,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             if (!isComplete) return null;
             
             const homebrewIds = [state.race, state.subrace, state.characterClass, state.background].filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
-            const finalizedEquipment = equipmentChoiceGroups.map(group => {
-                const selection = selectionManager.equipmentSelections[group.id];
-                if (!selection || selection.main === undefined) return null;
-                const mainOption = group.choice.from.options[selection.main];
-
-                if (mainOption.option_type === 'counted_reference') {
-                    return { ...mainOption.of, quantity: mainOption.count };
-                }
-                if (mainOption.option_type === 'multiple') {
-                    return mainOption.items.map((item: any) => ({ ...item.of, quantity: item.count}));
-                }
-                if (mainOption.option_type === 'choice') {
-                    if (selection.sub === undefined) return null;
-                    const categoryIndex = mainOption.choice.from.equipment_category.index;
-                    const subOptions = allEquipment.filter(item => 
-                        item.equipment_category?.index === categoryIndex ||
-                        (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
-                    );
-                    const subItem = subOptions[selection.sub];
-                    return { ...subItem, quantity: 1 };
-                }
-                return null;
-            }).flat().filter(Boolean) as InventoryItem[];
-            
-            const finalProficiencies = Array.from(new Map([
-                ...derivedData.allFixedProficiencies.entries(),
-                ...Object.values(selectionManager.proficiencySelections).flat().map(profIndex => {
-                    const choice = allProficiencyChoices.flatMap(c => c.options).find(o => o.index === profIndex);
-                    return [profIndex, choice as Proficiency];
-                }).filter(entry => entry[1])
-            ]).values());
-
 
             return {
                 name: state.name,
@@ -219,10 +178,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 background: backgroundDetails!.name,
                 alignment: state.alignment,
                 attributes: derivedData.finalAttributes,
-                proficiencies: finalProficiencies,
+                proficiencies: derivedData.finalProficiencies,
                 traits: Array.from(new Map([...(raceDetails?.traits || []), ...(details.subraceDetails?.racial_traits || [])].map(item => [item.index, item])).values()),
                 languages: Array.from(new Set([...selectionManager.baseLanguages, ...selectionManager.chosenLanguages.filter(Boolean)])),
-                inventory: [...derivedData.fixedEquipment, ...finalizedEquipment],
+                inventory: [...derivedData.fixedEquipment, ...derivedData.finalizedEquipment],
                 spells: Array.from(new Set([...selectionManager.chosenClassSpells, ...Object.values(selectionManager.chosenRacialSpells).flat()])),
                 backstory: state.backstory,
                 personalityTraits: state.personalityTraits,
@@ -237,7 +196,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         };
 
         return { buildCharacter: buildFn, isComplete };
-    }, [state, details, selectionManager, derivedData, allProficiencyChoices, allEquipment]);
+    }, [state, details, selectionManager, derivedData, allProficiencyChoices]);
     
     return {
         ...state,
