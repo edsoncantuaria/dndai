@@ -17,11 +17,18 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
     const mainOption = group.choice.from.options[mainSelectionIndex];
 
-    if (mainOption?.option_type !== 'choice' || !mainOption.choice?.from?.equipment_category?.index) {
+    if (mainOption?.option_type !== 'choice' || (!mainOption.choice?.from?.equipment_category && !mainOption.choice.from?.equipment_category_url)) {
         return null;
     }
+    
+    // Normalize how we get the category index, preferring the direct object first.
+    const categoryIndex = mainOption.choice.from.equipment_category?.index || 
+                          mainOption.choice.from.equipment_category_url?.split('/').pop();
 
-    const categoryIndex = mainOption.choice.from.equipment_category.index;
+
+    if (!categoryIndex) {
+        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida.</p>;
+    }
     
     // Lógica de filtragem aprimorada
     const subOptions = (allEquipment || []).filter(item => {
@@ -31,16 +38,16 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
         if (item.equipment_category && item.equipment_category.index === categoryIndex) {
             return true;
         }
-
-        // Caso 2: Categorias de armas mais complexas
-        const isMartialMelee = categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
-        const isSimpleWeapon = categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple';
-        if (isMartialMelee || isSimpleWeapon) {
+        
+        // Caso 2: Categorias genéricas de equipamento (Arcane Focus, Holy Symbol, etc.)
+        if (item.gear_category && item.gear_category.index === categoryIndex) {
             return true;
         }
 
-        // Caso 3: Categorias baseadas em gear_category (Focos Arcanos, Símbolos Sagrados, etc.)
-        if (item.gear_category && item.gear_category.index === categoryIndex) {
+        // Caso 3: Categorias de armas mais complexas
+        const isMartialMelee = categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
+        const isSimpleWeapon = categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple';
+        if (isMartialMelee || isSimpleWeapon) {
             return true;
         }
 

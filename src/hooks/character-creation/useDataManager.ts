@@ -1,8 +1,8 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect } from 'react';
-import * as DndApiService from '@/services/dndApiService';
-import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '@/types';
-import { fetchDetailsInChunks } from '@/utils/apiUtils';
+import * as DndApiService from '../../services/dndApiService';
+import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
+import { fetchDetailsInChunks } from '../../utils/apiUtils';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -35,8 +35,14 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         const fetchAllEquipment = async () => {
             setIsLoading(prev => ({ ...prev, equipment: true }));
             try {
+                // O DndApiService já busca da nossa API unificada, que deve conter homebrew
                 const equipmentList = await DndApiService.getEquipment();
-                setAllEquipment(equipmentList?.results || []);
+                const equipmentDetails = await fetchDetailsInChunks(
+                    equipmentList?.results || [],
+                    DndApiService.getEquipmentDetails,
+                    () => {}
+                );
+                setAllEquipment(equipmentDetails.filter(Boolean) as InventoryItem[]);
             } catch (error) {
                 console.error("Failed to fetch all equipment:", error);
             } finally {
