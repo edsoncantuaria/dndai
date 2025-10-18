@@ -4,19 +4,27 @@ import { apiClient } from './apiClient';
 
 // --- Funções de Lista (agora chamam o novo endpoint unificado do backend) ---
 
-export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/data/races');
-export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/data/classes');
-export const getBackgrounds = () => apiClient<{ results: ApiListItem[] }>('/data/backgrounds');
-export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/data/alignments');
-export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/data/skills');
-export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/data/languages');
-export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/data/feats');
-export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/data/traits');
-export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/data/magic-schools');
-export const getDamageTypes = () => apiClient<{ results: ApiListItem[] }>('/data/damage-types');
-export const getEquipmentCategories = () => apiClient<{ results: ApiListItem[] }>('/data/equipment-categories');
-export const getConditions = () => apiClient<{ results: ApiListItem[] }>('/data/conditions');
+// Função auxiliar para simplificar as chamadas de lista
+const getResourceList = (resource: string) => {
+    return apiClient<{ results: ApiListItem[] }>(`/data/${resource}`);
+};
+
+export const getRaces = () => getResourceList('races');
+export const getClasses = () => getResourceList('classes');
+export const getBackgrounds = () => getResourceList('backgrounds');
+export const getAlignments = () => getResourceList('alignments');
+export const getSkills = () => getResourceList('skills');
+export const getLanguages = () => getResourceList('languages');
+export const getFeats = () => getResourceList('feats');
+export const getTraits = () => getResourceList('traits');
+export const getMagicSchools = () => getResourceList('magic-schools');
+export const getDamageTypes = () => getResourceList('damage-types');
+export const getEquipmentCategories = () => getResourceList('equipment-categories');
+export const getConditions = () => getResourceList('conditions');
+
+// Esta função agora também usa a rota unificada, o backend cuida de cache e unificação.
 export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment');
+
 
 // --- Funções de Detalhes (também usam o endpoint unificado) ---
 
