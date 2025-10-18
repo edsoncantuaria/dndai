@@ -5,9 +5,8 @@ import * as HomebrewService from '../services/homebrewService.js';
 import createError from 'http-errors';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
-import redisClient from '../database/redis-client.js';
 import { User } from '../entities/User.js';
-import { AppDataSource } from '../database/data-source.js'; // Importação adicionada
+import { AppDataSource } from '../database/data-source.js';
 
 const router = Router();
 
@@ -25,71 +24,61 @@ router.get('/:resource', async (req, res, next) => {
         return next(createError(401, 'Usuário não autenticado.'));
     }
     
-    // Chave para o cache compartilhado de conteúdo público
-    const publicCacheKey = `unified-public-list:${resource}`;
-
     try {
-        let publicList = [];
-        
-        // 1. Tentar buscar a lista pública COMPARTILHADA do cache
-        if (redisClient && redisClient.isOpen) {
-            const cachedPublicList = await redisClient.get(publicCacheKey);
-            if (cachedPublicList) {
-                console.log(`[Cache] HIT: Usando lista pública compartilhada para ${resource}.`);
-                publicList = JSON.parse(cachedPublicList);
-            }
-        }
-        
-        // 2. Se a lista pública não estiver no cache, construí-la
-        if (publicList.length === 0) {
-            console.log(`[Cache] MISS: Construindo lista pública compartilhada para ${resource}.`);
-            const [apiData, publicHomebrew, aiContent] = await Promise.all([
-                DndApiService.getResourceList(resource),
-                HomebrewService.getPublicHomebrewContent(resource, 'user'),
-                HomebrewService.getPublicHomebrewContent(resource, 'ai'),
-            ]);
-            
-            const publicMap = new Map<string, { index: string, name: string, url: string, source?: string }>();
-            (apiData?.results || []).forEach(item => publicMap.set(item.index, { ...item, source: 'official' }));
-            publicHomebrew.forEach(hb => publicMap.set(hb.id, { index: hb.id, name: `(H) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'homebrew' }));
-            aiContent.forEach(ai => publicMap.set(ai.id, { index: ai.id, name: `(IA) ${ai.name}`, url: `/api/dnds/${resource}/${ai.id}`, source: 'ai'}));
-            
-            publicList = Array.from(publicMap.values());
-            
-            // Salva a lista pública construída no cache compartilhado
-            if (redisClient && redisClient.isOpen) {
-                await redisClient.set(publicCacheKey, JSON.stringify(publicList), { EX: 3600 }); // Cache por 1 hora
-            }
-        }
-        
-        // 3. Buscar conteúdo privado e instalado do usuário (sempre do DB para refletir mudanças)
         const userRepo = AppDataSource.getRepository(User);
         const user = await userRepo.findOneBy({ id: userId });
         const installedIds = user?.installedHomebrewIds || [];
 
-        const [privateContent, installedContent] = await Promise.all([
-             HomebrewService.getPrivateHomebrewContentForUser(userId, resource),
-             installedIds.length > 0 ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) : Promise.resolve([])
+        // 1. Buscar todas as fontes de dados em paralelo.
+        const [
+            apiData,
+            publicHomebrew,
+            privateHomebrew,
+            installedHomebrew
+        ] = await Promise.all([
+            DndApiService.getResourceList(resource),
+            HomebrewService.getPublicHomebrewContent(resource),
+            HomebrewService.getPrivateHomebrewContentForUser(userId, resource),
+            installedIds.length > 0 ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) : Promise.resolve([])
         ]);
 
-        // 4. Mesclar listas: base pública + conteúdo privado/instalado do usuário
-        const finalMap = new Map(publicList.map((item: any) => [item.index, item]));
-        
-        // Conteúdo privado/instalado do usuário sobrescreve o público
-        privateContent.forEach(hb => finalMap.set(hb.id, { index: hb.id, name: `(Meu) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'mine' }));
-        installedContent.forEach(hb => {
-            // Se o conteúdo instalado for uma tradução, ele modifica o item oficial, senão adiciona como novo
-             if (hb.type === 'translation' && hb.content.official_index) {
-                const officialItem = finalMap.get(hb.content.official_index);
-                if (officialItem) {
-                    finalMap.set(hb.content.official_index, { ...officialItem, name: hb.name });
-                }
-            } else {
-                 // Prioriza o conteúdo instalado sobre qualquer outra coisa com o mesmo ID
-                finalMap.set(hb.id, { index: hb.id, name: `(H) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'homebrew' });
+        // 2. Unificar os dados com a prioridade correta.
+        const finalMap = new Map<string, { index: string, name: string, url: string, source: string }>();
+
+        // Prioridade 1: Conteúdo oficial da API
+        (apiData?.results || []).forEach(item => {
+            if (item && item.index) {
+                finalMap.set(item.index, { ...item, source: 'official' });
             }
         });
 
+        // Prioridade 2: Conteúdo público da comunidade
+        publicHomebrew.forEach(hb => {
+            if (hb?.content?.index) {
+                finalMap.set(hb.content.index, { index: hb.id, name: `(H) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'homebrew' });
+            }
+        });
+        
+        // Prioridade 3: Conteúdo instalado pelo usuário (sobrescreve os anteriores)
+        installedHomebrew.forEach(hb => {
+             // Se for uma tradução, modifica o item oficial existente em vez de adicionar um novo
+            if (hb.type === 'translation' && hb.content.official_index) {
+                 const officialItem = finalMap.get(hb.content.official_index);
+                 if (officialItem) {
+                     finalMap.set(hb.content.official_index, { ...officialItem, name: hb.name });
+                 }
+            } else if (hb.content && hb.content.index) {
+                finalMap.set(hb.content.index, { index: hb.id, name: `(Instalado) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'installed' });
+            }
+        });
+        
+        // Prioridade 4: Conteúdo privado do usuário (também sobrescreve)
+        privateHomebrew.forEach(hb => {
+             if (hb.content && hb.content.index) {
+                finalMap.set(hb.content.index, { index: hb.id, name: `(Meu) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'mine' });
+            }
+        });
+        
         const finalResults = Array.from(finalMap.values()).sort((a,b) => a.name.localeCompare(b.name));
 
         return res.json({
@@ -231,5 +220,3 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
 });
 
 export default router;
-
-    
