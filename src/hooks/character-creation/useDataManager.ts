@@ -174,27 +174,23 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setLoadingStates({ isLoading: true, message: 'Relembrando o passado...', progress: 50 });
             const details = await DndApiService.getBackgroundDetails(background);
             setBackgroundDetails(details);
-
-            // Fetch equipment for background
-            if (details?.starting_equipment) {
-                await fetchDetailsInChunks(
-                    details.starting_equipment.map(e => e.equipment),
-                    DndApiService.getEquipmentDetails,
-                    (l,t,p) => setLoadingStates({isLoading: true, message: `Carregando itens de antecedente...`, progress: p})
-                );
-            }
-            // Fetch equipment choices for background
-             if (details?.starting_equipment_options) {
-                for(const choice of details.starting_equipment_options) {
-                    for(const option of choice.from.options) {
-                        if (option.choice) {
-                            await fetchEquipmentCategory(option.choice.from.equipment_category.index);
+    
+            // Pré-carrega categorias de equipamento necessárias para as escolhas do antecedente
+            if (details?.starting_equipment_options) {
+                for (const choice of details.starting_equipment_options) {
+                    const optionSet = choice.from;
+                    if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category) {
+                        await fetchEquipmentCategory(optionSet.equipment_category.index);
+                    } else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
+                        for (const option of optionSet.options) {
+                            if (option.option_type === 'choice' && option.choice?.from.equipment_category) {
+                                await fetchEquipmentCategory(option.choice.from.equipment_category.index);
+                            }
                         }
                     }
                 }
             }
-
-
+    
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchBackground();
