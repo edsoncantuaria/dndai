@@ -27,12 +27,15 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, allEquipment } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
     const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        if (loadingStates.race || loadingStates.class || loadingStates.background) {
+            return new Map();
+        }
         const profs = new Map<string, Proficiency>();
         const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
 
@@ -43,57 +46,49 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
 
         return profs;
-    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
-    
+    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman, loadingStates]);
+
     const allProficiencyChoices = useMemo(() => {
-        const choices: ProficiencyChoiceWithSource[] = [];
         if (loadingStates.class || loadingStates.race || loadingStates.background) {
             return []; // Return empty array while loading to prevent errors
         }
 
+        const choices: ProficiencyChoiceWithSource[] = [];
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
+            
             const availableOptions = choice.from.options.filter((option: any) => {
-                if (option.item?.index) {
-                    return !allFixedProficiencies.has(option.item.index);
-                }
-                return true;
+                const itemIndex = option.item?.index;
+                return itemIndex ? !allFixedProficiencies.has(itemIndex) : true;
             });
-            if (availableOptions.length === 0) return;
 
-            const newChoice: ProficiencyChoiceWithSource = {
+            if(availableOptions.length === 0) return;
+
+            choices.push({
                 ...choice,
                 id: `${idPrefix}-group-${choice.desc ? choice.desc.substring(0, 10).trim() : 'default'}`,
                 source: source,
                 options: availableOptions.map((opt: any) => opt.item).filter(Boolean),
-            };
-
-            choices.push(newChoice);
+            });
         };
+
         (classDetails?.proficiency_choices || []).forEach((c, i) => processChoice(c, 'Classe', `class-${i}`));
         if (!state.isVariantHuman) { processChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race'); }
         processChoice(details.subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
         processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
+        
         if (state.isVariantHuman) {
              choices.push({
                 id: 'variant-human-skill', source: 'Raça', desc: 'Escolha uma perícia (Humano Variante)',
                 choose: 1, type: 'proficiencies', options: [] // This will be populated async, but the structure is here
-            });
+            } as any);
         }
         return choices;
     }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman, allFixedProficiencies, loadingStates]);
 
     const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells);
     
-    const derivedData = useDerivedCharacterData(
-        state,
-        details,
-        selectionManager.proficiencySelections,
-        allFixedProficiencies,
-        allProficiencyChoices,
-        selectionManager.equipmentSelections,
-        allEquipment
-    );
+    const derivedData = useDerivedCharacterData(state, details, allFixedProficiencies, selectionManager.proficiencySelections, allProficiencyChoices, selectionManager.equipmentSelections, details.allEquipment);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -234,6 +229,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         ...selectionManager,
         ...derivedData,
         allProficiencyChoices,
+        allFixedProficiencies,
         handleRaceChange,
         handleSubraceChange,
         handleClassChange,
