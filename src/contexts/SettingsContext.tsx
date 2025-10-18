@@ -24,8 +24,6 @@ export const AVAILABLE_MODELS = [
     "gemini-flash-latest",
     "gemini-flash-lite-latest",
     "gemini-pro-latest",
-    "gemini-exp-1206",
-    "gemini-robotics-er-1.5-preview",
     "gemini-2.5-computer-use-preview-10-2025"
   ];
   
@@ -37,12 +35,8 @@ export const AVAILABLE_MODELS = [
   
 
   export const AVAILABLE_IMAGE_MODELS = [
-    "imagen-3.0-generate-002",
-    "imagen-4.0-generate-preview-06-06",
     "gemini-2.5-flash-image-preview",
     "gemini-2.5-flash-image",
-    "gemini-2.0-flash-exp-image-generation",
-    "gemini-2.0-flash-preview-image-generation"
   ];
   
 
