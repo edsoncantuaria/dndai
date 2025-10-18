@@ -3,10 +3,11 @@ import { Router } from 'express';
 import { getUnifiedList, getUnifiedDetails } from '../services/unifiedDataService.js';
 import { authOptional } from '../middlewares/authOptional.js';
 import type { Request } from 'express';
+import createError from 'http-errors';
 
 // Estendendo a interface Request para incluir a propriedade opcional 'user'
 interface OptionalAuthRequest extends Request {
-  user?: { id: number };
+  user?: { userId: number };
 }
 
 const router = Router();
@@ -14,14 +15,14 @@ const router = Router();
 // Rota para listas de recursos (ex: /api/data/races)
 router.get('/:resource', authOptional, async (req: OptionalAuthRequest, res, next) => {
     const { resource } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     console.log(`[Router] Rota de lista unificada para /${resource} acionada para userId: ${userId}`);
 
     try {
         const data = await getUnifiedList(resource, userId);
         res.json({
             count: data.length,
-            results: data.map(item => ({ index: item.index, name: item.name, url: item.url }))
+            results: data
         });
     } catch (error) {
         console.error(`[Router] Erro em /data/${resource}:`, error);
@@ -32,13 +33,13 @@ router.get('/:resource', authOptional, async (req: OptionalAuthRequest, res, nex
 // Rota para detalhes de um item específico (ex: /api/data/races/elf)
 router.get('/:resource/:index', authOptional, async (req: OptionalAuthRequest, res, next) => {
     const { resource, index } = req.params;
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     console.log(`[Router] Rota de detalhes unificados para /${resource}/${index} acionada para userId: ${userId}`);
 
     try {
         const data = await getUnifiedDetails(resource, index, userId);
         if (!data) {
-            return res.status(404).json({ message: 'Recurso não encontrado.' });
+            return next(createError(404, 'Recurso não encontrado.'));
         }
         res.json(data);
     } catch (error) {

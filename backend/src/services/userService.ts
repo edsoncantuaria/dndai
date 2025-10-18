@@ -5,6 +5,7 @@ import createError from 'http-errors';
 import type { SettingsSchema } from '../schemas/validationSchemas.js';
 import type { z } from 'zod';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
+import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 
 export const getUserProfile = async (userId: number) => {
     const userRepository = AppDataSource.getRepository(User);
@@ -41,36 +42,41 @@ export const setHomebrewDisclaimerAsAcknowledged = async (userId: number) => {
     }
 };
 
-export const updateUserHomebrewInstallation = async (userId: number, homebrewId: string, action: 'install' | 'uninstall') => {
-    const userRepository = AppDataSource.getRepository(User);
-    const contentRepository = AppDataSource.getRepository(HomebrewContent);
-    const user = await userRepository.findOneBy({ id: userId });
+export const updateUserHomebrewInstallation = async (userId: number, itemId: string, action: 'install' | 'uninstall') => {
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({ id: userId });
 
     if (!user) {
         throw createError(404, 'Usuário não encontrado.');
     }
+    
+    // Verifica se o ID pertence a um conteúdo ou a um pacote
+    const content = await AppDataSource.getRepository(HomebrewContent).findOneBy({ id: itemId });
+    const bundle = await AppDataSource.getRepository(HomebrewBundle).findOneBy({ id: itemId });
 
-    const content = await contentRepository.findOneBy({ id: homebrewId });
-    if (!content) {
-        throw createError(404, 'Conteúdo Homebrew não encontrado.');
-    }
-    if (!content.isPublic && content.authorId !== userId) {
-        throw createError(403, 'Você não tem permissão para instalar este conteúdo privado.');
-    }
-
-    let currentIds = user.installedHomebrewIds || [];
-
-    if (action === 'install') {
-        if (!currentIds.includes(homebrewId)) {
-            currentIds.push(homebrewId);
-        }
-    } else { // uninstall
-        currentIds = currentIds.filter(id => id !== homebrewId);
+    if (!content && !bundle) {
+        throw createError(404, 'Conteúdo ou Pacote Homebrew não encontrado.');
     }
     
-    user.installedHomebrewIds = [...new Set(currentIds)];
+    if (content && !content.isPublic && content.authorId !== userId) {
+        throw createError(403, 'Você não tem permissão para instalar este conteúdo privado.');
+    }
+    if (bundle && !bundle.isPublic && bundle.authorId !== userId) {
+         throw createError(403, 'Você não tem permissão para instalar este pacote privado.');
+    }
+    
 
-    const savedUser = await userRepository.save(user);
+    let currentIds = new Set(user.installedHomebrewIds || []);
+
+    if (action === 'install') {
+        currentIds.add(itemId);
+    } else { // uninstall
+        currentIds.delete(itemId);
+    }
+    
+    user.installedHomebrewIds = Array.from(currentIds);
+
+    const savedUser = await userRepo.save(user);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userResponse } = savedUser;
     return userResponse;

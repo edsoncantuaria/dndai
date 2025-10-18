@@ -3,7 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 // Estendendo a interface Request para incluir a propriedade opcional 'user'
-interface OptionalAuthRequest extends Request {
+export interface OptionalAuthRequest extends Request {
   user?: { userId: number };
 }
 

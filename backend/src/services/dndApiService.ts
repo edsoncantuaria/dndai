@@ -7,7 +7,7 @@ const API_BASE = 'https://www.dnd5eapi.co/api';
 
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const cacheKey = `dnd5e:${safeEndpoint}`;
+    const cacheKey = `dnd5e:${safeEndpoint.substring(1).replace(/\//g, ':')}`;
 
     if (redisClient && redisClient.isOpen) {
         try {
