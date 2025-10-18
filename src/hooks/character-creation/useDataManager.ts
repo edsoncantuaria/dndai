@@ -1,5 +1,5 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
@@ -16,8 +16,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<ApiListItem[]>([]);
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
-    const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
-
+    
     // Unified Loading State
     const [loadingStates, setLoadingStates] = useState({
         isLoading: false,
@@ -25,28 +24,43 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         progress: 0,
     });
 
-    // Fetch All Equipment (once)
-    useEffect(() => {
-        const fetchAllEquipment = async () => {
-            setLoadingStates({ isLoading: true, message: 'Carregando Arsenal...', progress: 0 });
-            try {
-                const equipmentList = await DndApiService.getEquipment();
-                const equipmentDetails = await fetchDetailsInChunks(
-                    equipmentList?.results || [],
-                    DndApiService.getEquipmentDetails,
-                    (loaded, total, progress) => {
-                         setLoadingStates(prev => ({ ...prev, message: `Carregando Equipamentos ${loaded} de ${total}...`, progress }));
-                    }
-                );
-                setAllEquipment(equipmentDetails.filter(Boolean) as InventoryItem[]);
-            } catch (error) {
-                console.error("Failed to fetch all equipment:", error);
-            } finally {
-                setLoadingStates({ isLoading: false, message: '', progress: 0 });
+    // Cache for equipment categories
+    const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
+
+
+    // Fetch Equipment Category (on demand)
+    const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
+        if (equipmentCategoryCache[categoryIndex]) {
+            return equipmentCategoryCache[categoryIndex];
+        }
+        
+        setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
+        try {
+            const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
+            if (!categoryDetails || !categoryDetails.equipment) {
+                setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: []}));
+                return [];
             }
-        };
-        fetchAllEquipment();
-    }, []);
+            
+            const items = await fetchDetailsInChunks(
+                categoryDetails.equipment,
+                DndApiService.getEquipmentDetails,
+                (loaded, total, progress) => {
+                    setLoadingStates(prev => ({...prev, message: `Carregando itens de ${categoryIndex}... ${loaded}/${total}`, progress}));
+                }
+            );
+
+            const validItems = items.filter(Boolean) as InventoryItem[];
+            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: validItems}));
+            return validItems;
+        } catch (error) {
+            console.error(`Failed to fetch equipment category ${categoryIndex}:`, error);
+            return [];
+        } finally {
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
+        }
+    }, [equipmentCategoryCache]);
+
 
     // Fetch Race Details
     useEffect(() => {
@@ -188,8 +202,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             classSpellOptions,
             subclassSpells,
         },
-        allEquipment,
-        loadingStates: loadingStates,
+        equipmentCategoryCache,
+        loadingStates,
         fetchFeats,
+        fetchEquipmentCategory,
     };
 };

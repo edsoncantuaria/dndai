@@ -5,8 +5,8 @@ import { useAttributeManager } from './useAttributeManager';
 import { useDataManager } from './useDataManager';
 import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
-import * as DndApiService from '@/services/dndApiService';
-import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '@/types';
+import * as DndApiService from '../../services/dndApiService';
+import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '../../types';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -27,14 +27,14 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, allEquipment } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats, fetchEquipmentCategory } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager.allProficiencyChoices, allEquipment, selectionManager.languageChoicesCount);
+    const derivedData = useDerivedCharacterData(state, details, selectionManager);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -96,7 +96,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         await handleRaceChange(randomRaceItem.index);
         await handleClassChange(randomClass.index);
         
-        // Use a timeout to allow state to update and data to be fetched
         setTimeout(async () => {
             const raceData = await DndApiService.getRaceDetails(randomRaceItem.index);
             if (raceData?.subraces?.length) {
@@ -172,7 +171,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         setField,
         details,
         loadingStates,
-        allEquipment,
+        fetchEquipmentCategory,
         ...attributeManager,
         ...selectionManager,
         ...derivedData,

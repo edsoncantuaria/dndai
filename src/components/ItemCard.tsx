@@ -15,10 +15,25 @@ interface ItemCardProps {
 const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     
-    const translatedItem = item; // Assuming item is already translated
+    // O item já deve vir traduzido
+    const translatedItem = item;
 
     const canBeEquipped = !!(item.weapon_category || item.armor_category);
     const canBeUsed = item.consumable || item.usable;
+
+    const handleCastClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onUseConsumable && canBeUsed && !actionDisabled) {
+            onUseConsumable(item.id);
+        }
+    };
+    
+    const handleToggleEquipClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (onToggleEquip && canBeEquipped && !actionDisabled) {
+            onToggleEquip(item.id);
+        }
+    };
 
     return (
         <div className="bg-stone-800/70 p-3 rounded-lg border border-stone-700">
@@ -38,7 +53,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                 <div className="flex items-center">
                      {canBeUsed && onUseConsumable && (
                          <button
-                            onClick={() => onUseConsumable(item.id)}
+                            onClick={handleCastClick}
                             disabled={actionDisabled}
                             className="p-1 text-stone-400 hover:text-blue-400 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Usar Item"
@@ -48,7 +63,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                      )}
                      {canBeEquipped && onToggleEquip && (
                         <button
-                            onClick={() => onToggleEquip(item.id)}
+                            onClick={handleToggleEquipClick}
                             disabled={actionDisabled}
                             className="p-1 text-stone-400 hover:text-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
                             title={item.equipped ? 'Desequipar' : 'Equipar'}
@@ -66,7 +81,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 
             {isExpanded && (
                 <div className="mt-2 text-sm text-stone-300 space-y-2 pt-2 border-t border-stone-600/50">
-                    {translatedItem.desc && <div className="text-stone-400 text-xs italic space-y-1">{translatedItem.desc.map((d, i) => <p key={i}>{d}</p>)}</div>}
+                    {translatedItem.desc && translatedItem.desc.length > 0 && <div className="text-stone-400 text-xs italic space-y-1">{translatedItem.desc.map((d, i) => <p key={i}>{d}</p>)}</div>}
                     
                     {/* Weapon Details */}
                     {translatedItem.damage && <p><strong className="font-semibold text-stone-400">Dano:</strong> {translatedItem.damage.damage_dice} {translateApiString(translatedItem.damage.damage_type.name)}</p>}
@@ -74,7 +89,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                     {translatedItem.properties && translatedItem.properties.length > 0 && <p><strong className="font-semibold text-stone-400">Propriedades:</strong> {translatedItem.properties.map(p => translateApiString(p.name)).join(', ')}</p>}
 
                     {/* Armor Details */}
-                    {translatedItem.armor_class && <p><strong className="font-semibold text-stone-400">Classe de Armadura:</strong> {translatedItem.armor_class.base} {translatedItem.armor_class.dex_bonus ? `+ Mod de Destreza${translatedItem.armor_class.max_bonus ? ` (máx ${translatedItem.armor_class.max_bonus})` : ''}` : ''}</p>}
+                    {translatedItem.armor_class && <p><strong className="font-semibold text-stone-400">Classe de Armadura (CA):</strong> {translatedItem.armor_class.base} {translatedItem.armor_class.dex_bonus ? `+ Mod de Destreza${translatedItem.armor_class.max_bonus ? ` (máx ${translatedItem.armor_class.max_bonus})` : ''}` : ''}</p>}
                     {!!item.str_minimum && item.str_minimum > 0 && <p><strong className="font-semibold text-stone-400">Força Mínima:</strong> {item.str_minimum}</p>}
                     {item.stealth_disadvantage && <p className="text-red-400">Desvantagem em testes de Furtividade.</p>}
 
