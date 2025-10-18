@@ -1,7 +1,7 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment.tsx
 import React from 'react';
 import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/newUseCharacterCreation';
-import { translateEquipment, translateApiString } from '@/utils/translator';
+import { translateApiString } from '@/utils/translator';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { ApiListItem, InventoryItem } from '@/types';
@@ -17,13 +17,13 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
     const mainOption = group.choice.from.options[mainSelectionIndex];
 
-    if (mainOption?.option_type !== 'choice' || !mainOption.choice?.from.equipment_category?.index) {
+    if (mainOption?.option_type !== 'choice' || !mainOption.choice?.from?.equipment_category?.index) {
         return null;
     }
 
     const categoryIndex = mainOption.choice.from.equipment_category.index;
     const subOptions = allEquipment.filter(item => 
-        item.equipment_category.index === categoryIndex || 
+        (item.equipment_category && item.equipment_category.index === categoryIndex) || 
         // Lógica para categorias mais complexas como "Martial Melee Weapons"
         (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
     );
@@ -88,7 +88,11 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
     );
 };
 
-const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
+const NewStep5_Equipment: React.FC<{
+    hook: ReturnType<typeof useCharacterCreator>;
+    prevStep: () => void;
+    nextStep: () => void;
+}> = ({ hook, prevStep, nextStep }) => {
     const { 
         equipmentChoiceGroups,
         fixedEquipment,
@@ -135,10 +139,9 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                         <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-96 overflow-y-auto">
                            {(fixedEquipment || []).length > 0 ? (
                                 (fixedEquipment || []).map((item, index) => {
-                                    const translatedItem = translateEquipment(item);
                                     return (
                                         <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-2 rounded-md">
-                                            <p className="font-bold text-stone-200">{translatedItem.name} {translatedItem.quantity > 1 ? `(x${translatedItem.quantity})` : ''}</p>
+                                            <p className="font-bold text-stone-200">{item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</p>
                                         </div>
                                     )
                                 })
