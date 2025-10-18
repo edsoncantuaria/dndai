@@ -2,20 +2,12 @@
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import 'dotenv/config';
-
-// Inicializa uma instância do Genkit para este serviço
-genkit({
-    plugins: [googleAI()],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-});
 
 interface GenerateImageInput {
     prompt: string;
-    model: string;
+    model: string; // Embora o modelo esteja fixo no exemplo, mantemos para futura flexibilidade
     apiKey: string;
     sessionId?: string | number;
 }
@@ -26,29 +18,31 @@ interface GenerateImageOutput {
 
 export const generateImage = async ({ prompt, model, apiKey, sessionId }: GenerateImageInput): Promise<GenerateImageOutput> => {
     if (!apiKey) {
-        throw createError(401, 'Chave de API do Google não fornecida.');
+        throw createError(401, 'A chave de API do Google não foi fornecida.');
     }
 
     try {
-        console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const imageGenerationModel = genAI.getGenerativeModel({ model: "imagen-3.0-generate-002" });
 
-        const { media } = await genkit.generate({
-            model: `googleai/${model}`,
-            prompt: prompt,
-            apiKey: apiKey,
-            output: { format: 'media' }, // Solicita a saída como mídia
-        });
+        console.log(`[aiImageService] Gerando imagem com o modelo: imagen-3.0-generate-002`);
 
-        if (!media || !media.url || !media.contentType) {
-            console.error('Resposta da API de imagem inesperada:', media);
+        // A nova API retorna um buffer diretamente
+        const result = await imageGenerationModel.generateContent(prompt);
+        const response = result.response;
+        const imagePart = response.candidates?.[0]?.content.parts[0];
+
+        if (!imagePart || !('inlineData' in imagePart)) {
+             console.error('Resposta da API de imagem inesperada:', response);
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageData = media.url; // A URL já é uma data URI base64
-        const mimeType = media.contentType;
-        const imageBuffer = Buffer.from(imageData.substring(imageData.indexOf(',') + 1), 'base64');
+        const imageData = imagePart.inlineData.data;
+        const mimeType = imagePart.inlineData.mimeType;
+
+        const imageBuffer = Buffer.from(imageData, 'base64');
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
-        const fileExtension = mimeType.split('/')[1] || 'png';
+        const fileExtension = mimeType.split('/')[1] || 'jpeg';
         
         const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
         const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
