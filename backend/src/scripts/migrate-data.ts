@@ -120,11 +120,10 @@ async function migrate() {
         migratedBackgrounds
     );
 
-    console.log('\n--- Migrando Traduções Base (Raças, Classes, Perícias) ---');
-    const resourcesToTranslate: { resource: 'races'|'classes'|'skills', type: 'race'|'class'|'skill' }[] = [
+    console.log('\n--- Migrando Traduções Base (Raças, Classes) ---');
+    const resourcesToTranslate: { resource: 'races'|'classes', type: 'race'|'class' }[] = [
         { resource: 'races', type: 'race' },
         { resource: 'classes', type: 'class' },
-        { resource: 'skills', type: 'skill' },
     ];
 
     for (const { resource, type } of resourcesToTranslate) {
@@ -147,8 +146,8 @@ async function migrate() {
     }
     
     await createOrUpdateBundle(
-        "Traduções Essenciais PT-BR (Raças, Classes, Perícias)",
-        "Traduções básicas para raças, classes e perícias do SRD para o português do Brasil.",
+        "Traduções Essenciais PT-BR (Raças e Classes)",
+        "Traduções básicas para raças e classes do SRD para o português do Brasil.",
         migratedBase
     );
 
