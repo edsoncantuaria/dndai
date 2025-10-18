@@ -40,7 +40,7 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
     useEffect(() => {
         onDataChange(featData);
-    }, [featData]);
+    }, [featData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof featData, value: any) => {
         setFeatData(prev => ({ ...prev, [field]: value }));

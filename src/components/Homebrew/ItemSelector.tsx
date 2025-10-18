@@ -20,7 +20,9 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
     const fetchItems = useCallback(async () => {
         setIsLoading(true);
         try {
-            const officialItems = await DndApiService.getEquipment(); // Usa a função correta
+            const equipmentList = await DndApiService.getEquipment(); // Usa a função correta
+            const officialItems = equipmentList.map(item => ({ index: item.index, name: item.name, url: '' }));
+            
             const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'user', 'item');
             const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'user', 'item');
 
@@ -29,8 +31,6 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
                 myHomebrewPromise,
             ]);
 
-            const official = officialItems.map(item => ({ index: item.index, name: item.name, url: '' }));
-            
             const formatHomebrew = (items: HomebrewService.HomebrewContent[]) => items.map(hb => ({
                 index: hb.id,
                 name: `(H) ${hb.name}`,
@@ -42,7 +42,7 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
 
             const combinedHomebrew = [...myHomebrew, ...publicHomebrew.filter(phb => !myHomebrew.some(mhb => mhb.index === phb.index))];
 
-            setAllItems([...official, ...combinedHomebrew].sort((a, b) => a.name.localeCompare(b.name)));
+            setAllItems([...officialItems, ...combinedHomebrew].sort((a, b) => a.name.localeCompare(b.name)));
         } catch (error) {
             console.error("Failed to fetch items:", error);
         } finally {

@@ -299,10 +299,10 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                             <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
                                         </div>
                                         <div className="flex flex-shrink-0 ml-2 gap-2">
-                                            <button type="button" onClick={() => openEditModal(feature, classData.features.findIndex(f => f.index === feature.index))} className="text-blue-400 hover:text-blue-300">
+                                            <button type="button" onClick={() => openEditModal(feature, classData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-blue-400 hover:text-blue-300">
                                                 <Edit className="h-4 w-4"/>
                                             </button>
-                                            <button type="button" onClick={() => handleRemoveFeature(classData.features.findIndex(f => f.index === feature.index))} className="text-red-500 hover:text-red-400">
+                                            <button type="button" onClick={() => handleRemoveFeature(classData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-red-500 hover:text-red-400">
                                                 <Trash2 className="h-4 w-4"/>
                                             </button>
                                         </div>
