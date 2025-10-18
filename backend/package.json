@@ -21,6 +21,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@genkit-ai/express": "^1.21.0",
     "@genkit-ai/google-genai": "^1.21.0",
     "@genkit-ai/googleai": "^1.21.0",
     "@google/generative-ai": "^0.15.0",
