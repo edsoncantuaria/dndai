@@ -8,7 +8,7 @@ interface GenerateImageInput {
     prompt: string;
     model: string; 
     apiKey: string;
-    sessionId?: string | number; // Adicionado sessionId opcional
+    sessionId?: string | number;
 }
 
 interface GenerateImageOutput {
@@ -22,20 +22,23 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const imageModel = genAI.getGenerativeModel({ model });
-
+        
+        // Usando o método direto como no exemplo do usuário
+        const imageModel = genAI.getGenerativeModel({ model: model });
+        
         const generationPrompt = `Uma pintura digital cinematográfica e detalhada de fantasia: ${prompt}. Estilo de arte épico, dramático, com iluminação atmosférica.`;
 
         const result = await imageModel.generateContent(generationPrompt);
-        const response = await result.response;
+        const response = result.response;
         
-        const firstPart = response.candidates?.[0]?.content?.parts?.[0];
-        if (!firstPart || !('inlineData' in firstPart) || !firstPart.inlineData) {
+        const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+
+        if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
             console.error('Resposta da API de imagem inesperada:', JSON.stringify(response, null, 2));
             throw new Error("A API não retornou dados de imagem válidos.");
         }
         
-        const imageData = firstPart.inlineData;
+        const imageData = imagePart.inlineData;
         const imageBuffer = Buffer.from(imageData.data, 'base64');
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = imageData.mimeType.split('/')[1] || 'png';
@@ -73,8 +76,8 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         if (error.message.includes('API key not valid')) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
-        if (error.message.includes('404 Not Found')) {
-            throw createError(404, `O modelo de imagem '${model}' não foi encontrado ou não está disponível para sua chave.`);
+        if (error.status === 429 || error.message.includes('rate limit')) {
+            throw createError(429, 'Você excedeu seu limite de uso da API de imagem. Por favor, tente novamente mais tarde.');
         }
         throw createError(502, `Falha no processo de geração de imagem: ${error.message}`);
     }
