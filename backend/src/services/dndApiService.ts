@@ -19,13 +19,13 @@ async function fetchWithCache<T>(endpoint: string, useCache: boolean = true): Pr
     // 1. Tenta buscar do cache primeiro (se aplicável)
     if (useCache && redisClient && redisClient.isOpen) {
         try {
-            console.log(`[Cache] GET: ${cacheKey}`);
+            // console.log(`[Cache] GET: ${cacheKey}`);
             const cachedData = await redisClient.get(cacheKey);
             if (cachedData) {
-                console.log(`[Cache] HIT: ${cacheKey}`);
+                // console.log(`[Cache] HIT: ${cacheKey}`);
                 return JSON.parse(cachedData) as T;
             }
-             console.log(`[Cache] MISS: ${cacheKey}`);
+             // console.log(`[Cache] MISS: ${cacheKey}`);
         } catch (error) {
             console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
         }
@@ -33,7 +33,7 @@ async function fetchWithCache<T>(endpoint: string, useCache: boolean = true): Pr
     
     // 2. Busca na API
     const fullApiUrl = `${API_BASE}${safeEndpoint}`;
-    console.log(`[API Fetch] Buscando URL: ${fullApiUrl}`);
+    // console.log(`[API Fetch] Buscando URL: ${fullApiUrl}`);
     try {
         const response = await fetch(fullApiUrl);
         if (!response.ok) {
@@ -45,7 +45,7 @@ async function fetchWithCache<T>(endpoint: string, useCache: boolean = true): Pr
         // 3. Salva no cache se aplicável
         if (useCache && redisClient && redisClient.isOpen) {
             try {
-                console.log(`[Cache] SET: ${cacheKey}`);
+                // console.log(`[Cache] SET: ${cacheKey}`);
                 await redisClient.set(cacheKey, JSON.stringify(data));
             } catch (error) {
                  console.error(`[Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);

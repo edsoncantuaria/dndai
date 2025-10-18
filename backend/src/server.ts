@@ -15,10 +15,9 @@ import userRoutes from './routes/userRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
 import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
-import dndApiRoutes from './routes/dndApiRoutes.js';
 import homebrewRoutes from './routes/homebrewRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
-import unifiedEquipmentRouter from './routes/unifiedEquipmentRouter.js';
+import unifiedDataRouter from './routes/unifiedDataRouter.js'; // Substitui dndApiRoutes
 
 
 const app = express();
@@ -60,10 +59,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/licenses', licenseRoutes);
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
-app.use('/api/dnds', dndApiRoutes);
 app.use('/api/homebrew', homebrewRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/unified/equipment', unifiedEquipmentRouter); // Nova rota unificada
+app.use('/api/data', unifiedDataRouter); // Nova rota unificada para todos os dados do jogo
+
 
 // Rota de Traduções
 app.get('/api/translations', async (req, res, next) => {

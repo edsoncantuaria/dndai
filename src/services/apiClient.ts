@@ -35,10 +35,8 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
 
     if (!isPublicRoute) {
         authHeaders = getAuthHeaders();
-        // Se a rota não for pública e não houver token, a chamada não deve ser feita.
-        // O erro é lançado dentro de getAuthHeaders se for uma rota que necessita.
-        // No caso do TraitSelector, ele agora verifica o `user` antes de chamar, então isso não deve ser um problema.
-        if (!authHeaders && endpoint.includes('mine')) {
+        // Se for uma rota que necessita de autenticação e o token não existir, lança um erro.
+        if (!authHeaders && !endpoint.startsWith('/data/')) { // Permite chamadas para /data sem token
              throw new Error("Token de autenticação não fornecido ou mal formatado.");
         }
     }

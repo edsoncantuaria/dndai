@@ -152,32 +152,8 @@ export const getMultipleHomebrewContentByIds = async (contentIds: string[], type
     return homebrewRepo.find({ where: whereCondition });
 };
 
-export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType, userId: number): Promise<HomebrewContent | null> => {
-    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({id: userId});
-    if (!user) return null;
-
-    const installedIds = user.installedHomebrewIds || [];
-
-    if (installedIds.length === 0) return null;
-
-    const query = homebrewRepo.createQueryBuilder("hb");
-
-    if (type === 'translation') {
-        // Para traduções, buscamos pelo NOME da categoria (ex: "Attributes")
-        query.where("hb.type = :type", { type })
-             .andWhere("hb.name = :name", { name: officialIndex })
-             .andWhere("hb.id IN (:...installedIds)", { installedIds });
-    } else {
-        // Para outros tipos, usamos o campo index dentro do JSON
-        query.where("hb.type = :type", { type })
-             .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndex })
-             .andWhere("hb.id IN (:...installedIds)", { installedIds });
-    }
-    
-    return query.getOne();
-};
+// Esta função não é mais necessária com a nova lógica do unifiedDataService
+// e foi removida para evitar confusão.
 
 export const findAdminTranslation = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
