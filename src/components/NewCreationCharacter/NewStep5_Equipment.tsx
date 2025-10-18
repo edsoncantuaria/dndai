@@ -3,8 +3,9 @@ import React from 'react';
 import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/character-creation/useCharacterCreator';
 import { translateApiString } from '@/utils/translator';
 import { getOptionLabel } from '@/utils/creationHelpers';
-import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import type { InventoryItem, ApiEquipmentOption } from '@/types';
+import ItemCard from '../ItemCard';
 
 // Componente para renderizar uma única opção de equipamento, que pode ser simples, múltipla ou uma escolha.
 const EquipmentOptionRenderer: React.FC<{
@@ -22,7 +23,7 @@ const EquipmentOptionRenderer: React.FC<{
             );
 
         case 'choice':
-            return <ItemChoiceSelector choice={option.choice} selectionPath={selectionPath} hook={hook} />;
+            return <ItemChoiceSelector choice={option.choice} selectionPath={selectionPath} hook={hook} choiceCount={option.choice.choose || 1}/>;
 
         case 'multiple':
             return (
@@ -48,7 +49,7 @@ const ItemChoiceSelector: React.FC<{
     choice: ApiEquipmentOption['choice'];
     selectionPath: (string | number)[];
     hook: ReturnType<typeof useCharacterCreator>;
-    choiceCount?: number;
+    choiceCount: number;
 }> = ({ choice, selectionPath, hook, choiceCount = 1 }) => {
     const { equipmentSelections, setField, allEquipment, loadingStates } = hook;
 
@@ -61,6 +62,7 @@ const ItemChoiceSelector: React.FC<{
     const subOptions = (allEquipment || []).filter(item => {
         if (!item) return false;
         const itemCategory = item.equipment_category?.index;
+        // O `gear_category` pode não estar no tipo `InventoryItem` base, então usamos `any`
         const itemGearCategory = (item as any).gear_category?.index;
         
         return itemCategory === categoryIndex ||
@@ -147,18 +149,18 @@ const EquipmentChoice: React.FC<{
             case 'counted_reference':
                 return null;
             case 'choice':
-                return <ItemChoiceSelector choice={mainOption.choice} selectionPath={[group.id, 'sub']} hook={hook} choiceCount={mainOption.choice.choose}/>;
+                return <ItemChoiceSelector choice={mainOption.choice} selectionPath={[group.id, 'sub']} hook={hook} choiceCount={mainOption.choice.choose || 1}/>;
             case 'multiple':
                 return (
                      <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
-                        {mainOption.items?.map((item, index) => {
-                            // Itens fixos não precisam de um seletor, são apenas informativos
-                            if(item.option_type === 'counted_reference') {
-                                return <div key={index} className="text-sm text-stone-300 pl-4 py-1">+ {getOptionLabel(item)}</div>;
-                            }
-                             // Itens de escolha precisam de um seletor
-                            return <ItemChoiceSelector key={index} choice={item.choice} selectionPath={[group.id, 'sub', index]} hook={hook} choiceCount={item.choice.choose} />
-                        })}
+                        {mainOption.items?.map((item, index) => (
+                            <EquipmentOptionRenderer 
+                                key={index} 
+                                option={item} 
+                                selectionPath={[group.id, 'sub', index]} 
+                                hook={hook} 
+                            />
+                        ))}
                     </div>
                 )
             default:
@@ -195,6 +197,7 @@ const NewStep5_Equipment: React.FC<{
     const {
         equipmentChoiceGroups,
         fixedEquipment,
+        finalizedEquipment,
         loadingStates,
         areAllEquipmentChoicesMade,
         handleRandomizeEquipment,
@@ -234,18 +237,21 @@ const NewStep5_Equipment: React.FC<{
                     </div>
                     
                     <div className="space-y-4">
-                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Inventário Fixo</h4>
-                        <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-96 overflow-y-auto">
-                           {(fixedEquipment || []).length > 0 ? (
-                                (fixedEquipment || []).map((item, index) => {
-                                    return (
-                                        <div key={item.id || index} className="text-sm text-stone-300 bg-stone-800/50 p-2 rounded-md">
-                                            <p className="font-bold text-stone-200">{item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</p>
-                                        </div>
-                                    )
-                                })
-                            ) : (
+                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2 flex items-center gap-2">
+                           <Backpack /> Inventário Resultante
+                        </h4>
+                        <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-[60vh] overflow-y-auto">
+                           {(fixedEquipment || []).length === 0 && (finalizedEquipment || []).length === 0 ? (
                                 <p className="text-stone-500 italic text-center py-4">Seu inventário está vazio.</p>
+                            ) : (
+                                <>
+                                    {fixedEquipment.map((item, index) => (
+                                        <ItemCard key={`fixed-${item.id || index}`} item={item} defaultExpanded={false}/>
+                                    ))}
+                                    {finalizedEquipment.map((item, index) => (
+                                         <ItemCard key={`chosen-${item.id || index}`} item={item} defaultExpanded={false}/>
+                                    ))}
+                                </>
                             )}
                         </div>
                     </div>

@@ -44,8 +44,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setField('subrace', newSubraceIndex);
-        // Não resetar tudo aqui, apenas o que for dependente da sub-raça,
-        // o que já é recalculado pelos hooks de memoização.
     }, [setField]);
 
     const handleClassChange = useCallback(async (newClassIndex: string) => {

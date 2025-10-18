@@ -25,32 +25,34 @@ const findChosenItems = (
             break;
 
         case 'choice':
-            if (option.choice && Array.isArray(selection)) {
-                selection.forEach(selectedIndex => {
-                    if (selectedIndex !== -1) {
-                         const categoryIndex = option.choice?.from?.equipment_category?.index;
-                         if (categoryIndex) {
-                            const subOptions = allEquipment.filter(item => {
-                                if (!item) return false;
-                                const itemCategory = item.equipment_category?.index;
-                                const itemGearCategory = (item as any).gear_category?.index;
-                                return itemCategory === categoryIndex ||
-                                       itemGearCategory === categoryIndex ||
-                                       (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
-                                       (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
-                                       (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
-                                       (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
-                                       (categoryIndex === 'arcane-foci' && itemGearCategory === 'arcane-foci') ||
-                                       (categoryIndex === 'druidic-foci' && itemGearCategory === 'druidic-foci') ||
-                                       (categoryIndex === 'holy-symbols' && itemGearCategory === 'holy-symbols');
-                            });
+            if (option.choice && selection !== undefined && selection !== -1) {
+                const selectionsArray = Array.isArray(selection) ? selection : [selection];
+                const categoryIndex = option.choice?.from?.equipment_category?.index;
+                 if (categoryIndex) {
+                    const subOptions = allEquipment.filter(item => {
+                        if (!item) return false;
+                        const itemCategory = item.equipment_category?.index;
+                        const itemGearCategory = (item as any).gear_category?.index;
+                        
+                        return itemCategory === categoryIndex ||
+                               itemGearCategory === categoryIndex ||
+                               (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
+                               (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
+                               (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
+                               (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
+                               (categoryIndex === 'arcane-foci' && itemGearCategory === 'arcane-foci') ||
+                               (categoryIndex === 'druidic-foci' && itemGearCategory === 'druidic-foci') ||
+                               (categoryIndex === 'holy-symbols' && itemGearCategory === 'holy-symbols');
+                    });
+                    selectionsArray.forEach(selectedIndex => {
+                        if (selectedIndex !== -1) {
                             const chosenItem = subOptions[selectedIndex];
                             if(chosenItem) {
                                 results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
                             }
                         }
-                    }
-                });
+                    });
+                }
             }
             break;
             
@@ -173,7 +175,11 @@ export const useDerivedCharacterData = (
             }
         };
 
-        const addEquipment = (list: any[] = []) => list.forEach(item => processOption({ option_type: 'counted_reference', ...item.equipment, count: item.quantity }));
+        const addEquipment = (list: any[] = []) => list.forEach(item => {
+            if (item.equipment) { // As from starting_equipment
+                processOption({ option_type: 'counted_reference', of: item.equipment, count: item.quantity });
+            }
+        });
         
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
@@ -186,7 +192,7 @@ export const useDerivedCharacterData = (
     
         const finalEquip = choiceGroups.flatMap(group => {
             const selection = equipmentSelections?.[group.id];
-            if (!selection || selection.main === undefined || selection.main === -1) return [];
+            if (selection?.main === undefined || selection.main === -1) return [];
             
             const mainOption = group.choice.from.options[selection.main];
             return findChosenItems(mainOption, selection.sub, allEquipment);
@@ -207,11 +213,11 @@ export const useDerivedCharacterData = (
             const flattenSubSelections = (subs: any): any[] => {
                 if (subs === undefined || subs === null) return [];
                 if (typeof subs !== 'object') return [];
-                return Object.values(subs).flatMap(flattenSubSelections).concat(Object.values(subs).filter(v => typeof v === 'number'));
+                return Object.values(subs).flatMap(flattenSubSelections).concat(Object.values(subs).filter(v => typeof v === 'number' && v !== -1));
             }
             
             const requiredSubChoices = countSubChoices(mainOption);
-            const madeSubChoices = flattenSubSelections(selection.sub).filter(val => val !== undefined && val !== -1).length;
+            const madeSubChoices = flattenSubSelections(selection.sub).length;
             
             return madeSubChoices >= requiredSubChoices;
         });

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { InventoryItem } from '../types';
 import { Shield, ChevronDown, Hand } from 'lucide-react';
+import { translateApiString } from '@/utils/translator';
 
 interface ItemCardProps {
     item: InventoryItem;
@@ -13,9 +14,8 @@ interface ItemCardProps {
 
 const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-
-    // O item já vem traduzido do backend, não é mais necessário chamar a função translateEquipment.
-    const translatedItem = item;
+    
+    const translatedItem = item; // Assuming item is already translated
 
     const canBeEquipped = !!(item.weapon_category || item.armor_category);
     const canBeUsed = item.consumable || item.usable;
@@ -56,9 +56,11 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                             <Shield />
                         </button>
                     )}
-                    <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
-                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                    </button>
+                    {(translatedItem.desc?.length || 0) > 0 && (
+                        <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
+                            <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -67,9 +69,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                     {translatedItem.desc && <div className="text-stone-400 text-xs italic space-y-1">{translatedItem.desc.map((d, i) => <p key={i}>{d}</p>)}</div>}
                     
                     {/* Weapon Details */}
-                    {translatedItem.damage && <p><strong className="font-semibold text-stone-400">Dano:</strong> {translatedItem.damage.damage_dice} {translatedItem.damage.damage_type.name}</p>}
-                    {translatedItem.two_handed_damage && <p><strong className="font-semibold text-stone-400">Dano (Duas Mãos):</strong> {translatedItem.two_handed_damage.damage_dice} {translatedItem.two_handed_damage.damage_type.name}</p>}
-                    {translatedItem.properties && translatedItem.properties.length > 0 && <p><strong className="font-semibold text-stone-400">Propriedades:</strong> {translatedItem.properties.map(p => p.name).join(', ')}</p>}
+                    {translatedItem.damage && <p><strong className="font-semibold text-stone-400">Dano:</strong> {translatedItem.damage.damage_dice} {translateApiString(translatedItem.damage.damage_type.name)}</p>}
+                    {translatedItem.two_handed_damage && <p><strong className="font-semibold text-stone-400">Dano (2 Mãos):</strong> {translatedItem.two_handed_damage.damage_dice} {translateApiString(translatedItem.two_handed_damage.damage_type.name)}</p>}
+                    {translatedItem.properties && translatedItem.properties.length > 0 && <p><strong className="font-semibold text-stone-400">Propriedades:</strong> {translatedItem.properties.map(p => translateApiString(p.name)).join(', ')}</p>}
 
                     {/* Armor Details */}
                     {translatedItem.armor_class && <p><strong className="font-semibold text-stone-400">Classe de Armadura:</strong> {translatedItem.armor_class.base} {translatedItem.armor_class.dex_bonus ? `+ Mod de Destreza${translatedItem.armor_class.max_bonus ? ` (máx ${translatedItem.armor_class.max_bonus})` : ''}` : ''}</p>}
