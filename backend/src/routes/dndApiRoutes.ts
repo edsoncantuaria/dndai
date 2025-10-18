@@ -7,6 +7,7 @@ import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import redisClient from '../database/redis-client.js';
 import { User } from '../entities/User.js';
+import { AppDataSource } from '../database/data-source.js'; // Importação adicionada
 
 const router = Router();
 
