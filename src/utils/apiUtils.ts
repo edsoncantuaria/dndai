@@ -5,7 +5,7 @@
  * Includes progress reporting.
  * @param items The array of items with an 'index' property (e.g., spells, equipment).
  * @param detailFetcher The async function from DndApiService to call for each item (e.g., getSpellDetails).
- * @param onProgress A callback function to report progress (loaded, total).
+ * @param onProgress A callback function to report progress (loaded, total, percentage).
  * @param chunkSize The number of items to fetch in each chunk.
  * @param delay The delay in milliseconds between chunks.
  * @returns A promise that resolves to an array of fetched details.
@@ -13,17 +13,17 @@
 export const fetchDetailsInChunks = async <T extends { index: string }, U>(
     items: T[],
     detailFetcher: (index: string) => Promise<U | null>,
-    onProgress: (loaded: number, total: number) => void,
+    onProgress: (loaded: number, total: number, progress: number) => void,
     chunkSize: number = 5,
     delay: number = 200
 ): Promise<U[]> => {
     const results: U[] = [];
     const totalItems = items.length;
     if (totalItems === 0) {
-        onProgress(0, 0);
+        onProgress(0, 0, 100);
         return [];
     }
-    onProgress(0, totalItems);
+    onProgress(0, totalItems, 0);
 
     for (let i = 0; i < totalItems; i += chunkSize) {
         const chunk = items.slice(i, i + chunkSize);
@@ -40,7 +40,9 @@ export const fetchDetailsInChunks = async <T extends { index: string }, U>(
             console.error("Error fetching a chunk of details:", error);
         }
 
-        onProgress(Math.min(i + chunkSize, totalItems), totalItems);
+        const loadedCount = Math.min(i + chunkSize, totalItems);
+        const progressPercentage = (loadedCount / totalItems) * 100;
+        onProgress(loadedCount, totalItems, progressPercentage);
 
         if (i + chunkSize < totalItems) {
             await new Promise(resolve => setTimeout(resolve, delay));

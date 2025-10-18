@@ -1,12 +1,12 @@
 // src/components/NewCreationCharacter/NewStep6_Spells.tsx
 'use client';
 import React from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import NewSpellCard from '../Spells/NewSpellCard';
 import { Loader2, Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
 }
@@ -48,7 +48,19 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">{loadingStates.spellsLoadingProgress || 'Consultando tomos arcanos...'}</p>
+                {loadingStates.spellsLoadingProgress ? (
+                    <div className="w-full max-w-sm mt-4">
+                        <p className="text-center text-sm mb-2">{loadingStates.spellsLoadingProgress.text}</p>
+                        <div className="w-full bg-stone-700 rounded-full h-2.5">
+                            <div 
+                                className="bg-amber-600 h-2.5 rounded-full transition-all duration-300" 
+                                style={{ width: `${loadingStates.spellsLoadingProgress.progress}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                ) : (
+                    <p className="mt-4">Consultando tomos arcanos...</p>
+                )}
             </div>
         );
     }
@@ -79,7 +91,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 <h3 className="text-xl font-semibold text-stone-300">Seleção de Magias</h3>
                 <button
                     type="button"
-                    onClick={() => {}} // handleRandomizeSpells is not on the hook anymore
+                    onClick={() => handleRandomizeSpells()}
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
                 >
                     <Dice5 className="h-4 w-4" />
@@ -131,7 +143,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                         <NewSpellCard
                                             key={spell.index} spell={spell} isSelectable={true}
                                             isSelected={isSelected} isDisabled={isDisabled}
-                                            onToggleSelect={() => handleClassSpellChange(spell.index, cantripsKnown, spellsKnown, classSpellOptions)}
+                                            onToggleSelect={() => handleClassSpellChange(spell.index)}
                                         />
                                     )
                                 })}
@@ -149,7 +161,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                         <NewSpellCard
                                             key={spell.index} spell={spell} isSelectable={true}
                                             isSelected={isSelected} isDisabled={isDisabled}
-                                            onToggleSelect={() => handleClassSpellChange(spell.index, cantripsKnown, spellsKnown, classSpellOptions)}
+                                            onToggleSelect={() => handleClassSpellChange(spell.index)}
                                         />
                                     )
                                 })}

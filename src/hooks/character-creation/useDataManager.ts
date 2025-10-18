@@ -28,7 +28,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         spells: false,
         equipment: false,
     });
-    const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
+    const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<{ progress: number; text: string } | null>(null);
+
 
     // Fetch All Equipment (once)
     useEffect(() => {
@@ -108,10 +109,14 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setClassLevels(levels);
 
             if (details?.spellcasting) {
-                setSpellsLoadingProgress('Carregando magias...');
+                setSpellsLoadingProgress({ progress: 0, text: 'Carregando magias...' });
                 const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
                 if (spellsResponse?.results) {
-                    const spellDetails = await fetchDetailsInChunks(spellsResponse.results, DndApiService.getSpellDetails, (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`));
+                    const spellDetails = await fetchDetailsInChunks(
+                        spellsResponse.results, 
+                        DndApiService.getSpellDetails, 
+                        (loaded, total, progress) => setSpellsLoadingProgress({ progress, text: `Carregando magias ${loaded} de ${total}...` })
+                    );
                     setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1));
                 }
             }
