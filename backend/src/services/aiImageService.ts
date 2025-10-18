@@ -22,9 +22,8 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const imageModel = genAI.getGenerativeModel({ model: model });
+        const imageModel = genAI.getGenerativeModel({ model });
 
-        // Ajuste no prompt para melhorar a qualidade da imagem gerada, como sugerido em documentações
         const generationPrompt = `Uma pintura digital cinematográfica e detalhada de fantasia: ${prompt}. Estilo de arte épico, dramático, com iluminação atmosférica.`;
 
         const result = await imageModel.generateContent(generationPrompt);
@@ -41,16 +40,13 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = imageData.mimeType.split('/')[1] || 'png';
         
-        // Constrói o nome do objeto com base na sessão
         const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
         const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
-
 
         if (!minioClient) {
             throw createError(503, 'Serviço de armazenamento de arquivos não está configurado.');
         }
 
-        // Garante que o bucket exista
         const bucketExists = await minioClient.bucketExists(bucketName);
         if (!bucketExists) {
             await minioClient.makeBucket(bucketName, 'us-east-1');
@@ -63,9 +59,10 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         
         const useSSL = process.env.MINIO_USE_SSL === 'true';
         const port = process.env.MINIO_PORT;
-        const protocol = useSSL ? 'https' : 'http';
         const endpoint = process.env.MINIO_ENDPOINT;
-        const portString = (useSSL && port === '443') || (!useSSL && port === '80') ? '' : `:${port}`;
+        
+        const protocol = useSSL ? 'https' : 'http';
+        const portString = (useSSL && port === '443') || (!useSSL && port === '80') || !port ? '' : `:${port}`;
         
         const imageUrl = `${protocol}://${endpoint}${portString}/${bucketName}/${objectName}`;
 

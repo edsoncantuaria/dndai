@@ -5,66 +5,92 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Image as ImageIcon } from 'lucide-react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import * as AiService from '../services/aiService';
+import * as aiService from '../services/aiService';
 import Image from 'next/image';
 
 const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(null);
+    const { getApiKey, sessionId } = useGameStateContext();
+    const { imageModel } = useSettingsContext();
+    
+    // State to hold the final resolved URL
+    const [finalImageUrl, setFinalImageUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const { imageModel } = useSettingsContext();
-    const { getApiKey, sessionId } = useGameStateContext();
 
+    // This effect runs once when the component mounts with a new entry
     useEffect(() => {
-        const imageContent = entry.content as any;
-        if (imageContent.status === 'generating' && imageContent.prompt && !imageUrl && !isLoading) {
-            const generate = async () => {
-                setIsLoading(true);
-                setError(null);
+        let isMounted = true;
+        const processImage = async () => {
+            const imageContent = entry.content as any;
+            
+            // Case 1: URL is already provided
+            if (imageContent.status === 'done' && imageContent.imageUrl) {
+                if(isMounted) setFinalImageUrl(imageContent.imageUrl);
+                return;
+            }
+
+            // Case 2: We need to generate the image
+            if (imageContent.status === 'generating' && imageContent.prompt) {
+                if(isMounted) setIsLoading(true);
+                if(isMounted) setError(null);
+                
                 try {
                     const apiKey = getApiKey();
-                    if (!apiKey) throw new Error("API Key not found");
-                    const result = await AiService.generateImage({
+                    if (!apiKey) throw new Error("Chave de API não encontrada.");
+                    
+                    const result = await aiService.generateImage({
                         prompt: imageContent.prompt,
                         model: imageModel,
                         apiKey,
-                        sessionId: sessionId, // Passa o sessionId
+                        sessionId: sessionId,
                     });
-                    if (result?.imageUrl) {
-                        setImageUrl(result.imageUrl);
-                    } else {
+                    
+                    if (isMounted && result?.imageUrl) {
+                        setFinalImageUrl(result.imageUrl);
+                    } else if (isMounted) {
                         throw new Error("A IA não retornou uma imagem.");
                     }
                 } catch (err: any) {
-                    setError(err.message || 'Falha ao gerar imagem.');
+                    if(isMounted) setError(err.message || 'Falha ao gerar imagem.');
                 } finally {
-                    setIsLoading(false);
+                    if(isMounted) setIsLoading(false);
                 }
-            };
-            generate();
-        }
-    }, [entry.content, imageUrl, isLoading, getApiKey, imageModel, sessionId]);
+            }
+        };
 
-    const displayUrl = imageUrl || (typeof entry.content === 'object' && (entry.content as any).imageUrl) || null;
+        processImage();
+        
+        return () => { isMounted = false; };
+        
+    }, [entry, getApiKey, imageModel, sessionId]);
 
-    return (
-        <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-            {displayUrl ? (
-                <Image src={displayUrl} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" />
-            ) : (
-                <div className="w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
-                            <span>Gerando imagem...</span>
-                        </>
-                    ) : (
-                        <span>{error || 'Aguardando para gerar imagem...'}</span>
-                    )}
-                </div>
-            )}
-        </div>
-    );
+    if (isLoading) {
+        return (
+            <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
+                <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
+                <span>Gerando imagem...</span>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+             <div className="my-4 rounded-lg overflow-hidden border-2 border-red-700 shadow-lg w-full aspect-video bg-red-900/50 flex items-center justify-center text-red-300 p-4">
+                 <p className="text-center text-sm">{error}</p>
+            </div>
+        );
+    }
+
+    if (finalImageUrl) {
+        return (
+            <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
+                <Image src={finalImageUrl} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" unoptimized />
+            </div>
+        );
+    }
+    
+    // Render nothing while figuring out what to do, or if there's no valid state
+    return null;
 };
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
@@ -74,16 +100,14 @@ const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     if (typeof textContent === 'string') {
         try {
             const parsed = JSON.parse(textContent);
-            // Check if parsing resulted in an object with a 'content' property
-            if (typeof parsed === 'object' && parsed !== null && 'content' in parsed) {
-                textContent = parsed.content;
+            if (typeof parsed === 'object' && parsed !== null && ('content' in parsed || 'text' in parsed)) {
+                textContent = parsed.content || parsed.text;
             }
         } catch (e) {
             // Not a JSON string, which is the expected case. Do nothing.
         }
     }
     
-    // Final check to ensure we have a renderable string.
     if (typeof textContent !== 'string' || !textContent.trim()) {
         return null;
     }
@@ -212,7 +236,6 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
             contentComponent = <ImageEntry entry={entry} />;
             break;
         default:
-             // If the type is unknown or invalid, render nothing.
              contentComponent = null;
     }
     

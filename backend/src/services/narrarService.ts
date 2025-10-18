@@ -184,7 +184,7 @@ export const processPlayerTurn = async (
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = user?.settings?.model || "gemini-2.5-flash";
+    const modelToUse = user?.settings?.model || "gemini-1.5-flash-latest";
     const generationConfig = user?.settings?.generationConfig || {};
     
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
@@ -198,7 +198,7 @@ export const processPlayerTurn = async (
         content: log.response
     }));
 
-    const gameMasterFlowInput: GameMasterFlowInput = {
+    const gameMasterFlowInput = {
         character: characterForAI,
         playerAction: `${playerAction}${homebrewSummaryForAI}`, // Adiciona o resumo homebrew ao final da ação do jogador
         gameLog: JSON.stringify(chronologicalLogs),
@@ -227,14 +227,15 @@ export const processPlayerTurn = async (
         
         if(!isInternalAction) {
             const playerLog = new SessionLog();
-            Object.assign(playerLog, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
+            Object.assign(playerLog, { id: uuidv4(), sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
             await logRepository.save(playerLog);
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        delete stateForLog.logEntries; // Omit log entries from the state log to avoid duplication.
+        delete stateForLog.logEntries;
         const stateLog = new SessionLog();
         Object.assign(stateLog, {
+            id: uuidv4(),
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(stateForLog),
@@ -244,17 +245,35 @@ export const processPlayerTurn = async (
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
-                 const content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : entry.content;
-                 if (content) {
+                let contentToSave = entry.content;
+                // If it's a generation request, handle it now
+                if(entry.type === 'image' && typeof entry.content === 'object' && entry.content.status === 'generating') {
+                    try {
+                        const imageService = await import('./aiImageService.js');
+                        const result = await imageService.generateImage({
+                            prompt: entry.content.prompt,
+                            model: user?.settings?.imageModel || 'imagen-3.0-generate-002',
+                            apiKey,
+                            sessionId: sessao.id,
+                        });
+                        contentToSave = { ...entry.content, status: 'done', imageUrl: result.imageUrl };
+                    } catch (imageError: any) {
+                        console.error(`[narrarService] Falha ao gerar imagem inline:`, imageError);
+                        contentToSave = { ...entry.content, status: 'failed', text: `Falha ao gerar imagem: ${imageError.message}`};
+                    }
+                }
+                const contentString = typeof contentToSave === 'object' ? JSON.stringify(contentToSave) : contentToSave;
+                if (contentString) {
                     const newLog = new SessionLog();
                     Object.assign(newLog, {
+                        id: uuidv4(),
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
-                        response: content,
+                        response: contentString,
                         type: entry.type || 'narration',
                         rollResult: entry.rollResult,
                     });
-                     await logRepository.save(newLog);
+                    await logRepository.save(newLog);
                 }
             }
         }
@@ -272,7 +291,6 @@ export const processPlayerTurn = async (
                 }
             }
         }
-
 
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
         if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 

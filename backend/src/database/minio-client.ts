@@ -2,6 +2,7 @@
 import { Client } from 'minio';
 import 'dotenv/config';
 
+// Lê as variáveis de ambiente com valores padrão para desenvolvimento local
 const endpoint = process.env.MINIO_ENDPOINT;
 const port = process.env.MINIO_PORT ? parseInt(process.env.MINIO_PORT, 10) : 9000;
 const useSSL = process.env.MINIO_USE_SSL === 'true';
@@ -10,6 +11,7 @@ const secretKey = process.env.MINIO_SECRET_KEY;
 
 let minioClient: Client | null = null;
 
+// Só inicializa o cliente se todas as credenciais necessárias estiverem presentes
 if (endpoint && accessKey && secretKey) {
     try {
         minioClient = new Client({
@@ -24,7 +26,8 @@ if (endpoint && accessKey && secretKey) {
         console.error("[MinIO] Falha ao criar o cliente MinIO:", error);
     }
 } else {
-    console.warn("AVISO: Credenciais do MinIO não estão completamente definidas no .env. O upload de arquivos estará desabilitado.");
+    // Adiciona um aviso mais claro se as credenciais estiverem faltando
+    console.warn("AVISO: Credenciais do MinIO (ENDPOINT, ACCESS_KEY, SECRET_KEY) não estão completamente definidas no .env. O upload de arquivos de imagem estará desabilitado.");
 }
 
 export default minioClient;

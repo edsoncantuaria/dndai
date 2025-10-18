@@ -21,15 +21,9 @@ export const createHomebrewContent = async (payload: GenerateHomebrewPayload) =>
     });
 };
 
-export const generateImage = async (payload: GenerateImagePayload): Promise<{ imageUrl: string } | null> => {
-    try {
-        const result = await apiClient<{ imageUrl: string }>('/ai/generate-image', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-        });
-        return result;
-    } catch (error) {
-        console.error('Error in generateImage service:', error);
-        throw error; // Lança o erro para que o chamador possa tratá-lo.
-    }
+export const generateImage = async (payload: GenerateImagePayload): Promise<{ imageUrl: string }> => {
+    return await apiClient<{ imageUrl: string }>('/ai/generate-image', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
 }
