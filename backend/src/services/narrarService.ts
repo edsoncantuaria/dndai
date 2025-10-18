@@ -4,7 +4,6 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
-import { getGameUpdate } from './aiSDKService.js'; // Mudança para o novo serviço
 import createError from 'http-errors';
 import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
