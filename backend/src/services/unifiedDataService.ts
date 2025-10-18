@@ -62,9 +62,9 @@ const applyTranslation = (item: any, translationMap: Record<string, any>) => {
         if(translatedItem.two_handed_damage && translatedItem.two_handed_damage.damage_type && translationData.two_handed_damage_type_name) {
             translatedItem.two_handed_damage.damage_type.name = translationData.two_handed_damage_type_name;
         }
-        if(translationData.properties && translatedItem.properties && translatedItem.properties.length === translationData.properties.length){
+        if(translationData.properties && translatedItem.properties && translatedItem.properties.length === translatedItem.properties.length){
             translatedItem.properties.forEach((p: any, i: number) => {
-                p.name = translationData.properties[i];
+                p.name = translatedItem.properties[i];
             });
         }
         
@@ -114,21 +114,31 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     
     // 4. Busca todo o conteúdo homebrew relevante (público + instalado)
     const homebrewRepo = repo();
-    const qb = homebrewRepo.createQueryBuilder('hb')
-        .where('hb.isPublic = :isPublic', { isPublic: true });
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
 
-    if (installedIds.length > 0) {
-        const bundleIds = installedIds.filter(id => !id.includes('-')); // Simple heuristic for now
-        const contentIds = installedIds.filter(id => id.includes('-'));
-        
-        if (contentIds.length > 0) {
-            qb.orWhere('hb.id IN (:...contentIds)', { contentIds });
-        }
-        if (bundleIds.length > 0) {
-            qb.orWhere('hb.bundleId IN (:...bundleIds)', { bundleIds });
-        }
+    const bundleIds = installedIds.filter(id => !id.includes('-'));
+    const contentIds = installedIds.filter(id => id.includes('-'));
+    let allContentIdsFromBundles: string[] = [];
+
+    if (bundleIds.length > 0) {
+        const bundles = await bundleRepo.find({ 
+            where: { id: In(bundleIds) },
+            relations: ['contents']
+        });
+        allContentIdsFromBundles = bundles.flatMap(b => b.contents.map(c => c.id));
     }
     
+    const finalContentIds = Array.from(new Set([...contentIds, ...allContentIdsFromBundles]));
+
+    const qb = homebrewRepo.createQueryBuilder('hb');
+
+    qb.where(new Brackets(sqb => {
+        sqb.where('hb.isPublic = :isPublic', { isPublic: true });
+        if (finalContentIds.length > 0) {
+            sqb.orWhere('hb.id IN (:...ids)', { ids: finalContentIds });
+        }
+    }));
+
     const allRelevantHomebrew = await qb.getMany();
     const homebrewForType = allRelevantHomebrew.filter(hb => hb.type === dbType);
     const translations = allRelevantHomebrew.filter(hb => hb.type === 'translation');
@@ -164,7 +174,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
 
         const officialIndexToOverride = norm(content.official_index || content.index || '');
 
-        if (officialIndexToOverride && finalMap.has(officialIndexToOverride)) {
+        if (finalMap.has(officialIndexToOverride)) {
             const base = finalMap.get(officialIndexToOverride);
             finalMap.set(officialIndexToOverride, {
                 ...base,
@@ -213,7 +223,6 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
 
 export async function getUnifiedDetails(resource: string, index: string, userId?: number): Promise<any> {
     const normalizedResource = norm(resource);
-    console.log(`[UnifiedService] Iniciando getUnifiedDetails para resource: '${normalizedResource}', index: '${index}', userId: ${userId}`);
     const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
     const normalizedIndex = norm(index);
     const homebrewRepo = repo();
@@ -222,12 +231,16 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     let officialData: any = null;
     let hb: HomebrewContent | null = null;
     
+    // 1. Pega o item oficial primeiro se o index não for UUID
     if (!isUuid) {
         try {
             officialData = await getOfficialDetails(normalizedResource, normalizedIndex);
-        } catch {}
+        } catch (e) {
+            // Ignora o erro se o item oficial não existir, pode ser um item puramente homebrew
+        }
     }
 
+    // 2. Busca o item homebrew correspondente, que pode sobrescrever ou ser um item novo
     const qb = homebrewRepo.createQueryBuilder('hb');
     
     if (isUuid) {
@@ -235,40 +248,49 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     } else {
         qb.where('LOWER(hb.type) = :type', { type: dbType })
           .andWhere(new Brackets(sqb => {
-              sqb.where('LOWER(JSON_UNQUOTE(JSON_EXTRACT(hb.content, "$.official_index"))) = :idx', { idx: normalizedIndex })
-                 .orWhere('LOWER(JSON_UNQUOTE(JSON_EXTRACT(hb.content, "$.index"))) = :idx', { idx: normalizedIndex });
+              sqb.where('LOWER(JSON_EXTRACT(hb.content, "$.official_index")) = :idx', { idx: normalizedIndex })
+                 .orWhere('LOWER(JSON_EXTRACT(hb.content, "$.index")) = :idx', { idx: normalizedIndex });
           }));
     }
     
-    let userInstalledIds: string[] = [];
-    if(userId) {
-        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
-        userInstalledIds = user?.installedHomebrewIds || [];
-    }
-
     if (userId) {
-        qb.andWhere(new Brackets(sqb => {
-            sqb.where('hb.isPublic = :isPublic', { isPublic: true })
-               .orWhere('hb.authorId = :userId', { userId });
-            if (userInstalledIds.length > 0) {
-                 sqb.orWhere('hb.id IN (:...ids)', { ids: userInstalledIds });
-                 sqb.orWhere('hb.bundleId IN (:...ids)', { ids: userInstalledIds });
+        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
+        const userInstalledIds = user?.installedHomebrewIds || [];
+
+        if (userInstalledIds.length > 0) {
+            const bundleIds = userInstalledIds.filter(id => !id.includes('-'));
+            const contentIds = userInstalledIds.filter(id => id.includes('-'));
+            
+            let allContentIdsFromBundles: string[] = [];
+            if(bundleIds.length > 0) {
+                const bundles = await AppDataSource.getRepository(HomebrewBundle).find({ where: { id: In(bundleIds) }, relations: ['contents']});
+                allContentIdsFromBundles = bundles.flatMap(b => b.contents.map(c => c.id));
             }
-        }));
+            const finalContentIds = Array.from(new Set([...contentIds, ...allContentIdsFromBundles]));
+
+            qb.andWhere(new Brackets(sqb => {
+                sqb.where('hb.isPublic = :isPublic', { isPublic: true })
+                   .orWhere('hb.id IN (:...ids)', { ids: finalContentIds })
+            }));
+        } else {
+            qb.andWhere('hb.isPublic = :isPublic', { isPublic: true });
+        }
     } else {
         qb.andWhere('hb.isPublic = :isPublic', { isPublic: true });
     }
 
     hb = await qb.getOne();
     
-    if (hb && !officialData) {
-         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
-         const officialIndex = norm(content?.official_index || content?.index || '');
-         if (officialIndex && officialIndex !== hb.id) {
-             try { officialData = await getOfficialDetails(normalizedResource, officialIndex); } catch {}
-         }
+    // Se o item homebrew foi encontrado via UUID e não tínhamos dados oficiais, tentamos buscá-los agora
+    if (isUuid && hb && !officialData) {
+        const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
+        const officialIndex = norm(content?.official_index || content?.index || '');
+        if (officialIndex && officialIndex !== hb.id) {
+            try { officialData = await getOfficialDetails(normalizedResource, officialIndex); } catch {}
+        }
     }
 
+    // 3. Monta a resposta final
     let finalData = officialData ? { ...officialData, source: 'official', isHomebrew: false } : null;
 
     if (hb) {
@@ -281,15 +303,16 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
         return null;
     }
 
-    // Busca e aplica traduções separadamente
-    const translationEntries = await homebrewRepo.find({ where: { type: 'translation', authorId: 1 } });
+    // 4. Aplica traduções sobre o resultado mesclado
+    const translationRepo = AppDataSource.getRepository(HomebrewContent);
+    const translationEntries = await translationRepo.find({ where: { type: 'translation', authorId: 1 } });
     const translationMap: Record<string, any> = {};
     translationEntries.forEach(t => {
         if(t.content) Object.assign(translationMap, t.content);
     });
 
     const translatedFinalData = applyTranslation(finalData, translationMap);
+    
     console.log(`[UnifiedService] Detalhes para '${normalizedResource}/${index}' concluídos. Fonte: ${translatedFinalData.source}`);
-
     return translatedFinalData;
 }
