@@ -2,8 +2,17 @@
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
+import { genkit } from 'genkit';
+import { googleAI } from '@genkit-ai/google-genai';
+import 'dotenv/config';
 
-// Definindo a interface aqui porque a importação é dinâmica
+// Inicializa uma instância do Genkit para este serviço
+genkit({
+    plugins: [googleAI()],
+    logLevel: 'debug',
+    enableTracingAndMetrics: true,
+});
+
 interface GenerateImageInput {
     prompt: string;
     model: string;
@@ -21,44 +30,31 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     }
 
     try {
-        // Importação dinâmica exatamente como solicitado
-        const genAIModule = await import("https://esm.sh/@google/genai@0.15.0");
-        const GoogleGenerativeAI = genAIModule.GoogleGenerativeAI;
-        const Modality = genAIModule.Modality;
+        console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
 
-        const genAI = new GoogleGenerativeAI(apiKey);
-
-        const response = await genAI.models.generateContent({
-            model: model, // Usa o modelo passado como parâmetro
-            contents: prompt, // Usa o prompt diretamente
-            config: { 
-                responseModalities: [Modality.TEXT, Modality.IMAGE] 
-            }
+        const { media } = await genkit.generate({
+            model: `googleai/${model}`,
+            prompt: prompt,
+            apiKey: apiKey,
+            output: { format: 'media' }, // Solicita a saída como mídia
         });
 
-        // Extrai a parte da imagem da resposta
-        const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-
-        if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
-            console.error('Resposta da API de imagem inesperada:', JSON.stringify(response, null, 2));
-            const textPart = response.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
-            const blockReason = response.promptFeedback?.blockReason;
-            if (blockReason) {
-                 throw new Error(`A geração de imagem foi bloqueada. Motivo: ${blockReason}`);
-            }
-            throw new Error(`A API não retornou dados de imagem válidos. Resposta de texto recebida: "${textPart || 'Nenhuma'}"`);
+        if (!media || !media.url || !media.contentType) {
+            console.error('Resposta da API de imagem inesperada:', media);
+            throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageData = imagePart.inlineData;
-        const imageBuffer = Buffer.from(imageData.data, 'base64');
+        const imageData = media.url; // A URL já é uma data URI base64
+        const mimeType = media.contentType;
+        const imageBuffer = Buffer.from(imageData.substring(imageData.indexOf(',') + 1), 'base64');
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
-        const fileExtension = imageData.mimeType.split('/')[1] || 'png';
+        const fileExtension = mimeType.split('/')[1] || 'png';
         
         const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
         const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
 
         if (!minioClient) {
-            throw createError(503, 'Serviço de armazenamento de arquivos não está configurado.');
+            throw createError(503, 'Serviço de armazenamento de arquivos (MinIO) não está configurado.');
         }
 
         const bucketExists = await minioClient.bucketExists(bucketName);
@@ -68,7 +64,7 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         }
 
         await minioClient.putObject(bucketName, objectName, imageBuffer, imageBuffer.length, {
-            'Content-Type': imageData.mimeType
+            'Content-Type': mimeType
         });
         
         const useSSL = process.env.MINIO_USE_SSL === 'true';
