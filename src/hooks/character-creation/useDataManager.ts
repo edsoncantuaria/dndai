@@ -1,9 +1,8 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
-import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem, ApiEquipmentOption } from '../../types';
+import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
-import { apiClient } from '@/services/apiClient';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -32,7 +31,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+            const equipmentResponse = await DndApiService.getEquipment();
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -67,9 +66,21 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
     const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
         if (!categoryIndex) return [];
-        if (equipmentCategoryCache[categoryIndex]) return equipmentCategoryCache[categoryIndex];
+        if (equipmentCategoryCache[categoryIndex]) {
+            return equipmentCategoryCache[categoryIndex];
+        }
 
-        // Fallback for categories not in the main equipment list (like holy-symbols, etc.)
+        const filtered = allEquipment.filter(item => 
+            item.equipment_category?.index === categoryIndex || 
+            (item as any).gear_category?.index === categoryIndex
+        );
+
+        if (filtered.length > 0) {
+            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filtered }));
+            return filtered;
+        }
+        
+        // Fallback to API if not in the main list for some reason
         setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
@@ -85,7 +96,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
-    }, [equipmentCategoryCache]);
+    }, [equipmentCategoryCache, allEquipment]);
 
 
     // Fetch Race Details
@@ -183,7 +194,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setBackgroundDetails(details);
     
             if (details?.starting_equipment_options) {
-                for(const choice of details.starting_equipment_options) {
+                for (const choice of details.starting_equipment_options) {
                     const processOptionSet = async (optionSet: any) => {
                         if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
                             await fetchEquipmentCategory(optionSet.equipment_category.index);
@@ -194,7 +205,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                                 }
                             }
                         }
-                    }
+                    };
                     await processOptionSet(choice.from);
                 }
             }

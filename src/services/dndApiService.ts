@@ -17,6 +17,10 @@ export const getDamageTypes = () => apiClient('/dnds/damage-types') as Promise<{
 export const getEquipmentCategories = () => apiClient('/dnds/equipment-categories') as Promise<{ results: ApiListItem[] }>;
 export const getConditions = () => apiClient('/dnds/conditions') as Promise<{ results: ApiListItem[] }>;
 
+// Nova função adicionada
+export const getEquipment = () => apiClient('/dnds/equipment') as Promise<{ results: ApiListItem[] }>;
+
+
 // Adicionada função para buscar detalhes de uma categoria de equipamento
 export const getEquipmentCategoryDetails = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
@@ -37,4 +41,3 @@ export const getFeatDetails = (index: string) => apiClient<Feat>(`/dnds/feats/${
 export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
 export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
 export const getEquipmentDetails = (index: string) => apiClient<InventoryItem>(`/dnds/equipment/${index}`);
-
