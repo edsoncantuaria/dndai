@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem, ApiEquipmentOption } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
+import { apiClient } from '@/services/apiClient';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -31,7 +32,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await DndApiService.getEquipmentList();
+            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -68,7 +69,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         if (!categoryIndex) return [];
         if (equipmentCategoryCache[categoryIndex]) return equipmentCategoryCache[categoryIndex];
 
-        // If not in cache, fetch it. This is a fallback, but the initial load should cover most cases.
+        // Fallback for categories not in the main equipment list (like holy-symbols, etc.)
         setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
@@ -181,10 +182,10 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             const details = await DndApiService.getBackgroundDetails(background);
             setBackgroundDetails(details);
     
-             if (details?.starting_equipment_options) {
+            if (details?.starting_equipment_options) {
                 for(const choice of details.starting_equipment_options) {
                     const processOptionSet = async (optionSet: any) => {
-                         if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
+                        if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
                             await fetchEquipmentCategory(optionSet.equipment_category.index);
                         } else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
                             for (const option of optionSet.options) {
@@ -252,5 +253,3 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         fetchFeats,
     };
 };
-
-    
