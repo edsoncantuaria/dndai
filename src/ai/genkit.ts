@@ -1,6 +1,6 @@
 'use client';
 import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit-ai/google-genai';
 
 // Initialize genkit without a hardcoded API key.
 // The key will be passed dynamically where needed.
