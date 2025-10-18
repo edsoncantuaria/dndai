@@ -13,7 +13,7 @@ export const useSelectionManager = (
     classSpellOptions: ApiSpell[],
     subclassSpells: ApiSpell[],
     languageChoicesCount: number, // Recebe a contagem
-    baseLanguages: Set<string> // Recebe os idiomas base
+    baseLanguages: string[] // Recebe os idiomas base
 ) => {
     const { isVariantHuman, characterClass } = state;
     
@@ -147,7 +147,7 @@ export const useSelectionManager = (
 
     const handleRandomizeLanguages = useCallback(() => {
         if (languageChoicesCount <= 0) return;
-        const availableLangs = allLanguages.filter(lang => !baseLanguages.has(lang.name));
+        const availableLangs = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
         const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
         setChosenLanguages(selected);
