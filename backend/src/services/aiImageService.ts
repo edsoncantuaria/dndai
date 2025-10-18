@@ -1,12 +1,12 @@
 // backend/src/services/aiImageService.ts
-import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Modality } from "@google/generative-ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
 
+// Definindo a interface aqui porque a importação é dinâmica
 interface GenerateImageInput {
     prompt: string;
-    model: string; 
+    model: string;
     apiKey: string;
     sessionId?: string | number;
 }
@@ -21,45 +21,32 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     }
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const imageModel = genAI.getGenerativeModel({ 
-            model: model,
-            safetySettings: [
-                {
-                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                 {
-                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-                {
-                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-                    threshold: HarmBlockThreshold.BLOCK_NONE,
-                },
-            ]
-        });
-        
-        const generationPrompt = `Uma pintura digital cinematográfica e detalhada de fantasia: ${prompt}. Estilo de arte épico, dramático, com iluminação atmosférica.`;
+        // Importação dinâmica exatamente como solicitado
+        const genAIModule = await import("https://esm.sh/@google/genai@0.15.0");
+        const GoogleGenerativeAI = genAIModule.GoogleGenerativeAI;
+        const Modality = genAIModule.Modality;
 
-        const result = await imageModel.generateContent({
-            contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
-            generationConfig: {
-                 responseMimeType: "image/png",
-                 responseModalities: [Modality.IMAGE],
-            } as any, // Cast to any to allow for multimodal properties if needed
+        const genAI = new GoogleGenerativeAI(apiKey);
+
+        const response = await genAI.models.generateContent({
+            model: model, // Usa o modelo passado como parâmetro
+            contents: prompt, // Usa o prompt diretamente
+            config: { 
+                responseModalities: [Modality.TEXT, Modality.IMAGE] 
+            }
         });
-        
-        const response = result.response;
+
+        // Extrai a parte da imagem da resposta
         const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
         if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
             console.error('Resposta da API de imagem inesperada:', JSON.stringify(response, null, 2));
-            throw new Error("A API não retornou dados de imagem válidos.");
+            const textPart = response.candidates?.[0]?.content?.parts?.find(p => p.text)?.text;
+            const blockReason = response.promptFeedback?.blockReason;
+            if (blockReason) {
+                 throw new Error(`A geração de imagem foi bloqueada. Motivo: ${blockReason}`);
+            }
+            throw new Error(`A API não retornou dados de imagem válidos. Resposta de texto recebida: "${textPart || 'Nenhuma'}"`);
         }
         
         const imageData = imagePart.inlineData;
@@ -97,10 +84,10 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     } catch (error: any) {
         console.error(`[aiImageService] Erro ao gerar e fazer upload da imagem:`, error);
-        if (error.message.includes('API key not valid')) {
+        if (error.message && error.message.includes('API key not valid')) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
-        if (error.status === 429 || error.message.includes('rate limit')) {
+        if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {
             throw createError(429, 'Você excedeu seu limite de uso da API de imagem. Por favor, tente novamente mais tarde.');
         }
         throw createError(502, `Falha no processo de geração de imagem: ${error.message}`);
