@@ -87,7 +87,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 3:
                 return <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />;
             case 4:
-                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} />;
+                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} allLanguages={allLanguages} />;
             case 5:
                 return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
