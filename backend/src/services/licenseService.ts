@@ -13,7 +13,17 @@ export const activateLicenseForKey = async (key: string, userId: number) => {
     }
 
     if (license.isActivated) {
-        throw createError(409, 'Esta chave de licença já foi ativada.');
+        // Se já estiver ativada pelo mesmo usuário e não expirou, não há problema.
+        if (license.activatedByUserId === userId && (!license.expiresAt || license.expiresAt > new Date())) {
+             // Opcional: talvez logar ou apenas retornar sucesso silenciosamente.
+        } else {
+            throw createError(409, 'Esta chave de licença já foi ativada por outro usuário ou está inválida.');
+        }
+    }
+
+    // Se a chave tiver uma data de expiração e ela já passou, nega a ativação.
+    if (license.expiresAt && license.expiresAt < new Date()) {
+        throw createError(403, 'Esta chave de licença está expirada.');
     }
 
     license.isActivated = true;
@@ -35,5 +45,15 @@ export const getLicenseStatusForUser = async (userId: number): Promise<boolean> 
         throw createError(404, 'Usuário não encontrado.');
     }
 
-    return user.licenseKey?.isActivated || false;
+    if (!user.licenseKey || !user.licenseKey.isActivated) {
+        return false;
+    }
+
+    // Se a chave tem uma data de expiração, verifica se ela já passou.
+    // Se não tiver data de expiração, é considerada válida para sempre.
+    if (user.licenseKey.expiresAt && user.licenseKey.expiresAt < new Date()) {
+        return false;
+    }
+
+    return true;
 };

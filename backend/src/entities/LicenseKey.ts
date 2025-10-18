@@ -15,6 +15,9 @@ export class LicenseKey {
     @Column({ type: 'int', nullable: true })
     activatedByUserId: number;
 
+    @Column({ type: 'datetime', nullable: true })
+    expiresAt: Date | null;
+
     @CreateDateColumn()
     createdAt: Date;
 
