@@ -16,12 +16,25 @@ export const useDerivedCharacterData = (
     },
     proficiencySelections: Record<string, string[]>,
     allProficiencyChoices: any[],
-    allFixedProficiencies: Map<string, Proficiency>,
     equipmentSelections: Record<string, { main?: number, sub?: number }>,
     allEquipment: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
+
+    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
+        
+        if (!state.isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
+        addProfs(details.subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
+
+        return profs;
+    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
+
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -118,7 +131,7 @@ export const useDerivedCharacterData = (
                 if (selection.sub === undefined) return null;
                 const categoryIndex = mainOption.choice.from.equipment_category.index;
                 const subOptions = allEquipment.filter(item => 
-                    item.equipment_category.index === categoryIndex ||
+                    item.equipment_category?.index === categoryIndex ||
                     (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
                 );
                 const subItem = subOptions[selection.sub];
@@ -151,6 +164,7 @@ export const useDerivedCharacterData = (
         racialBonuses,
         finalAttributes,
         finalProficiencies,
+        allFixedProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
         finalizedEquipment,

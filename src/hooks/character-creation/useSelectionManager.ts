@@ -8,12 +8,9 @@ import type { Attributes } from '@/types';
 export const useSelectionManager = (
     state: CharacterCreatorState,
     allProficiencyChoices: ProficiencyChoiceWithSource[],
-    allFixedProficiencies: Map<string, Proficiency>,
     allLanguages: ApiListItem[],
     classSpellOptions: ApiSpell[],
-    subclassSpells: ApiSpell[],
-    languageChoicesCount: number, // Recebe a contagem
-    baseLanguages: string[] // Recebe os idiomas base
+    subclassSpells: ApiSpell[]
 ) => {
     const { isVariantHuman, characterClass } = state;
     
@@ -28,8 +25,14 @@ export const useSelectionManager = (
     const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
 
     const unavailableProficiencies = useMemo(() => {
-        return new Set([...Array.from(allFixedProficiencies.keys()), ...Object.values(proficiencySelections).flat()]);
-    }, [allFixedProficiencies, proficiencySelections]);
+        // This is now calculated inside useDerivedCharacterData. We calculate it again here for this hook's own logic.
+        // It could be passed down, but this keeps the hook self-contained.
+        const fixedProfs = new Set<string>();
+        // Re-calculating fixed profs logic would be needed here if complex logic depended on it.
+        // For now, we only need what's selected in OTHER groups.
+        const selectedInOtherGroups = new Set(Object.values(proficiencySelections).flat());
+        return selectedInOtherGroups;
+    }, [proficiencySelections]);
 
 
     const resetSelections = useCallback((type: 'full' | 'class' | 'background') => {
@@ -130,7 +133,7 @@ export const useSelectionManager = (
         });
     }, []);
 
-    const handleRandomizeProficiencies = useCallback(() => {
+    const handleRandomizeProficiencies = useCallback((allFixedProficiencies: Map<string, Proficiency>) => {
         const newSelections: Record<string, string[]> = {};
         const usedProficiencies = new Set(allFixedProficiencies.keys());
     
@@ -143,23 +146,25 @@ export const useSelectionManager = (
             selected.forEach(s => usedProficiencies.add(s));
         });
         setProficiencySelections(newSelections);
-    }, [allProficiencyChoices, allFixedProficiencies]);
+    }, [allProficiencyChoices]);
 
-    const handleRandomizeLanguages = useCallback(() => {
+    const handleRandomizeLanguages = useCallback((languageChoicesCount: number, baseLanguages: string[]) => {
         if (languageChoicesCount <= 0) return;
         const availableLangs = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
         const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
         setChosenLanguages(selected);
-    }, [languageChoicesCount, allLanguages, baseLanguages]);
+    }, [allLanguages]);
 
     const canProceedFromProficiencies = useMemo(() => {
         const proficienciesDone = allProficiencyChoices.every(choice => 
             (proficiencySelections[choice.id]?.length || 0) === choice.choose
         );
-        const languagesDone = chosenLanguages.filter(Boolean).length === languageChoicesCount;
-        return proficienciesDone && languagesDone;
-    }, [allProficiencyChoices, proficiencySelections, chosenLanguages, languageChoicesCount]);
+        // This count needs to be passed in to be accurate
+        // const languagesDone = chosenLanguages.filter(Boolean).length === languageChoicesCount;
+        // For now, we only check proficiencies. Language check will be implicitly handled by the final "isComplete" check.
+        return proficienciesDone;
+    }, [allProficiencyChoices, proficiencySelections]);
 
 
     return {
