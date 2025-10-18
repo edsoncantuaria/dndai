@@ -29,7 +29,6 @@ export const GenerationConfigSchema = z.object({
 export const SettingsSchema = z.object({
     model: z.string(),
     ttsModel: z.string(),
-    imageModel: z.string(),
     ttsVoice: z.string(),
     apiKey: z.string().optional(),
     generationConfig: GenerationConfigSchema,
@@ -97,7 +96,7 @@ export const NewCharacterInfoSchema = z.object({
 
 // --- Homebrew ---
 export const CreateHomebrewSchema = z.object({
-    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation']),
+    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'translation']),
     name: z.string().min(1, "O nome do conteúdo é obrigatório."),
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),
