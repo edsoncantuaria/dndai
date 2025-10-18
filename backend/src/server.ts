@@ -15,7 +15,6 @@ import userRoutes from './routes/userRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
 import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
-import { homebrewCacheMiddleware } from './middleware/homebrewCacheMiddleware.js';
 import homebrewRoutes from './routes/homebrewRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import unifiedDataRouter from './routes/unifiedDataRouter.js'; // Substitui dndApiRoutes
@@ -60,7 +59,6 @@ app.use('/api/users', userRoutes);
 app.use('/api/licenses', licenseRoutes);
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
-app.use('/api/homebrew', homebrewCacheMiddleware);
 app.use('/api/homebrew', homebrewRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/data', unifiedDataRouter); // Nova rota unificada
