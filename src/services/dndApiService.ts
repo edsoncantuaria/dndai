@@ -18,7 +18,7 @@ export const getEquipmentCategories = () => apiClient('/dnds/equipment-categorie
 export const getConditions = () => apiClient('/dnds/conditions') as Promise<{ results: ApiListItem[] }>;
 
 // Nova função adicionada
-export const getEquipment = () => apiClient('/dnds/equipment') as Promise<{ results: ApiListItem[] }>;
+export const getEquipment = () => apiClient<InventoryItem[]>('/unified/equipment') as Promise<InventoryItem[]>;
 
 
 // Adicionada função para buscar detalhes de uma categoria de equipamento
