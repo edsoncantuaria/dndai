@@ -9,7 +9,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+const isUuid = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 
 // Todas as rotas agora usam autenticação para obter o contexto do usuário
 router.use(authMiddleware);
