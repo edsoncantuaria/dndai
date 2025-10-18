@@ -6,17 +6,18 @@ import 'dotenv/config';
 const API_BASE = 'https://www.dnd5eapi.co/api';
 
 /**
- * Busca dados da API D&D 5e com cache no Redis.
+ * Busca dados da API D&D 5e, com opção de usar ou ignorar o cache.
  * @param endpoint O endpoint da API a ser consultado (ex: '/races').
+ * @param useCache Se deve tentar usar o cache do Redis. Padrão é true.
  * @returns Os dados da API ou null em caso de erro.
  */
-async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
+async function fetchWithCache<T>(endpoint: string, useCache: boolean = true): Promise<T | null> {
     const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
     const cacheKey = `dnd5e:${safeEndpoint}`;
 
-    // 1. Tenta buscar do cache primeiro
-    if (redisClient && redisClient.isOpen) {
+    // 1. Tenta buscar do cache primeiro (se aplicável)
+    if (useCache && redisClient && redisClient.isOpen) {
         try {
             console.log(`[Cache] GET: ${cacheKey}`);
             const cachedData = await redisClient.get(cacheKey);
@@ -27,13 +28,10 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
              console.log(`[Cache] MISS: ${cacheKey}`);
         } catch (error) {
             console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
-            // Continua para a API se o cache falhar
         }
-    } else if (redisClient) {
-        console.warn(`[Cache] Cliente Redis não está aberto ou pronto. Pulando cache para ${cacheKey}`);
     }
     
-    // 2. Se não estiver no cache, busca na API
+    // 2. Busca na API
     const fullApiUrl = `${API_BASE}${safeEndpoint}`;
     console.log(`[API Fetch] Buscando URL: ${fullApiUrl}`);
     try {
@@ -44,11 +42,10 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         }
         const data = await response.json();
 
-        // 3. Salva no cache se o Redis estiver disponível e a conexão estiver aberta
-        if (redisClient && redisClient.isOpen) {
+        // 3. Salva no cache se aplicável
+        if (useCache && redisClient && redisClient.isOpen) {
             try {
                 console.log(`[Cache] SET: ${cacheKey}`);
-                // Remove a expiração para tornar o cache persistente
                 await redisClient.set(cacheKey, JSON.stringify(data));
             } catch (error) {
                  console.error(`[Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
@@ -65,8 +62,8 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
 /**
  * Obtém uma lista de recursos de um endpoint principal (ex: 'races', 'classes').
  */
-export const getResourceList = (resource: string) => {
-    return fetchWithCache<{ count: number, results: any[] }>(`/${resource}`);
+export const getResourceList = (resource: string, useCache: boolean = true) => {
+    return fetchWithCache<{ count: number, results: any[] }>(`/${resource}`, useCache);
 }
 
 /**
@@ -74,10 +71,10 @@ export const getResourceList = (resource: string) => {
  * @param resource O nome do recurso no plural (ex: 'races').
  * @param index O índice do item (ex: 'elf', 'bard/levels').
  */
-export const getDetails = (resource: string, index: string) => {
-     return fetchWithCache<any>(`/${resource}/${index}`);
+export const getDetails = (resource: string, index: string, useCache: boolean = true) => {
+     return fetchWithCache<any>(`/${resource}/${index}`, useCache);
 }
 
-export const getEquipmentDetails = (index: string) => {
-    return fetchWithCache<any>(`/equipment/${index}`);
+export const getEquipmentDetails = (index: string, useCache: boolean = true) => {
+    return fetchWithCache<any>(`/equipment/${index}`, useCache);
 };
