@@ -27,25 +27,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats, allEquipment } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
-
-    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
-        const profs = new Map<string, Proficiency>();
-        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
-        
-        if (!state.isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
-        addProfs(details.subraceDetails?.starting_proficiencies);
-        addProfs(classDetails?.proficiencies);
-        addProfs(backgroundDetails?.starting_proficiencies);
-        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
-
-        return profs;
-    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
-
-    const { languageChoicesCount, baseLanguages, ...derivedData } = useDerivedCharacterData(state, details);
 
     const allProficiencyChoices = useMemo(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
@@ -79,9 +64,32 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         }
         return choices;
     }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
+    
+    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
+        
+        if (!state.isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
+        addProfs(details.subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
 
-    const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells, languageChoicesCount, baseLanguages);
+        return profs;
+    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
 
+    const derivedData = useDerivedCharacterData(state, details);
+
+    const selectionManager = useSelectionManager(
+        state,
+        allProficiencyChoices,
+        allFixedProficiencies,
+        allLanguages,
+        details.classSpellOptions,
+        details.subclassSpells,
+        derivedData.languageChoicesCount, // Passando o valor calculado
+        derivedData.baseLanguages // Passando o valor calculado
+    );
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -204,8 +212,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 attributes: derivedData.finalAttributes,
                 proficiencies: finalProficiencies,
                 traits: Array.from(new Map([...(raceDetails?.traits || []), ...(details.subraceDetails?.racial_traits || [])].map(item => [item.index, item])).values()),
-                languages: Array.from(new Set([...baseLanguages, ...selectionManager.chosenLanguages.filter(Boolean)])),
-                inventory: [...derivedData.fixedEquipment],
+                languages: Array.from(new Set([...derivedData.baseLanguages, ...selectionManager.chosenLanguages.filter(Boolean)])),
+                inventory: [...derivedData.finalizedEquipment], // Usa o equipamento finalizado do derivedData
                 spells: Array.from(new Set([...selectionManager.chosenClassSpells, ...Object.values(selectionManager.chosenRacialSpells).flat()])),
                 backstory: state.backstory,
                 personalityTraits: state.personalityTraits,
@@ -220,7 +228,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         };
 
         return { buildCharacter: buildFn, isComplete };
-    }, [state, details, selectionManager, derivedData, allProficiencyChoices, backgroundDetails, allFixedProficiencies, baseLanguages]);
+    }, [state, details, selectionManager, derivedData, allProficiencyChoices, backgroundDetails, allFixedProficiencies]);
     
     return {
         ...state,
@@ -228,11 +236,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         details,
         loadingStates,
         allLanguages,
+        allEquipment,
         ...attributeManager,
         ...selectionManager,
         ...derivedData,
-        baseLanguages,
-        languageChoicesCount,
         allProficiencyChoices,
         allFixedProficiencies,
         handleRaceChange,

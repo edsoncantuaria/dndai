@@ -1,7 +1,7 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem } from '@/types';
+import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '@/types';
 import { fetchDetailsInChunks } from '@/utils/apiUtils';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
@@ -16,6 +16,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<ApiListItem[]>([]);
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
+    const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
 
     // Loading States
     const [isLoading, setIsLoading] = useState({
@@ -25,8 +26,25 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         feats: false,
         traits: false,
         spells: false,
+        equipment: false,
     });
     const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<string | null>(null);
+
+    // Fetch All Equipment (once)
+    useEffect(() => {
+        const fetchAllEquipment = async () => {
+            setIsLoading(prev => ({ ...prev, equipment: true }));
+            try {
+                const equipmentList = await DndApiService.getEquipment();
+                setAllEquipment(equipmentList?.results || []);
+            } catch (error) {
+                console.error("Failed to fetch all equipment:", error);
+            } finally {
+                setIsLoading(prev => ({ ...prev, equipment: false }));
+            }
+        };
+        fetchAllEquipment();
+    }, []);
 
     // Fetch Race Details
     useEffect(() => {
@@ -162,6 +180,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             classSpellOptions,
             subclassSpells,
         },
+        allEquipment,
         loadingStates: {
             ...isLoading,
             spellsLoadingProgress,

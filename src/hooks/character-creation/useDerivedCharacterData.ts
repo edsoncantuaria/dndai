@@ -4,6 +4,7 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { getOptionLabel } from '@/utils/creationHelpers';
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -12,7 +13,12 @@ export const useDerivedCharacterData = (
         subraceDetails: ApiSubrace | null;
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
-    }
+    },
+    proficiencySelections: Record<string, string[]>,
+    allProficiencyChoices: any[],
+    allFixedProficiencies: Map<string, Proficiency>,
+    equipmentSelections: Record<string, { main?: number, sub?: number }>,
+    allEquipment: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
@@ -60,8 +66,27 @@ export const useDerivedCharacterData = (
             return acc;
         }, {} as characterUtils.Attributes),
     [state.baseAttributes, racialBonuses]);
+
+    const finalProficiencies = useMemo(() => {
+        const profsMap = new Map<string, Proficiency>();
+        // Add fixed proficiencies first
+        allFixedProficiencies.forEach((value, key) => profsMap.set(key, value));
+
+        // Add selected proficiencies
+        Object.values(proficiencySelections).flat().forEach(profIndex => {
+            if (!profsMap.has(profIndex)) {
+                // Find the full proficiency object from all possible choices
+                const choice = allProficiencyChoices.flatMap(c => c.options).find(o => o.index === profIndex);
+                if (choice) {
+                    profsMap.set(profIndex, choice as Proficiency);
+                }
+            }
+        });
+
+        return Array.from(profsMap.values());
+    }, [allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
     
-    const { equipmentChoiceGroups, fixedEquipment } = useMemo(() => {
+    const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment } = useMemo(() => {
         const choiceGroups: any[] = [];
         let fixed: InventoryItem[] = [];
     
@@ -77,9 +102,34 @@ export const useDerivedCharacterData = (
             addEquipment(backgroundDetails.starting_equipment);
             backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
-        
-        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
-    }, [classDetails, backgroundDetails]);
+
+        const finalized = choiceGroups.map(group => {
+            const selection = equipmentSelections[group.id];
+            if (!selection || selection.main === undefined) return null;
+            const mainOption = group.choice.from.options[selection.main];
+
+            if (mainOption.option_type === 'counted_reference') {
+                return { ...mainOption.of, quantity: mainOption.count };
+            }
+            if (mainOption.option_type === 'multiple') {
+                return mainOption.items.map((item: any) => ({ ...item.of, quantity: item.count}));
+            }
+            if (mainOption.option_type === 'choice') {
+                if (selection.sub === undefined) return null;
+                const categoryIndex = mainOption.choice.from.equipment_category.index;
+                const subOptions = allEquipment.filter(item => 
+                    item.equipment_category.index === categoryIndex ||
+                    (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
+                );
+                const subItem = subOptions[selection.sub];
+                return { ...subItem, quantity: 1 };
+            }
+            return null;
+        }).flat().filter(Boolean) as InventoryItem[];
+
+        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed, finalizedEquipment: finalized };
+
+    }, [classDetails, backgroundDetails, equipmentSelections, allEquipment]);
 
     const baseLanguages = useMemo(() => {
         const langs = new Set<string>();
@@ -100,8 +150,10 @@ export const useDerivedCharacterData = (
     return {
         racialBonuses,
         finalAttributes,
+        finalProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
+        finalizedEquipment,
         baseLanguages,
         languageChoicesCount
     };

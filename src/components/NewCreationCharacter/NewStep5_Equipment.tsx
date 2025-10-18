@@ -1,15 +1,92 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment.tsx
 import React from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import NewSubEquipment from './NewSubEquipment';
-import { translateEquipment } from '@/utils/translator';
+import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/newUseCharacterCreation';
+import { translateEquipment, translateApiString } from '@/utils/translator';
+import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import type { ApiListItem, InventoryItem } from '@/types';
 
-interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
-    prevStep: () => void;
-    nextStep: () => void;
+interface SubChoiceSelectorProps {
+    group: EquipmentChoiceGroup;
+    mainSelectionIndex: number;
+    hook: ReturnType<typeof useCharacterCreator>;
 }
+
+const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook }) => {
+    const { equipmentSelections, setEquipmentSelections, allEquipment } = hook;
+    const subSelectionIndex = equipmentSelections[group.id]?.sub;
+    const mainOption = group.choice.from.options[mainSelectionIndex];
+
+    if (mainOption?.option_type !== 'choice' || !mainOption.choice?.from.equipment_category?.index) {
+        return null;
+    }
+
+    const categoryIndex = mainOption.choice.from.equipment_category.index;
+    const subOptions = allEquipment.filter(item => 
+        item.equipment_category.index === categoryIndex || 
+        // Lógica para categorias mais complexas como "Martial Melee Weapons"
+        (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
+    );
+
+    const handleSubSelection = (subIndexStr: string) => {
+        const subIdx = parseInt(subIndexStr, 10);
+        setEquipmentSelections(prev => ({
+            ...prev,
+            [group.id]: { main: mainSelectionIndex, sub: subIdx },
+        }));
+    };
+
+    if (hook.loadingStates.equipment) {
+        return <Loader2 className="animate-spin text-stone-400 mt-2" />;
+    }
+
+    return (
+        <select 
+            value={subSelectionIndex ?? -1} 
+            onChange={(e) => handleSubSelection(e.target.value)} 
+            className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn mt-2"
+        >
+            <option value={-1} disabled>Selecione um item...</option>
+            {subOptions.map((item, index) => <option key={item.index} value={index}>{translateApiString(item.name)}</option>)}
+        </select>
+    );
+};
+
+interface EquipmentChoiceProps {
+    group: EquipmentChoiceGroup;
+    hook: ReturnType<typeof useCharacterCreator>;
+}
+
+const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
+    const { equipmentSelections, setEquipmentSelections } = hook;
+    const mainSelectionIndex = equipmentSelections[group.id]?.main;
+    const mainOptions = group.choice.from.options || [];
+
+    const handleMainSelection = (indexStr: string) => {
+        const mainIdx = parseInt(indexStr, 10);
+        setEquipmentSelections(prev => ({
+            ...prev,
+            [group.id]: { main: mainIdx, sub: undefined }, // Reseta a sub-escolha ao mudar a principal
+        }));
+    };
+
+    return (
+        <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
+            <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
+            <select 
+                value={mainSelectionIndex ?? -1} 
+                onChange={(e) => handleMainSelection(e.target.value)} 
+                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+            >
+                <option value={-1} disabled>Selecione uma opção...</option>
+                {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
+            </select>
+            {mainSelectionIndex !== undefined && (
+                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} />
+            )}
+        </div>
+    );
+};
 
 const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     const { 
@@ -35,7 +112,7 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             </div>
              <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
 
-            {loadingStates.class || loadingStates.background ? (
+            {loadingStates.class || loadingStates.background || loadingStates.equipment ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                     <Loader2 className="h-12 w-12 animate-spin" />
                     <p className="mt-4">Carregando opções de equipamento...</p>
@@ -46,7 +123,7 @@ const NewStep5_Equipment: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                         <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas de Equipamento</h4>
                         {equipmentChoiceGroups.length > 0 ? (
                             equipmentChoiceGroups.map((group) => (
-                                <NewSubEquipment key={group.id} group={group} hook={hook} />
+                                <EquipmentChoice key={group.id} group={group} hook={hook} />
                             ))
                         ) : (
                             <p className="text-stone-400 italic">Nenhuma escolha de equipamento necessária.</p>

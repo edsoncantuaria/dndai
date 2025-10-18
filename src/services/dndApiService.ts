@@ -14,7 +14,7 @@ export const getFeats = () => apiClient('/dnds/feats') as Promise<{ results: Api
 export const getTraits = () => apiClient('/dnds/traits') as Promise<{ results: ApiListItem[] }>;
 export const getMagicSchools = () => apiClient('/dnds/magic-schools') as Promise<{ results: ApiListItem[] }>;
 export const getDamageTypes = () => apiClient('/dnds/damage-types') as Promise<{ results: ApiListItem[] }>;
-export const getEquipment = () => apiClient('/dnds/equipment') as Promise<{ results: ApiListItem[] }>;
+export const getEquipment = () => apiClient('/dnds/equipment') as Promise<{ results: InventoryItem[] }>;
 export const getEquipmentCategories = () => apiClient('/dnds/equipment-categories') as Promise<{ results: ApiListItem[] }>;
 export const getConditions = () => apiClient('/dnds/conditions') as Promise<{ results: ApiListItem[] }>;
 
