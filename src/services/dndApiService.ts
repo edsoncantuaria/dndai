@@ -22,7 +22,9 @@ export const getDamageTypes = () => getResourceList('damage-types');
 export const getEquipmentCategories = () => getResourceList('equipment-categories');
 export const getConditions = () => getResourceList('conditions');
 
-export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment');
+export const getEquipment = () => {
+    return apiClient<{ count: number, results: InventoryItem[] }>(`/data/equipment`).then(data => data.results);
+};
 
 
 // --- Funções de Detalhes (também usam o endpoint unificado) ---

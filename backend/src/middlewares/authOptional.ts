@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 
 // Estendendo a interface Request para incluir a propriedade opcional 'user'
 interface OptionalAuthRequest extends Request {
-  user?: { id: number };
+  user?: { userId: number };
 }
 
 export function authOptional(req: OptionalAuthRequest, _res: Response, next: NextFunction) {
@@ -15,7 +15,7 @@ export function authOptional(req: OptionalAuthRequest, _res: Response, next: Nex
       // Verifica o token e decodifica o payload
       const payload: any = jwt.verify(token, process.env.JWT_SECRET as string);
       // Atribui o ID do usuário à requisição para uso posterior nas rotas
-      req.user = { id: payload?.userId }; 
+      req.user = { userId: payload?.userId }; 
     } catch (error) {
       // Se o token for inválido (expirado, malformado), ignora o erro e continua
       // a requisição como se o usuário não estivesse autenticado.
