@@ -27,14 +27,43 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, fetchEquipmentCategory, allEquipment } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats, allEquipment, fetchEquipmentCategory } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager.allProficiencyChoices, allEquipment || [], selectionManager.languageChoicesCount);
+    // Passando allEquipment para o useDerivedCharacterData
+    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment);
+
+
+    // Funções de seleção de equipamento movidas para cá para ter acesso a `setField`.
+    const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
+        setField('equipmentSelections', (prev: any) => ({
+            ...prev,
+            [groupId]: mainOptionIndex,
+        }));
+    }, [setField]);
+    
+    const handleEquipmentSubChoiceChange = useCallback((path: string, itemIndex: string, subIndex: number, choiceCount: number) => {
+        setField('equipmentSelections', (prev: any) => {
+            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
+            let currentSelections = newState[path] || [];
+            
+            // Garante que é um array para escolhas múltiplas
+            if (!Array.isArray(currentSelections)) {
+                currentSelections = Array(choiceCount).fill("");
+            }
+            
+            currentSelections[subIndex] = itemIndex;
+            newState[path] = currentSelections;
+            
+            return newState;
+        });
+    }, [setField]);
+
+
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -60,8 +89,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleRandomizeBackground = useCallback(async (backgrounds: ApiListItem[]) => {
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
         await handleBackgroundChange(randomBgItem.index);
-        // O useEffect em useDataManager buscará os detalhes.
-        // A lógica de preenchimento aleatório deve ser acionada quando os detalhes estiverem disponíveis.
         setTimeout(async () => {
             const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
             if (!details) return;
@@ -86,7 +113,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 const randomFlaw = options[Math.floor(Math.random() * options.length)];
                 setField('flaw', randomFlaw.string);
             }
-        }, 500); // Wait for details to load
+        }, 500);
     }, [handleBackgroundChange, setField]);
     
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
@@ -171,8 +198,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         setField,
         details,
         loadingStates,
-        fetchEquipmentCategory,
         allEquipment,
+        fetchEquipmentCategory,
+        handleEquipmentChoiceChange,
+        handleEquipmentSubChoiceChange,
         ...attributeManager,
         ...selectionManager,
         ...derivedData,

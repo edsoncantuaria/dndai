@@ -5,14 +5,20 @@ import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 
-// Helper function to recursively find chosen items
-const findChosenItems = (
-    option: ApiEquipmentOption,
+/**
+ * Recursively processes equipment options to build a final list of items.
+ * @param option - The current equipment option from the API.
+ * @param selection - The user's selection for this option level.
+ * @param allEquipment - The master list of all available equipment items.
+ * @returns An array of InventoryItem objects.
+ */
+const processEquipmentOption = (
+    option: ApiEquipmentOption | undefined,
     selection: any,
     allEquipment: InventoryItem[]
 ): InventoryItem[] => {
-    if (!option || selection === undefined) return [];
-    
+    if (!option) return [];
+
     const results: InventoryItem[] = [];
 
     switch (option.option_type) {
@@ -24,65 +30,34 @@ const findChosenItems = (
             break;
 
         case 'choice':
-             if (option.choice && (selection !== undefined && selection !== -1)) {
-                const subOptions = option.choice.from.options;
-                if (subOptions && subOptions[selection] !== undefined) {
-                    // This is a nested choice, so we process the selected sub-option.
-                    results.push(...findChosenItems(subOptions[selection], undefined, allEquipment));
-                }
-             } else if (option.choice?.from?.equipment_category) {
-                const categoryIndex = option.choice.from.equipment_category.index;
-                const subOptions = allEquipment.filter(item => {
-                    const itemCategory = item.equipment_category?.index;
-                    const itemGearCategory = (item as any).gear_category?.index;
-                    
-                    return itemCategory === categoryIndex ||
-                           itemGearCategory === categoryIndex ||
-                           (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
-                           (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
-                           (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
-                           (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee');
-                });
-                
-                if(Array.isArray(selection)) {
-                    selection.forEach(idx => {
-                        if (idx !== -1 && subOptions[idx]) {
-                             results.push({ ...subOptions[idx], quantity: 1, id: uuidv4() });
-                        }
-                    });
-                } else if (selection !== -1 && subOptions[selection]) {
-                    results.push({ ...subOptions[selection], quantity: 1, id: uuidv4() });
+            if (selection !== undefined && selection !== null && selection !== -1) {
+                const chosenItemIndex = selection as string;
+                const chosenItem = allEquipment.find(e => e.index === chosenItemIndex);
+                if (chosenItem) {
+                     results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
                 }
             }
             break;
-            
+
         case 'multiple':
             if (Array.isArray(option.items)) {
-                option.items.forEach((subOption, subIndex) => {
-                    const subSelection = selection?.[subIndex];
-                    results.push(...findChosenItems(subOption, subSelection, allEquipment));
+                option.items.forEach((subOption, index) => {
+                    // For multiple items, the selection is an array of indices.
+                    const subSelection = Array.isArray(selection) ? selection[index] : selection;
+                    results.push(...processEquipmentOption(subOption, subSelection, allEquipment));
                 });
             }
             break;
     }
-
     return results;
 };
 
 
-
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
-    details: {
-        raceDetails: ApiRace | null;
-        subraceDetails: ApiSubrace | null;
-        classDetails: ApiClass | null;
-        backgroundDetails: ApiBackground | null;
-        availableFeats: Feat[];
-    },
-    allProficiencyChoices: any[],
-    allEquipment: InventoryItem[],
-    languageChoicesCount: number,
+    details: any, // Simplified details type
+    selectionManager: any, // Simplified selectionManager type
+    allEquipment: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
@@ -129,7 +104,7 @@ export const useDerivedCharacterData = (
         (classDetails?.saving_throws || []).forEach(st => st && profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
 
         if(isVariantHuman) {
-             const variantHumanSkillChoice = allProficiencyChoices.find(c => c.id === 'variant-human-skill');
+             const variantHumanSkillChoice = selectionManager.allProficiencyChoices.find(c => c.id === 'variant-human-skill');
              if(variantHumanSkillChoice && proficiencySelections['variant-human-skill']?.[0]) {
                  const skillIndex = proficiencySelections['variant-human-skill'][0];
                  const skill = variantHumanSkillChoice.options.find((o: any) => o.index === skillIndex);
@@ -139,7 +114,7 @@ export const useDerivedCharacterData = (
         
          Object.values(proficiencySelections).flat().forEach(profIndex => {
             if (!profs.has(profIndex)) {
-                for (const group of allProficiencyChoices) {
+                for (const group of selectionManager.allProficiencyChoices) {
                     const option = group.options.find((opt: any) => opt.index === profIndex);
                     if (option) {
                         profs.set(profIndex, option);
@@ -151,25 +126,19 @@ export const useDerivedCharacterData = (
 
         return Array.from(profs.values());
 
-    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, allProficiencyChoices]);
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, selectionManager.allProficiencyChoices]);
     
     
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
 
-        const processOption = (opt: ApiEquipmentOption) => {
-            if (opt.option_type === 'counted_reference' && opt.of) {
-                const itemDetails = allEquipment.find(e => e.index === opt.of!.index);
-                if (itemDetails) {
-                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: opt.count || 1, equipped: false });
-                }
-            }
-        };
-
         const addEquipment = (list: any[] = []) => list.forEach(item => {
-            if (item.equipment) { // As from starting_equipment
-                processOption({ option_type: 'counted_reference', of: item.equipment, count: item.quantity });
+            if (item.equipment) {
+                 const itemDetails = allEquipment.find(e => e.index === item.equipment.index);
+                 if (itemDetails) {
+                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
+                }
             }
         });
         
@@ -183,31 +152,51 @@ export const useDerivedCharacterData = (
         }
     
         const finalEquip = choiceGroups.flatMap(group => {
-            const selection = equipmentSelections?.[group.id];
-            if (selection === undefined) return [];
+            const mainSelectionIndex = equipmentSelections[group.id];
+            if (mainSelectionIndex === undefined || mainSelectionIndex === null || mainSelectionIndex < 0) return [];
             
-            const mainOption = group.choice.from.options[selection];
+            const mainOption = group.choice.from.options[mainSelectionIndex];
             if (!mainOption) return [];
 
-            return findChosenItems(mainOption, equipmentSelections[group.id], allEquipment);
+            if (mainOption.option_type === 'multiple') {
+                return (mainOption.items || []).flatMap((subOption: any, subIndex: number) => {
+                    if (subOption.option_type === 'counted_reference') {
+                         const itemDetails = allEquipment.find(e => e.index === subOption.of.index);
+                         return itemDetails ? [{ ...itemDetails, quantity: subOption.count || 1, id: uuidv4() }] : [];
+                    }
+                    if (subOption.option_type === 'choice') {
+                         const subSelection = equipmentSelections[`${group.id}.${subIndex}`] || [];
+                         return subSelection.map((itemIndex: string) => {
+                             const itemDetails = allEquipment.find(e => e.index === itemIndex);
+                             return itemDetails ? { ...itemDetails, quantity: 1, id: uuidv4() } : null;
+                         }).filter(Boolean);
+                    }
+                    return [];
+                });
+            } else {
+                 const selection = equipmentSelections[group.id];
+                 return processEquipmentOption(mainOption, selection, allEquipment);
+            }
         });
 
+
         const allChoicesMade = choiceGroups.every(group => {
-            const selection = equipmentSelections[group.id];
-            if (selection === undefined) return false;
+            const mainSelection = equipmentSelections[group.id];
+            if (mainSelection === undefined || mainSelection === null || mainSelection < 0) return false;
             
-            const mainOption = group.choice.from.options[selection];
+            const mainOption = group.choice.from.options[mainSelection];
             if (!mainOption) return false;
-            
-            const countSubChoices = (option: ApiEquipmentOption): number => {
-                if (option.option_type === 'choice') return option.choice.choose || 1;
-                if (option.option_type === 'multiple') return (option.items || []).reduce((acc, item) => acc + countSubChoices(item), 0);
-                return 0;
-            };
 
-            const requiredSubChoices = countSubChoices(mainOption);
-            if (requiredSubChoices === 0) return true;
-
+            if (mainOption.option_type === 'multiple') {
+                return (mainOption.items || []).every((subOption: any, subIndex: number) => {
+                    if (subOption.option_type === 'choice') {
+                        const subChoicePath = `${group.id}.${subIndex}`;
+                        const subSelections = equipmentSelections[subChoicePath] as string[] || [];
+                        return subSelections.length === subOption.choice.choose && subSelections.every(s => s);
+                    }
+                    return true;
+                });
+            }
             return true;
         });
 
