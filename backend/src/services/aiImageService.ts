@@ -4,6 +4,7 @@ import { generateText } from "ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
+import { Buffer } from 'buffer';
 
 interface GenerateImageInput {
     prompt: string;
@@ -24,14 +25,13 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
 
+        // Usa o provedor 'google' do '@ai-sdk/google' com a chave de API dinâmica
+        const googleProvider = google(model as any, { apiKey });
+
+        // Gera a imagem usando 'generateText' que pode retornar arquivos (imagens)
         const result = await generateText({
-            model: google(model, { apiKey }),
+            model: googleProvider,
             prompt: prompt,
-            providerOptions: {
-                google: {
-                    responseModalities: ["IMAGE"],
-                },
-            },
         });
         
         const imageFile = result.files[0];
@@ -41,9 +41,10 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageBuffer = imageFile.data;
+        // A SDK retorna um Uint8Array, precisamos convertê-lo para um Buffer para o MinIO
+        const imageBuffer = Buffer.from(imageFile.data);
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
-        const fileExtension = 'png'; 
+        const fileExtension = imageFile.mediaType?.split('/')[1] || 'png';
         
         const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
         const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
@@ -59,7 +60,7 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         }
 
         await minioClient.putObject(bucketName, objectName, imageBuffer, imageBuffer.length, {
-            'Content-Type': 'image/png'
+            'Content-Type': imageFile.mediaType || 'image/png'
         });
         
         const useSSL = process.env.MINIO_USE_SSL === 'true';

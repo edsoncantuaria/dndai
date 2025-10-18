@@ -1,7 +1,6 @@
 // backend/src/services/aiSDKService.ts
 import { google } from "@ai-sdk/google";
-import { generateText, generateObject } from 'ai';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { generateObject } from 'ai';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
 import { regrasBase } from '../game/prompts/regrasBase.js';
@@ -106,7 +105,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             
             console.log("✅ Resposta da IA validada e analisada:", object);
             
-            // A sanitização semântica ainda é útil para garantir a lógica do jogo
             const finalResponse = sanitizeGameMasterResponse(object, input.character);
             console.log("🧹 Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
 
@@ -114,7 +112,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
         } catch (error: any) {
              console.error(`[aiSDKService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-             if (error.message.includes('API key not valid')) {
+             if (error.message && error.message.includes('API key not valid')) {
                  throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
              }
              if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {
@@ -122,7 +120,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             }
             if (error.message.includes("response schema is not supported")) {
                 console.warn("[aiSDKService] O schema de resposta não é suportado, tentando novamente sem structured outputs.");
-                 if (!isRetry) return attemptGeneration(true); // Retry logic might be adjusted here
+                 if (!isRetry) return attemptGeneration(true);
             }
              throw createError(502, `Falha na comunicação com o Mestre de Jogo: ${error.message}`);
         }
