@@ -6,6 +6,7 @@ import * as UserService from '../services/userService.js';
 import createError from 'http-errors';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import { User } from '../entities/User.js'; // Adicionada a importação que faltava
 
 const router = Router();
 
