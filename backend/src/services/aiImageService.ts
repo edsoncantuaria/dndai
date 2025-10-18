@@ -7,7 +7,7 @@ import { googleAI } from '@genkit-ai/google-genai';
 import 'dotenv/config';
 
 // Inicializa uma instância do Genkit para este serviço
-genkit({
+const ai = genkit({
     plugins: [googleAI()],
     logLevel: 'debug',
     enableTracingAndMetrics: true,
@@ -32,8 +32,8 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
 
-        const { media } = await genkit.generate({
-            model: `googleai/${model}`,
+        const { media } = await ai.generate({
+            model: googleAI.model(model),
             prompt: prompt,
             apiKey: apiKey,
             output: { format: 'media' }, // Solicita a saída como mídia
