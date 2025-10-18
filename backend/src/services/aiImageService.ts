@@ -2,16 +2,8 @@
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import 'dotenv/config';
-
-// Inicializa uma instância do Genkit para este serviço
-const ai = genkit({
-    plugins: [googleAI()],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-});
 
 interface GenerateImageInput {
     prompt: string;
@@ -31,22 +23,24 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
+        
+        // OPÇÃO 1: Instanciar o cliente diretamente com a chave do usuário
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const generativeModel = genAI.getGenerativeModel({ model: model });
 
-        const { media } = await ai.generate({
-            model: googleAI.model(model),
-            prompt: prompt,
-            apiKey: apiKey,
-            output: { format: 'media' }, // Solicita a saída como mídia
-        });
+        const result = await generativeModel.generateContent(prompt);
+        const response = result.response;
+        const responsePart = response.candidates?.[0]?.content?.parts?.[0];
 
-        if (!media || !media.url || !media.contentType) {
-            console.error('Resposta da API de imagem inesperada:', media);
+        if (!responsePart || !('inlineData' in responsePart)) {
+            console.error('Resposta da API de imagem inesperada:', response);
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageData = media.url; // A URL já é uma data URI base64
-        const mimeType = media.contentType;
-        const imageBuffer = Buffer.from(imageData.substring(imageData.indexOf(',') + 1), 'base64');
+        const imageData = responsePart.inlineData.data;
+        const mimeType = responsePart.inlineData.mimeType;
+        const imageBuffer = Buffer.from(imageData, 'base64');
+        
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = mimeType.split('/')[1] || 'png';
         
@@ -80,7 +74,7 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     } catch (error: any) {
         console.error(`[aiImageService] Erro ao gerar e fazer upload da imagem:`, error);
-        if (error.message && error.message.includes('API key not valid')) {
+        if (error.message && (error.message.includes('API key not valid') || error.message.includes('permission_denied'))) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
         if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {
