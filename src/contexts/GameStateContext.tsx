@@ -1,9 +1,10 @@
-
+// src/contexts/GameStateContext.tsx
 'use client';
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useNewGameState } from '../hooks/newUseGameState';
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent } from '../types';
+import { useCharacterState } from '@/hooks/character-creation/useCharacterState';
 
 // Define a mais específica para o valor do contexto
 export interface GameStateContextType {
@@ -25,6 +26,8 @@ export interface GameStateContextType {
     isLoading: boolean;
     apiError: string | null;
     ambientSound: string;
+    reinstallModal: { open: boolean, deps: HomebrewContent[], onConfirm: () => void };
+    setReinstallModal: React.Dispatch<React.SetStateAction<{ open: boolean, deps: HomebrewContent[], onConfirm: () => void }>>;
     clearApiError: () => void;
     getApiKey: () => string | undefined;
     createCharacter: (info: NewCharacterInfo) => Promise<Character | null>;

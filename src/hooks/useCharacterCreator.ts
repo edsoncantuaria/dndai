@@ -132,7 +132,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 setField('flaw', randomFlaw.string);
             }
         }, 500);
-    }, [handleBackgroundChange]);
+    }, [handleBackgroundChange, setField]);
     
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
         const randomRaceItem = races[Math.floor(Math.random() * races.length)];

@@ -2,13 +2,12 @@
 'use client';
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useCharacterState } from './useCharacterState';
 import { useGameLog } from './useGameLog';
 import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
 import * as HomebrewService from '../services/homebrewService';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent } from '../types';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,6 +19,7 @@ export const useNewGameState = () => {
     const { user, revalidateUserSession } = useAuth();
     const { apiKey, model, useAiHomebrew } = useSettingsContext();
     const { toast } = useToast();
+    const [character, setCharacter] = useState<Character | null>(null);
     const [sessionId, setSessionId] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
@@ -27,22 +27,53 @@ export const useNewGameState = () => {
     
     const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
 
-
-    const characterState = useCharacterState();
     const logState = useGameLog();
     const interactionState = useInteractionManager();
     
     const getApiKey = useCallback(() => apiKey, [apiKey]);
     const clearApiError = useCallback(() => setApiError(null), []);
 
+    const updateCharacter = useCallback((updates: Partial<Character>) => {
+        setCharacter(prev => {
+            if (!prev) return null;
+            
+            const newChar = { ...prev };
+
+            if (updates.attributes) {
+                newChar.attributes = { ...prev.attributes, ...updates.attributes };
+            }
+            if (updates.hp) {
+                newChar.hp = { ...prev.hp, ...updates.hp };
+            }
+            if (updates.xp) {
+                newChar.xp = updates.xp;
+            }
+            if(updates.inventory) {
+                newChar.inventory = updates.inventory;
+            }
+            
+            // Recalculate derived stats
+            const modifiers = characterUtils.calculateModifiers(newChar.attributes);
+            const ac = characterUtils.calculateAC(newChar.inventory, modifiers);
+            const currentWeight = characterUtils.calculateWeight(newChar.inventory);
+            
+            return {
+                ...newChar,
+                modifiers,
+                ac,
+                currentWeight
+            };
+        });
+    }, []);
+
     const clearGameState = useCallback(() => {
-        characterState.clearCharacterState();
+        setCharacter(null);
         logState.clearLog();
         interactionState.clearAllInteractions();
         setSessionId(null);
         setApiError(null);
         closeWebSocket();
-    }, [characterState, logState, interactionState]);
+    }, [logState, interactionState]);
 
 
     const handleApiResponse = useCallback((response: GameMasterResponse, isRestoring: boolean = false) => {
@@ -52,11 +83,11 @@ export const useNewGameState = () => {
         }
 
         if (response.updatedCharacter) {
-             characterState.updateCharacter(response.updatedCharacter);
+             updateCharacter(response.updatedCharacter);
         }
         
         if (response.worldState) {
-            characterState.updateCharacter({ worldState: response.worldState });
+            updateCharacter({ worldState: response.worldState });
         }
         
         if(response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {
@@ -80,7 +111,7 @@ export const useNewGameState = () => {
         
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [logState, characterState, interactionState]);
+    }, [logState, updateCharacter, interactionState]);
 
     // WebSocket event handlers
     useEffect(() => {
@@ -110,9 +141,9 @@ export const useNewGameState = () => {
         if (finalSessionId === null || finalSessionId === undefined) {
             finalSessionId = -1; // Use a mock session ID for tests
             console.log("[processPlayerAction] No active session. Running in test mode.");
-            if (!characterState.character) {
+            if (!character) {
                 const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' } as any);
-                characterState.setCharacter(mockCharacter);
+                setCharacter(mockCharacter);
             }
         }
         
@@ -141,7 +172,7 @@ export const useNewGameState = () => {
             model: modelOverride || model
         });
         
-    }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, characterState, useAiHomebrew]);
+    }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew]);
     
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;
@@ -165,7 +196,7 @@ export const useNewGameState = () => {
                 if (sessionDetails && sessionDetails.character) {
                     const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
                     const displayLogs = (sessionDetails.logs || []).filter(log => log.type !== 'state').map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
-                    characterState.setCharacter(fullCharacter);
+                    setCharacter(fullCharacter);
                     logState.setLog(displayLogs);
                     setSessionId(id);
 
@@ -219,7 +250,7 @@ export const useNewGameState = () => {
         } finally {
              setIsLoading(false);
         }
-    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, characterState, logState, toast]);
+    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, logState, toast]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
@@ -270,13 +301,47 @@ export const useNewGameState = () => {
         }
     }, [sessionId, clearGameState]);
 
+    const handleApplyLevelUp = useCallback(async (selections: any) => {
+        if (!character || !interactionState.levelUpState || !interactionState.levelUpState.isPending) return;
+
+        const updatedChar = await characterUtils.applyLevelUp(character, interactionState.levelUpState, selections);
+
+        setCharacter(updatedChar);
+
+        logState.addLogEntry({ type: 'system', content: `Parabéns! Você alcançou o nível ${interactionState.levelUpState.newLevel}!` } as LogEntry);
+        interactionState.clearRequest('levelUp');
+        interactionState.setActionOptions([]);
+    }, [character, interactionState, logState.addLogEntry]);
+
+    const handleToggleEquipped = useCallback((itemId: string) => {
+        const item = character?.inventory.find(i => i.id === itemId);
+        if (!item) return;
+        const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
+        processPlayerAction(actionText);
+    }, [character, processPlayerAction]);
+
+    const handleUseConsumable = useCallback((itemId: string) => {
+        const item = character?.inventory.find(i => i.id === itemId);
+        if (!item || !item.consumable) {
+            toast({ variant: "destructive", title: "Item não consumível" });
+            return;
+        }
+        const actionText = `Eu uso ${item.name}.`;
+        processPlayerAction(actionText);
+    }, [character, processPlayerAction, toast]);
+
+    const handleSpendHitDice = useCallback((diceCount: number) => {
+        if (!character || character.hitDice.current < diceCount) return;
+        processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
+    }, [character, processPlayerAction]);
+
     const memoizedValue = useMemo(() => ({
-        character: characterState.character,
+        character: character,
         log: logState.log,
         sessionId,
         ...interactionState,
-        reinstallModal, // Expor o estado do modal
-        setReinstallModal, // Expor o setter
+        reinstallModal,
+        setReinstallModal,
         isLoading,
         apiError,
         ambientSound,
@@ -292,22 +357,23 @@ export const useNewGameState = () => {
         handleRollResult: interactionState.handleRollResult(processPlayerAction),
         handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(processPlayerAction),
         submitSpellCast: interactionState.submitSpellCast(processPlayerAction),
-        applyLevelUp: characterState.handleApplyLevelUp(interactionState.levelUpState, logState.addLogEntry, interactionState.clearRequest, interactionState.setActionOptions),
-        toggleEquipped: characterState.handleToggleEquipped(processPlayerAction),
-        useConsumable: characterState.handleUseConsumable(processPlayerAction),
-        spendHitDice: characterState.handleSpendHitDice(processPlayerAction),
+        applyLevelUp: handleApplyLevelUp,
+        toggleEquipped: handleToggleEquipped,
+        useConsumable: handleUseConsumable,
+        spendHitDice: handleSpendHitDice,
         takeLoot: interactionState.handleTakeLoot(processPlayerAction),
         buyItem: interactionState.handleBuyItem(processPlayerAction),
         sellItem: interactionState.handleSellItem(processPlayerAction),
         nextTurn: interactionState.nextTurn(processPlayerAction),
-        setCharacter: characterState.setCharacter,
+        setCharacter,
         setLog: logState.setLog,
         setSessionId,
     }), [
-        characterState, logState, sessionId, interactionState, reinstallModal,
+        character, logState, sessionId, interactionState, reinstallModal,
         isLoading, apiError, ambientSound,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
-        startGame, processPlayerAction, clearGameState, loadGameSession
+        startGame, processPlayerAction, clearGameState, loadGameSession, handleApplyLevelUp,
+        handleToggleEquipped, handleUseConsumable, handleSpendHitDice, setCharacter
     ]);
 
     return memoizedValue;

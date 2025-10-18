@@ -1,12 +1,12 @@
 // src/components/NewCreationCharacter/NewStep8_Finalize.tsx
 import React from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';
 import type { Attributes } from '@/types';
 import { ArrowLeft, Play } from 'lucide-react';
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     handleFinalize: () => void;
 }

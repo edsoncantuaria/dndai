@@ -1,6 +1,6 @@
 // src/components/NewCreationCharacter/NewCharacterCreation.tsx
 import React, { useState, useRef, useEffect } from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import type { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
@@ -33,7 +33,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     onCharacterCreated
 }) => {
     const { createCharacter, isLoading } = useGameStateContext();
-    const hook = useNewCharacterCreation({ allLanguages: allLanguages || [] });
+    const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
     const [highestStep, setHighestStep] = useState(1);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
