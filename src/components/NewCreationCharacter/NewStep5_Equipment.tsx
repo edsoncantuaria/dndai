@@ -10,11 +10,10 @@ interface SubChoiceSelectorProps {
     group: EquipmentChoiceGroup;
     mainSelectionIndex: number;
     hook: ReturnType<typeof useCharacterCreator>;
-    allEquipment: InventoryItem[]; // Recebe a lista completa
 }
 
-const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook, allEquipment }) => {
-    const { equipmentSelections, setField } = hook;
+const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook }) => {
+    const { equipmentSelections, setField, allEquipment } = hook;
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
     const mainOption = group.choice.from.options[mainSelectionIndex];
 
@@ -23,11 +22,31 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     }
 
     const categoryIndex = mainOption.choice.from.equipment_category.index;
-    const subOptions = (allEquipment || []).filter(item => 
-        (item.equipment_category && item.equipment_category.index === categoryIndex) || 
-        // Lógica para categorias mais complexas como "Martial Melee Weapons"
-        (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
-    );
+    
+    // Lógica de filtragem aprimorada
+    const subOptions = (allEquipment || []).filter(item => {
+        if (!item) return false;
+
+        // Caso 1: Categoria de equipamento direta
+        if (item.equipment_category && item.equipment_category.index === categoryIndex) {
+            return true;
+        }
+
+        // Caso 2: Categorias de armas mais complexas
+        const isMartialMelee = categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
+        const isSimpleWeapon = categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple';
+        if (isMartialMelee || isSimpleWeapon) {
+            return true;
+        }
+
+        // Caso 3: Categorias baseadas em gear_category (Focos Arcanos, Símbolos Sagrados, etc.)
+        if (item.gear_category && item.gear_category.index === categoryIndex) {
+            return true;
+        }
+
+        return false;
+    });
+
 
     const handleSubSelection = (subIndexStr: string) => {
         const subIdx = parseInt(subIndexStr, 10);
@@ -59,7 +78,7 @@ interface EquipmentChoiceProps {
 }
 
 const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
-    const { equipmentSelections, setField, allEquipment } = hook;
+    const { equipmentSelections, setField } = hook;
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const mainOptions = group.choice.from.options || [];
 
@@ -83,7 +102,7 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
                 {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
             </select>
             {mainSelectionIndex !== undefined && (
-                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} allEquipment={allEquipment} />
+                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} />
             )}
         </div>
     );
