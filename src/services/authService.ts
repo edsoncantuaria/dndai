@@ -59,8 +59,12 @@ export const acknowledgeHomebrewDisclaimer = async () => {
  * Salva as configurações de um usuário no backend.
  */
 export const saveUserSettings = async (settings: any) => {
+    // A chave de API é gerenciada pelo frontend e não deve ser enviada para o DB com as outras configurações.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { apiKey, ...settingsToSave } = settings;
+
     return apiClient<{ success: boolean, message: string, settings: any }>('/users/me/settings', {
         method: 'PUT',
-        body: JSON.stringify(settings),
+        body: JSON.stringify(settingsToSave),
     });
 };
