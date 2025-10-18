@@ -1,5 +1,5 @@
 // backend/src/services/aiImageService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold, Modality } from "@google/generative-ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,15 +22,39 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        
-        // Usando o método direto como no exemplo do usuário
-        const imageModel = genAI.getGenerativeModel({ model: model });
+        const imageModel = genAI.getGenerativeModel({ 
+            model: model,
+            safetySettings: [
+                {
+                    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
+                },
+                {
+                    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
+                },
+                 {
+                    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
+                },
+                {
+                    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    threshold: HarmBlockThreshold.BLOCK_NONE,
+                },
+            ]
+        });
         
         const generationPrompt = `Uma pintura digital cinematográfica e detalhada de fantasia: ${prompt}. Estilo de arte épico, dramático, com iluminação atmosférica.`;
 
-        const result = await imageModel.generateContent(generationPrompt);
-        const response = result.response;
+        const result = await imageModel.generateContent({
+            contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
+            generationConfig: {
+                 responseMimeType: "image/png",
+                 responseModalities: [Modality.IMAGE],
+            } as any, // Cast to any to allow for multimodal properties if needed
+        });
         
+        const response = result.response;
         const imagePart = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
 
         if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
