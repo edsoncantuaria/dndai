@@ -1,7 +1,7 @@
 // components/ItemCard.tsx
-import React, { useState } from 'react';
-import type { InventoryItem } from '../types';
-import { Shield, ChevronDown, Hand } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import type { InventoryItem, Proficiency } from '../types';
+import { Shield, ChevronDown, Hand, Check, X } from 'lucide-react';
 import { translateApiString } from '@/utils/translator';
 
 interface ItemCardProps {
@@ -10,16 +10,53 @@ interface ItemCardProps {
     onUseConsumable?: (itemId: string) => void;
     actionDisabled?: boolean;
     defaultExpanded?: boolean;
+    proficiencies: Proficiency[];
 }
 
-const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false }) => {
+const ProficiencyIndicator: React.FC<{ proficient: boolean }> = ({ proficient }) => {
+    const Icon = proficient ? Check : X;
+    const color = proficient ? 'text-green-400' : 'text-red-500';
+    const text = proficient ? 'Proficiente' : 'Não Proficiente';
+
+    return (
+        <div className={`flex items-center gap-1 text-xs font-semibold ${color}`} title={text}>
+            <Icon className="h-4 w-4" />
+        </div>
+    );
+};
+
+const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumable, actionDisabled, defaultExpanded = false, proficiencies = [] }) => {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+    const isProficient = useMemo(() => {
+        const weaponCategory = item.weapon_category?.toLowerCase();
+        const armorCategory = item.armor_category?.toLowerCase();
+
+        if (!weaponCategory && !armorCategory) {
+            return true; // Proficiency not required for general items
+        }
+
+        const normalizedProficiencies = new Set(
+            proficiencies.map(p => p.name.toLowerCase().replace(/ /g, '-').replace('armor', '').replace('weapons', '').trim())
+        );
+
+        if (armorCategory) {
+             const requiredProf = armorCategory.toLowerCase().replace(/ /g, '-').replace('armor', '').trim();
+             if (normalizedProficiencies.has(requiredProf) || normalizedProficiencies.has('all-armor')) return true;
+        }
+
+        if (weaponCategory) {
+            if (normalizedProficiencies.has(weaponCategory.toLowerCase().replace(/ /g, '-'))) return true;
+        }
+
+        return false;
+    }, [item, proficiencies]);
     
-    // O item já deve vir traduzido
-    const translatedItem = item;
+    const translatedItem = item; // Assuming item is already translated
 
     const canBeEquipped = !!(item.weapon_category || item.armor_category);
     const canBeUsed = item.consumable || item.usable;
+    const canEquipNow = canBeEquipped && isProficient && !actionDisabled;
 
     const handleCastClick = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -30,7 +67,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
     
     const handleToggleEquipClick = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (onToggleEquip && canBeEquipped && !actionDisabled) {
+        if (onToggleEquip && canEquipNow) {
             onToggleEquip(item.id);
         }
     };
@@ -40,8 +77,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
             <div className="flex justify-between items-start">
                 <div className="flex-grow">
                     <h4 className="font-semibold text-stone-200">{translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
-                    <div className="flex items-center gap-2 text-xs text-stone-400">
+                    <div className="flex items-center gap-2 text-xs text-stone-400 mt-1">
                         {item.weight !== undefined && <span>{item.weight} lbs</span>}
+                        {canBeEquipped && <ProficiencyIndicator proficient={isProficient} />}
                         {canBeEquipped && (
                             <span className={`px-2 py-0.5 rounded-full ${item.equipped ? 'bg-amber-800 text-amber-200' : 'bg-stone-600 text-stone-300'}`}>
                                 {item.equipped ? 'Equipado' : 'Desequipado'}
@@ -64,9 +102,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                      {canBeEquipped && onToggleEquip && (
                         <button
                             onClick={handleToggleEquipClick}
-                            disabled={actionDisabled}
+                            disabled={!canEquipNow}
                             className="p-1 text-stone-400 hover:text-amber-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title={item.equipped ? 'Desequipar' : 'Equipar'}
+                            title={isProficient ? (item.equipped ? 'Desequipar' : 'Equipar') : 'Proficiência necessária'}
                         >
                             <Shield />
                         </button>

@@ -74,6 +74,7 @@ const Inventory: React.FC = () => {
                             onToggleEquip={toggleEquipped}
                             onUseConsumable={useConsumable}
                             actionDisabled={actionDisabled}
+                            proficiencies={character.proficiencies || []}
                         />
                     ))}
                 </div>
@@ -86,7 +87,7 @@ const Inventory: React.FC = () => {
     return (
         <div className="p-4 space-y-6">
             <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 mb-3 text-shadow-amber">
+                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
                     <Backpack />
                     Inventário
                 </h3>
