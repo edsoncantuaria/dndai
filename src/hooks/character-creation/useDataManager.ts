@@ -26,6 +26,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     });
 
     const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
+    const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
 
     useEffect(() => {
@@ -48,36 +49,26 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     }, []);
 
     const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
-        if (!categoryIndex) {
-            console.warn("fetchEquipmentCategory chamado com índice inválido.");
-            return [];
-        }
-        
+        if (!categoryIndex) return [];
+        if (equipmentCategoryCache[categoryIndex]) return equipmentCategoryCache[categoryIndex];
+
         // Se a lista completa já foi carregada, filtramos dela.
         if (allEquipment.length > 0) {
             const filteredItems = allEquipment.filter(item => 
                 item.equipment_category?.index === categoryIndex || (item as any).gear_category?.index === categoryIndex
             );
+            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filteredItems }));
             return filteredItems;
         }
 
-        // Fallback: se allEquipment não estiver pronto, busca a categoria específica
         setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
-            if (!categoryDetails || !categoryDetails.equipment) {
-                return [];
-            }
+            if (!categoryDetails || !categoryDetails.equipment) return [];
             
-            const items = await fetchDetailsInChunks(
-                categoryDetails.equipment,
-                DndApiService.getEquipmentDetails,
-                (loaded, total, progress) => {
-                    setLoadingStates(prev => ({...prev, message: `Carregando itens de ${categoryIndex}... ${loaded}/${total}`, progress}));
-                }
-            );
-
+            const items = await fetchDetailsInChunks(categoryDetails.equipment, DndApiService.getEquipmentDetails, ()=>{});
             const validItems = items.filter(Boolean) as InventoryItem[];
+            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: validItems }));
             return validItems;
         } catch (error) {
             console.error(`Failed to fetch equipment category ${categoryIndex}:`, error);
@@ -85,7 +76,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
-    }, [allEquipment]);
+    }, [allEquipment, equipmentCategoryCache]);
 
 
     // Fetch Race Details
@@ -182,16 +173,18 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             const details = await DndApiService.getBackgroundDetails(background);
             setBackgroundDetails(details);
     
-            if (details?.starting_equipment_options) {
-                for(const choice of details.starting_equipment_options) {
+             if (details?.starting_equipment_options) {
+                for (const choice of details.starting_equipment_options) {
                     const optionSet = choice.from;
-                    
+
+                    // Handle direct equipment category reference
                     if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
                         await fetchEquipmentCategory(optionSet.equipment_category.index);
                     }
                     
+                    // Handle options within an array
                     if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
-                        for(const option of optionSet.options) {
+                        for (const option of optionSet.options) {
                             if (option.option_type === 'choice' && option.choice?.from?.equipment_category?.index) {
                                 await fetchEquipmentCategory(option.choice.from.equipment_category.index);
                             }
@@ -249,7 +242,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             subclassSpells,
         },
         allEquipment,
+        equipmentCategoryCache,
         loadingStates,
         fetchFeats,
+        fetchEquipmentCategory,
     };
 };

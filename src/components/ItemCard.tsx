@@ -30,37 +30,21 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 
     const isProficient = useMemo(() => {
         if (!item) return true;
-    
-        const armorCategory = item.armor_category?.toLowerCase().trim();
-        const weaponCategory = item.weapon_category?.toLowerCase().trim();
-    
-        const requiredProficiencies = new Set<string>();
-        if (armorCategory) requiredProficiencies.add(armorCategory);
-        if (weaponCategory) requiredProficiencies.add(weaponCategory);
-        if (item.equipment_category?.index === 'shields') requiredProficiencies.add('shields');
-        if(item.index) requiredProficiencies.add(item.index);
-
-
-        if (requiredProficiencies.size === 0) {
-            return true; // No proficiency required
-        }
-    
+        
+        const armorCategory = item.armor_category?.toLowerCase().replace(' armor', '');
+        const weaponCategory = item.weapon_category?.toLowerCase();
+        const itemIndex = item.index?.toLowerCase();
+        
         const characterProficiencies = new Set(proficiencies.map(p => p.index.toLowerCase()));
 
         if (characterProficiencies.has('all-armor') && armorCategory) return true;
         if (characterProficiencies.has('martial-weapons') && weaponCategory === 'martial') return true;
         if (characterProficiencies.has('simple-weapons') && weaponCategory === 'simple') return true;
+        if (characterProficiencies.has('shields') && item.equipment_category?.index === 'shields') return true;
 
-    
-        for (const req of requiredProficiencies) {
-            if (characterProficiencies.has(req)) {
-                return true;
-            }
-             if (characterProficiencies.has(`${req}-armor`)) {
-                return true;
-            }
-        }
-    
+        if (armorCategory && characterProficiencies.has(`${armorCategory}-armor`)) return true;
+        if (itemIndex && characterProficiencies.has(itemIndex)) return true;
+
         return false;
     }, [item, proficiencies]);
     
@@ -121,7 +105,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                             <Shield />
                         </button>
                     )}
-                    {(translatedItem.desc?.length || 0) > 0 && (
+                    {(translatedItem.desc?.length || translatedItem.damage || translatedItem.armor_class) > 0 && (
                         <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
                             <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>

@@ -27,7 +27,7 @@ export interface CharacterCreatorState {
     
     // Novas propriedades gerenciadas pelo useSelectionManager
     proficiencySelections: Record<string, string[]>;
-    equipmentSelections: Record<string, { main: number, sub: Record<number, number> }>; // Alterado para suportar sub-seleções aninhadas
+    equipmentSelections: Record<string, { main: number, sub: Record<number, string> }>;
     chosenClassSpells: string[];
     chosenRacialSpells: Record<string, string[]>;
     chosenLanguages: string[];

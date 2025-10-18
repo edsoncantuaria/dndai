@@ -7,57 +7,67 @@ import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
 
 const findChosenItems = (
-    option: ApiEquipmentOption | undefined,
-    selections: any, // Can be a single index number, or a complex object for nested choices
+    option: ApiEquipmentOption,
+    selection: { main?: number, sub?: Record<number, string> } | number | undefined,
     allEquipment: InventoryItem[]
 ): InventoryItem[] => {
-    if (!option || selections === undefined || selections === null || selections === -1) {
-        return [];
-    }
+    if (selection === undefined || selection === null) return [];
 
     const results: InventoryItem[] = [];
 
-    switch (option.option_type) {
-        case 'counted_reference':
-            const itemDetails = allEquipment.find(e => e && e.index === option.of?.index);
-            if (itemDetails) {
-                results.push({ ...itemDetails, quantity: option.count || 1, id: uuidv4() });
-            }
-            break;
+    const processOption = (opt: ApiEquipmentOption, currentSelection: any, path: string) => {
+        if (!opt) return;
 
-        case 'choice':
-            // Here, selections is the index of the chosen item within a category.
-            const chosenItemIndex = selections.main ?? selections; // Handle both simple and complex selection objects
-            const chosenItem = allEquipment.find(e => e && e.index === chosenItemIndex);
-            if (chosenItem) {
-                results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
-            }
-            break;
+        switch (opt.option_type) {
+            case 'counted_reference':
+                const itemDetails = allEquipment.find(e => e.index === opt.of?.index);
+                if (itemDetails) {
+                    results.push({ ...itemDetails, quantity: opt.count || 1, id: uuidv4() });
+                }
+                break;
 
-        case 'multiple':
-            // 'selections' here is an object with a 'sub' property for nested choices
-            if (Array.isArray(option.items)) {
-                option.items.forEach((subOption, subIndex) => {
-                    if (subOption.option_type === 'counted_reference') {
-                        // It's a fixed item within a multiple choice, add it directly.
-                        const fixedItem = allEquipment.find(e => e && e.index === subOption.of?.index);
-                        if (fixedItem) {
-                            results.push({ ...fixedItem, quantity: subOption.count || 1, id: uuidv4() });
-                        }
-                    } else if (subOption.option_type === 'choice') {
-                        // This is a nested choice, find the user's selection for it.
-                        const subSelection = selections?.sub?.[subIndex];
-                        if (subSelection) {
-                            const subChosenItem = allEquipment.find(e => e && e.index === subSelection);
-                            if (subChosenItem) {
-                                results.push({ ...subChosenItem, quantity: 1, id: uuidv4() });
-                            }
-                        }
+            case 'choice':
+                const chosenItemIndex = typeof currentSelection === 'string' ? currentSelection : undefined;
+                if (chosenItemIndex) {
+                    const chosenItem = allEquipment.find(e => e.index === chosenItemIndex);
+                    if (chosenItem) {
+                        results.push({ ...chosenItem, quantity: opt.choice?.choose || 1, id: uuidv4() });
                     }
-                });
-            }
-            break;
+                }
+                break;
+
+            case 'multiple':
+                if (Array.isArray(opt.items)) {
+                    opt.items.forEach((subOption, subIndex) => {
+                        processOption(subOption, currentSelection?.[subIndex], `${path}.${subIndex}`);
+                    });
+                }
+                break;
+        }
+    };
+    
+    if (typeof selection === 'number') {
+        processOption(option, selection, '');
+    } else if (typeof selection === 'object' && selection !== null) {
+        if (option.option_type === 'choice' && selection.main !== undefined) {
+            const mainChoiceOption = option.choice?.from?.options?.[selection.main];
+            processOption(mainChoiceOption, selection, '');
+        } else if (option.option_type === 'multiple') {
+            processOption(option, selection.sub, '');
+        } else {
+             const mainChoiceOption = option; // Case where the choice itself contains sub-options
+             if (mainChoiceOption.items) {
+                 mainChoiceOption.items.forEach((subOpt, i) => {
+                     const subSelection = selection.sub?.[i];
+                     if(subSelection) {
+                         const chosenItem = allEquipment.find(e => e.index === subSelection);
+                         if(chosenItem) results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
+                     }
+                 })
+             }
+        }
     }
+
 
     return results;
 };
@@ -65,8 +75,8 @@ const findChosenItems = (
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
-    details: any, // Simplified details type
-    selectionManager: any, // Simplified selectionManager type
+    details: any,
+    selectionManager: any,
     allEquipment: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
@@ -170,43 +180,55 @@ export const useDerivedCharacterData = (
         const finalEquip: InventoryItem[] = [];
         choiceGroups.forEach(group => {
             const selection = equipmentSelections[group.id];
+            if (selection === undefined || selection.main === undefined || selection.main < 0) return;
             
-            // This case handles simple selections where `selection` is the index of the option chosen.
-            if (typeof selection === 'number' && selection >= 0) {
-                const mainOption = group.choice.from.options[selection];
-                finalEquip.push(...findChosenItems(mainOption, selection, allEquipment));
-            } 
-            // This case handles complex selections with nested choices.
-            else if (typeof selection === 'object' && selection !== null && selection.main >= 0) {
-                const mainOption = group.choice.from.options[selection.main];
-                finalEquip.push(...findChosenItems(mainOption, selection, allEquipment));
+            const mainOption = group.choice.from.options[selection.main];
+            if (!mainOption) return;
+
+            if (mainOption.option_type === 'counted_reference' && mainOption.of) {
+                const item = allEquipment.find(e => e.index === mainOption.of!.index);
+                if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4() });
+            } else if (mainOption.option_type === 'multiple' && mainOption.items) {
+                 mainOption.items.forEach((subOpt: ApiEquipmentOption, subIndex: number) => {
+                    if (subOpt.option_type === 'counted_reference' && subOpt.of) {
+                        const item = allEquipment.find(e => e.index === subOpt.of!.index);
+                        if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4() });
+                    } else if (subOpt.option_type === 'choice') {
+                        const subSelection = selection.sub?.[subIndex];
+                        if (subSelection) {
+                            const item = allEquipment.find(e => e.index === subSelection);
+                            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                        }
+                    }
+                });
+            } else if (mainOption.option_type === 'choice') {
+                const subSelection = selection.sub?.[0];
+                if(subSelection) {
+                    const item = allEquipment.find(e => e.index === subSelection);
+                    if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                }
             }
         });
 
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            
-            // Case 1: Simple numeric selection must be a valid index.
-            if (typeof selection === 'number') {
-                return selection >= 0;
-            }
+            if (selection?.main === undefined || selection.main < 0) return false;
 
-            // Case 2: Object selection must have a valid 'main' index.
-            if (typeof selection === 'object' && selection !== null && selection.main >= 0) {
-                const mainOption = group.choice.from.options[selection.main];
-                // If it's a multiple choice, all sub-choices must be made.
-                if (mainOption && mainOption.option_type === 'multiple' && Array.isArray(mainOption.items)) {
-                    return mainOption.items.every((subOption, subIndex) => {
-                        if (subOption.option_type === 'choice') {
-                            return selection.sub && selection.sub[subIndex] !== undefined;
-                        }
-                        return true; // Not a sub-choice, so it's fulfilled.
-                    });
-                }
-                return true; // Not a multiple choice, so 'main' selection is enough.
+            const mainOption = group.choice.from.options[selection.main];
+            if (!mainOption) return false;
+
+            if (mainOption.option_type === 'multiple' && Array.isArray(mainOption.items)) {
+                return mainOption.items.every((subOption, subIndex) => {
+                    if (subOption.option_type === 'choice') {
+                        return selection.sub && selection.sub[subIndex];
+                    }
+                    return true;
+                });
             }
-            
-            return false; // No valid selection found.
+            if (mainOption.option_type === 'choice') {
+                return selection.sub && selection.sub[0];
+            }
+            return true;
         });
 
 

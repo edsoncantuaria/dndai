@@ -27,11 +27,18 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, allEquipment, fetchEquipmentCategory, equipmentCategoryCache } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { 
+        details, 
+        loadingStates, 
+        fetchFeats, 
+        allEquipment, // Expor allEquipment
+        equipmentCategoryCache, // Expor o cache
+        fetchEquipmentCategory, // Expor a função de busca
+    } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
-
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
     // Passando allEquipment para o useDerivedCharacterData
@@ -41,31 +48,29 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            newSelections[groupId] = mainOptionIndex;
+            // Reseta as sub-escolhas ao mudar a opção principal
+            newSelections[groupId] = { main: mainOptionIndex, sub: {} };
             return newSelections;
         });
     }, [setField]);
     
-    const handleEquipmentSubChoiceChange = useCallback((groupId: string, itemIndex: string, subIndex: number, isMultiChoice: boolean) => {
+    const handleEquipmentSubChoiceChange = useCallback((groupId: string, itemIndex: string, subIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            const currentSelection = newSelections[groupId];
+            const currentGroupSelection = prev[groupId] || {};
             
-            // This handles the new complex state for multiple independent choices, e.g., two martial weapons
-            if (isMultiChoice) {
-                let choices = Array.isArray(currentSelection) ? [...currentSelection] : [];
-                choices[subIndex] = itemIndex; // Place the selection at the specific sub-index
-                newSelections[groupId] = choices;
-            } else { // This handles nested choices within a primary selection
-                 const mainIndex = (typeof currentSelection === 'object' && currentSelection !== null) ? currentSelection.main : currentSelection;
-                 let subSelections = (typeof currentSelection === 'object' && currentSelection !== null) ? { ...currentSelection.sub } : {};
-                 subSelections[subIndex] = itemIndex;
-                 newSelections[groupId] = { main: mainIndex, sub: subSelections };
-            }
-            return newSelections;
+            const newSubSelections = { ...(currentGroupSelection.sub || {}) };
+            newSubSelections[subIndex] = itemIndex;
+    
+            return {
+                ...prev,
+                [groupId]: {
+                    ...currentGroupSelection,
+                    sub: newSubSelections
+                }
+            };
         });
     }, [setField]);
-
 
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
@@ -156,7 +161,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             
             const homebrewIds = [state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]
                 .concat(Object.values(selectionManager.proficiencySelections).flat())
-                .concat(Object.values(derivedData.finalizedEquipment).map((item: any) => item.index))
+                .concat(derivedData.finalizedEquipment.map((item: any) => item.index))
                 .concat(selectionManager.chosenClassSpells)
                 .concat(Object.values(selectionManager.chosenRacialSpells).flat())
                 .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
@@ -202,8 +207,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         details,
         loadingStates,
         allEquipment,
-        fetchEquipmentCategory,
-        equipmentCategoryCache, // Adicionando o cache aqui
+        equipmentCategoryCache, // Pass cache down
+        fetchEquipmentCategory, // Pass fetcher down
         handleEquipmentChoiceChange,
         handleEquipmentSubChoiceChange,
         ...attributeManager,
