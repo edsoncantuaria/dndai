@@ -12,7 +12,21 @@ import type {
   ApiFeature,
   ApiSubclass,
   Feat,
+  ApiClassLevel,
 } from '../types';
+
+type ListResponse = { count: number; results: ApiListItem[] };
+
+function normalizeList(data: any): ListResponse {
+  if (Array.isArray(data)) {
+    return { count: data.length, results: data };
+  }
+  if (data && Array.isArray(data.results)) {
+    return data as ListResponse;
+  }
+  return { count: 0, results: [] };
+}
+
 
 /**
  * -------------------------------
@@ -20,24 +34,26 @@ import type {
  * -------------------------------
  * Chamam o novo endpoint unificado: /api/data/:resource
  */
-export const getResourceList = async <T = any>(resource: string): Promise<T[]> => {
-  const res = await apiClient<T[]>(`/data/${resource}`);
-  return res;
+export const getResourceList = async (resource: string): Promise<ListResponse> => {
+  const res = await apiClient<any>(`/data/${resource}`);
+  return normalizeList(res);
 };
 
 // Atalhos específicos (apenas para clareza e autocomplete)
-export const getRaces = () => getResourceList<ApiRace>('races');
-export const getClasses = () => getResourceList<ApiClass>('classes');
-export const getBackgrounds = () => getResourceList<ApiBackground>('backgrounds');
-export const getFeats = () => getResourceList<Feat>('feats');
-export const getTraits = () => getResourceList<ApiTrait>('traits');
-export const getEquipment = () => getResourceList<InventoryItem>('equipment');
-export const getLanguages = () => getResourceList<{ name: string; index: string }>('languages');
-export const getConditions = () => getResourceList<ApiCondition>('conditions');
-export const getAlignments = () => getResourceList<{ name: string; index: string }>('alignments');
-export const getSkills = () => getResourceList<{ name: string; index: string }>('skills');
-export const getSubclasses = () => getResourceList<ApiSubclass>('subclasses');
-export const getSpells = () => getResourceList<ApiSpell>('spells');
+export const getRaces = () => getResourceList('races');
+export const getClasses = () => getResourceList('classes');
+export const getBackgrounds = () => getResourceList('backgrounds');
+export const getFeats = () => getResourceList('feats');
+export const getTraits = () => getResourceList('traits');
+export const getEquipment = () => getResourceList('equipment');
+export const getLanguages = () => getResourceList('languages');
+export const getConditions = () => getResourceList('conditions');
+export const getAlignments = () => getResourceList('alignments');
+export const getSkills = () => getResourceList('skills');
+export const getSubclasses = () => getResourceList('subclasses');
+export const getSpells = () => getResourceList('spells');
+export const getDamageTypes = () => getResourceList('damage-types');
+export const getMagicSchools = () => getResourceList('magic-schools');
 
 /**
  * -------------------------------
@@ -45,9 +61,15 @@ export const getSpells = () => getResourceList<ApiSpell>('spells');
  * -------------------------------
  * Chamam o novo endpoint unificado: /api/data/:resource/:index
  */
-export const getResourceDetails = async <T = any>(resource: string, index: string): Promise<T> => {
-  const res = await apiClient<T>(`/data/${resource}/${index}`);
-  return res;
+export const getResourceDetails = async <T = any>(resource: string, index: string): Promise<T | null> => {
+  if (!index) return null;
+  try {
+    const res = await apiClient<T>(`/data/${resource}/${index}`);
+    return res;
+  } catch(e) {
+    console.error(`Falha ao buscar detalhes para ${resource}/${index}`, e);
+    return null;
+  }
 };
 
 // Atalhos específicos
@@ -61,3 +83,8 @@ export const getEquipmentDetails = (index: string) => getResourceDetails<Invento
 export const getConditionDetails = (index: string) => getResourceDetails<ApiCondition>('conditions', index);
 export const getSubclassDetails = (index: string) => getResourceDetails<ApiSubclass>('subclasses', index);
 export const getFeatureDetails = (index: string) => getResourceDetails<ApiFeature>('features', index);
+
+// Funções para rotas aninhadas
+export const getClassLevels = (classIndex: string) => getResourceDetails<ApiClassLevel[]>(`classes/${classIndex}`, 'levels');
+export const getSubclassLevels = (subclassIndex: string) => getResourceDetails<ApiClassLevel[]>(`subclasses/${subclassIndex}`, 'levels');
+export const getSpellsForClass = (classIndex: string) => getResourceList(`classes/${classIndex}/spells`);

@@ -32,7 +32,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
-                const unifiedEquipment = await DndApiService.getEquipment();
+                const unifiedEquipmentList = await DndApiService.getEquipment();
+                const unifiedEquipment = unifiedEquipmentList.results as InventoryItem[];
                 setAllEquipment(unifiedEquipment);
 
                 const newCache: Record<string, InventoryItem[]> = {};
@@ -50,8 +51,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     add(item.equipment_category?.index, item);
                     add((item as any).gear_category?.index, item);
                     
-                    if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}-weapons`, item);
-                    if (item.armor_category) add(`${item.armor_category.toLowerCase()}-armor`, item);
+                    if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}`, item);
+                    if (item.armor_category) add(`${item.armor_category.toLowerCase()}`, item);
                 });
 
                 // Adiciona categorias compostas
@@ -145,7 +146,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
                  if (subClassDetails?.spells) {
-                    const spellRefs = subClassDetails.spells.filter(s => s.prerequisites.some(p => p && p.type === 'level' && p.url.endsWith('/1'))).map(s => s.spell);
+                    const spellRefs = subClassDetails.spells.filter(s => s.prerequisites.some(p => p && p.url.endsWith('/1'))).map(s => s.spell);
                     if(spellRefs.length > 0) {
                         const spellDetails = await fetchDetailsInChunks(spellRefs, DndApiService.getSpellDetails, ()=>{});
                         setSubclassSpells(spellDetails.filter(Boolean) as ApiSpell[]);
