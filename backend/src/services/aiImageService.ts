@@ -1,6 +1,6 @@
 // backend/src/services/aiImageService.ts
 import { google } from "@ai-sdk/google";
-import { generateImage as generateImageCore } from "ai";
+import { generateText } from "ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,25 +20,28 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     if (!apiKey) {
         throw createError(401, 'Chave de API do Google não fornecida.');
     }
-    
-    // Instancia o modelo com a chave de API dinâmica
-    const imageModel = google.image(model as any, { apiKey });
 
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
-        
-        const { imageBase64 } = await generateImageCore({
-            model: imageModel,
+
+        const result = await generateText({
+            model: google(model, { apiKey }),
             prompt: prompt,
+            providerOptions: {
+                google: {
+                    responseModalities: ["IMAGE"],
+                },
+            },
         });
+        
+        const imageFile = result.files[0];
 
-
-        if (!imageBase64) {
-            console.error('Resposta da API de imagem inesperada: imageBase64 está vazio.');
+        if (!imageFile || !imageFile.data) {
+            console.error('Resposta da API de imagem inesperada: nenhum arquivo de imagem encontrado.');
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        const imageBuffer = imageFile.data;
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = 'png'; 
         
