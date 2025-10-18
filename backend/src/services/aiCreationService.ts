@@ -1,8 +1,10 @@
 // backend/src/services/aiCreationService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { google } from "@ai-sdk/google";
+import { generateObject } from 'ai';
 import createError from 'http-errors';
 import { EXAMPLES } from '../../data/examples.js';
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
+import { z } from 'zod';
 
 interface GenerateHomebrewInput {
     prompt: string;
@@ -33,38 +35,27 @@ export const generateHomebrewContent = async ({ prompt, type, apiKey }: Generate
       O campo 'index' deve ser uma versão em minúsculas e separada por hífens do nome em inglês.
     `;
 
+    const model = google('gemini-1.5-pro-latest', { apiKey });
+
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
-            model: 'gemini-1.5-pro-latest',
-            systemInstruction: systemPrompt,
+        const { object } = await generateObject({
+            model,
+            system: systemPrompt,
+            prompt: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"`,
+            schema: z.any(), // Usamos 'any' para flexibilidade, já que a estrutura varia por tipo.
         });
 
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"` }] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.5,
-            },
-        });
-
-        const response = result.response;
-        const jsonText = response.text();
-
-        if (!jsonText) {
-            throw createError(500, "A IA retornou uma resposta vazia.");
-        }
-
-        try {
-            const content = JSON.parse(jsonText);
-            return { content };
-        } catch (e) {
-            console.error("[aiCreationService] Falha ao analisar JSON da IA:", e, "Texto recebido:", jsonText);
-            throw createError(500, "A IA retornou uma resposta em formato JSON inválido.");
-        }
+        return { content: object };
 
     } catch (error: any) {
         console.error(`[aiCreationService] Erro ao chamar a API do Gemini:`, error);
+        // Trata erros comuns da API para fornecer feedback melhor ao usuário
+        if (error.message && error.message.includes('API key not valid')) {
+            throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
+        }
+        if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {
+            throw createError(429, 'Você excedeu seu limite de uso da API. Por favor, tente novamente mais tarde.');
+        }
         throw createError(502, `Falha na comunicação com o serviço de IA: ${error.message}`);
     }
 };

@@ -4,7 +4,6 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
-import { getGameUpdate } from './aiService.js';
 import createError from 'http-errors';
 import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
@@ -13,6 +12,7 @@ import * as HomebrewService from './homebrewService.js';
 import { mergeCharacterUpdates } from './safeMerge.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
+import * as AiSDKService from './aiSDKService.js'; // Importa o novo serviço
 
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -102,7 +102,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passiveInvestigation,
         proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
         inventory,
-        spells: spells as ApiSpell[], // Cast to ApiSpell array
+        spells: spells as unknown as ApiSpell[],
         feats: fullCharacter.feats || [],
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
@@ -206,7 +206,13 @@ export const processPlayerTurn = async (
         useAiHomebrew: useAiHomebrew ?? true,
     };
 
-    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
+    // **CHAMADA PARA O NOVO SERVIÇO**
+    const aiResponse = await AiSDKService.getGameUpdate(
+        gameMasterFlowInput,
+        modelToUse,
+        generationConfig,
+        apiKey
+    );
     
     if (isTestRun || !sessao) {
         return aiResponse;
@@ -227,7 +233,7 @@ export const processPlayerTurn = async (
         
         if(!isInternalAction) {
             const playerLog = new SessionLog();
-            Object.assign(playerLog, { id: uuidv4(), sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
+            Object.assign(playerLog, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
             await logRepository.save(playerLog);
         }
         
@@ -235,7 +241,6 @@ export const processPlayerTurn = async (
         delete stateForLog.logEntries;
         const stateLog = new SessionLog();
         Object.assign(stateLog, {
-            id: uuidv4(),
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(stateForLog),
@@ -266,7 +271,6 @@ export const processPlayerTurn = async (
                 if (contentString) {
                     const newLog = new SessionLog();
                     Object.assign(newLog, {
-                        id: uuidv4(),
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
                         response: contentString,

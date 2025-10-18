@@ -1,17 +1,9 @@
 // backend/src/services/aiImageService.ts
+import { google } from "@ai-sdk/google";
+import { generateImage as generateImageCore } from "ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
 import { v4 as uuidv4 } from 'uuid';
-import { genkit } from 'genkit';
-import { googleAI } from '@genkit-ai/google-genai';
-import 'dotenv/config';
-
-// Inicializa uma instância do Genkit para este serviço
-const ai = genkit({
-    plugins: [googleAI()],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-});
 
 interface GenerateImageInput {
     prompt: string;
@@ -28,27 +20,27 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
     if (!apiKey) {
         throw createError(401, 'Chave de API do Google não fornecida.');
     }
+    
+    // Instancia o modelo com a chave de API dinâmica
+    const imageModel = google.image(model as any, { apiKey });
 
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
-
-        const { media } = await ai.generate({
-            model: googleAI.model(model),
+        
+        const { imageBase64 } = await generateImageCore({
+            model: imageModel,
             prompt: prompt,
-            apiKey: apiKey,
-            output: { format: 'media' }, // Solicita a saída como mídia
         });
 
-        if (!media || !media.url || !media.contentType) {
-            console.error('Resposta da API de imagem inesperada:', media);
+
+        if (!imageBase64) {
+            console.error('Resposta da API de imagem inesperada: imageBase64 está vazio.');
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        const imageData = media.url; // A URL já é uma data URI base64
-        const mimeType = media.contentType;
-        const imageBuffer = Buffer.from(imageData.substring(imageData.indexOf(',') + 1), 'base64');
+        const imageBuffer = Buffer.from(imageBase64, 'base64');
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
-        const fileExtension = mimeType.split('/')[1] || 'png';
+        const fileExtension = 'png'; 
         
         const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
         const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
@@ -64,7 +56,7 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         }
 
         await minioClient.putObject(bucketName, objectName, imageBuffer, imageBuffer.length, {
-            'Content-Type': mimeType
+            'Content-Type': 'image/png'
         });
         
         const useSSL = process.env.MINIO_USE_SSL === 'true';
