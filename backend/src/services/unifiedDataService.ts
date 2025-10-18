@@ -3,7 +3,7 @@ import redisClient from '../database/redis-client.js';
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { User } from '../entities/User.js';
-import DndApi from './dndApiService.js';
+import { DndApi } from './dndApiService.js';
 import crypto from 'crypto';
 import { Brackets, Raw } from 'typeorm';
 
