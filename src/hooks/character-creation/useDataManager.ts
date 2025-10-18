@@ -26,13 +26,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     });
 
     const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
-    const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
 
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await DndApiService.getEquipmentList();
+            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -53,16 +52,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             console.warn("fetchEquipmentCategory chamado com índice inválido.");
             return [];
         }
-        if (equipmentCategoryCache[categoryIndex]) {
-            return equipmentCategoryCache[categoryIndex];
-        }
         
         // Se a lista completa já foi carregada, filtramos dela.
         if (allEquipment.length > 0) {
             const filteredItems = allEquipment.filter(item => 
                 item.equipment_category?.index === categoryIndex || (item as any).gear_category?.index === categoryIndex
             );
-            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filteredItems}));
             return filteredItems;
         }
 
@@ -71,7 +66,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
             if (!categoryDetails || !categoryDetails.equipment) {
-                setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: []}));
                 return [];
             }
             
@@ -84,7 +78,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             );
 
             const validItems = items.filter(Boolean) as InventoryItem[];
-            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: validItems}));
             return validItems;
         } catch (error) {
             console.error(`Failed to fetch equipment category ${categoryIndex}:`, error);
@@ -92,7 +85,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
-    }, [equipmentCategoryCache, allEquipment]);
+    }, [allEquipment]);
 
 
     // Fetch Race Details
@@ -190,7 +183,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setBackgroundDetails(details);
     
             if (details?.starting_equipment_options) {
-                for (const choice of details.starting_equipment_options) {
+                for(const choice of details.starting_equipment_options) {
                     const optionSet = choice.from;
                     
                     if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
@@ -198,7 +191,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     }
                     
                     if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
-                        for (const option of optionSet.options) {
+                        for(const option of optionSet.options) {
                             if (option.option_type === 'choice' && option.choice?.from?.equipment_category?.index) {
                                 await fetchEquipmentCategory(option.choice.from.equipment_category.index);
                             }
@@ -258,7 +251,5 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         allEquipment,
         loadingStates,
         fetchFeats,
-        fetchEquipmentCategory,
-        equipmentCategoryCache, // Expondo o cache
     };
 };
