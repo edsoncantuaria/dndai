@@ -4,63 +4,65 @@ import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/character-cre
 import { translateApiString } from '@/utils/translator';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
-import type { InventoryItem } from '@/types';
+import type { InventoryItem, ApiEquipmentOption } from '@/types';
 
 interface SubChoiceSelectorProps {
     group: EquipmentChoiceGroup;
     mainSelectionIndex: number;
+    subChoiceIndex: number; // Index of the sub-choice within a 'multiple' option
+    subChoiceItem: ApiEquipmentOption;
     hook: ReturnType<typeof useCharacterCreator>;
 }
 
-const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook }) => {
+const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, subChoiceIndex, subChoiceItem, hook }) => {
     const { equipmentSelections, setField, allEquipment } = hook;
-    const subSelectionIndex = equipmentSelections[group.id]?.sub;
-    const mainOption = group.choice.from.options[mainSelectionIndex];
+    
+    // Determine the current selection for this specific sub-choice
+    const currentSubSelection = equipmentSelections[group.id]?.sub?.[subChoiceIndex];
 
-    if (mainOption?.option_type !== 'choice' || (!mainOption.choice?.from?.equipment_category && !mainOption.choice.from?.equipment_category_url)) {
+    if (subChoiceItem.option_type !== 'choice' || (!subChoiceItem.choice?.from?.equipment_category && !subChoiceItem.choice.from?.equipment_category_url)) {
         return null;
     }
-    
-    // Normalize how we get the category index, preferring the direct object first.
-    const categoryIndex = mainOption.choice.from.equipment_category?.index || 
-                          mainOption.choice.from.equipment_category_url?.split('/').pop();
 
+    const categoryIndex = subChoiceItem.choice.from.equipment_category?.index || subChoiceItem.choice.from.equipment_category_url?.split('/').pop();
 
     if (!categoryIndex) {
-        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida.</p>;
+        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida para {getOptionLabel(subChoiceItem)}.</p>;
     }
-    
-    // Lógica de filtragem aprimorada
+
     const subOptions = (allEquipment || []).filter(item => {
         if (!item) return false;
+        const itemCategory = item.equipment_category?.index;
+        const itemGearCategory = (item as any).gear_category?.index;
 
-        // Caso 1: Categoria de equipamento direta
-        if (item.equipment_category && item.equipment_category.index === categoryIndex) {
-            return true;
-        }
-        
-        // Caso 2: Categorias genéricas de equipamento (Arcane Focus, Holy Symbol, etc.)
-        if (item.gear_category && item.gear_category.index === categoryIndex) {
+        if (itemCategory === categoryIndex || itemGearCategory === categoryIndex) {
             return true;
         }
 
-        // Caso 3: Categorias de armas mais complexas
-        const isMartialMelee = categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
-        const isSimpleWeapon = categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple';
-        if (isMartialMelee || isSimpleWeapon) {
-            return true;
+        // Handle complex categories by checking weapon properties
+        switch (categoryIndex) {
+            case 'martial-melee-weapons':
+                return item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
+            case 'simple-weapons':
+                return item.weapon_category === 'Simple';
+            case 'martial-weapons':
+                return item.weapon_category === 'Martial';
+            // Add more complex category checks here if needed
+            default:
+                return false;
         }
-
-        return false;
     });
 
-
-    const handleSubSelection = (subIndexStr: string) => {
-        const subIdx = parseInt(subIndexStr, 10);
-        setField('equipmentSelections', (prev: any) => ({
-            ...prev,
-            [group.id]: { main: mainSelectionIndex, sub: subIdx },
-        }));
+    const handleSubSelection = (itemIndexStr: string) => {
+        const itemIdx = parseInt(itemIndexStr, 10);
+        setField('equipmentSelections', (prev: any) => {
+            const newSubSelections = { ...(prev[group.id]?.sub || {}) };
+            newSubSelections[subChoiceIndex] = itemIdx;
+            return {
+                ...prev,
+                [group.id]: { main: mainSelectionIndex, sub: newSubSelections },
+            };
+        });
     };
 
     if (hook.loadingStates.equipment) {
@@ -68,16 +70,20 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     }
 
     return (
-        <select 
-            value={subSelectionIndex ?? -1} 
-            onChange={(e) => handleSubSelection(e.target.value)} 
-            className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 animate-fadeIn mt-2"
-        >
-            <option value={-1} disabled>Selecione um item...</option>
-            {subOptions.map((item, index) => <option key={item.index} value={index}>{translateApiString(item.name)}</option>)}
-        </select>
+        <div className="mt-2 space-y-1 pl-4 border-l-2 border-stone-600">
+             <label className="text-xs text-stone-400">{subChoiceItem.choice.desc || `Escolha de ${categoryIndex}`}</label>
+            <select 
+                value={currentSubSelection ?? -1} 
+                onChange={(e) => handleSubSelection(e.target.value)} 
+                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm"
+            >
+                <option value={-1} disabled>Selecione um item...</option>
+                {subOptions.map((item, index) => <option key={item.index} value={index}>{translateApiString(item.name)}</option>)}
+            </select>
+        </div>
     );
 };
+
 
 interface EquipmentChoiceProps {
     group: EquipmentChoiceGroup;
@@ -91,11 +97,14 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
 
     const handleMainSelection = (indexStr: string) => {
         const mainIdx = parseInt(indexStr, 10);
+        // Reset sub-selections when the main option changes
         setField('equipmentSelections', (prev: any) => ({
             ...prev,
-            [group.id]: { main: mainIdx, sub: undefined },
+            [group.id]: { main: mainIdx, sub: {} },
         }));
     };
+    
+    const selectedMainOption = mainSelectionIndex !== undefined ? mainOptions[mainSelectionIndex] : null;
 
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
@@ -108,8 +117,31 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
                 <option value={-1} disabled>Selecione uma opção...</option>
                 {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
             </select>
-            {mainSelectionIndex !== undefined && (
-                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} />
+
+            {selectedMainOption && selectedMainOption.option_type === 'multiple' && (
+                <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
+                    {selectedMainOption.items.map((subItem: ApiEquipmentOption, index: number) => (
+                        <SubChoiceSelector
+                            key={index}
+                            group={group}
+                            mainSelectionIndex={mainSelectionIndex!}
+                            subChoiceIndex={index}
+                            subChoiceItem={subItem}
+                            hook={hook}
+                        />
+                    ))}
+                </div>
+            )}
+             {selectedMainOption && selectedMainOption.option_type === 'choice' && (
+                 <div className="pt-2">
+                    <SubChoiceSelector
+                        group={group}
+                        mainSelectionIndex={mainSelectionIndex!}
+                        subChoiceIndex={0} // There's only one sub-choice here
+                        subChoiceItem={selectedMainOption}
+                        hook={hook}
+                    />
+                 </div>
             )}
         </div>
     );
