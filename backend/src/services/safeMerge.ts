@@ -77,11 +77,13 @@ export const mergeCharacterUpdates = async (
   if (!character) throw new Error('Personagem não encontrado para o merge.');
 
   // --- Invalidação de Cache ---
-  // Qualquer atualização invalida o cache do personagem.
-  const cacheKey = `character:${characterId}`;
+  const cacheKeysToInvalidate = [
+      `character:${characterId}`,
+      `character:${characterId}:optimized`
+  ];
   if (redisClient && redisClient.isOpen) {
-      await redisClient.del(cacheKey);
-      console.log(`[Cache] INVALIDATED: Personagem ${characterId} invalidado devido à atualização.`);
+      await redisClient.del(cacheKeysToInvalidate);
+      console.log(`[Cache] INVALIDATED: Caches para personagem ${characterId} foram invalidados devido à atualização.`);
   }
 
 
@@ -243,3 +245,5 @@ export const mergeCharacterUpdates = async (
       await upsertJournalEntries(queryRunner, updates.journal, characterId);
   }
 };
+
+    

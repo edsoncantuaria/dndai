@@ -4,7 +4,7 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
-import { getGameUpdate } from './aiService.js';
+import { getGameUpdate } from './aiSDKService.js'; // Mudança para o novo serviço
 import createError from 'http-errors';
 import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
@@ -13,6 +13,7 @@ import * as HomebrewService from './homebrewService.js';
 import { mergeCharacterUpdates } from './safeMerge.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
+import { v4 as uuidv4 } from 'uuid';
 
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -55,7 +56,23 @@ const summarizeHomebrewForAI = (content: HomebrewContent): string | null => {
 
 
 // Constrói um objeto de personagem otimizado para a IA.
-const buildOptimizedCharacterForAI = async (characterId: number) => {
+const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = true) => {
+    const cacheKey = `character:${characterId}:optimized`;
+
+    // 1. Tenta buscar do cache
+    if (useCache && redisClient && redisClient.isOpen) {
+        try {
+            const cachedCharacter = await redisClient.get(cacheKey);
+            if (cachedCharacter) {
+                console.log(`[Cache] HIT: Carregando personagem otimizado ${characterId} do cache.`);
+                return JSON.parse(cachedCharacter);
+            }
+        } catch (error) {
+            console.error(`[Cache] Erro ao buscar personagem otimizado ${characterId}:`, error);
+        }
+    }
+    
+    // 2. Se não encontrar no cache, busca no DB
     const characterRepo = AppDataSource.getRepository(Character);
     const fullCharacter = await characterRepo.findOne({
         where: { id: characterId },
@@ -80,7 +97,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
     const inventory = Array.isArray(fullCharacter.items) ? fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})) : [];
     const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells.map(s => s?.spellName).filter(Boolean) : [];
 
-    return {
+    const characterForAI = {
         id: fullCharacter.id,
         name: fullCharacter.name,
         race: fullCharacter.race,
@@ -102,7 +119,7 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         passiveInvestigation,
         proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
         inventory,
-        spells: spells as ApiSpell[], // Cast to ApiSpell array
+        spells: spells as ApiSpell[],
         feats: fullCharacter.feats || [],
         journal: fullCharacter.journal || [],
         relationships: fullCharacter.relationships || [],
@@ -111,6 +128,18 @@ const buildOptimizedCharacterForAI = async (characterId: number) => {
         factionReputation: fullCharacter.factionReputation || {},
         currentRegion: fullCharacter.currentRegion || "",
     };
+
+    // 3. Salva no cache antes de retornar
+    if (redisClient && redisClient.isOpen) {
+        try {
+            await redisClient.set(cacheKey, JSON.stringify(characterForAI), { EX: 3600 }); // Cache por 1 hora
+            console.log(`[Cache] SET: Personagem otimizado ${characterId} salvo no cache.`);
+        } catch (error) {
+            console.error(`[Cache] Erro ao salvar personagem otimizado ${characterId}:`, error);
+        }
+    }
+    
+    return characterForAI;
 };
 
 export const processPlayerTurn = async (
@@ -127,7 +156,7 @@ export const processPlayerTurn = async (
     let characterForAI: any = null;
     let homebrewSummaryForAI = "";
     
-    const cacheKey = `session:${sessionId}:homebrew_summary`;
+    const sessionCacheKey = `session:${sessionId}:homebrew_summary`;
 
     if (sessionId === -1) {
         isTestRun = true;
@@ -158,7 +187,7 @@ export const processPlayerTurn = async (
         // Tenta buscar o resumo do cache
         let cachedSummary: string | null = null;
         if (redisClient && redisClient.isOpen) {
-            cachedSummary = await redisClient.get(cacheKey);
+            cachedSummary = await redisClient.get(sessionCacheKey);
         }
 
         if (cachedSummary) {
@@ -173,7 +202,7 @@ export const processPlayerTurn = async (
                     homebrewSummaryForAI = `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${summaries.join('\n- ')}\n`;
                     // Salva o novo resumo no cache por 24 horas
                      if (redisClient && redisClient.isOpen) {
-                        await redisClient.set(cacheKey, homebrewSummaryForAI, { EX: 86400 }); 
+                        await redisClient.set(sessionCacheKey, homebrewSummaryForAI, { EX: 86400 }); 
                     }
                 }
             }
@@ -200,7 +229,7 @@ export const processPlayerTurn = async (
 
     const gameMasterFlowInput = {
         character: characterForAI,
-        playerAction: `${playerAction}${homebrewSummaryForAI}`, // Adiciona o resumo homebrew ao final da ação do jogador
+        playerAction: `${playerAction}${homebrewSummaryForAI}`,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
         useAiHomebrew: useAiHomebrew ?? true,
@@ -226,37 +255,35 @@ export const processPlayerTurn = async (
         const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
         
         if(!isInternalAction) {
-            const playerLog = new SessionLog();
-            Object.assign(playerLog, { id: uuidv4(), sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
-            await logRepository.save(playerLog);
+            const playerLogEntry = new SessionLog();
+            Object.assign(playerLogEntry, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
+            await logRepository.save(playerLogEntry);
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
         delete stateForLog.logEntries;
-        const stateLog = new SessionLog();
-        Object.assign(stateLog, {
-            id: uuidv4(),
+        const stateLogEntry = new SessionLog();
+        Object.assign(stateLogEntry, {
             sessaoId: sessao.id,
             prompt: 'GM Full State',
             response: JSON.stringify(stateForLog),
             type: 'state',
         });
-        await logRepository.save(stateLog);
+        await logRepository.save(stateLogEntry);
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {
                 let contentToSave = entry.content;
-                // If it's a generation request, handle it now
+                
                 if(entry.type === 'image' && typeof entry.content === 'object' && entry.content.status === 'generating') {
                     try {
-                        const imageService = await import('./aiImageService.js');
-                        const result = await imageService.generateImage({
-                            prompt: entry.content.prompt,
-                            model: user?.settings?.imageModel || 'imagen-3.0-generate-002',
-                            apiKey,
-                            sessionId: sessao.id,
-                        });
-                        contentToSave = { ...entry.content, status: 'done', imageUrl: result.imageUrl };
+                        const result = await getGameUpdate({
+                            ...gameMasterFlowInput,
+                            playerAction: `Gere uma imagem para o seguinte prompt: ${entry.content.prompt}`
+                        }, 'gemini-1.5-flash-latest', { temperature: 0.3, ...generationConfig }, apiKey);
+                        // Supondo que a IA retorne a URL da imagem no log
+                        const imageUrl = result.logEntries?.find(le => le.type === 'image')?.content.imageUrl;
+                        contentToSave = { ...entry.content, status: 'done', imageUrl: imageUrl };
                     } catch (imageError: any) {
                         console.error(`[narrarService] Falha ao gerar imagem inline:`, imageError);
                         contentToSave = { ...entry.content, status: 'failed', text: `Falha ao gerar imagem: ${imageError.message}`};
@@ -266,7 +293,6 @@ export const processPlayerTurn = async (
                 if (contentString) {
                     const newLog = new SessionLog();
                     Object.assign(newLog, {
-                        id: uuidv4(),
                         sessaoId: sessao.id,
                         prompt: 'GM Narration',
                         response: contentString,
@@ -295,6 +321,10 @@ export const processPlayerTurn = async (
         const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
         if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 
              await mergeCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
+             // Invalida o cache otimizado após a atualização
+            if (redisClient && redisClient.isOpen) {
+                await redisClient.del(`character:${sessao.character!.id}:optimized`);
+            }
         }
         
         await queryRunner.commitTransaction();
@@ -307,3 +337,5 @@ export const processPlayerTurn = async (
         await queryRunner.release();
     }
 };
+
+    
