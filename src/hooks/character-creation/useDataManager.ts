@@ -25,6 +25,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         progress: 0,
     });
 
+    const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
     const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
     // Pre-load all equipment data
@@ -42,24 +43,17 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                         }
                     );
                     const validItems = itemDetails.filter((item): item is InventoryItem => item !== null);
+                    setAllEquipment(validItems);
 
                     const newCache: Record<string, InventoryItem[]> = {};
                     validItems.forEach(item => {
                         const categories = [
                             item.equipment_category?.index,
                             (item as any).gear_category?.index,
-                            item.weapon_category?.toLowerCase() + '-weapons', // e.g. simple-weapons
-                            item.weapon_range?.toLowerCase() + '-weapons', // e.g. melee-weapons
-                            item.armor_category?.toLowerCase() + '-armor', // e.g. heavy-armor
                         ].filter(Boolean);
 
-                         // Specific composite categories
-                        if (item.weapon_category === 'Martial' && item.weapon_range === 'Melee') {
-                            categories.push('martial-melee-weapons');
-                        }
-                        if (item.weapon_category === 'Simple' && item.weapon_range === 'Melee') {
-                            categories.push('simple-melee-weapons');
-                        }
+                         if (item.weapon_category) categories.push(`${item.weapon_category.toLowerCase()}-weapons`);
+                         if (item.armor_category) categories.push(`${item.armor_category.toLowerCase()}-armor`);
 
                         categories.forEach(cat => {
                             if (!newCache[cat!]) newCache[cat!] = [];
@@ -67,9 +61,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                         });
                     });
 
-                    // Add composite weapon categories
-                    newCache['martial-weapons'] = [...(newCache['martial-melee-weapons'] || []), ...(newCache['martial-ranged-weapons'] || [])];
-                    newCache['simple-weapons'] = [...(newCache['simple-melee-weapons'] || []), ...(newCache['simple-ranged-weapons'] || [])];
+                    newCache['martial-weapons'] = validItems.filter(item => item.weapon_category === 'Martial');
+                    newCache['simple-weapons'] = validItems.filter(item => item.weapon_category === 'Simple');
                     
                     setEquipmentCategoryCache(newCache);
                 }
@@ -224,6 +217,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             classSpellOptions,
             subclassSpells,
         },
+        allEquipment,
         equipmentCategoryCache,
         loadingStates,
         fetchFeats,
