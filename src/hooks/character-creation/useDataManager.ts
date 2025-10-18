@@ -1,7 +1,6 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
-import { apiClient } from '@/services/apiClient';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
 
@@ -31,8 +30,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
     useEffect(() => {
         const fetchBaseEquipment = async () => {
-             setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+            setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
+            const equipmentResponse = await DndApiService.getEquipmentList();
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -172,7 +171,20 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         }
         const fetchBackground = async () => {
             setLoadingStates({ isLoading: true, message: 'Relembrando o passado...', progress: 50 });
-            setBackgroundDetails(await DndApiService.getBackgroundDetails(background));
+            const details = await DndApiService.getBackgroundDetails(background);
+            setBackgroundDetails(details);
+
+            // Fetch equipment for background
+            if (details?.starting_equipment) {
+                const equipDetails = await fetchDetailsInChunks(
+                    details.starting_equipment.map(e => e.equipment),
+                    DndApiService.getEquipmentDetails,
+                    (l,t,p) => setLoadingStates({isLoading: true, message: `Carregando itens...`, progress: p})
+                );
+                // We don't directly set equipment here, this just warms the cache
+                // The main equipment logic will handle it.
+            }
+
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchBackground();

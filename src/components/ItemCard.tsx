@@ -29,32 +29,57 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     const isProficient = useMemo(() => {
-        const weaponCategory = item.weapon_category?.toLowerCase();
-        const armorCategory = item.armor_category?.toLowerCase();
-
-        if (!weaponCategory && !armorCategory) {
-            return true; // Proficiency not required for general items
+        if (!item) return true; // Itens genéricos não exigem proficiência
+    
+        const armorCategory = item.armor_category?.toLowerCase().trim();
+        const weaponCategory = item.weapon_category?.toLowerCase().trim();
+        const isShield = item.equipment_category?.index === 'shields';
+    
+        // Se não for arma nem armadura, é proficiente
+        if (!armorCategory && !weaponCategory && !isShield) {
+            return true;
         }
-
+    
         const normalizedProficiencies = new Set(
-            proficiencies.map(p => p.name.toLowerCase().replace(/ /g, '-').replace('armor', '').replace('weapons', '').trim())
+            proficiencies.map(p => p.index.toLowerCase())
         );
-
-        if (armorCategory) {
-             const requiredProf = armorCategory.toLowerCase().replace(/ /g, '-').replace('armor', '').trim();
-             if (normalizedProficiencies.has(requiredProf) || normalizedProficiencies.has('all-armor')) return true;
+    
+        // Proficiência "All Armor"
+        if (normalizedProficiencies.has('all-armor') && armorCategory) {
+            return true;
         }
-
+    
+        // Proficiência "Martial Weapons" ou "Simple Weapons"
         if (weaponCategory) {
-            if (normalizedProficiencies.has(weaponCategory.toLowerCase().replace(/ /g, '-'))) return true;
+            if (normalizedProficiencies.has(`${weaponCategory}-weapons`)) {
+                return true;
+            }
         }
-
+    
+        // Verificações específicas
+        if (armorCategory) {
+            if (normalizedProficiencies.has(`${armorCategory}-armor`)) {
+                return true;
+            }
+        }
+    
+        if (isShield) {
+            if (normalizedProficiencies.has('shields')) {
+                return true;
+            }
+        }
+        
+        // Verifica proficiência pelo nome exato do item (para armas exóticas, etc)
+        if (normalizedProficiencies.has(item.index)) {
+             return true;
+        }
+    
         return false;
     }, [item, proficiencies]);
     
     const translatedItem = item; // Assuming item is already translated
 
-    const canBeEquipped = !!(item.weapon_category || item.armor_category);
+    const canBeEquipped = !!(item.weapon_category || item.armor_category || item.equipment_category?.index === 'shields');
     const canBeUsed = item.consumable || item.usable;
     const canEquipNow = canBeEquipped && isProficient && !actionDisabled;
 

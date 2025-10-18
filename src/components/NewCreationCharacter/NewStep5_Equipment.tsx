@@ -62,12 +62,10 @@ const ItemChoiceSelector: React.FC<{
     const subOptions = (allEquipment || []).filter(item => {
         if (!item) return false;
         const itemCategory = item.equipment_category?.index;
-        // O `gear_category` pode não estar no tipo `InventoryItem` base, então usamos `any`
         const itemGearCategory = (item as any).gear_category?.index;
         
         return itemCategory === categoryIndex ||
                itemGearCategory === categoryIndex ||
-               // Lógica expandida para categorias complexas
                (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
                (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
                (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
@@ -80,10 +78,10 @@ const ItemChoiceSelector: React.FC<{
     const getSelectionValue = (path: (string | number)[]) => {
         let current = equipmentSelections;
         for (const key of path) {
-            current = current?.[key];
-            if (current === undefined) return -1;
+            if (current === undefined || current === null) return -1;
+            current = current[key as keyof typeof current];
         }
-        return current;
+        return current === undefined ? -1 : current;
     };
 
     const handleSelection = (path: (string | number)[], itemIndexStr: string) => {
@@ -201,6 +199,7 @@ const NewStep5_Equipment: React.FC<{
         loadingStates,
         areAllEquipmentChoicesMade,
         handleRandomizeEquipment,
+        finalProficiencies, // Adicionado para passar ao ItemCard
     } = hook;
 
     return (
@@ -246,10 +245,10 @@ const NewStep5_Equipment: React.FC<{
                             ) : (
                                 <>
                                     {fixedEquipment.map((item, index) => (
-                                        <ItemCard key={`fixed-${item.id || index}`} item={item} defaultExpanded={false}/>
+                                        <ItemCard key={`fixed-${item.id || index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={false}/>
                                     ))}
                                     {finalizedEquipment.map((item, index) => (
-                                         <ItemCard key={`chosen-${item.id || index}`} item={item} defaultExpanded={false}/>
+                                         <ItemCard key={`chosen-${item.id || index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={false}/>
                                     ))}
                                 </>
                             )}
