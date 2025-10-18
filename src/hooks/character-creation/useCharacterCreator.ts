@@ -5,8 +5,8 @@ import { useAttributeManager } from './useAttributeManager';
 import { useDataManager } from './useDataManager';
 import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
-import * as DndApiService from '../../services/dndApiService';
-import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '../../types';
+import * as DndApiService from '@/services/dndApiService';
+import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '@/types';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -44,7 +44,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const handleSubraceChange = useCallback(async (newSubraceIndex: string) => {
         setField('subrace', newSubraceIndex);
-        dispatch({ type: 'RESET_SELECTIONS', payload: { type: 'full' } });
+        // Não resetar tudo aqui, apenas o que for dependente da sub-raça,
+        // o que já é recalculado pelos hooks de memoização.
     }, [setField]);
 
     const handleClassChange = useCallback(async (newClassIndex: string) => {
@@ -61,6 +62,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleRandomizeBackground = useCallback(async (backgrounds: ApiListItem[]) => {
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
         await handleBackgroundChange(randomBgItem.index);
+        // O useEffect em useDataManager buscará os detalhes.
+        // A lógica de preenchimento aleatório deve ser acionada quando os detalhes estiverem disponíveis.
         setTimeout(async () => {
             const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
             if (!details) return;
@@ -85,7 +88,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 const randomFlaw = options[Math.floor(Math.random() * options.length)];
                 setField('flaw', randomFlaw.string);
             }
-        }, 500);
+        }, 500); // Wait for details to load
     }, [handleBackgroundChange, setField]);
     
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
@@ -95,6 +98,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         await handleRaceChange(randomRaceItem.index);
         await handleClassChange(randomClass.index);
         
+        // Use a timeout to allow state to update and data to be fetched
         setTimeout(async () => {
             const raceData = await DndApiService.getRaceDetails(randomRaceItem.index);
             if (raceData?.subraces?.length) {
@@ -139,6 +143,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 skinColor: state.skinColor,
                 race: details.raceDetails!.name,
                 subrace: details.subraceDetails?.name || null,
+                draconicAncestry: state.draconicAncestry,
                 characterClass: details.classDetails!.name,
                 subclassFlavor: details.classDetails?.subclasses?.[0]?.name || null,
                 background: details.backgroundDetails!.name,
@@ -156,7 +161,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 flaw: state.flaw,
                 feats: derivedData.finalFeats,
                 hitDie: details.classDetails!.hit_die,
-                subclass: null,
+                subclass: null, // Subclass choice at level 1 is flavor
                 homebrewIds: Array.from(new Set(homebrewIds)),
             };
         };

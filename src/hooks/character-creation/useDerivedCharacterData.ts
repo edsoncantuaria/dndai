@@ -12,6 +12,8 @@ const findChosenItems = (
     selection: any,
     allEquipment: InventoryItem[]
 ): InventoryItem[] => {
+    if (!option) return [];
+    
     const results: InventoryItem[] = [];
 
     switch (option.option_type) {
@@ -23,38 +25,48 @@ const findChosenItems = (
             break;
 
         case 'choice':
-            if (selection !== undefined && selection !== -1) {
-                const categoryIndex = option.choice?.from?.equipment_category?.index;
-                if (categoryIndex) {
-                    const subOptions = allEquipment.filter(item => {
-                         const itemCategory = item.equipment_category?.index;
-                         const itemGearCategory = (item as any).gear_category?.index;
-                        
-                         return itemCategory === categoryIndex ||
-                                itemGearCategory === categoryIndex ||
-                               (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
-                               (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
-                               (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
-                               (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial');
-                    });
-                    const chosenItem = subOptions[selection];
-                    if (chosenItem) {
-                        results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
+            if (option.choice && Array.isArray(selection)) {
+                selection.forEach(selectedIndex => {
+                    if (selectedIndex !== -1) {
+                         const categoryIndex = option.choice?.from?.equipment_category?.index;
+                         if (categoryIndex) {
+                            const subOptions = allEquipment.filter(item => {
+                                if (!item) return false;
+                                const itemCategory = item.equipment_category?.index;
+                                const itemGearCategory = (item as any).gear_category?.index;
+                                return itemCategory === categoryIndex ||
+                                       itemGearCategory === categoryIndex ||
+                                       (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
+                                       (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
+                                       (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
+                                       (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
+                                       (categoryIndex === 'arcane-foci' && itemGearCategory === 'arcane-foci') ||
+                                       (categoryIndex === 'druidic-foci' && itemGearCategory === 'druidic-foci') ||
+                                       (categoryIndex === 'holy-symbols' && itemGearCategory === 'holy-symbols');
+                            });
+                            const chosenItem = subOptions[selectedIndex];
+                            if(chosenItem) {
+                                results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
+                            }
+                        }
                     }
-                }
+                });
             }
             break;
             
         case 'multiple':
-            option.items?.forEach((subOption, subIndex) => {
-                const subSelection = selection?.[subIndex];
-                results.push(...findChosenItems(subOption, subSelection, allEquipment));
-            });
+            if (Array.isArray(option.items)) {
+                option.items.forEach((subOption, subIndex) => {
+                    const subSelection = selection?.[subIndex];
+                    results.push(...findChosenItems(subOption, subSelection, allEquipment));
+                });
+            }
             break;
     }
 
     return results;
 };
+
 
 
 export const useDerivedCharacterData = (
@@ -118,7 +130,7 @@ export const useDerivedCharacterData = (
              const variantHumanSkillChoice = allProficiencyChoices.find(c => c.id === 'variant-human-skill');
              if(variantHumanSkillChoice && proficiencySelections['variant-human-skill']?.[0]) {
                  const skillIndex = proficiencySelections['variant-human-skill'][0];
-                 const skill = variantHumanSkillChoice.options.find(o => o.index === skillIndex);
+                 const skill = variantHumanSkillChoice.options.find((o: any) => o.index === skillIndex);
                  if(skill) profs.set(skill.index, skill);
              }
         } else {
@@ -161,7 +173,7 @@ export const useDerivedCharacterData = (
             }
         };
 
-        const addEquipment = (list: any[] = []) => list.forEach(item => processOption({ option_type: 'counted_reference', ...item }));
+        const addEquipment = (list: any[] = []) => list.forEach(item => processOption({ option_type: 'counted_reference', ...item.equipment, count: item.quantity }));
         
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
@@ -174,29 +186,33 @@ export const useDerivedCharacterData = (
     
         const finalEquip = choiceGroups.flatMap(group => {
             const selection = equipmentSelections?.[group.id];
-            if (!selection || selection.main === undefined) return [];
+            if (!selection || selection.main === undefined || selection.main === -1) return [];
             
             const mainOption = group.choice.from.options[selection.main];
             return findChosenItems(mainOption, selection.sub, allEquipment);
         });
 
-        // Validation logic to check if all choices have been made
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            if (!selection || selection.main === undefined) return false;
+            if (selection?.main === undefined || selection.main === -1) return false;
         
             const mainOption = group.choice.from.options[selection.main];
             
             const countSubChoices = (option: ApiEquipmentOption): number => {
-                if (option.option_type === 'choice') return 1;
+                if (option.option_type === 'choice') return option.choice.choose || 1;
                 if (option.option_type === 'multiple') return (option.items || []).reduce((acc, item) => acc + countSubChoices(item), 0);
                 return 0;
             };
+
+            const flattenSubSelections = (subs: any): any[] => {
+                if (subs === undefined || subs === null) return [];
+                if (typeof subs !== 'object') return [];
+                return Object.values(subs).flatMap(flattenSubSelections).concat(Object.values(subs).filter(v => typeof v === 'number'));
+            }
             
             const requiredSubChoices = countSubChoices(mainOption);
-            if (requiredSubChoices === 0) return true;
-
-            const madeSubChoices = Object.keys(selection.sub || {}).length;
+            const madeSubChoices = flattenSubSelections(selection.sub).filter(val => val !== undefined && val !== -1).length;
+            
             return madeSubChoices >= requiredSubChoices;
         });
 
