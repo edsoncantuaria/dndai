@@ -6,13 +6,18 @@ import type { AuthRequest } from '../middlewares/authMiddleware.js';
 
 const router = Router();
 
-// A maioria das rotas precisa de autenticação para personalizar a resposta
-router.use(authMiddleware);
+// Middleware de autenticação opcional
+const authOptional = (req: AuthRequest, res: any, next: any) => {
+    if (req.headers.authorization) {
+        return authMiddleware(req, res, next);
+    }
+    next();
+};
 
 // Rota genérica para listas de recursos (ex: /api/data/races)
-router.get('/:resource', async (req: AuthRequest, res, next) => {
+router.get('/:resource', authOptional, async (req: AuthRequest, res, next) => {
     const { resource } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
 
     try {
         const data = await getUnifiedList(resource, userId);
@@ -26,9 +31,9 @@ router.get('/:resource', async (req: AuthRequest, res, next) => {
 });
 
 // Rota genérica para detalhes de um item (ex: /api/data/races/elf)
-router.get('/:resource/:index', async (req: AuthRequest, res, next) => {
+router.get('/:resource/:index', authOptional, async (req: AuthRequest, res, next) => {
     const { resource, index } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
 
     try {
         const data = await getUnifiedDetails(resource, index, userId);
@@ -39,11 +44,10 @@ router.get('/:resource/:index', async (req: AuthRequest, res, next) => {
 });
 
 // Rotas especiais que não se encaixam no padrão :resource/:index
-router.get('/:resource/:index/:special', async (req: AuthRequest, res, next) => {
+router.get('/:resource/:index/:special', authOptional, async (req: AuthRequest, res, next) => {
     const { resource, index, special } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
     
-    // Apenas rotas como /classes/{class}/levels são permitidas aqui
     if ((resource === 'classes' || resource === 'subclasses') && (special === 'levels' || special === 'spells')) {
         try {
             const data = await getSpecialDetails(resource, index, special, userId);

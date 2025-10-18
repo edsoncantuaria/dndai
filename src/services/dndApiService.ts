@@ -1,23 +1,22 @@
 // src/services/dndApiService.ts
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
-import { AppDataSource } from 'backend/src/database/data-source.js';
 
 // --- Funções Principais (agora chamam o novo endpoint unificado do backend) ---
 
-export const getRaces = () => apiClient('/data/races') as Promise<{ results: ApiListItem[] }>;
-export const getClasses = () => apiClient('/data/classes') as Promise<{ results: ApiListItem[] }>;
-export const getBackgrounds = () => apiClient('/data/backgrounds') as Promise<{ results: ApiListItem[] }>;
-export const getAlignments = () => apiClient('/data/alignments') as Promise<{ results: ApiListItem[] }>;
-export const getSkills = () => apiClient('/data/skills') as Promise<{ results: ApiListItem[] }>;
-export const getLanguages = () => apiClient('/data/languages') as Promise<{ results: ApiListItem[] }>;
-export const getFeats = () => apiClient('/data/feats') as Promise<{ results: ApiListItem[] }>;
-export const getTraits = () => apiClient('/data/traits') as Promise<{ results: ApiListItem[] }>;
-export const getMagicSchools = () => apiClient('/data/magic-schools') as Promise<{ results: ApiListItem[] }>;
-export const getDamageTypes = () => apiClient('/data/damage-types') as Promise<{ results: ApiListItem[] }>;
-export const getEquipmentCategories = () => apiClient('/data/equipment-categories') as Promise<{ results: ApiListItem[] }>;
-export const getConditions = () => apiClient('/data/conditions') as Promise<{ results: ApiListItem[] }>;
-export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment') as Promise<InventoryItem[]>;
+export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/data/races');
+export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/data/classes');
+export const getBackgrounds = () => apiClient<{ results: ApiListItem[] }>('/data/backgrounds');
+export const getAlignments = () => apiClient<{ results: ApiListItem[] }>('/data/alignments');
+export const getSkills = () => apiClient<{ results: ApiListItem[] }>('/data/skills');
+export const getLanguages = () => apiClient<{ results: ApiListItem[] }>('/data/languages');
+export const getFeats = () => apiClient<{ results: ApiListItem[] }>('/data/feats');
+export const getTraits = () => apiClient<{ results: ApiListItem[] }>('/data/traits');
+export const getMagicSchools = () => apiClient<{ results: ApiListItem[] }>('/data/magic-schools');
+export const getDamageTypes = () => apiClient<{ results: ApiListItem[] }>('/data/damage-types');
+export const getEquipmentCategories = () => apiClient<{ results: ApiListItem[] }>('/data/equipment-categories');
+export const getConditions = () => apiClient<{ results: ApiListItem[] }>('/data/conditions');
+export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment');
 
 // Funções de Detalhes
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/data/races/${index}`);
