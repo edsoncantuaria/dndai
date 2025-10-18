@@ -5,7 +5,7 @@ import { AppDataSource } from '../database/data-source.js';
 import { User } from '../entities/User.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import createError from 'http-errors';
-import { In } from 'typeorm';
+import { In, FindOptionsWhere } from 'typeorm';
 
 const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 horas
 
@@ -15,7 +15,27 @@ const CACHE_TTL_SECONDS = 24 * 60 * 60; // 24 horas
 export async function getUnifiedList(resource: string, userId: number): Promise<any[]> {
     const publicCacheKey = `unified-public-list:${resource}`;
 
-    let publicList;
+    // 1. Busca o conteúdo específico do usuário primeiro (instalado e privado)
+    const userRepo = AppDataSource.getRepository(User);
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    
+    const user = await userRepo.findOneBy({ id: userId });
+    const installedIds = user?.installedHomebrewIds || [];
+
+    const userSpecificWhere: FindOptionsWhere<HomebrewContent>[] = [
+        { authorId: userId, type: resource as any }, // Privado do usuário
+    ];
+    if (installedIds.length > 0) {
+        userSpecificWhere.push({ id: In(installedIds), type: resource as any }); // Instalado pelo usuário
+    }
+
+    const userSpecificContent = await homebrewRepo.find({
+        where: userSpecificWhere,
+        select: ["id", "name", "content", "authorId", "isPublic"]
+    });
+
+    // 2. Busca a lista base pública (cache ou API)
+    let publicList: any[] = [];
     if (redisClient && redisClient.isOpen) {
         const cachedPublic = await redisClient.get(publicCacheKey);
         if (cachedPublic) {
@@ -24,10 +44,10 @@ export async function getUnifiedList(resource: string, userId: number): Promise<
         }
     }
 
-    if (!publicList) {
+    if (publicList.length === 0) {
         console.log(`[Cache] MISS: Construindo lista pública para ${resource}.`);
         const officialData = await getResourceList(resource);
-        const publicHomebrew = await AppDataSource.getRepository(HomebrewContent).find({
+        const publicHomebrew = await homebrewRepo.find({
             where: { isPublic: true, type: resource as any },
             select: ["id", "name", "content"]
         });
@@ -40,33 +60,23 @@ export async function getUnifiedList(resource: string, userId: number): Promise<
         });
 
         publicList = Array.from(publicMap.values());
-        if (redisClient && redisClient.isOpen) {
+        if (redisClient && redisClient.isOpen && publicList.length > 0) {
             await redisClient.set(publicCacheKey, JSON.stringify(publicList), { EX: CACHE_TTL_SECONDS });
         }
     }
 
-    // Agora, mescla com o conteúdo privado do usuário
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    const installedIds = user?.installedHomebrewIds || [];
-
-    const privateAndInstalledContent = await AppDataSource.getRepository(HomebrewContent).find({
-        where: [
-            { authorId: userId, isPublic: false, type: resource as any },
-            { id: In(installedIds), type: resource as any }
-        ],
-        select: ["id", "name", "content"]
-    });
-
+    // 3. Mescla a lista pública com o conteúdo do usuário, dando prioridade ao do usuário.
     const finalMap = new Map(publicList.map((item: any) => [item.index, item]));
-    privateAndInstalledContent.forEach(hb => {
+    
+    userSpecificContent.forEach(hb => {
         const index = hb.content.index || hb.id;
-        const prefix = hb.authorId === userId ? '(Meu)' : '(Instalado)';
+        const prefix = hb.authorId === userId && !hb.isPublic ? '(Meu)' : '(Instalado)';
         finalMap.set(index, { index: hb.id, name: `${prefix} ${hb.name}`, url: `/api/data/${resource}/${hb.id}`, source: 'mine' });
     });
 
     return Array.from(finalMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
+
 
 /**
  * Retorna os detalhes de um recurso específico, aplicando a lógica de prioridade.
@@ -74,40 +84,44 @@ export async function getUnifiedList(resource: string, userId: number): Promise<
 export async function getUnifiedDetails(resource: string, index: string, userId: number): Promise<any> {
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(index);
 
+    // Se for um UUID, é um item homebrew. Busca diretamente.
     if (isUuid) {
         const hbContent = await AppDataSource.getRepository(HomebrewContent).findOneBy({ id: index });
         if (!hbContent) throw createError(404, 'Conteúdo não encontrado.');
-        if (!hbContent.isPublic && hbContent.authorId !== userId) throw createError(403, 'Acesso negado.');
+        
+        // Verifica se o usuário tem permissão para ver (se for privado e não for dele)
+        if (!hbContent.isPublic && hbContent.authorId !== userId) {
+            // Ainda permite se estiver na lista de instalados do usuário.
+            const user = await AppDataSource.getRepository(User).findOneBy({id: userId});
+            if (!user?.installedHomebrewIds?.includes(hbContent.id)) {
+                 throw createError(403, 'Acesso negado a este conteúdo privado.');
+            }
+        }
         return hbContent.content;
     }
 
-    let officialData = await getDetails(resource, index);
+    // Se não for UUID, busca o conteúdo oficial como base.
+    const officialData = await getDetails(resource, index);
     
-    // Procura por uma tradução do admin (usuário ID 1)
-    const adminTranslation = await AppDataSource.getRepository(HomebrewContent).findOne({
-        where: { authorId: 1, type: 'translation', content: { official_index: index, resource_type: resource } }
-    });
-
-    if (adminTranslation) {
-        officialData = { ...officialData, ...adminTranslation.content, name: adminTranslation.name };
-    }
-
-    // Procura por um override do usuário (instalado ou privado)
+    // Procura por um override do usuário (instalado ou privado) que corresponda ao índice oficial.
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: userId });
     const installedIds = user?.installedHomebrewIds || [];
 
-    const userOverride = await AppDataSource.getRepository(HomebrewContent).findOne({
-        where: [
-            { authorId: userId, content: { index } },
-            { id: In(installedIds), content: { index } }
-        ]
-    });
-    
-    if (userOverride) {
-        return { ...officialData, ...userOverride.content, name: `(H) ${userOverride.name}` };
-    }
+    if (installedIds.length > 0) {
+        const installedOverride = await AppDataSource.getRepository(HomebrewContent).findOne({
+            where: {
+                id: In(installedIds),
+                content: { official_index: index } as any // TypeORM pode precisar de ajuda aqui
+            }
+        });
 
+        if (installedOverride) {
+            console.log(`[UnifiedDetails] Sobrescrevendo '${index}' com conteúdo instalado pelo usuário.`);
+            return { ...officialData, ...installedOverride.content, name: `(Instalado) ${installedOverride.name}` };
+        }
+    }
+    
     if (!officialData) {
         throw createError(404, `Recurso '${index}' em '${resource}' não encontrado.`);
     }
