@@ -6,7 +6,7 @@ import * as UserService from '../services/userService.js';
 import createError from 'http-errors';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
-import { User } from '../entities/User.js'; // Adicionada a importação que faltava
+import { User } from '../entities/User.js';
 
 const router = Router();
 
@@ -26,24 +26,28 @@ router.get('/:resource', async (req, res, next) => {
 
     try {
         const user = await UserService.getUserProfile(userId);
-        const installedIds = new Set(user.installedHomebrewIds || []);
+        const installedIds = user.installedHomebrewIds || [];
 
         const apiPromise = DndApiService.getResourceList(resource);
         
         // Busca todo o conteúdo público E o conteúdo do próprio usuário, pois ambos são "instaláveis"
-        const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource, 'user'); // Apenas user, AI será tratada separadamente
+        const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource, 'user');
         const userHomebrewPromise = HomebrewService.getHomebrewContentByAuthor(userId, resource);
-        const aiContentPromise = HomebrewService.getPublicHomebrewContent(resource, 'ai'); // Conteúdo da IA é sempre parte da base
-        
-        // Adicionado para buscar traduções de admin
+        const aiContentPromise = HomebrewService.getPublicHomebrewContent(resource, 'ai');
         const adminTranslationsPromise = HomebrewService.getAdminTranslations(resource);
 
-        const [apiData, publicHomebrew, userHomebrew, aiContent, adminTranslations] = await Promise.all([
+        // **NOVO**: Busca os detalhes do conteúdo que o usuário de fato instalou
+        const installedHomebrewPromise = installedIds.length > 0 
+            ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) 
+            : Promise.resolve([]);
+        
+        const [apiData, publicHomebrew, userHomebrew, aiContent, adminTranslations, installedHomebrew] = await Promise.all([
             apiPromise, 
             publicHomebrewPromise, 
             userHomebrewPromise, 
             aiContentPromise,
-            adminTranslationsPromise
+            adminTranslationsPromise,
+            installedHomebrewPromise, // Aguarda a busca do conteúdo instalado
         ]);
         
         const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
@@ -74,12 +78,7 @@ router.get('/:resource', async (req, res, next) => {
              });
         });
 
-        // 4. Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
-        const allInstallableHomebrew = [...userHomebrew, ...publicHomebrew.filter(phb => !userHomebrew.some(uhb => uhb.id === phb.id))];
-
-        // 5. Adiciona homebrew instalado (que não seja da IA), que pode sobrescrever o oficial ou ser novo
-        const installedHomebrew = allInstallableHomebrew.filter(hb => installedIds.has(hb.id));
-
+        // 4. Adiciona homebrew instalado (que não seja da IA), que pode sobrescrever o oficial ou ser novo
         installedHomebrew.forEach(hb => {
             const officialIndex = hb.content.index;
             const displayName = `(H) ${hb.name}`;
