@@ -17,9 +17,8 @@ export const getDamageTypes = () => apiClient('/dnds/damage-types') as Promise<{
 export const getEquipmentCategories = () => apiClient('/dnds/equipment-categories') as Promise<{ results: ApiListItem[] }>;
 export const getConditions = () => apiClient('/dnds/conditions') as Promise<{ results: ApiListItem[] }>;
 
-// Nova função adicionada
+// Usa o endpoint unificado para buscar todos os equipamentos de uma vez.
 export const getEquipment = () => apiClient<InventoryItem[]>('/unified/equipment') as Promise<InventoryItem[]>;
-
 
 // Adicionada função para buscar detalhes de uma categoria de equipamento
 export const getEquipmentCategoryDetails = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);

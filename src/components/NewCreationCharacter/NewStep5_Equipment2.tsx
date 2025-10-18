@@ -14,10 +14,12 @@ const ItemChoiceSelector: React.FC<{
     hook: ReturnType<typeof useCharacterCreator>;
 }> = ({ choice, selectionPath, subIndex, hook }) => {
     const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
+    
+    // A chave da categoria pode estar em diferentes lugares
     const categoryIndex = choice?.from?.equipment_category?.index;
 
     if (!categoryIndex) {
-        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida na opção.</p>;
+        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida para '{choice.desc}'.</p>;
     }
 
     const subOptions = equipmentCategoryCache[categoryIndex] || [];
@@ -26,13 +28,13 @@ const ItemChoiceSelector: React.FC<{
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
 
-    if(subOptions.length === 0) {
-        return <p className="text-yellow-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryIndex}'.</p>;
+    if (subOptions.length === 0) {
+        return <p className="text-yellow-400 text-xs">Nenhuma opção encontrada para a categoria '{translateApiString(categoryIndex)}'.</p>;
     }
 
     return (
         <div className="mt-2 pl-4 border-l-2 border-stone-600">
-            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${categoryIndex}`}</label>
+            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${translateApiString(categoryIndex)}`}</label>
             <select
                 value={thisSubSelection || ""}
                 onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
@@ -131,6 +133,9 @@ const NewStep5_Equipment2: React.FC<{
         finalProficiencies,
     } = hook;
 
+    const classChoices = equipmentChoiceGroups.filter(g => g.source === 'Classe');
+    const backgroundChoices = equipmentChoiceGroups.filter(g => g.source === 'Antecedente');
+
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="flex justify-between items-center">
@@ -153,13 +158,24 @@ const NewStep5_Equipment2: React.FC<{
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-6">
-                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas de Equipamento</h4>
-                        {equipmentChoiceGroups.length > 0 ? (
-                            equipmentChoiceGroups.map((group) => (
-                                <EquipmentChoice key={group.id} group={group} hook={hook} />
-                            ))
-                        ) : (
+                    <div className="space-y-8">
+                        {backgroundChoices.length > 0 && (
+                            <div className="space-y-4">
+                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas do Antecedente</h4>
+                                {backgroundChoices.map((group) => (
+                                    <EquipmentChoice key={group.id} group={group} hook={hook} />
+                                ))}
+                            </div>
+                        )}
+                        {classChoices.length > 0 && (
+                             <div className="space-y-4">
+                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas da Classe</h4>
+                                {classChoices.map((group) => (
+                                    <EquipmentChoice key={group.id} group={group} hook={hook} />
+                                ))}
+                            </div>
+                        )}
+                         {equipmentChoiceGroups.length === 0 && (
                             <p className="text-stone-400 italic">Nenhuma escolha de equipamento necessária.</p>
                         )}
                     </div>

@@ -33,39 +33,35 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
-                const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
-                if (equipmentResponse?.results) {
-                    const itemDetails = await fetchDetailsInChunks(
-                        equipmentResponse.results,
-                        DndApiService.getEquipmentDetails,
-                        (loaded, total, progress) => {
-                            setLoadingStates({ isLoading: true, message: `Analisando Itens ${loaded} de ${total}...`, progress });
-                        }
-                    );
-                    const validItems = itemDetails.filter((item): item is InventoryItem => item !== null);
-                    setAllEquipment(validItems);
+                // Use a função de serviço dedicada que já lida com o endpoint unificado.
+                const unifiedEquipment = await DndApiService.getEquipment();
+                setAllEquipment(unifiedEquipment);
 
-                    const newCache: Record<string, InventoryItem[]> = {};
-                    validItems.forEach(item => {
-                        const categories = [
-                            item.equipment_category?.index,
-                            (item as any).gear_category?.index,
-                        ].filter(Boolean);
+                const newCache: Record<string, InventoryItem[]> = {};
+                
+                unifiedEquipment.forEach(item => {
+                    if (!item) return;
+                    const add = (key: string | undefined, itemToAdd: InventoryItem) => {
+                        if (!key) return;
+                        if (!newCache[key]) newCache[key] = [];
+                        newCache[key].push(itemToAdd);
+                    };
 
-                         if (item.weapon_category) categories.push(`${item.weapon_category.toLowerCase()}-weapons`);
-                         if (item.armor_category) categories.push(`${item.armor_category.toLowerCase()}-armor`);
+                    add(item.equipment_category?.index, item);
+                    add((item as any).gear_category?.index, item);
 
-                        categories.forEach(cat => {
-                            if (!newCache[cat!]) newCache[cat!] = [];
-                            newCache[cat!].push(item);
-                        });
-                    });
+                    // Composite keys for weapon types
+                    const weaponCat = item.weapon_category?.toLowerCase();
+                    const weaponRange = item.weapon_range?.toLowerCase();
 
-                    newCache['martial-weapons'] = validItems.filter(item => item.weapon_category === 'Martial');
-                    newCache['simple-weapons'] = validItems.filter(item => item.weapon_category === 'Simple');
-                    
-                    setEquipmentCategoryCache(newCache);
-                }
+                    if(weaponCat) {
+                        add(`${weaponCat}-weapons`, item);
+                    }
+                    if(weaponCat && weaponRange){
+                        add(`${weaponCat}-${weaponRange}-weapons`, item);
+                    }
+                });
+                setEquipmentCategoryCache(newCache);
              } catch (error) {
                 console.error("Falha catastrófica ao carregar equipamentos:", error);
              } finally {
@@ -141,8 +137,11 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     );
                     setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1));
                 }
+            } else {
+                setClassSpellOptions([]);
             }
-
+            
+            setSubclassSpells([]);
             if (details?.subclasses?.[0]) {
                 const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
                  if (subClassDetails?.spells) {

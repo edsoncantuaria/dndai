@@ -114,7 +114,6 @@ export const useDerivedCharacterData = (
             const selection = equipmentSelections[group.id];
             if (selection === undefined || selection.main === undefined || selection.main < 0) return;
             
-            // CORREÇÃO: Verifica se `group.choice.from.options` existe antes de acessá-lo.
             const optionsSource = group.choice?.from?.options;
             if (!optionsSource || !Array.isArray(optionsSource)) return;
 
@@ -148,9 +147,8 @@ export const useDerivedCharacterData = (
             const selection = equipmentSelections[group.id];
             if (selection?.main === undefined || selection.main < 0) return false;
             
-            // CORREÇÃO: Verifica se `group.choice.from.options` existe
             const optionsSource = group.choice?.from?.options;
-            if (!optionsSource) return true; // Se não houver opções, a escolha está "feita"
+            if (!optionsSource) return true;
 
             const mainOption = optionsSource[selection.main];
             if (!mainOption) return false;
@@ -164,6 +162,9 @@ export const useDerivedCharacterData = (
                 });
             }
             if (mainOption.option_type === 'choice') {
+                if (mainOption.choice.choose > 1) {
+                    return Array.from({ length: mainOption.choice.choose }).every((_, i) => selection.sub && selection.sub[i]);
+                }
                 return selection.sub && selection.sub[0];
             }
             return true;
