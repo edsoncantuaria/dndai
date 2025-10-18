@@ -13,7 +13,7 @@ const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { imageModel } = useSettingsContext();
-    const { getApiKey } = useGameStateContext();
+    const { getApiKey, sessionId } = useGameStateContext();
 
     useEffect(() => {
         const imageContent = entry.content as any;
@@ -27,7 +27,8 @@ const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
                     const result = await AiService.generateImage({
                         prompt: imageContent.prompt,
                         model: imageModel,
-                        apiKey
+                        apiKey,
+                        sessionId: sessionId, // Passa o sessionId
                     });
                     if (result?.imageUrl) {
                         setImageUrl(result.imageUrl);
@@ -42,7 +43,7 @@ const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
             };
             generate();
         }
-    }, [entry.content, imageUrl, isLoading, getApiKey, imageModel]);
+    }, [entry.content, imageUrl, isLoading, getApiKey, imageModel, sessionId]);
 
     const displayUrl = imageUrl || (typeof entry.content === 'object' && (entry.content as any).imageUrl) || null;
 

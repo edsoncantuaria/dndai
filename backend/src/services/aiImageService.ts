@@ -8,13 +8,14 @@ interface GenerateImageInput {
     prompt: string;
     model: string; 
     apiKey: string;
+    sessionId?: string | number; // Adicionado sessionId opcional
 }
 
 interface GenerateImageOutput {
     imageUrl: string;
 }
 
-export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInput): Promise<GenerateImageOutput> => {
+export const generateImage = async ({ prompt, model, apiKey, sessionId }: GenerateImageInput): Promise<GenerateImageOutput> => {
     if (!apiKey) {
         throw createError(401, 'Chave de API do Google não fornecida.');
     }
@@ -23,7 +24,10 @@ export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInpu
         const genAI = new GoogleGenerativeAI(apiKey);
         const imageModel = genAI.getGenerativeModel({ model: model });
 
-        const result = await imageModel.generateContent(prompt);
+        // Ajuste no prompt para melhorar a qualidade da imagem gerada, como sugerido em documentações
+        const generationPrompt = `Uma pintura digital cinematográfica e detalhada de fantasia: ${prompt}. Estilo de arte épico, dramático, com iluminação atmosférica.`;
+
+        const result = await imageModel.generateContent(generationPrompt);
         const response = await result.response;
         
         const firstPart = response.candidates?.[0]?.content?.parts?.[0];
@@ -36,10 +40,21 @@ export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInpu
         const imageBuffer = Buffer.from(imageData.data, 'base64');
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = imageData.mimeType.split('/')[1] || 'png';
-        const objectName = `${uuidv4()}.${fileExtension}`;
+        
+        // Constrói o nome do objeto com base na sessão
+        const objectPath = sessionId ? `sessions/${sessionId}` : 'general';
+        const objectName = `${objectPath}/${uuidv4()}.${fileExtension}`;
+
 
         if (!minioClient) {
             throw createError(503, 'Serviço de armazenamento de arquivos não está configurado.');
+        }
+
+        // Garante que o bucket exista
+        const bucketExists = await minioClient.bucketExists(bucketName);
+        if (!bucketExists) {
+            await minioClient.makeBucket(bucketName, 'us-east-1');
+            console.log(`[MinIO] Bucket ${bucketName} criado com sucesso.`);
         }
 
         await minioClient.putObject(bucketName, objectName, imageBuffer, imageBuffer.length, {
@@ -52,7 +67,6 @@ export const generateImage = async ({ prompt, model, apiKey }: GenerateImageInpu
         const endpoint = process.env.MINIO_ENDPOINT;
         const portString = (useSSL && port === '443') || (!useSSL && port === '80') ? '' : `:${port}`;
         
-        // Constrói a URL pública.
         const imageUrl = `${protocol}://${endpoint}${portString}/${bucketName}/${objectName}`;
 
         return { imageUrl };

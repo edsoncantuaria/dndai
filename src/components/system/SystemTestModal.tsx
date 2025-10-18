@@ -96,7 +96,8 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
         triggerTestCombat,
         handleSkillCheckSubmit,
         processPlayerAction,
-        setCharacter, 
+        setCharacter,
+        sessionId,
     } = useGameStateContext();
 
     const { toast } = useToast();
@@ -148,7 +149,8 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
             const result = await AiService.generateImage({
                 prompt: imagePrompt,
                 model: imageModel,
-                apiKey
+                apiKey,
+                sessionId: sessionId || 'test-session',
             });
             if (result?.imageUrl) {
                 setGeneratedImageUrl(result.imageUrl);

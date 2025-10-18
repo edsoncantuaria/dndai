@@ -11,6 +11,7 @@ export interface GenerateImagePayload {
     prompt: string;
     model: string;
     apiKey: string;
+    sessionId?: number | string | null;
 }
 
 export const createHomebrewContent = async (payload: GenerateHomebrewPayload) => {

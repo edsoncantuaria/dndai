@@ -37,12 +37,12 @@ export const generateImage = async (req: AuthRequest, res: Response, next: NextF
     }
     
     try {
-        const { prompt, model, apiKey } = req.body;
+        const { prompt, model, apiKey, sessionId } = req.body; // Adicionado sessionId
         if (!prompt || !model || !apiKey) {
             return next(createError(400, 'Prompt, modelo e chave de API são obrigatórios.'));
         }
 
-        const result = await AiImageService.generateImage({ prompt, model, apiKey });
+        const result = await AiImageService.generateImage({ prompt, model, apiKey, sessionId }); // Passa o sessionId para o serviço
         
         if (result && result.imageUrl) {
             res.status(200).json(result);
