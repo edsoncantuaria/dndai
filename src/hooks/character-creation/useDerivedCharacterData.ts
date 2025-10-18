@@ -4,74 +4,6 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { getOptionLabel } from '@/utils/creationHelpers';
-
-const findChosenItems = (
-    option: ApiEquipmentOption,
-    selection: { main?: number, sub?: Record<number, string> } | number | undefined,
-    allEquipment: InventoryItem[]
-): InventoryItem[] => {
-    if (selection === undefined || selection === null) return [];
-
-    const results: InventoryItem[] = [];
-
-    const processOption = (opt: ApiEquipmentOption, currentSelection: any, path: string) => {
-        if (!opt) return;
-
-        switch (opt.option_type) {
-            case 'counted_reference':
-                const itemDetails = allEquipment.find(e => e.index === opt.of?.index);
-                if (itemDetails) {
-                    results.push({ ...itemDetails, quantity: opt.count || 1, id: uuidv4() });
-                }
-                break;
-
-            case 'choice':
-                const chosenItemIndex = typeof currentSelection === 'string' ? currentSelection : undefined;
-                if (chosenItemIndex) {
-                    const chosenItem = allEquipment.find(e => e.index === chosenItemIndex);
-                    if (chosenItem) {
-                        results.push({ ...chosenItem, quantity: opt.choice?.choose || 1, id: uuidv4() });
-                    }
-                }
-                break;
-
-            case 'multiple':
-                if (Array.isArray(opt.items)) {
-                    opt.items.forEach((subOption, subIndex) => {
-                        processOption(subOption, currentSelection?.[subIndex], `${path}.${subIndex}`);
-                    });
-                }
-                break;
-        }
-    };
-    
-    if (typeof selection === 'number') {
-        processOption(option, selection, '');
-    } else if (typeof selection === 'object' && selection !== null) {
-        if (option.option_type === 'choice' && selection.main !== undefined) {
-            const mainChoiceOption = option.choice?.from?.options?.[selection.main];
-            processOption(mainChoiceOption, selection, '');
-        } else if (option.option_type === 'multiple') {
-            processOption(option, selection.sub, '');
-        } else {
-             const mainChoiceOption = option; // Case where the choice itself contains sub-options
-             if (mainChoiceOption.items) {
-                 mainChoiceOption.items.forEach((subOpt, i) => {
-                     const subSelection = selection.sub?.[i];
-                     if(subSelection) {
-                         const chosenItem = allEquipment.find(e => e.index === subSelection);
-                         if(chosenItem) results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
-                     }
-                 })
-             }
-        }
-    }
-
-
-    return results;
-};
-
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -268,3 +200,5 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
+
+    

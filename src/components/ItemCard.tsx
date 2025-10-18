@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import type { InventoryItem, Proficiency } from '../types';
 import { Shield, ChevronDown, Hand, Check, X } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
+import { translateApiString } from '../utils/translator';
 
 interface ItemCardProps {
     item: InventoryItem;
@@ -29,23 +29,27 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     const isProficient = useMemo(() => {
-        if (!item) return true;
-        
-        const armorCategory = item.armor_category?.toLowerCase().replace(' armor', '');
-        const weaponCategory = item.weapon_category?.toLowerCase();
-        const itemIndex = item.index?.toLowerCase();
-        
+        if (!item) return true; // Itens sem categoria são sempre "proficientes" para uso
+    
         const characterProficiencies = new Set(proficiencies.map(p => p.index.toLowerCase()));
-
-        if (characterProficiencies.has('all-armor') && armorCategory) return true;
-        if (characterProficiencies.has('martial-weapons') && weaponCategory === 'martial') return true;
-        if (characterProficiencies.has('simple-weapons') && weaponCategory === 'simple') return true;
+    
+        // Proficiências Gerais
+        if (characterProficiencies.has('all-armor') && item.armor_category) return true;
+        if (characterProficiencies.has('martial-weapons') && item.weapon_category === 'Martial') return true;
+        if (characterProficiencies.has('simple-weapons') && item.weapon_category === 'Simple') return true;
         if (characterProficiencies.has('shields') && item.equipment_category?.index === 'shields') return true;
-
+    
+        // Proficiências Específicas por Categoria
+        const armorCategory = item.armor_category?.toLowerCase(); // e.g., 'light', 'medium', 'heavy'
         if (armorCategory && characterProficiencies.has(`${armorCategory}-armor`)) return true;
+    
+        // Proficiência por Nome/Index do Item
+        const itemIndex = item.index?.toLowerCase();
         if (itemIndex && characterProficiencies.has(itemIndex)) return true;
-
-        return false;
+    
+        // Se não for uma armadura, arma ou escudo, considera-se proficiente para uso geral.
+        return !(item.armor_category || item.weapon_category || item.equipment_category?.index === 'shields');
+    
     }, [item, proficiencies]);
     
     const translatedItem = item; // Assuming item is already translated
@@ -134,3 +138,5 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 };
 
 export default ItemCard;
+
+    

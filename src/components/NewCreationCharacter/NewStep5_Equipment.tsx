@@ -14,17 +14,14 @@ const ItemChoiceSelector: React.FC<{
     subIndex: number;
     hook: ReturnType<typeof useCharacterCreator>;
 }> = ({ choice, selectionPath, subIndex, hook }) => {
-    const { handleEquipmentSubChoiceChange, allEquipment } = hook;
+    const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
     const categoryIndex = choice?.from?.equipment_category?.index;
 
     if (!categoryIndex) {
         return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida na opção.</p>;
     }
 
-    const subOptions = allEquipment.filter(item => 
-        item.equipment_category.index === categoryIndex || 
-        (item as any).gear_category?.index === categoryIndex
-    );
+    const subOptions = equipmentCategoryCache[categoryIndex] || [];
     
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
@@ -62,12 +59,15 @@ const MultiItemChoiceSelector: React.FC<{
     const categoryIndex = choice?.from?.equipment_category?.index;
 
     if (!categoryIndex || !choice.choose) return null;
+    
+    const filterPredicate = (item: InventoryItem) => {
+        if (item.equipment_category.index === categoryIndex) return true;
+        if (categoryIndex === 'simple-melee-weapons' && item.weapon_range === 'Melee' && item.weapon_category === 'Simple') return true;
+        if (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') return true;
+        return false;
+    }
 
-    const subOptions = allEquipment.filter(item => 
-        item.equipment_category.index === categoryIndex ||
-        (item.weapon_category && categoryIndex.includes(item.weapon_category.toLowerCase())) ||
-        (item.category_range && categoryIndex.replace(/-/g, ' ').includes(item.category_range.toLowerCase()))
-    );
+    const subOptions = allEquipment.filter(filterPredicate);
 
     const currentSelectionObj = hook.equipmentSelections[selectionPath];
     const currentSelections = (typeof currentSelectionObj === 'object' && currentSelectionObj?.sub) ? Object.values(currentSelectionObj.sub) : [];
@@ -86,7 +86,11 @@ const MultiItemChoiceSelector: React.FC<{
                     {subOptions.map((item) => {
                         const isSelectedByOther = currentSelections.includes(item.index) && currentSelections[i] !== item.index;
                         return (
-                            <option key={item.index} value={item.index} disabled={isSelectedByOther}>
+                            <option
+                                key={item.index}
+                                value={item.index}
+                                disabled={isSelectedByOther}
+                            >
                                 {translateApiString(item.name)}
                             </option>
                         );
@@ -248,3 +252,5 @@ const NewStep5_Equipment: React.FC<{
 };
 
 export default NewStep5_Equipment;
+
+    

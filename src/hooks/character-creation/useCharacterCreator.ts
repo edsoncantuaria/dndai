@@ -31,9 +31,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         details, 
         loadingStates, 
         fetchFeats, 
-        allEquipment, // Expor allEquipment
-        equipmentCategoryCache, // Expor o cache
-        fetchEquipmentCategory, // Expor a função de busca
+        allEquipment,
+        equipmentCategoryCache,
     } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
 
     const { raceDetails, classDetails, backgroundDetails } = details;
@@ -41,14 +40,11 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const attributeManager = useAttributeManager(state, dispatch);
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    // Passando allEquipment para o useDerivedCharacterData
     const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment);
-
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            // Reseta as sub-escolhas ao mudar a opção principal
             newSelections[groupId] = { main: mainOptionIndex, sub: {} };
             return newSelections;
         });
@@ -207,8 +203,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         details,
         loadingStates,
         allEquipment,
-        equipmentCategoryCache, // Pass cache down
-        fetchEquipmentCategory, // Pass fetcher down
+        equipmentCategoryCache,
         handleEquipmentChoiceChange,
         handleEquipmentSubChoiceChange,
         ...attributeManager,
@@ -225,3 +220,5 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         buildCharacter,
     };
 };
+
+    

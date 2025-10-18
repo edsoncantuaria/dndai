@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem, ApiEquipmentOption } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
-import { apiClient } from '@/services/apiClient';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -32,7 +31,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+            const equipmentResponse = await DndApiService.getEquipmentList();
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -41,7 +40,24 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                         setLoadingStates({ isLoading: true, message: `Analisando Itens ${loaded} de ${total}...`, progress });
                     }
                 );
-                setAllEquipment(itemDetails as InventoryItem[]);
+                const validItems = itemDetails.filter((item): item is InventoryItem => item !== null);
+                setAllEquipment(validItems);
+
+                // Pre-populate cache from allEquipment
+                const newCache: Record<string, InventoryItem[]> = {};
+                validItems.forEach(item => {
+                    const eqCat = item.equipment_category?.index;
+                    const gearCat = (item as any).gear_category?.index;
+                    if (eqCat) {
+                        if (!newCache[eqCat]) newCache[eqCat] = [];
+                        newCache[eqCat].push(item);
+                    }
+                    if (gearCat) {
+                         if (!newCache[gearCat]) newCache[gearCat] = [];
+                        newCache[gearCat].push(item);
+                    }
+                });
+                setEquipmentCategoryCache(newCache);
             }
              setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
@@ -52,15 +68,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         if (!categoryIndex) return [];
         if (equipmentCategoryCache[categoryIndex]) return equipmentCategoryCache[categoryIndex];
 
-        // Se a lista completa já foi carregada, filtramos dela.
-        if (allEquipment.length > 0) {
-            const filteredItems = allEquipment.filter(item => 
-                item.equipment_category?.index === categoryIndex || (item as any).gear_category?.index === categoryIndex
-            );
-            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filteredItems }));
-            return filteredItems;
-        }
-
+        // If not in cache, fetch it. This is a fallback, but the initial load should cover most cases.
         setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
@@ -76,7 +84,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
-    }, [allEquipment, equipmentCategoryCache]);
+    }, [equipmentCategoryCache]);
 
 
     // Fetch Race Details
@@ -162,7 +170,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         fetchClass();
     }, [characterClass]);
 
-    // Fetch Background Details
+    // Fetch Background Details and its equipment categories
     useEffect(() => {
         if (!background) {
             setBackgroundDetails(null);
@@ -174,22 +182,19 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setBackgroundDetails(details);
     
              if (details?.starting_equipment_options) {
-                for (const choice of details.starting_equipment_options) {
-                    const optionSet = choice.from;
-
-                    // Handle direct equipment category reference
-                    if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
-                        await fetchEquipmentCategory(optionSet.equipment_category.index);
-                    }
-                    
-                    // Handle options within an array
-                    if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
-                        for (const option of optionSet.options) {
-                            if (option.option_type === 'choice' && option.choice?.from?.equipment_category?.index) {
-                                await fetchEquipmentCategory(option.choice.from.equipment_category.index);
+                for(const choice of details.starting_equipment_options) {
+                    const processOptionSet = async (optionSet: any) => {
+                         if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
+                            await fetchEquipmentCategory(optionSet.equipment_category.index);
+                        } else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
+                            for (const option of optionSet.options) {
+                                if (option.option_type === 'choice' && option.choice?.from) {
+                                    await processOptionSet(option.choice.from);
+                                }
                             }
                         }
                     }
+                    await processOptionSet(choice.from);
                 }
             }
     
@@ -245,6 +250,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         equipmentCategoryCache,
         loadingStates,
         fetchFeats,
-        fetchEquipmentCategory,
     };
 };
+
+    
