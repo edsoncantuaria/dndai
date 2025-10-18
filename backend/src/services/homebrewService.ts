@@ -2,7 +2,7 @@
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
-import { User } from '../entities/User.js'; // Importação que faltava
+import { User } from '../entities/User.js';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
@@ -15,6 +15,16 @@ interface PaginationOptions {
 
 export const createHomebrewContent = async (authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+
+    // Se for uma tradução, a 'name' é a categoria, que deve ser única por autor.
+    if (data.type === 'translation') {
+        const existing = await homebrewRepo.findOne({ where: { type: 'translation', name: data.name, authorId } });
+        if (existing) {
+            // Se já existe, atualizamos o conteúdo em vez de criar um novo.
+            existing.content = data.content;
+            return await homebrewRepo.save(existing);
+        }
+    }
 
     const newContent = new HomebrewContent();
     newContent.authorId = authorId;
@@ -99,6 +109,15 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
     });
 };
 
+export const getPrivateHomebrewContentForUser = async (authorId: number, type?: HomebrewContentType) => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const whereCondition: FindManyOptions<HomebrewContent>['where'] = { authorId, isPublic: false };
+    if (type) whereCondition.type = type;
+
+    return homebrewRepo.find({ where: whereCondition });
+};
+
+
 export const getHomebrewContentByAuthor = async (authorId: number, type?: HomebrewContentType, pagination?: PaginationOptions) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { authorId };
@@ -135,7 +154,8 @@ export const getMultipleHomebrewContentByIds = async (contentIds: string[], type
 
 export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType, userId: number): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    const user = await AppDataSource.getRepository(User).findOneBy({id: userId});
+    const userRepo = AppDataSource.getRepository(User);
+    const user = await userRepo.findOneBy({id: userId});
     if (!user) return null;
 
     const installedIds = user.installedHomebrewIds || [];
@@ -152,7 +172,7 @@ export const findHomebrewByOfficialIndex = async (officialIndex: string, type: H
     } else {
         // Para outros tipos, usamos o campo index dentro do JSON
         query.where("hb.type = :type", { type })
-             .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
+             .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndex })
              .andWhere("hb.id IN (:...installedIds)", { installedIds });
     }
     

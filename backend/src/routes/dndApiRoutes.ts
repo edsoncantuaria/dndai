@@ -2,11 +2,11 @@
 import { Router } from 'express';
 import * as DndApiService from '../services/dndApiService.js';
 import * as HomebrewService from '../services/homebrewService.js';
-import * as UserService from '../services/userService.js';
 import createError from 'http-errors';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 import redisClient from '../database/redis-client.js';
+import { User } from '../entities/User.js';
 
 const router = Router();
 
@@ -23,99 +23,78 @@ router.get('/:resource', async (req, res, next) => {
     if (!userId) {
         return next(createError(401, 'Usuário não autenticado.'));
     }
-
-    const userCacheKey = `unified-list:${resource}:${userId}`;
+    
+    // Chave para o cache compartilhado de conteúdo público
+    const publicCacheKey = `unified-public-list:${resource}`;
 
     try {
-        // 1. Tentar buscar a lista unificada específica do usuário do cache
+        let publicList = [];
+        
+        // 1. Tentar buscar a lista pública COMPARTILHADA do cache
         if (redisClient && redisClient.isOpen) {
-            const cachedData = await redisClient.get(userCacheKey);
-            if (cachedData) {
-                console.log(`[Cache] HIT: Retornando lista unificada para ${resource} do usuário ${userId}.`);
-                return res.json(JSON.parse(cachedData));
+            const cachedPublicList = await redisClient.get(publicCacheKey);
+            if (cachedPublicList) {
+                console.log(`[Cache] HIT: Usando lista pública compartilhada para ${resource}.`);
+                publicList = JSON.parse(cachedPublicList);
             }
         }
+        
+        // 2. Se a lista pública não estiver no cache, construí-la
+        if (publicList.length === 0) {
+            console.log(`[Cache] MISS: Construindo lista pública compartilhada para ${resource}.`);
+            const [apiData, publicHomebrew, aiContent] = await Promise.all([
+                DndApiService.getResourceList(resource),
+                HomebrewService.getPublicHomebrewContent(resource, 'user'),
+                HomebrewService.getPublicHomebrewContent(resource, 'ai'),
+            ]);
+            
+            const publicMap = new Map<string, { index: string, name: string, url: string, source?: string }>();
+            (apiData?.results || []).forEach(item => publicMap.set(item.index, { ...item, source: 'official' }));
+            publicHomebrew.forEach(hb => publicMap.set(hb.id, { index: hb.id, name: `(H) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'homebrew' }));
+            aiContent.forEach(ai => publicMap.set(ai.id, { index: ai.id, name: `(IA) ${ai.name}`, url: `/api/dnds/${resource}/${ai.id}`, source: 'ai'}));
+            
+            publicList = Array.from(publicMap.values());
+            
+            // Salva a lista pública construída no cache compartilhado
+            if (redisClient && redisClient.isOpen) {
+                await redisClient.set(publicCacheKey, JSON.stringify(publicList), { EX: 3600 }); // Cache por 1 hora
+            }
+        }
+        
+        // 3. Buscar conteúdo privado e instalado do usuário (sempre do DB para refletir mudanças)
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo.findOneBy({ id: userId });
+        const installedIds = user?.installedHomebrewIds || [];
 
-        console.log(`[Cache] MISS: Construindo lista unificada para ${resource} do usuário ${userId}.`);
-
-        // 2. Se não estiver no cache do usuário, construir a lista
-        const user = await UserService.getUserProfile(userId);
-        const installedIds = user.installedHomebrewIds || [];
-
-        // Buscar dados de todas as fontes em paralelo
-        const [apiData, installedHomebrew, aiContent, adminTranslations] = await Promise.all([
-            DndApiService.getResourceList(resource), // Esta função já usa um cache compartilhado
-            installedIds.length > 0 ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) : Promise.resolve([]),
-            HomebrewService.getPublicHomebrewContent(resource, 'ai'),
-            HomebrewService.getAdminTranslations(resource)
+        const [privateContent, installedContent] = await Promise.all([
+             HomebrewService.getPrivateHomebrewContentForUser(userId, resource),
+             installedIds.length > 0 ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) : Promise.resolve([])
         ]);
 
-        const finalResultsMap = new Map<string, { index: string, name: string, url: string, source?: string }>();
-
-        // Adiciona conteúdo oficial como base
-        (apiData?.results || []).forEach(item => {
-            finalResultsMap.set(item.index, { ...item, source: 'official' });
-        });
-
-        // Sobrescreve com traduções do admin (se houver correspondência de 'official_index')
-        adminTranslations.forEach(translation => {
-            const officialIndex = translation.content.official_index;
-            if (officialIndex && finalResultsMap.has(officialIndex)) {
-                const officialItem = finalResultsMap.get(officialIndex)!;
-                finalResultsMap.set(officialIndex, {
-                    ...officialItem,
-                    name: translation.name, // A tradução principal é o nome do conteúdo
-                });
-            }
-        });
+        // 4. Mesclar listas: base pública + conteúdo privado/instalado do usuário
+        const finalMap = new Map(publicList.map((item: any) => [item.index, item]));
         
-        // Adiciona/sobrescreve com conteúdo instalado pelo usuário (maior prioridade)
-        installedHomebrew.forEach(hb => {
-            // Se for uma tradução, ele sobrescreve o nome do item oficial correspondente
-            if (hb.type === 'translation') {
-                // Para traduções, o `name` é a categoria, não tratamos aqui.
-                return;
-            }
-
-            const officialIndex = hb.content.official_index;
-            const displayName = `(H) ${hb.name}`;
-            const url = `/api/dnds/${resource}/${hb.id}`;
-
-            // Se este homebrew sobrescreve um item oficial
-            if (officialIndex && finalResultsMap.has(officialIndex)) {
-                const existingItem = finalResultsMap.get(officialIndex)!;
-                finalResultsMap.set(officialIndex, { ...existingItem, name: displayName, url, source: 'homebrew' });
-            } else { // Senão, é um item completamente novo
-                finalResultsMap.set(hb.id, { index: hb.id, name: displayName, url, source: 'homebrew' });
+        // Conteúdo privado/instalado do usuário sobrescreve o público
+        privateContent.forEach(hb => finalMap.set(hb.id, { index: hb.id, name: `(Meu) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'mine' }));
+        installedContent.forEach(hb => {
+            // Se o conteúdo instalado for uma tradução, ele modifica o item oficial, senão adiciona como novo
+             if (hb.type === 'translation' && hb.content.official_index) {
+                const officialItem = finalMap.get(hb.content.official_index);
+                if (officialItem) {
+                    finalMap.set(hb.content.official_index, { ...officialItem, name: hb.name });
+                }
+            } else {
+                 // Prioriza o conteúdo instalado sobre qualquer outra coisa com o mesmo ID
+                finalMap.set(hb.id, { index: hb.id, name: `(H) ${hb.name}`, url: `/api/dnds/${resource}/${hb.id}`, source: 'homebrew' });
             }
         });
 
-        // Adiciona conteúdo gerado por IA se não houver um item com o mesmo índice
-        aiContent.forEach(aiItem => {
-             const key = aiItem.content.index || aiItem.id;
-             if (!finalResultsMap.has(key)) {
-                finalResultsMap.set(key, {
-                    index: key,
-                    name: `(IA) ${aiItem.name}`,
-                    url: `/api/dnds/${resource}/${aiItem.id}`,
-                    source: 'ai'
-                });
-             }
-        });
-        
-        const finalResults = Array.from(finalResultsMap.values()).sort((a,b) => a.name.localeCompare(b.name));
-        
-        const responsePayload = {
+        const finalResults = Array.from(finalMap.values()).sort((a,b) => a.name.localeCompare(b.name));
+
+        return res.json({
             count: finalResults.length,
-            results: finalResults,
-        };
-
-        // 3. Salvar a lista unificada no cache específico do usuário
-        if (redisClient && redisClient.isOpen) {
-            await redisClient.set(userCacheKey, JSON.stringify(responsePayload), { EX: 600 }); // Cache por 10 minutos
-        }
-
-        return res.json(responsePayload);
+            results: finalResults
+        });
 
     } catch (error) {
         next(error);
