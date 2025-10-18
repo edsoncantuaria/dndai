@@ -24,12 +24,12 @@ router.get('/:resource', async (req, res, next) => {
         return next(createError(401, 'Usuário não autenticado.'));
     }
 
-    const cacheKey = `unified-list:${resource}:${userId}`;
+    const userCacheKey = `unified-list:${resource}:${userId}`;
 
     try {
-        // 1. Tentar buscar a lista unificada do cache
+        // 1. Tentar buscar a lista unificada específica do usuário do cache
         if (redisClient && redisClient.isOpen) {
-            const cachedData = await redisClient.get(cacheKey);
+            const cachedData = await redisClient.get(userCacheKey);
             if (cachedData) {
                 console.log(`[Cache] HIT: Retornando lista unificada para ${resource} do usuário ${userId}.`);
                 return res.json(JSON.parse(cachedData));
@@ -38,59 +38,59 @@ router.get('/:resource', async (req, res, next) => {
 
         console.log(`[Cache] MISS: Construindo lista unificada para ${resource} do usuário ${userId}.`);
 
-        // 2. Se não estiver no cache, construir a lista
+        // 2. Se não estiver no cache do usuário, construir a lista
         const user = await UserService.getUserProfile(userId);
         const installedIds = user.installedHomebrewIds || [];
 
-        const apiPromise = DndApiService.getResourceList(resource, false); // false para não usar o cache de item individual
-        const installedHomebrewPromise = installedIds.length > 0
-            ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource)
-            : Promise.resolve([]);
-        const aiContentPromise = HomebrewService.getPublicHomebrewContent(resource, 'ai');
-        const adminTranslationsPromise = HomebrewService.getAdminTranslations(resource);
-
+        // Buscar dados de todas as fontes em paralelo
         const [apiData, installedHomebrew, aiContent, adminTranslations] = await Promise.all([
-            apiPromise,
-            installedHomebrewPromise,
-            aiContentPromise,
-            adminTranslationsPromise,
+            DndApiService.getResourceList(resource), // Esta função já usa um cache compartilhado
+            installedIds.length > 0 ? HomebrewService.getMultipleHomebrewContentByIds(installedIds, resource) : Promise.resolve([]),
+            HomebrewService.getPublicHomebrewContent(resource, 'ai'),
+            HomebrewService.getAdminTranslations(resource)
         ]);
 
         const finalResultsMap = new Map<string, { index: string, name: string, url: string, source?: string }>();
 
-        // Adiciona conteúdo oficial
+        // Adiciona conteúdo oficial como base
         (apiData?.results || []).forEach(item => {
             finalResultsMap.set(item.index, { ...item, source: 'official' });
         });
 
-        // Sobrescreve com traduções do admin
+        // Sobrescreve com traduções do admin (se houver correspondência de 'official_index')
         adminTranslations.forEach(translation => {
             const officialIndex = translation.content.official_index;
             if (officialIndex && finalResultsMap.has(officialIndex)) {
                 const officialItem = finalResultsMap.get(officialIndex)!;
                 finalResultsMap.set(officialIndex, {
                     ...officialItem,
-                    name: translation.name,
+                    name: translation.name, // A tradução principal é o nome do conteúdo
                 });
             }
         });
         
-        // Adiciona/sobrescreve com conteúdo instalado pelo usuário (exceto AI)
-        installedHomebrew.filter(hb => hb.createdBy !== 'ai').forEach(hb => {
-            const officialIndex = hb.content.index;
+        // Adiciona/sobrescreve com conteúdo instalado pelo usuário (maior prioridade)
+        installedHomebrew.forEach(hb => {
+            // Se for uma tradução, ele sobrescreve o nome do item oficial correspondente
+            if (hb.type === 'translation') {
+                // Para traduções, o `name` é a categoria, não tratamos aqui.
+                return;
+            }
+
+            const officialIndex = hb.content.official_index;
             const displayName = `(H) ${hb.name}`;
             const url = `/api/dnds/${resource}/${hb.id}`;
-            // Se ele tem um `official_index` e esse item está na lista, ele sobrescreve o nome.
-             if (officialIndex && finalResultsMap.has(officialIndex)) {
+
+            // Se este homebrew sobrescreve um item oficial
+            if (officialIndex && finalResultsMap.has(officialIndex)) {
                 const existingItem = finalResultsMap.get(officialIndex)!;
                 finalResultsMap.set(officialIndex, { ...existingItem, name: displayName, url, source: 'homebrew' });
-            } else {
-            // Senão, é um item novo
+            } else { // Senão, é um item completamente novo
                 finalResultsMap.set(hb.id, { index: hb.id, name: displayName, url, source: 'homebrew' });
             }
         });
 
-        // Adiciona conteúdo da IA se não estiver instalado (trata como base, mas não sobrescreve)
+        // Adiciona conteúdo gerado por IA se não houver um item com o mesmo índice
         aiContent.forEach(aiItem => {
              const key = aiItem.content.index || aiItem.id;
              if (!finalResultsMap.has(key)) {
@@ -110,10 +110,9 @@ router.get('/:resource', async (req, res, next) => {
             results: finalResults,
         };
 
-        // 3. Salvar a lista unificada no cache
+        // 3. Salvar a lista unificada no cache específico do usuário
         if (redisClient && redisClient.isOpen) {
-            // Cache por 10 minutos para dar tempo de novas instalações aparecerem
-            await redisClient.set(cacheKey, JSON.stringify(responsePayload), { EX: 600 });
+            await redisClient.set(userCacheKey, JSON.stringify(responsePayload), { EX: 600 }); // Cache por 10 minutos
         }
 
         return res.json(responsePayload);
@@ -130,36 +129,44 @@ router.get('/:resource/:index', async (req, res, next) => {
     const userId = (req as any).user?.userId;
 
     try {
+        // Se o índice for um UUID, é definitivamente homebrew
         if (isUuid(index)) {
              const hbContent = await HomebrewService.getHomebrewContentById(index, userId);
              if (!hbContent) return next(createError(404, `Conteúdo homebrew com ID '${index}' não encontrado.`));
              return res.json(hbContent.content);
         }
 
-        const adminTranslation = await HomebrewService.findAdminTranslation(index, resource as HomebrewContentType);
+        // Busca o dado oficial primeiro, usando o cache compartilhado se possível
         const officialData = await DndApiService.getDetails(resource, index);
-
-        if (!officialData && !adminTranslation) {
-             const homebrewOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType, userId);
-             if(homebrewOverride) return res.json(homebrewOverride.content);
-
-             return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
-        }
         
-        // Prioridade: Conteúdo instalado pelo usuário > Tradução do Admin > Oficial
-        const homebrewOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType, userId);
+        // Verifica se há uma tradução do admin para este item
+        const adminTranslation = await HomebrewService.findAdminTranslation(index, resource as HomebrewContentType);
 
-        if (homebrewOverride) {
-            const mergedData = { ...(officialData || {}), ...homebrewOverride.content, name: homebrewOverride.name, desc: homebrewOverride.content.desc || officialData?.desc };
-            return res.json(mergedData);
-        }
+        // Verifica se o usuário tem um homebrew instalado que sobrescreve este item oficial
+        const userOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType, userId);
 
+        let finalData = officialData;
+        let finalName = officialData?.name;
+
+        // Aplica tradução se existir
         if (adminTranslation) {
-             const mergedData = { ...(officialData || {}), ...adminTranslation.content, name: adminTranslation.name };
-             return res.json(mergedData);
+            finalData = { ...(finalData || {}), ...adminTranslation.content };
+            finalName = adminTranslation.name;
+        }
+
+        // Aplica a sobrescrita do usuário, que tem a maior prioridade
+        if (userOverride) {
+            finalData = { ...(finalData || {}), ...userOverride.content };
+            finalName = `(H) ${userOverride.name}`; // Adiciona o prefixo (H)
+        }
+
+        if (!finalData) {
+            return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         }
         
-        return res.json(officialData);
+        finalData.name = finalName; // Garante que o nome final seja aplicado
+
+        return res.json(finalData);
 
     } catch (error) {
         next(error);
@@ -244,3 +251,5 @@ router.get('/subclasses/:subclassIndex/levels', async (req, res, next) => {
 });
 
 export default router;
+
+    
