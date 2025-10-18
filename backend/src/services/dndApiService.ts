@@ -1,55 +1,112 @@
 // backend/src/services/dndApiService.ts
-import redisClient from '../database/redis-client.js';
 import fetch from 'node-fetch';
-import 'dotenv/config';
+import redisClient from '../database/redis-client.js';
 
-const API_BASE = 'https://www.dnd5eapi.co/api';
+const API_BASE = 'https://www.dnd5eapi.co/api/2014';
 
-async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
-    const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const cacheKey = `dnd5e:${safeEndpoint.substring(1).replace(/\//g, ':')}`;
+/**
+ * Normaliza uma string para uso em chaves de cache.
+ */
+const norm = (s?: string) => (s ?? '').toLowerCase().trim();
+
+/**
+ * Gera uma chave consistente para o cache Redis.
+ * Ex: dnd5e:equipment:list ou dnd5e:equipment:greataxe
+ */
+const cacheKey = (resource: string, index?: string) => {
+  return index
+    ? `dnd5e:${norm(resource)}:${norm(index)}`
+    : `dnd5e:${norm(resource)}:list`;
+};
+
+/**
+ * Faz o fetch da API oficial D&D 5e, com cache no Redis global.
+ * - Todos os dados oficiais são compartilhados entre todos os usuários.
+ * - Não há expiração (dados estáticos).
+ */
+async function fetchWithCache<T>(endpoint: string, redisKey: string): Promise<T | null> {
+  if (redisClient && redisClient.isOpen) {
+    try {
+      const cached = await redisClient.get(redisKey);
+      if (cached) {
+        console.log(`[DndApiService] Cache HIT: ${redisKey}`);
+        return JSON.parse(cached) as T;
+      }
+    } catch (err) {
+      console.error(`[Cache] Erro ao ler chave ${redisKey}:`, err);
+    }
+  }
+
+  const fullUrl = `${API_BASE}${endpoint}`;
+  console.log(`[DndApiService] Fetching from API: ${fullUrl}`);
+
+  try {
+    const response = await fetch(fullUrl);
+    if (!response.ok) {
+      console.error(`[DndApiService] Erro ${response.status} ao buscar ${endpoint}`);
+      return null;
+    }
+
+    const data = (await response.json()) as T;
 
     if (redisClient && redisClient.isOpen) {
-        try {
-            const cachedData = await redisClient.get(cacheKey);
-            if (cachedData) {
-                // O cache aqui é apenas para os dados brutos da API oficial
-                return JSON.parse(cachedData) as T;
-            }
-        } catch (error) {
-            console.error(`[dndApiService-Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
-        }
+      try {
+        await redisClient.set(redisKey, JSON.stringify(data));
+        console.log(`[Cache] SET persistente: ${redisKey}`);
+      } catch (err) {
+        console.error(`[Cache] Falha ao salvar ${redisKey}:`, err);
+      }
     }
-    
-    const fullApiUrl = `${API_BASE}${safeEndpoint}`;
-    try {
-        const response = await fetch(fullApiUrl);
-        if (!response.ok) {
-            console.error(`[dndApiService-API] Erro ${response.status} para o endpoint ${safeEndpoint}.`);
-            return null;
-        }
-        const data = await response.json();
 
-        if (redisClient && redisClient.isOpen) {
-            try {
-                // Cache persistente (sem expiração) para dados estáticos do SRD
-                await redisClient.set(cacheKey, JSON.stringify(data));
-            } catch (error) {
-                 console.error(`[dndApiService-Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
-            }
-        }
-
-        return data as T;
-    } catch (error) {
-        console.error(`[dndApiService-API] Erro de fetch para o endpoint ${safeEndpoint}:`, error);
-        return null;
-    }
+    return data;
+  } catch (err) {
+    console.error(`[DndApiService] Erro ao buscar ${endpoint}:`, err);
+    return null;
+  }
 }
 
-export const getResourceList = (resource: string) => {
-    return fetchWithCache<{ count: number, results: any[] }>(`/${resource}`);
+/**
+ * Obtém uma lista de recursos (ex: /races, /classes, /equipment).
+ */
+export async function getResourceList(resource: string): Promise<{ count: number; results: any[] } | null> {
+  const key = cacheKey(resource);
+  return fetchWithCache<{ count: number; results: any[] }>(`/${resource}`, key);
 }
 
-export const getDetails = (resource: string, index: string) => {
-     return fetchWithCache<any>(`/${resource}/${index}`);
+/**
+ * Obtém detalhes de um item específico (ex: /classes/barbarian, /equipment/greataxe).
+ */
+export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
+  const key = cacheKey(resource, index);
+  return fetchWithCache<any>(`/${resource}/${index}`, key);
 }
+
+/**
+ * Atalhos de conveniência para os principais recursos usados no jogo.
+ */
+export const DndApi = {
+  getAbilityScores: () => getResourceList('ability-scores'),
+  getAlignments: () => getResourceList('alignments'),
+  getBackgrounds: () => getResourceList('backgrounds'),
+  getClasses: () => getResourceList('classes'),
+  getConditions: () => getResourceList('conditions'),
+  getDamageTypes: () => getResourceList('damage-types'),
+  getEquipment: () => getResourceList('equipment'),
+  getEquipmentCategories: () => getResourceList('equipment-categories'),
+  getFeats: () => getResourceList('feats'),
+  getLanguages: () => getResourceList('languages'),
+  getMagicSchools: () => getResourceList('magic-schools'),
+  getMonsters: () => getResourceList('monsters'),
+  getProficiencies: () => getResourceList('proficiencies'),
+  getRaces: () => getResourceList('races'),
+  getSkills: () => getResourceList('skills'),
+  getSpells: () => getResourceList('spells'),
+  getSubclasses: () => getResourceList('subclasses'),
+  getSubraces: () => getResourceList('subraces'),
+  getTraits: () => getResourceList('traits'),
+
+  // Detalhes individuais
+  getDetails: (resource: string, index: string) => getResourceDetails(resource, index),
+};
+
+export default DndApi;
