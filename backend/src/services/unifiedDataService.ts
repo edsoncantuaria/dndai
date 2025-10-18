@@ -4,7 +4,7 @@ import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { getResourceList as fetchResourceList, getDetails as fetchDetails } from './dndApiService.js';
 import { User } from '../entities/User.js';
-import { In, Like } from 'typeorm';
+import { In } from 'typeorm';
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 
@@ -15,7 +15,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     const normalizedResource = norm(resource);
     const publicCacheKey = `dnd5e:${normalizedResource}`;
     
-    // 1. Busca a lista de nomes/índices da API oficial ou do cache público compartilhado.
+    // 1. Busca a lista de base oficial da API (ou do cache compartilhado).
     let officialList: { index: string; name: string; url: string }[] = [];
     const cachedPublicList = redisClient && redisClient.isOpen ? await redisClient.get(publicCacheKey) : null;
     
@@ -27,19 +27,24 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
         const apiResponse = await fetchResourceList(normalizedResource);
         officialList = apiResponse?.results || [];
         if (redisClient && redisClient.isOpen && officialList.length > 0) {
-            // Salva no cache sem tempo de expiração.
             await redisClient.set(publicCacheKey, JSON.stringify(officialList));
         }
     }
     
-    // 2. Busca todo o conteúdo homebrew relevante (público da comunidade + privado/instalado do usuário).
+    // 2. Busca o conteúdo homebrew relevante.
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const queryBuilder = homebrewRepo.createQueryBuilder('hb')
         .where('hb.type = :type', { type: normalizedResource });
 
-    const userInstalledIds = user?.installedHomebrewIds || [];
+    let userInstalledIds: string[] = [];
+    if (userId) {
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo.findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
+        userInstalledIds = user?.installedHomebrewIds || [];
+    }
 
-    if (userId && userInstalledIds.length > 0) {
+    // A query agora busca conteúdo que seja público OU que esteja na lista de instalados do usuário.
+    if (userInstalledIds.length > 0) {
          queryBuilder.andWhere('(hb.isPublic = :isPublic OR hb.id IN (:...userInstalledIds))', { 
             isPublic: true, 
             userInstalledIds: userInstalledIds 
@@ -59,11 +64,11 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     // Sobrescreve e adiciona com o conteúdo homebrew
     allRelevantHomebrew.forEach(hb => {
         const content = hb.content as any;
-        const officialIndex = content.official_index || null;
-        const finalIndex = officialIndex || hb.id;
+        // Usa o official_index para sobrescrever, ou o ID do homebrew para conteúdo novo
+        const finalIndex = content.official_index ? norm(content.official_index) : hb.id;
         
         finalMap.set(finalIndex, { 
-            index: hb.id, // Usa sempre o ID do homebrew para a URL de detalhe
+            index: hb.id, // A URL do item sempre usará o ID do homebrew
             name: content.name, 
             url: `/api/data/${normalizedResource}/${hb.id}`, 
             source: 'homebrew' 
@@ -90,7 +95,8 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     if (isUuid) {
         homebrewOverride = await homebrewRepo.findOneBy({ id: normalizedIndex });
     } else if (userId) {
-        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId } });
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo.findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
         const installedIds = user?.installedHomebrewIds || [];
 
         if (installedIds.length > 0) {
@@ -109,23 +115,23 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
         return homebrewOverride.content;
     }
     
-    if (isUuid) {
+    if (isUuid && !homebrewOverride) {
         throw new Error('Conteúdo Homebrew não encontrado.');
     }
 
     // Se não há override, busca o conteúdo oficial da API ou do cache.
     const cacheKey = `dnd5e-details:${normalizedResource}:${normalizedIndex}`;
-    const cachedOfficial = redisClient && redisClient.isOpen ? await redisClient.get(cacheKey) : null;
     
-    let officialData: any;
-    if (cachedOfficial) {
-        officialData = JSON.parse(cachedOfficial);
-    } else {
-        officialData = await fetchDetails(normalizedResource, normalizedIndex);
-        if (officialData && redisClient && redisClient.isOpen) {
-             // Salva no cache sem tempo de expiração.
-            await redisClient.set(cacheKey, JSON.stringify(officialData));
+    if (redisClient && redisClient.isOpen) {
+        const cachedOfficial = await redisClient.get(cacheKey);
+        if (cachedOfficial) {
+            return JSON.parse(cachedOfficial);
         }
+    }
+    
+    const officialData = await fetchDetails(normalizedResource, normalizedIndex);
+    if (officialData && redisClient && redisClient.isOpen) {
+        await redisClient.set(cacheKey, JSON.stringify(officialData));
     }
 
     if (!officialData) {
