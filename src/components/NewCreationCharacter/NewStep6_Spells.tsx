@@ -44,23 +44,11 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     const allChosenSpellIndices = new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()]);
 
-    if (loadingStates.spells) {
+    if (loadingStates.isLoading) {
         return (
             <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                {loadingStates.spellsLoadingProgress ? (
-                    <div className="w-full max-w-sm mt-4">
-                        <p className="text-center text-sm mb-2">{loadingStates.spellsLoadingProgress.text}</p>
-                        <div className="w-full bg-stone-700 rounded-full h-2.5">
-                            <div 
-                                className="bg-amber-600 h-2.5 rounded-full transition-all duration-300" 
-                                style={{ width: `${loadingStates.spellsLoadingProgress.progress}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                ) : (
-                    <p className="mt-4">Consultando tomos arcanos...</p>
-                )}
+                <p className="mt-4">Carregando...</p>
             </div>
         );
     }

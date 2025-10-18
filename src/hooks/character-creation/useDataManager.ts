@@ -18,36 +18,31 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
     const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
 
-    // Loading States
-    const [isLoading, setIsLoading] = useState({
-        race: false,
-        class: false,
-        background: false,
-        feats: false,
-        traits: false,
-        spells: false,
-        equipment: false,
+    // Unified Loading State
+    const [loadingStates, setLoadingStates] = useState({
+        isLoading: false,
+        message: '',
+        progress: 0,
     });
-    const [spellsLoadingProgress, setSpellsLoadingProgress] = useState<{ progress: number; text: string } | null>(null);
-
 
     // Fetch All Equipment (once)
     useEffect(() => {
         const fetchAllEquipment = async () => {
-            setIsLoading(prev => ({ ...prev, equipment: true }));
+            setLoadingStates({ isLoading: true, message: 'Carregando Arsenal...', progress: 0 });
             try {
-                // O DndApiService já busca da nossa API unificada, que deve conter homebrew
                 const equipmentList = await DndApiService.getEquipment();
                 const equipmentDetails = await fetchDetailsInChunks(
                     equipmentList?.results || [],
                     DndApiService.getEquipmentDetails,
-                    () => {}
+                    (loaded, total, progress) => {
+                         setLoadingStates(prev => ({ ...prev, message: `Carregando Equipamentos ${loaded} de ${total}...`, progress }));
+                    }
                 );
                 setAllEquipment(equipmentDetails.filter(Boolean) as InventoryItem[]);
             } catch (error) {
                 console.error("Failed to fetch all equipment:", error);
             } finally {
-                setIsLoading(prev => ({ ...prev, equipment: false }));
+                setLoadingStates({ isLoading: false, message: '', progress: 0 });
             }
         };
         fetchAllEquipment();
@@ -60,7 +55,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             return;
         }
         const fetchRace = async () => {
-            setIsLoading(prev => ({ ...prev, race: true }));
+            setLoadingStates({ isLoading: true, message: 'Buscando linhagens...', progress: 50 });
             const details = await DndApiService.getRaceDetails(race);
             setRaceDetails(details);
             if (race === 'dragonborn') {
@@ -71,7 +66,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             } else {
                 setDraconicAncestryOptions([]);
             }
-            setIsLoading(prev => ({ ...prev, race: false }));
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchRace();
     }, [race]);
@@ -83,9 +78,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             return;
         }
         const fetchSubrace = async () => {
-            setIsLoading(prev => ({ ...prev, race: true }));
+            setLoadingStates({ isLoading: true, message: 'Consultando sub-raças...', progress: 50 });
             setSubraceDetails(await DndApiService.getSubraceDetails(subrace));
-            setIsLoading(prev => ({ ...prev, race: false }));
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchSubrace();
     }, [subrace]);
@@ -100,7 +95,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             return;
         }
         const fetchClass = async () => {
-            setIsLoading(prev => ({ ...prev, class: true, spells: true }));
+            setLoadingStates({ isLoading: true, message: 'Estudando as artes...', progress: 0 });
             const [details, levels] = await Promise.all([
                 DndApiService.getClassDetails(characterClass),
                 DndApiService.getClassLevels(characterClass)
@@ -109,13 +104,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setClassLevels(levels);
 
             if (details?.spellcasting) {
-                setSpellsLoadingProgress({ progress: 0, text: 'Carregando magias...' });
                 const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
                 if (spellsResponse?.results) {
                     const spellDetails = await fetchDetailsInChunks(
                         spellsResponse.results, 
                         DndApiService.getSpellDetails, 
-                        (loaded, total, progress) => setSpellsLoadingProgress({ progress, text: `Carregando magias ${loaded} de ${total}...` })
+                        (loaded, total, progress) => setLoadingStates({ isLoading: true, message: `Carregando Magias ${loaded} de ${total}...`, progress })
                     );
                     setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1));
                 }
@@ -132,8 +126,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                 }
             }
             
-            setIsLoading(prev => ({ ...prev, class: false, spells: false }));
-            setSpellsLoadingProgress(null);
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchClass();
     }, [characterClass]);
@@ -145,9 +138,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             return;
         }
         const fetchBackground = async () => {
-            setIsLoading(prev => ({ ...prev, background: true }));
+            setLoadingStates({ isLoading: true, message: 'Relembrando o passado...', progress: 50 });
             setBackgroundDetails(await DndApiService.getBackgroundDetails(background));
-            setIsLoading(prev => ({ ...prev, background: false }));
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchBackground();
     }, [background]);
@@ -159,23 +152,27 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                 setTraitChoiceDetails([]);
                 return;
             }
-            setIsLoading(prev => ({ ...prev, traits: true }));
+            setLoadingStates({ isLoading: true, message: 'Analisando traços...', progress: 0 });
             const allTraitList = [...(raceDetails.traits || []), ...(subraceDetails?.racial_traits || [])].filter(Boolean);
-            const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, () => {});
+            const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(allTraitList, DndApiService.getTraitDetails, (l, t, p) => {
+                setLoadingStates({ isLoading: true, message: `Analisando Traços ${l} de ${t}...`, progress: p });
+            });
             setTraitChoiceDetails(traitDetails.filter(Boolean));
-            setIsLoading(prev => ({ ...prev, traits: false }));
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
         };
         fetchRacialTraits();
     }, [raceDetails, subraceDetails]);
 
     const fetchFeats = async () => {
-        setIsLoading(prev => ({...prev, feats: true}));
+        setLoadingStates({ isLoading: true, message: 'Procurando talentos...', progress: 0 });
         const featsList = await DndApiService.getFeats();
         if (featsList?.results) {
-            const featDetails = await fetchDetailsInChunks(featsList.results, DndApiService.getFeatDetails, () => {});
+            const featDetails = await fetchDetailsInChunks(featsList.results, DndApiService.getFeatDetails, (l, t, p) => {
+                 setLoadingStates({ isLoading: true, message: `Carregando Talentos ${l} de ${t}...`, progress: p });
+            });
             setAvailableFeats(featDetails as Feat[]);
         }
-        setIsLoading(prev => ({...prev, feats: false}));
+        setLoadingStates({ isLoading: false, message: '', progress: 0 });
     };
 
     return {
@@ -192,10 +189,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             subclassSpells,
         },
         allEquipment,
-        loadingStates: {
-            ...isLoading,
-            spellsLoadingProgress,
-        },
+        loadingStates: loadingStates,
         fetchFeats,
     };
 };

@@ -20,11 +20,11 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     // Determine the current selection for this specific sub-choice
     const currentSubSelection = equipmentSelections[group.id]?.sub?.[subChoiceIndex];
 
-    if (subChoiceItem.option_type !== 'choice' || (!subChoiceItem.choice?.from?.equipment_category && !subChoiceItem.choice.from?.equipment_category_url)) {
+    if (subChoiceItem.option_type !== 'choice' || !subChoiceItem.choice?.from?.equipment_category) {
         return null;
     }
-
-    const categoryIndex = subChoiceItem.choice.from.equipment_category?.index || subChoiceItem.choice.from.equipment_category_url?.split('/').pop();
+    
+    const categoryIndex = subChoiceItem.choice.from.equipment_category.index;
 
     if (!categoryIndex) {
         return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida para {getOptionLabel(subChoiceItem)}.</p>;
@@ -32,6 +32,7 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
 
     const subOptions = (allEquipment || []).filter(item => {
         if (!item) return false;
+        
         const itemCategory = item.equipment_category?.index;
         const itemGearCategory = (item as any).gear_category?.index;
 
@@ -47,7 +48,10 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
                 return item.weapon_category === 'Simple';
             case 'martial-weapons':
                 return item.weapon_category === 'Martial';
-            // Add more complex category checks here if needed
+            case 'arcane-foci':
+            case 'druidic-foci':
+            case 'holy-symbols':
+                 return itemGearCategory === categoryIndex;
             default:
                 return false;
         }
@@ -65,7 +69,7 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
         });
     };
 
-    if (hook.loadingStates.equipment) {
+    if (hook.loadingStates.isLoading) {
         return <Loader2 className="animate-spin text-stone-400 mt-2" />;
     }
 
@@ -91,7 +95,7 @@ interface EquipmentChoiceProps {
 }
 
 const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
-    const { equipmentSelections, setField } = hook;
+    const { equipmentSelections, setField, allEquipment } = hook;
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const mainOptions = group.choice.from.options || [];
 
@@ -120,16 +124,21 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
 
             {selectedMainOption && selectedMainOption.option_type === 'multiple' && (
                 <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
-                    {selectedMainOption.items.map((subItem: ApiEquipmentOption, index: number) => (
-                        <SubChoiceSelector
-                            key={index}
-                            group={group}
-                            mainSelectionIndex={mainSelectionIndex!}
-                            subChoiceIndex={index}
-                            subChoiceItem={subItem}
-                            hook={hook}
-                        />
-                    ))}
+                    {selectedMainOption.items.map((subItem: ApiEquipmentOption, index: number) => {
+                        if (subItem.option_type === 'counted_reference') {
+                            return null; // This is now handled by the fixed equipment logic
+                        }
+                        return (
+                            <SubChoiceSelector
+                                key={index}
+                                group={group}
+                                mainSelectionIndex={mainSelectionIndex!}
+                                subChoiceIndex={index}
+                                subChoiceItem={subItem}
+                                hook={hook}
+                            />
+                        )
+                    })}
                 </div>
             )}
              {selectedMainOption && selectedMainOption.option_type === 'choice' && (
@@ -175,7 +184,7 @@ const NewStep5_Equipment: React.FC<{
             </div>
              <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
 
-            {loadingStates.class || loadingStates.background || loadingStates.equipment ? (
+            {loadingStates.isLoading ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                     <Loader2 className="h-12 w-12 animate-spin" />
                     <p className="mt-4">Carregando opções de equipamento...</p>
@@ -217,7 +226,7 @@ const NewStep5_Equipment: React.FC<{
                     <ArrowLeft className="h-6 w-6 mr-3" />
                     Voltar
                 </button>
-                <button type="button" onClick={nextStep} disabled={!areAllEquipmentChoicesMade || loadingStates.class} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="button" onClick={nextStep} disabled={!areAllEquipmentChoicesMade || loadingStates.isLoading} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
                     {areAllEquipmentChoicesMade ? 'Avançar' : 'Faça suas escolhas'}
                     <ArrowRight className="h-6 w-6 ml-3" />
                 </button>

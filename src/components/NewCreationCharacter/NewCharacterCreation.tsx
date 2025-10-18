@@ -87,7 +87,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             case 3:
                 return <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />;
             case 4:
-                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} allLanguages={allLanguages} />;
+                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 5:
                 return <NewStep5_Equipment hook={hook} prevStep={prevStep} nextStep={nextStep} />;
             case 6:
@@ -101,11 +101,21 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         }
     };
     
-    if (hook.loadingStates.class || hook.loadingStates.race || hook.loadingStates.background || hook.loadingStates.equipment) {
+    if (hook.loadingStates.isLoading) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando dados...</p>
+                {hook.loadingStates.message && (
+                     <div className="w-full max-w-sm mt-4">
+                        <p className="text-center text-sm mb-2">{hook.loadingStates.message}</p>
+                        <div className="w-full bg-stone-700 rounded-full h-2.5">
+                            <div 
+                                className="bg-amber-600 h-2.5 rounded-full transition-all duration-300" 
+                                style={{ width: `${hook.loadingStates.progress}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                )}
             </div>
         );
     }

@@ -14,8 +14,8 @@ export const fetchDetailsInChunks = async <T extends { index: string }, U>(
     items: T[],
     detailFetcher: (index: string) => Promise<U | null>,
     onProgress: (loaded: number, total: number, progress: number) => void,
-    chunkSize: number = 5,
-    delay: number = 200
+    chunkSize: number = 10,
+    delay: number = 100
 ): Promise<U[]> => {
     const results: U[] = [];
     const totalItems = items.length;
