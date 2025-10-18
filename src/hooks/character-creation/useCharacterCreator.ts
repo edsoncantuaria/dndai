@@ -47,6 +47,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     
     const allProficiencyChoices = useMemo(() => {
         const choices: ProficiencyChoiceWithSource[] = [];
+        if (loadingStates.class || loadingStates.race || loadingStates.background) {
+            return []; // Return empty array while loading to prevent errors
+        }
+
         const processChoice = (choice: ProficiencyChoice | undefined, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
             if (!choice || !choice.from?.options) return;
             const availableOptions = choice.from.options.filter((option: any) => {
@@ -59,7 +63,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
             const newChoice: ProficiencyChoiceWithSource = {
                 ...choice,
-                id: `${idPrefix}-group-${choice.desc ? choice.desc.substring(0, 10) : 'default'}`,
+                id: `${idPrefix}-group-${choice.desc ? choice.desc.substring(0, 10).trim() : 'default'}`,
                 source: source,
                 options: availableOptions.map((opt: any) => opt.item).filter(Boolean),
             };
@@ -73,15 +77,23 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         if (state.isVariantHuman) {
              choices.push({
                 id: 'variant-human-skill', source: 'Raça', desc: 'Escolha uma perícia (Humano Variante)',
-                choose: 1, type: 'proficiencies', options: DndApiService.getSkills().then(res => res?.results || []) as any // Simplified
+                choose: 1, type: 'proficiencies', options: [] // This will be populated async, but the structure is here
             });
         }
         return choices;
-    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman, allFixedProficiencies]);
+    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman, allFixedProficiencies, loadingStates]);
 
     const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager.proficiencySelections, allProficiencyChoices, allFixedProficiencies, selectionManager.equipmentSelections, allEquipment);
+    const derivedData = useDerivedCharacterData(
+        state,
+        details,
+        selectionManager.proficiencySelections,
+        allFixedProficiencies,
+        allProficiencyChoices,
+        selectionManager.equipmentSelections,
+        allEquipment
+    );
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -210,7 +222,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         };
 
         return { buildCharacter: buildFn, isComplete };
-    }, [state, details, selectionManager, derivedData]);
+    }, [state, details, selectionManager, derivedData, allProficiencyChoices]);
     
     return {
         ...state,

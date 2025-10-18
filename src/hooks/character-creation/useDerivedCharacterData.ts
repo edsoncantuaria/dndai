@@ -14,27 +14,14 @@ export const useDerivedCharacterData = (
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
     },
-    allProficiencyChoices: any[],
-    proficiencySelections?: Record<string, string[]>,
+    proficiencySelections: Record<string, string[]>,
+    allFixedProficiencies: Map<string, Proficiency>,
+    allProficiencyChoices: any[], // Passed in for final calculation
     equipmentSelections?: Record<string, { main?: number, sub?: number }>,
     allEquipment?: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
-
-    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
-        const profs = new Map<string, Proficiency>();
-        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => profs.set(p.index, { ...p }));
-        
-        if (!state.isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
-        addProfs(details.subraceDetails?.starting_proficiencies);
-        addProfs(classDetails?.proficiencies);
-        addProfs(backgroundDetails?.starting_proficiencies);
-        (classDetails?.saving_throws || []).forEach(st => profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
-
-        return profs;
-    }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
-
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -89,7 +76,7 @@ export const useDerivedCharacterData = (
         Object.values(proficiencySelections || {}).flat().forEach(profIndex => {
             if (!profsMap.has(profIndex)) {
                 // Find the full proficiency object from all possible choices
-                const choice = allProficiencyChoices.flatMap(c => c.options).find(o => o.index === profIndex);
+                const choice = (allProficiencyChoices || []).flatMap(c => c.options).find(o => o.index === profIndex);
                 if (choice) {
                     profsMap.set(profIndex, choice as Proficiency);
                 }
@@ -164,7 +151,6 @@ export const useDerivedCharacterData = (
         racialBonuses,
         finalAttributes,
         finalProficiencies,
-        allFixedProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
         finalizedEquipment,
