@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
@@ -32,6 +32,7 @@ const GameContainer = () => {
 
     const { useAiHomebrew } = useSettingsContext();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
+    const { logout } = useAuth(); // Obter a função de logout
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -308,6 +309,13 @@ const GameContainer = () => {
                         title="Testes do Sistema"
                     >
                         <Beaker className="h-5 w-5"/> Testes
+                    </button>
+                     <button 
+                        onClick={logout} 
+                        className="p-3 text-stone-400 hover:text-red-400 transition-colors flex items-center gap-2 text-sm"
+                        title="Sair da Conta"
+                    >
+                        <LogOut className="h-5 w-5"/> Sair
                     </button>
                 </footer>
             </div>
