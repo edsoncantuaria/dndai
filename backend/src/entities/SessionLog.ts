@@ -8,8 +8,8 @@ import { SessaoIA } from "./SessaoIA.js";
  */
 @Entity('session_logs')
 export class SessionLog {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+    @PrimaryGeneratedColumn('increment')
+    id: number;
 
     @Column({ type: 'int' })
     sessaoId: number;
