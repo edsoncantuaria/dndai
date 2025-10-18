@@ -39,22 +39,6 @@ export const getResourceList = async (resource: string): Promise<ListResponse> =
   return normalizeList(res);
 };
 
-// Atalhos específicos (apenas para clareza e autocomplete)
-export const getRaces = () => getResourceList('races');
-export const getClasses = () => getResourceList('classes');
-export const getBackgrounds = () => getResourceList('backgrounds');
-export const getFeats = () => getResourceList('feats');
-export const getTraits = () => getResourceList('traits');
-export const getEquipment = () => getResourceList('equipment');
-export const getLanguages = () => getResourceList('languages');
-export const getConditions = () => getResourceList('conditions');
-export const getAlignments = () => getResourceList('alignments');
-export const getSkills = () => getResourceList('skills');
-export const getSubclasses = () => getResourceList('subclasses');
-export const getSpells = () => getResourceList('spells');
-export const getDamageTypes = () => getResourceList('damage-types');
-export const getMagicSchools = () => getResourceList('magic-schools');
-
 /**
  * -------------------------------
  * 🔹 Funções de Detalhes (Detail endpoints)
@@ -72,17 +56,38 @@ export const getResourceDetails = async <T = any>(resource: string, index: strin
   }
 };
 
-// Atalhos específicos
+// --- ALIASES DE COMPATIBILIDADE ---
+// Mantém os hooks antigos funcionando até que sejam refatorados.
+
+export const getRaces = () => getResourceList('races');
+export const getClasses = () => getResourceList('classes');
+export const getSubraces = () => getResourceList('subraces');
+export const getBackgrounds = () => getResourceList('backgrounds');
+export const getAlignments = () => getResourceList('alignments');
+export const getLanguages = () => getResourceList('languages');
+export const getFeats = () => getResourceList('feats');
+export const getTraits = () => getResourceList('traits');
+export const getEquipment = () => getResourceList('equipment');
+export const getSkills = () => getResourceList('skills');
+export const getSpells = () => getResourceList('spells');
+export const getDamageTypes = () => getResourceList('damage-types');
+export const getMagicSchools = () => getResourceList('magic-schools');
+export const getConditions = () => getResourceList('conditions');
+export const getEquipmentCategories = () => getResourceList('equipment-categories');
+
 export const getRaceDetails = (index: string) => getResourceDetails<ApiRace>('races', index);
+export const getSubraceDetails = (index: string) => getResourceDetails<ApiSubrace>('subraces', index);
 export const getClassDetails = (index: string) => getResourceDetails<ApiClass>('classes', index);
 export const getBackgroundDetails = (index: string) => getResourceDetails<ApiBackground>('backgrounds', index);
-export const getFeatDetails = (index: string) => getResourceDetails<Feat>('feats', index);
-export const getTraitDetails = (index: string) => getResourceDetails<ApiTrait>('traits', index);
 export const getSpellDetails = (index: string) => getResourceDetails<ApiSpell>('spells', index);
 export const getEquipmentDetails = (index: string) => getResourceDetails<InventoryItem>('equipment', index);
+export const getFeatDetails = (index: string) => getResourceDetails<Feat>('feats', index);
+export const getTraitDetails = (index: string) => getResourceDetails<ApiTrait>('traits', index);
 export const getConditionDetails = (index: string) => getResourceDetails<ApiCondition>('conditions', index);
-export const getSubclassDetails = (index: string) => getResourceDetails<ApiSubclass>('subclasses', index);
 export const getFeatureDetails = (index: string) => getResourceDetails<ApiFeature>('features', index);
+export const getSubclassDetails = (index: string) => getResourceDetails<ApiSubclass>('subclasses', index);
+export const getSkillDetails = (index: string) => getResourceDetails('skills', index);
+
 
 // Funções para rotas aninhadas
 export const getClassLevels = (classIndex: string) => getResourceDetails<ApiClassLevel[]>(`classes/${classIndex}`, 'levels');
