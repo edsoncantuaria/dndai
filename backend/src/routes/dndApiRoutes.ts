@@ -33,8 +33,17 @@ router.get('/:resource', async (req, res, next) => {
         const publicHomebrewPromise = HomebrewService.getPublicHomebrewContent(resource, 'user'); // Apenas user, AI será tratada separadamente
         const userHomebrewPromise = HomebrewService.getHomebrewContentByAuthor(userId, resource);
         const aiContentPromise = HomebrewService.getPublicHomebrewContent(resource, 'ai'); // Conteúdo da IA é sempre parte da base
+        
+        // Adicionado para buscar traduções de admin
+        const adminTranslationsPromise = HomebrewService.getAdminTranslations(resource);
 
-        const [apiData, publicHomebrew, userHomebrew, aiContent] = await Promise.all([apiPromise, publicHomebrewPromise, userHomebrewPromise, aiContentPromise]);
+        const [apiData, publicHomebrew, userHomebrew, aiContent, adminTranslations] = await Promise.all([
+            apiPromise, 
+            publicHomebrewPromise, 
+            userHomebrewPromise, 
+            aiContentPromise,
+            adminTranslationsPromise
+        ]);
         
         const finalResultsMap = new Map<string, { index: string, name: string, url: string }>();
 
@@ -42,8 +51,19 @@ router.get('/:resource', async (req, res, next) => {
         (apiData?.results || []).forEach(item => {
             finalResultsMap.set(item.index, item);
         });
+
+        // 2. Sobrescreve com as traduções do admin
+        adminTranslations.forEach(translation => {
+            const officialIndex = translation.content.official_index;
+            if (officialIndex && finalResultsMap.has(officialIndex)) {
+                finalResultsMap.set(officialIndex, {
+                    ...finalResultsMap.get(officialIndex)!,
+                    name: translation.name, // Usa o nome da tradução
+                });
+            }
+        });
         
-        // 2. Adiciona TODO o conteúdo da IA, tratando-o como parte da base
+        // 3. Adiciona TODO o conteúdo da IA, tratando-o como parte da base
         aiContent.forEach(aiItem => {
              const displayName = `(IA) ${aiItem.name}`;
              finalResultsMap.set(aiItem.content.index || aiItem.id, {
@@ -53,10 +73,10 @@ router.get('/:resource', async (req, res, next) => {
              });
         });
 
-        // 3. Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
+        // 4. Combina conteúdo público e do usuário, garantindo que o do usuário tenha precedência
         const allInstallableHomebrew = [...userHomebrew, ...publicHomebrew.filter(phb => !userHomebrew.some(uhb => uhb.id === phb.id))];
 
-        // 4. Adiciona homebrew instalado (que não seja da IA), que pode sobrescrever o oficial ou ser novo
+        // 5. Adiciona homebrew instalado (que não seja da IA), que pode sobrescrever o oficial ou ser novo
         const installedHomebrew = allInstallableHomebrew.filter(hb => installedIds.has(hb.id));
 
         installedHomebrew.forEach(hb => {
@@ -103,14 +123,21 @@ router.get('/:resource/:index', async (req, res, next) => {
              return res.json(hbContent.content);
         }
 
-        const homebrewOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType);
+        const adminTranslation = await HomebrewService.findAdminTranslation(index, resource as HomebrewContentType);
+        
+        const officialData = await DndApiService.getDetails(resource, index);
+
+        if (adminTranslation) {
+             const mergedData = { ...(officialData || {}), ...adminTranslation.content, name: adminTranslation.name };
+             return res.json(mergedData);
+        }
+
+        const homebrewOverride = await HomebrewService.findHomebrewByOfficialIndex(index, resource as HomebrewContentType, userId);
         if (homebrewOverride) {
-            const officialData = await DndApiService.getDetails(resource, index);
             const mergedData = { ...(officialData || {}), ...homebrewOverride.content, name: homebrewOverride.name, desc: homebrewOverride.content.desc || officialData?.desc };
             return res.json(mergedData);
         }
         
-        const officialData = await DndApiService.getDetails(resource, index);
         if (!officialData) return next(createError(404, `Detalhes para '${index}' em '${resource}' não encontrados.`));
         return res.json(officialData);
 

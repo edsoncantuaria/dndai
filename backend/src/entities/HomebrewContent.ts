@@ -3,7 +3,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { User } from './User.js';
 import { HomebrewBundle } from './HomebrewBundle.js'; // Importar Bundle
 
-export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
+export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat' | 'skill';
 
 @Entity('homebrew_content')
 export class HomebrewContent {
@@ -20,7 +20,7 @@ export class HomebrewContent {
     @Index()
     @Column({
         type: 'enum',
-        enum: ['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'],
+        enum: ['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill'],
     })
     type: HomebrewContentType;
 

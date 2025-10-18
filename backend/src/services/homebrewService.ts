@@ -50,13 +50,14 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
     if (!contentToUpdate) {
         throw createError(404, 'Conteúdo Homebrew não encontrado.');
     }
-    if (contentToUpdate.authorId !== authorId) {
+    // Admin (ID 1) pode editar qualquer coisa.
+    if (contentToUpdate.authorId !== authorId && authorId !== 1) {
         throw createError(403, 'Você não tem permissão para editar este conteúdo.');
     }
-    if (contentToUpdate.createdBy === 'ai') {
+    if (contentToUpdate.createdBy === 'ai' && authorId !== 1) {
         throw createError(403, 'Conteúdo gerado pela IA não pode ser editado.');
     }
-    if (contentToUpdate.bundleId) {
+    if (contentToUpdate.bundleId && authorId !== 1) {
         throw createError(409, 'Este conteúdo não pode ser editado pois pertence a um pacote. Remova-o do pacote para editar.');
     }
 
@@ -136,15 +137,44 @@ export const getMultipleHomebrewContentByIds = async (contentIds: string[], type
     return homebrewRepo.find({ where: whereCondition });
 };
 
-export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+export const findHomebrewByOfficialIndex = async (officialIndex: string, type: HomebrewContentType, userId: number): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const user = await AppDataSource.getRepository(User).findOneBy({id: userId});
+    if (!user) return null;
+
+    const installedIds = user.installedHomebrewIds || [];
+
+    if (installedIds.length === 0) return null;
+
     return homebrewRepo
         .createQueryBuilder("hb")
         .where("hb.type = :type", { type })
         .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
-        .andWhere("hb.isPublic = true")
+        .andWhere("hb.id IN (:...installedIds)", { installedIds })
         .getOne();
 };
+
+export const findAdminTranslation = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    return homebrewRepo
+        .createQueryBuilder("hb")
+        .where("hb.type = :type", { type })
+        .andWhere("hb.authorId = 1") // Apenas do admin
+        .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndex })
+        .getOne();
+}
+
+export const getAdminTranslations = async (type: HomebrewContentType): Promise<HomebrewContent[]> => {
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    return homebrewRepo.find({
+        where: {
+            authorId: 1, // Admin user ID
+            type: type,
+            content: Like('%"official_index"%'), // Garante que o campo existe
+        },
+    });
+};
+
 
 export const getHomebrewDependencies = async (contentId: string, visited = new Set<string>()): Promise<HomebrewContent[]> => {
     if (visited.has(contentId)) return [];
