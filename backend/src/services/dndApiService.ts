@@ -4,7 +4,6 @@ import fetch from 'node-fetch';
 import 'dotenv/config';
 
 const API_BASE = 'https://www.dnd5eapi.co/api';
-const CACHE_TTL_SECONDS = 24 * 60 * 60; // Cache de 24 horas para dados da API externa
 
 async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
     const safeEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -14,33 +13,36 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         try {
             const cachedData = await redisClient.get(cacheKey);
             if (cachedData) {
+                // console.log(`[dndApiService-Cache] HIT: Carregando do cache: ${cacheKey}`);
                 return JSON.parse(cachedData) as T;
             }
         } catch (error) {
-            console.error(`[Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
+            console.error(`[dndApiService-Cache] Erro ao buscar do Redis para ${cacheKey}:`, error);
         }
     }
     
+    // console.log(`[dndApiService-API] MISS: Buscando da API externa: ${safeEndpoint}`);
     const fullApiUrl = `${API_BASE}${safeEndpoint}`;
     try {
         const response = await fetch(fullApiUrl);
         if (!response.ok) {
-            console.error(`[API Fetch] Erro ${response.status} para o endpoint ${safeEndpoint}.`);
+            console.error(`[dndApiService-API] Erro ${response.status} para o endpoint ${safeEndpoint}.`);
             return null;
         }
         const data = await response.json();
 
         if (redisClient && redisClient.isOpen) {
             try {
-                await redisClient.set(cacheKey, JSON.stringify(data), { EX: CACHE_TTL_SECONDS });
+                // console.log(`[dndApiService-Cache] SET: Salvando no cache: ${cacheKey}`);
+                await redisClient.set(cacheKey, JSON.stringify(data)); // Persistente
             } catch (error) {
-                 console.error(`[Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
+                 console.error(`[dndApiService-Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
             }
         }
 
         return data as T;
     } catch (error) {
-        console.error(`[API Fetch] Erro de fetch para o endpoint ${safeEndpoint}:`, error);
+        console.error(`[dndApiService-API] Erro de fetch para o endpoint ${safeEndpoint}:`, error);
         return null;
     }
 }
@@ -52,7 +54,3 @@ export const getResourceList = (resource: string) => {
 export const getDetails = (resource: string, index: string) => {
      return fetchWithCache<any>(`/${resource}/${index}`);
 }
-
-export const getEquipmentDetails = (index: string) => {
-    return fetchWithCache<any>(`/equipment/${index}`);
-};

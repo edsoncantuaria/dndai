@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { getUnifiedList, getUnifiedDetails } from '../services/unifiedDataService.js';
 import { authOptional } from '../middlewares/authOptional.js';
 import type { Request } from 'express';
+import * as DndApiService from '../services/dndApiService.js';
 
 // Estendendo a interface Request para incluir a propriedade opcional 'user'
 interface OptionalAuthRequest extends Request {
@@ -15,15 +16,16 @@ const router = Router();
 router.get('/:resource', authOptional, async (req: OptionalAuthRequest, res, next) => {
     const { resource } = req.params;
     const userId = req.user?.id;
+    console.log(`[Router] Rota de lista unificada para /${resource} acionada para userId: ${userId}`);
 
     try {
         const data = await getUnifiedList(resource, userId);
-        // Retorna a lista no formato { count, results } para manter a compatibilidade com a API original.
         res.json({
             count: data.length,
             results: data
         });
     } catch (error) {
+        console.error(`[Router] Erro em /data/${resource}:`, error);
         next(error);
     }
 });
@@ -32,6 +34,7 @@ router.get('/:resource', authOptional, async (req: OptionalAuthRequest, res, nex
 router.get('/:resource/:index', authOptional, async (req: OptionalAuthRequest, res, next) => {
     const { resource, index } = req.params;
     const userId = req.user?.id;
+    console.log(`[Router] Rota de detalhes unificados para /${resource}/${index} acionada para userId: ${userId}`);
 
     try {
         const data = await getUnifiedDetails(resource, index, userId);
@@ -40,6 +43,7 @@ router.get('/:resource/:index', authOptional, async (req: OptionalAuthRequest, r
         }
         res.json(data);
     } catch (error) {
+        console.error(`[Router] Erro em /data/${resource}/${index}:`, error);
         next(error);
     }
 });
@@ -48,20 +52,22 @@ router.get('/:resource/:index', authOptional, async (req: OptionalAuthRequest, r
 router.get('/:resource/:index/:special', authOptional, async (req: OptionalAuthRequest, res, next) => {
     const { resource, index, special } = req.params;
     const userId = req.user?.id;
+    console.log(`[Router] Rota especial para /${resource}/${index}/${special} acionada para userId: ${userId}`);
     
     // Rota específica para /classes/{index}/levels e /subclasses/{index}/levels
     if ((resource === 'classes' || resource === 'subclasses') && special === 'levels') {
         try {
             // Este serviço já faz chamadas para a API externa (com cache),
-            // então não precisa da lógica de unificação complexa.
-            const data = await DndApiService.getSpecialDetails(resource, index, special, userId);
+            // então não precisa da lógica de unificação complexa por enquanto.
+            // Futuramente, poderíamos mesclar features de homebrew aqui.
+            const data = await DndApiService.getDetails(resource, `${index}/${special}`);
             res.json(data);
         } catch (error) {
             next(error);
         }
     } else if(resource === 'classes' && special === 'spells') {
          try {
-            const data = await DndApiService.getSpecialDetails(resource, index, special, userId);
+            const data = await DndApiService.getDetails(resource, `${index}/${special}`);
             res.json(data);
         } catch (error) {
             next(error);
@@ -73,8 +79,5 @@ router.get('/:resource/:index/:special', authOptional, async (req: OptionalAuthR
     }
 });
 
-
-// Importação necessária para a rota especial de níveis
-import * as DndApiService from '../services/dndApiService.js';
 
 export default router;

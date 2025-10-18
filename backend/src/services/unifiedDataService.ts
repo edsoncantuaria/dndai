@@ -1,10 +1,11 @@
 // backend/src/services/unifiedDataService.ts
 import redisClient from '../database/redis-client.js';
 import { AppDataSource } from '../database/data-source.js';
-import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewContent.js';
+import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { getResourceList as fetchResourceList, getDetails as fetchDetails } from './dndApiService.js';
 import { User } from '../entities/User.js';
-import { In } from 'typeorm';
+import { In, Not } from 'typeorm';
+
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim().replace(/\s+/g, '-');
 
@@ -13,19 +14,27 @@ const norm = (s?: string) => (s ?? '').toLowerCase().trim().replace(/\s+/g, '-')
  */
 export async function getUnifiedList(resource: string, userId?: number): Promise<any[]> {
     const normalizedResource = norm(resource);
-    const publicCacheKey = `dnd5e:${normalizedResource}:list`;
-    
+    console.log(`[UnifiedService] Iniciando getUnifiedList para resource: '${normalizedResource}', userId: ${userId}`);
+
     // 1. Busca a lista de base oficial da API (ou do cache compartilhado).
+    const publicCacheKey = `dnd5e:${normalizedResource}:list`;
     let officialList: { index: string; name: string; url: string }[] = [];
-    const cachedPublicList = redisClient && redisClient.isOpen ? await redisClient.get(publicCacheKey) : null;
     
-    if (cachedPublicList) {
-        officialList = JSON.parse(cachedPublicList);
-    } else {
+    if (redisClient && redisClient.isOpen) {
+        const cachedPublicList = await redisClient.get(publicCacheKey);
+        if (cachedPublicList) {
+            console.log(`[UnifiedService] Cache HIT para lista pública: '${publicCacheKey}'`);
+            officialList = JSON.parse(cachedPublicList);
+        }
+    }
+    
+    if (officialList.length === 0) {
+        console.log(`[UnifiedService] Cache MISS para lista pública: '${publicCacheKey}'. Buscando da API externa...`);
         const apiResponse = await fetchResourceList(normalizedResource);
         officialList = apiResponse?.results || [];
         if (redisClient && redisClient.isOpen && officialList.length > 0) {
-            await redisClient.set(publicCacheKey, JSON.stringify(officialList));
+            console.log(`[UnifiedService] Salvando lista pública no cache: '${publicCacheKey}'`);
+            await redisClient.set(publicCacheKey, JSON.stringify(officialList)); // Persistente
         }
     }
     
@@ -34,45 +43,58 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
     const queryBuilder = homebrewRepo.createQueryBuilder('hb')
         .where('LOWER(hb.type) = :type', { type: normalizedResource });
 
+    let userInstalledIds: string[] = [];
     if (userId) {
-        const userRepo = AppDataSource.getRepository(User);
-        const user = await userRepo.findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
-        const userInstalledIds = user?.installedHomebrewIds || [];
-        
-        // A query agora busca conteúdo que seja público OU que esteja na lista de instalados do usuário.
-        queryBuilder.andWhere('(hb.isPublic = :isPublic OR hb.id IN (:...userInstalledIds))', { 
-            isPublic: true, 
-            userInstalledIds: userInstalledIds.length > 0 ? userInstalledIds : [''] // Previne erro de array vazio
-        });
-    } else {
-        // Se não há usuário, busca apenas o público
-        queryBuilder.andWhere('hb.isPublic = :isPublic', { isPublic: true });
+        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
+        userInstalledIds = user?.installedHomebrewIds || [];
+        console.log(`[UnifiedService] Encontrados ${userInstalledIds.length} IDs de homebrew instalados para o usuário ${userId}`);
+    }
+
+    // A query agora busca conteúdo que seja público OU que esteja na lista de instalados do usuário.
+    const whereClauses = ['hb.isPublic = :isPublic'];
+    const whereParams: any = { isPublic: true, type: normalizedResource };
+
+    if (userInstalledIds.length > 0) {
+        whereClauses.push('hb.id IN (:...userInstalledIds)');
+        whereParams.userInstalledIds = userInstalledIds;
     }
     
+    queryBuilder.where(`(${whereClauses.join(' OR ')}) AND LOWER(hb.type) = :type`, whereParams);
+
     const allRelevantHomebrew = await queryBuilder.getMany();
+    console.log(`[UnifiedService] Query de Homebrew retornou ${allRelevantHomebrew.length} itens (públicos + instalados pelo usuário).`);
     
     // 3. Mescla as listas, dando prioridade ao Homebrew.
+    console.log(`[UnifiedService] Mesclando ${officialList.length} itens oficiais com ${allRelevantHomebrew.length} itens homebrew.`);
     const finalMap = new Map<string, any>();
     
-    officialList.forEach(item => finalMap.set(norm(item.index), { ...item, source: 'official' }));
+    // Adiciona oficiais primeiro
+    officialList.forEach(item => {
+        if(item && item.index) {
+            finalMap.set(norm(item.index), { ...item, source: 'official', isHomebrew: false });
+        }
+    });
 
+    // Sobrescreve com homebrew
     allRelevantHomebrew.forEach(hb => {
         const content = hb.content as any;
-        // Se houver um `official_index`, use-o para sobrescrever. Caso contrário, use o ID do homebrew para adicionar como novo.
-        const finalIndex = content.official_index ? norm(content.official_index) : hb.id;
+        if (!content) return;
         
-        // Mantém o nome e a URL da API oficial se o homebrew for apenas uma tradução sem nome próprio.
-        const originalItem = finalMap.get(finalIndex);
+        const key = content.official_index ? norm(content.official_index) : hb.id;
         
-        finalMap.set(finalIndex, { 
-            index: hb.id,
-            name: content.name || originalItem?.name, 
+        finalMap.set(key, { 
+            index: hb.id, // O ID do frontend será sempre o do Homebrew para garantir a busca correta dos detalhes
+            name: content.name || finalMap.get(key)?.name, // Usa o nome do homebrew, ou fallback para o oficial se não houver
             url: `/api/data/${normalizedResource}/${hb.id}`, 
-            source: 'homebrew' 
+            source: 'homebrew',
+            isHomebrew: true,
         });
     });
 
-    return Array.from(finalMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    const mergedList = Array.from(finalMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    console.log(`[UnifiedService] Mesclagem concluída. Total de itens: ${mergedList.length}.`);
+
+    return mergedList;
 }
 
 
@@ -83,29 +105,43 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     const normalizedResource = norm(resource);
     const normalizedIndex = norm(index);
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    console.log(`[UnifiedService] Iniciando getUnifiedDetails para resource: '${normalizedResource}', index: '${normalizedIndex}', userId: ${userId}`);
 
     const isUuid = /^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(normalizedIndex);
 
     let homebrewOverride: HomebrewContent | null = null;
     let officialIndexToFetch = normalizedIndex;
 
-    // Se o ID for UUID, é definitivamente um homebrew.
     if (isUuid) {
+        console.log(`[UnifiedService] Index '${normalizedIndex}' é um UUID. Buscando diretamente como Homebrew.`);
         homebrewOverride = await homebrewRepo.findOneBy({ id: normalizedIndex });
         if (homebrewOverride) {
-            // Se o homebrew sobrescreve um item oficial, precisamos buscar o oficial também.
             const officialIndexFromContent = (homebrewOverride.content as any)?.official_index;
             if (officialIndexFromContent) {
                 officialIndexToFetch = norm(officialIndexFromContent);
+                console.log(`[UnifiedService] Homebrew encontrado. Ele sobrescreve o índice oficial: '${officialIndexToFetch}'.`);
             } else {
-                // É um item puramente homebrew, não há base oficial para buscar.
-                 if (!homebrewOverride.isPublic && homebrewOverride.authorId !== userId) {
+                console.log(`[UnifiedService] Homebrew puro encontrado. Retornando diretamente.`);
+                if (!homebrewOverride.isPublic && homebrewOverride.authorId !== userId) {
                     throw new Error('Acesso negado a este conteúdo privado.');
                 }
                 return homebrewOverride.content;
             }
         } else {
-            throw new Error('Conteúdo Homebrew não encontrado.');
+            throw new Error(`Conteúdo Homebrew com ID '${normalizedIndex}' não encontrado.`);
+        }
+    } else {
+        // Se não for UUID, busca por um homebrew que possa estar sobrescrevendo o índice oficial.
+        const user = userId ? await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] }) : null;
+        const installedIds = user?.installedHomebrewIds || [];
+
+        if (installedIds.length > 0) {
+            homebrewOverride = await homebrewRepo.createQueryBuilder("hb")
+                .where("LOWER(hb.type) = :type", { type: normalizedResource })
+                .andWhere("hb.id IN (:...installedIds)", { installedIds })
+                .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndexToFetch })
+                .getOne();
+             if(homebrewOverride) console.log(`[UnifiedService] Encontrado Homebrew instalado pelo usuário que sobrescreve o índice oficial '${officialIndexToFetch}'.`);
         }
     }
 
@@ -116,44 +152,34 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     if (redisClient && redisClient.isOpen) {
         const cachedOfficial = await redisClient.get(cacheKey);
         if (cachedOfficial) {
+            console.log(`[UnifiedService] Cache HIT para detalhes de '${cacheKey}'`);
             officialData = JSON.parse(cachedOfficial);
         }
     }
     
     if (!officialData) {
+        console.log(`[UnifiedService] Cache MISS para detalhes de '${cacheKey}'. Buscando da API externa...`);
         officialData = await fetchDetails(normalizedResource, officialIndexToFetch);
         if (officialData && redisClient && redisClient.isOpen) {
-            await redisClient.set(cacheKey, JSON.stringify(officialData));
+            console.log(`[UnifiedService] Salvando detalhes no cache: '${cacheKey}'`);
+            await redisClient.set(cacheKey, JSON.stringify(officialData)); // Persistente
         }
     }
 
     if (!officialData) {
-        // Se nem o oficial existe e estávamos procurando por um override, retorna o homebrew puro.
-        if (homebrewOverride) return homebrewOverride.content;
-        throw new Error(`Recurso '${normalizedIndex}' em '${normalizedResource}' não encontrado.`);
-    }
-
-    // Se ainda não buscamos o homebrew (porque o index não era UUID), buscamos agora.
-    if (!homebrewOverride && userId) {
-        const userRepo = AppDataSource.getRepository(User);
-        const user = await userRepo.findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
-        const installedIds = user?.installedHomebrewIds || [];
-
-        if (installedIds.length > 0) {
-            // Procura por um homebrew instalado que sobrescreva o índice oficial.
-            homebrewOverride = await homebrewRepo.createQueryBuilder("hb")
-                .where("hb.id IN (:...installedIds)", { installedIds })
-                .andWhere("LOWER(JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index'))) = :index", { index: officialIndexToFetch })
-                .andWhere("LOWER(hb.type) = :type", { type: normalizedResource })
-                .getOne();
+        if (homebrewOverride) {
+            console.log(`[UnifiedService] Recurso oficial não encontrado, mas existe um Homebrew. Retornando Homebrew.`);
+            return homebrewOverride.content;
         }
+        throw new Error(`Recurso '${normalizedIndex}' em '${normalizedResource}' não encontrado em nenhuma fonte.`);
     }
 
-    // Se encontramos um homebrew para sobrescrever, mesclamos. Caso contrário, retornamos o oficial.
     if (homebrewOverride) {
+        console.log(`[UnifiedService] Mesclando dados oficiais com o Homebrew '${homebrewOverride.name}'.`);
         // Merge profundo simples (pode ser melhorado se necessário)
-        return { ...officialData, ...homebrewOverride.content };
+        return { ...officialData, ...homebrewOverride.content, source: 'homebrew' };
     }
 
-    return officialData;
+    console.log(`[UnifiedService] Retornando apenas dados oficiais.`);
+    return { ...officialData, source: 'official' };
 }
