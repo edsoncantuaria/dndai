@@ -3,7 +3,6 @@
 import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { Users, Sun, Moon, Cloud, CloudRain, CloudSnow } from 'lucide-react';
-import { translateApiString } from '../utils/translator';
 
 const ReputationBar: React.FC<{ name: string; score: number }> = ({ name, score }) => {
     // Clamps the score between -10 and 10 and then normalizes it to a 0-100 scale.
@@ -69,13 +68,13 @@ const WorldStatePanel: React.FC = () => {
                         {worldState.timeOfDay && (
                              <div>
                                 <WorldStateIcon stateKey="timeOfDay" value={worldState.timeOfDay} />
-                                <p className="text-xs text-stone-400 mt-1">{translateApiString(worldState.timeOfDay)}</p>
+                                <p className="text-xs text-stone-400 mt-1">{worldState.timeOfDay}</p>
                             </div>
                         )}
                          {worldState.weather && (
                              <div>
                                 <WorldStateIcon stateKey="weather" value={worldState.weather} />
-                                <p className="text-xs text-stone-400 mt-1">{translateApiString(worldState.weather)}</p>
+                                <p className="text-xs text-stone-400 mt-1">{worldState.weather}</p>
                             </div>
                         )}
                         {/* You can add more world state displays here */}

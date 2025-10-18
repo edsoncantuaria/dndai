@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import * as characterUtils from '@/utils/characterUtils';
-import { translateApiString, translateAttribute } from '@/utils/translator';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface Props {
@@ -42,7 +41,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [bgData]);
+    }, [bgData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof bgData, value: any) => {
         setBgData(prev => ({ ...prev, [field]: value }));
@@ -101,7 +100,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                     }}
                                     className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                                 />
-                                {translateApiString(skill)}
+                                {skill}
                             </label>
                         )
                     })}

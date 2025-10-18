@@ -5,7 +5,6 @@ import type { PlayerRollRequest, Character } from '../../types';
 import DiceRollModal from '../DiceRollModal';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import * as characterUtils from '../../utils/characterUtils';
-import { translateApiString } from '@/utils/translator';
 import { AVAILABLE_MODELS, useSettingsContext } from '@/contexts/SettingsContext';
 import * as GameService from '@/services/gameService';
 import { Dices, BrainCircuit, Bot, Send, Store, Swords, Loader2 } from 'lucide-react';
@@ -172,7 +171,7 @@ const SystemInteractionSection: React.FC<{ onClose: () => void; characters: Char
                         className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
                     >
                         {characterUtils.ALL_SKILLS.map(skill => (
-                            <option key={skill} value={skill}>{translateApiString(skill)}</option>
+                            <option key={skill} value={skill}>{skill}</option>
                         ))}
                     </select>
                     <button onClick={handleTestSkill} className="px-3 py-2 rounded-md font-semibold text-white bg-cyan-700 hover:bg-cyan-600 transition-colors flex items-center justify-center gap-2">

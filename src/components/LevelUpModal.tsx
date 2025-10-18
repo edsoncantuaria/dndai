@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LevelUpSelections, Attributes, ApiSpell } from '../types';
 import * as DndApiService from '../services/dndApiService';
-import { translateAttribute, translateApiString } from '../utils/translator';
+import { translateAttribute } from '@/utils/translator';
 import NewSpellCard from '../components/Spells/NewSpellCard';
 import { rollDice } from '../utils/dice';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
@@ -243,7 +243,7 @@ const LevelUpModal: React.FC = () => {
                                         className="form-checkbox h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded mt-1"
                                     />
                                     <div>
-                                        <h5 className="font-semibold text-stone-200">{translateApiString(option.name)}</h5>
+                                        <h5 className="font-semibold text-stone-200">{option.name}</h5>
                                         <p className="text-sm text-stone-400">{option.desc}</p>
                                     </div>
                                 </label>
@@ -273,7 +273,7 @@ const LevelUpModal: React.FC = () => {
                                     className="form-radio h-5 w-5 text-amber-500 bg-stone-800 border-stone-600 focus:ring-amber-500 rounded-full mt-1"
                                 />
                                  <div>
-                                    <h5 className="font-semibold text-stone-200">{translateApiString(option.name)}</h5>
+                                    <h5 className="font-semibold text-stone-200">{option.name}</h5>
                                      {/* Description can be added if available */}
                                 </div>
                             </label>
@@ -313,5 +313,3 @@ const LevelUpModal: React.FC = () => {
 };
 
 export default LevelUpModal;
-
-    
