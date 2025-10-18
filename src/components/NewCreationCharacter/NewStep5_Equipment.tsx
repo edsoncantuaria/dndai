@@ -14,17 +14,26 @@ const ItemChoiceSelector: React.FC<{
     subIndex: number;
     hook: ReturnType<typeof useCharacterCreator>;
 }> = ({ choice, selectionPath, subIndex, hook }) => {
-    const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
+    const { handleEquipmentSubChoiceChange, equipmentCategoryCache, allEquipment } = hook;
     const categoryIndex = choice?.from?.equipment_category?.index;
 
     if (!categoryIndex) {
         return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida na opção.</p>;
     }
 
-    const subOptions = equipmentCategoryCache[categoryIndex] || [];
+    // Filtra 'allEquipment' em vez de depender de um cache pré-populado
+    const subOptions = allEquipment.filter(item => 
+        item.equipment_category.index === categoryIndex || 
+        (item as any).gear_category?.index === categoryIndex
+    );
+    
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
+
+    if(subOptions.length === 0) {
+        return <p className="text-yellow-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryIndex}'.</p>;
+    }
 
     return (
         <div className="mt-2 pl-4 border-l-2 border-stone-600">
@@ -45,6 +54,45 @@ const ItemChoiceSelector: React.FC<{
     );
 };
 
+const MultiItemChoiceSelector: React.FC<{
+    choice: ApiEquipmentOption['choice'];
+    selectionPath: string;
+    hook: ReturnType<typeof useCharacterCreator>;
+}> = ({ choice, selectionPath, hook }) => {
+    const { handleEquipmentSubChoiceChange, allEquipment } = hook;
+    const categoryIndex = choice?.from?.equipment_category?.index;
+
+    if (!categoryIndex || !choice.choose) return null;
+
+    const subOptions = allEquipment.filter(item => item.equipment_category.index === categoryIndex);
+    const currentSelections = hook.equipmentSelections[selectionPath] as string[] || [];
+
+    return (
+        <div className="mt-2 pl-4 border-l-2 border-stone-600 space-y-2">
+            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${categoryIndex}`}</label>
+            {Array.from({ length: choice.choose }).map((_, i) => (
+                <select
+                    key={i}
+                    value={currentSelections[i] || ""}
+                    onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, i, true)}
+                    className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm"
+                >
+                    <option value="" disabled>Selecione a arma {i + 1}...</option>
+                    {subOptions.map((item) => {
+                        const isSelectedByOther = currentSelections.some((sel, idx) => idx !== i && sel === item.index);
+                        return (
+                            <option key={item.index} value={item.index} disabled={isSelectedByOther}>
+                                {translateApiString(item.name)}
+                            </option>
+                        );
+                    })}
+                </select>
+            ))}
+        </div>
+    );
+};
+
+
 
 const EquipmentOptionRenderer: React.FC<{
     option: ApiEquipmentOption;
@@ -56,6 +104,11 @@ const EquipmentOptionRenderer: React.FC<{
             return null; // Handled by fixedEquipment
 
         case 'choice':
+             // This case handles "(b) any simple weapon"
+            if (option.choice?.choose && option.choice.choose > 1) {
+                 return <MultiItemChoiceSelector choice={option.choice} selectionPath={selectionPath} hook={hook} />;
+            }
+             // This handles single choices, like "(a) a light crossbow"
             return <ItemChoiceSelector choice={option.choice} selectionPath={selectionPath} subIndex={0} hook={hook} />;
 
         case 'multiple':
@@ -86,9 +139,10 @@ const EquipmentChoice: React.FC<{
     const mainOptions = group.choice.from.options || [];
 
     if (mainOptions.length === 0) return null;
-
-    const mainSelectionIndex = typeof selection === 'object' ? selection.main : selection;
-    const selectedOption = mainOptions[mainSelectionIndex];
+    
+    // For single-item choices, selection is a string. For complex, it's an object.
+    const mainSelectionIndex = typeof selection === 'object' ? selection?.main : selection;
+    const selectedOption = (mainSelectionIndex !== undefined && mainSelectionIndex >= 0) ? mainOptions[mainSelectionIndex] : undefined;
 
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
@@ -137,7 +191,7 @@ const NewStep5_Equipment: React.FC<{
             </div>
             <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
 
-            {loadingStates.isLoading && !loadingStates.message.includes("Carregando Itens") ? (
+            {loadingStates.isLoading && !loadingStates.message.includes("Analisando Itens") ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                     <Loader2 className="h-12 w-12 animate-spin" />
                     <p className="mt-4">{loadingStates.message || 'Carregando opções...'}</p>

@@ -41,44 +41,27 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            const group = derivedData.equipmentChoiceGroups.find(g => g.id === groupId);
-            if (!group) return prev;
-    
-            const mainOption = group.choice.from.options[mainOptionIndex];
-            const newSub = { ...prev[groupId]?.sub };
-    
-            // Se a nova opção principal não tiver sub-opções, limpe as sub-seleções antigas
-            if (mainOption?.option_type !== 'multiple') {
-                Object.keys(newSub).forEach(key => delete newSub[key]);
-            }
-            
-            newSelections[groupId] = { main: mainOptionIndex, sub: newSub };
+            newSelections[groupId] = mainOptionIndex;
             return newSelections;
         });
-    }, [setField, derivedData.equipmentChoiceGroups]);
+    }, [setField]);
     
     const handleEquipmentSubChoiceChange = useCallback((groupId: string, itemIndex: string, subIndex: number, isMultiChoice: boolean) => {
         setField('equipmentSelections', (prev: any) => {
-            const newSelections = JSON.parse(JSON.stringify(prev)); // Deep copy
-            if (!newSelections[groupId]) return prev;
-    
-            const currentSub = newSelections[groupId].sub || {};
-    
+            const newSelections = { ...prev };
+            const currentSelection = newSelections[groupId];
+            
+            // This handles the new complex state for multiple independent choices, e.g., two martial weapons
             if (isMultiChoice) {
-                // Handle as array of choices
-                let currentChoices = Array.isArray(currentSub[subIndex]) ? currentSub[subIndex] : [];
-                if (currentChoices.includes(itemIndex)) {
-                    currentChoices = currentChoices.filter((i: string) => i !== itemIndex);
-                } else {
-                    currentChoices.push(itemIndex);
-                }
-                currentSub[subIndex] = currentChoices;
-            } else {
-                // Handle as single choice
-                currentSub[subIndex] = itemIndex;
+                let choices = Array.isArray(currentSelection) ? [...currentSelection] : [];
+                choices[subIndex] = itemIndex; // Place the selection at the specific sub-index
+                newSelections[groupId] = choices;
+            } else { // This handles nested choices within a primary selection
+                 const mainIndex = (typeof currentSelection === 'object' && currentSelection !== null) ? currentSelection.main : currentSelection;
+                 let subSelections = (typeof currentSelection === 'object' && currentSelection !== null) ? { ...currentSelection.sub } : {};
+                 subSelections[subIndex] = itemIndex;
+                 newSelections[groupId] = { main: mainIndex, sub: subSelections };
             }
-    
-            newSelections[groupId].sub = currentSub;
             return newSelections;
         });
     }, [setField]);

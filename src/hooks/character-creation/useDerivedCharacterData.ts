@@ -19,16 +19,16 @@ const findChosenItems = (
 
     switch (option.option_type) {
         case 'counted_reference':
-            const itemDetails = allEquipment.find(e => e.index === option.of?.index);
+            const itemDetails = allEquipment.find(e => e && e.index === option.of?.index);
             if (itemDetails) {
                 results.push({ ...itemDetails, quantity: option.count || 1, id: uuidv4() });
             }
             break;
 
         case 'choice':
-            // 'selections' here is the index of the item chosen from the category
-            const chosenItemIndex = selections as string;
-            const chosenItem = allEquipment.find(e => e.index === chosenItemIndex);
+            // Here, selections is the index of the chosen item within a category.
+            const chosenItemIndex = selections.main ?? selections; // Handle both simple and complex selection objects
+            const chosenItem = allEquipment.find(e => e && e.index === chosenItemIndex);
             if (chosenItem) {
                 results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
             }
@@ -40,7 +40,7 @@ const findChosenItems = (
                 option.items.forEach((subOption, subIndex) => {
                     if (subOption.option_type === 'counted_reference') {
                         // It's a fixed item within a multiple choice, add it directly.
-                        const fixedItem = allEquipment.find(e => e.index === subOption.of?.index);
+                        const fixedItem = allEquipment.find(e => e && e.index === subOption.of?.index);
                         if (fixedItem) {
                             results.push({ ...fixedItem, quantity: subOption.count || 1, id: uuidv4() });
                         }
@@ -48,7 +48,7 @@ const findChosenItems = (
                         // This is a nested choice, find the user's selection for it.
                         const subSelection = selections?.sub?.[subIndex];
                         if (subSelection) {
-                            const subChosenItem = allEquipment.find(e => e.index === subSelection);
+                            const subChosenItem = allEquipment.find(e => e && e.index === subSelection);
                             if (subChosenItem) {
                                 results.push({ ...subChosenItem, quantity: 1, id: uuidv4() });
                             }
@@ -170,29 +170,43 @@ export const useDerivedCharacterData = (
         const finalEquip: InventoryItem[] = [];
         choiceGroups.forEach(group => {
             const selection = equipmentSelections[group.id];
-            const mainSelectionIndex = typeof selection === 'object' ? selection.main : selection;
-
-            if (mainSelectionIndex === undefined || mainSelectionIndex < 0) return;
-
-            const mainOption = group.choice.from.options[mainSelectionIndex];
-            finalEquip.push(...findChosenItems(mainOption, selection, allEquipment));
+            
+            // This case handles simple selections where `selection` is the index of the option chosen.
+            if (typeof selection === 'number' && selection >= 0) {
+                const mainOption = group.choice.from.options[selection];
+                finalEquip.push(...findChosenItems(mainOption, selection, allEquipment));
+            } 
+            // This case handles complex selections with nested choices.
+            else if (typeof selection === 'object' && selection !== null && selection.main >= 0) {
+                const mainOption = group.choice.from.options[selection.main];
+                finalEquip.push(...findChosenItems(mainOption, selection, allEquipment));
+            }
         });
 
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            const mainSelectionIndex = typeof selection === 'object' ? selection.main : selection;
-            if (mainSelectionIndex === undefined || mainSelectionIndex < 0) return false;
-        
-            const mainOption = group.choice.from.options[mainSelectionIndex];
-            if (mainOption && mainOption.option_type === 'multiple' && Array.isArray(mainOption.items)) {
-                return mainOption.items.every((subOption, subIndex) => {
-                    if (subOption.option_type === 'choice') {
-                        return selection.sub && selection.sub[subIndex];
-                    }
-                    return true;
-                });
+            
+            // Case 1: Simple numeric selection must be a valid index.
+            if (typeof selection === 'number') {
+                return selection >= 0;
             }
-            return true;
+
+            // Case 2: Object selection must have a valid 'main' index.
+            if (typeof selection === 'object' && selection !== null && selection.main >= 0) {
+                const mainOption = group.choice.from.options[selection.main];
+                // If it's a multiple choice, all sub-choices must be made.
+                if (mainOption && mainOption.option_type === 'multiple' && Array.isArray(mainOption.items)) {
+                    return mainOption.items.every((subOption, subIndex) => {
+                        if (subOption.option_type === 'choice') {
+                            return selection.sub && selection.sub[subIndex] !== undefined;
+                        }
+                        return true; // Not a sub-choice, so it's fulfilled.
+                    });
+                }
+                return true; // Not a multiple choice, so 'main' selection is enough.
+            }
+            
+            return false; // No valid selection found.
         });
 
 

@@ -32,7 +32,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
-            const equipmentResponse = await apiClient<{ results: ApiListItem[] }>('/dnds/equipment');
+            const equipmentResponse = await DndApiService.getEquipmentList();
             if (equipmentResponse?.results) {
                 const itemDetails = await fetchDetailsInChunks(
                     equipmentResponse.results,
@@ -57,6 +57,16 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             return equipmentCategoryCache[categoryIndex];
         }
         
+        // Se a lista completa já foi carregada, filtramos dela.
+        if (allEquipment.length > 0) {
+            const filteredItems = allEquipment.filter(item => 
+                item.equipment_category?.index === categoryIndex || (item as any).gear_category?.index === categoryIndex
+            );
+            setEquipmentCategoryCache(prev => ({...prev, [categoryIndex]: filteredItems}));
+            return filteredItems;
+        }
+
+        // Fallback: se allEquipment não estiver pronto, busca a categoria específica
         setLoadingStates({ isLoading: true, message: `Carregando categoria: ${categoryIndex}...`, progress: 0 });
         try {
             const categoryDetails = await DndApiService.getEquipmentCategoryDetails(categoryIndex);
@@ -82,7 +92,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
-    }, [equipmentCategoryCache]);
+    }, [equipmentCategoryCache, allEquipment]);
 
 
     // Fetch Race Details
