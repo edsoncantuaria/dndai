@@ -13,7 +13,7 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         try {
             const cachedData = await redisClient.get(cacheKey);
             if (cachedData) {
-                // console.log(`[dndApiService-Cache] HIT: Carregando do cache: ${cacheKey}`);
+                // O cache aqui é apenas para os dados brutos da API oficial
                 return JSON.parse(cachedData) as T;
             }
         } catch (error) {
@@ -21,7 +21,6 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
         }
     }
     
-    // console.log(`[dndApiService-API] MISS: Buscando da API externa: ${safeEndpoint}`);
     const fullApiUrl = `${API_BASE}${safeEndpoint}`;
     try {
         const response = await fetch(fullApiUrl);
@@ -33,8 +32,8 @@ async function fetchWithCache<T>(endpoint: string): Promise<T | null> {
 
         if (redisClient && redisClient.isOpen) {
             try {
-                // console.log(`[dndApiService-Cache] SET: Salvando no cache: ${cacheKey}`);
-                await redisClient.set(cacheKey, JSON.stringify(data)); // Persistente
+                // Cache persistente (sem expiração) para dados estáticos do SRD
+                await redisClient.set(cacheKey, JSON.stringify(data));
             } catch (error) {
                  console.error(`[dndApiService-Cache] Erro ao salvar no Redis para ${cacheKey}:`, error);
             }

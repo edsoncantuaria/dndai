@@ -7,6 +7,8 @@ import { User } from '../entities/User.js';
 import { In, Brackets } from 'typeorm';
 import createError from 'http-errors';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
+import crypto from 'crypto';
+
 
 const repo = () => AppDataSource.getRepository(HomebrewContent);
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
@@ -30,23 +32,10 @@ const TYPE_MAP: Record<string, HomebrewContentType> = {
   translations: 'translation',
 };
 
+// Remove cache from here, it will be handled by the main function
 const getOfficialList = async (resource: string): Promise<any[]> => {
-    const listKey = `dnd5e:${resource}:list`;
-    if (redisClient && redisClient.isOpen) {
-        try {
-            const cachedList = await redisClient.get(listKey);
-            if (cachedList) {
-                console.log(`[UnifiedService] Cache HIT para lista pública: '${listKey}'`);
-                return JSON.parse(cachedList);
-            }
-        } catch (e) { console.error(`[Cache] Erro ao ler lista do Redis: ${listKey}`, e); }
-    }
     const apiResponse = await getOfficialResourceList(resource);
-    const officialList = apiResponse?.results || [];
-    if (redisClient && redisClient.isOpen && officialList.length > 0) {
-        await redisClient.set(listKey, JSON.stringify(officialList));
-    }
-    return officialList;
+    return apiResponse?.results || [];
 };
 
 const applyTranslation = (item: any, translations: Record<string, any>) => {
@@ -54,7 +43,6 @@ const applyTranslation = (item: any, translations: Record<string, any>) => {
     const key = item.official_index || item.index;
     const translationData = translations[key];
     if (translationData) {
-        // Retorna um novo objeto mesclado, priorizando o nome da tradução
         return { ...item, ...translationData, name: translationData.name || item.name };
     }
     return item;
@@ -63,40 +51,54 @@ const applyTranslation = (item: any, translations: Record<string, any>) => {
 
 export async function getUnifiedList(resource: string, userId?: number): Promise<any[]> {
     const normalizedResource = norm(resource);
-    console.log(`[UnifiedService] Iniciando getUnifiedList para resource: '${normalizedResource}', userId: ${userId}`);
-
     const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
-
-    const officialListPromise = getOfficialList(normalizedResource);
-
-    const homebrewRepo = repo();
-    let allRelevantHomebrew: HomebrewContent[] = [];
-
+    
+    // 1. Determine user's installed content to create a unique cache key
+    let installedIds: string[] = [];
     if (userId) {
         const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
-        const installedIds = user?.installedHomebrewIds || [];
-        console.log(`[UnifiedService] Encontrados ${installedIds.length} IDs de homebrew instalados para o usuário ${userId}`);
-        
-        if (installedIds.length > 0) {
-            allRelevantHomebrew = await homebrewRepo.find({
-                where: [
-                    { isPublic: true },
-                    { id: In(installedIds) },
-                    { bundleId: In(installedIds) }
-                ]
-            });
-        } else {
-             allRelevantHomebrew = await homebrewRepo.find({ where: { isPublic: true }});
-        }
-    } else {
-        allRelevantHomebrew = await homebrewRepo.find({ where: { isPublic: true }});
+        installedIds = user?.installedHomebrewIds || [];
     }
+    
+    // Create a hash of installed IDs to represent the current state
+    const installedIdsHash = installedIds.length > 0
+        ? crypto.createHash('md5').update(installedIds.sort().join(',')).digest('hex')
+        : 'none';
 
+    const cacheKey = `unified-list:${normalizedResource}:${userId || 'public'}:${installedIdsHash}`;
+
+    // 2. Try to fetch the final, merged list from cache
+    if (redisClient && redisClient.isOpen) {
+        try {
+            const cachedData = await redisClient.get(cacheKey);
+            if (cachedData) {
+                console.log(`[UnifiedService] Cache HIT para lista unificada: '${cacheKey}'`);
+                return JSON.parse(cachedData);
+            }
+        } catch (e) { console.error(`[Cache] Erro ao ler lista do Redis: ${cacheKey}`, e); }
+    }
+    console.log(`[UnifiedService] Cache MISS para lista unificada: '${cacheKey}'`);
+
+
+    // --- If not in cache, build the list from scratch ---
+
+    // 3. Fetch official list and all relevant homebrew content
+    const officialListPromise = getOfficialList(normalizedResource);
+    const homebrewRepo = repo();
+    
+    const qb = homebrewRepo.createQueryBuilder('hb')
+        .where('hb.isPublic = :isPublic', { isPublic: true });
+
+    if (installedIds.length > 0) {
+        qb.orWhere('hb.id IN (:...ids)', { ids: installedIds })
+          .orWhere('hb.bundleId IN (:...ids)', { ids: installedIds });
+    }
+    
+    const allRelevantHomebrew = await qb.getMany();
+    
     const homebrewForType = allRelevantHomebrew.filter(hb => hb.type === dbType);
     const translations = allRelevantHomebrew.filter(hb => hb.type === 'translation');
-    console.log(`[UnifiedService] Query de Homebrew retornou ${homebrewForType.length} itens do tipo '${dbType}' e ${translations.length} itens de tradução.`);
-    
-    // Constrói o mapa de traduções
+
     const translationMap: Record<string, any> = {};
     translations.forEach(t => {
         if (t.content) {
@@ -113,16 +115,12 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
         }
     });
 
-    let overwrittenCount = 0;
-    let newCount = 0;
-
-    for (const hb of homebrewForType) {
+    homebrewForType.forEach(hb => {
         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
-        if (!content) continue;
+        if (!content) return;
 
         const officialIndexToOverride = norm(content.official_index || content.index || '');
 
-        // Aplica a tradução ao conteúdo homebrew ANTES de mesclar
         const translatedContent = applyTranslation(content, translationMap);
 
         if (officialIndexToOverride && finalMap.has(officialIndexToOverride)) {
@@ -138,7 +136,6 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
                 authorId: hb.authorId,
                 url: `/api/data/${normalizedResource}/${base.index}`,
             });
-            overwrittenCount++;
         } else {
             const newIdx = norm(content.index || hb.id);
             finalMap.set(newIdx, {
@@ -150,14 +147,21 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
                 authorId: hb.authorId,
                 url: `/api/data/${normalizedResource}/${content.index || hb.id}`,
             });
-            newCount++;
         }
-    }
-
-    console.log(`[UnifiedService] Sobrescrevendo ${overwrittenCount} oficiais e adicionando ${newCount} novos homebrew.`);
+    });
 
     const mergedList = Array.from(finalMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    console.log(`[UnifiedService] Mesclagem concluída. Total de itens: ${mergedList.length}.`);
+    
+    // 4. Save the final, merged list to cache
+    if (redisClient && redisClient.isOpen) {
+        try {
+            await redisClient.set(cacheKey, JSON.stringify(mergedList), { EX: 3600 }); // Cache for 1 hour
+            console.log(`[UnifiedService] Cache SET para lista unificada: '${cacheKey}'`);
+        } catch (e) {
+            console.error(`[Cache] Erro ao salvar lista unificada no Redis: ${cacheKey}`, e);
+        }
+    }
+    
     return mergedList;
 }
 
@@ -172,14 +176,12 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     let officialData: any = null;
     let hb: HomebrewContent | null = null;
     
-    // Sempre busca dados oficiais primeiro se não for um UUID
     if (!isUuid) {
         try {
             officialData = await getOfficialDetails(normalizedResource, normalizedIndex);
         } catch {}
     }
 
-    // Busca o conteúdo homebrew
     const qb = homebrewRepo.createQueryBuilder('hb');
     
     if (isUuid) {
@@ -187,30 +189,30 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     } else {
         qb.where('LOWER(hb.type) = :type', { type: dbType })
           .andWhere(new Brackets(sqb => {
-              sqb.where('LOWER(JSON_EXTRACT(hb.content, "$.official_index")) = :idx', { idx: normalizedIndex })
-                 .orWhere('LOWER(JSON_EXTRACT(hb.content, "$.index")) = :idx', { idx: normalizedIndex });
+              sqb.where('LOWER(JSON_UNQUOTE(JSON_EXTRACT(hb.content, "$.official_index"))) = :idx', { idx: `"${normalizedIndex}"` })
+                 .orWhere('LOWER(JSON_UNQUOTE(JSON_EXTRACT(hb.content, "$.index"))) = :idx', { idx: `"${normalizedIndex}"` });
           }));
     }
 
-    // Filtra pelo acesso do usuário
     if (userId) {
         const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
         const userInstalledIds = user?.installedHomebrewIds || [];
-        qb.andWhere(new Brackets(sqb => {
-            sqb.where('hb.isPublic = :isPublic', { isPublic: true })
-               .orWhere('hb.authorId = :userId', { userId });
-            if (userInstalledIds.length > 0) {
-                sqb.orWhere('hb.id IN (:...ids)', { ids: userInstalledIds })
+        if (userInstalledIds.length > 0) {
+            qb.andWhere(new Brackets(sqb => {
+                sqb.where('hb.isPublic = :isPublic', { isPublic: true })
+                   .orWhere('hb.authorId = :userId', { userId })
+                   .orWhere('hb.id IN (:...ids)', { ids: userInstalledIds })
                    .orWhere('hb.bundleId IN (:...ids)', { ids: userInstalledIds });
-            }
-        }));
+            }));
+        } else {
+            qb.andWhere('hb.isPublic = :isPublic OR hb.authorId = :userId', { isPublic: true, userId });
+        }
     } else {
         qb.andWhere('hb.isPublic = :isPublic', { isPublic: true });
     }
 
     hb = await qb.getOne();
     
-    // Se o homebrew foi encontrado por UUID e não tínhamos dados oficiais, tentamos buscar agora
     if (hb && !officialData) {
          const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
          const officialIndex = norm(content?.official_index || content?.index || '');
@@ -219,7 +221,6 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
          }
     }
 
-    // Monta a resposta final
     let finalData = officialData ? { ...officialData, source: 'official', isHomebrew: false } : null;
 
     if (hb) {
@@ -232,9 +233,8 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
         return null;
     }
 
-    // Busca e aplica traduções
-    const translationRepo = AppDataSource.getRepository(HomebrewContent);
-    const translationEntries = await translationRepo.find({ where: { type: 'translation', isPublic: true } });
+    // Busca e aplica traduções separadamente
+    const translationEntries = await homebrewRepo.find({ where: { type: 'translation', isPublic: true } });
     const translationMap: Record<string, any> = {};
     translationEntries.forEach(t => {
         if(t.content) Object.assign(translationMap, t.content);
