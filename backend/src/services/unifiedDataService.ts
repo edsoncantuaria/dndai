@@ -5,7 +5,7 @@ import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { User } from '../entities/User.js';
 import DndApi from './dndApiService.js';
 import crypto from 'crypto';
-import { Brackets } from 'typeorm';
+import { Brackets, Raw } from 'typeorm';
 
 const repo = () => AppDataSource.getRepository(HomebrewContent);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -39,20 +39,27 @@ const TYPE_MAP: Record<string, string> = {
  * Obtém ou gera o HEX de cache do usuário.
  */
 async function ensureUserHex(userId: number): Promise<string> {
-  const user = await userRepo().findOne({ where: { id: userId }, select: ['id'] });
+  const user = await userRepo().findOne({ where: { id: userId }, select: ['id', 'homebrewCacheHex'] });
   if (!user) throw new Error('Usuário não encontrado.');
-  // Em um sistema real, o 'homebrewCacheHex' estaria no modelo de usuário.
-  // Por enquanto, geramos um pseudo-hex para o cache.
-  return "static-hex-for-all"; 
+  
+  if (!user.homebrewCacheHex) {
+    user.homebrewCacheHex = crypto.randomBytes(6).toString('hex');
+    await userRepo().save(user);
+    console.log(`[Cache] Novo homebrewCacheHex gerado para o usuário ${userId}.`);
+  }
+  return user.homebrewCacheHex;
 }
 
 /**
  * Invalida o cache do usuário. Em uma implementação real, regeneraria o hex.
  */
 export async function invalidateUserCache(userId: number) {
-    console.log(`[UnifiedService] Invalidação de cache solicitada para o usuário ${userId}. Em um sistema completo, um novo HEX seria gerado.`);
-    // A lógica de regeneração do HEX foi removida por simplicidade no escopo atual.
-    // A invalidação agora dependerá do TTL do Redis, se configurado, ou será manual.
+    const user = await userRepo().findOne({ where: { id: userId } });
+    if (user) {
+        user.homebrewCacheHex = crypto.randomBytes(6).toString('hex');
+        await userRepo().save(user);
+        console.log(`[Cache] Cache invalidado e novo hex gerado para o usuário ${userId}.`);
+    }
 }
 
 /**
@@ -76,7 +83,7 @@ async function getOfficialList(resource: string): Promise<any[]> {
   }
 
   const data = await DndApi.getResourceList(resource);
-  const results = data?.results || [];
+  const results = data || [];
 
   if (redisClient && redisClient.isOpen && results.length > 0) {
     try {
@@ -112,7 +119,7 @@ async function getOfficialDetails(resource: string, index: string): Promise<any 
        console.error(`[Cache] Falha ao salvar no Redis ${key}:`, err);
     }
   }
-  return data || null; // Retorna nulo se não encontrar
+  return data || {}; // Retorna objeto vazio em vez de nulo
 }
 
 
@@ -126,33 +133,28 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
   const officialList = await getOfficialList(normalizedResource) || [];
 
   const map = new Map<string, any>();
+  // 1. Oficiais
   for (const item of officialList) {
     if (item && item.index) {
         map.set(norm(item.index), { ...item, isHomebrew: false, source: 'official' });
     }
   }
   
-  const translations = await repo().find({ where: { type: 'translation' } });
-  
-  // Aplicar traduções
+  // 2. Traduções
+  const translations = await repo().find({ where: { type: 'translation', authorId: 1 } });
   for (const t of translations) {
       try {
         const content = typeof t.content === 'string' ? JSON.parse(t.content) : t.content;
-        const keysToTranslate = Object.keys(content);
-
-        for(const key of keysToTranslate) {
-            const normalizedKey = norm(key);
-            if (map.has(normalizedKey)) {
-                const existing = map.get(normalizedKey);
-                // Sobrescreve apenas 'name' e 'desc', mantendo o resto.
-                map.set(normalizedKey, { ...existing, name: content[key].name || existing.name, desc: content[key].desc || existing.desc });
-            }
+        const key = norm(content.official_index || content.index);
+        if (map.has(key)) {
+            const existing = map.get(key);
+            // Sobrescreve apenas 'name' e 'desc', mantendo o resto.
+            map.set(key, { ...existing, ...content, name: content.name || existing.name, desc: content.desc || existing.desc });
         }
       } catch(e) {
           console.error(`Falha ao aplicar tradução ${t.id}:`, e);
       }
   }
-  
 
   if (!userId) return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
@@ -216,13 +218,15 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
 
   // Aplica tradução se houver
   if(officialData) {
-      const translation = await repo().findOne({ where: { type: 'translation' } });
+      const translation = await repo().findOne({
+        where: {
+            type: 'translation',
+            content: Raw(alias => `JSON_UNQUOTE(JSON_EXTRACT(${alias}, '$.official_index')) = :index`, { index: normalizedIndex })
+        }
+      });
       if(translation) {
           const content = typeof translation.content === 'string' ? JSON.parse(translation.content) : translation.content;
-          const translatedFields = content[officialData.index];
-          if (translatedFields) {
-              officialData = { ...officialData, ...translatedFields };
-          }
+          officialData = { ...officialData, ...content };
       }
   }
 
@@ -236,7 +240,8 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
         const qb = homebrewRepo.createQueryBuilder('hb');
         qb.where('LOWER(hb.type) = :type', { type: dbType })
           .andWhere(new Brackets(sqb => {
-             sqb.where("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: normalizedIndex })
+             sqb.where("hb.id = :index", { index: normalizedIndex })
+                .orWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: normalizedIndex })
                 .orWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: normalizedIndex });
           }))
           .andWhere(new Brackets(sqb => {
