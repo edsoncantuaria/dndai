@@ -2,7 +2,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import { translateApiString, translateMagicSchool } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import ItemSelector from '../ItemSelector';
@@ -97,7 +96,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         fullData.index = spellData.official_index || (spellData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-spell-${Date.now()}`;
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [spellData]);
+    }, [spellData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof spellData, value: any) => {
         setSpellData(prev => ({ ...prev, [field]: value }));
@@ -190,7 +189,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                  <div>
                     <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
                     <select value={spellData.school?.index || ''} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
-                        {magicSchools.map(s => <option key={s.index} value={s.index}>{translateMagicSchool(s.name)}</option>)}
+                        {magicSchools.map(s => <option key={s.index} value={s.index}>{s.name}</option>)}
                     </select>
                 </div>
                  <div>
@@ -245,7 +244,7 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                          <div>
                             <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
                             <select value={spellData.damage?.damage_type?.index || ''} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
-                                {damageTypes.map(d => <option key={d.index} value={d.index}>{translateApiString(d.name)}</option>)}
+                                {damageTypes.map(d => <option key={d.index} value={d.index}>{d.name}</option>)}
                             </select>
                         </div>
                     </div>

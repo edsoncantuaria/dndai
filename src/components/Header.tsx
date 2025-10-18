@@ -6,7 +6,6 @@ import { User, Heart, Shield, Loader2, Settings, DoorOpen, Zap, Eye, Brain, Sear
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useAuth } from '@/contexts/AuthContext';
-import { translateApiString, translateAttribute } from '@/utils/translator';
 import type { Attributes } from '@/types';
 import {
   Tooltip,
@@ -73,7 +72,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                             <div className="flex flex-col sm:flex-row sm:items-baseline gap-x-2">
                                 <h2 className="font-bold text-xl text-stone-100 truncate font-garamond">{name}</h2>
                                 <p className="text-sm text-stone-400">
-                                    {translateApiString(race || '')} {translateApiString(characterClass || '')} de Nível {level}
+                                    {race || ''} {characterClass || ''} de Nível {level}
                                 </p>
                             </div>
                             <div className="mt-2">

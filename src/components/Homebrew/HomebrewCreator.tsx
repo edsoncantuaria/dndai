@@ -4,7 +4,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, FlaskConical, Loader2, Info, BookOpen } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 import RaceForm from './forms/RaceForm';
 import ClassForm from './forms/ClassForm';
 import SubclassForm from './forms/SubclassForm';
@@ -52,7 +51,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             setExampleToLoad(exampleData);
              toast({
                 title: 'Exemplo Carregado',
-                description: `O formulário foi preenchido com dados de exemplo para "${translateApiString(type)}".`,
+                description: `O formulário foi preenchido com dados de exemplo para "${type}".`,
             });
         }
     };
@@ -92,7 +91,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     toast({
                         variant: 'destructive',
                         title: 'Nome Duplicado',
-                        description: `Um conteúdo do tipo '${translateApiString(type)}' com um nome ou índice similar já existe. Por favor, escolha outro nome.`,
+                        description: `Um conteúdo do tipo '${type}' com um nome ou índice similar já existe. Por favor, escolha outro nome.`,
                     });
                     setIsLoading(false);
                     return;
@@ -187,7 +186,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                                     disabled={!!contentToEdit}
                                 >
-                                    {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{translateApiString(t)}</option>)}
+                                    {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
                                 </select>
                             </div>
                             <button 

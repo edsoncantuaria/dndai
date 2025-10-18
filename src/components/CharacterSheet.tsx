@@ -1,7 +1,6 @@
 // components/CharacterSheet.tsx
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { translateAttribute, translateApiString, translateCondition } from '../utils/translator';
 import type { Attributes, Proficiency, ApiListItem } from '../types';
 import * as characterUtils from '../utils/characterUtils';
 import { AlertTriangle, ChevronDown, Coffee, BedDouble } from 'lucide-react';
@@ -42,7 +41,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
         <div className="p-4 space-y-4">
             <div className="text-center mb-4">
                 <h2 className="text-2xl font-bold font-garamond text-stone-100">{character.name}</h2>
-                <p className="text-sm text-stone-400">{translateApiString(character.race)} {translateApiString(character.characterClass)} de Nível {character.level}</p>
+                <p className="text-sm text-stone-400">{character.race} {character.characterClass} de Nível {character.level}</p>
             </div>
             
             <DeathSavesTracker />
@@ -55,11 +54,11 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             <div key={condition.index} className="relative group">
                                 <span className="flex items-center gap-1 bg-red-900/70 text-red-300 text-xs font-semibold px-2 py-1 rounded-full border border-red-700/80">
                                     <AlertTriangle className="h-3 w-3" />
-                                    {translateCondition(condition.name)}
+                                    {condition.name}
                                 </span>
                                 {condition.desc && (
                                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
-                                    <h4 className="font-bold text-red-400 mb-1">{translateCondition(condition.name)}</h4>
+                                    <h4 className="font-bold text-red-400 mb-1">{condition.name}</h4>
                                     {condition.desc.map((d: string, i: number) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
                                 </div>
                                 )}
@@ -74,7 +73,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     const value = attributes[key as keyof typeof attributes];
                     return (
                         <div key={key} className="bg-stone-800/50 p-2 rounded-lg text-center">
-                            <div className="font-bold text-md text-amber-300">{translateAttribute(key)}</div>
+                            <div className="font-bold text-md text-amber-300">{key.substring(0,3).toUpperCase()}</div>
                             <div className="text-2xl font-bold text-stone-100 my-1">{String(value)}</div>
                             <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-8 h-8 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
                         </div>
@@ -127,7 +126,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                             <div className="flex flex-wrap gap-2 mt-1">
                                 {proficiencies.filter(p => p?.name && !p.name.toLowerCase().includes('skill:') && !p.name.toLowerCase().includes('saving throw:')).map(prof => (
                                     <span key={prof.index || prof.name} className="bg-stone-700 text-stone-300 text-xs font-semibold px-2 py-1 rounded-full">
-                                        {translateApiString(prof.name)}
+                                        {prof.name}
                                     </span>
                                 ))}
                             </div>
@@ -138,7 +137,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                              <h4 className="font-semibold text-stone-300 mt-2">Traços Raciais</h4>
                             <ul className="list-disc list-inside text-stone-300 space-y-1 text-sm mt-1">
                                 {traits.map((trait: ApiListItem) => (
-                                    <li key={trait.index}>{translateApiString(trait.name)}</li>
+                                    <li key={trait.index}>{trait.name}</li>
                                 ))}
                             </ul>
                         </div>
@@ -146,7 +145,7 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                     {languages && languages.length > 0 && (
                         <div>
                             <h4 className="font-semibold text-stone-300 mt-2">Idiomas</h4>
-                            <p className="text-sm text-stone-300">{languages.map(translateApiString).join(', ')}</p>
+                            <p className="text-sm text-stone-300">{languages.join(', ')}</p>
                         </div>
                     )}
                  </div>

@@ -2,7 +2,6 @@
 import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 
 interface SpellCastModalProps {
     spell: ApiSpell;
@@ -29,7 +28,7 @@ const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, onConfirm, onClo
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-garamond text-amber-300">Conjurar: {translateApiString(spell.name)}</h2>
+                    <h2 className="text-xl font-bold font-garamond text-amber-300">Conjurar: {spell.name}</h2>
                     <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
                 </header>
                 <form onSubmit={handleSubmit}>

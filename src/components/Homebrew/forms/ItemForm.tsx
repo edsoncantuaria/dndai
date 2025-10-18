@@ -2,7 +2,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import * as DndApiService from '@/services/dndApiService';
-import { translateApiString } from '@/utils/translator';
 import { Loader2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
@@ -80,7 +79,7 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             delete finalData.rarity;
         }
         onDataChange(finalData);
-    }, [itemData]);
+    }, [itemData, onDataChange]);
 
 
     const handleFieldChange = (field: keyof typeof itemData, value: any) => {
@@ -130,7 +129,7 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                      <label htmlFor="item-rarity" className="block text-sm font-medium text-stone-300 mb-1">Raridade</label>
                     <select id="item-rarity" value={itemData.rarity.name} onChange={(e) => handleRarityChange(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                         {RARITIES.map(r => (
-                            <option key={r} value={r}>{translateApiString(r)}</option>
+                            <option key={r} value={r}>{r}</option>
                         ))}
                     </select>
                 </div>
@@ -140,7 +139,7 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 {isLoadingCategories ? <Loader2 className="animate-spin" /> : (
                     <select id="item-category" value={itemData.equipment_category.index} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                         {equipmentCategories.map(cat => (
-                            <option key={cat.index} value={cat.index}>{translateApiString(cat.name)}</option>
+                            <option key={cat.index} value={cat.index}>{cat.name}</option>
                         ))}
                     </select>
                 )}

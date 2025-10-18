@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import * as DndApiService from '@/services/dndApiService';
 import { ApiListItem } from '@/types';
-import { translateApiString } from '@/utils/translator';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -39,7 +38,7 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
     useEffect(() => {
         onDataChange(actionData);
-    }, [actionData]);
+    }, [actionData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof actionData, value: any) => {
         setActionData(prev => ({ ...prev, [field]: value }));
@@ -128,7 +127,7 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
                             >
                                 {damageTypes.map(dt => (
-                                    <option key={dt.index} value={dt.index}>{translateApiString(dt.name)}</option>
+                                    <option key={dt.index} value={dt.index}>{dt.name}</option>
                                 ))}
                             </select>
                             <button type="button" onClick={() => removeDamage(index)} className="p-2 text-red-500 hover:text-red-400">

@@ -2,7 +2,6 @@
 import React from 'react';
 import { useGameStateContext } from '../../contexts/GameStateContext';
 import * as characterUtils from '../../utils/characterUtils';
-import { translateApiString, translateAttribute } from '../../utils/translator';
 import { Dice5 } from 'lucide-react';
 
 interface SkillItemProps {
@@ -30,8 +29,8 @@ const SkillItem: React.FC<SkillItemProps> = ({ skillName, onUse }) => {
         <div className="flex items-center justify-between text-sm py-1">
             <div className="flex items-center gap-2">
                  <div className={`w-3 h-3 rounded-full border-2 ${isProficient ? 'bg-amber-400 border-amber-300' : 'bg-stone-600 border-stone-500'}`} title={isProficient ? 'Proficiente' : 'Não Proficiente'}></div>
-                <span className="text-stone-300">{translateApiString(skillName)}</span>
-                <span className="text-xs text-stone-500">({translateAttribute(attribute).substring(0, 3)})</span>
+                <span className="text-stone-300">{skillName}</span>
+                <span className="text-xs text-stone-500">({attribute.substring(0, 3).toUpperCase()})</span>
             </div>
             <div className="flex items-center gap-2">
                 <span className="font-mono font-semibold text-amber-300">{modifier >= 0 ? `+${modifier}`: modifier}</span>

@@ -5,7 +5,6 @@ import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService';
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 import TraitCreator from './TraitCreator'; // Importar o novo componente
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -25,8 +24,8 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
         setIsLoading(true);
         try {
             const officialTraitsPromise = DndApiService.getTraits();
-            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'feat');
-            const myHomebrewPromise = user ? HomebrewService.listHomebrewContent('mine', 'feat') : Promise.resolve([]);
+            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'user', 'feat');
+            const myHomebrewPromise = user ? HomebrewService.listHomebrewContent('mine', 'user', 'feat') : Promise.resolve([]);
 
             const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 officialTraitsPromise,
@@ -108,7 +107,7 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
                                     onChange={() => handleToggleTrait(trait)}
                                     className="form-checkbox h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 rounded focus:ring-amber-500"
                                 />
-                                <span className="text-sm text-stone-300">{translateApiString(trait.name)}</span>
+                                <span className="text-sm text-stone-300">{trait.name}</span>
                             </label>
                         )
                     })}

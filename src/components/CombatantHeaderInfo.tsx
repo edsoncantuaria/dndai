@@ -1,7 +1,6 @@
 'use client';
 import React from 'react';
 import type { Combatant } from '../types';
-import { translateCondition } from '../utils/translator';
 import { Heart, Shield } from 'lucide-react';
 
 
@@ -26,7 +25,7 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
                 <span>CA {combatant.ac ?? '?'}</span>
             </div>
             {combatant.conditions && combatant.conditions.length > 0 && (
-                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.map(c => translateCondition(c)).join(', ')}>
+                 <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.join(', ')}>
                     <span>⚠️</span>
                 </div>
             )}
@@ -37,5 +36,3 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
 }
 
 export default CombatantHeaderInfo;
-
-    

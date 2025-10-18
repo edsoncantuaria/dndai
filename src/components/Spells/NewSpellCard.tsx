@@ -1,7 +1,6 @@
 'use client';
 import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
-import { translateMagicSchool } from '@/utils/translator';
 import { ChevronDown, Sparkles } from 'lucide-react';
 
 interface NewSpellCardProps {
@@ -61,7 +60,7 @@ const NewSpellCard: React.FC<NewSpellCardProps> = ({
                             </span>
                         )}
                     </div>
-                    <p className="text-xs text-stone-400">{spell.level === 0 ? 'Truque' : `Nível ${spell.level}`} de {translateMagicSchool(spell.school.name)}</p>
+                    <p className="text-xs text-stone-400">{spell.level === 0 ? 'Truque' : `Nível ${spell.level}`} de {spell.school.name}</p>
                 </div>
                 <div className="flex items-center pl-2">
                     {onCast && (

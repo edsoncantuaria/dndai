@@ -4,6 +4,7 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
+import { getOptionLabel } from '@/utils/creationHelpers';
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -12,7 +13,7 @@ export const useDerivedCharacterData = (
     allEquipment: InventoryItem[]
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
-    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
+    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats, equipmentCategoryCache } = details;
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -80,33 +81,26 @@ export const useDerivedCharacterData = (
 
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, selectionManager.allProficiencyChoices]);
     
-    
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-    
-        const processOption = (opt: ApiEquipmentOption) => {
-            if (opt.option_type === 'counted_reference' && opt.of) {
-                const itemDetails = allEquipment.find(e => e && e.index === opt.of!.index);
-                if (itemDetails) {
-                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: opt.count || 1, equipped: false });
-                }
-            }
-        };
-    
+
         const addEquipment = (list: any[] = []) => list.forEach(item => {
             if (item.equipment) {
-                processOption({ option_type: 'counted_reference', of: item.equipment, count: item.quantity });
+                const itemDetails = allEquipment.find(e => e && e.index === item.equipment.index);
+                 if (itemDetails) {
+                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
+                }
             }
         });
-    
+
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
-            classDetails.starting_equipment_options.forEach((choice, i) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
+            (classDetails.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
         }
         if (backgroundDetails) {
             addEquipment(backgroundDetails.starting_equipment);
-            backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
+            (backgroundDetails.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
     
         const finalEquip: InventoryItem[] = [];
@@ -115,13 +109,13 @@ export const useDerivedCharacterData = (
             if (selection === undefined || selection.main === undefined || selection.main < 0) return;
             
             const optionsSource = group.choice?.from?.options;
-            if (!optionsSource || !Array.isArray(optionsSource)) return;
+            if (!optionsSource) return;
 
             const mainOption = optionsSource[selection.main];
             if (!mainOption) return;
     
             const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
-                 if (subOpt.option_type === 'counted_reference' && subOpt.of) {
+                if (subOpt.option_type === 'counted_reference' && subOpt.of) {
                     const item = allEquipment.find(e => e.index === subOpt.of!.index);
                     if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4() });
                 } else if (subOpt.option_type === 'choice') {
@@ -131,7 +125,7 @@ export const useDerivedCharacterData = (
                         if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
                     }
                 }
-            }
+            };
     
             if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                 const item = allEquipment.find(e => e.index === mainOption.of!.index);
@@ -139,7 +133,15 @@ export const useDerivedCharacterData = (
             } else if (mainOption.option_type === 'multiple' && mainOption.items) {
                  mainOption.items.forEach(processSubOption);
             } else if (mainOption.option_type === 'choice') {
-                processSubOption(mainOption, 0);
+                const source = mainOption.choice || mainOption;
+                const iterations = source.choose || 1;
+                for (let i = 0; i < iterations; i++) {
+                    const subSelection = selection.sub?.[i];
+                    if (subSelection) {
+                        const item = allEquipment.find(e => e.index === subSelection);
+                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                    }
+                }
             }
         });
     
@@ -147,7 +149,14 @@ export const useDerivedCharacterData = (
             const selection = equipmentSelections[group.id];
             if (selection?.main === undefined || selection.main < 0) return false;
             
-            const optionsSource = group.choice?.from?.options;
+            let optionsSource = group.choice?.from?.options;
+
+            // **CORREÇÃO CRÍTICA**: Se as opções vierem de uma categoria, use o cache.
+            if (!optionsSource && group.choice?.from?.equipment_category) {
+                 const categoryKey = group.choice.from.equipment_category.index;
+                 optionsSource = (equipmentCategoryCache[categoryKey] || []).map(item => ({ item }));
+            }
+
             if (!optionsSource) return true;
 
             const mainOption = optionsSource[selection.main];
@@ -162,14 +171,12 @@ export const useDerivedCharacterData = (
                 });
             }
             if (mainOption.option_type === 'choice') {
-                if (mainOption.choice.choose > 1) {
-                    return Array.from({ length: mainOption.choice.choose }).every((_, i) => selection.sub && selection.sub[i]);
-                }
-                return selection.sub && selection.sub[0];
+                const source = mainOption.choice || mainOption;
+                const iterations = source.choose || 1;
+                return Array.from({ length: iterations }).every((_, i) => selection.sub && selection.sub[i]);
             }
             return true;
         });
-    
     
         return {
             equipmentChoiceGroups: choiceGroups,
@@ -177,7 +184,7 @@ export const useDerivedCharacterData = (
             finalizedEquipment: finalEquip,
             areAllEquipmentChoicesMade: allChoicesMade,
         };
-    }, [classDetails, backgroundDetails, equipmentSelections, allEquipment]);
+    }, [classDetails, backgroundDetails, equipmentSelections, allEquipment, equipmentCategoryCache]);
 
     const baseLanguages = useMemo(() => {
         const langs = new Set<string>();
@@ -189,7 +196,7 @@ export const useDerivedCharacterData = (
     const finalFeats = useMemo(() => {
         const feats: Feat[] = [];
         if (isVariantHuman && selectedFeat) {
-            const featData = availableFeats.find(f => f.index === selectedFeat);
+            const featData = availableFeats.find((f:Feat) => f.index === selectedFeat);
             if (featData) feats.push(featData);
         }
         return feats;
@@ -207,3 +214,5 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
+
+    

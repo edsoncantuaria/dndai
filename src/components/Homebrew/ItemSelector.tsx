@@ -5,7 +5,6 @@ import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService'; // Importação correta
 import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 import ItemCreator from './ItemCreator';
 
 interface Props {
@@ -21,18 +20,16 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
     const fetchItems = useCallback(async () => {
         setIsLoading(true);
         try {
-            const officialItemsPromise = DndApiService.getEquipment();
-            // CORREÇÃO: Usar HomebrewService para listHomebrewContent
-            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', undefined, 'item');
-            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', undefined, 'item');
+            const officialItems = await DndApiService.getEquipment(); // Usa a função correta
+            const publicHomebrewPromise = HomebrewService.listHomebrewContent('public', 'user', 'item');
+            const myHomebrewPromise = HomebrewService.listHomebrewContent('mine', 'user', 'item');
 
-            const [officialResult, publicHomebrewResult, myHomebrewResult] = await Promise.all([
-                officialItemsPromise,
+            const [publicHomebrewResult, myHomebrewResult] = await Promise.all([
                 publicHomebrewPromise,
-                myHomebrewResult,
+                myHomebrewPromise,
             ]);
 
-            const official = officialResult?.results || [];
+            const official = officialItems.map(item => ({ index: item.index, name: item.name, url: '' }));
             
             const formatHomebrew = (items: HomebrewService.HomebrewContent[]) => items.map(hb => ({
                 index: hb.id,
@@ -82,7 +79,7 @@ const ItemSelector: React.FC<Props> = ({ selectedItem, onItemSelect }) => {
                         <>
                             <option value="">Nenhum</option>
                             {allItems.map(item => (
-                                <option key={item.index} value={item.name}>{translateApiString(item.name)}</option>
+                                <option key={item.index} value={item.name}>{item.name}</option>
                             ))}
                         </>
                     )}

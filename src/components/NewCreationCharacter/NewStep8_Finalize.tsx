@@ -1,7 +1,6 @@
 // src/components/NewCreationCharacter/NewStep8_Finalize.tsx
 import React from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { normalizeProficiencyName, translateApiString, translateAttribute } from '@/utils/translator';
 import type { Attributes } from '@/types';
 import { ArrowLeft, Play } from 'lucide-react';
 
@@ -51,7 +50,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                         <div key={item.label}>
                             <label htmlFor={`${item.label}-select`} className="block text-xs font-medium text-stone-400 mb-1">{item.label}</label>
                             <select id={`${item.label}-select`} value={item.value} onChange={e => item.setter(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
-                                {item.options.map(opt => <option key={opt}>{opt}</option>)}
+                                {item.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
                     ))}
@@ -63,13 +62,19 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                      </div>
                      <div className="md:col-span-2">
                          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 text-center">
-                            {attributeOrder.map(attr => (
-                                <div key={attr} className="bg-stone-800/50 p-3 rounded-md border border-stone-700/70">
-                                    <div className="text-sm font-bold text-stone-300">{translateAttribute(attr).substring(0,3).toUpperCase()}</div>
-                                    <div className="font-bold text-4xl text-amber-300 my-1">{finalAttributes[attr]}</div>
-                                    <div className="text-lg text-amber-400/80 bg-stone-900/50 rounded-full w-10 h-10 flex items-center justify-center mx-auto">{Math.floor((finalAttributes[attr] - 10) / 2) >= 0 ? `+${Math.floor((finalAttributes[attr] - 10) / 2)}` : Math.floor((finalAttributes[attr] - 10) / 2)}</div>
-                                </div>
-                            ))}
+                            {attributeOrder.map(attr => {
+                                const total = finalAttributes[attr];
+                                const modifier = Math.floor((total - 10) / 2);
+                                const modifierString = modifier >= 0 ? `+${modifier}` : modifier.toString();
+
+                                return (
+                                    <div key={attr}>
+                                        <label className="text-sm font-bold text-stone-400">{attr.substring(0,3).toUpperCase()}</label>
+                                        <p className="font-bold text-3xl text-stone-100">{total}</p>
+                                        <p className="text-lg font-bold text-amber-300 mt-1">{modifierString}</p>
+                                    </div>
+                                )
+                            })}
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService';
-import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import FeatureCreator from './FeatureCreator';
@@ -86,7 +85,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         const selectedClass = classes.find(c => c.index === classIndex);
         if (selectedClass) {
             handleFieldChange('class', selectedClass);
-            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classIndex)) {
+            if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(classIndex)) {
                 setSubclassData(prev => ({ ...prev, dependencies: [classIndex] }));
             } else {
                 setSubclassData(prev => ({ ...prev, dependencies: [] }));
@@ -155,7 +154,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="subclass-parent-class" className="block text-sm font-medium text-stone-300 mb-1">Classe Principal</label>
                 <select id="subclass-parent-class" value={subclassData.class.index} onChange={e => handleClassChange(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                     <option value="" disabled>Selecione a classe principal...</option>
-                    {classes.map(c => <option key={c.index} value={c.index}>{translateApiString(c.name)}</option>)}
+                    {classes.map(c => <option key={c.index} value={c.index}>{c.name}</option>)}
                 </select>
             </div>
             <div>

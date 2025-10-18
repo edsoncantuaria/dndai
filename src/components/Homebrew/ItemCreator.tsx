@@ -44,7 +44,7 @@ const ItemCreator: React.FC<Props> = ({ isOpen, onClose, onItemCreated }) => {
                 description: `"${itemData.name}" foi salvo com sucesso.`,
             });
             
-            onItemCreated(response.content);
+            onItemCreated(response);
             handleClose();
 
         } catch (error: any) {

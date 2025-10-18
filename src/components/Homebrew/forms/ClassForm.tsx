@@ -2,7 +2,6 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import * as characterUtils from '@/utils/characterUtils';
-import { translateApiString, translateAttribute } from '@/utils/translator';
 import type { ApiListItem } from '@/types';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import FeatureCreator from './FeatureCreator';
@@ -210,7 +209,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 disabled={classData.saving_throws.length >= 2 && !classData.saving_throws.some((s:any) => s.index === attr)}
                                 className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                             />
-                            {translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP])}
+                            {attr.toUpperCase()}
                         </label>
                     ))}
                 </div>
@@ -227,7 +226,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                     onChange={() => handleProficiencyToggle(prof)}
                                     className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                                 />
-                                {translateApiString(prof.name)}
+                                {prof.name}
                             </label>
                         ))}
                     </div>
@@ -239,7 +238,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                     onChange={() => handleProficiencyToggle(prof)}
                                     className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                                 />
-                                {translateApiString(prof.name)}
+                                {prof.name}
                             </label>
                         ))}
                     </div>
@@ -274,7 +273,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 }}
                                 className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
                             />
-                            {translateApiString(skill)}
+                            {skill}
                         </label>
                     ))}
                  </div>

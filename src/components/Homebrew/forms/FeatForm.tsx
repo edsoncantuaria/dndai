@@ -1,7 +1,6 @@
 // src/components/Homebrew/forms/FeatForm.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
-import { translateAttribute } from '@/utils/translator';
 import * as characterUtils from '@/utils/characterUtils';
 import type { Attributes } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
@@ -94,7 +93,7 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
                             >
                                 {Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).map(attr => (
-                                    <option key={attr} value={attr}>{translateAttribute(characterUtils.ATTRIBUTE_SHORT_MAP[attr as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP])}</option>
+                                    <option key={attr} value={attr}>{attr.toUpperCase()}</option>
                                 ))}
                             </select>
                             <input 

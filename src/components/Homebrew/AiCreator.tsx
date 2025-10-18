@@ -6,7 +6,6 @@ import { Loader2, Wand } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
 import { createHomebrewContent } from '@/ai/flows/createHomebrewFlow';
 import { HomebrewContentType } from '@/services/homebrewService';
-import { translateApiString } from '@/utils/translator';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 
 const CONTENT_TYPES: HomebrewContentType[] = [
@@ -67,7 +66,7 @@ const AiCreator: React.FC<Props> = ({ isOpen, onClose, onContentGenerated }) => 
                  <div>
                     <label htmlFor="content-type" className="block text-sm font-medium text-stone-300 mb-1">Tipo de Conteúdo</label>
                     <select id="content-type" value={type} onChange={e => setType(e.target.value as HomebrewContentType)} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200">
-                         {CONTENT_TYPES.map(t => <option key={t} value={t}>{translateApiString(t)}</option>)}
+                         {CONTENT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div>

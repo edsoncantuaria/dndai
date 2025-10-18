@@ -4,7 +4,6 @@
 import React from 'react';
 import ActionModal from '../ui/ActionModal';
 import { BookOpen } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 import { HomebrewContentType } from '@/services/homebrewService';
 import ExampleViewer from './ExampleViewer'; // Importa o novo componente
 
@@ -19,13 +18,13 @@ const ExampleModal: React.FC<Props> = ({ isOpen, onClose, contentType, exampleDa
     return (
         <ActionModal
             isOpen={isOpen}
-            title={`Exemplo de Estrutura: ${translateApiString(contentType)}`}
+            title={`Exemplo de Estrutura: ${contentType}`}
             onClose={onClose}
             actions={[{ text: "Entendido", onClick: onClose, variant: 'primary' }]}
         >
             <div className="space-y-4 text-stone-300 text-sm leading-relaxed">
                 <p>
-                    Abaixo está um exemplo de como os dados de um(a) <strong className="text-amber-300">{translateApiString(contentType)}</strong> são estruturados. Use isso como guia para preencher os campos.
+                    Abaixo está um exemplo de como os dados de um(a) <strong className="text-amber-300">{contentType}</strong> são estruturados. Use isso como guia para preencher os campos.
                 </p>
                 {/* Substitui o <pre> pelo novo componente ExampleViewer */}
                 <div className="bg-stone-950/70 p-4 rounded-md border border-stone-700 max-h-[60vh] overflow-y-auto">

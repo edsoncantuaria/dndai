@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, X } from 'lucide-react';
-import { translateApiString } from '@/utils/translator';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -153,7 +152,7 @@ const ActionOptions: React.FC = () => {
             if (action.skill) {
                 // Remove a parte entre parênteses do texto principal, se houver
                 const cleanText = action.text.replace(/\s*\([^)]*\)\s*$/, '');
-                actionText = `Eu tento usar ${translateApiString(action.skill)}: ${cleanText}`;
+                actionText = `Eu tento usar ${action.skill}: ${cleanText}`;
             } else {
                 actionText = action.text;
             }
@@ -219,7 +218,7 @@ const ActionOptions: React.FC = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
                             const actionText = typeof action === 'object' ? action.text : action;
-                            const skillName = typeof action === 'object' && action.skill ? `(${translateApiString(action.skill)})` : null;
+                            const skillName = typeof action === 'object' && action.skill ? `(${action.skill})` : null;
                             const display_text = actionText; // Agora não inclui a perícia no texto
 
                             if (!actionText || typeof actionText !== 'string') return null;

@@ -1,13 +1,12 @@
 // src/components/NewCreationCharacter/NewStep2_Attributes.tsx
 import React from 'react';
 import type { Attributes } from '@/types';
-import { translateAttribute } from '@/utils/translator';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star, PlusSquare } from 'lucide-react';
 import { getCostForScore } from '@/utils/creationHelpers';
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
 }
@@ -46,7 +45,7 @@ const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 
                     return (
                         <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center flex flex-col justify-between">
-                            <label className="font-bold text-lg text-stone-200 font-garamond">{translateAttribute(attr)}</label>
+                            <label className="font-bold text-lg text-stone-200 font-garamond">{attr.charAt(0).toUpperCase() + attr.slice(1)}</label>
                             <div className="flex items-center justify-center gap-3 my-3">
                                 <button type="button" onClick={() => handleAttributeChange(attr, -1)} disabled={currentScore <= 8} className="p-2 rounded-full bg-stone-700 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
                                     <Minus className="h-5 w-5" />
@@ -81,7 +80,7 @@ const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {attributeOrder.map(attr => (
                      <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center">
-                        <label className="font-bold text-lg text-stone-200 font-garamond">{translateAttribute(attr)}</label>
+                        <label className="font-bold text-lg text-stone-200 font-garamond">{attr.charAt(0).toUpperCase() + attr.slice(1)}</label>
                         <p className="text-5xl font-bold text-amber-300 my-2">{baseAttributes[attr]}</p>
                     </div>
                 ))}
@@ -99,7 +98,6 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         points, 
         isVariantHuman, 
         variantHumanBonusSelections,
-        handleVariantHumanBonusSelection,
     } = hook;
     const canProceed = (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) && (!isVariantHuman || variantHumanBonusSelections.length === 2);
 
@@ -140,7 +138,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                                     className={`p-2 rounded-md border-2 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed ${isSelected ? 'bg-amber-800/70 border-amber-500' : 'bg-stone-800/50 border-stone-700 hover:border-amber-600'}`}
                                 >
                                     <PlusSquare className="mx-auto h-5 w-5 mb-1" />
-                                    <span className="font-bold text-sm">{translateAttribute(attr).substring(0,3).toUpperCase()}</span>
+                                    <span className="font-bold text-sm">{attr.substring(0,3).toUpperCase()}</span>
                                 </button>
                             );
                         })}
@@ -160,7 +158,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
                             return (
                                 <div key={attr}>
-                                    <label className="text-sm font-bold text-stone-400">{translateAttribute(attr).substring(0,3).toUpperCase()}</label>
+                                    <label className="text-sm font-bold text-stone-400">{attr.substring(0,3).toUpperCase()}</label>
                                     <p className="font-bold text-3xl text-stone-100">{total}</p>
                                     <p className="text-xs text-amber-400">{`(${hook.baseAttributes[attr]} ${bonus > 0 ? `+ ${bonus}`: ''})`}</p>
                                     <p className="text-lg font-bold text-amber-300 mt-1">{modifierString}</p>

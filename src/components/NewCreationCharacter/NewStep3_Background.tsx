@@ -1,7 +1,6 @@
 // src/components/NewCreationCharacter/NewStep3_Background.tsx
 import React, { useCallback } from 'react';
 import type { ApiListItem } from '@/types';
-import { translateApiString } from '@/utils/translator';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
 import * as DndApiService from '@/services/dndApiService';
@@ -39,16 +38,15 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
     }, [backgroundDetails, setField]);
     
     const handleRandomizeBackground = useCallback(async () => {
+        if (backgrounds.length === 0) return;
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-        // Chama a função principal para mudar o antecedente e limpar estados dependentes
+        
         await handleBackgroundChange(randomBgItem.index);
         
-        // Aguarda um ciclo para que os detalhes sejam buscados no hook principal
         setTimeout(async () => {
             const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
             if (!details) return;
 
-            // Lógica para randomizar traços, ideais, etc.
             if (details.personality_traits) {
                 const options = details.personality_traits.from.options;
                 const shuffled = [...options].sort(() => 0.5 - Math.random());
@@ -58,7 +56,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
             if (details.ideals) {
                 const options = details.ideals.from.options;
                 const randomIdeal = options[Math.floor(Math.random() * options.length)];
-                setField('ideal', randomIdeal.string || randomIdeal.desc);
+                setField('ideal', randomIdeal.desc || randomIdeal.string);
             }
             if (details.bonds) {
                 const options = details.bonds.from.options;
@@ -70,7 +68,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                 const randomFlaw = options[Math.floor(Math.random() * options.length)];
                 setField('flaw', randomFlaw.string);
             }
-        }, 500); // Um pequeno delay para garantir que o state do antecedente foi atualizado
+        }, 300); 
     }, [backgrounds, handleBackgroundChange, setField]);
 
 
@@ -100,7 +98,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                     className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 >
                     <option value="" disabled>Selecione um antecedente...</option>
-                    {backgrounds.map(b => <option key={b.index} value={b.index}>{translateApiString(b.name)}</option>)}
+                    {backgrounds.map(b => <option key={b.index} value={b.index}>{b.name}</option>)}
                 </select>
                 {backgroundDetails && (
                     <div className="mt-4 p-4 bg-stone-900/50 border border-stone-700/50 rounded-lg">
@@ -152,8 +150,8 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                 <h3 className="text-xl font-semibold text-stone-300 mb-2">Alinhamento</h3>
                 <p className="text-sm text-stone-400 mb-4">Como seu personagem vê o mundo e age nele?</p>
                  <select id="alignment" value={alignment} onChange={e => setField('alignment', e.target.value)} required className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                    <option value="">Selecione um alinhamento...</option>
-                    {alignments.map(a => <option key={a.index} value={a.name}>{translateApiString(a.name)}</option>)}
+                    <option value="" disabled>Selecione um alinhamento...</option>
+                    {alignments.map(a => <option key={a.index} value={a.name}>{a.name}</option>)}
                 </select>
             </div>
             

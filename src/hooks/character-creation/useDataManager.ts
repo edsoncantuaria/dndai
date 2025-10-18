@@ -1,5 +1,5 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
@@ -33,7 +33,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
-                // Use a função de serviço dedicada que já lida com o endpoint unificado.
                 const unifiedEquipment = await DndApiService.getEquipment();
                 setAllEquipment(unifiedEquipment);
 
@@ -49,19 +48,27 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
                     add(item.equipment_category?.index, item);
                     add((item as any).gear_category?.index, item);
-
-                    // Composite keys for weapon types
+                    
                     const weaponCat = item.weapon_category?.toLowerCase();
-                    const weaponRange = item.weapon_range?.toLowerCase();
-
-                    if(weaponCat) {
-                        add(`${weaponCat}-weapons`, item);
+                    if (weaponCat) {
+                        add(`${weaponCat}-weapons`, item); 
+                        if(item.weapon_range === 'Melee') add(`${weaponCat}-melee-weapons`, item);
+                        if(item.weapon_range === 'Ranged') add(`${weaponCat}-ranged-weapons`, item);
                     }
-                    if(weaponCat && weaponRange){
-                        add(`${weaponCat}-${weaponRange}-weapons`, item);
+
+                    if (item.armor_category) {
+                         add(`${item.armor_category.toLowerCase()}-armor`, item);
                     }
                 });
+
+                // Adiciona categorias compostas que não existem na API
+                newCache['simple-melee-weapons'] = (newCache['simple-weapons'] || []).filter(i => i.weapon_range === 'Melee');
+                newCache['martial-melee-weapons'] = (newCache['martial-weapons'] || []).filter(i => i.weapon_range === 'Melee');
+                newCache['simple-ranged-weapons'] = (newCache['simple-weapons'] || []).filter(i => i.weapon_range === 'Ranged');
+                newCache['martial-ranged-weapons'] = (newCache['martial-weapons'] || []).filter(i => i.weapon_range === 'Ranged');
+                
                 setEquipmentCategoryCache(newCache);
+
              } catch (error) {
                 console.error("Falha catastrófica ao carregar equipamentos:", error);
              } finally {
@@ -215,10 +222,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             draconicAncestryOptions,
             classSpellOptions,
             subclassSpells,
+            equipmentCategoryCache,
         },
         allEquipment,
-        equipmentCategoryCache,
         loadingStates,
         fetchFeats,
     };
 };
+
+    

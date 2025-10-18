@@ -1,7 +1,6 @@
 // src/components/NewCreationCharacter/NewStep4_ProficienciesAndLanguages.tsx
 import React from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { normalizeProficiencyName, translateLanguage } from '@/utils/translator';
 import { ArrowLeft, ArrowRight, Dice5 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 
@@ -42,7 +41,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         <h5 className="font-bold text-stone-300">Proficiências</h5>
                         <ul className="list-disc list-inside">
                             {Array.from(allFixedProficiencies.values()).filter(p => p?.name && !p.name.includes("Saving Throw")).map(prof => (
-                               prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                               prof?.name && <li key={prof.index}>{prof.name}</li>
                             ))}
                         </ul>
                     </div>
@@ -50,7 +49,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         <h5 className="font-bold text-stone-300">Resistências</h5>
                         <ul className="list-disc list-inside">
                             {Array.from(allFixedProficiencies.values()).filter(p => p?.name && p.name.includes("Saving Throw")).map(prof => (
-                                prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                                prof?.name && <li key={prof.index}>{prof.name}</li>
                             ))}
                         </ul>
                     </div>
@@ -58,7 +57,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         <h5 className="font-bold text-stone-300">Idiomas</h5>
                          <ul className="list-disc list-inside">
                             {(baseLanguages || []).map(lang => (
-                                <li key={lang}>{translateLanguage(lang)}</li>
+                                <li key={lang}>{lang}</li>
                             ))}
                         </ul>
                     </div>
@@ -80,7 +79,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         if(availableOptions.length === 0) return null;
                         return (
                             <div key={choice.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                                <h5 className="font-semibold text-amber-300 mb-1">{normalizeProficiencyName(choice.desc)}</h5>
+                                <h5 className="font-semibold text-amber-300 mb-1">{choice.desc}</h5>
                                 <p className="text-sm text-stone-400 mb-4">Fonte: {choice.source} <span className="font-semibold">({selectedCountInGroup}/{choice.choose})</span></p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                     {availableOptions.map((option: any) => {
@@ -96,7 +95,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                                             <div key={option.index} className="relative group">
                                                 <label className={`flex items-center p-3 rounded-md border text-sm transition-all duration-200 ${isSelected ? 'bg-amber-900/50 border-amber-500 shadow-md' : 'bg-stone-800 border-stone-700'} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-stone-700/70 hover:border-stone-600'}`}>
                                                     <input type="checkbox" checked={isSelected} onChange={() => handleProficiencyChange(option.index, choice)} disabled={isDisabled} className="form-checkbox h-4 w-4 text-amber-500 bg-stone-900 border-stone-600 rounded focus:ring-amber-500 focus:ring-offset-stone-800" />
-                                                    <span className="ml-3 text-stone-200">{normalizeProficiencyName(option.name)}</span>
+                                                    <span className="ml-3 text-stone-200">{option.name}</span>
                                                 </label>
                                                 {isDisabled && tooltipText && (
                                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-stone-950 text-stone-300 text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-700">
@@ -132,7 +131,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                                     <select id={`lang-choice-${index}`} value={chosenLanguages[index] || ''} onChange={(e) => handleLanguageChange(index, e.target.value)} required className="w-full bg-stone-800/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
                                         <option value="" disabled>Selecione...</option>
                                         {availableLanguageOptions.map(lang => (
-                                            <option key={lang.index} value={lang.name}>{translateLanguage(lang.name)}</option>
+                                            <option key={lang.index} value={lang.name}>{lang.name}</option>
                                         ))}
                                     </select>
                                 </div>

@@ -2,7 +2,6 @@
 'use client';
 import React from 'react';
 import { HomebrewContentType } from '@/services/homebrewService';
-import { translateApiString, normalizeProficiencyName, translateAttribute } from '@/utils/translator';
 import NewSpellCard from '../Spells/NewSpellCard';
 import type { ApiListItem } from '@/types';
 
@@ -30,7 +29,7 @@ const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
         <h3 className="text-2xl font-bold font-garamond text-amber-300">{data.name}</h3>
         <Section title="Atributos Principais">
             <KeyValue label="Velocidade" value={`${data.speed} pés`} />
-            <KeyValue label="Tamanho" value={`${translateApiString(data.size)}, ${data.size_description}`} />
+            <KeyValue label="Tamanho" value={`${data.size}, ${data.size_description}`} />
             <KeyValue label="Idade" value={data.age} />
             <KeyValue label="Alinhamento" value={data.alignment} />
         </Section>
@@ -39,7 +38,7 @@ const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
                 <h5 className="font-semibold text-stone-300">Bônus de Atributo</h5>
                 <ul className="list-disc list-inside text-stone-200">
                     {data.ability_bonuses?.map((bonus: any) => (
-                        <li key={bonus.ability_score.index}>{translateAttribute(bonus.ability_score.name)} +{bonus.bonus}</li>
+                        <li key={bonus.ability_score.index}>{bonus.ability_score.name} +{bonus.bonus}</li>
                     ))}
                 </ul>
             </div>
@@ -47,7 +46,7 @@ const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
                 <h5 className="font-semibold text-stone-300">Proficiências Iniciais</h5>
                 <ul className="list-disc list-inside text-stone-200">
                     {data.starting_proficiencies?.map((prof: ApiListItem) => (
-                        <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                        <li key={prof.index}>{prof.name}</li>
                     ))}
                 </ul>
             </div>
@@ -71,7 +70,7 @@ const ClassViewer: React.FC<{ data: any }> = ({ data }) => (
         <Section title="Proficiências">
              <ul className="list-disc list-inside text-stone-200">
                 {data.proficiencies?.map((prof: ApiListItem) => (
-                    <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                    <li key={prof.index}>{prof.name}</li>
                 ))}
             </ul>
         </Section>
@@ -90,20 +89,20 @@ const MonsterViewer: React.FC<{ data: any }> = ({ data }) => (
         <Section title="Defesas">
             <KeyValue label="Classe de Armadura" value={data.armor_class} />
             <KeyValue label="Pontos de Vida" value={`${data.hit_points} (${data.hit_dice})`} />
-            <KeyValue label="Velocidade" value={Object.entries(data.speed).map(([type, val]) => `${translateApiString(type)} ${val}`).join(', ')} />
+            <KeyValue label="Velocidade" value={Object.entries(data.speed).map(([type, val]) => `${type} ${val}`).join(', ')} />
         </Section>
         <Section title="Atributos">
             <div className="grid grid-cols-3 gap-2 text-center">
                 {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map(attr => (
                     <div key={attr} className="bg-stone-800 p-1 rounded">
-                        <div className="text-xs text-stone-400">{translateAttribute(attr).substring(0,3).toUpperCase()}</div>
+                        <div className="text-xs text-stone-400">{attr.substring(0,3).toUpperCase()}</div>
                         <div className="font-bold text-stone-200">{data[attr]} ({Math.floor((data[attr] - 10) / 2) >= 0 ? '+' : ''}{Math.floor((data[attr] - 10) / 2)})</div>
                     </div>
                 ))}
             </div>
         </Section>
         <Section title="Habilidades">
-            <KeyValue label="Sentidos" value={Object.entries(data.senses).map(([key, val]) => `${translateApiString(key)} ${val}`).join(', ')} />
+            <KeyValue label="Sentidos" value={Object.entries(data.senses).map(([key, val]) => `${key} ${val}`).join(', ')} />
             <KeyValue label="Idiomas" value={data.languages} />
             <KeyValue label="Nível de Desafio" value={`${data.challenge_rating} (${data.xp} XP)`} />
         </Section>

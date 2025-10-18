@@ -2,7 +2,6 @@
 import React, { useState, useMemo } from 'react';
 import type { InventoryItem, Proficiency } from '../types';
 import { Shield, ChevronDown, Hand, Check, X } from 'lucide-react';
-import { translateApiString } from '../utils/translator';
 
 interface ItemCardProps {
     item: InventoryItem;
@@ -29,7 +28,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     const isProficient = useMemo(() => {
-        if (!item) return true; // Itens sem categoria são sempre "proficientes" para uso
+        if (!item) return true;
     
         const characterProficiencies = new Set(proficiencies.map(p => p.index.toLowerCase()));
     
@@ -39,21 +38,16 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
         if (characterProficiencies.has('simple-weapons') && item.weapon_category === 'Simple') return true;
         if (characterProficiencies.has('shields') && item.equipment_category?.index === 'shields') return true;
     
-        // Proficiências Específicas por Categoria
-        const armorCategory = item.armor_category?.toLowerCase(); // e.g., 'light', 'medium', 'heavy'
+        const armorCategory = item.armor_category?.toLowerCase();
         if (armorCategory && characterProficiencies.has(`${armorCategory}-armor`)) return true;
     
-        // Proficiência por Nome/Index do Item
         const itemIndex = item.index?.toLowerCase();
         if (itemIndex && characterProficiencies.has(itemIndex)) return true;
     
-        // Se não for uma armadura, arma ou escudo, considera-se proficiente para uso geral.
         return !(item.armor_category || item.weapon_category || item.equipment_category?.index === 'shields');
     
     }, [item, proficiencies]);
     
-    const translatedItem = item; // Assuming item is already translated
-
     const canBeEquipped = !!(item.weapon_category || item.armor_category || item.equipment_category?.index === 'shields');
     const canBeUsed = item.consumable || item.usable;
     const canEquipNow = canBeEquipped && isProficient && !actionDisabled;
@@ -76,7 +70,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
         <div className="bg-stone-800/70 p-3 rounded-lg border border-stone-700">
             <div className="flex justify-between items-start">
                 <div className="flex-grow">
-                    <h4 className="font-semibold text-stone-200">{translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
+                    <h4 className="font-semibold text-stone-200">{item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
                     <div className="flex items-center gap-2 text-xs text-stone-400 mt-1">
                         {item.weight !== undefined && <span>{item.weight} lbs</span>}
                         {canBeEquipped && <ProficiencyIndicator proficient={isProficient} />}
@@ -109,7 +103,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                             <Shield />
                         </button>
                     )}
-                    {(translatedItem.desc?.length || translatedItem.damage || translatedItem.armor_class) > 0 && (
+                    {(item.desc?.length || item.damage || item.armor_class) > 0 && (
                         <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
                             <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>
@@ -119,15 +113,13 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 
             {isExpanded && (
                 <div className="mt-2 text-sm text-stone-300 space-y-2 pt-2 border-t border-stone-600/50">
-                    {translatedItem.desc && translatedItem.desc.length > 0 && <div className="text-stone-400 text-xs italic space-y-1">{translatedItem.desc.map((d, i) => <p key={i}>{d}</p>)}</div>}
+                    {item.desc && item.desc.length > 0 && <div className="text-stone-400 text-xs italic space-y-1">{item.desc.map((d, i) => <p key={i}>{d}</p>)}</div>}
                     
-                    {/* Weapon Details */}
-                    {translatedItem.damage && <p><strong className="font-semibold text-stone-400">Dano:</strong> {translatedItem.damage.damage_dice} {translateApiString(translatedItem.damage.damage_type.name)}</p>}
-                    {translatedItem.two_handed_damage && <p><strong className="font-semibold text-stone-400">Dano (2 Mãos):</strong> {translatedItem.two_handed_damage.damage_dice} {translateApiString(translatedItem.two_handed_damage.damage_type.name)}</p>}
-                    {translatedItem.properties && translatedItem.properties.length > 0 && <p><strong className="font-semibold text-stone-400">Propriedades:</strong> {translatedItem.properties.map(p => translateApiString(p.name)).join(', ')}</p>}
+                    {item.damage && <p><strong className="font-semibold text-stone-400">Dano:</strong> {item.damage.damage_dice} {item.damage.damage_type.name}</p>}
+                    {item.two_handed_damage && <p><strong className="font-semibold text-stone-400">Dano (2 Mãos):</strong> {item.two_handed_damage.damage_dice} {item.two_handed_damage.damage_type.name}</p>}
+                    {item.properties && item.properties.length > 0 && <p><strong className="font-semibold text-stone-400">Propriedades:</strong> {item.properties.map(p => p.name).join(', ')}</p>}
 
-                    {/* Armor Details */}
-                    {translatedItem.armor_class && <p><strong className="font-semibold text-stone-400">Classe de Armadura (CA):</strong> {translatedItem.armor_class.base} {translatedItem.armor_class.dex_bonus ? `+ Mod de Destreza${translatedItem.armor_class.max_bonus ? ` (máx ${translatedItem.armor_class.max_bonus})` : ''}` : ''}</p>}
+                    {item.armor_class && <p><strong className="font-semibold text-stone-400">Classe de Armadura (CA):</strong> {item.armor_class.base} {item.armor_class.dex_bonus ? `+ Mod de Destreza${item.armor_class.max_bonus ? ` (máx ${item.armor_class.max_bonus})` : ''}` : ''}</p>}
                     {!!item.str_minimum && item.str_minimum > 0 && <p><strong className="font-semibold text-stone-400">Força Mínima:</strong> {item.str_minimum}</p>}
                     {item.stealth_disadvantage && <p className="text-red-400">Desvantagem em testes de Furtividade.</p>}
 

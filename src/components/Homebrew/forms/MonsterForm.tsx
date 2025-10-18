@@ -1,8 +1,6 @@
-
 // src/components/Homebrew/forms/MonsterForm.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
-import { translateApiString, translateAttribute } from '@/utils/translator';
 import { Attributes } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiListItem } from '@/types';
@@ -180,7 +178,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     const isSelected = monsterData[field].includes(type.index);
                     return (
                         <button key={type.index} type="button" onClick={() => handleMultiSelectChange(field, type.index)} className={`px-2 py-1 text-xs rounded-full border transition-colors ${isSelected ? 'bg-amber-600/30 border-amber-500 text-amber-200' : 'bg-stone-700/50 border-stone-600 text-stone-300 hover:border-stone-500'}`}>
-                            {translateApiString(type.name)}
+                            {type.name}
                         </button>
                     )
                 })}
@@ -221,7 +219,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     );
     
     if (isLoading) {
-        return <div className="flex justify-center items-center p-8"><Loader2 className="animate-spin h-8 w-8 text-amber-300"/></div>
+        return <div className="flex justify-center p-8"><Loader2 className="animate-spin h-8 w-8 text-amber-300"/></div>
     }
 
 
@@ -256,7 +254,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                         onChange={e => handleFieldChange('size', e.target.value)}
                         className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                     >
-                        {SIZES.map(s => <option key={s} value={s}>{translateApiString(s)}</option>)}
+                        {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
                 <div>
@@ -267,7 +265,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                         onChange={e => handleFieldChange('type', e.target.value)}
                         className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                     >
-                        {TYPES.map(t => <option key={t} value={t}>{translateApiString(t)}</option>)}
+                        {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div>
@@ -278,7 +276,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                         onChange={e => handleFieldChange('alignment', e.target.value)}
                         className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                     >
-                        {ALIGNMENTS.map(a => <option key={a} value={a}>{translateApiString(a)}</option>)}
+                        {ALIGNMENTS.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
                 </div>
             </div>
@@ -306,7 +304,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {attributeOrder.map(attr => (
                         <div key={attr}>
-                            <label htmlFor={attr} className="block text-sm font-medium text-stone-300 mb-1">{translateAttribute(attr).substring(0,3).toUpperCase()}</label>
+                            <label htmlFor={attr} className="block text-sm font-medium text-stone-300 mb-1">{attr.substring(0,3).toUpperCase()}</label>
                             <input id={attr} type="number" value={monsterData[attr]} onChange={e => handleFieldChange(attr, Number(e.target.value))} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-center text-stone-200" />
                         </div>
                     ))}
@@ -318,7 +316,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {(['walk', 'fly', 'swim', 'burrow', 'climb'] as const).map(speedType => (
                          <div key={speedType}>
-                            <label htmlFor={`speed-${speedType}`} className="block text-sm font-medium text-stone-300 mb-1 capitalize">{translateApiString(speedType)}</label>
+                            <label htmlFor={`speed-${speedType}`} className="block text-sm font-medium text-stone-300 mb-1 capitalize">{speedType}</label>
                             <input id={`speed-${speedType}`} type="text" value={monsterData.speed[speedType] || ''} onChange={e => handleSpeedChange(speedType, e.target.value)} placeholder="Ex: 30 ft." className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
                         </div>
                     ))}
@@ -332,7 +330,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                         const prof = monsterData.proficiencies.find(p => p.proficiency.index === skill.index);
                         return (
                              <div key={skill.index} className="flex items-center gap-2">
-                                <label htmlFor={`skill-${skill.index}`} className="flex-1 text-sm text-stone-300">{translateApiString(skill.name.replace('Skill: ', ''))}</label>
+                                <label htmlFor={`skill-${skill.index}`} className="flex-1 text-sm text-stone-300">{skill.name.replace('Skill: ', '')}</label>
                                 <input id={`skill-${skill.index}`} type="number" value={prof?.value || ''} onChange={(e) => handleProficiencyChange(skill.index, e.target.value)} placeholder="+0" className="w-20 bg-stone-800 border-stone-700 rounded-md p-1 text-center text-stone-200" />
                             </div>
                         )
@@ -352,7 +350,7 @@ const MonsterForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                             const isSelected = monsterData.condition_immunities.some(ci => ci.index === cond.index);
                             return (
                                 <button key={cond.index} type="button" onClick={() => handleMultiSelectChange('condition_immunities', cond.index)} className={`px-2 py-1 text-xs rounded-full border transition-colors ${isSelected ? 'bg-amber-600/30 border-amber-500 text-amber-200' : 'bg-stone-700/50 border-stone-600 text-stone-300 hover:border-stone-500'}`}>
-                                    {translateApiString(cond.name)}
+                                    {cond.name}
                                 </button>
                             )
                         })}

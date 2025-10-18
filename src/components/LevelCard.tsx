@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ApiClassLevel } from '../types';
 import * as DndApiService from '../services/dndApiService';
-import { translateApiString } from '../utils/translator';
 import { Minus, Plus } from 'lucide-react';
 
 interface LevelCardProps {
@@ -25,10 +24,10 @@ const FeatureItem: React.FC<{ featureName: string; featureIndex: string }> = ({ 
 
     return (
         <li className="relative group text-sm">
-            <span onMouseEnter={fetchFeatureDetails} className="cursor-help">{translateApiString(featureName)}</span>
+            <span onMouseEnter={fetchFeatureDetails} className="cursor-help">{featureName}</span>
             {description && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-stone-600">
-                    <h4 className="font-bold text-amber-300 mb-1">{translateApiString(featureName)}</h4>
+                    <h4 className="font-bold text-amber-300 mb-1">{featureName}</h4>
                     <div className="space-y-1">
                         {description.map((d, i) => <p key={i}>{d}</p>)}
                     </div>

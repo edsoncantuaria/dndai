@@ -1,9 +1,8 @@
 // src/components/NewCreationCharacter/NewStep1_RaceClass.tsx
 import React, { useState } from 'react';
 import type { ApiListItem, ApiTrait } from '@/types';
-import { translateApiString, translateAttribute } from '@/utils/translator';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { Dice5, ArrowRight, Loader2, Info, Check, ShieldCheck, BookOpen, Star, Sparkles, Eye } from 'lucide-react';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
+import { Dice5, ArrowRight, Loader2, Info, Eye } from 'lucide-react';
 import * as DndApiService from '@/services/dndApiService';
 import ClassDetailsModal from './ClassDetailsModal';
 
@@ -20,11 +19,11 @@ const TraitDisplay: React.FC<{ trait: ApiListItem }> = ({ trait }) => {
     return (
         <div className="relative group text-sm">
             <span onMouseEnter={fetchDetails} className="cursor-help font-semibold text-stone-300 underline decoration-dotted decoration-stone-500">
-                {translateApiString(trait.name)}
+                {trait.name}
             </span>
             {details && (
                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-stone-950 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-stone-700">
-                    <h4 className="font-bold text-amber-300 mb-1">{translateApiString(details.name)}</h4>
+                    <h4 className="font-bold text-amber-300 mb-1">{details.name}</h4>
                     <div className="space-y-1">
                         {details.desc.map((d, i) => <p key={i}>{d}</p>)}
                     </div>
@@ -43,13 +42,13 @@ const RaceDetailsDisplay: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 
     return (
         <div className="mt-4 p-4 bg-stone-900/50 border border-stone-700 rounded-lg animate-fadeIn space-y-3">
-             <h4 className="text-lg font-bold text-amber-300 font-garamond">{translateApiString(raceDetails.name)} {subraceDetails ? `(${translateApiString(subraceDetails.name)})` : ''}</h4>
+             <h4 className="text-lg font-bold text-amber-300 font-garamond">{raceDetails.name} {subraceDetails ? `(${subraceDetails.name})` : ''}</h4>
              
              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                  <div>
                     <p className="font-semibold text-stone-400">Bônus de Atributo</p>
                     <p className="text-stone-200">
-                        {Object.entries(racialBonuses).map(([attr, bonus]) => `${translateAttribute(attr as any)} +${bonus}`).join(', ') || 'Nenhum'}
+                        {Object.entries(racialBonuses).map(([attr, bonus]) => `${attr.substring(0,3).toUpperCase()} +${bonus}`).join(', ') || 'Nenhum'}
                     </p>
                 </div>
                 <div>
@@ -71,7 +70,7 @@ const RaceDetailsDisplay: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
 }
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     races: ApiListItem[];
     classes: ApiListItem[];
     nextStep: () => void;
@@ -126,13 +125,15 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                                 onClick={() => handleRaceChange(r.index)}
                                 className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${race === r.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                             >
-                                <span className="font-bold text-lg text-stone-100">{translateApiString(r.name)}</span>
+                                <span className="font-bold text-lg text-stone-100">{r.name}</span>
                             </button>
                         ))}
                     </div>
                 </div>
                 
-                {loadingStates.race ? <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div> : race && raceDetails && <RaceDetailsDisplay hook={hook} />}
+                {loadingStates.isLoading && <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div>}
+                
+                {race && raceDetails && !loadingStates.isLoading && <RaceDetailsDisplay hook={hook} />}
 
                 {race === 'human' && (
                     <div className="animate-fadeIn mt-6 p-4 bg-stone-900/40 rounded-md border border-stone-700">
@@ -163,7 +164,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                             <option value="" disabled>Escolha sua linhagem...</option>
                             {draconicAncestryOptions.map(opt => (
                                 <option key={opt.index} value={opt.index}>
-                                    {translateApiString(opt.name.replace('Draconic Ancestry: ', ''))}
+                                    {opt.name.replace('Draconic Ancestry: ', '')}
                                 </option>
                             ))}
                         </select>
@@ -181,7 +182,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                                     onClick={() => handleSubraceChange(sr.index)}
                                     className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${subrace === sr.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                                 >
-                                    <span className="font-bold text-lg text-stone-100">{translateApiString(sr.name)}</span>
+                                    <span className="font-bold text-lg text-stone-100">{sr.name}</span>
                                 </button>
                             ))}
                         </div>
@@ -198,18 +199,18 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                                 onClick={() => handleClassChange(c.index)}
                                 className={`p-4 border-2 rounded-lg text-center transition-all duration-200 ${characterClass === c.index ? 'border-amber-500 bg-amber-900/40 shadow-lg shadow-amber-900/30' : 'border-stone-700 bg-stone-800/50 hover:border-amber-600 hover:bg-stone-700/50'}`}
                             >
-                                <span className="font-bold text-lg text-stone-100">{translateApiString(c.name)}</span>
+                                <span className="font-bold text-lg text-stone-100">{c.name}</span>
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {loadingStates.class && <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div>}
+                {loadingStates.isLoading && <div className="text-center"><Loader2 className="h-8 w-8 animate-spin text-amber-300" /></div>}
                 
-                {characterClass && classDetails && !loadingStates.class && (
+                {characterClass && classDetails && !loadingStates.isLoading && (
                     <div className="flex justify-center mt-4 animate-fadeIn">
                         <button type="button" onClick={() => setIsClassModalOpen(true)} className="flex items-center gap-2 text-amber-300 hover:text-amber-200 underline">
-                           <Eye className="h-4 w-4"/> Ver Detalhes da Classe {translateApiString(classDetails.name)}
+                           <Eye className="h-4 w-4"/> Ver Detalhes da Classe {classDetails.name}
                         </button>
                     </div>
                 )}

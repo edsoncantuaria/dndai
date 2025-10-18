@@ -1,7 +1,6 @@
 // src/components/NewCreationCharacter/ClassDetailsModal.tsx
 import React from 'react';
 import type { ApiClass, ApiClassLevel } from '@/types';
-import { translateApiString, translateAttribute } from '@/utils/translator';
 import ActionModal from '../ui/ActionModal';
 import LevelCard from '../LevelCard';
 
@@ -17,7 +16,7 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
         <ActionModal
             isOpen={isOpen}
             onClose={onClose}
-            title={`Detalhes da Classe: ${translateApiString(classDetails.name)}`}
+            title={`Detalhes da Classe: ${classDetails.name}`}
             actions={[{ text: "Fechar", onClick: onClose, variant: 'primary' }]}
         >
             <div className="space-y-4">
@@ -28,7 +27,7 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                     </div>
                     <div className="bg-stone-800/60 p-2 rounded col-span-2 md:col-span-1">
                         <p className="text-xs text-stone-400">Resistências</p>
-                        <p className="font-bold text-md text-stone-200">{classDetails.saving_throws.map(st => translateAttribute(st.name).substring(0,3)).join(', ')}</p>
+                        <p className="font-bold text-md text-stone-200">{classDetails.saving_throws.map(st => st.name.substring(0,3)).join(', ')}</p>
                     </div>
                     {classDetails.spellcasting && (
                         <div className="bg-stone-800/60 p-2 rounded">
@@ -42,7 +41,7 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                     <p className="font-semibold text-stone-400 text-sm mb-2">Proficiências</p>
                     <div className="flex flex-wrap gap-2">
                         {classDetails.proficiencies.map(p => (
-                            <span key={p.index} className="px-2 py-1 text-xs bg-stone-700 text-stone-300 rounded-full">{translateApiString(p.name)}</span>
+                            <span key={p.index} className="px-2 py-1 text-xs bg-stone-700 text-stone-300 rounded-full">{p.name}</span>
                         ))}
                     </div>
                 </div>

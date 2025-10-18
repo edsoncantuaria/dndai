@@ -4,7 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import * as HomebrewService from '@/services/homebrewService';
-import { translateApiString } from '@/utils/translator';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
 import { useAuth } from '@/contexts/AuthContext';
@@ -71,7 +70,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
-    }, [subraceData]);
+    }, [subraceData, onDataChange]);
 
     const handleFieldChange = (field: keyof typeof subraceData, value: any) => {
         setSubraceData(prev => ({ ...prev, [field]: value }));
@@ -140,7 +139,7 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 <label htmlFor="subrace-parent-race" className="block text-sm font-medium text-stone-300 mb-1">Raça Principal</label>
                 <select id="subrace-parent-race" value={subraceData.race.index} onChange={e => handleRaceChange(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
                     <option value="" disabled>Selecione a raça principal...</option>
-                    {races.map(r => <option key={r.index} value={r.index}>{translateApiString(r.name)}</option>)}
+                    {races.map(r => <option key={r.index} value={r.index}>{r.name}</option>)}
                 </select>
             </div>
             <div>

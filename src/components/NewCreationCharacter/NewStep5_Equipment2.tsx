@@ -2,7 +2,6 @@
 import React from 'react';
 import type { InventoryItem, ApiEquipmentOption } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { translateApiString } from '@/utils/translator';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
@@ -15,26 +14,49 @@ const ItemChoiceSelector: React.FC<{
 }> = ({ choice, selectionPath, subIndex, hook }) => {
     const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
     
-    // A chave da categoria pode estar em diferentes lugares
-    const categoryIndex = choice?.from?.equipment_category?.index;
+    let categoryIndex = '';
+    // A API D&D pode usar 'equipment_category' ou 'options' para definir a fonte.
+    if (choice?.from?.equipment_category?.index) {
+        categoryIndex = choice.from.equipment_category.index;
+    } else {
+        // Se for um array de opções, não precisamos buscar no cache de categorias.
+        const subOptions = choice?.from?.options?.map((opt: any) => opt.item);
+        if (subOptions) {
+            const currentMainSelection = hook.equipmentSelections[selectionPath];
+            const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
+            const thisSubSelection = currentSubSelections[subIndex];
 
-    if (!categoryIndex) {
-        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida para '{choice.desc}'.</p>;
+            return (
+                 <div className="mt-2 pl-4 border-l-2 border-stone-600">
+                     <select
+                        value={thisSubSelection || ""}
+                        onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
+                        className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
+                    >
+                        <option value="" disabled>Selecione uma opção...</option>
+                        {subOptions.map((item: any) => (
+                            <option key={item.index} value={item.index}>
+                                {item.name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            )
+        }
     }
-
-    const subOptions = equipmentCategoryCache[categoryIndex] || [];
     
+    const subOptions = equipmentCategoryCache[categoryIndex] || [];
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
 
     if (subOptions.length === 0) {
-        return <p className="text-yellow-400 text-xs">Nenhuma opção encontrada para a categoria '{translateApiString(categoryIndex)}'.</p>;
+        return <p className="text-yellow-400 text-xs mt-1">Nenhuma opção encontrada para a categoria '{categoryIndex}'.</p>;
     }
 
     return (
         <div className="mt-2 pl-4 border-l-2 border-stone-600">
-            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${translateApiString(categoryIndex)}`}</label>
+            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${categoryIndex}`}</label>
             <select
                 value={thisSubSelection || ""}
                 onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
@@ -43,13 +65,14 @@ const ItemChoiceSelector: React.FC<{
                 <option value="" disabled>Selecione uma opção...</option>
                 {subOptions.map((item) => (
                     <option key={item.index} value={item.index}>
-                        {translateApiString(item.name)}
+                        {item.name}
                     </option>
                 ))}
             </select>
         </div>
     );
 };
+
 
 const EquipmentOptionRenderer: React.FC<{
     option: ApiEquipmentOption;
@@ -58,7 +81,7 @@ const EquipmentOptionRenderer: React.FC<{
 }> = ({ option, selectionPath, hook }) => {
     switch (option.option_type) {
         case 'counted_reference':
-            return null; // Handled by fixedEquipment
+            return null;
 
         case 'choice':
              if (option.choice?.choose && option.choice.choose > 1) {
@@ -74,7 +97,7 @@ const EquipmentOptionRenderer: React.FC<{
                     {option.items?.map((subItem, subIndex) => (
                         <div key={subIndex}>
                             {subItem.option_type === 'counted_reference' && subItem.of ? (
-                                <p className="text-sm text-stone-300 pl-4">+ {subItem.count}x {translateApiString(subItem.of.name)}</p>
+                                <p className="text-sm text-stone-300 pl-4">+ {subItem.count}x {subItem.of.name}</p>
                             ) : subItem.option_type === 'choice' ? (
                                 <ItemChoiceSelector choice={subItem.choice} selectionPath={selectionPath} subIndex={subIndex} hook={hook} />
                             ) : null}
@@ -91,10 +114,19 @@ const EquipmentChoice: React.FC<{
     group: any;
     hook: ReturnType<typeof useCharacterCreator>;
 }> = ({ group, hook }) => {
-    const { equipmentSelections, handleEquipmentChoiceChange } = hook;
+    const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
-    const mainOptions = group.choice.from.options || [];
-
+    
+    let mainOptions: ApiEquipmentOption[] = [];
+    if (group.choice?.from?.option_set_type === 'options_array' && group.choice?.from?.options) {
+        mainOptions = group.choice.from.options;
+    } else if (group.choice?.from?.option_set_type === 'equipment_category' && group.choice?.from?.equipment_category) {
+        mainOptions = (equipmentCategoryCache[group.choice.from.equipment_category.index] || []).map(item => ({
+            option_type: 'counted_reference',
+            of: item
+        }));
+    }
+    
     if (mainOptions.length === 0) return null;
     
     const mainSelectionIndex = selection?.main;
@@ -102,7 +134,7 @@ const EquipmentChoice: React.FC<{
 
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
-            <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
+            <h5 className="font-semibold text-stone-300">{group.choice.desc}</h5>
             <select
                 value={mainSelectionIndex ?? -1}
                 onChange={(e) => handleEquipmentChoiceChange(group.id, parseInt(e.target.value, 10))}
@@ -136,6 +168,22 @@ const NewStep5_Equipment2: React.FC<{
     const classChoices = equipmentChoiceGroups.filter(g => g.source === 'Classe');
     const backgroundChoices = equipmentChoiceGroups.filter(g => g.source === 'Antecedente');
 
+    const allInventory = useMemo(() => {
+        const consolidated = new Map<string, InventoryItem>();
+        const items = [...fixedEquipment, ...finalizedEquipment];
+
+        for (const item of items) {
+            if (consolidated.has(item.index)) {
+                const existing = consolidated.get(item.index)!;
+                existing.quantity += item.quantity;
+            } else {
+                consolidated.set(item.index, { ...item });
+            }
+        }
+        return Array.from(consolidated.values());
+
+    }, [fixedEquipment, finalizedEquipment]);
+
     return (
         <div className="space-y-8 animate-fadeIn">
             <div className="flex justify-between items-center">
@@ -149,7 +197,7 @@ const NewStep5_Equipment2: React.FC<{
                     Aleatório
                 </button>
             </div>
-            <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
+            <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Faça suas escolhas abaixo.</p>
 
             {loadingStates.isLoading ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
@@ -160,19 +208,23 @@ const NewStep5_Equipment2: React.FC<{
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-8">
                         {backgroundChoices.length > 0 && (
-                            <div className="space-y-4">
-                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas do Antecedente</h4>
+                            <div>
+                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Equipamentos do Antecedente</h4>
+                                <div className="space-y-4">
                                 {backgroundChoices.map((group) => (
                                     <EquipmentChoice key={group.id} group={group} hook={hook} />
                                 ))}
+                                </div>
                             </div>
                         )}
                         {classChoices.length > 0 && (
-                             <div className="space-y-4">
-                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Escolhas da Classe</h4>
+                             <div>
+                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Equipamentos da Classe</h4>
+                                <div className="space-y-4">
                                 {classChoices.map((group) => (
                                     <EquipmentChoice key={group.id} group={group} hook={hook} />
                                 ))}
+                                </div>
                             </div>
                         )}
                          {equipmentChoiceGroups.length === 0 && (
@@ -185,17 +237,12 @@ const NewStep5_Equipment2: React.FC<{
                            <Backpack /> Inventário Resultante
                         </h4>
                         <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-[60vh] overflow-y-auto">
-                           {(fixedEquipment || []).length === 0 && (finalizedEquipment || []).length === 0 ? (
+                           {allInventory.length === 0 ? (
                                 <p className="text-stone-500 italic text-center py-4">Seu inventário está vazio.</p>
                             ) : (
-                                <>
-                                    {fixedEquipment.map((item, index) => (
-                                        <ItemCard key={`fixed-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={false}/>
-                                    ))}
-                                    {finalizedEquipment.map((item, index) => (
-                                         <ItemCard key={`chosen-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={false}/>
-                                    ))}
-                                </>
+                                allInventory.map((item, index) => (
+                                    <ItemCard key={`item-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={false}/>
+                                ))
                             )}
                         </div>
                     </div>
@@ -217,3 +264,5 @@ const NewStep5_Equipment2: React.FC<{
 };
 
 export default NewStep5_Equipment2;
+
+    
