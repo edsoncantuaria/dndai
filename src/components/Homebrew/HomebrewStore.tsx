@@ -601,4 +601,3 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 };
 
 export default HomebrewStore;
-```
