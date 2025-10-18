@@ -4,55 +4,51 @@ import * as authService from '@/services/authService'; // Importa authService
 
 // Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "models/gemini-2.5-pro",
-    "models/gemini-2.5-pro-preview-06-05",
-    "models/gemini-2.5-pro-preview-05-06",
-    "models/gemini-2.5-pro-preview-03-25",
-    "models/gemini-2.5-flash",
-    "models/gemini-2.5-flash-preview-05-20",
-    "models/gemini-2.5-flash-preview-09-2025",
-    "models/gemini-2.5-flash-lite",
-    "models/gemini-2.5-flash-lite-preview-09-2025",
-    "models/gemini-2.5-flash-lite-preview-06-17",
-    "models/gemini-2.0-pro-exp",
-    "models/gemini-2.0-pro-exp-02-05",
-    "models/gemini-2.0-flash-exp",
-    "models/gemini-2.0-flash",
-    "models/gemini-2.0-flash-001",
-    "models/gemini-2.0-flash-lite",
-    "models/gemini-2.0-flash-lite-001",
-    "models/gemini-flash-latest",
-    "models/gemini-flash-lite-latest",
-    "models/gemini-pro-latest",
-    "models/gemini-exp-1206",
-    "models/gemini-robotics-er-1.5-preview",
-    "models/gemini-2.5-computer-use-preview-10-2025"
+    "gemini-2.5-pro",
+    "gemini-2.5-pro-preview-06-05",
+    "gemini-2.5-pro-preview-05-06",
+    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-preview-05-20",
+    "gemini-2.5-flash-preview-09-2025",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash-lite-preview-09-2025",
+    "gemini-2.5-flash-lite-preview-06-17",
+    "gemini-2.0-pro-exp",
+    "gemini-2.0-pro-exp-02-05",
+    "gemini-2.0-flash-exp",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-lite-001",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-pro-latest",
+    "gemini-exp-1206",
+    "gemini-robotics-er-1.5-preview",
+    "gemini-2.5-computer-use-preview-10-2025"
   ];
   
 
   export const AVAILABLE_TTS_MODELS = [
-    "models/gemini-2.5-flash-preview-tts",
-    "models/gemini-2.5-pro-preview-tts"
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.5-pro-preview-tts"
   ];
   
 
   export const AVAILABLE_IMAGE_MODELS = [
-    "models/imagen-3.0-generate-002",
-    "models/imagen-4.0-generate-preview-06-06",
-    "models/gemini-2.5-flash-image-preview",
-    "models/gemini-2.5-flash-image",
-    "models/gemini-2.0-flash-exp-image-generation",
-    "models/gemini-2.0-flash-preview-image-generation"
+    "imagen-3.0-generate-002",
+    "imagen-4.0-generate-preview-06-06",
+    "gemini-2.5-flash-image-preview",
+    "gemini-2.5-flash-image",
+    "gemini-2.0-flash-exp-image-generation",
+    "gemini-2.0-flash-preview-image-generation"
   ];
   
 
 // NEW: Lista completa de vozes nativas do Gemini
 export const AVAILABLE_TTS_VOICES = [
-    "Charon", "Puck", "Zephyr", "Kore", "Fenrir", "Leda", "Orus", "Aoede",
-    "Callirrhoe", "Autonoe", "Enceladus", "Iapetus", "Umbriel", "Algieba",
-    "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia", "Achernar",
-    "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi",
-    "Vindemiatrix", "Sadachbia", "Sadaltager", "Sulafat"
+    "Charon", "Puck", "Zephyr"
 ];
 
 export interface GenerationConfig {
