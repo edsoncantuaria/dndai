@@ -1,3 +1,4 @@
+
 // utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';

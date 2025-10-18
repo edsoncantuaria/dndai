@@ -1,3 +1,4 @@
+
 // src/components/Homebrew/forms/BackgroundForm.tsx
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
@@ -6,6 +7,7 @@ import * as characterUtils from '@/utils/creationHelpers';
 import * as DndApiService from '@/services/dndApiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import * as CharUtils from '@/utils/characterUtils';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -82,6 +84,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         ...initialData,
         feature: { ...defaultBgData.feature, ...(initialData?.feature || {}) },
         language_options: { ...defaultBgData.language_options, ...(initialData?.language_options || {}) },
+        starting_proficiencies: initialData?.starting_proficiencies || [],
         starting_equipment: initialData?.starting_equipment || [],
         starting_equipment_options: initialData?.starting_equipment_options || [],
     });
@@ -173,7 +176,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             <div>
                 <label className="block text-sm font-medium text-stone-300 mb-1">Proficiências em Perícias</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {characterUtils.ALL_SKILLS.map(skill => {
+                    {CharUtils.ALL_SKILLS.map(skill => {
                         const skillIndex = `skill-${skill.toLowerCase().replace(/ /g, '-')}`;
                         const isChecked = bgData.starting_proficiencies.some(p => p.index === skillIndex);
                         return (
