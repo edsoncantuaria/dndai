@@ -1,5 +1,5 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment2.tsx
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import type { InventoryItem, ApiEquipmentOption } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { getOptionLabel } from '@/utils/creationHelpers';
@@ -123,7 +123,8 @@ const EquipmentChoice: React.FC<{
     } else if (group.choice?.from?.option_set_type === 'equipment_category' && group.choice?.from?.equipment_category) {
         mainOptions = (equipmentCategoryCache[group.choice.from.equipment_category.index] || []).map(item => ({
             option_type: 'counted_reference',
-            of: item
+            count: 1, // Assumindo 1 por padrão se não especificado
+            of: { index: item.index, name: item.name, url: item.url }
         }));
     }
     
@@ -264,5 +265,3 @@ const NewStep5_Equipment2: React.FC<{
 };
 
 export default NewStep5_Equipment2;
-
-    
