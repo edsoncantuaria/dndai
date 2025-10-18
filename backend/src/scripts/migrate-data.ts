@@ -9,8 +9,6 @@ import { TRANSLATIONS_SPELLS } from '../../data/TranslatorSpells.js';
 import { TRANSLATIONS_EQUIPMENT } from '../../data/TranslatorEquipments.js';
 import backgroundsData from '../../data/backgrounds.json' assert { type: 'json' };
 import bcrypt from 'bcryptjs';
-import { TRANSLATIONS } from '../../data/TraslatorPTBR.js';
-import * as DndApiService from '../services/dndApiService.js';
 
 const SYSTEM_USER_ID = 1;
 
@@ -18,25 +16,29 @@ async function upsertHomebrew(authorId: number, type: any, name: string, content
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const index = content.index || name.toLowerCase().replace(/\s+/g, '-');
     
-    let existing = await homebrewRepo.findOne({ where: { type, name: content.name } });
+    // Para traduções, o 'name' é a categoria, que deve ser único por autor/tipo
+    const whereCondition: any = type === 'translation' ? { type, name, authorId } : { type, name };
+
+    let existing = await homebrewRepo.findOne({ where: whereCondition });
 
     if (existing) {
-        console.log(`Atualizando '${content.name}'...`);
+        console.log(`Atualizando '${name}' do tipo '${type}'...`);
         existing.content = content;
         existing.isPublic = isPublic;
         return await homebrewRepo.save(existing);
     } else {
-        console.log(`Criando '${content.name}'...`);
+        console.log(`Criando '${name}' do tipo '${type}'...`);
         const newContent = new HomebrewContent();
         newContent.authorId = authorId;
         newContent.type = type;
-        newContent.name = content.name;
+        newContent.name = name;
         newContent.content = { ...content, index: index };
         newContent.isPublic = isPublic;
         newContent.createdBy = 'user';
         return await homebrewRepo.save(newContent);
     }
 }
+
 
 async function createOrUpdateBundle(name: string, description: string, contents: HomebrewContent[]) {
     const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
@@ -80,7 +82,6 @@ async function migrate() {
     const migratedSpells: HomebrewContent[] = [];
     const migratedEquipments: HomebrewContent[] = [];
     const migratedBackgrounds: HomebrewContent[] = [];
-    const migratedBase: HomebrewContent[] = [];
 
     console.log('\n--- Migrando Traduções de Magias ---');
     for (const [englishName, translation] of Object.entries(TRANSLATIONS_SPELLS)) {
@@ -119,38 +120,6 @@ async function migrate() {
         "Contém todos os antecedentes disponíveis no Documento de Referência do Sistema (SRD), traduzidos para o português.",
         migratedBackgrounds
     );
-
-    console.log('\n--- Migrando Traduções Base (Raças, Classes) ---');
-    const resourcesToTranslate: { resource: 'races'|'classes', type: 'race'|'class' }[] = [
-        { resource: 'races', type: 'race' },
-        { resource: 'classes', type: 'class' },
-    ];
-
-    for (const { resource, type } of resourcesToTranslate) {
-        console.log(`Buscando ${resource}...`);
-        const list = await DndApiService.getResourceList(resource);
-        if (list?.results) {
-            for (const item of list.results) {
-                const details = await DndApiService.getDetails(resource, item.index);
-                const translatedName = TRANSLATIONS[details.name];
-                if (translatedName) {
-                    const translatedContent = {
-                        ...details,
-                        name: translatedName,
-                    };
-                    const hbContent = await upsertHomebrew(SYSTEM_USER_ID, type, item.index, translatedContent, true);
-                    migratedBase.push(hbContent);
-                }
-            }
-        }
-    }
-    
-    await createOrUpdateBundle(
-        "Traduções Essenciais PT-BR (Raças e Classes)",
-        "Traduções básicas para raças e classes do SRD para o português do Brasil.",
-        migratedBase
-    );
-
 
     console.log('\nMigração de dados concluída com sucesso!');
     await AppDataSource.destroy();

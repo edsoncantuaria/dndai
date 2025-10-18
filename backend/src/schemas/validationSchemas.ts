@@ -97,7 +97,7 @@ export const NewCharacterInfoSchema = z.object({
 
 // --- Homebrew ---
 export const CreateHomebrewSchema = z.object({
-    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill']),
+    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation']),
     name: z.string().min(1, "O nome do conteúdo é obrigatório."),
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),

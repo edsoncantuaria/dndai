@@ -7,13 +7,12 @@ import http from 'http'; // Importar o módulo http
 import { AppDataSource } from './database/data-source.js';
 import errorMiddleware from './middlewares/errorMiddleware.js';
 import { configureWebSocket } from './websocket/webSocketServer.js';
+import { getTranslations } from './services/translationService.js'; // Importa o novo serviço
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import licenseRoutes from './routes/licenseRoutes.js';
-// A rota de narração será substituída pela lógica do WebSocket, mas pode ser mantida por enquanto se necessário
-// import narrarRoutes from './routes/narrarRoutes.js'; 
 import sessoesRoutes from './routes/sessoesRoutes.js';
 import characterRoutes from './routes/characterRoutes.js';
 import dndApiRoutes from './routes/dndApiRoutes.js';
@@ -59,14 +58,23 @@ const PORT = process.env.PORT || 8071;
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/licenses', licenseRoutes);
-// A rota /api/narrar agora é tratada pelo WebSocket, então podemos desativá-la
-// app.use('/api/narrar', narrarRoutes); 
 app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/dnds', dndApiRoutes);
 app.use('/api/homebrew', homebrewRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/unified/equipment', unifiedEquipmentRouter); // Nova rota unificada
+
+// Rota de Traduções
+app.get('/api/translations', async (req, res, next) => {
+    try {
+        const translations = await getTranslations();
+        res.json(translations);
+    } catch (error) {
+        next(error);
+    }
+});
+
 
 // Rota simples para verificar a saúde do servidor
 app.get('/api/health', (req, res) => {

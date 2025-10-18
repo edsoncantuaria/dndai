@@ -42,12 +42,16 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }, [initialData]);
 
     useEffect(() => {
-        const fullData = { ...raceData };
+        const fullData = { 
+            ...raceData,
+            index: raceData.official_index || (raceData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-race-${Date.now()}`
+        };
         const traitIds = fullData.traits.map((t: ApiListItem) => t.index);
         const homebrewTraitIds = traitIds.filter((id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
         
         fullData.dependencies = homebrewTraitIds;
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData; // Remove o campo auxiliar antes de enviar
+        onDataChange(finalData);
     }, [raceData, onDataChange]);
 
 

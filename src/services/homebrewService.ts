@@ -2,7 +2,7 @@
 import { apiClient } from './apiClient';
 
 // Tipos baseados em backend/src/entities/HomebrewContent.ts
-export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat';
+export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat' | 'skill' | 'translation';
 
 export interface HomebrewContent {
     id: string;

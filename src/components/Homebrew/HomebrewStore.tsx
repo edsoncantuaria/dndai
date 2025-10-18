@@ -3,7 +3,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown, Search, Users } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown, Search, Users, Languages } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
@@ -11,8 +11,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
 import AiCreator from './AiCreator'; // Importar o novo componente
+import TranslationStudio from './TranslationStudio'; // Importar o novo componente
 
-type View = 'list' | 'create' | 'edit';
+type View = 'list' | 'create' | 'edit' | 'translate';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
@@ -29,6 +30,8 @@ const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.Reac
     'monster': <Bot className="h-4 w-4" />,
     'background': <BookOpen className="h-4 w-4" />,
     'feat': <BookOpen className="h-4 w-4" />,
+    'skill': <BookOpen className="h-4 w-4" />,
+    'translation': <Languages className="h-4 w-4" />
 };
 
 const BundleCard: React.FC<{
@@ -270,7 +273,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         }
     };
     
-    // Nova função para lidar com o conteúdo gerado pela IA
     const handleAiContentCreated = (generatedContent: any, type: HomebrewService.HomebrewContentType) => {
         setContentToEdit({
             id: '',
@@ -283,11 +285,15 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             updatedAt: new Date().toISOString(),
             createdBy: 'user',
         });
-        setView('create'); // Abre a tela de criação, mas pré-populada
+        setView('create'); 
     };
 
     if (view === 'create' || view === 'edit') {
         return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndBundles(); }} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
+    }
+    
+    if (view === 'translate') {
+        return <TranslationStudio onCancel={() => setView('list')} />;
     }
 
     const renderContentGrid = (contentList: HomebrewService.HomebrewContent[]) => {
@@ -309,14 +315,14 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     
                     const buttonStyle: React.CSSProperties = {};
                     if(isFromAI) {
-                        buttonStyle.backgroundColor = 'rgb(22 101 52 / 0.8)'; // bg-green-800/80
-                        buttonStyle.color = 'rgb(187 247 208)'; // text-green-200
+                        buttonStyle.backgroundColor = 'rgb(22 101 52 / 0.8)'; 
+                        buttonStyle.color = 'rgb(187 247 208)'; 
                     } else if(isInstalled) {
-                        buttonStyle.backgroundColor = 'rgb(127 29 29 / 0.8)'; // bg-red-800/80
-                        buttonStyle.color = 'rgb(254 202 202)'; // text-red-200
+                        buttonStyle.backgroundColor = 'rgb(127 29 29 / 0.8)'; 
+                        buttonStyle.color = 'rgb(254 202 202)'; 
                     } else {
-                        buttonStyle.backgroundColor = 'rgb(217 119 6)'; // bg-amber-700
-                        buttonStyle.color = 'rgb(28 25 23)'; // text-stone-900
+                        buttonStyle.backgroundColor = 'rgb(217 119 6)'; 
+                        buttonStyle.color = 'rgb(28 25 23)'; 
                     }
 
 
@@ -525,10 +531,15 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                              ))}
                         </div>
                         <div className="flex gap-2 mt-2 sm:mt-0">
+                             {user?.id === 1 && (
+                                <button onClick={() => setView('translate')} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-sky-800 via-sky-700 to-sky-800 border-sky-600 hover:border-sky-500">
+                                    <Languages className="h-5 w-5"/> Estúdio de Tradução
+                                </button>
+                             )}
                              <button onClick={() => setIsAiCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
                                 <Bot className="h-5 w-5"/> Gerar com IA
                             </button>
-                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
+                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm-py-2">
                                 <PackagePlus className="h-5 w-5"/> Criar Pacote
                             </button>
                             <button onClick={() => { setView('create'); setContentToEdit(null); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">

@@ -36,7 +36,12 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }, []);
 
     useEffect(() => {
-        onDataChange(skillData);
+        // Envia os dados para o componente pai, garantindo que o index esteja correto
+        const fullData = {
+            ...skillData,
+            index: skillData.official_index || `custom-skill-${Date.now()}`
+        };
+        onDataChange(fullData);
     }, [skillData, onDataChange]);
     
     const handleFieldChange = (field: keyof typeof skillData, value: any) => {
@@ -50,7 +55,7 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             if (details) {
                 setSkillData(prev => ({
                     ...prev,
-                    name: prev.name || details.name, // Keep existing name if user typed it
+                    name: prev.name || details.name, // Mantém o nome digitado, se houver
                     desc: details.desc,
                     ability_score: details.ability_score,
                 }));

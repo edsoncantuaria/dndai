@@ -17,6 +17,7 @@ import HomebrewHelpModal from './HomebrewHelpModal';
 import SubraceForm from './forms/SubraceForm'; 
 import ExampleModal from './ExampleModal';
 import { EXAMPLES } from '@/data/examples';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill'
@@ -29,6 +30,7 @@ interface Props {
 }
 
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit }) => {
+    const { user } = useAuth();
     const [type, setType] = useState<HomebrewService.HomebrewContentType>(contentToEdit?.type || 'race');
     const [contentData, setContentData] = useState<any>(contentToEdit?.content || {});
     const [isPublic, setIsPublic] = useState(contentToEdit?.isPublic || false);
@@ -37,6 +39,14 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const [isExampleModalOpen, setIsExampleModalOpen] = useState(false);
     const [exampleToLoad, setExampleToLoad] = useState<any | null>(null);
     const { toast } = useToast();
+    
+    // Filtra os tipos de conteúdo com base no ID do usuário
+    const availableContentTypes = useMemo(() => {
+        if (user?.id === 1) {
+            return CONTENT_TYPES; // Admin pode ver tudo
+        }
+        return CONTENT_TYPES.filter(t => t !== 'skill'); // Usuários normais não podem ver 'skill'
+    }, [user]);
 
     useEffect(() => {
         if (contentToEdit) {
@@ -47,7 +57,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     }, [contentToEdit]);
 
     const handleLoadExample = () => {
-        const exampleData = EXAMPLES[type];
+        const exampleData = EXAMPLES[type as keyof typeof EXAMPLES];
         if(exampleData) {
             setExampleToLoad(exampleData);
              toast({
@@ -58,24 +68,14 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     };
     
     useEffect(() => {
-        if (contentData.name && !contentData.index) {
-             setContentData((prev: any) => ({
-                ...prev,
-                index: prev.official_index || prev.name.toLowerCase().replace(/\s+/g, '-')
-            }));
-        }
+        // Não é mais necessário, a lógica foi movida para os formulários individuais
     }, [contentData.name, contentData.index, contentData.official_index]);
 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
-        const finalContentData = {
-            ...contentData,
-            index: contentData.official_index || contentData.index || contentData.name.toLowerCase().replace(/\s+/g, '-')
-        };
-
-        if (!finalContentData.name) {
+        if (!contentData.name) {
              toast({
                 variant: 'destructive',
                 title: 'Dados Incompletos',
@@ -86,38 +86,25 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
         setIsLoading(true);
         try {
-            if (!contentToEdit) {
-                const { exists } = await HomebrewService.checkNameExists(finalContentData.name, type);
-                if (exists && !finalContentData.official_index) { // Não bloqueia se for uma tradução/override de admin
-                    toast({
-                        variant: 'destructive',
-                        title: 'Nome Duplicado',
-                        description: `Um conteúdo do tipo '${type}' com um nome ou índice similar já existe. Por favor, escolha outro nome.`,
-                    });
-                    setIsLoading(false);
-                    return;
-                }
-            }
-            
             const dataToSave: HomebrewService.CreateHomebrewData = {
-                name: finalContentData.name,
+                name: contentData.name,
                 type,
-                content: finalContentData,
+                content: contentData,
                 isPublic,
-                dependencies: finalContentData.dependencies || [],
+                dependencies: contentData.dependencies || [],
             };
             
             if (contentToEdit) {
                 await HomebrewService.updateHomebrewContent(contentToEdit.id, dataToSave);
                  toast({
                     title: 'Conteúdo Atualizado!',
-                    description: `"${finalContentData.name}" foi salvo com sucesso.`,
+                    description: `"${contentData.name}" foi salvo com sucesso.`,
                 });
             } else {
                 await HomebrewService.createHomebrewContent(dataToSave);
                 toast({
                     title: 'Conteúdo Criado!',
-                    description: `"${finalContentData.name}" foi adicionado à sua oficina.`,
+                    description: `"${contentData.name}" foi adicionado à sua oficina.`,
                 });
             }
             onContentCreated();
@@ -188,7 +175,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                     className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
                                     disabled={!!contentToEdit}
                                 >
-                                    {CONTENT_TYPES.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+                                    {availableContentTypes.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
                                 </select>
                             </div>
                             <button 
@@ -252,7 +239,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     isOpen={isExampleModalOpen}
                     onClose={() => setIsExampleModalOpen(false)}
                     contentType={type}
-                    exampleData={EXAMPLES[type]}
+                    exampleData={EXAMPLES[type as keyof typeof EXAMPLES]}
                 />
              )}
         </>
