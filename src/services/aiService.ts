@@ -7,23 +7,9 @@ export interface GenerateHomebrewPayload {
     apiKey: string;
 }
 
-export interface GenerateImagePayload {
-    prompt: string;
-    model: string;
-    apiKey: string;
-    sessionId?: number | string | null;
-}
-
 export const createHomebrewContent = async (payload: GenerateHomebrewPayload) => {
     return apiClient<{ content: any }>('/ai/create-homebrew', {
         method: 'POST',
         body: JSON.stringify(payload),
     });
 };
-
-export const generateImage = async (payload: GenerateImagePayload): Promise<{ imageUrl: string }> => {
-    return await apiClient<{ imageUrl: string }>('/ai/generate-image', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-    });
-}

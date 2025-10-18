@@ -2,7 +2,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as AiCreationService from '../services/aiCreationService.js';
-import * as AiImageService from '../services/aiImageService.js';
 import createError from 'http-errors';
 
 export const createHomebrew = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -23,31 +22,6 @@ export const createHomebrew = async (req: AuthRequest, res: Response, next: Next
             res.status(200).json(result);
         } else {
             throw createError(500, "A IA não conseguiu gerar o conteúdo solicitado.");
-        }
-
-    } catch (error) {
-        next(error);
-    }
-};
-
-export const generateImage = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const userId = req.user?.userId;
-    if (!userId) {
-        return next(createError(401, 'Usuário não autenticado.'));
-    }
-    
-    try {
-        const { prompt, model, apiKey, sessionId } = req.body; // Adicionado sessionId
-        if (!prompt || !model || !apiKey) {
-            return next(createError(400, 'Prompt, modelo e chave de API são obrigatórios.'));
-        }
-
-        const result = await AiImageService.generateImage({ prompt, model, apiKey, sessionId }); // Passa o sessionId para o serviço
-        
-        if (result && result.imageUrl) {
-            res.status(200).json(result);
-        } else {
-            throw createError(500, "A IA não conseguiu gerar a imagem.");
         }
 
     } catch (error) {

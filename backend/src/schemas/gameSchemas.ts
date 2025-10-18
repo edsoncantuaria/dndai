@@ -18,17 +18,8 @@ export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 /* -------------------------------- LOG ENTRY -------------------------------- */
 const LogEntrySchema = z.object({
-  type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll', 'image']),
-  content: z.union([
-    z.string(),
-    z.object({
-      text: z.string().optional(),
-      imageUrl: z.string().optional(),
-      status: z.enum(['generating', 'failed', 'done']).optional(),
-      prompt: z.string().optional(),
-      meta: z.record(z.any()).optional(),
-    }),
-  ]).describe("Conteúdo da entrada no log: string simples ou objeto estruturado para tipos especiais."),
+  type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll']),
+  content: z.string().describe("Conteúdo da entrada no log: string simples ou objeto estruturado para tipos especiais."),
   rollResult: z.any().optional().describe("Dados estruturados opcionais para rolagens de dados."),
 }).describe("Uma entrada do log de aventura.");
 
@@ -143,7 +134,7 @@ export const GameMasterResponseSchema = z.object({
     z.string(),
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
   ])).optional().default([]).describe("Ações sugeridas para o jogador."),
-  updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
+  updatedCharacter: z.object({}).catchall(z.any()).optional().describe("Campos do personagem modificados pela última ação."),
   combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
   ambientSound: z.string().optional().describe("ID do som ambiente (ex.: 'forest_night')."),

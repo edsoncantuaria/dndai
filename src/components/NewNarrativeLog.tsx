@@ -3,95 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import type { LogEntry as LogEntryType } from '../types';
-import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Loader2, Image as ImageIcon } from 'lucide-react';
-import { useSettingsContext } from '@/contexts/SettingsContext';
-import * as aiService from '../services/aiService';
-import Image from 'next/image';
-
-const ImageEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
-    const { getApiKey, sessionId } = useGameStateContext();
-    const { imageModel } = useSettingsContext();
-    
-    // State to hold the final resolved URL
-    const [finalImageUrl, setFinalImageUrl] = useState<string | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    // This effect runs once when the component mounts with a new entry
-    useEffect(() => {
-        let isMounted = true;
-        const processImage = async () => {
-            const imageContent = entry.content as any;
-            
-            // Case 1: URL is already provided
-            if (imageContent.status === 'done' && imageContent.imageUrl) {
-                if(isMounted) setFinalImageUrl(imageContent.imageUrl);
-                return;
-            }
-
-            // Case 2: We need to generate the image
-            if (imageContent.status === 'generating' && imageContent.prompt) {
-                if(isMounted) setIsLoading(true);
-                if(isMounted) setError(null);
-                
-                try {
-                    const apiKey = getApiKey();
-                    if (!apiKey) throw new Error("Chave de API não encontrada.");
-                    
-                    const result = await aiService.generateImage({
-                        prompt: imageContent.prompt,
-                        model: imageModel,
-                        apiKey,
-                        sessionId: sessionId,
-                    });
-                    
-                    if (isMounted && result?.imageUrl) {
-                        setFinalImageUrl(result.imageUrl);
-                    } else if (isMounted) {
-                        throw new Error("A IA não retornou uma imagem.");
-                    }
-                } catch (err: any) {
-                    if(isMounted) setError(err.message || 'Falha ao gerar imagem.');
-                } finally {
-                    if(isMounted) setIsLoading(false);
-                }
-            }
-        };
-
-        processImage();
-        
-        return () => { isMounted = false; };
-        
-    }, [entry, getApiKey, imageModel, sessionId]);
-
-    if (isLoading) {
-        return (
-            <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg w-full aspect-video bg-stone-800 flex items-center justify-center text-stone-500">
-                <Loader2 className="h-8 w-8 mr-2 animate-spin"/> 
-                <span>Gerando imagem...</span>
-            </div>
-        );
-    }
-    
-    if (error) {
-        return (
-             <div className="my-4 rounded-lg overflow-hidden border-2 border-red-700 shadow-lg w-full aspect-video bg-red-900/50 flex items-center justify-center text-red-300 p-4">
-                 <p className="text-center text-sm">{error}</p>
-            </div>
-        );
-    }
-
-    if (finalImageUrl) {
-        return (
-            <div className="my-4 rounded-lg overflow-hidden border-2 border-stone-600 shadow-lg">
-                <Image src={finalImageUrl} alt="Cena gerada pela IA" width={1024} height={576} className="w-full h-auto" unoptimized />
-            </div>
-        );
-    }
-    
-    // Render nothing while figuring out what to do, or if there's no valid state
-    return null;
-};
+import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit } from 'lucide-react';
 
 const NarrationEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     let textContent = entry.content;
@@ -232,9 +144,6 @@ const LogEntry = React.memo(function LogEntry({ entry }: { entry: LogEntryType }
         case 'insight':
              contentComponent = <p className="text-purple-300/90 text-sm font-semibold italic text-center py-2 flex items-center justify-center gap-2"><BrainCircuit className="h-4 w-4"/> {entry.content} </p>;
              break;
-        case 'image':
-            contentComponent = <ImageEntry entry={entry} />;
-            break;
         default:
              contentComponent = null;
     }

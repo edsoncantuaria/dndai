@@ -1,7 +1,7 @@
 'use client';
 
 import React, { ChangeEvent, useEffect, useState } from 'react';
-import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, AVAILABLE_IMAGE_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
+import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
 import { Info, KeyRound, Volume2, VolumeX, FlaskConical } from 'lucide-react';
 
 interface SettingsModalProps {
@@ -90,7 +90,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { 
         model, setModel, 
         ttsModel, setTtsModel, 
-        imageModel, setImageModel, 
         ttsVoice, setTtsVoice, 
         apiKey, setApiKey, 
         generationConfig, setGenerationConfig,
@@ -225,24 +224,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 {AVAILABLE_TTS_VOICES.map(voiceName => (
                                     <option key={voiceName} value={voiceName}>
                                         {voiceName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                         <div>
-                            <label htmlFor="image-model-select" className="block text-stone-300 font-semibold mb-2">
-                                Modelo de Geração de Imagem
-                            </label>
-                            <select
-                                id="image-model-select"
-                                value={imageModel}
-                                onChange={(e) => setImageModel(e.target.value)}
-                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                            >
-                                {AVAILABLE_IMAGE_MODELS.map(modelName => (
-                                    <option key={modelName} value={modelName}>
-                                        {modelName}
                                     </option>
                                 ))}
                             </select>

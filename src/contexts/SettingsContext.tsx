@@ -34,12 +34,6 @@ export const AVAILABLE_MODELS = [
   ];
   
 
-  export const AVAILABLE_IMAGE_MODELS = [
-    "gemini-2.5-flash-image-preview",
-    "gemini-2.5-flash-image",
-  ];
-  
-
 // NEW: Lista completa de vozes nativas do Gemini
 export const AVAILABLE_TTS_VOICES = [
     "Charon", "Puck", "Zephyr"
@@ -60,8 +54,6 @@ interface SettingsContextType {
     setModel: (model: string) => void;
     ttsModel: string;
     setTtsModel: (model: string) => void;
-    imageModel: string;
-    setImageModel: (model: string) => void;
     ttsVoice: string;
     setTtsVoice: (voice: string) => void;
     apiKey: string;
@@ -90,7 +82,6 @@ export const defaultGenerationConfig: GenerationConfig = {
 const defaultSettings = {
     model: AVAILABLE_MODELS[0],
     ttsModel: AVAILABLE_TTS_MODELS[0],
-    imageModel: AVAILABLE_IMAGE_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
     apiKey: '',
     generationConfig: defaultGenerationConfig,
@@ -114,7 +105,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [isLoaded, setIsLoaded] = useState(false);
     const [model, setModel] = useState<string>(defaultSettings.model);
     const [ttsModel, setTtsModel] = useState<string>(defaultSettings.ttsModel);
-    const [imageModel, setImageModel] = useState<string>(defaultSettings.imageModel);
     const [ttsVoice, setTtsVoice] = useState<string>(defaultSettings.ttsVoice);
     const [apiKey, setApiKey] = useState<string>(defaultSettings.apiKey);
     const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultSettings.generationConfig);
@@ -143,9 +133,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const getSettingsObject = useCallback(() => {
         return {
-            model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew
+            model, ttsModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew
         }
-    }, [model, ttsModel, imageModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew]);
+    }, [model, ttsModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew]);
 
     // Save to localStorage whenever a setting changes
     useEffect(() => {
@@ -160,7 +150,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (settings) {
             if (settings.model && AVAILABLE_MODELS.includes(settings.model)) setModel(settings.model);
             if (settings.ttsModel && AVAILABLE_TTS_MODELS.includes(settings.ttsModel)) setTtsModel(settings.ttsModel);
-            if (settings.imageModel && AVAILABLE_IMAGE_MODELS.includes(settings.imageModel)) setImageModel(settings.imageModel);
             if (settings.ttsVoice && AVAILABLE_TTS_VOICES.includes(settings.ttsVoice)) setTtsVoice(settings.ttsVoice);
             if (settings.generationConfig) setGenerationConfig(prev => ({ ...prev, ...settings.generationConfig }));
             if (typeof settings.volume === 'number') setVolume(settings.volume);
@@ -180,14 +169,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [getSettingsObject, isLoaded]);
 
-    const value = {
+    const value: any = {
         isLoaded, loadSettings, getSettingsObject,
         model, setModel,
         ttsModel, setTtsModel,
-        imageModel, setImageModel,
+        ttsVoice, setTtsVoice,
         apiKey, setApiKey,
         generationConfig, setGenerationConfig,
-        ttsVoice, setTtsVoice,
         volume, setVolume,
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,
