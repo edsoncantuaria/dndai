@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import * as DndApiService from '@/services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem } from '@/types';
 import { fetchDetailsInChunks } from '@/utils/apiUtils';
-import { translateSpell } from '@/utils/translator';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -89,7 +88,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                 const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
                 if (spellsResponse?.results) {
                     const spellDetails = await fetchDetailsInChunks(spellsResponse.results, DndApiService.getSpellDetails, (loaded, total) => setSpellsLoadingProgress(`Carregando magias ${loaded} de ${total}...`));
-                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1).map(spell => translateSpell(spell) as ApiSpell));
+                    setClassSpellOptions(spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1));
                 }
             }
 

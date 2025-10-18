@@ -305,3 +305,12 @@ export const translateAttribute = (s: keyof typeof TRANSLATIONS): string => tran
 export const translateMagicSchool = (s?: string): string => translateApiString(s);
 export const translateCondition = (s?: string): string => translateApiString(s);
 export const translateLanguage = (s?: string): string => translateApiString(s);
+
+
+// A função translateEquipment agora é obsoleta no frontend,
+// pois o backend já entrega os dados traduzidos.
+export const translateEquipment = (equipment: any): any => {
+    if (!equipment) return equipment;
+    // Retorna o objeto original, assumindo que ele já foi traduzido pelo backend
+    return equipment;
+};
