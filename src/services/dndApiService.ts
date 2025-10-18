@@ -2,7 +2,7 @@
 import type { ApiRace, ApiClass, ApiListItem, ApiSubrace, ApiBackground, ApiClassLevel, ApiSpell, ApiTrait, InventoryItem, ApiCondition, ApiFeature, ApiSubclass, Feat } from '../types';
 import { apiClient } from './apiClient';
 
-// --- Funções Principais (agora chamam o novo endpoint unificado do backend) ---
+// --- Funções de Lista (agora chamam o novo endpoint unificado do backend) ---
 
 export const getRaces = () => apiClient<{ results: ApiListItem[] }>('/data/races');
 export const getClasses = () => apiClient<{ results: ApiListItem[] }>('/data/classes');
@@ -18,7 +18,8 @@ export const getEquipmentCategories = () => apiClient<{ results: ApiListItem[] }
 export const getConditions = () => apiClient<{ results: ApiListItem[] }>('/data/conditions');
 export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment');
 
-// Funções de Detalhes
+// --- Funções de Detalhes (também usam o endpoint unificado) ---
+
 export const getRaceDetails = (index: string) => apiClient<ApiRace>(`/data/races/${index}`);
 export const getSubraceDetails = (index: string) => apiClient<ApiSubrace>(`/data/subraces/${index}`);
 export const getClassDetails = (index: string) => apiClient<ApiClass>(`/data/classes/${index}`);
