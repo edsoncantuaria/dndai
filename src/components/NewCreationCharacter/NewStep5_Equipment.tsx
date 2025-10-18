@@ -31,7 +31,7 @@ const ItemChoiceSelector: React.FC<{
             <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${categoryIndex}`}</label>
             <select
                 value={thisSubSelection || ""}
-                onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
+                onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex, false)}
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
             >
                 <option value="" disabled>Selecione uma opção...</option>

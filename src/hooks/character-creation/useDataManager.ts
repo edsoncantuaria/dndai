@@ -49,6 +49,10 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     }, []);
 
     const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
+        if (!categoryIndex) {
+            console.warn("fetchEquipmentCategory chamado com índice inválido.");
+            return [];
+        }
         if (equipmentCategoryCache[categoryIndex]) {
             return equipmentCategoryCache[categoryIndex];
         }
@@ -178,12 +182,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             if (details?.starting_equipment_options) {
                 for (const choice of details.starting_equipment_options) {
                     const optionSet = choice.from;
-                    // Case 1: Direct equipment category reference
+                    
                     if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
                         await fetchEquipmentCategory(optionSet.equipment_category.index);
                     }
-                    // Case 2: Nested choices inside an options array
-                    else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
+                    
+                    if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
                         for (const option of optionSet.options) {
                             if (option.option_type === 'choice' && option.choice?.from?.equipment_category?.index) {
                                 await fetchEquipmentCategory(option.choice.from.equipment_category.index);
@@ -245,5 +249,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         loadingStates,
         fetchFeats,
         fetchEquipmentCategory,
+        equipmentCategoryCache, // Expondo o cache
     };
 };

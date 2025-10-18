@@ -27,7 +27,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, allEquipment, fetchEquipmentCategory } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats, allEquipment, fetchEquipmentCategory, equipmentCategoryCache } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
@@ -39,19 +39,47 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
-        setField('equipmentSelections', (prev: any) => ({
-            ...prev,
-            [groupId]: { main: mainOptionIndex, sub: {} }, // Reseta as sub-escolhas ao mudar a principal
-        }));
-    }, [setField]);
-
-    const handleEquipmentSubChoiceChange = useCallback((path: string, itemIndex: string, subIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
-            const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
-            if (newState[path] && typeof newState[path] === 'object') {
-                newState[path].sub[subIndex] = itemIndex;
+            const newSelections = { ...prev };
+            const group = derivedData.equipmentChoiceGroups.find(g => g.id === groupId);
+            if (!group) return prev;
+    
+            const mainOption = group.choice.from.options[mainOptionIndex];
+            const newSub = { ...prev[groupId]?.sub };
+    
+            // Se a nova opção principal não tiver sub-opções, limpe as sub-seleções antigas
+            if (mainOption?.option_type !== 'multiple') {
+                Object.keys(newSub).forEach(key => delete newSub[key]);
             }
-            return newState;
+            
+            newSelections[groupId] = { main: mainOptionIndex, sub: newSub };
+            return newSelections;
+        });
+    }, [setField, derivedData.equipmentChoiceGroups]);
+    
+    const handleEquipmentSubChoiceChange = useCallback((groupId: string, itemIndex: string, subIndex: number, isMultiChoice: boolean) => {
+        setField('equipmentSelections', (prev: any) => {
+            const newSelections = JSON.parse(JSON.stringify(prev)); // Deep copy
+            if (!newSelections[groupId]) return prev;
+    
+            const currentSub = newSelections[groupId].sub || {};
+    
+            if (isMultiChoice) {
+                // Handle as array of choices
+                let currentChoices = Array.isArray(currentSub[subIndex]) ? currentSub[subIndex] : [];
+                if (currentChoices.includes(itemIndex)) {
+                    currentChoices = currentChoices.filter((i: string) => i !== itemIndex);
+                } else {
+                    currentChoices.push(itemIndex);
+                }
+                currentSub[subIndex] = currentChoices;
+            } else {
+                // Handle as single choice
+                currentSub[subIndex] = itemIndex;
+            }
+    
+            newSelections[groupId].sub = currentSub;
+            return newSelections;
         });
     }, [setField]);
 
@@ -192,6 +220,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         loadingStates,
         allEquipment,
         fetchEquipmentCategory,
+        equipmentCategoryCache, // Adicionando o cache aqui
         handleEquipmentChoiceChange,
         handleEquipmentSubChoiceChange,
         ...attributeManager,
