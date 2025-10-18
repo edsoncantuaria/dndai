@@ -40,15 +40,15 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                     <div>
                         <h5 className="font-bold text-stone-300">Proficiências</h5>
                         <ul className="list-disc list-inside">
-                            {Array.from(allFixedProficiencies.values()).filter(p => !p.name.includes("Saving Throw")).map(prof => (
-                                prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
+                            {Array.from(allFixedProficiencies.values()).filter(p => p?.name && !p.name.includes("Saving Throw")).map(prof => (
+                               prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
                             ))}
                         </ul>
                     </div>
                      <div>
                         <h5 className="font-bold text-stone-300">Resistências</h5>
                         <ul className="list-disc list-inside">
-                            {Array.from(allFixedProficiencies.values()).filter(p => p.name.includes("Saving Throw")).map(prof => (
+                            {Array.from(allFixedProficiencies.values()).filter(p => p?.name && p.name.includes("Saving Throw")).map(prof => (
                                 prof?.name && <li key={prof.index}>{normalizeProficiencyName(prof.name)}</li>
                             ))}
                         </ul>
@@ -56,7 +56,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                      <div>
                         <h5 className="font-bold text-stone-300">Idiomas</h5>
                          <ul className="list-disc list-inside">
-                            {baseLanguages.map(lang => (
+                            {(baseLanguages || []).map(lang => (
                                 <li key={lang}>{translateLanguage(lang)}</li>
                             ))}
                         </ul>
@@ -123,7 +123,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                     </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {Array.from({ length: languageChoicesCount }).map((_, index) => {
-                            const unavailableOptions = new Set([...baseLanguages, ...chosenLanguages.filter((_, i) => i !== index)]);
+                            const unavailableOptions = new Set([...(baseLanguages || []), ...chosenLanguages.filter((_, i) => i !== index)]);
                             const availableLanguageOptions = allLanguages.filter(lang => !unavailableOptions.has(lang.name));
                             return (
                                 <div key={index}>

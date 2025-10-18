@@ -4,7 +4,6 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { ProficiencyChoiceWithSource } from '../useCharacterCreator';
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -13,10 +12,7 @@ export const useDerivedCharacterData = (
         subraceDetails: ApiSubrace | null;
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
-    },
-    proficiencySelections: Record<string, string[]>,
-    allProficiencyChoices: ProficiencyChoiceWithSource[],
-    allFixedProficiencies: Map<string, Proficiency>
+    }
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
@@ -85,26 +81,6 @@ export const useDerivedCharacterData = (
         return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed };
     }, [classDetails, backgroundDetails]);
 
-    const finalProficiencies = useMemo(() => {
-        const profs = new Map(allFixedProficiencies);
-        
-        // Adiciona proficiências das escolhas
-        for (const groupId in proficiencySelections) {
-            const selectedIndices = proficiencySelections[groupId];
-            const choiceGroup = allProficiencyChoices.find(c => c.id === groupId);
-            if (choiceGroup) {
-                selectedIndices.forEach(selectedIndex => {
-                    const option = choiceGroup.options.find(o => o.index === selectedIndex);
-                    if (option && !profs.has(option.index)) {
-                        profs.set(option.index, { index: option.index, name: option.name, url: option.url });
-                    }
-                });
-            }
-        }
-
-        return Array.from(profs.values());
-    }, [allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
-
     const baseLanguages = useMemo(() => {
         const langs = new Set<string>();
         (raceDetails?.languages || []).forEach(l => langs.add(l.name));
@@ -126,7 +102,6 @@ export const useDerivedCharacterData = (
         finalAttributes,
         equipmentChoiceGroups,
         fixedEquipment,
-        finalProficiencies,
         baseLanguages,
         languageChoicesCount
     };

@@ -1,7 +1,7 @@
 // src/hooks/character-creation/useSelectionManager.ts
 import { useState, useCallback, useMemo } from 'react';
 import type { ApiListItem, ApiSpell, Proficiency } from '@/types';
-import { ProficiencyChoiceWithSource } from '../useCharacterCreator';
+import { ProficiencyChoiceWithSource } from './useCharacterCreator';
 import type { CharacterCreatorState } from './reducer';
 import type { Attributes } from '@/types';
 
@@ -153,6 +153,14 @@ export const useSelectionManager = (
         setChosenLanguages(selected);
     }, [languageChoicesCount, allLanguages, baseLanguages]);
 
+    const canProceedFromProficiencies = useMemo(() => {
+        const proficienciesDone = allProficiencyChoices.every(choice => 
+            (proficiencySelections[choice.id]?.length || 0) === choice.choose
+        );
+        const languagesDone = chosenLanguages.filter(Boolean).length === languageChoicesCount;
+        return proficienciesDone && languagesDone;
+    }, [allProficiencyChoices, proficiencySelections, chosenLanguages, languageChoicesCount]);
+
 
     return {
         proficiencySelections,
@@ -164,6 +172,7 @@ export const useSelectionManager = (
         racialSpellOptions,
         racialSpellTraits,
         unavailableProficiencies,
+        canProceedFromProficiencies,
 
         setChosenLanguages,
         setEquipmentSelections,
