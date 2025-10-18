@@ -3,6 +3,7 @@ import { useState, useCallback, useMemo } from 'react';
 import type { ApiListItem, ApiSpell, Proficiency } from '@/types';
 import { ProficiencyChoiceWithSource } from '../useCharacterCreator';
 import type { CharacterCreatorState } from './reducer';
+import type { Attributes } from '@/types';
 
 export const useSelectionManager = (
     state: CharacterCreatorState,
@@ -10,7 +11,9 @@ export const useSelectionManager = (
     allFixedProficiencies: Map<string, Proficiency>,
     allLanguages: ApiListItem[],
     classSpellOptions: ApiSpell[],
-    subclassSpells: ApiSpell[]
+    subclassSpells: ApiSpell[],
+    languageChoicesCount: number, // Recebe a contagem
+    baseLanguages: Set<string> // Recebe os idiomas base
 ) => {
     const { isVariantHuman, characterClass } = state;
     
@@ -140,7 +143,7 @@ export const useSelectionManager = (
             selected.forEach(s => usedProficiencies.add(s));
         });
         setProficiencySelections(newSelections);
-    }, [allProficiencyChoices, allFixedProficiencies, proficiencySelections]);
+    }, [allProficiencyChoices, allFixedProficiencies]);
 
     const handleRandomizeLanguages = useCallback(() => {
         if (languageChoicesCount <= 0) return;

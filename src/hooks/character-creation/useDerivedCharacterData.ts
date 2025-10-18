@@ -1,6 +1,6 @@
 // src/hooks/character-creation/useDerivedCharacterData.ts
 import { useMemo } from 'react';
-import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency } from '@/types';
+import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem } from '@/types';
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
@@ -14,8 +14,6 @@ export const useDerivedCharacterData = (
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
     },
-    proficiencySelections: Record<string, string[]>,
-    allProficiencyChoices: ProficiencyChoiceWithSource[],
     allFixedProficiencies: Map<string, Proficiency>
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
@@ -87,23 +85,33 @@ export const useDerivedCharacterData = (
 
     const finalProficiencies = useMemo(() => {
         const profs: Proficiency[] = Array.from(allFixedProficiencies.values());
-        Object.values(proficiencySelections).flat().forEach(profIndex => {
-            for (const choiceGroup of allProficiencyChoices) {
-                const option = choiceGroup.options.find((opt: any) => opt.index === profIndex);
-                if (option) {
-                    profs.push({ index: option.index, name: option.name, url: option.url });
-                    return;
-                }
-            }
-        });
+        // A lógica para adicionar proficiências escolhidas é movida para o buildCharacter
         return profs;
-    }, [allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
+    }, [allFixedProficiencies]);
+
+    const baseLanguages = useMemo(() => {
+        const langs = new Set<string>();
+        (raceDetails?.languages || []).forEach(l => langs.add(l.name));
+        (subraceDetails?.languages || []).forEach(l => langs.add(l.name));
+        return langs;
+    }, [raceDetails, subraceDetails]);
+
+    const languageChoicesCount = useMemo(() => {
+        let count = 0;
+        if (raceDetails?.language_options) count += raceDetails.language_options.choose;
+        if (backgroundDetails?.language_options) count += backgroundDetails.language_options.choose;
+        if (details.subraceDetails?.language_options) count += details.subraceDetails.language_options.choose;
+        return count;
+    }, [raceDetails, backgroundDetails, details.subraceDetails]);
+
 
     return {
         racialBonuses,
         finalAttributes,
         equipmentChoiceGroups,
         fixedEquipment,
-        finalProficiencies
+        finalProficiencies,
+        baseLanguages,
+        languageChoicesCount
     };
 };

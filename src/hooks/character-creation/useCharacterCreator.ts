@@ -77,10 +77,11 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
         return profs;
     }, [raceDetails, details.subraceDetails, classDetails, backgroundDetails, state.isVariantHuman]);
-
-    const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager.proficiencySelections, allProficiencyChoices, allFixedProficiencies);
+    const derivedData = useDerivedCharacterData(state, details, allFixedProficiencies);
+    
+    const selectionManager = useSelectionManager(state, allProficiencyChoices, allFixedProficiencies, allLanguages, details.classSpellOptions, details.subclassSpells, derivedData.languageChoicesCount, derivedData.baseLanguages);
+
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -194,7 +195,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 attributes: derivedData.finalAttributes,
                 proficiencies: derivedData.finalProficiencies,
                 traits: Array.from(new Map([...(raceDetails?.traits || []), ...(details.subraceDetails?.racial_traits || [])].map(item => [item.index, item])).values()),
-                languages: Array.from(new Set([...selectionManager.baseLanguages, ...selectionManager.chosenLanguages.filter(Boolean)])),
+                languages: Array.from(new Set([...derivedData.baseLanguages, ...selectionManager.chosenLanguages.filter(Boolean)])),
                 inventory: [...derivedData.fixedEquipment, ...selectionManager.finalizedEquipment],
                 spells: Array.from(new Set([...selectionManager.chosenClassSpells, ...Object.values(selectionManager.chosenRacialSpells).flat()])),
                 backstory: state.backstory,
