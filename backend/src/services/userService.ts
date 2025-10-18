@@ -6,6 +6,7 @@ import type { SettingsSchema } from '../schemas/validationSchemas.js';
 import type { z } from 'zod';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
+import { In } from 'typeorm';
 
 export const getUserProfile = async (userId: number) => {
     const userRepository = AppDataSource.getRepository(User);
@@ -51,8 +52,12 @@ export const updateUserHomebrewInstallation = async (userId: number, itemId: str
     }
     
     // Verifica se o ID pertence a um conteúdo ou a um pacote
-    const content = await AppDataSource.getRepository(HomebrewContent).findOneBy({ id: itemId });
-    const bundle = await AppDataSource.getRepository(HomebrewBundle).findOneBy({ id: itemId });
+    const contentRepo = AppDataSource.getRepository(HomebrewContent);
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    
+    const content = await contentRepo.findOneBy({ id: itemId });
+    const bundle = await bundleRepo.findOne({ where: { id: itemId }, relations: ['contents'] });
+
 
     if (!content && !bundle) {
         throw createError(404, 'Conteúdo ou Pacote Homebrew não encontrado.');
@@ -64,7 +69,6 @@ export const updateUserHomebrewInstallation = async (userId: number, itemId: str
     if (bundle && !bundle.isPublic && bundle.authorId !== userId) {
          throw createError(403, 'Você não tem permissão para instalar este pacote privado.');
     }
-    
 
     let currentIds = new Set(user.installedHomebrewIds || []);
 
@@ -72,6 +76,11 @@ export const updateUserHomebrewInstallation = async (userId: number, itemId: str
         currentIds.add(itemId);
     } else { // uninstall
         currentIds.delete(itemId);
+        // Se for um pacote, remove também todos os conteúdos associados a ele.
+        if (bundle && bundle.contents) {
+            const contentIdsToRemove = bundle.contents.map(c => c.id);
+            contentIdsToRemove.forEach(id => currentIds.delete(id));
+        }
     }
     
     user.installedHomebrewIds = Array.from(currentIds);
