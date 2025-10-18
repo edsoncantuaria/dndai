@@ -27,14 +27,14 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'SET_FIELD', payload: { field, value } });
     }, []);
 
-    const { details, loadingStates, fetchFeats, fetchEquipmentCategory } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+    const { details, loadingStates, fetchFeats, fetchEquipmentCategory, allEquipment } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager);
+    const derivedData = useDerivedCharacterData(state, details, selectionManager.allProficiencyChoices, allEquipment || [], selectionManager.languageChoicesCount);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -172,6 +172,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         details,
         loadingStates,
         fetchEquipmentCategory,
+        allEquipment,
         ...attributeManager,
         ...selectionManager,
         ...derivedData,

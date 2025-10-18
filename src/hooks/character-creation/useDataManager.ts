@@ -24,11 +24,29 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         progress: 0,
     });
 
-    // Cache for equipment categories
+    const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
     const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
 
-    // Fetch Equipment Category (on demand)
+    useEffect(() => {
+        const fetchBaseEquipment = async () => {
+             setLoadingStates({ isLoading: true, message: 'Carregando equipamentos base...', progress: 0 });
+            const equipmentResponse = await DndApiService.getEquipment();
+            if (equipmentResponse?.results) {
+                const itemDetails = await fetchDetailsInChunks(
+                    equipmentResponse.results,
+                    DndApiService.getEquipmentDetails,
+                    (loaded, total, progress) => {
+                        setLoadingStates({ isLoading: true, message: `Analisando Itens ${loaded} de ${total}...`, progress });
+                    }
+                );
+                setAllEquipment(itemDetails as InventoryItem[]);
+            }
+             setLoadingStates({ isLoading: false, message: '', progress: 0 });
+        };
+        fetchBaseEquipment();
+    }, []);
+
     const fetchEquipmentCategory = useCallback(async (categoryIndex: string): Promise<InventoryItem[]> => {
         if (equipmentCategoryCache[categoryIndex]) {
             return equipmentCategoryCache[categoryIndex];
@@ -202,7 +220,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             classSpellOptions,
             subclassSpells,
         },
-        equipmentCategoryCache,
+        allEquipment,
         loadingStates,
         fetchFeats,
         fetchEquipmentCategory,
