@@ -2,6 +2,7 @@
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent, HomebrewContentType } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
+import { User } from '../entities/User.js'; // Importação que faltava
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
@@ -20,9 +21,8 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
     newContent.type = data.type;
     newContent.name = data.name;
     
-    // Garante que o objeto 'content' tenha um 'index'
     const contentPayload = { ...data.content };
-    if (!contentPayload.index) {
+    if (!contentPayload.index && data.type !== 'translation') {
         contentPayload.index = data.name.toLowerCase().replace(/\s+/g, '-') || `custom-${data.type}-${Date.now()}`;
     }
     
@@ -50,7 +50,6 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
     if (!contentToUpdate) {
         throw createError(404, 'Conteúdo Homebrew não encontrado.');
     }
-    // Admin (ID 1) pode editar qualquer coisa.
     if (contentToUpdate.authorId !== authorId && authorId !== 1) {
         throw createError(403, 'Você não tem permissão para editar este conteúdo.');
     }
@@ -75,8 +74,6 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
 };
 
 export const deleteHomebrewContent = async (contentId: string, authorId: number) => {
-    // This function is now disabled to prevent accidental deletion.
-    // We can re-enable it if a 'soft delete' or 'archive' feature is desired later.
     throw createError(403, 'A exclusão de criações individuais está desabilitada.');
 };
 
@@ -84,7 +81,6 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const whereCondition: FindManyOptions<HomebrewContent>['where'] = { 
         isPublic: true,
-        // bundleId: IsNull() // Removido para incluir tudo o que é publico
     };
     const { page = 1, limit = 100 } = pagination || {};
 
@@ -96,7 +92,7 @@ export const getPublicHomebrewContent = async (type?: HomebrewContentType, creat
         relations: ['bundle', 'author'],
         select: {
             id: true, name: true, type: true, authorId: true, createdAt: true, createdBy: true, isPublic: true, content: true, bundleId: true,
-            author: { id: true, username: true } // Seleciona o username do autor
+            author: { id: true, username: true }
         },
         take: limit,
         skip: (page - 1) * limit,
@@ -125,7 +121,7 @@ export const getHomebrewContentById = async (contentId: string, userId?: number)
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const content = await homebrewRepo.findOneBy({ id: contentId });
     if (!content) throw createError(404, 'Conteúdo Homebrew não encontrado.');
-    if (!content.isPublic && content.authorId !== userId) throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
+    if (!content.isPublic && content.authorId !== userId && userId !== 1) throw createError(403, 'Você não tem permissão para visualizar este conteúdo.');
     return content;
 };
 
@@ -146,22 +142,39 @@ export const findHomebrewByOfficialIndex = async (officialIndex: string, type: H
 
     if (installedIds.length === 0) return null;
 
-    return homebrewRepo
-        .createQueryBuilder("hb")
-        .where("hb.type = :type", { type })
-        .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
-        .andWhere("hb.id IN (:...installedIds)", { installedIds })
-        .getOne();
+    const query = homebrewRepo.createQueryBuilder("hb");
+
+    if (type === 'translation') {
+        // Para traduções, buscamos pelo NOME da categoria (ex: "Attributes")
+        query.where("hb.type = :type", { type })
+             .andWhere("hb.name = :name", { name: officialIndex })
+             .andWhere("hb.id IN (:...installedIds)", { installedIds });
+    } else {
+        // Para outros tipos, usamos o campo index dentro do JSON
+        query.where("hb.type = :type", { type })
+             .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.index')) = :index", { index: officialIndex })
+             .andWhere("hb.id IN (:...installedIds)", { installedIds });
+    }
+    
+    return query.getOne();
 };
 
 export const findAdminTranslation = async (officialIndex: string, type: HomebrewContentType): Promise<HomebrewContent | null> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
-    return homebrewRepo
-        .createQueryBuilder("hb")
-        .where("hb.type = :type", { type })
-        .andWhere("hb.authorId = 1") // Apenas do admin
-        .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndex })
-        .getOne();
+    
+    const query = homebrewRepo.createQueryBuilder("hb");
+
+     if (type === 'translation') {
+        query.where("hb.type = 'translation'")
+             .andWhere("hb.authorId = 1")
+             .andWhere("hb.name = :name", { name: officialIndex });
+    } else {
+        query.where("hb.type = :type", { type })
+             .andWhere("hb.authorId = 1")
+             .andWhere("JSON_UNQUOTE(JSON_EXTRACT(hb.content, '$.official_index')) = :index", { index: officialIndex });
+    }
+
+    return query.getOne();
 }
 
 export const getAdminTranslations = async (type: HomebrewContentType): Promise<HomebrewContent[]> => {
@@ -194,13 +207,13 @@ export const getHomebrewDependencies = async (contentId: string, visited = new S
     return Array.from(new Map(allDependencies.map(item => [item.id, item])).values());
 };
 
-export const checkIfNameExists = async (name: string, type: HomebrewContentType): Promise<boolean> => {
+export const checkIfNameExists = async (name: string, type: HomebrewContentType): Promise<{ exists: boolean }> => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
     const index = name.toLowerCase().replace(/\s+/g, '-');
     const count = await homebrewRepo.count({
         where: [{ type, name: Like(name) }, { type, content: Like(`%"index":"${index}"%`) }]
     });
-    return count > 0;
+    return { exists: count > 0 };
 };
 
 // --- Bundle Functions ---
@@ -214,8 +227,12 @@ export const getBundles = async (options: { userId?: number; scope?: 'public' | 
         .take(limit)
         .skip((page - 1) * limit);
 
-    if (scope === 'mine' && userId) query.where('bundle.authorId = :userId', { userId });
-    else query.where('bundle.isPublic = true');
+    if (scope === 'mine' && userId) {
+        query.where('bundle.authorId = :userId', { userId });
+    }
+    else {
+        query.where('bundle.isPublic = true');
+    }
     
     return query.getMany();
 };
