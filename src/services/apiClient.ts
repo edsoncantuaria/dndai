@@ -18,6 +18,9 @@ const getAuthHeaders = (): HeadersInit | null => {
     };
 };
 
+// Rotas que não exigem autenticação
+const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data/'];
+
 /**
  * Um wrapper para a API fetch que centraliza a lógica de chamada ao nosso backend.
  * Ele automaticamente adiciona a URL base, os headers de autenticação e trata as respostas de erro.
@@ -29,18 +32,14 @@ const getAuthHeaders = (): HeadersInit | null => {
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const { headers: customHeaders, ...customOptions } = options;
 
-    const isPublicRoute = endpoint.startsWith('/auth/');
+    const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
     
-    let authHeaders: HeadersInit | null = {};
+    let authHeaders: HeadersInit | null = getAuthHeaders();
 
-    if (!isPublicRoute) {
-        authHeaders = getAuthHeaders();
-        // Se for uma rota que necessita de autenticação e o token não existir, lança um erro.
-        if (!authHeaders && !endpoint.startsWith('/data/')) { // Permite chamadas para /data sem token
-             throw new Error("Token de autenticação não fornecido ou mal formatado.");
-        }
+    // Se não for uma rota pública e o token não existir, lança um erro.
+    if (!isPublic && !authHeaders) {
+        throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
     }
-
 
     const requestOptions: RequestInit = {
         headers: {

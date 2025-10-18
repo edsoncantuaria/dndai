@@ -1,3 +1,4 @@
+// src/contexts/SettingsContext.tsx
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService'; // Importa authService
@@ -74,10 +75,15 @@ const defaultSettings = {
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
 const saveSettingsToDB = async (settings: Partial<any>) => {
-    try {
-        await authService.saveUserSettings(settings);
-    } catch (error) {
-        console.error("Failed to save settings to DB:", error);
+    // A chamada só deve acontecer se houver um token, indicando um usuário logado.
+    if (typeof window !== 'undefined' && localStorage.getItem('token')) {
+        try {
+            await authService.saveUserSettings(settings);
+        } catch (error) {
+            console.error("Failed to save settings to DB:", error);
+        }
+    } else {
+        // console.log("User not logged in, skipping DB save for settings.");
     }
 };
 
