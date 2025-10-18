@@ -6,79 +6,69 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { InventoryItem, ApiEquipmentOption } from '@/types';
 
-interface SubChoiceSelectorProps {
-    group: EquipmentChoiceGroup;
-    mainSelectionIndex: number;
-    subChoiceIndex: number; // Index of the sub-choice within a 'multiple' option
-    subChoiceItem: ApiEquipmentOption;
+// Componente para um único seletor de item dentro de uma escolha
+const ItemChoiceSelector: React.FC<{
+    choice: ApiEquipmentOption['choice'];
+    selectionPath: (string | number)[];
     hook: ReturnType<typeof useCharacterCreator>;
-}
-
-const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, subChoiceIndex, subChoiceItem, hook }) => {
-    const { equipmentSelections, setField, allEquipment } = hook;
-    
-    // Determine the current selection for this specific sub-choice
-    const currentSubSelection = equipmentSelections[group.id]?.sub?.[subChoiceIndex];
-
-    if (subChoiceItem.option_type !== 'choice' || !subChoiceItem.choice?.from?.equipment_category) {
-        return null;
-    }
-    
-    const categoryIndex = subChoiceItem.choice.from.equipment_category.index;
+}> = ({ choice, selectionPath, hook }) => {
+    const { equipmentSelections, setField, allEquipment, loadingStates } = hook;
+    const categoryIndex = choice?.from?.equipment_category?.index;
 
     if (!categoryIndex) {
-        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida para {getOptionLabel(subChoiceItem)}.</p>;
+        return <p className="text-red-400 text-xs">Erro: Categoria de equipamento não definida.</p>;
     }
 
     const subOptions = (allEquipment || []).filter(item => {
         if (!item) return false;
-        
         const itemCategory = item.equipment_category?.index;
         const itemGearCategory = (item as any).gear_category?.index;
-
-        if (itemCategory === categoryIndex || itemGearCategory === categoryIndex) {
-            return true;
-        }
-
-        // Handle complex categories by checking weapon properties
-        switch (categoryIndex) {
-            case 'martial-melee-weapons':
-                return item.weapon_category === 'Martial' && item.weapon_range === 'Melee';
-            case 'simple-weapons':
-                return item.weapon_category === 'Simple';
-            case 'martial-weapons':
-                return item.weapon_category === 'Martial';
-            case 'arcane-foci':
-            case 'druidic-foci':
-            case 'holy-symbols':
-                 return itemGearCategory === categoryIndex;
-            default:
-                return false;
-        }
+        
+        return itemCategory === categoryIndex ||
+               itemGearCategory === categoryIndex ||
+               (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
+               (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
+               (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
+               (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial');
     });
 
-    const handleSubSelection = (itemIndexStr: string) => {
+    const getSelectionValue = () => {
+        let current = equipmentSelections;
+        for (const key of selectionPath) {
+            current = current?.[key];
+            if (current === undefined) return -1;
+        }
+        return current;
+    };
+    const currentSelectionIndex = getSelectionValue();
+
+    const handleSelection = (itemIndexStr: string) => {
         const itemIdx = parseInt(itemIndexStr, 10);
         setField('equipmentSelections', (prev: any) => {
-            const newSubSelections = { ...(prev[group.id]?.sub || {}) };
-            newSubSelections[subChoiceIndex] = itemIdx;
-            return {
-                ...prev,
-                [group.id]: { main: mainSelectionIndex, sub: newSubSelections },
-            };
+            let newState = { ...prev };
+            let currentLevel = newState;
+            // Navega e cria a estrutura de aninhamento se não existir
+            for (let i = 0; i < selectionPath.length - 1; i++) {
+                const key = selectionPath[i];
+                if (currentLevel[key] === undefined || typeof currentLevel[key] !== 'object') {
+                    currentLevel[key] = Number.isInteger(selectionPath[i+1]) ? [] : {};
+                }
+                currentLevel = currentLevel[key];
+            }
+            // Define o valor no nível final
+            currentLevel[selectionPath[selectionPath.length - 1]] = itemIdx;
+            return newState;
         });
     };
 
-    if (hook.loadingStates.isLoading) {
-        return <Loader2 className="animate-spin text-stone-400 mt-2" />;
-    }
+    if (loadingStates.isLoading) return <Loader2 className="animate-spin text-stone-400 mt-2" />;
 
     return (
-        <div className="mt-2 space-y-1 pl-4 border-l-2 border-stone-600">
-             <label className="text-xs text-stone-400">{subChoiceItem.choice.desc || `Escolha de ${categoryIndex}`}</label>
-            <select 
-                value={currentSubSelection ?? -1} 
-                onChange={(e) => handleSubSelection(e.target.value)} 
+        <div className="mt-2 space-y-1">
+            <label className="text-xs text-stone-400">{choice.desc || `Escolha de ${categoryIndex}`}</label>
+            <select
+                value={currentSelectionIndex ?? -1}
+                onChange={(e) => handleSelection(e.target.value)}
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm"
             >
                 <option value={-1} disabled>Selecione um item...</option>
@@ -88,69 +78,71 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     );
 };
 
+// Componente para renderizar uma única opção de equipamento, que pode ser simples, múltipla ou uma escolha.
+const EquipmentOptionRenderer: React.FC<{
+    option: ApiEquipmentOption;
+    selectionPath: (string | number)[];
+    hook: ReturnType<typeof useCharacterCreator>;
+}> = ({ option, selectionPath, hook }) => {
+    switch (option.option_type) {
+        case 'counted_reference':
+            return null; // Itens fixos são tratados separadamente
+        case 'choice':
+            return <ItemChoiceSelector choice={option.choice} selectionPath={selectionPath} hook={hook} />;
+        case 'multiple':
+            return (
+                <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
+                    {option.items?.map((subItem, subIndex) => (
+                        <EquipmentOptionRenderer
+                            key={subIndex}
+                            option={subItem}
+                            selectionPath={[...selectionPath, subIndex]}
+                            hook={hook}
+                        />
+                    ))}
+                </div>
+            );
+        default:
+            return <p className="text-red-500 text-xs">Opção de equipamento não suportada: {option.option_type}</p>;
+    }
+};
 
-interface EquipmentChoiceProps {
+const EquipmentChoice: React.FC<{
     group: EquipmentChoiceGroup;
     hook: ReturnType<typeof useCharacterCreator>;
-}
-
-const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
-    const { equipmentSelections, setField, allEquipment } = hook;
-    const mainSelectionIndex = equipmentSelections[group.id]?.main;
+}> = ({ group, hook }) => {
+    const { equipmentSelections, setField } = hook;
+    const selection = equipmentSelections[group.id];
     const mainOptions = group.choice.from.options || [];
 
     const handleMainSelection = (indexStr: string) => {
         const mainIdx = parseInt(indexStr, 10);
-        // Reset sub-selections when the main option changes
         setField('equipmentSelections', (prev: any) => ({
             ...prev,
-            [group.id]: { main: mainIdx, sub: {} },
+            [group.id]: { main: mainIdx, sub: {} }
         }));
     };
-    
-    const selectedMainOption = mainSelectionIndex !== undefined ? mainOptions[mainSelectionIndex] : null;
 
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
             <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
-            <select 
-                value={mainSelectionIndex ?? -1} 
-                onChange={(e) => handleMainSelection(e.target.value)} 
+            <select
+                value={selection?.main ?? -1}
+                onChange={(e) => handleMainSelection(e.target.value)}
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
                 <option value={-1} disabled>Selecione uma opção...</option>
                 {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
             </select>
-
-            {selectedMainOption && selectedMainOption.option_type === 'multiple' && (
-                <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
-                    {selectedMainOption.items.map((subItem: ApiEquipmentOption, index: number) => {
-                        if (subItem.option_type === 'counted_reference') {
-                            return null; // This is now handled by the fixed equipment logic
-                        }
-                        return (
-                            <SubChoiceSelector
-                                key={index}
-                                group={group}
-                                mainSelectionIndex={mainSelectionIndex!}
-                                subChoiceIndex={index}
-                                subChoiceItem={subItem}
-                                hook={hook}
-                            />
-                        )
-                    })}
-                </div>
-            )}
-             {selectedMainOption && selectedMainOption.option_type === 'choice' && (
-                 <div className="pt-2">
-                    <SubChoiceSelector
-                        group={group}
-                        mainSelectionIndex={mainSelectionIndex!}
-                        subChoiceIndex={0} // There's only one sub-choice here
-                        subChoiceItem={selectedMainOption}
+            
+            {selection?.main !== undefined && mainOptions[selection.main] && (
+                <div className="pl-4 border-l-2 border-amber-800/50">
+                    <EquipmentOptionRenderer
+                        option={mainOptions[selection.main]}
+                        selectionPath={[group.id, 'sub']}
                         hook={hook}
                     />
-                 </div>
+                </div>
             )}
         </div>
     );
@@ -161,7 +153,7 @@ const NewStep5_Equipment: React.FC<{
     prevStep: () => void;
     nextStep: () => void;
 }> = ({ hook, prevStep, nextStep }) => {
-    const { 
+    const {
         equipmentChoiceGroups,
         fixedEquipment,
         loadingStates,
@@ -173,7 +165,7 @@ const NewStep5_Equipment: React.FC<{
         <div className="space-y-8 animate-fadeIn">
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-stone-300">Equipamento Inicial</h3>
-                 <button
+                <button
                     type="button"
                     onClick={handleRandomizeEquipment}
                     className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
@@ -182,12 +174,12 @@ const NewStep5_Equipment: React.FC<{
                     Aleatório
                 </button>
             </div>
-             <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
+            <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Escolha suas opções abaixo.</p>
 
             {loadingStates.isLoading ? (
                 <div className="flex flex-col items-center justify-center p-8 text-stone-400">
                     <Loader2 className="h-12 w-12 animate-spin" />
-                    <p className="mt-4">Carregando opções de equipamento...</p>
+                    <p className="mt-4">{loadingStates.message || 'Carregando opções...'}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

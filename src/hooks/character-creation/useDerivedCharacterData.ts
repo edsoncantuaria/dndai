@@ -1,13 +1,61 @@
 // src/hooks/character-creation/useDerivedCharacterData.ts
 import { useMemo } from 'react';
-import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat } from '@/types';
+import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat, ApiEquipmentOption } from '@/types';
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
-import * as DndApiService from '../../services/dndApiService';
-import { ProficiencyChoiceWithSource } from './useCharacterCreator';
-import { useSelectionManager } from './useSelectionManager';
+
+// Helper function to recursively find chosen items
+const findChosenItems = (
+    option: ApiEquipmentOption,
+    selection: any,
+    allEquipment: InventoryItem[]
+): InventoryItem[] => {
+    const results: InventoryItem[] = [];
+
+    switch (option.option_type) {
+        case 'counted_reference':
+            const itemDetails = allEquipment.find(e => e.index === option.of?.index);
+            if (itemDetails) {
+                results.push({ ...itemDetails, quantity: option.count || 1, id: uuidv4() });
+            }
+            break;
+
+        case 'choice':
+            if (selection !== undefined && selection !== -1) {
+                const categoryIndex = option.choice?.from?.equipment_category?.index;
+                if (categoryIndex) {
+                    const subOptions = allEquipment.filter(item => {
+                         const itemCategory = item.equipment_category?.index;
+                         const itemGearCategory = (item as any).gear_category?.index;
+                        
+                         return itemCategory === categoryIndex ||
+                                itemGearCategory === categoryIndex ||
+                               (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
+                               (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
+                               (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
+                               (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial');
+                    });
+                    const chosenItem = subOptions[selection];
+                    if (chosenItem) {
+                        results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
+                    }
+                }
+            }
+            break;
+            
+        case 'multiple':
+            option.items?.forEach((subOption, subIndex) => {
+                const subSelection = selection?.[subIndex];
+                results.push(...findChosenItems(subOption, subSelection, allEquipment));
+            });
+            break;
+    }
+
+    return results;
+};
+
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -18,10 +66,11 @@ export const useDerivedCharacterData = (
         backgroundDetails: ApiBackground | null;
         availableFeats: Feat[];
     },
-    finalProficiencies: Proficiency[],
+    allProficiencyChoices: any[],
     allEquipment: InventoryItem[],
+    languageChoicesCount: number,
 ) => {
-    const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat } = state;
+    const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
 
     const racialBonuses = useMemo(() => {
@@ -55,15 +104,65 @@ export const useDerivedCharacterData = (
         }, {} as characterUtils.Attributes),
     [state.baseAttributes, racialBonuses]);
     
+    const finalProficiencies = useMemo(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => p && profs.set(p.index, { ...p }));
+
+        addProfs(raceDetails?.starting_proficiencies);
+        addProfs(subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => st && profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
+
+        if(isVariantHuman) {
+             const variantHumanSkillChoice = allProficiencyChoices.find(c => c.id === 'variant-human-skill');
+             if(variantHumanSkillChoice && proficiencySelections['variant-human-skill']?.[0]) {
+                 const skillIndex = proficiencySelections['variant-human-skill'][0];
+                 const skill = variantHumanSkillChoice.options.find(o => o.index === skillIndex);
+                 if(skill) profs.set(skill.index, skill);
+             }
+        } else {
+             (raceDetails?.starting_proficiency_options?.from?.options || []).forEach(opt => {
+                const choiceId = `race-${raceDetails!.index}`;
+                const selection = proficiencySelections[choiceId]?.[0];
+                if(selection && opt.item?.index === selection) {
+                    profs.set(selection, opt.item);
+                }
+             });
+        }
+        
+         Object.values(proficiencySelections).flat().forEach(profIndex => {
+            if (!profs.has(profIndex)) {
+                for (const group of allProficiencyChoices) {
+                    const option = group.options.find((opt: any) => opt.index === profIndex);
+                    if (option) {
+                        profs.set(profIndex, option);
+                        break;
+                    }
+                }
+            }
+        });
+
+        return Array.from(profs.values());
+
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, allProficiencyChoices]);
+    
     
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
-        let fixed: InventoryItem[] = [];
-    
-        const addEquipment = (list: { equipment: any, quantity: number }[] = []) => {
-            list.forEach(item => fixed.push({ ...item.equipment, id: uuidv4(), quantity: item.quantity, equipped: false }));
+        const fixed: InventoryItem[] = [];
+
+        const processOption = (opt: ApiEquipmentOption) => {
+            if (opt.option_type === 'counted_reference' && opt.of) {
+                const itemDetails = allEquipment.find(e => e.index === opt.of!.index);
+                if (itemDetails) {
+                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: opt.count || 1, equipped: false });
+                }
+            }
         };
-    
+
+        const addEquipment = (list: any[] = []) => list.forEach(item => processOption({ option_type: 'counted_reference', ...item }));
+        
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
             classDetails.starting_equipment_options.forEach((choice, i) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
@@ -72,36 +171,33 @@ export const useDerivedCharacterData = (
             addEquipment(backgroundDetails.starting_equipment);
             backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
-
-        const finalEquip = choiceGroups.map(group => {
-            const selection = (equipmentSelections || {})[group.id];
-            if (!selection || selection.main === undefined) return null;
+    
+        const finalEquip = choiceGroups.flatMap(group => {
+            const selection = equipmentSelections?.[group.id];
+            if (!selection || selection.main === undefined) return [];
+            
             const mainOption = group.choice.from.options[selection.main];
+            return findChosenItems(mainOption, selection.sub, allEquipment);
+        });
 
-            if (mainOption.option_type === 'counted_reference') {
-                return { ...mainOption.of, quantity: mainOption.count, id: uuidv4() };
-            }
-            if (mainOption.option_type === 'multiple') {
-                return mainOption.items.map((item: any) => ({ ...item.of, quantity: item.count, id: uuidv4() }));
-            }
-            if (mainOption.option_type === 'choice') {
-                if (selection.sub === undefined) return null;
-                const categoryIndex = mainOption.choice.from.equipment_category.index;
-                const subOptions = (allEquipment || []).filter(item => 
-                    (item.equipment_category && item.equipment_category.index === categoryIndex) ||
-                    (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
-                );
-                const subItem = subOptions[selection.sub];
-                return { ...subItem, quantity: 1, id: uuidv4() };
-            }
-            return null;
-        }).flat().filter(Boolean);
-
+        // Validation logic to check if all choices have been made
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
             if (!selection || selection.main === undefined) return false;
+        
             const mainOption = group.choice.from.options[selection.main];
-            return mainOption.option_type !== 'choice' || selection.sub !== undefined;
+            
+            const countSubChoices = (option: ApiEquipmentOption): number => {
+                if (option.option_type === 'choice') return 1;
+                if (option.option_type === 'multiple') return (option.items || []).reduce((acc, item) => acc + countSubChoices(item), 0);
+                return 0;
+            };
+            
+            const requiredSubChoices = countSubChoices(mainOption);
+            if (requiredSubChoices === 0) return true;
+
+            const madeSubChoices = Object.keys(selection.sub || {}).length;
+            return madeSubChoices >= requiredSubChoices;
         });
 
         return { 
