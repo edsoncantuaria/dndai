@@ -14,6 +14,8 @@ export const useDerivedCharacterData = (
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
     },
+    proficiencySelections: Record<string, string[]>,
+    allProficiencyChoices: ProficiencyChoiceWithSource[],
     allFixedProficiencies: Map<string, Proficiency>
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
@@ -84,16 +86,30 @@ export const useDerivedCharacterData = (
     }, [classDetails, backgroundDetails]);
 
     const finalProficiencies = useMemo(() => {
-        const profs: Proficiency[] = Array.from(allFixedProficiencies.values());
-        // A lógica para adicionar proficiências escolhidas é movida para o buildCharacter
-        return profs;
-    }, [allFixedProficiencies]);
+        const profs = new Map(allFixedProficiencies);
+        
+        // Adiciona proficiências das escolhas
+        for (const groupId in proficiencySelections) {
+            const selectedIndices = proficiencySelections[groupId];
+            const choiceGroup = allProficiencyChoices.find(c => c.id === groupId);
+            if (choiceGroup) {
+                selectedIndices.forEach(selectedIndex => {
+                    const option = choiceGroup.options.find(o => o.index === selectedIndex);
+                    if (option && !profs.has(option.index)) {
+                        profs.set(option.index, { index: option.index, name: option.name, url: option.url });
+                    }
+                });
+            }
+        }
+
+        return Array.from(profs.values());
+    }, [allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
 
     const baseLanguages = useMemo(() => {
         const langs = new Set<string>();
         (raceDetails?.languages || []).forEach(l => langs.add(l.name));
         (subraceDetails?.languages || []).forEach(l => langs.add(l.name));
-        return langs;
+        return Array.from(langs);
     }, [raceDetails, subraceDetails]);
 
     const languageChoicesCount = useMemo(() => {
