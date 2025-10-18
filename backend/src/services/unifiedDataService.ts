@@ -11,7 +11,7 @@ const repo = () => AppDataSource.getRepository(HomebrewContent);
 const userRepo = () => AppDataSource.getRepository(User);
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
-const globalKey = (r: string, i?: string) => i ? `dnd5e:2014:${r}:${i}` : `dnd5e:2014:${r}:list`;
+const globalKey = (r: string, i?: string) => i ? `dnd5e:v2014:${r}:${i}` : `dnd5e:v2014:${r}:list`;
 const userKey = (uid: number, hex: string, r: string, i?: string) =>
   i ? `user:${uid}:${hex}:${r}:${i}` : `user:${uid}:${hex}:${r}:list`;
 
@@ -58,12 +58,17 @@ export async function invalidateUserCache(userId: number) {
     if (user) {
         if (redisClient && redisClient.isOpen) {
             try {
-                // Deleta chaves antigas associadas ao usuário para evitar cache zumbi
-                const keysToDelete = await redisClient.keys(`user:${userId}:*`);
-                if (keysToDelete.length > 0) {
-                    await redisClient.del(keysToDelete);
-                    console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
-                }
+                // Usa SCAN para evitar bloquear o Redis em produção
+                let cursor = '0';
+                do {
+                    const scanResult = await redisClient.scan(cursor, { MATCH: `user:${userId}:*`, COUNT: 100 });
+                    const keysToDelete = scanResult.keys;
+                    cursor = scanResult.cursor;
+                    if (keysToDelete.length > 0) {
+                        await redisClient.del(keysToDelete);
+                        console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
+                    }
+                } while (cursor !== '0');
             } catch (err) {
                  console.error(`[Cache] Erro ao deletar chaves antigas para o usuário ${userId}:`, err);
             }
@@ -86,8 +91,7 @@ async function getOfficialList(resource: string): Promise<any[]> {
       const cached = await redisClient.get(listKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        // Validação: Garante que o cache contenha uma lista com 'results'
-        if (parsed && Array.isArray(parsed.results) && parsed.results.length > 0) {
+        if (parsed && Array.isArray(parsed.results)) {
           console.log(`[dndApiService-Cache] HIT para chave: ${listKey}`);
           return parsed.results;
         }
@@ -100,9 +104,8 @@ async function getOfficialList(resource: string): Promise<any[]> {
   const data = await DndApi.getResourceList(resource);
   const results = data?.results || [];
 
-  if (redisClient && redisClient.isOpen && results.length > 0) {
+  if (redisClient && redisClient.isOpen && data) { // Salva o objeto completo { count, results }
     try {
-        // Salva o objeto completo {count, results} para consistência
         await redisClient.set(listKey, JSON.stringify(data));
     } catch(err) {
          console.error(`[Cache] Falha ao salvar no Redis ${listKey}:`, err);
@@ -149,6 +152,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
   const officialList = await getOfficialList(normalizedResource);
 
   const map = new Map<string, any>();
+  
   // 1. Oficiais
   for (const item of officialList) {
     if (item && item.index) {
@@ -160,7 +164,8 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
   const translations = await repo().find({ where: { type: 'translation', authorId: 1 } });
   const tMap = new Map(translations.map(t => {
       const content = typeof t.content === 'string' ? JSON.parse(t.content) : t.content;
-      return [norm(content.official_index || content.index), content];
+      const key = norm(content.official_index || content.index);
+      return [key, content];
   }));
 
   for (const [key, trans] of tMap.entries()) {
@@ -200,7 +205,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
         if (map.has(key)) {
           const officialItem = map.get(key);
           const mergedContent = { ...officialItem, ...content, name: content.name || officialItem.name, desc: content.desc || officialItem.desc };
-          map.set(key, { ...mergedContent, isHomebrew: true, source: 'homebrew' });
+          map.set(key, { ...mergedContent, source: 'homebrew', isHomebrew: true }); // Garante a source
         } else {
           map.set(key, { ...content, isHomebrew: true, source: 'homebrew', id: hb.id });
         }
@@ -241,7 +246,7 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
       });
       if(translation) {
           const content = typeof translation.content === 'string' ? JSON.parse(translation.content) : translation.content;
-          officialData = { ...officialData, ...content };
+          officialData = { ...officialData, ...content, name: content.name || officialData.name, desc: content.desc || officialData.desc };
       }
   }
 

@@ -29,11 +29,11 @@ async function fetchWithCache<T>(endpoint: string, redisKey: string): Promise<T 
     try {
       const cached = await redisClient.get(redisKey);
       if (cached) {
-        console.log(`[DndApiService] Cache HIT: ${redisKey}`);
-        const parsed = JSON.parse(cached);
         // Validação robusta do cache
-        if (parsed && (Array.isArray(parsed.results) || typeof parsed === 'object')) {
-            return parsed as T;
+        const parsed = JSON.parse(cached);
+        if (parsed && typeof parsed === 'object') {
+          console.log(`[DndApiService] Cache HIT: ${redisKey}`);
+          return parsed as T;
         }
         console.warn(`[DndApiService] Cache INVÁLIDO para ${redisKey}. Buscando novamente.`);
       }
@@ -86,6 +86,28 @@ export async function getResourceDetails(resource: string, index: string): Promi
   const key = cacheKey(resource, index);
   return await fetchWithCache<any>(`/${resource}/${index}`, key) || {}; // Retorna objeto vazio em falha
 }
+
+/**
+ * Obtém os níveis de uma classe.
+ */
+export const getClassLevels = async (classIndex: string) => {
+    return getResourceDetails(`classes/${classIndex}`, 'levels');
+};
+
+/**
+ * Obtém os níveis de uma subclasse.
+ */
+export const getSubclassLevels = async (subclassIndex: string) => {
+    return getResourceDetails(`subclasses/${subclassIndex}`, 'levels');
+};
+
+/**
+ * Obtém as magias de uma classe.
+ */
+export const getSpellsForClass = async (classIndex: string) => {
+    return getResourceDetails(`classes/${classIndex}`, 'spells');
+};
+
 
 /**
  * Atalhos de conveniência para os principais recursos usados no jogo.
