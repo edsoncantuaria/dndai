@@ -38,27 +38,19 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment);
 
 
-    // Funções de seleção de equipamento movidas para cá para ter acesso a `setField`.
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => ({
             ...prev,
-            [groupId]: mainOptionIndex,
+            [groupId]: { main: mainOptionIndex, sub: {} }, // Reseta as sub-escolhas ao mudar a principal
         }));
     }, [setField]);
-    
-    const handleEquipmentSubChoiceChange = useCallback((path: string, itemIndex: string, subIndex: number, choiceCount: number) => {
+
+    const handleEquipmentSubChoiceChange = useCallback((path: string, itemIndex: string, subIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newState = JSON.parse(JSON.stringify(prev)); // Deep copy
-            let currentSelections = newState[path] || [];
-            
-            // Garante que é um array para escolhas múltiplas
-            if (!Array.isArray(currentSelections)) {
-                currentSelections = Array(choiceCount).fill("");
+            if (newState[path] && typeof newState[path] === 'object') {
+                newState[path].sub[subIndex] = itemIndex;
             }
-            
-            currentSelections[subIndex] = itemIndex;
-            newState[path] = currentSelections;
-            
             return newState;
         });
     }, [setField]);

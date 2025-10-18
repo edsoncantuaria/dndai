@@ -29,49 +29,36 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
     const isProficient = useMemo(() => {
-        if (!item) return true; // Itens genéricos não exigem proficiência
+        if (!item) return true;
     
         const armorCategory = item.armor_category?.toLowerCase().trim();
         const weaponCategory = item.weapon_category?.toLowerCase().trim();
-        const isShield = item.equipment_category?.index === 'shields';
     
-        // Se não for arma nem armadura, é proficiente
-        if (!armorCategory && !weaponCategory && !isShield) {
-            return true;
+        const requiredProficiencies = new Set<string>();
+        if (armorCategory) requiredProficiencies.add(armorCategory);
+        if (weaponCategory) requiredProficiencies.add(weaponCategory);
+        if (item.equipment_category?.index === 'shields') requiredProficiencies.add('shields');
+        if(item.index) requiredProficiencies.add(item.index);
+
+
+        if (requiredProficiencies.size === 0) {
+            return true; // No proficiency required
         }
     
-        const normalizedProficiencies = new Set(
-            proficiencies.map(p => p.index.toLowerCase())
-        );
+        const characterProficiencies = new Set(proficiencies.map(p => p.index.toLowerCase()));
+
+        if (characterProficiencies.has('all-armor') && armorCategory) return true;
+        if (characterProficiencies.has('martial-weapons') && weaponCategory === 'martial') return true;
+        if (characterProficiencies.has('simple-weapons') && weaponCategory === 'simple') return true;
+
     
-        // Proficiência "All Armor"
-        if (normalizedProficiencies.has('all-armor') && armorCategory) {
-            return true;
-        }
-    
-        // Proficiência "Martial Weapons" ou "Simple Weapons"
-        if (weaponCategory) {
-            if (normalizedProficiencies.has(`${weaponCategory}-weapons`)) {
+        for (const req of requiredProficiencies) {
+            if (characterProficiencies.has(req)) {
                 return true;
             }
-        }
-    
-        // Verificações específicas
-        if (armorCategory) {
-            if (normalizedProficiencies.has(`${armorCategory}-armor`)) {
+             if (characterProficiencies.has(`${req}-armor`)) {
                 return true;
             }
-        }
-    
-        if (isShield) {
-            if (normalizedProficiencies.has('shields')) {
-                return true;
-            }
-        }
-        
-        // Verifica proficiência pelo nome exato do item (para armas exóticas, etc)
-        if (normalizedProficiencies.has(item.index)) {
-             return true;
         }
     
         return false;

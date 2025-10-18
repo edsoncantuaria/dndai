@@ -1,7 +1,7 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
-import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
+import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem, ApiEquipmentOption } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
 import { apiClient } from '@/services/apiClient';
 
@@ -175,15 +175,17 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             const details = await DndApiService.getBackgroundDetails(background);
             setBackgroundDetails(details);
     
-            // Pré-carrega categorias de equipamento necessárias para as escolhas do antecedente
             if (details?.starting_equipment_options) {
                 for (const choice of details.starting_equipment_options) {
                     const optionSet = choice.from;
-                    if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category) {
+                    // Case 1: Direct equipment category reference
+                    if (optionSet.option_set_type === 'equipment_category' && optionSet.equipment_category?.index) {
                         await fetchEquipmentCategory(optionSet.equipment_category.index);
-                    } else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
+                    }
+                    // Case 2: Nested choices inside an options array
+                    else if (optionSet.option_set_type === 'options_array' && Array.isArray(optionSet.options)) {
                         for (const option of optionSet.options) {
-                            if (option.option_type === 'choice' && option.choice?.from.equipment_category) {
+                            if (option.option_type === 'choice' && option.choice?.from?.equipment_category?.index) {
                                 await fetchEquipmentCategory(option.choice.from.equipment_category.index);
                             }
                         }
