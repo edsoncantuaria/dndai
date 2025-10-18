@@ -2,11 +2,13 @@
 import React, { useCallback } from 'react';
 import type { ApiListItem } from '@/types';
 import { translateApiString } from '@/utils/translator';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
+import * as DndApiService from '@/services/dndApiService';
+
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     backgrounds: ApiListItem[];
     alignments: ApiListItem[];
     prevStep: () => void;
@@ -38,17 +40,41 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
     
     const handleRandomizeBackground = useCallback(async () => {
         const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
+        // Chama a função principal para mudar o antecedente e limpar estados dependentes
         await handleBackgroundChange(randomBgItem.index);
         
-        const details = await hook.details.backgroundDetails;
-        if (!details) return;
-        
-        // This part needs to be adapted since details are not immediately available
-        // setTimeout logic might be needed if details are fetched async
-    }, [backgrounds, handleBackgroundChange, hook.details.backgroundDetails]);
+        // Aguarda um ciclo para que os detalhes sejam buscados no hook principal
+        setTimeout(async () => {
+            const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
+            if (!details) return;
+
+            // Lógica para randomizar traços, ideais, etc.
+            if (details.personality_traits) {
+                const options = details.personality_traits.from.options;
+                const shuffled = [...options].sort(() => 0.5 - Math.random());
+                const selected = shuffled.slice(0, details.personality_traits.choose).map((opt: any) => opt.string);
+                setField('personalityTraits', selected);
+            }
+            if (details.ideals) {
+                const options = details.ideals.from.options;
+                const randomIdeal = options[Math.floor(Math.random() * options.length)];
+                setField('ideal', randomIdeal.string || randomIdeal.desc);
+            }
+            if (details.bonds) {
+                const options = details.bonds.from.options;
+                const randomBond = options[Math.floor(Math.random() * options.length)];
+                setField('bond', randomBond.string);
+            }
+            if (details.flaws) {
+                const options = details.flaws.from.options;
+                const randomFlaw = options[Math.floor(Math.random() * options.length)];
+                setField('flaw', randomFlaw.string);
+            }
+        }, 500); // Um pequeno delay para garantir que o state do antecedente foi atualizado
+    }, [backgrounds, handleBackgroundChange, setField]);
 
 
-    const canProceed = background && alignment;
+    const canProceed = background && alignment && personalityTraits.length > 0 && ideal && bond && flaw;
     const personalityTraitLimit = backgroundDetails?.personality_traits?.choose || 0;
 
     return (
@@ -144,7 +170,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                     Voltar
                 </button>
                 <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    Avançar
+                    {canProceed ? 'Avançar' : 'Faça suas escolhas'}
                     <ArrowRight className="h-6 w-6 ml-3" />
                 </button>
             </div>

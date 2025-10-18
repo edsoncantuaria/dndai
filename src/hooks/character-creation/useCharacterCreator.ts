@@ -45,7 +45,12 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };
-            newSelections[groupId] = { main: mainOptionIndex, sub: {} };
+            // Manter as sub-seleções se a opção principal não tiver mudado, ou limpar se mudou
+            const oldMain = prev[groupId]?.main;
+            newSelections[groupId] = { 
+                main: mainOptionIndex, 
+                sub: oldMain === mainOptionIndex ? (prev[groupId]?.sub || {}) : {} 
+            };
             return newSelections;
         });
     }, [setField]);
@@ -89,36 +94,6 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         dispatch({ type: 'RESET_PERSONALITY' });
         dispatch({ type: 'RESET_SELECTIONS', payload: { type: 'background' } });
     }, [dispatch, setField]);
-
-    const handleRandomizeBackground = useCallback(async (backgrounds: ApiListItem[]) => {
-        const randomBgItem = backgrounds[Math.floor(Math.random() * backgrounds.length)];
-        await handleBackgroundChange(randomBgItem.index);
-        setTimeout(async () => {
-            const details = await DndApiService.getBackgroundDetails(randomBgItem.index);
-            if (!details) return;
-            if (details.personality_traits) {
-                const options = details.personality_traits.from.options;
-                const shuffled = [...options].sort(() => 0.5 - Math.random());
-                const selected = shuffled.slice(0, details.personality_traits.choose).map((opt: any) => opt.string);
-                setField('personalityTraits', selected);
-            }
-            if (details.ideals) {
-                const options = details.ideals.from.options;
-                const randomIdeal = options[Math.floor(Math.random() * options.length)];
-                setField('ideal', randomIdeal.string || randomIdeal.desc);
-            }
-            if (details.bonds) {
-                const options = details.bonds.from.options;
-                const randomBond = options[Math.floor(Math.random() * options.length)];
-                setField('bond', randomBond.string);
-            }
-            if (details.flaws) {
-                const options = details.flaws.from.options;
-                const randomFlaw = options[Math.floor(Math.random() * options.length)];
-                setField('flaw', randomFlaw.string);
-            }
-        }, 500);
-    }, [handleBackgroundChange, setField]);
     
     const handleRandomizeRaceAndClass = useCallback(async (races: ApiListItem[], classes: ApiListItem[]) => {
         const randomRaceItem = races[Math.floor(Math.random() * races.length)];
@@ -213,12 +188,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         handleSubraceChange,
         handleClassChange,
         handleBackgroundChange,
-        handleRandomizeBackground,
-        handleRandomizeRaceAndClass,
+        handleRandomizeRaceAndClass, // Mantém esta função aqui
         fetchFeats,
         isComplete,
         buildCharacter,
     };
 };
-
-    
