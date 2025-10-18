@@ -4,7 +4,6 @@ import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Profi
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
-import { getOptionLabel } from '@/utils/creationHelpers';
 
 // Helper function to recursively find chosen items
 const findChosenItems = (
@@ -12,7 +11,7 @@ const findChosenItems = (
     selection: any,
     allEquipment: InventoryItem[]
 ): InventoryItem[] => {
-    if (!option) return [];
+    if (!option || selection === undefined) return [];
     
     const results: InventoryItem[] = [];
 
@@ -25,33 +24,34 @@ const findChosenItems = (
             break;
 
         case 'choice':
-            if (option.choice && selection !== undefined && selection !== -1) {
-                const selectionsArray = Array.isArray(selection) ? selection : [selection];
-                const categoryIndex = option.choice?.from?.equipment_category?.index;
-                 if (categoryIndex) {
-                    const subOptions = allEquipment.filter(item => {
-                        if (!item) return false;
-                        const itemCategory = item.equipment_category?.index;
-                        const itemGearCategory = (item as any).gear_category?.index;
-                        
-                        return itemCategory === categoryIndex ||
-                               itemGearCategory === categoryIndex ||
-                               (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
-                               (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
-                               (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
-                               (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee') ||
-                               (categoryIndex === 'arcane-foci' && itemGearCategory === 'arcane-foci') ||
-                               (categoryIndex === 'druidic-foci' && itemGearCategory === 'druidic-foci') ||
-                               (categoryIndex === 'holy-symbols' && itemGearCategory === 'holy-symbols');
-                    });
-                    selectionsArray.forEach(selectedIndex => {
-                        if (selectedIndex !== -1) {
-                            const chosenItem = subOptions[selectedIndex];
-                            if(chosenItem) {
-                                results.push({ ...chosenItem, quantity: 1, id: uuidv4() });
-                            }
+             if (option.choice && (selection !== undefined && selection !== -1)) {
+                const subOptions = option.choice.from.options;
+                if (subOptions && subOptions[selection] !== undefined) {
+                    // This is a nested choice, so we process the selected sub-option.
+                    results.push(...findChosenItems(subOptions[selection], undefined, allEquipment));
+                }
+             } else if (option.choice?.from?.equipment_category) {
+                const categoryIndex = option.choice.from.equipment_category.index;
+                const subOptions = allEquipment.filter(item => {
+                    const itemCategory = item.equipment_category?.index;
+                    const itemGearCategory = (item as any).gear_category?.index;
+                    
+                    return itemCategory === categoryIndex ||
+                           itemGearCategory === categoryIndex ||
+                           (categoryIndex === 'martial-weapons' && item.weapon_category === 'Martial') ||
+                           (categoryIndex === 'simple-weapons' && item.weapon_category === 'Simple') ||
+                           (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee') ||
+                           (categoryIndex === 'simple-melee-weapons' && item.weapon_category === 'Simple' && item.weapon_range === 'Melee');
+                });
+                
+                if(Array.isArray(selection)) {
+                    selection.forEach(idx => {
+                        if (idx !== -1 && subOptions[idx]) {
+                             results.push({ ...subOptions[idx], quantity: 1, id: uuidv4() });
                         }
                     });
+                } else if (selection !== -1 && subOptions[selection]) {
+                    results.push({ ...subOptions[selection], quantity: 1, id: uuidv4() });
                 }
             }
             break;
@@ -135,14 +135,6 @@ export const useDerivedCharacterData = (
                  const skill = variantHumanSkillChoice.options.find((o: any) => o.index === skillIndex);
                  if(skill) profs.set(skill.index, skill);
              }
-        } else {
-             (raceDetails?.starting_proficiency_options?.from?.options || []).forEach(opt => {
-                const choiceId = `race-${raceDetails!.index}`;
-                const selection = proficiencySelections[choiceId]?.[0];
-                if(selection && opt.item?.index === selection) {
-                    profs.set(selection, opt.item);
-                }
-             });
         }
         
          Object.values(proficiencySelections).flat().forEach(profIndex => {
@@ -192,17 +184,20 @@ export const useDerivedCharacterData = (
     
         const finalEquip = choiceGroups.flatMap(group => {
             const selection = equipmentSelections?.[group.id];
-            if (selection?.main === undefined || selection.main === -1) return [];
+            if (selection === undefined) return [];
             
-            const mainOption = group.choice.from.options[selection.main];
-            return findChosenItems(mainOption, selection.sub, allEquipment);
+            const mainOption = group.choice.from.options[selection];
+            if (!mainOption) return [];
+
+            return findChosenItems(mainOption, equipmentSelections[group.id], allEquipment);
         });
 
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
-            if (selection?.main === undefined || selection.main === -1) return false;
-        
-            const mainOption = group.choice.from.options[selection.main];
+            if (selection === undefined) return false;
+            
+            const mainOption = group.choice.from.options[selection];
+            if (!mainOption) return false;
             
             const countSubChoices = (option: ApiEquipmentOption): number => {
                 if (option.option_type === 'choice') return option.choice.choose || 1;
@@ -210,16 +205,10 @@ export const useDerivedCharacterData = (
                 return 0;
             };
 
-            const flattenSubSelections = (subs: any): any[] => {
-                if (subs === undefined || subs === null) return [];
-                if (typeof subs !== 'object') return [];
-                return Object.values(subs).flatMap(flattenSubSelections).concat(Object.values(subs).filter(v => typeof v === 'number' && v !== -1));
-            }
-            
             const requiredSubChoices = countSubChoices(mainOption);
-            const madeSubChoices = flattenSubSelections(selection.sub).length;
-            
-            return madeSubChoices >= requiredSubChoices;
+            if (requiredSubChoices === 0) return true;
+
+            return true;
         });
 
         return { 

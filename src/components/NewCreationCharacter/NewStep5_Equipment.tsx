@@ -138,39 +138,15 @@ const EquipmentChoice: React.FC<{
         const mainIdx = parseInt(indexStr, 10);
         setField('equipmentSelections', (prev: any) => ({
             ...prev,
-            [group.id]: { main: mainIdx, sub: {} }
+            [group.id]: mainIdx 
         }));
     };
     
-    const renderSubOptions = (mainOption: ApiEquipmentOption) => {
-        switch(mainOption.option_type) {
-            case 'counted_reference':
-                return null;
-            case 'choice':
-                return <ItemChoiceSelector choice={mainOption.choice} selectionPath={[group.id, 'sub']} hook={hook} choiceCount={mainOption.choice.choose || 1}/>;
-            case 'multiple':
-                return (
-                     <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
-                        {mainOption.items?.map((item, index) => (
-                            <EquipmentOptionRenderer 
-                                key={index} 
-                                option={item} 
-                                selectionPath={[group.id, 'sub', index]} 
-                                hook={hook} 
-                            />
-                        ))}
-                    </div>
-                )
-            default:
-                return null;
-        }
-    };
-
     return (
         <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
             <h5 className="font-semibold text-stone-300">{group.choice.desc || `Escolha de ${group.source}`}</h5>
             <select
-                value={selection?.main ?? -1}
+                value={selection ?? -1}
                 onChange={(e) => handleMainSelection(e.target.value)}
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
             >
@@ -178,9 +154,13 @@ const EquipmentChoice: React.FC<{
                 {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
             </select>
             
-            {selection?.main !== undefined && mainOptions[selection.main] && (
+            {selection !== undefined && selection !== -1 && mainOptions[selection] && mainOptions[selection].option_type === 'multiple' && (
                 <div className="pl-4 border-l-2 border-amber-800/50">
-                    {renderSubOptions(mainOptions[selection.main])}
+                    <EquipmentOptionRenderer 
+                        option={mainOptions[selection]}
+                        selectionPath={[group.id, 'sub']}
+                        hook={hook}
+                    />
                 </div>
             )}
         </div>
@@ -199,7 +179,7 @@ const NewStep5_Equipment: React.FC<{
         loadingStates,
         areAllEquipmentChoicesMade,
         handleRandomizeEquipment,
-        finalProficiencies, // Adicionado para passar ao ItemCard
+        finalProficiencies,
     } = hook;
 
     return (
