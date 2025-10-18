@@ -135,5 +135,3 @@ const RaceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         </div>
     );
 };
-
-export default RaceForm;
