@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
-import { apiClient } from '@/services/apiClient';
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
     // Fetched API Details
@@ -38,30 +37,24 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
                 const newCache: Record<string, InventoryItem[]> = {};
                 
+                const add = (key: string | undefined, itemToAdd: InventoryItem) => {
+                    if (!key) return;
+                    const normalizedKey = key.toLowerCase();
+                    if (!newCache[normalizedKey]) newCache[normalizedKey] = [];
+                    newCache[normalizedKey].push(itemToAdd);
+                };
+
                 unifiedEquipment.forEach(item => {
                     if (!item) return;
-                    const add = (key: string | undefined, itemToAdd: InventoryItem) => {
-                        if (!key) return;
-                        if (!newCache[key]) newCache[key] = [];
-                        newCache[key].push(itemToAdd);
-                    };
 
                     add(item.equipment_category?.index, item);
                     add((item as any).gear_category?.index, item);
                     
-                    const weaponCat = item.weapon_category?.toLowerCase();
-                    if (weaponCat) {
-                        add(`${weaponCat}-weapons`, item); 
-                        if(item.weapon_range === 'Melee') add(`${weaponCat}-melee-weapons`, item);
-                        if(item.weapon_range === 'Ranged') add(`${weaponCat}-ranged-weapons`, item);
-                    }
-
-                    if (item.armor_category) {
-                         add(`${item.armor_category.toLowerCase()}-armor`, item);
-                    }
+                    if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}-weapons`, item);
+                    if (item.armor_category) add(`${item.armor_category.toLowerCase()}-armor`, item);
                 });
 
-                // Adiciona categorias compostas que não existem na API
+                // Adiciona categorias compostas
                 newCache['simple-melee-weapons'] = (newCache['simple-weapons'] || []).filter(i => i.weapon_range === 'Melee');
                 newCache['martial-melee-weapons'] = (newCache['martial-weapons'] || []).filter(i => i.weapon_range === 'Melee');
                 newCache['simple-ranged-weapons'] = (newCache['simple-weapons'] || []).filter(i => i.weapon_range === 'Ranged');
@@ -229,5 +222,3 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         fetchFeats,
     };
 };
-
-    

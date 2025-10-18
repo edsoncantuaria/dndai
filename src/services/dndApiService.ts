@@ -6,7 +6,7 @@ import { apiClient } from './apiClient';
 
 // Função auxiliar para simplificar as chamadas de lista
 const getResourceList = (resource: string) => {
-    return apiClient<{ results: ApiListItem[] }>(`/data/${resource}`);
+    return apiClient<{ count: number, results: ApiListItem[] }>(`/data/${resource}`);
 };
 
 export const getRaces = () => getResourceList('races');
@@ -22,7 +22,6 @@ export const getDamageTypes = () => getResourceList('damage-types');
 export const getEquipmentCategories = () => getResourceList('equipment-categories');
 export const getConditions = () => getResourceList('conditions');
 
-// Esta função agora também usa a rota unificada, o backend cuida de cache e unificação.
 export const getEquipment = () => apiClient<InventoryItem[]>('/data/equipment');
 
 

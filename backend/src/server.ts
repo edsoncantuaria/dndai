@@ -61,7 +61,7 @@ app.use('/api/sessoes', sessoesRoutes);
 app.use('/api/characters', characterRoutes);
 app.use('/api/homebrew', homebrewRoutes);
 app.use('/api/ai', aiRoutes);
-app.use('/api/data', unifiedDataRouter); // Nova rota unificada para todos os dados do jogo
+app.use('/api/data', unifiedDataRouter); // Nova rota unificada
 
 
 // Rota de Traduções
