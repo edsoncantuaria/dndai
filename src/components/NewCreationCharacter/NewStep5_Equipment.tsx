@@ -10,10 +10,11 @@ interface SubChoiceSelectorProps {
     group: EquipmentChoiceGroup;
     mainSelectionIndex: number;
     hook: ReturnType<typeof useCharacterCreator>;
+    allEquipment: InventoryItem[]; // Recebe a lista completa
 }
 
-const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook }) => {
-    const { equipmentSelections, setField, allEquipment } = hook;
+const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook, allEquipment }) => {
+    const { equipmentSelections, setField } = hook;
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
     const mainOption = group.choice.from.options[mainSelectionIndex];
 
@@ -22,7 +23,7 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
     }
 
     const categoryIndex = mainOption.choice.from.equipment_category.index;
-    const subOptions = allEquipment.filter(item => 
+    const subOptions = (allEquipment || []).filter(item => 
         (item.equipment_category && item.equipment_category.index === categoryIndex) || 
         // Lógica para categorias mais complexas como "Martial Melee Weapons"
         (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
@@ -58,7 +59,7 @@ interface EquipmentChoiceProps {
 }
 
 const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
-    const { equipmentSelections, setField } = hook;
+    const { equipmentSelections, setField, allEquipment } = hook;
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const mainOptions = group.choice.from.options || [];
 
@@ -82,7 +83,7 @@ const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
                 {mainOptions.map((opt, index) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
             </select>
             {mainSelectionIndex !== undefined && (
-                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} />
+                <SubChoiceSelector group={group} mainSelectionIndex={mainSelectionIndex} hook={hook} allEquipment={allEquipment} />
             )}
         </div>
     );

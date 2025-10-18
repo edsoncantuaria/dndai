@@ -1,14 +1,13 @@
 // src/hooks/character-creation/useDerivedCharacterData.ts
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat } from '@/types';
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
-import * as DndApiService from '@/services/dndApiService';
+import * as DndApiService from '../../services/dndApiService';
 import { ProficiencyChoiceWithSource } from './useCharacterCreator';
 import { useSelectionManager } from './useSelectionManager';
-
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -19,12 +18,11 @@ export const useDerivedCharacterData = (
         backgroundDetails: ApiBackground | null;
         availableFeats: Feat[];
     },
-    selectionManager: ReturnType<typeof useSelectionManager>,
+    finalProficiencies: Proficiency[],
     allEquipment: InventoryItem[],
 ) => {
-    const { isVariantHuman, variantHumanBonusSelections, proficiencySelections, equipmentSelections, selectedFeat } = state;
+    const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat } = state;
     const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
-    const { allProficiencyChoices } = selectionManager;
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -57,27 +55,6 @@ export const useDerivedCharacterData = (
         }, {} as characterUtils.Attributes),
     [state.baseAttributes, racialBonuses]);
     
-    const finalProficiencies = useMemo(() => {
-        const profsMap = new Map<string, Proficiency>();
-        const fixedProfs = selectionManager.allFixedProficiencies;
-
-        // Add fixed proficiencies first
-        if (fixedProfs) {
-            fixedProfs.forEach((value, key) => profsMap.set(key, value));
-        }
-
-        // Add selected proficiencies
-        Object.values(proficiencySelections || {}).flat().forEach(profIndex => {
-            if (!profsMap.has(profIndex)) {
-                // Find the full proficiency object from all possible choices
-                const choice = (allProficiencyChoices || []).flatMap(c => c.options).find(o => o.index === profIndex);
-                if (choice) {
-                    profsMap.set(profIndex, choice as Proficiency);
-                }
-            }
-        });
-        return Array.from(profsMap.values());
-    }, [selectionManager.allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
     
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
@@ -111,7 +88,7 @@ export const useDerivedCharacterData = (
                 if (selection.sub === undefined) return null;
                 const categoryIndex = mainOption.choice.from.equipment_category.index;
                 const subOptions = (allEquipment || []).filter(item => 
-                    item.equipment_category && item.equipment_category.index === categoryIndex ||
+                    (item.equipment_category && item.equipment_category.index === categoryIndex) ||
                     (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
                 );
                 const subItem = subOptions[selection.sub];

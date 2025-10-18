@@ -32,9 +32,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const attributeManager = useAttributeManager(state, dispatch);
 
-    const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
+    const { languageChoicesCount, ...selectionManager } = useSelectionManager(state, details, allLanguages, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment);
+    const derivedData = useDerivedCharacterData(state, details, selectionManager.finalProficiencies, allEquipment, languageChoicesCount, selectionManager.allProficiencyChoices);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -162,15 +162,17 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         };
 
         return { buildCharacter: buildFn, isComplete };
-    }, [state, details, selectionManager, derivedData]);
+    }, [state, details, selectionManager, derivedData, backgroundDetails]);
     
     return {
         ...state,
         setField,
         details,
         loadingStates,
+        allEquipment,
         ...attributeManager,
         ...selectionManager,
+        languageChoicesCount,
         ...derivedData,
         handleRaceChange,
         handleSubraceChange,
