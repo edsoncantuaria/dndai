@@ -52,17 +52,13 @@ export const rollAttribute = (): number => {
  * Generates a human-readable label for an equipment option from the API.
  * Handles cases for direct items, categories, and multiple-item choices.
  */
-export const getOptionLabel = (option: ApiEquipmentOption, isCategoryDirect: boolean = false): string => {
+export const getOptionLabel = (option: ApiEquipmentOption): string => {
     if (!option) return 'Opção Inválida';
-
-    if (isCategoryDirect) {
-        return `Qualquer ${translateApiString((option as any).name)}`;
-    }
 
     switch (option.option_type) {
         case 'counted_reference':
             if (option.of) {
-                const count = (option.count || 1) > 1 ? `(x${option.count})` : '';
+                const count = (option.count || 1) > 1 ? ` (x${option.count})` : '';
                 return `${translateApiString(option.of.name)}${count}`;
             }
             return 'Item de Referência';

@@ -24,6 +24,14 @@ export interface CharacterCreatorState {
     variantHumanBonusSelections: (keyof Attributes)[];
     selectedFeat: string;
     draconicAncestry: string;
+    
+    // Novas propriedades gerenciadas pelo useSelectionManager
+    proficiencySelections: Record<string, string[]>;
+    equipmentSelections: Record<string, { main?: number, sub?: number }>;
+    chosenClassSpells: string[];
+    chosenRacialSpells: Record<string, string[]>;
+    chosenLanguages: string[];
+    traitSelections: Record<string, string>;
 }
 
 export const initialState: CharacterCreatorState = {
@@ -49,6 +57,14 @@ export const initialState: CharacterCreatorState = {
     variantHumanBonusSelections: [],
     selectedFeat: '',
     draconicAncestry: '',
+    
+    // Novos estados
+    proficiencySelections: {},
+    equipmentSelections: {},
+    chosenClassSpells: [],
+    chosenRacialSpells: {},
+    chosenLanguages: [],
+    traitSelections: {},
 };
 
 export type CharacterCreatorAction =
@@ -56,14 +72,15 @@ export type CharacterCreatorAction =
     | { type: 'SET_BASE_ATTRIBUTES'; payload: Attributes }
     | { type: 'SET_POINTS'; payload: number }
     | { type: 'RESET_RACE_SELECTIONS' }
-    | { type: 'RESET_PERSONALITY' };
+    | { type: 'RESET_PERSONALITY' }
+    | { type: 'RESET_SELECTIONS'; payload: { type: 'full' | 'class' | 'background' } };
 
 
 export const characterCreatorReducer = (state: CharacterCreatorState, action: CharacterCreatorAction): CharacterCreatorState => {
     switch (action.type) {
         case 'SET_FIELD':
             const { field, value } = action.payload;
-            // If the field is a function, it's a state updater function (like from useState)
+            // Support for functional updates, e.g., setField('count', c => c + 1)
             if (typeof value === 'function') {
                 return { ...state, [field]: value(state[field]) };
             }
@@ -89,6 +106,28 @@ export const characterCreatorReducer = (state: CharacterCreatorState, action: Ch
                 bond: '',
                 flaw: '',
             };
+        case 'RESET_SELECTIONS':
+            const { type } = action.payload;
+             if (type === 'full') {
+                return {
+                    ...state,
+                    proficiencySelections: {},
+                    equipmentSelections: {},
+                    chosenClassSpells: [],
+                    chosenRacialSpells: {},
+                    chosenLanguages: [],
+                    traitSelections: {},
+                };
+            }
+            if (type === 'class') {
+                 // Reset only class-specific selections like spells.
+                 return { ...state, chosenClassSpells: [] };
+            }
+             if (type === 'background') {
+                // Resetting personality traits is handled separately,
+                // but other background-specific selections could be reset here.
+            }
+            return state;
         default:
             return state;
     }

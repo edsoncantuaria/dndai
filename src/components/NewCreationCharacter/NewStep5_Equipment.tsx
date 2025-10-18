@@ -1,10 +1,10 @@
 // src/components/NewCreationCharacter/NewStep5_Equipment.tsx
 import React from 'react';
-import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/newUseCharacterCreation';
+import { useCharacterCreator, EquipmentChoiceGroup } from '@/hooks/character-creation/useCharacterCreator';
 import { translateApiString } from '@/utils/translator';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
-import type { ApiListItem, InventoryItem } from '@/types';
+import type { InventoryItem } from '@/types';
 
 interface SubChoiceSelectorProps {
     group: EquipmentChoiceGroup;
@@ -13,7 +13,7 @@ interface SubChoiceSelectorProps {
 }
 
 const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelectionIndex, hook }) => {
-    const { equipmentSelections, setEquipmentSelections, allEquipment } = hook;
+    const { equipmentSelections, setField, allEquipment } = hook;
     const subSelectionIndex = equipmentSelections[group.id]?.sub;
     const mainOption = group.choice.from.options[mainSelectionIndex];
 
@@ -30,7 +30,7 @@ const SubChoiceSelector: React.FC<SubChoiceSelectorProps> = ({ group, mainSelect
 
     const handleSubSelection = (subIndexStr: string) => {
         const subIdx = parseInt(subIndexStr, 10);
-        setEquipmentSelections(prev => ({
+        setField('equipmentSelections', (prev: any) => ({
             ...prev,
             [group.id]: { main: mainSelectionIndex, sub: subIdx },
         }));
@@ -58,15 +58,15 @@ interface EquipmentChoiceProps {
 }
 
 const EquipmentChoice: React.FC<EquipmentChoiceProps> = ({ group, hook }) => {
-    const { equipmentSelections, setEquipmentSelections } = hook;
+    const { equipmentSelections, setField } = hook;
     const mainSelectionIndex = equipmentSelections[group.id]?.main;
     const mainOptions = group.choice.from.options || [];
 
     const handleMainSelection = (indexStr: string) => {
         const mainIdx = parseInt(indexStr, 10);
-        setEquipmentSelections(prev => ({
+        setField('equipmentSelections', (prev: any) => ({
             ...prev,
-            [group.id]: { main: mainIdx, sub: undefined }, // Reseta a sub-escolha ao mudar a principal
+            [group.id]: { main: mainIdx, sub: undefined },
         }));
     };
 

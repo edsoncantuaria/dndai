@@ -32,7 +32,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     allLanguages,
     onCharacterCreated
 }) => {
-    const { createCharacter, isLoading } = useGameStateContext();
+    const { createCharacter } = useGameStateContext();
     const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
     const [currentStep, setCurrentStep] = useState(1);
     const [highestStep, setHighestStep] = useState(1);
@@ -101,11 +101,11 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         }
     };
     
-    if (isLoading) {
+    if (hook.loadingStates.class || hook.loadingStates.race || hook.loadingStates.background || hook.loadingStates.equipment) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
                 <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Forjando a alma do seu herói...</p>
+                <p className="mt-4">Carregando dados...</p>
             </div>
         );
     }

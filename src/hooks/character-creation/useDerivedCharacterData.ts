@@ -1,10 +1,13 @@
 // src/hooks/character-creation/useDerivedCharacterData.ts
 import { useMemo } from 'react';
-import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem } from '@/types';
+import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat } from '@/types';
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
+import * as DndApiService from '@/services/dndApiService';
+import { ProficiencyChoiceWithSource } from './useCharacterCreator';
+
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -13,15 +16,26 @@ export const useDerivedCharacterData = (
         subraceDetails: ApiSubrace | null;
         classDetails: ApiClass | null;
         backgroundDetails: ApiBackground | null;
+        availableFeats: Feat[];
     },
-    proficiencySelections: Record<string, string[]>,
-    allFixedProficiencies: Map<string, Proficiency>,
-    allProficiencyChoices: any[], // Passed in for final calculation
-    equipmentSelections?: Record<string, { main?: number, sub?: number }>,
-    allEquipment?: InventoryItem[]
+    selectionManager: any
 ) => {
-    const { isVariantHuman, variantHumanBonusSelections, traitSelections } = state;
-    const { raceDetails, subraceDetails, classDetails, backgroundDetails } = details;
+    const { isVariantHuman, variantHumanBonusSelections, traitSelections, proficiencySelections, equipmentSelections, selectedFeat } = state;
+    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
+    const { allProficiencyChoices, allEquipment } = selectionManager;
+
+    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => p && profs.set(p.index, { ...p }));
+        
+        if (!isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
+        addProfs(subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => st && profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
+
+        return profs;
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -44,21 +58,8 @@ export const useDerivedCharacterData = (
         addBonuses(raceDetails?.ability_bonuses || []);
         addBonuses(subraceDetails?.ability_bonuses || []);
         
-        const abilityBonusChoices = raceDetails?.ability_bonus_options;
-        if (abilityBonusChoices?.from?.options?.[0]?.item?.index) {
-            const selectionKey = abilityBonusChoices.from.options[0].item.index;
-            const selection = traitSelections[selectionKey];
-            if (selection) {
-                const selectedBonus = abilityBonusChoices.from.options.find(o => o.item.index === selection);
-                if (selectedBonus?.item) {
-                    const attrKey = characterUtils.ATTRIBUTE_SHORT_MAP[selectedBonus.item.index.replace('ability-bonus-', '')];
-                    if (attrKey) bonuses[attrKey] = (bonuses[attrKey] || 0) + 1;
-                }
-            }
-        }
-        
         return bonuses;
-    }, [raceDetails, subraceDetails, traitSelections, isVariantHuman, variantHumanBonusSelections]);
+    }, [raceDetails, subraceDetails, isVariantHuman, variantHumanBonusSelections]);
 
     const finalAttributes = useMemo(() =>
         (Object.keys(state.baseAttributes) as Array<keyof characterUtils.Attributes>).reduce((acc, key) => {
@@ -66,27 +67,23 @@ export const useDerivedCharacterData = (
             return acc;
         }, {} as characterUtils.Attributes),
     [state.baseAttributes, racialBonuses]);
-
+    
     const finalProficiencies = useMemo(() => {
         const profsMap = new Map<string, Proficiency>();
-        // Add fixed proficiencies first
         allFixedProficiencies.forEach((value, key) => profsMap.set(key, value));
 
-        // Add selected proficiencies
-        Object.values(proficiencySelections || {}).flat().forEach(profIndex => {
+        Object.values(proficiencySelections).flat().forEach(profIndex => {
             if (!profsMap.has(profIndex)) {
-                // Find the full proficiency object from all possible choices
-                const choice = (allProficiencyChoices || []).flatMap(c => c.options).find(o => o.index === profIndex);
+                const choice = allProficiencyChoices.flatMap((c: any) => c.options).find((o: any) => o.index === profIndex);
                 if (choice) {
                     profsMap.set(profIndex, choice as Proficiency);
                 }
             }
         });
-
         return Array.from(profsMap.values());
     }, [allFixedProficiencies, proficiencySelections, allProficiencyChoices]);
     
-    const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment } = useMemo(() => {
+    const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         let fixed: InventoryItem[] = [];
     
@@ -103,31 +100,43 @@ export const useDerivedCharacterData = (
             backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
 
-        const finalized = choiceGroups.map(group => {
+        const finalEquip = choiceGroups.map(group => {
             const selection = (equipmentSelections || {})[group.id];
             if (!selection || selection.main === undefined) return null;
             const mainOption = group.choice.from.options[selection.main];
 
             if (mainOption.option_type === 'counted_reference') {
-                return { ...mainOption.of, quantity: mainOption.count };
+                return { ...mainOption.of, quantity: mainOption.count, id: uuidv4() };
             }
             if (mainOption.option_type === 'multiple') {
-                return mainOption.items.map((item: any) => ({ ...item.of, quantity: item.count}));
+                return mainOption.items.map((item: any) => ({ ...item.of, quantity: item.count, id: uuidv4() }));
             }
             if (mainOption.option_type === 'choice') {
                 if (selection.sub === undefined) return null;
                 const categoryIndex = mainOption.choice.from.equipment_category.index;
                 const subOptions = (allEquipment || []).filter(item => 
-                    item.equipment_category?.index === categoryIndex ||
+                    (item.equipment_category && item.equipment_category.index === categoryIndex) ||
                     (categoryIndex === 'martial-melee-weapons' && item.weapon_category === 'Martial' && item.weapon_range === 'Melee')
                 );
                 const subItem = subOptions[selection.sub];
-                return { ...subItem, quantity: 1 };
+                return { ...subItem, quantity: 1, id: uuidv4() };
             }
             return null;
-        }).flat().filter(Boolean) as InventoryItem[];
+        }).flat().filter(Boolean);
 
-        return { equipmentChoiceGroups: choiceGroups, fixedEquipment: fixed, finalizedEquipment: finalized };
+        const allChoicesMade = choiceGroups.every(group => {
+            const selection = equipmentSelections[group.id];
+            if (!selection || selection.main === undefined) return false;
+            const mainOption = group.choice.from.options[selection.main];
+            return mainOption.option_type !== 'choice' || selection.sub !== undefined;
+        });
+
+        return { 
+            equipmentChoiceGroups: choiceGroups, 
+            fixedEquipment: fixed, 
+            finalizedEquipment: finalEquip,
+            areAllEquipmentChoicesMade: allChoicesMade,
+        };
 
     }, [classDetails, backgroundDetails, equipmentSelections, allEquipment]);
 
@@ -146,15 +155,26 @@ export const useDerivedCharacterData = (
         return count;
     }, [raceDetails, backgroundDetails, details.subraceDetails]);
 
+    const finalFeats = useMemo(() => {
+        const feats: Feat[] = [];
+        if (isVariantHuman && selectedFeat) {
+            const featData = availableFeats.find(f => f.index === selectedFeat);
+            if (featData) feats.push(featData);
+        }
+        return feats;
+    }, [isVariantHuman, selectedFeat, availableFeats]);
 
     return {
+        allFixedProficiencies,
         racialBonuses,
         finalAttributes,
         finalProficiencies,
         equipmentChoiceGroups,
         fixedEquipment,
         finalizedEquipment,
+        areAllEquipmentChoicesMade,
         baseLanguages,
-        languageChoicesCount
+        languageChoicesCount,
+        finalFeats,
     };
 };

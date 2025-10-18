@@ -1,55 +1,83 @@
 // src/hooks/character-creation/useSelectionManager.ts
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useEffect } from 'react';
 import type { ApiListItem, ApiSpell, Proficiency } from '@/types';
 import { ProficiencyChoiceWithSource } from './useCharacterCreator';
-import type { CharacterCreatorState } from './reducer';
+import type { CharacterCreatorState, CharacterCreatorAction } from './reducer';
 import type { Attributes } from '@/types';
+import * as DndApiService from '@/services/dndApiService';
+import { fetchDetailsInChunks } from '@/utils/apiUtils';
 
 export const useSelectionManager = (
     state: CharacterCreatorState,
-    allProficiencyChoices: ProficiencyChoiceWithSource[],
-    allFixedProficiencies: Map<string, Proficiency>, // Recebe como argumento
+    details: any,
     allLanguages: ApiListItem[],
-    languageChoicesCount: number,
-    classSpellOptions: ApiSpell[],
-    subclassSpells: ApiSpell[]
+    dispatch: React.Dispatch<CharacterCreatorAction>
 ) => {
-    const { isVariantHuman, characterClass, baseLanguages } = state;
-    
-    const [proficiencySelections, setProficiencySelections] = useState<Record<string, string[]>>({});
-    const [equipmentSelections, setEquipmentSelections] = useState<Record<string, { main?: number, sub?: number }>>({});
-    const [chosenClassSpells, setChosenClassSpells] = useState<string[]>([]);
-    const [chosenRacialSpells, setChosenRacialSpells] = useState<Record<string, string[]>>({});
-    const [chosenLanguages, setChosenLanguages] = useState<string[]>([]);
-    const [traitSelections, setTraitSelections] = useState<Record<string, string>>({});
-    
-    const [racialSpellOptions, setRacialSpellOptions] = useState<ApiSpell[]>([]);
-    const [racialSpellTraits, setRacialSpellTraits] = useState<{ traitName: string; choose: number; options: ApiListItem[] }[]>([]);
+    const { 
+        isVariantHuman, 
+        characterClass, 
+        proficiencySelections,
+        equipmentSelections,
+        chosenClassSpells,
+        chosenRacialSpells,
+        chosenLanguages,
+        traitSelections,
+    } = state;
 
+    const { raceDetails, subraceDetails, classDetails, backgroundDetails, classSpellOptions, subclassSpells } = details;
+
+    const setField = useCallback((field: keyof CharacterCreatorState, value: any) => {
+        dispatch({ type: 'SET_FIELD', payload: { field, value } });
+    }, [dispatch]);
+
+    // --- PROFICIENCIES ---
+    
+    const allFixedProficiencies = useMemo<Map<string, Proficiency>>(() => {
+        const profs = new Map<string, Proficiency>();
+        const addProfs = (profList: Proficiency[] = []) => profList.forEach(p => p && profs.set(p.index, { ...p }));
+        
+        if (!isVariantHuman) addProfs(raceDetails?.starting_proficiencies);
+        addProfs(subraceDetails?.starting_proficiencies);
+        addProfs(classDetails?.proficiencies);
+        addProfs(backgroundDetails?.starting_proficiencies);
+        (classDetails?.saving_throws || []).forEach(st => st && profs.set(`saving-throw-${st.index}`, { index: st.index, name: `Saving Throw: ${st.name}`, url: st.url }));
+
+        return profs;
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
+    
+    
+    const allProficiencyChoices = useMemo(() => {
+        if (!classDetails && !raceDetails && !backgroundDetails) return [];
+        const choices: ProficiencyChoiceWithSource[] = [];
+        const processChoice = (choice: any, source: ProficiencyChoiceWithSource['source'], idPrefix: string) => {
+            if (!choice || !choice.from?.options) return;
+            const options = choice.from.options.map((opt: any) => opt.item).filter(Boolean);
+            if (options.length > 0) {
+                 choices.push({
+                    ...choice,
+                    id: `${idPrefix}-group-${choices.length}`,
+                    source: source,
+                    options: options,
+                });
+            }
+        };
+
+        (classDetails?.proficiency_choices || []).forEach((c, i) => processChoice(c, 'Classe', `class-${i}`));
+        if (!isVariantHuman) processChoice(raceDetails?.starting_proficiency_options, 'Raça', 'race');
+        processChoice(subraceDetails?.starting_proficiency_options, 'Raça', 'subrace');
+        processChoice(backgroundDetails?.starting_proficiency_options, 'Antecedente', 'bg');
+        
+        return choices;
+    }, [raceDetails, subraceDetails, classDetails, backgroundDetails, isVariantHuman]);
+    
     const unavailableProficiencies = useMemo(() => {
         const selectedInOtherGroups = new Set(Object.values(proficiencySelections).flat());
+        allFixedProficiencies.forEach((_, key) => selectedInOtherGroups.add(key));
         return selectedInOtherGroups;
-    }, [proficiencySelections]);
-
-
-    const resetSelections = useCallback((type: 'full' | 'class' | 'background') => {
-        setProficiencySelections({});
-        setEquipmentSelections({});
-
-        if (type === 'full') {
-            setTraitSelections({});
-            setChosenRacialSpells({});
-            setChosenClassSpells([]);
-            setChosenLanguages([]);
-            setRacialSpellOptions([]);
-            setRacialSpellTraits([]);
-        } else if (type === 'class') {
-            setChosenClassSpells([]);
-        }
-    }, []);
+    }, [proficiencySelections, allFixedProficiencies]);
 
     const handleProficiencyChange = useCallback((profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
-        setProficiencySelections(prev => {
+        setField('proficiencySelections', (prev: Record<string, string[]>) => {
             const newSelections = { ...prev };
             const currentGroup = newSelections[choiceGroup.id] || [];
             const isSelected = currentGroup.includes(profIndex);
@@ -61,25 +89,52 @@ export const useSelectionManager = (
             }
             return newSelections;
         });
-    }, []);
+    }, [setField]);
+
+    const handleRandomizeProficiencies = useCallback(() => {
+        const newSelections: Record<string, string[]> = {};
+        const usedProficiencies = new Set(Array.from(allFixedProficiencies.keys()));
     
+        allProficiencyChoices.forEach(choice => {
+            const available = choice.options.filter((opt: any) => !usedProficiencies.has(opt.index));
+            const shuffled = [...available].sort(() => 0.5 - Math.random());
+            const selected = shuffled.slice(0, choice.choose).map((opt: any) => opt.index);
+            
+            newSelections[choice.id] = selected;
+            selected.forEach(s => usedProficiencies.add(s));
+        });
+        setField('proficiencySelections', newSelections);
+    }, [allProficiencyChoices, allFixedProficiencies, setField]);
+    
+     // --- LANGUAGES ---
+
     const handleLanguageChange = useCallback((index: number, value: string) => {
-        setChosenLanguages(prev => {
+        setField('chosenLanguages', (prev: string[]) => {
             const newLangs = [...prev];
             newLangs[index] = value;
             return newLangs;
         });
-    }, []);
+    }, [setField]);
+    
+     const handleRandomizeLanguages = useCallback((baseLanguages: string[], languageChoicesCount: number) => {
+        if (languageChoicesCount <= 0) return;
+        const availableLangs = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
+        const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
+        const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
+        setField('chosenLanguages', selected);
+    }, [allLanguages, setField]);
 
-    const handleClassSpellChange = useCallback((spellIndex: string, cantripsKnown: number, spellsKnown: number, classSpellOptions: ApiSpell[]) => {
-        setChosenClassSpells(prev => {
-            const spell = classSpellOptions.find(s => s.index === spellIndex);
+     // --- SPELLS ---
+
+    const handleClassSpellChange = useCallback((spellIndex: string, cantripsKnown: number, spellsKnown: number, classSpells: ApiSpell[]) => {
+        setField('chosenClassSpells', (prev: string[]) => {
+            const spell = classSpells.find(s => s.index === spellIndex);
             if (!spell) return prev;
     
             const isCantrip = spell.level === 0;
             const limit = isCantrip ? cantripsKnown : spellsKnown;
             const currentSelected = prev.filter(sIdx => {
-                const s = classSpellOptions.find(opt => opt.index === sIdx);
+                const s = classSpells.find(opt => opt.index === sIdx);
                 return s && s.level === spell.level;
             });
     
@@ -91,10 +146,10 @@ export const useSelectionManager = (
             }
             return prev;
         });
-    }, []);
+    }, [setField]);
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
-        setChosenRacialSpells(prev => {
+        setField('chosenRacialSpells', (prev: Record<string, string[]>) => {
             const newSelections = { ...prev };
             const currentSelected = newSelections[traitName] || [];
             
@@ -109,57 +164,56 @@ export const useSelectionManager = (
             }
             return newSelections;
         });
-    }, []);
-    
-    const handleVariantHumanBonusSelection = useCallback((dispatch: React.Dispatch<any>) => (attr: keyof Attributes) => {
-        dispatch({
-            type: 'SET_FIELD',
-            payload: {
-                field: 'variantHumanBonusSelections',
-                value: (prev: (keyof Attributes)[]) => {
-                    const isSelected = prev.includes(attr);
-                    if (isSelected) {
-                        return prev.filter(a => a !== attr);
-                    }
-                    if (prev.length < 2) {
-                        return [...prev, attr];
-                    }
-                    return prev;
-                },
-            },
-        });
-    }, []);
+    }, [setField]);
 
-    const handleRandomizeProficiencies = useCallback(() => {
-        const newSelections: Record<string, string[]> = {};
-        const usedProficiencies = new Set(allFixedProficiencies.keys());
-    
-        allProficiencyChoices.forEach(choice => {
-            const available = choice.options.filter((opt: any) => !usedProficiencies.has(opt.index));
-            const shuffled = [...available].sort(() => 0.5 - Math.random());
-            const selected = shuffled.slice(0, choice.choose).map((opt: any) => opt.index);
-            
-            newSelections[choice.id] = selected;
-            selected.forEach(s => usedProficiencies.add(s));
-        });
-        setProficiencySelections(newSelections);
-    }, [allProficiencyChoices, allFixedProficiencies]);
+    const { racialSpellTraits, racialSpellOptions } = useMemo(() => {
+        const traitsWithOptions = (details.traitChoiceDetails || [])
+            .filter(t => t.trait_specific?.spell_options);
 
-    const handleRandomizeLanguages = useCallback(() => {
-        if (languageChoicesCount <= 0) return;
-        const availableLangs = allLanguages.filter(lang => !baseLanguages.includes(lang.name));
-        const shuffled = [...availableLangs].sort(() => 0.5 - Math.random());
-        const selected = shuffled.slice(0, languageChoicesCount).map(lang => lang.name);
-        setChosenLanguages(selected);
-    }, [languageChoicesCount, allLanguages, baseLanguages]);
+        const traits = traitsWithOptions.map(t => ({
+            traitName: t.name,
+            choose: t.trait_specific!.spell_options!.choose,
+            options: t.trait_specific!.spell_options!.from.options.map((o: any) => o.item)
+        }));
+
+        const allSpellRefs = traits.flatMap(t => t.options);
+        return { racialSpellTraits: traits, racialSpellOptions: allSpellRefs };
+    }, [details.traitChoiceDetails]);
+
+    const cantripsKnown = useMemo(() => {
+        if (!classDetails?.spellcasting) return 0;
+        const cantripInfo = classDetails.spellcasting.info.find(i => i.name === 'Cantrips');
+        return cantripInfo ? parseInt(cantripInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10) : 0;
+    }, [classDetails]);
+    
+    const spellsKnown = useMemo(() => {
+        if (!classDetails?.spellcasting || !characterClass) return 0;
+        const spellsKnownInfo = classDetails.spellcasting.info.find(i => i.name.startsWith('Spells Known'));
+        if (spellsKnownInfo) {
+            return parseInt(spellsKnownInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10);
+        }
+        // Fallback for Cleric, Druid, Paladin
+        const mainStatShort = classDetails.spellcasting.spellcasting_ability.index;
+        const mainStat: keyof Attributes = (Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).find(key => characterUtils.ATTRIBUTE_SHORT_MAP[key as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP] === mainStatShort) || 'wisdom') as keyof Attributes;
+        const modifier = characterUtils.calculateModifier(state.baseAttributes[mainStat] || 10);
+        return Math.max(1, modifier + state.level);
+    }, [classDetails, characterClass, state.baseAttributes, state.level]);
+
+    const areClassSpellsSelected = useMemo(() => {
+        const selectedCantripsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find(c => c.index === sIndex)?.level || 1) === 0).length;
+        const selectedSpellsCount = chosenClassSpells.filter(sIndex => (classSpellOptions.find(c => c.index === sIndex)?.level || 0) === 1).length;
+        return selectedCantripsCount === cantripsKnown && selectedSpellsCount === spellsKnown;
+    }, [chosenClassSpells, classSpellOptions, cantripsKnown, spellsKnown]);
+
+    const areRacialSpellsSelected = useMemo(() => 
+        racialSpellTraits.every(trait => (chosenRacialSpells[trait.traitName]?.length || 0) === trait.choose),
+    [racialSpellTraits, chosenRacialSpells]);
 
     const canProceedFromProficiencies = useMemo(() => {
-        const proficienciesDone = allProficiencyChoices.every(choice => 
-            (proficiencySelections[choice.id]?.length || 0) === choice.choose
-        );
-        const languagesDone = chosenLanguages.filter(Boolean).length === languageChoicesCount;
-        return proficienciesDone && languagesDone;
-    }, [allProficiencyChoices, proficiencySelections, chosenLanguages, languageChoicesCount]);
+        const allChoicesMade = allProficiencyChoices.every(choice => (proficiencySelections[choice.id]?.length || 0) === choice.choose);
+        const allLangsChosen = state.chosenLanguages.filter(Boolean).length === derivedData.languageChoicesCount;
+        return allChoicesMade && allLangsChosen;
+    }, [allProficiencyChoices, proficiencySelections, state.chosenLanguages, derivedData.languageChoicesCount]);
 
 
     return {
@@ -169,24 +223,22 @@ export const useSelectionManager = (
         chosenRacialSpells,
         chosenLanguages,
         traitSelections,
-        racialSpellOptions,
-        racialSpellTraits,
+        allFixedProficiencies,
+        allProficiencyChoices,
         unavailableProficiencies,
-        canProceedFromProficiencies,
-
-        setChosenLanguages,
-        setEquipmentSelections,
-        setRacialSpellOptions,
-        setRacialSpellTraits,
-        setTraitSelections,
-        resetSelections,
-
         handleProficiencyChange,
         handleLanguageChange,
         handleClassSpellChange,
         handleRacialSpellChange,
-        handleVariantHumanBonusSelection,
         handleRandomizeProficiencies,
         handleRandomizeLanguages,
+        canProceedFromProficiencies,
+        areClassSpellsSelected,
+        areRacialSpellsSelected,
+        cantripsKnown,
+        spellsKnown,
+        racialSpellOptions,
+        racialSpellTraits,
+        setField,
     };
 };

@@ -28,7 +28,6 @@ export const getBackgroundDetails = (index: string) => apiClient<ApiBackground>(
 export const getClassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/classes/${index}/levels`);
 export const getSubclassLevels = (index: string) => apiClient<ApiClassLevel[]>(`/dnds/subclasses/${index}/levels`);
 export const getSpellsForClass = (index: string) => apiClient<{ results: ApiListItem[] }>(`/dnds/classes/${index}/spells`);
-export const getEquipmentForCategory = (index: string) => apiClient<{ equipment: ApiListItem[] }>(`/dnds/equipment-categories/${index}`);
 
 export const getSpellDetails = (index: string) => apiClient<ApiSpell>(`/dnds/spells/${index}`);
 export const getTraitDetails = (index: string) => apiClient<ApiTrait>(`/dnds/traits/${index}`);

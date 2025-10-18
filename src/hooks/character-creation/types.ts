@@ -8,4 +8,3 @@ export type Action =
     | { type: 'SET_POINTS'; payload: number }
     | { type: 'RESET_RACE_SELECTIONS' }
     | { type: 'RESET_PERSONALITY' };
-
