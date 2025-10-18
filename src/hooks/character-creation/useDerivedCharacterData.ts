@@ -84,7 +84,7 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-
+    
         const processOption = (opt: ApiEquipmentOption) => {
             if (opt.option_type === 'counted_reference' && opt.of) {
                 const itemDetails = allEquipment.find(e => e && e.index === opt.of!.index);
@@ -93,13 +93,13 @@ export const useDerivedCharacterData = (
                 }
             }
         };
-
+    
         const addEquipment = (list: any[] = []) => list.forEach(item => {
             if (item.equipment) {
                 processOption({ option_type: 'counted_reference', of: item.equipment, count: item.quantity });
             }
         });
-
+    
         if (classDetails) {
             addEquipment(classDetails.starting_equipment);
             classDetails.starting_equipment_options.forEach((choice, i) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
@@ -108,15 +108,19 @@ export const useDerivedCharacterData = (
             addEquipment(backgroundDetails.starting_equipment);
             backgroundDetails.starting_equipment_options?.forEach((choice, i) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
         }
-
+    
         const finalEquip: InventoryItem[] = [];
         choiceGroups.forEach(group => {
             const selection = equipmentSelections[group.id];
             if (selection === undefined || selection.main === undefined || selection.main < 0) return;
             
-            const mainOption = group.choice.from.options[selection.main];
-            if (!mainOption) return;
+            // CORREÇÃO: Verifica se `group.choice.from.options` existe antes de acessá-lo.
+            const optionsSource = group.choice?.from?.options;
+            if (!optionsSource || !Array.isArray(optionsSource)) return;
 
+            const mainOption = optionsSource[selection.main];
+            if (!mainOption) return;
+    
             const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
                  if (subOpt.option_type === 'counted_reference' && subOpt.of) {
                     const item = allEquipment.find(e => e.index === subOpt.of!.index);
@@ -129,7 +133,7 @@ export const useDerivedCharacterData = (
                     }
                 }
             }
-
+    
             if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                 const item = allEquipment.find(e => e.index === mainOption.of!.index);
                 if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4() });
@@ -139,14 +143,18 @@ export const useDerivedCharacterData = (
                 processSubOption(mainOption, 0);
             }
         });
-
+    
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
             if (selection?.main === undefined || selection.main < 0) return false;
+            
+            // CORREÇÃO: Verifica se `group.choice.from.options` existe
+            const optionsSource = group.choice?.from?.options;
+            if (!optionsSource) return true; // Se não houver opções, a escolha está "feita"
 
-            const mainOption = group.choice.from.options[selection.main];
+            const mainOption = optionsSource[selection.main];
             if (!mainOption) return false;
-
+    
             if (mainOption.option_type === 'multiple' && Array.isArray(mainOption.items)) {
                 return mainOption.items.every((subOption, subIndex) => {
                     if (subOption.option_type === 'choice') {
@@ -160,8 +168,8 @@ export const useDerivedCharacterData = (
             }
             return true;
         });
-
-
+    
+    
         return {
             equipmentChoiceGroups: choiceGroups,
             fixedEquipment: fixed,
