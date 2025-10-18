@@ -68,7 +68,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                 <div className="space-y-6">
                     <div className="flex justify-between items-center">
                         <h4 className="font-semibold text-amber-300 text-lg">Escolhas de Proficiência</h4>
-                        <button type="button" onClick={handleRandomizeProficiencies} className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                        <button type="button" onClick={() => handleRandomizeProficiencies()} className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
                             <Dice5 className="h-4 w-4" />
                             Aleatório
                         </button>
