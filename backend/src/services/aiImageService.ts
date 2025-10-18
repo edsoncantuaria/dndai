@@ -1,5 +1,5 @@
 // backend/src/services/aiImageService.ts
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText } from "ai";
 import createError from 'http-errors';
 import minioClient from '../database/minio-client.js';
@@ -22,16 +22,21 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
         throw createError(401, 'Chave de API do Google não fornecida.');
     }
 
+    // Cria uma instância dinâmica do provedor com a chave de API do usuário
+    const google = createGoogleGenerativeAI({ apiKey });
+
     try {
         console.log(`[aiImageService] Gerando imagem com o modelo: ${model}`);
 
-        // Usa o provedor 'google' do '@ai-sdk/google' com a chave de API dinâmica
-        const googleProvider = google(model as any, { apiKey });
-
-        // Gera a imagem usando 'generateText' que pode retornar arquivos (imagens)
+        // Usa a instância do provedor criada dinamicamente
         const result = await generateText({
-            model: googleProvider,
+            model: google(model as any),
             prompt: prompt,
+            providerOptions: {
+                google: {
+                    responseModalities: ['IMAGE'],
+                }
+            }
         });
         
         const imageFile = result.files[0];
@@ -41,7 +46,6 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
             throw new Error(`A API não retornou dados de imagem válidos.`);
         }
         
-        // A SDK retorna um Uint8Array, precisamos convertê-lo para um Buffer para o MinIO
         const imageBuffer = Buffer.from(imageFile.data);
         const bucketName = process.env.MINIO_BUCKET_NAME || 'cfa';
         const fileExtension = imageFile.mediaType?.split('/')[1] || 'png';
@@ -76,7 +80,7 @@ export const generateImage = async ({ prompt, model, apiKey, sessionId }: Genera
 
     } catch (error: any) {
         console.error(`[aiImageService] Erro ao gerar e fazer upload da imagem:`, error);
-        if (error.message && error.message.includes('API key not valid')) {
+        if (error.message && (error.message.includes('API key not valid') || error.message.includes('API key is missing'))) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
         if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {

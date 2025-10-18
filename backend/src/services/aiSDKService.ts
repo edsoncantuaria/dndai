@@ -1,5 +1,5 @@
 // backend/src/services/aiSDKService.ts
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from 'ai';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
@@ -81,8 +81,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
       throw createError(401, "Chave de API do Google não configurada.");
     }
     
-    // Cria uma instância do provedor dinamicamente com a chave do usuário
-    const model = google(modelName as any, { apiKey });
+    // Cria uma instância dinâmica do provedor com a chave de API do usuário
+    const google = createGoogleGenerativeAI({ apiKey });
     
     const systemInstruction = createSystemInstruction(input.useAiHomebrew ?? true);
     
@@ -96,7 +96,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             console.log(`[aiSDKService (${modelName})] Gerando conteúdo com prompt...`);
             
             const { object } = await generateObject({
-                model,
+                model: google(modelName as any),
                 system: systemInstruction,
                 prompt,
                 schema: GameMasterResponseSchema,
@@ -112,7 +112,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
         } catch (error: any) {
              console.error(`[aiSDKService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-             if (error.message && error.message.includes('API key not valid')) {
+             if (error.message && (error.message.includes('API key not valid') || error.message.includes('API key is missing'))) {
                  throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
              }
              if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {

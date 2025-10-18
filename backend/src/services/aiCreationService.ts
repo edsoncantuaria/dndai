@@ -1,5 +1,5 @@
 // backend/src/services/aiCreationService.ts
-import { google } from "@ai-sdk/google";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from 'ai';
 import createError from 'http-errors';
 import { EXAMPLES } from '../../data/examples.js';
@@ -34,23 +34,23 @@ export const generateHomebrewContent = async ({ prompt, type, apiKey }: Generate
       Traduza todos os nomes, descrições e textos para o Português do Brasil.
       O campo 'index' deve ser uma versão em minúsculas e separada por hífens do nome em inglês.
     `;
-
-    const model = google('gemini-1.5-pro-latest', { apiKey });
+    
+    // Cria uma instância dinâmica do provedor com a chave de API do usuário
+    const google = createGoogleGenerativeAI({ apiKey });
 
     try {
         const { object } = await generateObject({
-            model,
+            model: google('gemini-1.5-pro-latest'),
             system: systemPrompt,
             prompt: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"`,
-            schema: z.any(), // Usamos 'any' para flexibilidade, já que a estrutura varia por tipo.
+            schema: z.any(),
         });
 
         return { content: object };
 
     } catch (error: any) {
         console.error(`[aiCreationService] Erro ao chamar a API do Gemini:`, error);
-        // Trata erros comuns da API para fornecer feedback melhor ao usuário
-        if (error.message && error.message.includes('API key not valid')) {
+        if (error.message && (error.message.includes('API key not valid') || error.message.includes('API key is missing'))) {
             throw createError(401, 'Sua chave de API do Google não é válida. Verifique-a nas configurações.');
         }
         if (error.status === 429 || (error.message && error.message.includes('rate limit'))) {
