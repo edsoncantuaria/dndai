@@ -26,7 +26,7 @@ const LogEntrySchema = z.object({
       imageUrl: z.string().optional(),
       status: z.enum(['generating', 'failed', 'done']).optional(),
       prompt: z.string().optional(),
-      meta: z.record(z.any()).optional(),
+      meta: z.object({}).catchall(z.any()).optional(), // CORREÇÃO: Usar catchall para permitir objeto arbitrário
     }),
   ]).describe("Conteúdo da entrada no log: string simples ou objeto estruturado para tipos especiais."),
   rollResult: z.any().optional().describe("Dados estruturados opcionais para rolagens de dados."),
@@ -137,13 +137,16 @@ const WorldStateSchema = z.object({
 }).describe("Estado global do mundo.");
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
+// CORREÇÃO: Substituir z.any() e z.record(z.any()) para evitar erros de schema vazio.
+const LaxObjectSchema = z.object({}).catchall(z.any());
+
 export const GameMasterResponseSchema = z.object({
   logEntries: z.array(LogEntrySchema).optional().default([]).describe("Novas entradas do log de aventura."),
   actionOptions: z.array(z.union([
     z.string(),
     z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
   ])).optional().default([]).describe("Ações sugeridas para o jogador."),
-  updatedCharacter: z.any().optional().describe("Campos do personagem modificados pela última ação."),
+  updatedCharacter: LaxObjectSchema.optional().describe("Campos do personagem modificados pela última ação."), // CORREÇÃO
   combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
   ambientSound: z.string().optional().describe("ID do som ambiente (ex.: 'forest_night')."),
@@ -153,7 +156,11 @@ export const GameMasterResponseSchema = z.object({
   lootOffer: LootOfferSchema.nullable().optional(),
   useHitDiceRequest: UseHitDiceRequestSchema.nullable().optional(),
   worldState: WorldStateSchema.optional().describe("Atualizações do estado global do mundo."),
-  newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
+  newHomebrewContent: z.array(
+    CreateHomebrewSchema.extend({
+      content: LaxObjectSchema, // CORREÇÃO
+    })
+  ).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 
