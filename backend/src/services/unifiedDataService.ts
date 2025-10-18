@@ -31,26 +31,30 @@ const TYPE_MAP: Record<string, HomebrewContentType> = {
 };
 
 const getOfficialList = async (resource: string): Promise<any[]> => {
-  const listKey = `dnd5e:${resource}:list`;
-  if (redisClient && redisClient.isOpen) {
-    try {
-      const cachedList = await redisClient.get(listKey);
-      if (cachedList) return JSON.parse(cachedList);
-    } catch (e) { console.error(`[Cache] Erro ao ler lista do Redis: ${listKey}`, e); }
-  }
-  const apiResponse = await getOfficialResourceList(resource);
-  const officialList = apiResponse?.results || [];
-  if (redisClient && redisClient.isOpen && officialList.length > 0) {
-    await redisClient.set(listKey, JSON.stringify(officialList));
-  }
-  return officialList;
-}
+    const listKey = `dnd5e:${resource}:list`;
+    if (redisClient && redisClient.isOpen) {
+        try {
+            const cachedList = await redisClient.get(listKey);
+            if (cachedList) {
+                console.log(`[UnifiedService] Cache HIT para lista pública: '${listKey}'`);
+                return JSON.parse(cachedList);
+            }
+        } catch (e) { console.error(`[Cache] Erro ao ler lista do Redis: ${listKey}`, e); }
+    }
+    const apiResponse = await getOfficialResourceList(resource);
+    const officialList = apiResponse?.results || [];
+    if (redisClient && redisClient.isOpen && officialList.length > 0) {
+        await redisClient.set(listKey, JSON.stringify(officialList));
+    }
+    return officialList;
+};
 
 const applyTranslation = (item: any, translations: Record<string, any>) => {
     if (!item || !item.index) return item;
     const key = item.official_index || item.index;
     const translationData = translations[key];
     if (translationData) {
+        // Retorna um novo objeto mesclado, priorizando o nome da tradução
         return { ...item, ...translationData, name: translationData.name || item.name };
     }
     return item;
@@ -58,11 +62,13 @@ const applyTranslation = (item: any, translations: Record<string, any>) => {
 
 
 export async function getUnifiedList(resource: string, userId?: number): Promise<any[]> {
-    console.log(`[UnifiedService] Iniciando getUnifiedList para resource: '${resource}', userId: ${userId}`);
-    const dbType = TYPE_MAP[resource] || resource;
+    const normalizedResource = norm(resource);
+    console.log(`[UnifiedService] Iniciando getUnifiedList para resource: '${normalizedResource}', userId: ${userId}`);
 
-    const officialListPromise = getOfficialList(resource);
-    
+    const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
+
+    const officialListPromise = getOfficialList(normalizedResource);
+
     const homebrewRepo = repo();
     let allRelevantHomebrew: HomebrewContent[] = [];
 
@@ -72,42 +78,31 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
         console.log(`[UnifiedService] Encontrados ${installedIds.length} IDs de homebrew instalados para o usuário ${userId}`);
         
         if (installedIds.length > 0) {
-            // Expand bundle IDs into content IDs
-            const bundles = await AppDataSource.getRepository(HomebrewBundle).find({
-                where: { id: In(installedIds) },
-                relations: ['contents'],
+            allRelevantHomebrew = await homebrewRepo.find({
+                where: [
+                    { isPublic: true },
+                    { id: In(installedIds) },
+                    { bundleId: In(installedIds) }
+                ]
             });
-            const contentIdsFromBundles = bundles.flatMap(b => b.contents.map(c => c.id));
-            const allContentIds = [...new Set([...installedIds, ...contentIdsFromBundles])];
-
-            if (allContentIds.length > 0) {
-                const qb = homebrewRepo.createQueryBuilder('hb')
-                    .where('hb.isPublic = :isPublic', { isPublic: true })
-                    .orWhere('hb.id IN (:...ids)', { ids: allContentIds });
-                
-                console.log('[UnifiedService] SQL da Query Homebrew (parcial):', qb.getSql());
-                allRelevantHomebrew = await qb.getMany();
-            }
+        } else {
+             allRelevantHomebrew = await homebrewRepo.find({ where: { isPublic: true }});
         }
-    }
-    
-    if (allRelevantHomebrew.length === 0) {
-       allRelevantHomebrew = await homebrewRepo.find({
-            where: { isPublic: true }
-       });
+    } else {
+        allRelevantHomebrew = await homebrewRepo.find({ where: { isPublic: true }});
     }
 
     const homebrewForType = allRelevantHomebrew.filter(hb => hb.type === dbType);
     const translations = allRelevantHomebrew.filter(hb => hb.type === 'translation');
-
     console.log(`[UnifiedService] Query de Homebrew retornou ${homebrewForType.length} itens do tipo '${dbType}' e ${translations.length} itens de tradução.`);
     
-    const translationMap = translations.reduce((acc, curr) => {
-        if(curr.content) {
-            Object.assign(acc, curr.content);
+    // Constrói o mapa de traduções
+    const translationMap: Record<string, any> = {};
+    translations.forEach(t => {
+        if (t.content) {
+            Object.assign(translationMap, t.content);
         }
-        return acc;
-    }, {} as Record<string, any>);
+    });
 
     const officialList = (await officialListPromise).map(item => applyTranslation(item, translationMap));
     
@@ -125,33 +120,35 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
         if (!content) continue;
 
-        const officialIndexToOverride = norm(content.official_index || content.index);
+        const officialIndexToOverride = norm(content.official_index || content.index || '');
 
-        if (finalMap.has(officialIndexToOverride)) {
+        // Aplica a tradução ao conteúdo homebrew ANTES de mesclar
+        const translatedContent = applyTranslation(content, translationMap);
+
+        if (officialIndexToOverride && finalMap.has(officialIndexToOverride)) {
             const base = finalMap.get(officialIndexToOverride);
-            const translatedBase = applyTranslation(base, translationMap);
             finalMap.set(officialIndexToOverride, {
-                ...translatedBase,
-                ...content,
-                name: content.name || translatedBase.name, // Homebrew name takes priority
+                ...base,
+                ...translatedContent,
+                name: translatedContent.name || base.name,
                 index: base.index,
                 source: 'homebrew',
                 isHomebrew: true,
                 homebrewId: hb.id,
                 authorId: hb.authorId,
-                url: `/api/data/${resource}/${base.index}`,
+                url: `/api/data/${normalizedResource}/${base.index}`,
             });
             overwrittenCount++;
         } else {
             const newIdx = norm(content.index || hb.id);
             finalMap.set(newIdx, {
-                ...content,
+                ...translatedContent,
                 index: content.index || hb.id,
                 source: 'homebrew',
                 isHomebrew: true,
                 homebrewId: hb.id,
                 authorId: hb.authorId,
-                url: `/api/data/${resource}/${content.index || hb.id}`,
+                url: `/api/data/${normalizedResource}/${content.index || hb.id}`,
             });
             newCount++;
         }
@@ -166,6 +163,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
 
 export async function getUnifiedDetails(resource: string, index: string, userId?: number): Promise<any> {
     const normalizedResource = norm(resource);
+    console.log(`[UnifiedService] Iniciando getUnifiedDetails para resource: '${normalizedResource}', index: '${index}', userId: ${userId}`);
     const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
     const normalizedIndex = norm(index);
     const homebrewRepo = repo();
@@ -174,70 +172,76 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
     let officialData: any = null;
     let hb: HomebrewContent | null = null;
     
-    const user = userId ? await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] }) : null;
-    const userInstalledIds = user?.installedHomebrewIds || [];
-
-    if (isUuid) {
-        hb = await homebrewRepo.findOneBy({ id: index });
-        if (!hb) return null;
-        if (!hb.isPublic && hb.authorId !== userId) {
-            throw createError(403, 'Acesso negado a este conteúdo homebrew privado.');
-        }
-
-        const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
-        const officialIndexToFetch = norm(content?.official_index || content?.index);
-        if (officialIndexToFetch) {
-            try {
-                officialData = await getOfficialDetails(normalizedResource, officialIndexToFetch);
-            } catch { /* Ignore if official data not found */ }
-        }
-    } else {
+    // Sempre busca dados oficiais primeiro se não for um UUID
+    if (!isUuid) {
         try {
             officialData = await getOfficialDetails(normalizedResource, normalizedIndex);
-        } catch { /* Ignore */ }
-
-        const qb = homebrewRepo.createQueryBuilder('hb')
-            .where('LOWER(hb.type) = :type', { type: norm(dbType) })
-            .andWhere(new Brackets(sqb => {
-                sqb.where('LOWER(JSON_EXTRACT(hb.content, "$.official_index")) = :idx', { idx: normalizedIndex })
-                   .orWhere('LOWER(JSON_EXTRACT(hb.content, "$.index")) = :idx', { idx: normalizedIndex });
-            }))
-            .andWhere(new Brackets(sqb => {
-                sqb.where('hb.isPublic = :isPublic', { isPublic: true });
-                if (userInstalledIds.length > 0) {
-                    sqb.orWhere('hb.id IN (:...ids)', { ids: userInstalledIds })
-                       .orWhere('hb.bundleId IN (:...ids)', { ids: userInstalledIds });
-                }
-            }));
-        
-        hb = await qb.getOne();
+        } catch {}
     }
 
-    const finalData = hb 
-        ? { ...(officialData || {}), ...(typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content), source: 'homebrew', isHomebrew: true, id: hb.id }
-        : officialData ? { ...officialData, source: 'official', isHomebrew: false } : null;
-
-    if (!finalData) return null;
-
-    // Apply translations
-    const allIds = new Set(userInstalledIds);
-    if (hb?.bundleId) allIds.add(hb.bundleId);
+    // Busca o conteúdo homebrew
+    const qb = homebrewRepo.createQueryBuilder('hb');
     
-    if (allIds.size > 0) {
-        const bundles = await AppDataSource.getRepository(HomebrewBundle).find({
-            where: { id: In(Array.from(allIds)) },
-            relations: ['contents']
-        });
-        const contentIdsFromBundles = bundles.flatMap(b => b.contents.map(c => c.id));
-        const allContentIds = [...new Set([...allIds, ...contentIdsFromBundles])];
+    if (isUuid) {
+         qb.where('hb.id = :index', { index });
+    } else {
+        qb.where('LOWER(hb.type) = :type', { type: dbType })
+          .andWhere(new Brackets(sqb => {
+              sqb.where('LOWER(JSON_EXTRACT(hb.content, "$.official_index")) = :idx', { idx: normalizedIndex })
+                 .orWhere('LOWER(JSON_EXTRACT(hb.content, "$.index")) = :idx', { idx: normalizedIndex });
+          }));
+    }
 
-        const translations = await homebrewRepo.find({ where: { id: In(allContentIds), type: 'translation' } });
-        const translationMap = translations.reduce((acc, curr) => {
-            if(curr.content) Object.assign(acc, curr.content);
-            return acc;
-        }, {});
-        return applyTranslation(finalData, translationMap);
+    // Filtra pelo acesso do usuário
+    if (userId) {
+        const user = await AppDataSource.getRepository(User).findOne({ where: { id: userId }, select: ['installedHomebrewIds'] });
+        const userInstalledIds = user?.installedHomebrewIds || [];
+        qb.andWhere(new Brackets(sqb => {
+            sqb.where('hb.isPublic = :isPublic', { isPublic: true })
+               .orWhere('hb.authorId = :userId', { userId });
+            if (userInstalledIds.length > 0) {
+                sqb.orWhere('hb.id IN (:...ids)', { ids: userInstalledIds })
+                   .orWhere('hb.bundleId IN (:...ids)', { ids: userInstalledIds });
+            }
+        }));
+    } else {
+        qb.andWhere('hb.isPublic = :isPublic', { isPublic: true });
+    }
+
+    hb = await qb.getOne();
+    
+    // Se o homebrew foi encontrado por UUID e não tínhamos dados oficiais, tentamos buscar agora
+    if (hb && !officialData) {
+         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
+         const officialIndex = norm(content?.official_index || content?.index || '');
+         if (officialIndex && officialIndex !== hb.id) {
+             try { officialData = await getOfficialDetails(normalizedResource, officialIndex); } catch {}
+         }
+    }
+
+    // Monta a resposta final
+    let finalData = officialData ? { ...officialData, source: 'official', isHomebrew: false } : null;
+
+    if (hb) {
+        const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
+        finalData = { ...(finalData || {}), ...content, source: 'homebrew', isHomebrew: true, homebrewId: hb.id };
     }
     
-    return finalData;
+    if (!finalData) {
+        console.log(`[UnifiedService] Nenhum dado oficial ou homebrew encontrado para '${normalizedResource}/${index}'.`);
+        return null;
+    }
+
+    // Busca e aplica traduções
+    const translationRepo = AppDataSource.getRepository(HomebrewContent);
+    const translationEntries = await translationRepo.find({ where: { type: 'translation', isPublic: true } });
+    const translationMap: Record<string, any> = {};
+    translationEntries.forEach(t => {
+        if(t.content) Object.assign(translationMap, t.content);
+    });
+
+    const translatedFinalData = applyTranslation(finalData, translationMap);
+    console.log(`[UnifiedService] Detalhes para '${normalizedResource}/${index}' concluídos. Fonte: ${translatedFinalData.source}`);
+
+    return translatedFinalData;
 }
