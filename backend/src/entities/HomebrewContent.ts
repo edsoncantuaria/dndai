@@ -20,7 +20,7 @@ export class HomebrewContent {
     @Index()
     @Column({
         type: 'enum',
-        enum: ['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation'],
+        enum: ['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'translation'],
     })
     type: HomebrewContentType;
 

@@ -12,7 +12,6 @@ import ItemForm from './forms/ItemForm';
 import MonsterForm from './forms/MonsterForm';
 import BackgroundForm from './forms/BackgroundForm';
 import FeatForm from './forms/FeatForm';
-import SkillForm from './forms/SkillForm'; // Importar SkillForm
 import HomebrewHelpModal from './HomebrewHelpModal';
 import SubraceForm from './forms/SubraceForm'; 
 import ExampleModal from './ExampleModal';
@@ -20,7 +19,7 @@ import { EXAMPLES } from '@/data/examples';
 import { useAuth } from '@/contexts/AuthContext';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
-    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill'
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
 ];
 
 interface Props {
@@ -137,7 +136,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             case 'monster': return <MonsterForm onDataChange={setContentData} initialData={initialDataForForm} />;
             case 'background': return <BackgroundForm onDataChange={setContentData} initialData={initialDataForForm} />;
             case 'feat': return <FeatForm onDataChange={setContentData} initialData={initialDataForForm} />;
-            case 'skill': return <SkillForm onDataChange={setContentData} initialData={initialDataForForm} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
         }

@@ -39,9 +39,10 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         // Envia os dados para o componente pai, garantindo que o index esteja correto
         const fullData = {
             ...skillData,
-            index: skillData.official_index || `custom-skill-${Date.now()}`
+            index: skillData.official_index || (skillData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-skill-${Date.now()}`,
         };
-        onDataChange(fullData);
+        const { official_index, ...finalData } = fullData; // Remove o campo auxiliar
+        onDataChange(finalData);
     }, [skillData, onDataChange]);
     
     const handleFieldChange = (field: keyof typeof skillData, value: any) => {

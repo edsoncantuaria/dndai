@@ -8,6 +8,7 @@ import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import { TRANSLATIONS_SPELLS } from '../../data/TranslatorSpells.js';
 import { TRANSLATIONS_EQUIPMENT } from '../../data/TranslatorEquipments.js';
 import backgroundsData from '../../data/backgrounds.json' assert { type: 'json' };
+import { TRANSLATIONS_BASE } from '../../data/TranslatorPTBR.js';
 import bcrypt from 'bcryptjs';
 
 const SYSTEM_USER_ID = 1;
@@ -32,7 +33,7 @@ async function upsertHomebrew(authorId: number, type: any, name: string, content
         newContent.authorId = authorId;
         newContent.type = type;
         newContent.name = name;
-        newContent.content = { ...content, index: index };
+        newContent.content = type === 'translation' ? content : { ...content, index: index };
         newContent.isPublic = isPublic;
         newContent.createdBy = 'user';
         return await homebrewRepo.save(newContent);
@@ -82,13 +83,13 @@ async function migrate() {
     const migratedSpells: HomebrewContent[] = [];
     const migratedEquipments: HomebrewContent[] = [];
     const migratedBackgrounds: HomebrewContent[] = [];
+    const migratedBaseTranslations: HomebrewContent[] = [];
 
     console.log('\n--- Migrando Traduções de Magias ---');
     for (const [englishName, translation] of Object.entries(TRANSLATIONS_SPELLS)) {
         const spell = await upsertHomebrew(SYSTEM_USER_ID, 'spell', englishName, {
             ...translation,
-            name: translation.name,
-            index: englishName.toLowerCase().replace(/\s+/g, '-'),
+            official_index: englishName.toLowerCase().replace(/\s+/g, '-'),
         });
         migratedSpells.push(spell);
     }
@@ -97,8 +98,7 @@ async function migrate() {
     for (const [englishIndex, translation] of Object.entries(TRANSLATIONS_EQUIPMENT)) {
         const item = await upsertHomebrew(SYSTEM_USER_ID, 'item', englishIndex, {
             ...translation,
-            name: translation.name,
-            index: englishIndex,
+            official_index: englishIndex,
         });
         migratedEquipments.push(item);
     }
@@ -119,6 +119,18 @@ async function migrate() {
         "Antecedentes (SRD Traduzido)",
         "Contém todos os antecedentes disponíveis no Documento de Referência do Sistema (SRD), traduzidos para o português.",
         migratedBackgrounds
+    );
+    
+    console.log('\n--- Migrando Traduções Essenciais do Sistema ---');
+    for (const [category, translations] of Object.entries(TRANSLATIONS_BASE)) {
+        const translationContent = await upsertHomebrew(SYSTEM_USER_ID, 'translation', category, translations);
+        migratedBaseTranslations.push(translationContent);
+    }
+
+    await createOrUpdateBundle(
+        "Traduções Essenciais PT-BR",
+        "Contém as traduções base para termos do sistema como atributos, classes, raças, perícias e condições.",
+        migratedBaseTranslations
     );
 
     console.log('\nMigração de dados concluída com sucesso!');

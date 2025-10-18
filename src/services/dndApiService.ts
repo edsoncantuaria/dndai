@@ -40,3 +40,4 @@ export const getFeatDetails = (index: string) => apiClient<Feat>(`/dnds/feats/${
 export const getConditionDetails = (index: string) => apiClient<ApiCondition>(`/dnds/conditions/${index}`);
 export const getFeatureDetails = (index: string) => apiClient<ApiFeature>(`/dnds/features/${index}`);
 export const getEquipmentDetails = (index: string) => apiClient<InventoryItem>(`/dnds/equipment/${index}`);
+export const getSkillDetails = (index: string) => apiClient<any>(`/dnds/skills/${index}`);

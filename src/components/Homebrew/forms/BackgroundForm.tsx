@@ -37,7 +37,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
      useEffect(() => {
         const fullData = {
             ...bgData,
-            index: bgData.official_index || bgData.name.toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
+            index: bgData.official_index || (bgData.name || '').toLowerCase().replace(/\s+/g, '-') || `custom-bg-${Date.now()}`
         };
         const { official_index, ...finalData } = fullData;
         onDataChange(finalData);
@@ -71,7 +71,7 @@ const BackgroundForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
                 {user?.id === 1 && (
                     <div>
-                        <label className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
+                        <label className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
                         <input type="text" value={bgData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: acolyte (opcional)"/>
                     </div>
                 )}
