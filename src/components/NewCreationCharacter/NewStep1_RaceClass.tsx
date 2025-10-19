@@ -228,12 +228,12 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                     </button>
                 </div>
             </div>
-            {classDetails && hook.details.classLevels && (
+            {classDetails && (
                 <ClassDetailsModal
                     isOpen={isClassModalOpen}
                     onClose={() => setIsClassModalOpen(false)}
                     classDetails={classDetails}
-                    classLevels={hook.details.classLevels}
+                    classLevels={hook.details.classLevels || []}
                 />
             )}
         </>
