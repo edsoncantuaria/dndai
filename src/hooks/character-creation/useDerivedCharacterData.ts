@@ -6,6 +6,25 @@ import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
+// ============================================================
+// 🧩 Função auxiliar para normalizar URLs de equipamentos
+// ============================================================
+const normalizeEquipmentUrl = (urlOrIndex: string): string => {
+    if (!urlOrIndex) return '';
+  
+    // Se já está no formato correto, mantém
+    if (urlOrIndex.startsWith('/api/data/equipment/')) return urlOrIndex;
+  
+    // Remove possíveis versões antigas (/api/2014/, /api/5e/, /api/v1/, etc)
+    const normalized = urlOrIndex
+      .replace(/^\/?api\/\d{0,4}\/?/, '') // remove /api/2014/, /api/5e/, etc
+      .replace(/^\/?v\d+\//, '')         // remove /v1/, /v2/, etc
+      .replace(/^\/?equipment\//, '')     // remove equipment/
+      .replace(/^\/+/, '');              // remove barras extras
+  
+    return `/api/data/equipment/${normalized}`;
+  };
+
 export const useDerivedCharacterData = (
   state: CharacterCreatorState,
   details: any,
@@ -120,8 +139,13 @@ export const useDerivedCharacterData = (
           const itemDetails = allEquipment.find((e: any) => e && e.index === normalizedIndex);
 
           if (itemDetails) {
-            fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
-          }
+                        fixed.push({
+                            ...itemDetails,
+                            id: uuidv4(),
+                            quantity: item.quantity || 1,
+                            equipped: false,
+                            url: normalizeEquipmentUrl(itemDetails.url || itemDetails.index),
+                          });          }
         }
       });
     };
@@ -166,15 +190,28 @@ export const useDerivedCharacterData = (
         if (subOpt.option_type === 'counted_reference' && subOpt.of) {
           const normalizedIndex = subOpt.of.index.replace(/^\/?api\/\d+\/equipment\//, '');
           const item = allEquipment.find((e: any) => e.index === normalizedIndex);
-          if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4(), equipped: false });
-        }
+          if (item)
+            finalEquip.push({
+              ...item,
+              quantity: subOpt.count || 1,
+              id: uuidv4(),
+              equipped: false,
+              url: normalizeEquipmentUrl(item.url || item.index),
+            });        }
       };
 
       if (mainOption.option_type === 'counted_reference' && mainOption.of) {
         const normalizedIndex = mainOption.of.index.replace(/^\/?api\/\d+\/equipment\//, '');
         const item = allEquipment.find((e: any) => e.index === normalizedIndex);
-        if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4(), equipped: false });
-      } else if (mainOption.option_type === 'multiple' && mainOption.items) {
+        if (item)
+          finalEquip.push({
+            ...item,
+            quantity: mainOption.count || 1,
+            id: uuidv4(),
+            equipped: false,
+            url: normalizeEquipmentUrl(item.url || item.index),
+          });   
+        } else if (mainOption.option_type === 'multiple' && mainOption.items) {
         mainOption.items.forEach(processSubOption);
       } else if (mainOption.option_type === 'choice') {
         const source = mainOption.choice || mainOption;
@@ -184,8 +221,14 @@ export const useDerivedCharacterData = (
           if (subSelection) {
             const normalizedIndex = subSelection.replace(/^\/?api\/\d+\/equipment\//, '');
             const item = allEquipment.find((e: any) => e.index === normalizedIndex);
-            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
-          }
+            if (item)
+              finalEquip.push({
+                ...item,
+                quantity: 1,
+                id: uuidv4(),
+                equipped: false,
+                url: normalizeEquipmentUrl(item.url || item.index),
+              });          }
         }
       }
     }
