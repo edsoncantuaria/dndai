@@ -30,118 +30,130 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     // Pre-load all equipment data
     useEffect(() => {
         const fetchBaseEquipment = async () => {
-             setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-             try {
-                const equipmentList = await DndApiService.getEquipment();
-                
-                if (!Array.isArray(equipmentList)) {
-                    throw new Error("A lista de equipamentos não pôde ser carregada ou está em formato incorreto.");
-                }
-
-                const unifiedEquipment = equipmentList as InventoryItem[];
-                setAllEquipment(unifiedEquipment);
-
-                const newCache: Record<string, InventoryItem[]> = {};
-                
-                const normalizeKey = (key: string) =>
-                  key
-                    .toLowerCase()
-                    .replace(/[\s_]+/g, '-')
-                    .replace(/[^a-z0-9-]/g, '');
-                
-                const addAlias = (aliases: string[], items: InventoryItem[]) => {
-                  aliases.forEach(alias => {
-                    const key = normalizeKey(alias);
-                    if (!newCache[key]) newCache[key] = [];
-                    newCache[key].push(...items);
-                  });
-                };
-                
-                unifiedEquipment.forEach(item => {
-                  if (!item) return;
-                
-                  const baseKeys = [
-                    item.equipment_category?.index,
-                    (item as any).gear_category?.index,
-                  ].filter(Boolean) as string[];
-                
-                  baseKeys.forEach(k => {
-                    const nk = normalizeKey(k);
-                    if (!newCache[nk]) newCache[nk] = [];
-                    newCache[nk].push(item);
-                  });
-                
-                  // armas
-                  if (item.weapon_category) {
-                    const wCat = item.weapon_category.toLowerCase();
-                    addAlias(
-                      [
-                        `${wCat}-weapon`,
-                        `${wCat}-weapons`,
-                        `${wCat} weapon`,
-                        `${wCat} weapons`,
-                        `any ${wCat} weapon`,
-                        `any ${wCat} weapons`,
-                      ],
-                      [item]
-                    );
-                  }
-                
-                  // escudos
-                  if (item.name.toLowerCase().includes('shield')) {
-                    addAlias(['shield', 'shields', 'a shield', 'any shield'], [item]);
-                  }
-                
-                  // holy symbols / foci
-                  if (item.index.includes('holy-symbol') || item.name.match(/amuleto|emblema|relicário/i)) {
-                    addAlias(['holy-symbol', 'holy-symbols', 'holy symbol', 'holy symbols'], [item]);
-                  }
-                  if (item.index.match(/(crystal|orb|rod|staff|wand)/i)) {
-                    addAlias(['arcane focus', 'arcane foci'], [item]);
-                  }
-                  if (item.index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) {
-                    addAlias(['druidic focus', 'druidic foci'], [item]);
-                  }
-                });
-                
-                // armas simples / marciais / corpo a corpo / à distância
-                const simpleWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Simple');
-                const martialWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Martial');
-                
-                addAlias(['simple-weapons', 'simple weapon', 'any simple weapon'], simpleWeapons);
-                addAlias(['martial-weapons', 'martial weapon', 'any martial weapon'], martialWeapons);
-                addAlias(
-                  ['simple-melee-weapon', 'simple melee weapon', 'any simple melee weapon'],
-                  simpleWeapons.filter(i => i.weapon_range === 'Melee')
+          setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+          try {
+            const equipmentList = await DndApiService.getEquipment();
+            if (!Array.isArray(equipmentList)) throw new Error("Lista de equipamentos inválida.");
+      
+            const unifiedEquipment = equipmentList as InventoryItem[];
+            setAllEquipment(unifiedEquipment);
+      
+            const newCache: Record<string, InventoryItem[]> = {};
+      
+            /** 🔹 Normalizador genérico */
+            const normalize = (str: string) =>
+              str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+      
+            /** 🔹 Adiciona item em múltiplas chaves */
+            const add = (keys: string[], ...items: InventoryItem[]) => {
+              keys.forEach(k => {
+                const nk = normalize(k);
+                if (!nk) return;
+                if (!newCache[nk]) newCache[nk] = [];
+                newCache[nk].push(...items);
+              });
+            };
+      
+            // --- Construção inteligente do cache ---
+            for (const item of unifiedEquipment) {
+              if (!item) continue;
+      
+              const name = item.name.toLowerCase();
+              const index = item.index.toLowerCase();
+              const categories = [
+                item.equipment_category?.index,
+                (item as any).gear_category?.index,
+                item.weapon_category,
+                item.armor_category,
+              ]
+                .filter(Boolean)
+                .map(String);
+      
+              // Categorias base (SRD)
+              add(categories, item);
+      
+              // Aliases universais
+              if (item.weapon_category) {
+                const w = item.weapon_category.toLowerCase();
+                add(
+                  [
+                    `${w}-weapon`,
+                    `${w}-weapons`,
+                    `${w} weapon`,
+                    `${w} weapons`,
+                    `any ${w} weapon`,
+                    `any ${w} weapons`,
+                  ],
+                  item
                 );
-                addAlias(
-                  ['martial-melee-weapon', 'martial melee weapon', 'any martial melee weapon'],
-                  martialWeapons.filter(i => i.weapon_range === 'Melee')
-                );
-                addAlias(
-                  ['simple-ranged-weapon', 'simple ranged weapon', 'any simple ranged weapon'],
-                  simpleWeapons.filter(i => i.weapon_range === 'Ranged')
-                );
-                addAlias(
-                  ['martial-ranged-weapon', 'martial ranged weapon', 'any martial ranged weapon'],
-                  martialWeapons.filter(i => i.weapon_range === 'Ranged')
-                );
-                
-                setEquipmentCategoryCache(newCache);
-                
-                if (process.env.NODE_ENV === 'development') {
-                  console.log('[Equipment Cache Keys]', Object.keys(newCache));
-                }
-
-             } catch (error) {
-                console.error("Falha catastrófica ao carregar equipamentos:", error);
-                setEquipmentCategoryCache({}); // Garante que não seja undefined em caso de erro
-             } finally {
-                setLoadingStates({ isLoading: false, message: '', progress: 0 });
-             }
+              }
+      
+              // Holy Symbols
+              if (
+                index.includes('holy-symbol') ||
+                name.includes('amuleto') ||
+                name.includes('emblema') ||
+                name.includes('relicário') ||
+                name.includes('símbolo')
+              ) {
+                add(['holy-symbol', 'holy-symbols', 'holy symbol', 'holy symbols'], item);
+              }
+      
+              // Focos arcanos
+              if (index.match(/(crystal|orb|rod|staff|wand)/i)) {
+                add(['arcane focus', 'arcane foci'], item);
+              }
+      
+              // Focos druidicos
+              if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) {
+                add(['druidic focus', 'druidic foci'], item);
+              }
+      
+              // Escudos
+              if (name.includes('shield')) {
+                add(['shield', 'shields', 'a shield', 'any shield'], item);
+              }
+      
+              // Armas corpo a corpo e à distância
+              if (item.weapon_range === 'Melee') {
+                add(['melee-weapon', 'melee-weapons', 'melee weapon', 'simple melee weapon', 'martial melee weapon'], item);
+              }
+              if (item.weapon_range === 'Ranged') {
+                add(['ranged-weapon', 'ranged-weapons', 'ranged weapon', 'simple ranged weapon', 'martial ranged weapon'], item);
+              }
+      
+              // Equipamento de aventureiro
+              if (item.equipment_category?.index === 'adventuring-gear') {
+                add(['gear', 'adventuring gear'], item);
+              }
+            }
+      
+            // Agrupamentos compostos
+            const simple = unifiedEquipment.filter(i => i.weapon_category === 'Simple');
+            const martial = unifiedEquipment.filter(i => i.weapon_category === 'Martial');
+      
+            add(['simple-weapons', 'simple weapon', 'any simple weapon'], ...simple);
+            add(['martial-weapons', 'martial weapon', 'any martial weapon'], ...martial);
+      
+            newCache['holy-symbol'] ??= unifiedEquipment.filter(i =>
+              i.index.includes('holy-symbol')
+            );
+      
+            setEquipmentCategoryCache(newCache);
+      
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[Equipment Cache Loaded]', Object.keys(newCache));
+            }
+          } catch (err) {
+            console.error('Falha ao carregar equipamentos:', err);
+            setEquipmentCategoryCache({});
+          } finally {
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
+          }
         };
+      
         fetchBaseEquipment();
-    }, []);
+      }, []);
 
 
     // Fetch Race Details
