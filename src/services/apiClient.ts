@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
-// A URL da API agora é dinâmica, usando a variável de ambiente ou um fallback local.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
+// A URL da API agora usa a URL de produção como padrão.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
@@ -18,13 +18,14 @@ const getAuthHeaders = (): HeadersInit | null => {
     };
 };
 
-const PUBLIC_ROUTES = ['/api/auth/login', '/api/auth/register', '/api/data', '/api/translations'];
+// Lista de rotas que não exigem autenticação.
+const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data', '/translations', '/health'];
 
 
 /**
  * Um wrapper para a API fetch que centraliza a lógica de chamada ao nosso backend.
  * Ele automaticamente adiciona a URL base, os headers de autenticação e trata as respostas de erro.
- * @param endpoint O endpoint da API a ser chamado (ex: '/api/auth/login').
+ * @param endpoint O endpoint da API a ser chamado (ex: '/auth/login').
  * @param options As opções de configuração para a chamada fetch (método, corpo, etc.).
  * @returns A resposta JSON da API.
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
@@ -36,6 +37,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     
     let authHeaders: HeadersInit | null = getAuthHeaders();
 
+    // Se a rota não for pública e não houver token, lança um erro.
     if (!isPublic && !authHeaders) {
         throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
     }
@@ -49,7 +51,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         ...customOptions
     };
     
-    // A URL completa agora é construída simplesmente juntando a base com o endpoint fornecido.
+    // Constrói a URL final para a chamada.
     const fullUrl = `${API_URL}${endpoint}`;
     
     if (process.env.NODE_ENV === 'development') {
@@ -63,10 +65,10 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         try {
             errorData = await response.json();
         } catch (e) {
-            throw new Error(response.statusText || 'Ocorreu um erro de rede.');
+            throw new Error(`Erro de rede: ${response.status} ${response.statusText}`);
         }
-        // Use a mensagem de erro do backend ou uma mensagem padrão.
-        throw new Error(errorData?.message || `Erro de rede: ${response.statusText}`);
+        // Usa a mensagem de erro do backend ou uma mensagem padrão.
+        throw new Error(errorData?.message || `Erro desconhecido: ${response.statusText}`);
     }
     
     if (response.status === 204 || response.headers.get('content-length') === '0') {

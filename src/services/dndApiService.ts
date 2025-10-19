@@ -27,7 +27,7 @@ import type {
 } from '../types';
 
 // O apiClient já lida com a URL base. Este serviço só precisa saber o caminho da API.
-const API_PREFIX = '/api/data';
+const API_PREFIX = '/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
