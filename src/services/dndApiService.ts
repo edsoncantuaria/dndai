@@ -40,7 +40,7 @@ async function fetchJson<T>(endpoint: string): Promise<T> {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug(`[DndApiService] GET ${fullEndpoint}`);
+    console.log(`[apiClient] GET ${fullEndpoint}`);
   }
 
   const res = await apiClient<T>(fullEndpoint);
@@ -171,6 +171,10 @@ export const getAlignmentDetails = (index: string) => getResourceDetails('alignm
  * 🔹 Export unificado
  * =========================================================== */
 const DndApiService = {
+  // Funções de lista e detalhes agora estão incluídas aqui
+  getResourceList: fetchList,
+  getResourceDetails: getResourceDetails,
+
   // Races
   getRaces, getRaceDetails, getSubraces, getSubraceDetails,
 
