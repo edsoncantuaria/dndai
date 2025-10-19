@@ -66,6 +66,10 @@ export const useDerivedCharacterData = (
       return acc;
     }, {} as characterUtils.Attributes),
   [state.baseAttributes, racialBonuses]);
+  
+  const modifiers = useMemo(() => finalAttributes ? characterUtils.calculateModifiers(finalAttributes) : characterUtils.calculateModifiers(initialState.baseAttributes), [finalAttributes]);
+  const proficiencyBonus = useMemo(() => characterUtils.getProficiencyBonus(1), []);
+
 
   // =============== FINAL PROFICIENCIES ===============
   const finalProficiencies = useMemo(() => {
@@ -170,7 +174,7 @@ export const useDerivedCharacterData = (
 
       if (!optionsSource && group.choice?.from?.equipment_category) {
         const cat = group.choice.from.equipment_category;
-        const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+        const categoryKey = typeof cat === 'string' ? cat : cat.name || cat.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
         const resolvedCategory = cacheKey ? equipmentCategoryCache[cacheKey] : [];
         if (resolvedCategory.length > 0) {
@@ -265,19 +269,15 @@ export const useDerivedCharacterData = (
   }, [isVariantHuman, selectedFeat, availableFeats]);
 
   // =============== DADOS DE COMBATE DERIVADOS ===============
-  const { ac, hp, speed, hitDie, modifiers, proficiencyBonus } = useMemo(() => {
-    const mods = characterUtils.calculateModifiers(finalAttributes);
-    const profBonus = characterUtils.getProficiencyBonus(1);
-    
-    // Combine fixed and chosen equipment for AC calculation
+  const { ac, hp, speed, hitDie } = useMemo(() => {
     const currentInventory = [...fixedEquipment, ...finalizedEquipment];
     
-    // Safe calculation for AC, with a fallback
-    const calculatedAc = characterUtils.calculateAC(currentInventory, mods) || { value: 10, source: 'Base' };
+    // Fallback para AC caso o cálculo falhe
+    const calculatedAc = characterUtils.calculateAC(currentInventory, modifiers) || { value: 10, source: 'Base' };
 
     const calculatedHp = {
-      current: (classDetails?.hit_die || 0) + (mods.constitution || 0),
-      max: (classDetails?.hit_die || 0) + (mods.constitution || 0),
+      current: (classDetails?.hit_die || 0) + (modifiers.constitution || 0),
+      max: (classDetails?.hit_die || 0) + (modifiers.constitution || 0),
       temp: 0
     };
     
@@ -286,10 +286,8 @@ export const useDerivedCharacterData = (
       hp: calculatedHp,
       speed: raceDetails?.speed || 30,
       hitDie: classDetails?.hit_die || 8,
-      modifiers: mods,
-      proficiencyBonus: profBonus
     };
-  }, [finalAttributes, fixedEquipment, finalizedEquipment, classDetails, raceDetails]);
+  }, [finalAttributes, fixedEquipment, finalizedEquipment, classDetails, raceDetails, modifiers]);
 
 
   return {

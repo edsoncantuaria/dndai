@@ -182,9 +182,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             const getHomebrewIds = (items: (string | undefined | null)[]): string[] => 
                 items.filter((id): id is string => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
-            const equipmentHomebrewIds = derivedData.finalizedEquipment
-                .map((item: InventoryItem) => item.id) // Presume que o 'id' é o UUID do homebrew
+             const equipmentHomebrewIds = derivedData.finalizedEquipment
+                .map((item: InventoryItem) => item.id) // O ID do item de inventário já deve ser o ID do homebrew
                 .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
 
             const homebrewIds = Array.from(new Set([
                 ...getHomebrewIds([state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]),
