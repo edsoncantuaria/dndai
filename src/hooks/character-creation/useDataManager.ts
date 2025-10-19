@@ -51,42 +51,40 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                         newCache[normalizedKey].push(itemToAdd);
                     });
                 };
-
-                const musicalInstrumentsKeywords = ['bagpipes', 'drum', 'dulcimer', 'flute', 'lute', 'lyre', 'horn', 'pan-flute', 'shawm', 'viol'];
-                const holySymbolKeywords = ['amulet', 'emblem', 'reliquary', 'holy-symbol'];
-                const arcaneFocusKeywords = ['crystal', 'orb', 'rod', 'staff', 'wand'];
-                const druidicFocusKeywords = ['sprig-of-mistletoe', 'totem', 'wooden-staff', 'yew-wand'];
+                
+                const addWithVariations = (baseKey: string, items: InventoryItem[]) => {
+                    const keys = [
+                        baseKey.toLowerCase(),
+                        `${baseKey.toLowerCase()}s`,
+                        baseKey.toLowerCase().replace(/ /g, '-'),
+                        `${baseKey.toLowerCase().replace(/ /g, '-')}s`,
+                    ];
+                    keys.forEach(key => {
+                        newCache[key] = items;
+                    });
+                };
 
                 unifiedEquipment.forEach(item => {
                     if (!item) return;
-
-                    const itemIndex = item.index.toLowerCase();
-                    const itemName = item.name.toLowerCase();
-
-                    // --- Mapeamento Principal ---
                     add([item.equipment_category?.index, (item as any).gear_category?.index], item);
-                    
-                    // --- Mapeamento por Categoria de Arma/Armadura ---
-                    if (item.weapon_category) add([`${item.weapon_category.toLowerCase()}-weapons`, item.weapon_category.toLowerCase()], item);
-                    if (item.armor_category) add([`${item.armor_category.toLowerCase()}-armor`, item.armor_category.toLowerCase()], item);
-
-                    // --- Mapeamento Manual por Palavras-chave e Categorias Especiais ---
-                    if (musicalInstrumentsKeywords.some(keyword => itemIndex.includes(keyword))) add(['musical-instruments', 'musical instrument'], item);
-                    if (holySymbolKeywords.some(keyword => itemIndex.includes(keyword))) add(['holy-symbols', 'holy symbol'], item);
-                    if (arcaneFocusKeywords.some(keyword => itemIndex.includes(keyword))) add(['arcane-foci', 'arcane focus'], item);
-                    if (druidicFocusKeywords.some(keyword => itemIndex.includes(keyword))) add(['druidic-foci', 'druidic focus'], item);
-
-                    if (itemName.includes('pack')) add(['packs'], item);
                 });
-                
-                // --- Mapeamento de Categorias Compostas ---
-                const simpleWeapons = newCache['simple weapons'] || newCache['simple-weapons'] || [];
-                const martialWeapons = newCache['martial weapons'] || newCache['martial-weapons'] || [];
 
-                newCache['simple melee weapons'] = newCache['simple-melee-weapons'] = simpleWeapons.filter(i => i.weapon_range === 'Melee');
-                newCache['martial melee weapons'] = newCache['martial-melee-weapons'] = martialWeapons.filter(i => i.weapon_range === 'Melee');
-                newCache['simple ranged weapons'] = newCache['simple-ranged-weapons'] = simpleWeapons.filter(i => i.weapon_range === 'Ranged');
-                newCache['martial ranged weapons'] = newCache['martial-ranged-weapons'] = martialWeapons.filter(i => i.weapon_range === 'Ranged');
+                const musicalInstruments = unifiedEquipment.filter(i => i.equipment_category?.index === 'musical-instruments' || (i as any).gear_category?.index === 'musical-instruments');
+                const holySymbols = unifiedEquipment.filter(i => i.equipment_category?.index === 'holy-symbols');
+                const arcaneFoci = unifiedEquipment.filter(i => i.equipment_category?.index === 'arcane-foci');
+                const druidicFoci = unifiedEquipment.filter(i => i.equipment_category?.index === 'druidic-foci');
+                const simpleWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Simple');
+                const martialWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Martial');
+
+                addWithVariations('musical instrument', musicalInstruments);
+                addWithVariations('holy symbol', holySymbols);
+                addWithVariations('arcane focus', arcaneFoci);
+                addWithVariations('druidic focus', druidicFoci);
+                addWithVariations('simple weapon', simpleWeapons);
+                addWithVariations('martial weapon', martialWeapons);
+                
+                addWithVariations('simple melee weapon', simpleWeapons.filter(i => i.weapon_range === 'Melee'));
+                addWithVariations('martial melee weapon', martialWeapons.filter(i => i.weapon_range === 'Melee'));
                 
                 setEquipmentCategoryCache(newCache);
 
