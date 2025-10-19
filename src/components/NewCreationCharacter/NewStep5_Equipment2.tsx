@@ -6,7 +6,7 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
-import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
