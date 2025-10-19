@@ -1,6 +1,7 @@
 // src/utils/equipmentCacheBuilder.ts
 import type { InventoryItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
+import { fetchDetailsInChunks } from './apiUtils';
 
 export const normalizeKey = (str: string): string =>
   String(str ?? '')
@@ -23,8 +24,16 @@ export const findCacheMatch = (key: string, cache: Record<string, any[]>): strin
 };
 
 export async function buildEquipmentCache(): Promise<Record<string, InventoryItem[]>> {
-  const equipmentList = await DndApiService.getEquipment();
+  const equipmentListResponse = await DndApiService.getResourceList('equipment');
+  const equipmentList = equipmentListResponse?.results || [];
+
   if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
+
+  const allEquipmentDetails = await fetchDetailsInChunks(
+    equipmentList,
+    (index) => DndApiService.getEquipmentDetails(index),
+    () => {} // No progress reporting needed here
+  );
 
   const cache: Record<string, InventoryItem[]> = {};
 
@@ -50,8 +59,8 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     shield: ['shields', 'a-shield', 'any-shield', 'escudo'],
   };
 
-  // Passo 1: indexar tudo que vier da lista base
-  for (const item of equipmentList) {
+  // Passo 1: indexar tudo que vier da lista detalhada
+  for (const item of allEquipmentDetails) {
     if (!item) continue;
 
     const name = item.name?.toLowerCase() ?? '';
@@ -91,7 +100,6 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
       add(['musical-instruments', 'musical-instrument', 'any other musical instrument'], item);
     }
 
-    // Heurística de símbolos sagrados a partir do item
     if (
       index.includes('holy-symbol') ||
       name.includes('holy symbol') ||
@@ -103,7 +111,7 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     }
   }
 
-  // Passo 2: garantir que as categorias críticas tenham itens
+  // Passo 2: garantir que as categorias críticas tenham itens (fallback)
   async function ensureCategory(key: string) {
     const nk = normalizeKey(key);
     const has = cache[nk]?.length;
@@ -112,12 +120,14 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     try {
       const details = await DndApiService.getEquipmentCategoryDetails(nk);
       const raw = (details?.equipment || details?.results || []) as Array<{ index: string; name: string; url?: string }>;
-      const items: InventoryItem[] = raw
+      const items = raw
         .filter(Boolean)
         .map((i) => ({ index: i.index, name: i.name, url: i.url ?? `/api/data/equipment/${i.index}` })) as InventoryItem[];
-      if (items.length) add([nk], ...items);
+      
+      const detailedItems = await fetchDetailsInChunks(items, DndApiService.getEquipmentDetails, () => {});
+
+      if (detailedItems.length) add([nk], ...detailedItems.filter((i): i is InventoryItem => !!i));
     } catch {
-      // silencioso em prod; se quiser, log em dev
       if (process.env.NODE_ENV === 'development') {
         console.warn(`[EquipmentCache] Fallback falhou para categoria: ${nk}`);
       }
@@ -139,14 +149,6 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     for (const alias of aliases) cache[normalizeKey(alias)] = list;
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    console.groupCollapsed('%c[✅ Equipment Cache Built]', 'color:#7fffd4');
-    console.log('Categorias:', Object.keys(cache));
-    console.log('holy-symbols:', cache['holy-symbols']?.map((i) => i.name));
-    console.groupEnd();
-  }
-
-
   return cache;
 }
 
@@ -155,32 +157,25 @@ export async function resolveEquipmentCategory(
   cache: Record<string, InventoryItem[]>
 ): Promise<InventoryItem[]> {
   const nk = normalizeKey(key);
-  if (cache[nk]?.length) {
-    console.log(`[resolveEquipmentCategory] Cache HIT for key: "${nk}"`);
-    return cache[nk];
-  }
-
-  console.log(`[resolveEquipmentCategory] Cache MISS for key: "${nk}". Fetching from API...`);
+  if (cache[nk]?.length) return cache[nk];
 
   try {
     const category = await DndApiService.getEquipmentCategoryDetails(nk);
-    const raw = (category?.equipment || category?.results || []) as Array<{ index: string; name: string; url?: string }>;
-    const list: InventoryItem[] = raw
-      .filter(Boolean)
-      .map((i) => ({ index: i.index, name: i.name, url: i.url ?? `/api/data/equipment/${i.index}` })) as InventoryItem[];
-    
-    if (list.length) {
-        console.log(`[resolveEquipmentCategory] Fetched ${list.length} items for "${nk}". Caching.`);
-        cache[nk] = list;
-    } else {
-         console.warn(`[resolveEquipmentCategory] Fetched 0 items for "${nk}".`);
+    const rawItems = (category?.equipment || category?.results || []) as Array<{ index: string; name: string; url?: string }>;
+
+    if (rawItems.length > 0) {
+        const detailedItems = await fetchDetailsInChunks(rawItems, DndApiService.getEquipmentDetails, () => {});
+        const validItems = detailedItems.filter((i): i is InventoryItem => !!i);
+        if (validItems.length > 0) {
+            cache[nk] = validItems;
+            return validItems;
+        }
     }
-
-    return list;
-  } catch(err: any) {
-    console.error(`[resolveEquipmentCategory] Error fetching category "${nk}":`, err.message);
-    return [];
+  } catch (err: any) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(`[EquipmentCache] Fallback falhou: ${nk} (${err?.message})`);
+    }
   }
-}
 
-    
+  return [];
+}
