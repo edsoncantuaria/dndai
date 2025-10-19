@@ -72,3 +72,17 @@ export const updateUserHomebrew = async (req: AuthRequest, res: Response, next: 
         next(error);
     }
 };
+
+// Nova função exportada
+export const invalidateUserCache = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Não autorizado.'));
+    }
+    try {
+        await UserService.invalidateUserCache(userId);
+        res.status(204).send(); // 204 No Content é uma resposta apropriada para sucesso sem corpo
+    } catch(error) {
+        next(error);
+    }
+};
