@@ -116,15 +116,15 @@ export function configureWebSocket(httpServer: Server) {
     const interval = setInterval(() => {
         wss.clients.forEach(client => {
             const ws = client as AuthenticatedWebSocket;
-
-            // A verificação de isAlive deve ser feita ANTES de enviar o próximo ping.
+            
+            // Lógica corrigida: se estiver inativo, termina. Senão, prepara para o próximo ciclo.
             if (ws.isAlive === false) {
                 console.log(`[WSS] Cliente (userId: ${ws.userId}) inativo. Encerrando conexão.`);
-                return ws.terminate();
+                ws.terminate();
+            } else {
+                ws.isAlive = false;
+                ws.ping();
             }
-
-            ws.isAlive = false;
-            ws.ping();
         });
     }, 30000);
 
