@@ -26,14 +26,14 @@ import type {
   InventoryItem
 } from '../types';
 
-const API_PREFIX = '/data';
+const API_BASE = '/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
 
 /* 🔹 Helper genérico de fetch com cache */
 async function fetchJson<T>(endpoint: string): Promise<T> {
-  const fullEndpoint = `${API_PREFIX}${endpoint}`;
+  const fullEndpoint = `${API_BASE}${endpoint}`;
 
   if (cache.has(fullEndpoint)) {
     return cache.get(fullEndpoint);
@@ -119,7 +119,7 @@ export const getEquipmentDetails = (index: string) => getResourceDetails('equipm
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');
 export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;
 export const getEquipmentCategories = () => fetchList<ApiListItem>('/equipment-categories');
-export const getEquipmentCategoryDetails = (index: string) => apiClient<any>(`${API_PREFIX}/equipment-categories/${index}`);
+export const getEquipmentCategoryDetails = async (index: string) => apiClient<any>(`${API_BASE}/equipment-categories/${index}`);
 
 
 /* ===========================================================

@@ -41,34 +41,54 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
    * ============================================================= */
   useEffect(() => {
     let initialized = false;
-  
+
     const initializeEquipment = async () => {
-      if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
-      initialized = true;
-  
-      setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-      try {
-        const cache = await buildEquipmentCache();
-        setEquipmentCategoryCache(cache);
-  
-        const flattened = Object.values(cache).flat();
-        const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
-        setAllEquipment(unique);
-  
-        if (process.env.NODE_ENV === 'development') {
-          console.groupCollapsed('%c[✅ EquipmentCache]', 'color:#7fffd4');
-          console.log('Categorias:', Object.keys(cache));
-          console.log('Total de itens únicos:', unique.length);
-          console.groupEnd();
+        if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
+        initialized = true;
+
+        const cachedData = sessionStorage.getItem('equipmentCache');
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                setEquipmentCategoryCache(parsed);
+                const flattened = Object.values(parsed).flat() as InventoryItem[];
+                const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
+                setAllEquipment(unique);
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('[♻️ EquipmentCache] Cache carregado do sessionStorage.');
+                }
+                return; // Pula a construção se o cache já existir
+            } catch (e) {
+                console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
+                sessionStorage.removeItem('equipmentCache');
+            }
         }
-      } catch (err) {
-        console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
-        setEquipmentCategoryCache({});
-      } finally {
-        setLoadingStates({ isLoading: false, message: '', progress: 0 });
-      }
+        
+        setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+        try {
+            const cache = await buildEquipmentCache();
+            sessionStorage.setItem('equipmentCache', JSON.stringify(cache)); // Salva no sessionStorage
+            setEquipmentCategoryCache(cache);
+
+            const flattened = Object.values(cache).flat();
+            const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
+            setAllEquipment(unique);
+
+            if (process.env.NODE_ENV === 'development') {
+                console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
+                console.log('Total de categorias:', Object.keys(cache).length);
+                console.log('Categorias:', Object.keys(cache));
+                console.log('Itens únicos:', unique.length);
+                console.groupEnd();
+            }
+        } catch (err) {
+            console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
+            setEquipmentCategoryCache({});
+        } finally {
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
+        }
     };
-  
+
     initializeEquipment();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

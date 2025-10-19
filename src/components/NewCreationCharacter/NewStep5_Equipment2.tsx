@@ -7,27 +7,41 @@ import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-    if (!key || !cache) return null;
-    const nk = key.toLowerCase().trim().replace(/\s+/g, '-');
-  
-    const allKeys = Object.keys(cache);
-    const exact = allKeys.find(k => k === nk);
-    if (exact) return exact;
-  
-    const normalizedVariants = [
-      nk,
-      nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
-      nk.replace(/-s$/, ''),
-      nk.replace(/s$/, ''),
-    ];
-  
-    for (const variant of normalizedVariants) {
-      const found = allKeys.find(k => k === variant || k.includes(variant) || variant.includes(k));
-      if (found) return found;
-    }
-  
-    return null;
-  };
+  if (!key || !cache) return null;
+  const normalizedKey = key.toLowerCase().trim().replace(/\s+/g, '-');
+  const allKeys = Object.keys(cache);
+
+  // 🔹 Correspondência exata
+  if (allKeys.includes(normalizedKey)) return normalizedKey;
+
+  // 🔹 Fallbacks plurais, singulares e compostos
+  const variants = [
+    normalizedKey,
+    normalizedKey.replace(/s$/, ''),
+    normalizedKey + 's',
+    normalizedKey.replace(/-weapons$/, '-weapon'),
+    normalizedKey.replace(/-weapon$/, '-weapons'),
+    normalizedKey.replace(/-symbols$/, '-symbol'),
+    normalizedKey.replace(/-symbol$/, '-symbols'),
+    normalizedKey.replace(/holy-symbols?/, 'holy-symbol'),
+    normalizedKey.replace(/simple-weapons?/, 'simple-weapon'),
+    normalizedKey.replace(/martial-weapons?/, 'martial-weapon'),
+    normalizedKey.replace(/ /g, '-'),
+  ];
+
+  for (const variant of variants) {
+    const match = allKeys.find(k => k === variant);
+    if (match) return match;
+  }
+
+  // 🔹 Busca parcial (fallback leve)
+  const partial = allKeys.find(k =>
+    k.includes(normalizedKey) ||
+    normalizedKey.includes(k) ||
+    k.replace(/-/g, '').includes(normalizedKey.replace(/-/g, ''))
+  );
+  return partial || null;
+};
 
 
 const ItemChoiceSelector: React.FC<{
@@ -52,7 +66,10 @@ const ItemChoiceSelector: React.FC<{
     const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
     
     if (process.env.NODE_ENV === 'development' && !cacheKey && categoryIndex) {
-        console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: '${categoryIndex}' (chave normalizada: '${categoryIndex.toLowerCase().replace(/\s+/g, '-')}').`);
+        console.groupCollapsed(`⚠️ [EquipmentCategory Mismatch] ${categoryIndex}`);
+        console.log('Chave normalizada:', categoryIndex.toLowerCase().trim().replace(/\s+/g, '-'));
+        console.log('Categorias disponíveis:', Object.keys(hook.equipmentCategoryCache).slice(0, 15), '...');
+        console.groupEnd();
     }
 
     const currentMainSelection = hook.equipmentSelections[selectionPath];
@@ -134,10 +151,8 @@ const EquipmentChoice: React.FC<{
         const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
 
-        if (process.env.NODE_ENV === 'development' && !cacheKey) {
-            console.warn(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache.`);
-            console.log("[EquipmentChoice] Cache dump:", equipmentCategoryCache);
+        if (!cacheKey) {
+            console.error(`[EquipmentChoice] Impossível renderizar opções para o grupo:`, group);
         }
 
         if (cacheKey && equipmentCategoryCache[cacheKey]) {
