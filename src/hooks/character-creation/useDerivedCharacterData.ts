@@ -89,7 +89,6 @@ export const useDerivedCharacterData = (
         const fixed: InventoryItem[] = [];
     
         if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
-            console.warn('[useDerivedCharacterData] allEquipment está vazio ou inválido. Retornando estado vazio.');
             return {
                 equipmentChoiceGroups: [],
                 fixedEquipment: [],
@@ -115,11 +114,9 @@ export const useDerivedCharacterData = (
             });
         };
     
-        // CORREÇÃO: Chamar addEquipment para ambas as fontes
         addEquipment(classDetails?.starting_equipment);
         addEquipment(backgroundDetails?.starting_equipment);
     
-        // CORREÇÃO: Unificar as opções de escolha de ambas as fontes
         (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
         (backgroundDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
     
@@ -261,5 +258,3 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
-
-    

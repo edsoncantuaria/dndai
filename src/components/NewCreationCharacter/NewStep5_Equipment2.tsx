@@ -6,31 +6,7 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
-import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
-
-const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-  if (!key || !cache) return null;
-  const nk = normalizeKey(key);
-
-  const allKeys = Object.keys(cache);
-  const exact = allKeys.find(k => k === nk);
-  if (exact) return exact;
-
-  const normalizedVariants = [
-    nk,
-    nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
-    nk.replace(/-s$/, ''),
-    nk.replace(/s$/, ''),
-  ];
-
-  for (const variant of normalizedVariants) {
-    const found = allKeys.find(k => k === variant || k.includes(variant) || variant.includes(k));
-    if (found) return found;
-  }
-
-  return null;
-};
-
+import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -160,11 +136,6 @@ const EquipmentChoice: React.FC<{
         );
     }
     
-    if (process.env.NODE_ENV === 'development' && mainOptions.length === 0) {
-        const categoryName = categoryFrom?.name || categoryFrom?.index;
-        console.warn(`[EquipmentChoice] Nenhuma opção renderizada para o grupo: ${group.id} (Categoria: ${categoryName})`);
-    }
-    
     const mainSelectionIndex = selection?.main;
     const selectedOption = (mainSelectionIndex !== undefined && mainSelectionIndex >= 0) ? mainOptions[mainSelectionIndex] : undefined;
 
@@ -200,12 +171,6 @@ const NewStep5_Equipment2: React.FC<{
         handleRandomizeEquipment,
         finalProficiencies,
     } = hook;
-
-    console.log('[NewStep5] Renderizando com:', {
-        equipmentChoiceGroups,
-        fixedEquipment,
-        finalizedEquipment
-    });
 
     const classChoices = equipmentChoiceGroups.filter(g => g.source === 'Classe');
     const backgroundChoices = equipmentChoiceGroups.filter(g => g.source === 'Antecedente');
