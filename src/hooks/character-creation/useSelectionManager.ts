@@ -151,7 +151,7 @@ export const useSelectionManager = (
             }
             return prev;
         });
-    }, [setField, classSpellOptions, subclassSpells, cantripsKnown, spellsKnown]);
+    }, [setField, classSpellOptions, subclassSpells, state.chosenClassSpells]);
     
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
