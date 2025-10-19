@@ -5,7 +5,7 @@ import { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import * as CharacterService from '../services/characterService.js';
 import createError from 'http-errors';
 
-// Criar um novo personagem
+// Criar um novo personagem "template" no cofre de heróis
 export const createCharacter = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
     if (!userId) {
@@ -25,7 +25,7 @@ export const createCharacter = async (req: AuthRequest, res: Response, next: Nex
     }
 };
 
-// Listar todos os personagens do usuário
+// Listar todos os personagens "template" do usuário
 export const getCharacters = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
      if (!userId) {
@@ -40,7 +40,7 @@ export const getCharacters = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
-// Obter detalhes de um personagem específico
+// Obter detalhes de um personagem específico (seja template ou de sessão)
 export const getCharacterById = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;
@@ -61,7 +61,7 @@ export const getCharacterById = async (req: AuthRequest, res: Response, next: Ne
     }
 };
 
-// Deletar um personagem (soft delete)
+// Deletar um personagem "template" do cofre
 export const deleteCharacter = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;

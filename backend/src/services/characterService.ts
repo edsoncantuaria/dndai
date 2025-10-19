@@ -10,7 +10,7 @@ import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
-import DndApiService from './dndApiService.js';
+import DndApi from './dndApiService.js';
 import redisClient from '../database/redis-client.js';
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
@@ -80,13 +80,13 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        const classDetails: any = await DndApiService.getResourceDetails('classes', characterData.characterClass.toLowerCase());
+        const classDetails: any = await DndApi.getResourceDetails('classes', characterData.characterClass.toLowerCase());
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
         const itemPromises = characterData.inventory.map(async (itemData: any) => {
-            const details = await DndApiService.getDetails('equipment', itemData.index);
+            const details = await DndApi.getResourceDetails('equipment', itemData.index);
             return { 
                 ...details, 
                 ...itemData, 
@@ -169,12 +169,113 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     }
 };
 
+/**
+ * Cria uma cópia profunda de um personagem e todas as suas entidades relacionadas.
+ * @param characterId O ID do personagem a ser clonado.
+ * @param userId O ID do usuário que será o dono do clone.
+ * @param newName Opcional. Um novo nome para o clone.
+ * @returns O personagem recém-criado e salvo.
+ */
+export const cloneCharacter = async (characterId: number, userId: number, newName?: string): Promise<Character | null> => {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+        const originalCharacter = await queryRunner.manager.findOne(Character, {
+            where: { id: characterId, userId },
+            relations: ["attributes", "proficiencies", "items", "spells", "journal", "relationships"]
+        });
+
+        if (!originalCharacter) {
+            throw createError(404, 'Personagem original não encontrado para clonagem.');
+        }
+
+        // 1. Cria a nova entidade Character
+        const clonedCharacter = new Character();
+        Object.assign(clonedCharacter, originalCharacter);
+        delete (clonedCharacter as any).id; // Remove o ID para que o TypeORM crie um novo
+        clonedCharacter.name = newName || `${originalCharacter.name} (Cópia)`;
+        clonedCharacter.userId = userId;
+        clonedCharacter.sessoes = []; // Um clone nunca tem sessões pré-existentes
+
+        const savedClone = await queryRunner.manager.save(clonedCharacter);
+
+        // 2. Clona as entidades relacionadas
+        if (originalCharacter.attributes) {
+            const clonedAttributes = new CharacterAttributes();
+            Object.assign(clonedAttributes, originalCharacter.attributes);
+            delete (clonedAttributes as any).id;
+            clonedAttributes.character = savedClone;
+            clonedAttributes.characterId = savedClone.id;
+            await queryRunner.manager.save(clonedAttributes);
+        }
+
+        if (originalCharacter.proficiencies) {
+            const clonedProficiencies = originalCharacter.proficiencies.map(p => {
+                const prof = new CharacterProficiency();
+                Object.assign(prof, p);
+                delete (prof as any).id;
+                prof.character = savedClone;
+                prof.characterId = savedClone.id;
+                return prof;
+            });
+            await queryRunner.manager.save(clonedProficiencies);
+        }
+        
+        if (originalCharacter.items) {
+            const clonedItems = originalCharacter.items.map(item => {
+                const i = new CharacterItem();
+                Object.assign(i, item);
+                delete (i as any).id;
+                i.character = savedClone;
+                i.characterId = savedClone.id;
+                return i;
+            });
+            await queryRunner.manager.save(clonedItems);
+        }
+
+        if (originalCharacter.spells) {
+            const clonedSpells = originalCharacter.spells.map(spell => {
+                const s = new CharacterSpell();
+                Object.assign(s, spell);
+                delete (s as any).id;
+                s.character = savedClone;
+                s.characterId = savedClone.id;
+                return s;
+            });
+            await queryRunner.manager.save(clonedSpells);
+        }
+        
+        // Journal e Relationships não são clonados para manter a nova aventura limpa.
+
+        await queryRunner.commitTransaction();
+        return savedClone;
+
+    } catch (error) {
+        await queryRunner.rollbackTransaction();
+        console.error("Erro ao clonar personagem:", error);
+        return null;
+    } finally {
+        await queryRunner.release();
+    }
+}
+
+
 export const getCharactersForUser = async (userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
-    return characterRepository.find({
-        where: { userId, deletedAt: IsNull() },
-        select: ["id", "name", "race", "characterClass", "level", "createdAt"]
-    });
+    // Adiciona a condição para buscar apenas personagens que NÃO estão em uma sessão.
+    // Isso os torna "modelos" reutilizáveis.
+    const characters = await characterRepository
+        .createQueryBuilder('character')
+        .leftJoin('character.sessoes', 'sessao')
+        .where('character.userId = :userId', { userId })
+        .andWhere('character.deletedAt IS NULL')
+        .andWhere('sessao.id IS NULL') // A condição chave!
+        .select(['character.id', 'character.name', 'character.race', 'character.characterClass', 'character.level', 'character.createdAt'])
+        .getMany();
+
+    return characters;
 };
 
 export const getCharacterById = async (characterId: number, userId: number) => {
@@ -199,7 +300,7 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
     });
 
     if (activeSessions > 0) {
-        throw createError(409, 'Este personagem não pode ser excluído pois está vinculado a uma ou mais sessões de jogo. Por favor, exclua as sessões primeiro.');
+        throw createError(409, 'Este personagem não pode ser excluído pois está vinculado a uma ou mais sessões de jogo ativas. Por favor, exclua as sessões primeiro.');
     }
 
     const result = await characterRepository.softDelete({ id: characterId, userId });

@@ -5,7 +5,7 @@ import * as SessaoService from '../services/sessaoService.js';
 import { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 import createError from 'http-errors';
 
-// Criar ou obter uma nova sessão de jogo para um personagem
+// Criar uma nova sessão de jogo clonando um personagem
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const userId = req.user?.userId;
     if (!userId) {
@@ -14,10 +14,11 @@ export const createSessao = async (req: AuthRequest, res: Response, next: NextFu
 
     try {
         const validatedData = CreateSessaoSchema.parse(req.body);
+        // A função getOrCreateSessao agora sempre cria uma nova sessão com um personagem clonado
         const { sessao, isNew } = await SessaoService.getOrCreateSessao(validatedData, userId);
 
-        res.status(isNew ? 201 : 200).json({ 
-            message: isNew ? 'Sessão criada com sucesso!' : 'Sessão existente encontrada.', 
+        res.status(201).json({ 
+            message: 'Sessão criada com sucesso!', 
             sessao 
         });
     } catch (error: any) {
@@ -64,7 +65,7 @@ export const getSessaoById = async (req: AuthRequest, res: Response, next: NextF
     }
 };
 
-// Deletar uma sessão (soft delete)
+// Deletar uma sessão E o personagem clonado associado a ela
 export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { id } = req.params;
     const userId = req.user?.userId;
@@ -79,7 +80,7 @@ export const deleteSessao = async (req: AuthRequest, res: Response, next: NextFu
 
     try {
         await SessaoService.deleteSessao(sessionIdNum, userId);
-        res.status(200).json({ message: 'Sessão movida para a lixeira com sucesso.' });
+        res.status(200).json({ message: 'Sessão e personagem associado foram movidos para a lixeira com sucesso.' });
     } catch (error) {
         next(error);
     }

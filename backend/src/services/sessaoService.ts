@@ -5,7 +5,7 @@ import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
 import { IsNull, In } from 'typeorm';
 import createError from 'http-errors';
-import { buildFullCharacterObject } from './characterService.js';
+import { buildFullCharacterObject, cloneCharacter } from './characterService.js';
 import * as HomebrewService from './homebrewService.js';
 import type { z } from 'zod';
 import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
@@ -17,40 +17,44 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const userRepository = AppDataSource.getRepository(User);
 
-    const [character, user] = await Promise.all([
+    const [characterTemplate, user] = await Promise.all([
         characterRepository.findOne({ where: { id: characterId, userId } }),
         userRepository.findOneBy({ id: userId }),
     ]);
     
-    if (!character) {
+    if (!characterTemplate) {
         throw createError(404, 'Personagem não encontrado ou você não tem permissão para usá-lo.');
     }
     if (!user) {
         throw createError(404, 'Usuário não encontrado.');
     }
 
-    const existingSession = await sessaoRepository.findOne({ where: { characterId, userId, deletedAt: IsNull() } });
-    if (existingSession) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { apiKey, ...sessaoParaRetorno } = existingSession;
-        return { sessao: sessaoParaRetorno, isNew: false };
-    }
+    // A lógica de "get" foi removida. Esta função agora SEMPRE cria uma nova sessão com um personagem clonado.
+    // A sessão antiga pode ser continuada pela sua própria rota.
     
-    // Buscar todas as dependências do conteúdo instalado no usuário
+    // 1. Clonar o personagem
+    const newCharacterForSession = await cloneCharacter(characterTemplate.id, userId, `Clone para Sessão: ${nome}`);
+    if (!newCharacterForSession) {
+        throw createError(500, 'Falha ao clonar o personagem para a nova sessão.');
+    }
+
+    // 2. Buscar todas as dependências do conteúdo instalado no usuário
     const dependencyPromises = (user.installedHomebrewIds || []).map(id => HomebrewService.getHomebrewDependencies(id));
     const dependencyArrays = await Promise.all(dependencyPromises);
     const allDependentIds = new Set(dependencyArrays.flat().map(dep => dep.id));
     
+    // 3. Criar a nova sessão
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
-    novaSessao.characterId = character.id;
+    novaSessao.characterId = newCharacterForSession.id; // Vincula ao NOVO personagem
     novaSessao.userId = userId;
     novaSessao.apiKey = '';
-    novaSessao.homebrewContentIds = Array.from(allDependentIds); // Salva a "fotografia" das dependências
+    novaSessao.homebrewContentIds = Array.from(allDependentIds);
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
+    
     return { sessao: sessaoParaRetorno, isNew: true };
 };
 
@@ -104,10 +108,21 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
 
 export const deleteSessao = async (sessionId: number, userId: number) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-    const result = await sessaoRepository.softDelete({ id: sessionId, userId });
+    const sessao = await sessaoRepository.findOneBy({ id: sessionId, userId });
 
-    if (result.affected === 0) {
+    if (!sessao) {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão para deletá-la.');
+    }
+
+    const characterIdToDelete = sessao.characterId;
+
+    // Soft delete da sessão
+    await sessaoRepository.softDelete({ id: sessionId, userId });
+
+    // Hard delete do personagem associado, se houver
+    if (characterIdToDelete) {
+        const characterRepo = AppDataSource.getRepository(Character);
+        await characterRepo.delete({ id: characterIdToDelete, userId });
     }
 };
 
