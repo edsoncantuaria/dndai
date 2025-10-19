@@ -3,9 +3,12 @@ import redisClient from '../database/redis-client.js';
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { User } from '../entities/User.js';
-import { DndApi } from './dndApiService.js';
+import * as DndApiModule from './dndApiService.js';
 import crypto from 'crypto';
 import { Brackets, Raw } from 'typeorm';
+
+const DndApi = DndApiModule.DndApi || DndApiModule.default;
+
 
 const repo = () => AppDataSource.getRepository(HomebrewContent);
 const userRepo = () => AppDataSource.getRepository(User);
@@ -61,9 +64,10 @@ export async function invalidateUserCache(userId: number) {
                 // Usa SCAN para evitar bloquear o Redis em produção
                 let cursor = '0';
                 do {
-                    const scanResult = await redisClient.scan(cursor, { MATCH: `user:${userId}:*`, COUNT: 100 });
+                    const scanResult: { cursor: string; keys: string[] } = await (redisClient as any).scan(cursor, 'MATCH', `user:${userId}:*`, 'COUNT', '100');
                     const keysToDelete = scanResult.keys;
                     cursor = scanResult.cursor;
+
                     if (keysToDelete.length > 0) {
                         await redisClient.del(keysToDelete);
                         console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
