@@ -10,7 +10,7 @@ import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
-import DndApi from './dndApiService.js';
+import { getResourceDetails } from './dndApiService.js';
 import redisClient from '../database/redis-client.js';
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
@@ -80,14 +80,14 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        const classDetails: any = await DndApiService.getResourceDetails('classes', characterData.characterClass.toLowerCase());
+        const classDetails: any = await getResourceDetails('classes', characterData.characterClass.toLowerCase());
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
         const itemPromises = (characterData.inventory || []).map(async (itemData: any) => {
              if (!itemData || !itemData.index) return null;
-            const details = await DndApiService.getResourceDetails('equipment', itemData.index);
+            const details = await getResourceDetails('equipment', itemData.index);
             return { 
                 ...details, 
                 ...itemData, 
@@ -191,65 +191,65 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
         if (!originalCharacter) {
             throw createError(404, 'Personagem original não encontrado para clonagem.');
         }
+        
+        const characterRepo = queryRunner.manager.getRepository(Character);
 
         // 1. Cria a nova entidade Character
-        const clonedCharacter = new Character();
-        Object.assign(clonedCharacter, originalCharacter);
-        delete (clonedCharacter as any).id;
-        clonedCharacter.name = newName || `${originalCharacter.name} (Cópia)`;
-        clonedCharacter.userId = userId;
-        clonedCharacter.sessoes = [];
+        const clonedCharacter = characterRepo.create({
+            ...originalCharacter,
+            id: undefined, // Garante que um novo ID será gerado
+            name: newName || `${originalCharacter.name} (Cópia)`,
+            userId: userId,
+            sessoes: [],
+            journal: [],
+            relationships: [],
+        });
+        
+        const savedClone = await characterRepo.save(clonedCharacter);
 
-        const savedClone = await queryRunner.manager.save(clonedCharacter);
-
-        // 2. Clona as entidades relacionadas, garantindo a remoção dos IDs antigos
+        // 2. Clona as entidades relacionadas
         if (originalCharacter.attributes) {
-            const clonedAttributes = new CharacterAttributes();
-            Object.assign(clonedAttributes, originalCharacter.attributes);
-            delete (clonedAttributes as any).id;
-            clonedAttributes.character = savedClone;
-            clonedAttributes.characterId = savedClone.id;
+            const clonedAttributes = queryRunner.manager.create(CharacterAttributes, {
+                ...originalCharacter.attributes,
+                id: undefined,
+                characterId: savedClone.id,
+            });
             await queryRunner.manager.save(clonedAttributes);
         }
 
-        if (originalCharacter.proficiencies) {
-            const clonedProficiencies = originalCharacter.proficiencies.map(p => {
-                const prof = new CharacterProficiency();
-                Object.assign(prof, p);
-                delete (prof as any).id;
-                prof.character = savedClone;
-                prof.characterId = savedClone.id;
-                return prof;
-            });
+        if (originalCharacter.proficiencies?.length) {
+            const clonedProficiencies = originalCharacter.proficiencies.map(p => 
+                queryRunner.manager.create(CharacterProficiency, {
+                    ...p,
+                    id: undefined,
+                    characterId: savedClone.id,
+                })
+            );
             await queryRunner.manager.save(clonedProficiencies);
         }
         
-        if (originalCharacter.items) {
-            const clonedItems = originalCharacter.items.map(item => {
-                const i = new CharacterItem();
-                Object.assign(i, item);
-                delete (i as any).id;
-                i.character = savedClone;
-                i.characterId = savedClone.id;
-                return i;
-            });
+        if (originalCharacter.items?.length) {
+            const clonedItems = originalCharacter.items.map(item => 
+                queryRunner.manager.create(CharacterItem, {
+                    ...item,
+                    id: undefined,
+                    characterId: savedClone.id,
+                })
+            );
             await queryRunner.manager.save(clonedItems);
         }
 
-        if (originalCharacter.spells) {
-            const clonedSpells = originalCharacter.spells.map(spell => {
-                const s = new CharacterSpell();
-                Object.assign(s, spell);
-                delete (s as any).id;
-                s.character = savedClone;
-                s.characterId = savedClone.id;
-                return s;
-            });
+        if (originalCharacter.spells?.length) {
+            const clonedSpells = originalCharacter.spells.map(spell => 
+                queryRunner.manager.create(CharacterSpell, {
+                    ...spell,
+                    id: undefined,
+                    characterId: savedClone.id,
+                })
+            );
             await queryRunner.manager.save(clonedSpells);
         }
         
-        // Journal e Relationships não são clonados para manter a nova aventura limpa.
-
         await queryRunner.commitTransaction();
         return savedClone;
 
