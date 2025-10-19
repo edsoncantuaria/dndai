@@ -1,3 +1,4 @@
+
 // components/LevelCard.tsx
 import React, { useState, useEffect } from 'react';
 import type { ApiClassLevel } from '../types';
@@ -49,7 +50,9 @@ const LevelCard: React.FC<LevelCardProps> = ({ level, classLevelData, subclassLe
         ...(subclassLevelData?.features || [])
     ];
     
-    const classSpecificEntries = Object.entries(classLevelData.class_specific || {}).map(([key, value]) => {
+    // Safely access class_specific and handle potential undefined values
+    const classSpecificData = classLevelData?.class_specific || {};
+    const classSpecificEntries = Object.entries(classSpecificData).map(([key, value]) => {
         const readableKey = String(key).replace(/_/g, ' ');
         return `${readableKey.charAt(0).toUpperCase() + readableKey.slice(1)}: ${String(value)}`;
     });
