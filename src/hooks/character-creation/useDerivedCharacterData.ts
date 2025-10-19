@@ -87,22 +87,15 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-    
-        // ✅ Garantia: não processa até o cache estar pronto
-        if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
-            return {
-                equipmentChoiceGroups: [],
-                fixedEquipment: [],
-                finalizedEquipment: [],
-                areAllEquipmentChoicesMade: false,
-            };
-        }
-    
-        const addEquipment = (list: any[] = []) => {
+
+        const addEquipment = (list: any[] = [], source: string) => {
             if (!Array.isArray(list)) return;
+            console.log(`[useDerivedCharacterData] Processando ${list.length} itens de ${source}`);
             list.forEach(item => {
                 if (item?.equipment?.index) {
+                    console.log(`[useDerivedCharacterData] Item bruto de ${source}:`, item);
                     const itemDetails = allEquipment.find((e: any) => e && e.index === item.equipment.index);
+                    console.log(`[useDerivedCharacterData] Buscando por índice '${item.equipment.index}'. Encontrado:`, itemDetails);
                     if (itemDetails) {
                         fixed.push({
                             ...itemDetails,
@@ -114,10 +107,10 @@ export const useDerivedCharacterData = (
                 }
             });
         };
-    
-        addEquipment(classDetails?.starting_equipment);
-        addEquipment(backgroundDetails?.starting_equipment);
-    
+
+        addEquipment(classDetails?.starting_equipment, 'Classe');
+        addEquipment(backgroundDetails?.starting_equipment, 'Antecedente');
+
         (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
         (backgroundDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
     
@@ -146,7 +139,7 @@ export const useDerivedCharacterData = (
                         optionsSource = resolvedCategory.map((item: InventoryItem) => ({
                             option_type: 'counted_reference',
                             count: 1,
-                            of: { index: item.index, name: item.name, url: `/api/data/equipment/${item.index}` },
+                            of: { index: item.index, name: item.name, url: (item as any).url || `/api/data/equipment/${item.index}` },
                         }));
                     }
                 }
