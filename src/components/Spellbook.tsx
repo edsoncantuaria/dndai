@@ -34,47 +34,27 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             }
             setIsSpellsLoading(true);
 
-            const existingDetails: ApiSpell[] = [];
-            const spellsToFetch: { index: string, name: string, url: string }[] = [];
-
             // A 'character.spells' pode conter strings (índices) ou objetos.
-            for (const spellIdentifier of character.spells) {
-                const spellIndex = typeof spellIdentifier === 'string' 
+            const spellRefs = character.spells.map(spellIdentifier => {
+                const index = typeof spellIdentifier === 'string' 
                     ? spellIdentifier 
                     : (spellIdentifier as any).spellName || (spellIdentifier as any).index;
-
-                if (!spellIndex) continue;
-
-                // Se a magia for uma "Arma de Sopro", tratamos de forma especial
-                if (spellIndex.startsWith('breath-weapon-')) {
-                    // Busca os detalhes da nossa API interna (que lê o JSON local)
-                    const breathWeaponDetails = await DndApiService.getSpellDetails(spellIndex);
-                    if (breathWeaponDetails) {
-                        existingDetails.push(breathWeaponDetails);
-                    }
-                } else {
-                    // Para magias normais, adiciona à lista para buscar em lote
-                    spellsToFetch.push({
-                        index: spellIndex.toLowerCase().replace(/ /g, '-'),
-                        name: spellIndex,
-                        url: ''
-                    });
-                }
-            }
+                return { index: index.toLowerCase().replace(/ /g, '-'), name: index, url: '' };
+            }).filter(ref => ref.index);
             
-            let fetchedSpells: ApiSpell[] = [];
-            if (spellsToFetch.length > 0) {
+            if (spellRefs.length > 0) {
                 const results = await fetchDetailsInChunks(
-                    spellsToFetch,
+                    spellRefs,
                     DndApiService.getSpellDetails,
                     (loaded, total) => {
                         setLoadingProgress(`Carregando magias ${loaded} de ${total}...`);
                     }
                 );
-                fetchedSpells = results.filter((s): s is ApiSpell => s !== null);
+                setSpellDetails(results.filter((s): s is ApiSpell => s !== null));
+            } else {
+                setSpellDetails([]);
             }
             
-            setSpellDetails([...existingDetails, ...fetchedSpells]);
             setIsSpellsLoading(false);
             setLoadingProgress(null);
         };

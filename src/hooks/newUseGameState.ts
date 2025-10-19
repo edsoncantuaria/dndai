@@ -7,7 +7,7 @@ import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
 import * as HomebrewService from '../services/homebrewService';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell } from '../types';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell, LevelUpState, LevelUpSelections } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
@@ -50,6 +50,9 @@ export const useNewGameState = () => {
             }
             if(updates.inventory) {
                 newChar.inventory = updates.inventory;
+            }
+            if(updates.spellSlots) {
+                newChar.spellSlots = { ...prev.spellSlots, ...updates.spellSlots };
             }
             
             // Recalculate derived stats
@@ -301,7 +304,7 @@ export const useNewGameState = () => {
         }
     }, [sessionId, clearGameState]);
 
-    const handleApplyLevelUp = useCallback(async (selections: any) => {
+    const handleApplyLevelUp = useCallback(async (selections: LevelUpSelections) => {
         if (!character || !interactionState.levelUpState || !interactionState.levelUpState.isPending) return;
 
         const updatedChar = await characterUtils.applyLevelUp(character, interactionState.levelUpState, selections);

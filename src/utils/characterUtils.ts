@@ -1,4 +1,3 @@
-
 // utils/characterUtils.ts
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
@@ -333,7 +332,7 @@ export const SKILL_ATTRIBUTE_MAP: Record<string, keyof Attributes> = {
 
 export const ALL_SKILLS = Object.keys(SKILL_ATTRIBUTE_MAP);
 
-export const applyLevelUp = async (character: Character, levelUpState: any, selections: any): Promise<Character> => {
+export const applyLevelUp = async (character: Character, levelUpState: LevelUpState, selections: LevelUpSelections): Promise<Character> => {
     console.log("Applying level up with selections:", selections);
     const newCharacter = { ...character };
 
@@ -344,7 +343,7 @@ export const applyLevelUp = async (character: Character, levelUpState: any, sele
     const constitutionModifier = newCharacter.modifiers.constitution;
     const hpIncrease = selections.hpIncrease ?? (Math.floor(newCharacter.hitDie / 2) + 1) + constitutionModifier;
     newCharacter.hp.max += hpIncrease;
-    newCharacter.hp.current += hpIncrease;
+    newCharacter.hp.current = newCharacter.hp.max; // Full heal on level up
 
     if (selections.attributes) {
         for (const attr in selections.attributes) {
@@ -355,8 +354,12 @@ export const applyLevelUp = async (character: Character, levelUpState: any, sele
     }
     
     if (selections.spells) {
-        // This is simplified. Should handle actual spell objects.
-        // newCharacter.spells = [...new Set([...newCharacter.spells, ...selections.spells])];
+        const newSpells: CharacterSpell[] = selections.spells.map(spellName => ({
+            id: 0, // O backend irá gerar
+            characterId: newCharacter.id,
+            spellName: spellName,
+        }));
+        newCharacter.spells = [...newCharacter.spells, ...newSpells];
     }
     
     return newCharacter;
