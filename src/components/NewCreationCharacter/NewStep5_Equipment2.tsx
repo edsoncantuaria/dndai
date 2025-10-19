@@ -132,9 +132,7 @@ const EquipmentChoice: React.FC<{
     if (!mainOptions.length) {
          if (process.env.NODE_ENV === 'development') {
             const categoryKey = group.choice?.from?.equipment_category?.name || group.choice?.from?.equipment_category?.index || 'undefined';
-            console.error(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache.`);
-            console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${findCacheMatch(categoryKey, equipmentCategoryCache)}"`);
-            console.log(`[EquipmentChoice] Cache dump:`, equipmentCategoryCache);
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Chave normalizada: '${categoryKey.toLowerCase().replace(/\s+/g, '-')}'.`);
          }
         return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
     }

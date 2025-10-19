@@ -43,60 +43,53 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     let initialized = false;
 
     const initializeEquipment = async () => {
-        if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
-        initialized = true;
+      if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
+      initialized = true;
 
-        const cached = sessionStorage.getItem('equipmentCache');
-        if (cached) {
-            try {
-                const parsed = JSON.parse(cached);
-                setEquipmentCategoryCache(parsed);
-                setAllEquipment(Object.values(parsed).flat() as InventoryItem[]);
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('[♻️ EquipmentCache] Cache carregado do sessionStorage.');
-                }
-                return;
-            } catch (e) {
-                console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
-                sessionStorage.removeItem('equipmentCache');
-            }
-        }
+      const cached = sessionStorage.getItem('equipmentCache');
+      if (cached) {
+          try {
+              const parsed = JSON.parse(cached);
+              setEquipmentCategoryCache(parsed);
+              setAllEquipment(Object.values(parsed).flat() as InventoryItem[]);
+              return;
+          } catch (e) {
+              console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
+              sessionStorage.removeItem('equipmentCache');
+          }
+      }
 
-        setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-        try {
-            const cache = await buildEquipmentCache();
-            
-            // Garante que categorias críticas existem após a construção inicial
-            await Promise.all([
-                resolveEquipmentCategory('holy-symbols', cache),
-                resolveEquipmentCategory('simple-weapons', cache),
-                resolveEquipmentCategory('martial-weapons', cache),
-                resolveEquipmentCategory('musical-instruments', cache),
-            ]);
+      setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+      try {
+          const cache = await buildEquipmentCache();
+          
+          await Promise.all([
+            resolveEquipmentCategory('holy-symbols', cache),
+            resolveEquipmentCategory('simple-weapons', cache),
+            resolveEquipmentCategory('martial-weapons', cache),
+            resolveEquipmentCategory('musical-instruments', cache),
+          ]);
+          
+          sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
+          setEquipmentCategoryCache({ ...cache });
 
-            sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
-            setEquipmentCategoryCache({ ...cache });
+          const flattened = Object.values(cache).flat();
+          const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
+          setAllEquipment(unique);
 
-            const flattened = Object.values(cache).flat();
-            const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
-            setAllEquipment(unique);
-            
-            if (process.env.NODE_ENV === 'development') {
-                const checkKeys = ['holy-symbols', 'simple-weapons', 'martial-weapons'];
-                for (const key of checkKeys) {
-                    if (!Object.keys(cache).includes(key)) {
-                        console.warn(`[⚠️ EquipmentCache] Categoria '${key}' não foi registrada corretamente.`);
-                    }
-                }
-                console.log('[✅ Equipment Cache Loaded]', Object.keys(cache));
-            }
+          if (process.env.NODE_ENV === 'development') {
+              console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
+              console.log('Categorias:', Object.keys(cache));
+              console.log('Total de itens únicos:', unique.length);
+              console.groupEnd();
+          }
 
-        } catch (err) {
-            console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
-            setEquipmentCategoryCache({});
-        } finally {
-            setLoadingStates({ isLoading: false, message: '', progress: 0 });
-        }
+      } catch (err) {
+          console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
+          setEquipmentCategoryCache({});
+      } finally {
+          setLoadingStates({ isLoading: false, message: '', progress: 0 });
+      }
     };
 
     initializeEquipment();
