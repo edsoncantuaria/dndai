@@ -1,3 +1,4 @@
+
 // src/hooks/character-creation/useDataManager.ts
 import { useState, useEffect, useMemo } from 'react';
 import * as DndApiService from '../../services/dndApiService';
@@ -14,6 +15,7 @@ import type {
   InventoryItem,
 } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
+import { buildEquipmentCache } from '@/utils/equipmentCacheBuilder';
 
 export const useDataManager = (
   race: string,
@@ -48,119 +50,21 @@ export const useDataManager = (
    * ⚔️ Pré-carregamento de todos os equipamentos
    * =========================================================== */
   useEffect(() => {
-    const fetchBaseEquipment = async () => {
+    const initCache = async () => {
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
-        const equipmentList = await DndApiService.getEquipment();
-        if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
-
-        const unifiedEquipment = equipmentList as InventoryItem[];
-        setAllEquipment(unifiedEquipment);
-
-        const newCache: Record<string, InventoryItem[]> = {};
-        
-        const normalize = (str: string) =>
-            str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
-
-        const add = (keys: string[], items: InventoryItem[]) => {
-            if (!items || items.length === 0) return;
-            keys.forEach((k) => {
-                const nk = normalize(k);
-                if (!nk) return;
-                if (!newCache[nk]) newCache[nk] = [];
-                // Previne duplicatas
-                items.forEach(item => {
-                    if (!newCache[nk].some(existing => existing.index === item.index)) {
-                        newCache[nk].push(item);
-                    }
-                });
-            });
-        };
-
-        /* --- Construção inteligente do cache --- */
-        for (const item of unifiedEquipment) {
-          if (!item) continue;
-
-          const name = item.name.toLowerCase();
-          const index = item.index.toLowerCase();
-
-          const categories = [
-            item.equipment_category?.index,
-            (item as any).gear_category?.index,
-            item.weapon_category,
-            item.armor_category,
-          ]
-            .filter(Boolean)
-            .map(String);
-
-          // Categorias base do SRD
-          add(categories, [item]);
-          
-          if (item.equipment_category) {
-            add([item.equipment_category.name], [item]);
-          }
-
-          // Aliases universais para armas
-          if (item.weapon_category) {
-            const w = item.weapon_category.toLowerCase();
-            add(
-              [
-                `${w}-weapon`,
-                `${w}-weapons`,
-                `${w} weapon`,
-                `${w} weapons`,
-                `any ${w} weapon`,
-              ],
-              [item]
-            );
-          }
-
-          // Armas corpo a corpo e à distância
-          if (item.weapon_range === 'Melee') {
-            add(['melee-weapon', 'melee-weapons', 'melee weapon', 'any melee weapon'], [item]);
-          }
-          if (item.weapon_range === 'Ranged') {
-            add(['ranged-weapon', 'ranged-weapons', 'ranged weapon', 'any ranged weapon'], [item]);
-          }
-        }
-        
-        /* --- Agrupamentos compostos --- */
-        const simpleWeapons = unifiedEquipment.filter((i) => i.weapon_category === 'Simple');
-        const martialWeapons = unifiedEquipment.filter((i) => i.weapon_category === 'Martial');
-        const simpleMeleeWeapons = simpleWeapons.filter(i => i.weapon_range === 'Melee');
-        const martialMeleeWeapons = martialWeapons.filter(i => i.weapon_range === 'Melee');
-        const musicalInstruments = unifiedEquipment.filter(i => i.equipment_category?.index === 'musical-instruments');
-        const holySymbols = unifiedEquipment.filter(i =>
-            i.equipment_category?.index === 'holy-symbols' ||
-            i.index.includes('holy-symbol') ||
-            i.name.toLowerCase().includes('holy symbol')
-        );
-
-        add(['simple-weapons', 'simple weapon', 'any simple weapon'], simpleWeapons);
-        add(['martial-weapons', 'martial weapon', 'any martial weapon'], martialWeapons);
-        add(['simple-melee-weapon', 'any-simple-melee-weapon'], simpleMeleeWeapons);
-        add(['martial-melee-weapon', 'any-martial-melee-weapon'], martialMeleeWeapons);
-        
-        /* --- Aliases explícitos para categorias SRD --- */
-        add(['holy-symbols', 'holy-symbol', 'holy symbols', 'holy symbol', 'Holy Symbols', 'Holy Symbol'], holySymbols);
-        add(['musical-instruments', 'any other musical instrument'], musicalInstruments);
-        add(['simple weapons', 'Simple Weapons'], simpleWeapons);
-        add(['martial weapons', 'Martial Weapons'], martialWeapons);
-        
-        setEquipmentCategoryCache(newCache);
-
+        const cache = await buildEquipmentCache();
+        setEquipmentCategoryCache(cache);
         if (process.env.NODE_ENV === 'development') {
-          console.log('[✅ Equipment Cache Loaded]', Object.keys(newCache));
+          console.log('[✅ EquipmentCache] Categorias registradas:', Object.keys(cache));
         }
       } catch (err) {
-        console.error('Falha ao carregar equipamentos:', err);
-        setEquipmentCategoryCache({});
+        console.error('Falha ao construir cache de equipamentos:', err);
       } finally {
         setLoadingStates({ isLoading: false, message: '', progress: 0 });
       }
     };
-
-    fetchBaseEquipment();
+    initCache();
   }, []);
 
   /* ===========================================================

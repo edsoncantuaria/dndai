@@ -1,3 +1,4 @@
+
 // src/components/NewCreationCharacter/NewStep5_Equipment2.tsx
 import React, { useMemo, useState } from 'react';
 import type { InventoryItem, ApiEquipmentOption } from '@/types';
@@ -5,60 +6,6 @@ import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCrea
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
-
-const ItemChoiceSelector: React.FC<{
-    choice: any;
-    selectionPath: string;
-    subIndex: number;
-    hook: ReturnType<typeof useCharacterCreator>;
-}> = ({ choice, selectionPath, subIndex, hook }) => {
-    const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
-    
-    let categoryIndex = '';
-    let optionsSource: any[] = [];
-    
-    if (choice?.from?.equipment_category) {
-        const cat = choice.from.equipment_category;
-        categoryIndex = typeof cat === 'string' ? cat : cat?.name || cat?.index;
-    } else {
-        optionsSource = choice?.from?.options || [];
-    }
-    
-    const normalizeCategoryKey = (str: string) => {
-        if (!str) return '';
-        return str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
-    }
-
-    const cacheKey = findCacheMatch(normalizeCategoryKey(categoryIndex), equipmentCategoryCache);
-    const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
-    
-    if (process.env.NODE_ENV === 'development' && !cacheKey && categoryIndex) {
-        console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: '${categoryIndex}' (chave normalizada: '${normalizeCategoryKey(categoryIndex)}').`);
-    }
-
-
-    const currentMainSelection = hook.equipmentSelections[selectionPath];
-    const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
-    const thisSubSelection = currentSubSelections[subIndex];
-
-    return (
-         <div className="mt-2 pl-4 border-l-2 border-stone-600">
-             <label className="text-xs text-stone-400">{choice.desc || `Escolha uma opção`}</label>
-             <select
-                value={thisSubSelection || ""}
-                onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
-                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
-            >
-                <option value="" disabled>Selecione uma opção...</option>
-                {subOptions.map((item: any, idx: number) => (
-                    item && <option key={item.index || idx} value={item.index}>
-                        {item.name}
-                    </option>
-                ))}
-            </select>
-        </div>
-    )
-};
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
   if (!cache || !key) return null;
@@ -97,6 +44,53 @@ const findCacheMatch = (key: string, cache: Record<string, any[]>): string | nul
   return partial || null;
 };
 
+const ItemChoiceSelector: React.FC<{
+    choice: any;
+    selectionPath: string;
+    subIndex: number;
+    hook: ReturnType<typeof useCharacterCreator>;
+}> = ({ choice, selectionPath, subIndex, hook }) => {
+    const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
+    
+    let categoryIndex = '';
+    let optionsSource: any[] = [];
+    
+    if (choice?.from?.equipment_category) {
+        const cat = choice.from.equipment_category;
+        categoryIndex = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+    } else {
+        optionsSource = choice?.from?.options || [];
+    }
+    
+    const cacheKey = findCacheMatch(categoryIndex, equipmentCategoryCache);
+    const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
+    
+    if (process.env.NODE_ENV === 'development' && !cacheKey && categoryIndex) {
+        console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: '${categoryIndex}' (chave normalizada: '${categoryIndex.toLowerCase().replace(/\s+/g, '-')}').`);
+    }
+
+    const currentMainSelection = hook.equipmentSelections[selectionPath];
+    const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
+    const thisSubSelection = currentSubSelections[subIndex];
+
+    return (
+         <div className="mt-2 pl-4 border-l-2 border-stone-600">
+             <label className="text-xs text-stone-400">{choice.desc || `Escolha uma opção`}</label>
+             <select
+                value={thisSubSelection || ""}
+                onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
+                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
+            >
+                <option value="" disabled>Selecione uma opção...</option>
+                {subOptions.map((item: any, idx: number) => (
+                    item && <option key={item.index || idx} value={item.index}>
+                        {item.name}
+                    </option>
+                ))}
+            </select>
+        </div>
+    )
+};
 
 const EquipmentOptionRenderer: React.FC<{
     option: ApiEquipmentOption;
@@ -155,8 +149,9 @@ const EquipmentChoice: React.FC<{
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
 
         if (process.env.NODE_ENV === 'development' && !cacheKey) {
-            console.warn(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
-            console.log(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Chaves disponíveis no cache:`, Object.keys(equipmentCategoryCache));
+            console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache.`);
+            console.log('[EquipmentChoice] Cache dump:', equipmentCategoryCache);
         }
 
         if (cacheKey && equipmentCategoryCache[cacheKey]) {
@@ -168,7 +163,6 @@ const EquipmentChoice: React.FC<{
         } else {
              if (process.env.NODE_ENV === 'development') {
                 console.error("[EquipmentChoice] Impossível renderizar opções para o grupo:", group);
-                console.log("[EquipmentChoice] Cache dump:", equipmentCategoryCache);
             }
         }
     }
