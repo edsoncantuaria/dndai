@@ -13,7 +13,8 @@ export const useSelectionManager = (
     state: CharacterCreatorState,
     details: any,
     allLanguages: ApiListItem[],
-    dispatch: React.Dispatch<CharacterCreatorAction>
+    dispatch: React.Dispatch<CharacterCreatorAction>,
+    finalAttributes: Attributes,
 ) => {
     const { 
         isVariantHuman, 
@@ -130,34 +131,45 @@ export const useSelectionManager = (
      // --- SPELLS ---
     const cantripsKnown = useMemo(() => {
         if (!classDetails?.spellcasting) return 0;
-        // Prioritize level 1 data if available
         const level1Data = details.classLevels?.find((l: any) => l.level === 1);
         if (level1Data?.spellcasting?.cantrips_known) {
             return level1Data.spellcasting.cantrips_known;
         }
-        // Fallback to general spellcasting info
         const cantripInfo = classDetails.spellcasting.info.find(i => i.name === 'Cantrips Known' || i.name === 'Cantrips');
         return cantripInfo ? parseInt(cantripInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10) : 0;
     }, [classDetails, details.classLevels]);
     
     const spellsKnown = useMemo(() => {
         if (!classDetails?.spellcasting || !characterClass) return 0;
-
+    
+        // Classes that PREPARE spells (Cleric, Druid, Paladin) don't "know" a fixed number at level 1, they have access to their whole list.
+        // For our creator, this means they don't have to make choices here.
+        if (['cleric', 'druid', 'paladin'].includes(characterClass.toLowerCase())) {
+            return 0;
+        }
+    
         const level1Data = details.classLevels?.find((l: any) => l.level === 1);
         if (level1Data?.spellcasting?.spells_known) {
             return level1Data.spellcasting.spells_known;
         }
-
+    
         const spellsKnownInfo = classDetails.spellcasting.info.find((i: any) => i.name.startsWith('Spells Known'));
         if (spellsKnownInfo) {
             return parseInt(spellsKnownInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10);
         }
-
+        
+        // Fallback for classes like Wizard at level 1.
+        if (classDetails.index === 'wizard' && state.level === 1) {
+            return 6;
+        }
+    
+        // Default calculation for others like Bard if specific data is missing
         const mainStatShort = classDetails.spellcasting.spellcasting_ability.index;
         const mainStat: keyof Attributes = (Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).find(key => characterUtils.ATTRIBUTE_SHORT_MAP[key as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP] === mainStatShort) || 'wisdom') as keyof Attributes;
-        const modifier = characterUtils.calculateModifier(state.baseAttributes[mainStat] || 10);
+        const modifier = characterUtils.calculateModifier(finalAttributes[mainStat] || 10);
         return Math.max(1, modifier + state.level);
-    }, [classDetails, characterClass, state.baseAttributes, state.level, details.classLevels]);
+    }, [classDetails, characterClass, finalAttributes, state.level, details.classLevels]);
+    
 
     const handleClassSpellChange = useCallback((spellIndex: string) => {
         setField('chosenClassSpells', (prev: string[]) => {
@@ -182,6 +194,34 @@ export const useSelectionManager = (
             return prev;
         });
     }, [setField, classSpellOptions, subclassSpells, cantripsKnown, spellsKnown]);
+
+    const handleRandomizeSpells = useCallback(() => {
+        // Randomize Class Spells
+        const allClassSpells = [...classSpellOptions, ...subclassSpells];
+        const cantrips = allClassSpells.filter(s => s.level === 0);
+        const level1Spells = allClassSpells.filter(s => s.level === 1);
+
+        const shuffledCantrips = [...cantrips].sort(() => 0.5 - Math.random());
+        const shuffledLevel1s = [...level1Spells].sort(() => 0.5 - Math.random());
+
+        const selectedCantrips = shuffledCantrips.slice(0, cantripsKnown).map(s => s.index);
+        const selectedLevel1s = shuffledLevel1s.slice(0, spellsKnown).map(s => s.index);
+        
+        setField('chosenClassSpells', [...selectedCantrips, ...selectedLevel1s]);
+
+        // Randomize Racial Spells
+        const newRacialSelections: Record<string, string[]> = {};
+        racialSpellTraits.forEach((trait: any) => {
+            const availableOptions = racialSpellOptions.filter(spell => 
+                trait.options.some((opt: any) => opt.index === spell.index)
+            );
+            const shuffled = [...availableOptions].sort(() => 0.5 - Math.random());
+            newRacialSelections[trait.traitName] = shuffled.slice(0, trait.choose).map(s => s.index);
+        });
+
+        setField('chosenRacialSpells', newRacialSelections);
+
+    }, [classSpellOptions, subclassSpells, cantripsKnown, spellsKnown, racialSpellTraits, racialSpellOptions, setField]);
     
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
@@ -252,34 +292,6 @@ export const useSelectionManager = (
         return allChoicesMade && allLangsChosen;
     }, [allProficiencyChoices, proficiencySelections, state.chosenLanguages, languageChoicesCount]);
 
-    const handleRandomizeSpells = useCallback(() => {
-        // Randomize Class Spells
-        const allClassSpells = [...classSpellOptions, ...subclassSpells];
-        const cantrips = allClassSpells.filter(s => s.level === 0);
-        const level1Spells = allClassSpells.filter(s => s.level === 1);
-
-        const shuffledCantrips = [...cantrips].sort(() => 0.5 - Math.random());
-        const shuffledLevel1s = [...level1Spells].sort(() => 0.5 - Math.random());
-
-        const selectedCantrips = shuffledCantrips.slice(0, cantripsKnown).map(s => s.index);
-        const selectedLevel1s = shuffledLevel1s.slice(0, spellsKnown).map(s => s.index);
-        
-        setField('chosenClassSpells', [...selectedCantrips, ...selectedLevel1s]);
-
-        // Randomize Racial Spells
-        const newRacialSelections: Record<string, string[]> = {};
-        racialSpellTraits.forEach((trait: any) => {
-            const availableOptions = racialSpellOptions.filter(spell => 
-                trait.options.some((opt: any) => opt.index === spell.index)
-            );
-            const shuffled = [...availableOptions].sort(() => 0.5 - Math.random());
-            newRacialSelections[trait.traitName] = shuffled.slice(0, trait.choose).map(s => s.index);
-        });
-
-        setField('chosenRacialSpells', newRacialSelections);
-
-    }, [classSpellOptions, subclassSpells, cantripsKnown, spellsKnown, racialSpellTraits, racialSpellOptions, setField]);
-
 
     return {
         proficiencySelections,
@@ -297,7 +309,6 @@ export const useSelectionManager = (
         handleRacialSpellChange,
         handleRandomizeProficiencies,
         handleRandomizeLanguages,
-        handleRandomizeSpells,
         canProceedFromProficiencies,
         areClassSpellsSelected,
         areRacialSpellsSelected,
@@ -307,5 +318,6 @@ export const useSelectionManager = (
         racialSpellTraits,
         languageChoicesCount,
         setField,
+        handleRandomizeSpells,
     };
 };

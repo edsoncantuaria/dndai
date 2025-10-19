@@ -6,7 +6,7 @@ import { useDataManager } from './useDataManager';
 import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
 import * as DndApiService from '../../services/dndApiService';
-import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '../../types';
+import type { NewCharacterInfo, ProficiencyChoice, ApiListItem, Attributes } from '../../types';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -38,10 +38,12 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
-    const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
+
+    const derivedData = useDerivedCharacterData(state, details, selectionManager);
     
-    // CORREÇÃO: Passar 'allEquipment' e 'equipmentCategoryCache' diretamente.
-    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
+    // CORREÇÃO: Passar os atributos finais para o selectionManager
+    const selectionManager = useSelectionManager(state, details, allLanguages, dispatch, derivedData.finalAttributes);
+
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
