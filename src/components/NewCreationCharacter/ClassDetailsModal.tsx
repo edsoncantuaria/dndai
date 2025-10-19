@@ -12,6 +12,10 @@ interface Props {
 }
 
 const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, classLevels }) => {
+    
+    // Log para depuração
+    console.log('[ClassDetailsModal] Dados recebidos para classLevels:', classLevels);
+
     return (
         <ActionModal
             isOpen={isOpen}
@@ -46,7 +50,7 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                     </div>
                 </div>
 
-                {classLevels && (
+                {classLevels && classLevels.length > 0 ? (
                     <div className="space-y-2 pt-4 border-t border-stone-700/50">
                         <h5 className="font-semibold text-stone-300">Progressão de Nível</h5>
                         {classLevels.map(level => (
@@ -54,10 +58,15 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                                 key={level.level}
                                 level={level.level}
                                 classLevelData={level}
+                                subclassLevelData={undefined} // Será ajustado se necessário
                                 isCurrent={level.level === 1}
                                 isPast={false}
                             />
                         ))}
+                    </div>
+                ) : (
+                    <div className="text-center text-stone-500 italic pt-4 border-t border-stone-700/50">
+                        (Informações de progressão de nível não disponíveis)
                     </div>
                 )}
             </div>
