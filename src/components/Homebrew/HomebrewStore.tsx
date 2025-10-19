@@ -11,11 +11,11 @@ import BundleCreator from './BundleCreator';
 import AiCreator from './AiCreator'; // Importar o novo componente
 import TranslationStudio from './TranslationStudio'; // Importar o novo componente
 
-type View = 'list' | 'create' | 'edit' | 'translate';
+type View = 'list' | 'create' | 'edit';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
-    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation'
 ];
 
 const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.ReactNode> = {
@@ -272,10 +272,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     if (view === 'create' || view === 'edit') {
         return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndBundles(); }} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
     }
-    
-    if (view === 'translate') {
-        return <TranslationStudio onCancel={() => setView('list')} />;
-    }
 
     const renderContentGrid = (contentList: HomebrewService.HomebrewContent[]) => {
         const filteredContent = contentList.filter(item => 
@@ -512,11 +508,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                              ))}
                         </div>
                         <div className="flex gap-2 mt-2 sm:mt-0">
-                             {user?.id === 1 && (
-                                <button onClick={() => setView('translate')} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2 bg-gradient-to-r from-sky-800 via-sky-700 to-sky-800 border-sky-600 hover:border-sky-500">
-                                    <Languages className="h-5 w-5"/> Estúdio de Tradução
-                                </button>
-                             )}
                              <button onClick={() => setIsAiCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
                                 <Bot className="h-5 w-5"/> Gerar com IA
                             </button>

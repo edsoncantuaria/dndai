@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
@@ -14,9 +14,11 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import HomebrewStore from './Homebrew/HomebrewStore';
 import ArchitectureHelpModal from './system/ArchitectureHelpModal';
+import TranslationStudio from './Homebrew/TranslationStudio';
+import { loadTranslations } from '@/utils/translator';
 
 
-type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
+type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
 
 
 const GameContainer = () => {
@@ -32,13 +34,13 @@ const GameContainer = () => {
 
     const { useAiHomebrew } = useSettingsContext();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
-    const { logout } = useAuth(); // Obter a função de logout
+    const { logout, user } = useAuth(); // Obter a função de logout e o usuário
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
-    const [showArchitectureModal, setShowArchitectureModal] = useState(false); // Novo estado
+    const [showArchitectureModal, setShowArchitectureModal] = useState(false); 
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
@@ -49,6 +51,9 @@ const GameContainer = () => {
     const fetchInitialData = useCallback(async () => {
         setIsLoadingData(true);
         try {
+            // Carrega traduções na inicialização
+            await loadTranslations();
+
             const [userSessions, userCharacters] = await Promise.all([
                 GameService.getGameSessions(),
                 GameService.getCharacters()
@@ -268,6 +273,10 @@ const GameContainer = () => {
             return <HomebrewStore returnToMenu={() => setGameStage('main_menu')} />;
         }
 
+        if (gameStage === 'translation_studio') {
+            return <TranslationStudio onCancel={() => setGameStage('main_menu')} />;
+        }
+
         // Default: main_menu or loading
         return (
             <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
@@ -310,6 +319,15 @@ const GameContainer = () => {
                     >
                         <Beaker className="h-5 w-5"/> Testes
                     </button>
+                     {user?.id === 1 && (
+                         <button 
+                            onClick={() => setGameStage('translation_studio')} 
+                            className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
+                            title="Estúdio de Tradução"
+                        >
+                            <Languages className="h-5 w-5"/> Traduções
+                        </button>
+                    )}
                      <button 
                         onClick={logout} 
                         className="p-3 text-stone-400 hover:text-red-400 transition-colors flex items-center gap-2 text-sm"

@@ -1,60 +1,34 @@
 // src/utils/translator.ts
+import { getTranslations } from '@/services/translationService';
 
-// Mapeamento manual para termos que não seguem o padrão "Skill: Name"
-const specificTranslations: Record<string, string> = {
-    'all-armor': 'Todas as Armaduras',
-    'light-armor': 'Armaduras Leves',
-    'medium-armor': 'Armaduras Médias',
-    'heavy-armor': 'Armaduras Pesadas',
-    'shields': 'Escudos',
-    'simple-weapons': 'Armas Simples',
-    'martial-weapons': 'Armas Marciais',
-    'thieves-tools': 'Ferramentas de Ladrão',
-};
-
-const PROFICIENCY_TYPES: Record<string, string> = {
-    'skill:': 'Perícia:',
-    'saving-throw:': 'Resistência:',
-    // Adicionar outros prefixos se necessário
-};
+// Armazena as traduções em memória após o primeiro carregamento.
+let translations: Record<string, Record<string, string>> = {};
+let isLoaded = false;
 
 /**
- * Normaliza e traduz um nome de proficiência da API.
- * Remove prefixos como "Skill:" e traduz termos específicos.
- * @param name O nome da proficiência vindo da API (ex: "Skill: Stealth").
- * @returns O nome da proficiência traduzido e limpo (ex: "Furtividade").
+ * Carrega todas as traduções do backend e as armazena em memória.
+ * Deve ser chamado na inicialização do aplicativo.
  */
-export const normalizeProficiencyName = (name: string): string => {
-    if (!name) return '';
-    
-    const lowerCaseName = name.toLowerCase();
-
-    for (const prefix in PROFICIENCY_TYPES) {
-        if (lowerCaseName.startsWith(prefix)) {
-            const cleanName = name.substring(prefix.length).trim();
-            return translateApiString(cleanName);
-        }
+export const loadTranslations = async () => {
+    if (isLoaded) return;
+    try {
+        translations = await getTranslations();
+        isLoaded = true;
+        console.log('[Translator] Traduções carregadas com sucesso.');
+    } catch (error) {
+        console.error('[Translator] Falha ao carregar traduções do backend:', error);
+        // O sistema continuará a funcionar, mas sem traduções.
     }
-    return translateApiString(name);
-}
-
+};
 
 /**
- * Traduz uma string comum da API (como um nome de raça, classe ou item) para Português.
- * Esta é uma função de fallback simples, a tradução principal ocorre no backend.
- * @param apiString A string em inglês da API.
- * @returns A string traduzida, se disponível; caso contrário, a string original.
+ * Traduz uma string de uma categoria específica.
+ * @param category A categoria da tradução (ex: 'Races', 'Classes').
+ * @param key A chave/termo em inglês a ser traduzido.
+ * @returns A string traduzida ou a chave original se não encontrada.
  */
-export const translateApiString = (apiString: string): string => {
-    if (!apiString) return '';
-    
-    // Procura primeiro em traduções específicas
-    const specific = specificTranslations[apiString.toLowerCase().replace(/ /g, '-')];
-    if (specific) return specific;
-
-    // Se não for específica, apenas retorna a string original (assumindo que o backend já traduziu).
-    // Esta função serve mais como um helper para casos de consistência.
-    return apiString;
+const translate = (category: string, key: string): string => {
+    return translations[category]?.[key] || key;
 };
 
 /**
@@ -63,25 +37,7 @@ export const translateApiString = (apiString: string): string => {
  * @returns O nome traduzido.
  */
 export const translateCondition = (conditionName: string): string => {
-    // Eventualmente, isso usaria um dicionário de traduções mais robusto.
-    const translations: Record<string, string> = {
-        'Blinded': 'Cego',
-        'Charmed': 'Enfeitiçado',
-        'Deafened': 'Ensurdecido',
-        'Frightened': 'Amedrontado',
-        'Grappled': 'Agarrado',
-        'Incapacitated': 'Incapacitado',
-        'Invisible': 'Invisível',
-        'Paralyzed': 'Paralisado',
-        'Petrified': 'Petrificado',
-        'Poisoned': 'Envenenado',
-        'Prone': 'Caído',
-        'Restrained': 'Contido',
-        'Stunned': 'Atordoado',
-        'Unconscious': 'Inconsciente',
-        'Exhaustion': 'Exaustão',
-    };
-    return translations[conditionName] || conditionName;
+    return translate('Conditions', conditionName);
 };
 
 /**
@@ -90,13 +46,53 @@ export const translateCondition = (conditionName: string): string => {
  * @returns O nome traduzido (ex: 'Força').
  */
 export const translateAttribute = (attributeKey: string): string => {
-    const translations: Record<string, string> = {
-        'strength': 'Força',
-        'dexterity': 'Destreza',
-        'constitution': 'Constituição',
-        'intelligence': 'Inteligência',
-        'wisdom': 'Sabedoria',
-        'charisma': 'Carisma',
-    };
-    return translations[attributeKey] || attributeKey;
+    return translate('Attributes', attributeKey);
+};
+
+/**
+ * Traduz uma string genérica da API, tentando várias categorias.
+ * @param apiString A string em inglês da API.
+ * @returns A string traduzida ou a original se não encontrada.
+ */
+export const translateApiString = (apiString: string): string => {
+    if (!apiString) return '';
+
+    // Itera sobre as principais categorias para encontrar uma correspondência.
+    const categoriesToTry: (keyof typeof translations)[] = [
+        'Races', 'Classes', 'Subclasses', 'Skills & Proficiencies', 'Equipment Categories'
+    ];
+
+    for (const category of categoriesToTry) {
+        const translation = translations[category]?.[apiString];
+        if (translation) return translation;
+    }
+    
+    const key = apiString.toLowerCase().replace(/ /g, '-');
+    const specific = translations['Skills & Proficiencies']?.[key];
+    if (specific) return specific;
+
+
+    return apiString;
+};
+
+/**
+ * Normaliza e traduz um nome de proficiência da API.
+ * Remove prefixos como "Skill:" e traduz o termo.
+ * @param name O nome da proficiência vindo da API (ex: "Skill: Stealth").
+ * @returns O nome da proficiência traduzido e limpo (ex: "Furtividade").
+ */
+export const normalizeProficiencyName = (name: string): string => {
+    if (!name) return '';
+    const lowerCaseName = name.toLowerCase();
+
+    // Remove prefixos conhecidos
+    const prefixesToRemove = ['skill:', 'saving throw:', 'saving throw :'];
+    for (const prefix of prefixesToRemove) {
+        if (lowerCaseName.startsWith(prefix)) {
+            const cleanName = name.substring(prefix.length).trim();
+            return translateApiString(cleanName);
+        }
+    }
+
+    return translateApiString(name);
 };
