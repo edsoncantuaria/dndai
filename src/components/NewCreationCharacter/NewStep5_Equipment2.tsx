@@ -15,66 +15,70 @@ const ItemChoiceSelector: React.FC<{
     const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
     
     let categoryIndex = '';
+    let optionsSource: any[] = [];
     
     // A API D&D pode usar 'equipment_category' ou 'options' para definir a fonte.
     if (choice?.from?.equipment_category) {
         const cat = choice.from.equipment_category;
-        categoryIndex = typeof cat === 'string' ? cat : cat?.index;
+        categoryIndex = typeof cat === 'string' ? cat : cat?.name || cat?.index;
     } else {
-        // Se for um array de opções, não precisamos buscar no cache de categorias.
-        const subOptions = choice?.from?.options?.map((opt: any) => opt.item);
-        if (subOptions) {
-            const currentMainSelection = hook.equipmentSelections[selectionPath];
-            const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
-            const thisSubSelection = currentSubSelections[subIndex];
-
-            return (
-                 <div className="mt-2 pl-4 border-l-2 border-stone-600">
-                     <select
-                        value={thisSubSelection || ""}
-                        onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
-                        className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
-                    >
-                        <option value="" disabled>Selecione uma opção...</option>
-                        {subOptions.map((item: any) => (
-                            <option key={item.index} value={item.index}>
-                                {item.name}
-                            </option>
-                        ))}
-                    </select>
-                </div>
-            )
-        }
+        optionsSource = choice?.from?.options || [];
     }
     
-    const subOptions = equipmentCategoryCache[categoryIndex] || [];
+    const normalizeCategoryKey = (str: string) => {
+        if (!str) return '';
+        return str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+    }
+
+    const cacheKey = findCacheMatch(normalizeCategoryKey(categoryIndex), equipmentCategoryCache);
+    const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item);
+    
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
 
-    // LOG DE DEBUG
     if (subOptions.length === 0) {
-        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}'. Verifique o cache.`, equipmentCategoryCache);
+        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}' (chave normalizada: '${cacheKey}').`);
     }
 
     return (
-        <div className="mt-2 pl-4 border-l-2 border-stone-600">
-            <label className="text-xs text-stone-400">{choice.desc || `Escolha ${choice.choose} de ${categoryIndex}`}</label>
-            <select
+         <div className="mt-2 pl-4 border-l-2 border-stone-600">
+             <label className="text-xs text-stone-400">{choice.desc || `Escolha uma opção`}</label>
+             <select
                 value={thisSubSelection || ""}
                 onChange={(e) => handleEquipmentSubChoiceChange(selectionPath, e.target.value, subIndex)}
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
             >
                 <option value="" disabled>Selecione uma opção...</option>
-                {subOptions.map((item) => (
+                {subOptions.map((item: any) => (
                     <option key={item.index} value={item.index}>
                         {item.name}
                     </option>
                 ))}
             </select>
         </div>
-    );
+    )
 };
+
+const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
+    if (!cache) return null;
+    const allKeys = Object.keys(cache);
+    if (allKeys.includes(key)) return key;
+
+    const fallbackKeys = [
+        key.replace(/s$/, ''),
+        `${key}s`,
+        key.replace(/-weapon$/, '-weapons'),
+        key.replace(/-weapons$/, '-weapon'),
+    ];
+
+    for (const fk of fallbackKeys) {
+        if (allKeys.includes(fk)) return fk;
+    }
+
+    const partialMatch = allKeys.find(k => k.includes(key) || key.includes(k));
+    return partialMatch || null;
+}
 
 
 const EquipmentOptionRenderer: React.FC<{
@@ -121,33 +125,35 @@ const EquipmentChoice: React.FC<{
     const selection = equipmentSelections[group.id];
 
     if (!equipmentCategoryCache) {
-      console.log(`[EquipmentChoice] Cache de equipamento ainda não está pronto para o grupo: ${group.choice.desc}`);
       return <p className="text-stone-500 text-xs italic">Carregando categorias...</p>;
     }
     
     let mainOptions: ApiEquipmentOption[] = [];
-    if (group.choice?.from?.option_set_type === 'options_array' && group.choice?.from?.options) {
-        mainOptions = group.choice.from.options;
-    } else if (group.choice?.from?.option_set_type === 'equipment_category' && group.choice?.from?.equipment_category) {
-        const cat = group.choice.from.equipment_category;
-        const catIndex = normalizeCategoryKey(typeof cat === 'string' ? cat : cat?.name || cat?.index);
-
-        console.log(`[EquipmentChoice] Buscando no cache com a chave normalizada: '${catIndex}' para a descrição: "${group.choice.desc}"`);
-
-        mainOptions = (equipmentCategoryCache[catIndex] || []).map((item: any) => ({
-            option_type: 'counted_reference',
-            count: 1,
-            of: { index: item.index, name: item.name, url: item.url }
-        }));
     
-        if (mainOptions.length === 0) {
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${catIndex}'. Chaves disponíveis no cache:`, Object.keys(equipmentCategoryCache));
+    if (group.choice?.from?.option_set_type === 'options_array') {
+        mainOptions = group.choice.from.options || [];
+    } else if (group.choice?.from?.option_set_type === 'equipment_category') {
+        const cat = group.choice.from.equipment_category;
+        const categoryKey = normalizeCategoryKey(typeof cat === 'string' ? cat : cat?.name || cat?.index);
+        const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
+
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
+        }
+
+        if (cacheKey && equipmentCategoryCache[cacheKey]) {
+            mainOptions = equipmentCategoryCache[cacheKey].map(item => ({
+                option_type: 'counted_reference',
+                count: 1,
+                of: { index: item.index, name: item.name, url: item.url }
+            }));
+        } else {
+             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Cache dump:`, equipmentCategoryCache);
         }
     }
     
     if (mainOptions.length === 0) {
-         console.error(`[EquipmentChoice] Impossível renderizar opções para o grupo:`, group);
-        return <p className="text-red-400 text-xs">Erro: Opções de equipamento para "{group.choice.desc}" não puderam ser carregadas.</p>;
+        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
@@ -172,7 +178,7 @@ const EquipmentChoice: React.FC<{
 
 const normalizeCategoryKey = (str: string) => {
     if (!str) return '';
-    return str.toLowerCase().replace(/\b(a|an|any)\b/g, '').replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+    return str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
 }
 
 

@@ -52,7 +52,7 @@ export const useDataManager = (
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
         const equipmentList = await DndApiService.getEquipment();
-        if (!Array.isArray(equipmentList)) throw new Error("Lista de equipamentos inválida.");
+        if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
 
         const unifiedEquipment = equipmentList as InventoryItem[];
         setAllEquipment(unifiedEquipment);
@@ -62,14 +62,22 @@ export const useDataManager = (
         const normalize = (str: string) =>
           str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
 
-        // 🔹 CORREÇÃO: A função agora aceita um array de itens diretamente
-        const add = (keys: string[], items: InventoryItem[]) => {
+        const add = (keys: string[], item: InventoryItem) => {
           keys.forEach((k) => {
             const nk = normalize(k);
             if (!nk) return;
             if (!newCache[nk]) newCache[nk] = [];
-            newCache[nk].push(...items);
+            newCache[nk].push(item);
           });
+        };
+        
+        const addMany = (keys: string[], items: InventoryItem[]) => {
+            keys.forEach((k) => {
+              const nk = normalize(k);
+              if (!nk) return;
+              if (!newCache[nk]) newCache[nk] = [];
+              newCache[nk].push(...items);
+            });
         };
 
         /* --- Construção inteligente do cache --- */
@@ -78,7 +86,7 @@ export const useDataManager = (
 
           const name = item.name.toLowerCase();
           const index = item.index.toLowerCase();
-
+          
           const categories = [
             item.equipment_category?.index,
             (item as any).gear_category?.index,
@@ -88,66 +96,42 @@ export const useDataManager = (
             .filter(Boolean)
             .map(String);
 
-          add(categories, [item]);
+          add(categories, item);
 
           if (item.weapon_category) {
             const w = item.weapon_category.toLowerCase();
-            add(
-              [`${w}-weapon`, `${w}-weapons`, `${w} weapon`, `any ${w} weapon`],
-              [item]
-            );
+            add([`${w}-weapon`, `${w}-weapons`, `${w} weapon`, `any ${w} weapon`], item);
           }
-
-          if (name.includes('shield')) {
-            add(['shield', 'shields', 'a shield', 'any shield'], [item]);
-          }
-
-          if (index.includes('holy-symbol') || name.includes('símbolo') || name.includes('amuleto') || name.includes('emblema') || name.includes('relicário')) {
-            add(['holy-symbol', 'holy-symbols', 'holy symbol', 'any holy symbol'], [item]);
-          }
-
-          if (index.match(/(crystal|orb|rod|staff|wand)/i)) {
-            add(['arcane focus', 'arcane foci', 'an arcane focus'], [item]);
-          }
-
-          if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) {
-            add(['druidic focus', 'druidic foci'], [item]);
-          }
-           if (index.includes('instrument')) {
-             add(['musical-instrument', 'musical-instruments', 'any other musical instrument'], [item]);
-          }
-
-
-          if (item.weapon_range === 'Melee') {
-            add(['melee-weapon', 'melee-weapons', 'melee weapon', 'any melee weapon'], [item]);
-          }
-          if (item.weapon_range === 'Ranged') {
-            add(['ranged-weapon', 'ranged-weapons', 'ranged weapon', 'any ranged weapon'], [item]);
-          }
-
-          if (item.equipment_category?.index === 'adventuring-gear') {
-            add(['gear', 'adventuring gear'], [item]);
-          }
+          if (name.includes('shield')) add(['shield', 'shields', 'a shield', 'any shield'], item);
+          if (index.includes('holy-symbol') || name.includes('símbolo') || name.includes('amuleto') || name.includes('emblema') || name.includes('relicário')) add(['holy-symbol', 'holy-symbols', 'holy symbol'], item);
+          if (index.match(/(crystal|orb|rod|staff|wand)/i)) add(['arcane focus', 'arcane foci'], item);
+          if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) add(['druidic focus', 'druidic foci'], item);
+          if (item.weapon_range === 'Melee') add(['melee-weapon', 'melee-weapons', 'melee weapon'], item);
+          if (item.weapon_range === 'Ranged') add(['ranged-weapon', 'ranged-weapons', 'ranged weapon'], item);
+          if (item.equipment_category?.index === 'adventuring-gear') add(['gear', 'adventuring gear'], item);
         }
 
+        /* --- Agrupamentos compostos --- */
         const simple = unifiedEquipment.filter(i => i.weapon_category === 'Simple');
         const martial = unifiedEquipment.filter(i => i.weapon_category === 'Martial');
-        
-        add(['simple-weapons', 'simple-weapon', 'simple weapon', 'any simple weapon'], simple);
-        add(['martial-weapons', 'martial-weapon', 'martial weapon', 'any martial weapon'], martial);
-        
         const simpleMelee = simple.filter(i => i.weapon_range === 'Melee');
-        add(['simple-melee-weapon', 'simple melee weapon', 'any simple melee weapon'], simpleMelee);
-        
         const martialMelee = martial.filter(i => i.weapon_range === 'Melee');
-        add(['martial-melee-weapon', 'martial melee weapon', 'any martial melee weapon'], martialMelee);
+        const instruments = unifiedEquipment.filter(i => i.equipment_category?.index === 'musical-instruments');
         
-        newCache['holy-symbol'] ??= unifiedEquipment.filter(i => i.index.includes('holy-symbol'));
-        newCache['musical-instruments'] ??= unifiedEquipment.filter(i => i.equipment_category?.index === 'musical-instruments');
-
+        addMany(['simple-weapons', 'simple weapon', 'any simple weapon'], simple);
+        addMany(['martial-weapons', 'martial weapon', 'any martial weapon'], martial);
+        addMany(['simple-melee-weapon', 'any simple melee weapon'], simpleMelee);
+        addMany(['martial-melee-weapon', 'any martial melee weapon'], martialMelee);
+        addMany(['musical-instruments', 'any other musical instrument'], instruments);
 
         setEquipmentCategoryCache(newCache);
-        console.log('[useDataManager] Cache de Equipamentos FINALIZADO. Chaves criadas:', Object.keys(newCache));
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[Equipment Cache Loaded] Chaves disponíveis:', Object.keys(newCache));
+          console.log("[Equipment Cache Content] Conteúdo para 'holy-symbols':", newCache['holy-symbols'] || 'Nenhum');
+          console.log("[Equipment Cache Content] Conteúdo para 'simple-weapons':", newCache['simple-weapons'] || 'Nenhum');
+          console.log("[Equipment Cache Content] Conteúdo para 'martial-weapons':", newCache['martial-weapons'] || 'Nenhum');
+        }
 
       } catch (err) {
         console.error('Falha ao carregar equipamentos:', err);
