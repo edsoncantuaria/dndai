@@ -34,14 +34,13 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         allEquipment,
         equipmentCategoryCache,
     } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
-
+    
     const { raceDetails, classDetails, backgroundDetails } = details;
 
     const attributeManager = useAttributeManager(state, dispatch);
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    // CORREÇÃO: `selectionManager` deve ser criado antes e passado para `derivedData`.
     const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
     
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
@@ -84,8 +83,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             if (group.choice.from.option_set_type === 'options_array') {
                 mainOptions = group.choice.from.options || [];
             } else if (group.choice.from.equipment_category) {
-                const catKey = group.choice.from.equipment_category.index || group.choice.from.equipment_category.name;
-                mainOptions = equipmentCategoryCache[catKey] || [];
+                const cat = group.choice.from.equipment_category;
+                const categoryKey = typeof cat === 'string' ? cat : cat.name || cat.index;
+                mainOptions = equipmentCategoryCache[categoryKey] || [];
                 // Transform items into the expected option format for consistency
                 mainOptions = mainOptions.map(item => ({ option_type: 'counted_reference', of: item }));
             }
@@ -178,12 +178,21 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         const buildFn = (): NewCharacterInfo | null => {
             if (!isComplete) return null;
             
-            const homebrewIds = [state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]
-                .concat(Object.values(selectionManager.proficiencySelections).flat())
-                .concat(derivedData.finalizedEquipment.map((item: InventoryItem) => item.id))
-                .concat(selectionManager.chosenClassSpells)
-                .concat(Object.values(selectionManager.chosenRacialSpells).flat())
-                .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+             // Filtra apenas os IDs que são UUIDs (indicativo de homebrew)
+            const getHomebrewIds = (items: (string | undefined | null)[]): string[] => 
+                items.filter((id): id is string => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
+            const equipmentHomebrewIds = derivedData.finalizedEquipment
+                .map((item: InventoryItem) => item.id) // Presume que o 'id' é o UUID do homebrew
+                .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+
+            const homebrewIds = Array.from(new Set([
+                ...getHomebrewIds([state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]),
+                ...getHomebrewIds(Object.values(selectionManager.proficiencySelections).flat()),
+                ...equipmentHomebrewIds,
+                ...getHomebrewIds(selectionManager.chosenClassSpells),
+                ...getHomebrewIds(Object.values(selectionManager.chosenRacialSpells).flat())
+            ]));
 
 
             return {
@@ -213,7 +222,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 feats: derivedData.finalFeats,
                 hitDie: details.classDetails!.hit_die,
                 subclass: null, // Subclass choice at level 1 is flavor
-                homebrewIds: Array.from(new Set(homebrewIds)),
+                homebrewIds: homebrewIds,
             };
         };
 
