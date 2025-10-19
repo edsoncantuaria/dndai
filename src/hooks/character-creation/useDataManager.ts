@@ -43,50 +43,95 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
                 const newCache: Record<string, InventoryItem[]> = {};
                 
-                const add = (keys: (string | undefined)[], itemToAdd: InventoryItem) => {
-                    keys.forEach(key => {
-                        if (!key) return;
-                        const normalizedKey = key.toLowerCase();
-                        if (!newCache[normalizedKey]) newCache[normalizedKey] = [];
-                        newCache[normalizedKey].push(itemToAdd);
-                    });
+                const normalizeKey = (key: string) =>
+                  key
+                    .toLowerCase()
+                    .replace(/[\s_]+/g, '-')
+                    .replace(/[^a-z0-9-]/g, '');
+                
+                const addAlias = (aliases: string[], items: InventoryItem[]) => {
+                  aliases.forEach(alias => {
+                    const key = normalizeKey(alias);
+                    if (!newCache[key]) newCache[key] = [];
+                    newCache[key].push(...items);
+                  });
                 };
                 
-                const addWithVariations = (baseKey: string, items: InventoryItem[]) => {
-                    const keys = [
-                        baseKey.toLowerCase(),
-                        `${baseKey.toLowerCase()}s`,
-                        baseKey.toLowerCase().replace(/ /g, '-'),
-                        `${baseKey.toLowerCase().replace(/ /g, '-')}s`,
-                    ];
-                    keys.forEach(key => {
-                        newCache[key] = items;
-                    });
-                };
-
                 unifiedEquipment.forEach(item => {
-                    if (!item) return;
-                    add([item.equipment_category?.index, (item as any).gear_category?.index], item);
+                  if (!item) return;
+                
+                  const baseKeys = [
+                    item.equipment_category?.index,
+                    (item as any).gear_category?.index,
+                  ].filter(Boolean) as string[];
+                
+                  baseKeys.forEach(k => {
+                    const nk = normalizeKey(k);
+                    if (!newCache[nk]) newCache[nk] = [];
+                    newCache[nk].push(item);
+                  });
+                
+                  // armas
+                  if (item.weapon_category) {
+                    const wCat = item.weapon_category.toLowerCase();
+                    addAlias(
+                      [
+                        `${wCat}-weapon`,
+                        `${wCat}-weapons`,
+                        `${wCat} weapon`,
+                        `${wCat} weapons`,
+                        `any ${wCat} weapon`,
+                        `any ${wCat} weapons`,
+                      ],
+                      [item]
+                    );
+                  }
+                
+                  // escudos
+                  if (item.name.toLowerCase().includes('shield')) {
+                    addAlias(['shield', 'shields', 'a shield', 'any shield'], [item]);
+                  }
+                
+                  // holy symbols / foci
+                  if (item.index.includes('holy-symbol') || item.name.match(/amuleto|emblema|relicário/i)) {
+                    addAlias(['holy-symbol', 'holy-symbols', 'holy symbol', 'holy symbols'], [item]);
+                  }
+                  if (item.index.match(/(crystal|orb|rod|staff|wand)/i)) {
+                    addAlias(['arcane focus', 'arcane foci'], [item]);
+                  }
+                  if (item.index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) {
+                    addAlias(['druidic focus', 'druidic foci'], [item]);
+                  }
                 });
-
-                const musicalInstruments = unifiedEquipment.filter(i => i.equipment_category?.index === 'musical-instruments' || (i as any).gear_category?.index === 'musical-instruments');
-                const holySymbols = unifiedEquipment.filter(i => i.equipment_category?.index === 'holy-symbols');
-                const arcaneFoci = unifiedEquipment.filter(i => i.equipment_category?.index === 'arcane-foci');
-                const druidicFoci = unifiedEquipment.filter(i => i.equipment_category?.index === 'druidic-foci');
+                
+                // armas simples / marciais / corpo a corpo / à distância
                 const simpleWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Simple');
                 const martialWeapons = unifiedEquipment.filter(i => i.weapon_category === 'Martial');
-
-                addWithVariations('musical instrument', musicalInstruments);
-                addWithVariations('holy symbol', holySymbols);
-                addWithVariations('arcane focus', arcaneFoci);
-                addWithVariations('druidic focus', druidicFoci);
-                addWithVariations('simple weapon', simpleWeapons);
-                addWithVariations('martial weapon', martialWeapons);
                 
-                addWithVariations('simple melee weapon', simpleWeapons.filter(i => i.weapon_range === 'Melee'));
-                addWithVariations('martial melee weapon', martialWeapons.filter(i => i.weapon_range === 'Melee'));
+                addAlias(['simple-weapons', 'simple weapon', 'any simple weapon'], simpleWeapons);
+                addAlias(['martial-weapons', 'martial weapon', 'any martial weapon'], martialWeapons);
+                addAlias(
+                  ['simple-melee-weapon', 'simple melee weapon', 'any simple melee weapon'],
+                  simpleWeapons.filter(i => i.weapon_range === 'Melee')
+                );
+                addAlias(
+                  ['martial-melee-weapon', 'martial melee weapon', 'any martial melee weapon'],
+                  martialWeapons.filter(i => i.weapon_range === 'Melee')
+                );
+                addAlias(
+                  ['simple-ranged-weapon', 'simple ranged weapon', 'any simple ranged weapon'],
+                  simpleWeapons.filter(i => i.weapon_range === 'Ranged')
+                );
+                addAlias(
+                  ['martial-ranged-weapon', 'martial ranged weapon', 'any martial ranged weapon'],
+                  martialWeapons.filter(i => i.weapon_range === 'Ranged')
+                );
                 
                 setEquipmentCategoryCache(newCache);
+                
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[Equipment Cache Keys]', Object.keys(newCache));
+                }
 
              } catch (error) {
                 console.error("Falha catastrófica ao carregar equipamentos:", error);
