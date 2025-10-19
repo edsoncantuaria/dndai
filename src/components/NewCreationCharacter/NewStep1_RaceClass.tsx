@@ -1,5 +1,5 @@
 // src/components/NewCreationCharacter/NewStep1_RaceClass.tsx
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ApiListItem, ApiTrait } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import { Dice5, ArrowRight, Loader2, Info, Eye } from 'lucide-react';
@@ -76,6 +76,19 @@ interface Props {
     nextStep: () => void;
 }
 
+const DAMAGE_TYPE_MAP: Record<string, string> = {
+    'Black': 'Ácido',
+    'Blue': 'Elétrico',
+    'Brass': 'Fogo',
+    'Bronze': 'Elétrico',
+    'Copper': 'Ácido',
+    'Gold': 'Fogo',
+    'Green': 'Veneno',
+    'Red': 'Fogo',
+    'Silver': 'Frio',
+    'White': 'Frio',
+};
+
 const NewStep1_RaceClass: React.FC<Props> = ({
     hook,
     races,
@@ -94,11 +107,16 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         handleRandomizeRaceAndClass,
         isVariantHuman,
         setField,
+        draconicAncestry,
     } = hook;
     
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
     
-    const canProceed = race && characterClass;
+    const canProceed = useMemo(() => {
+        if (!race || !characterClass) return false;
+        if (race === 'dragonborn' && !draconicAncestry) return false;
+        return true;
+    }, [race, characterClass, draconicAncestry]);
 
     return (
         <>
@@ -162,11 +180,15 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                             className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                         >
                             <option value="" disabled>Escolha sua linhagem...</option>
-                            {draconicAncestryOptions.map(opt => (
-                                <option key={opt.index} value={opt.index}>
-                                    {opt.name.replace('Draconic Ancestry: ', '')}
-                                </option>
-                            ))}
+                            {draconicAncestryOptions.map(opt => {
+                                const dragonName = opt.name.replace('Draconic Ancestry: ', '');
+                                const damageType = DAMAGE_TYPE_MAP[dragonName] || 'Desconhecido';
+                                return (
+                                    <option key={opt.index} value={opt.index}>
+                                        {dragonName} (Sopro de {damageType})
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                 )}
