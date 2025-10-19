@@ -68,3 +68,13 @@ export const saveUserSettings = async (settings: any) => {
         body: JSON.stringify(settingsToSave),
     });
 };
+
+
+/**
+ * Invalida o cache do usuário no backend.
+ */
+export const invalidateUserCache = async () => {
+    return apiClient<void>('/users/me/invalidate-cache', {
+        method: 'POST',
+    });
+};

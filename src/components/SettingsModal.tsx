@@ -1,8 +1,11 @@
+// src/components/SettingsModal.tsx
 'use client';
 
-import React, { ChangeEvent, useEffect, useState } from 'react';
+import React, { ChangeEvent, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -85,6 +88,41 @@ const AudioControls: React.FC = () => {
     )
 }
 
+const CacheManagement: React.FC = () => {
+    const { invalidateUserCache } = useAuth();
+    const { toast } = useToast();
+
+    const handleClearEquipmentCache = () => {
+        sessionStorage.removeItem('equipmentCache');
+        toast({ title: 'Cache Limpo!', description: 'O cache de equipamentos foi limpo. Recarregue a página se necessário.'});
+        window.location.reload();
+    };
+
+    const handleSyncHomebrew = async () => {
+        try {
+            await invalidateUserCache();
+            toast({ title: 'Sincronização Solicitada!', description: 'O cache do seu usuário e homebrews foi invalidado no servidor.'});
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha na Sincronização', description: error.message });
+        }
+    };
+
+    return (
+        <div className="space-y-4 pt-4 border-t border-stone-700/50">
+            <h3 className="text-lg font-semibold text-stone-300">Manutenção e Cache</h3>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <button onClick={handleClearEquipmentCache} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
+                    <Eraser className="h-4 w-4" /> Limpar Cache de Equipamentos
+                </button>
+                 <button onClick={handleSyncHomebrew} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-purple-800 hover:bg-purple-700 text-purple-200">
+                    <RefreshCw className="h-4 w-4" /> Sincronizar Dados de Homebrew
+                </button>
+            </div>
+             <p className="text-xs text-stone-500 text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
+        </div>
+    );
+};
+
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const { 
@@ -155,7 +193,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer">
                                 <span className="font-semibold text-stone-300 flex items-center gap-2">
                                     <FlaskConical className="h-4 w-4 text-purple-400" />
-                                    Usar Homebrew da IA
+                                    Permitir que a IA crie Homebrew
                                 </span>
                                 <span className="text-xs text-stone-400">Permitir que a IA crie e reutilize itens, NPCs e locais em suas sessões.</span>
                             </label>
@@ -266,6 +304,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             onChange={handleConfigChange}
                         />
                     </div>
+                    
+                    <CacheManagement />
+
 
                 </main>
                 <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">

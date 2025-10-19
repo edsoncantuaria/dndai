@@ -7,6 +7,7 @@ import type { z } from 'zod';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import { In } from 'typeorm';
+import { invalidateUserCache as invalidateUnifiedDataCache } from './unifiedDataService.js';
 
 export const getUserProfile = async (userId: number) => {
     const userRepository = AppDataSource.getRepository(User);
@@ -84,9 +85,17 @@ export const updateUserHomebrewInstallation = async (userId: number, itemId: str
     }
     
     user.installedHomebrewIds = Array.from(currentIds);
+    await invalidateUserCache(userId);
 
     const savedUser = await userRepo.save(user);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userResponse } = savedUser;
     return userResponse;
+};
+
+
+export const invalidateUserCache = async (userId: number) => {
+    await invalidateUnifiedDataCache(userId);
+    // Adicionar lógica para invalidar outros caches relacionados ao usuário, se houver
+    console.log(`[Cache] Cache invalidado para o usuário ${userId}.`);
 };

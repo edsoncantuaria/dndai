@@ -27,6 +27,7 @@ interface AuthContextType {
     logout: () => void;
     acknowledgeHomebrew: () => Promise<void>;
     revalidateUserSession: () => Promise<void>;
+    invalidateUserCache: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -73,6 +74,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setApiKey('');
         if (typeof window !== 'undefined') {
             localStorage.removeItem('token');
+            // Limpa também o cache de equipamentos para garantir que o próximo login tenha dados frescos
+            sessionStorage.removeItem('equipmentCache');
         }
         toast({
             description: "Você saiu da sua conta.",
@@ -199,6 +202,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const invalidateUserCache = async () => {
+        if (!user) return;
+        setIsLoading(true);
+        try {
+            await authService.invalidateUserCache();
+            await revalidateUserSession(); // Revalida os dados do usuário para obter informações frescas
+        } catch (err: any) {
+            // O toast já é tratado no componente, mas podemos logar aqui se necessário.
+            console.error("[AuthContext] Falha ao invalidar cache do usuário:", err);
+            throw err; // Re-lança para o componente poder tratar
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
 
     const value: AuthContextType = {
         user,
@@ -212,7 +230,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         saveApiKey,
         logout,
         acknowledgeHomebrew,
-        revalidateUserSession
+        revalidateUserSession,
+        invalidateUserCache,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
