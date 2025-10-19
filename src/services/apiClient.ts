@@ -34,9 +34,6 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     const { headers: customHeaders, ...customOptions } = options;
     const fullUrl = `${API_URL}${endpoint}`;
 
-    // Log detalhado de cada requisição
-    console.log(`[apiClient] Requesting: ${options.method || 'GET'} ${fullUrl}`);
-
     const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
     
     let authHeaders: HeadersInit | null = getAuthHeaders();
@@ -71,8 +68,5 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     }
 
     const responseData = await response.json();
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[apiClient] Response OK for ${fullUrl}:`, responseData);
-    }
     return responseData as T;
 };

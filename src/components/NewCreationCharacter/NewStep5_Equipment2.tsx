@@ -51,6 +51,10 @@ const ItemChoiceSelector: React.FC<{
     }
     
     const cacheKey = findCacheMatch(categoryIndex, equipmentCategoryCache);
+    if (process.env.NODE_ENV === 'development' && categoryIndex && !cacheKey) {
+        console.warn(`[ItemChoiceSelector] Cache MISS para categoria: "${categoryIndex}" (normalizado: "${normalizeKey(categoryIndex)}")`);
+    }
+
     const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
 
     const currentMainSelection = hook.equipmentSelections[selectionPath];
@@ -137,7 +141,7 @@ const EquipmentChoice: React.FC<{
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: (item as any).url || '' },
+                of: { index: item.index, name: item.name, url: (item as any).url || `/api/data/equipment/${item.index}` },
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -156,14 +160,9 @@ const EquipmentChoice: React.FC<{
         );
     }
     
-    if (!mainOptions.length) {
-        const categoryName = group.choice?.from?.equipment_category?.name;
-        if (process.env.NODE_ENV === 'development' && categoryName) {
-            const nk = normalizeKey(categoryName);
-             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${nk}'.`);
-             console.log(`[EquipmentChoice] Cache dump:`, equipmentCategoryCache);
-        }
-        return <p className="text-red-400 text-xs p-2 bg-red-900/20 rounded-md">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
+    if (process.env.NODE_ENV === 'development' && mainOptions.length === 0) {
+        const categoryName = categoryFrom?.name || categoryFrom?.index;
+        console.warn(`[EquipmentChoice] Nenhuma opção renderizada para o grupo: ${group.id} (Categoria: ${categoryName})`);
     }
     
     const mainSelectionIndex = selection?.main;
@@ -201,6 +200,12 @@ const NewStep5_Equipment2: React.FC<{
         handleRandomizeEquipment,
         finalProficiencies,
     } = hook;
+
+    console.log('[NewStep5] Renderizando com:', {
+        equipmentChoiceGroups,
+        fixedEquipment,
+        finalizedEquipment
+    });
 
     const classChoices = equipmentChoiceGroups.filter(g => g.source === 'Classe');
     const backgroundChoices = equipmentChoiceGroups.filter(g => g.source === 'Antecedente');

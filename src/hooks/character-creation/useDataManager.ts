@@ -52,6 +52,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
               const parsed = JSON.parse(cached);
               setEquipmentCategoryCache(parsed);
               setAllEquipment(Object.values(parsed).flat() as InventoryItem[]);
+              console.log('[useDataManager] Cache de equipamento carregado do sessionStorage.');
               return;
           } catch (e) {
               console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
@@ -70,21 +71,13 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             resolveEquipmentCategory('martial-weapons', cache),
             resolveEquipmentCategory('musical-instruments', cache),
           ]);
-
+          
           sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
           setEquipmentCategoryCache({ ...cache });
 
           const flattened = Object.values(cache).flat();
           const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
           setAllEquipment(unique);
-
-          if (process.env.NODE_ENV === 'development') {
-              console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
-              console.log('Total de categorias:', Object.keys(cache).length);
-              console.log('Categorias:', Object.keys(cache));
-              console.log('Itens únicos:', unique.length);
-              console.groupEnd();
-          }
 
       } catch (err) {
           console.error('[❌ EquipmentCache] Falha ao construir cache:', err);

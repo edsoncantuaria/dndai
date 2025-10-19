@@ -6,7 +6,6 @@ import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
-import { useCharacterCreator } from './useCharacterCreator';
 
 
 export const useDerivedCharacterData = (
@@ -84,11 +83,12 @@ export const useDerivedCharacterData = (
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, selectionManager.allProficiencyChoices]);
     
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
+        console.log('[useDerivedCharacterData] Recalculando equipamentos...');
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
 
-        // ✅ Garantia: não processa até o cache estar pronto
         if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
+            console.warn('[useDerivedCharacterData] allEquipment está vazio ou inválido. Retornando estado vazio.');
             return {
                 equipmentChoiceGroups: [],
                 fixedEquipment: [],
@@ -109,6 +109,8 @@ export const useDerivedCharacterData = (
                             quantity: item.quantity || 1,
                             equipped: false,
                         });
+                    } else {
+                        console.warn(`[useDerivedCharacterData] Item fixo não encontrado no allEquipment: ${item.equipment.index}`);
                     }
                 }
             });
@@ -210,6 +212,8 @@ export const useDerivedCharacterData = (
             return true;
         });
     
+        console.log('[useDerivedCharacterData] Equipamentos Processados:', { fixed, finalEquip, allChoicesMade });
+
         return {
             equipmentChoiceGroups: choiceGroups,
             fixedEquipment: fixed,
@@ -246,5 +250,3 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
-
-    
