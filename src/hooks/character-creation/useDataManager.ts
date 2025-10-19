@@ -33,10 +33,11 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
                 const equipmentList = await DndApiService.getEquipment();
-                if (!equipmentList || !equipmentList.results) {
+                if (!equipmentList) {
                     throw new Error("A lista de equipamentos não pôde ser carregada.");
                 }
-                const unifiedEquipment = equipmentList.results as InventoryItem[];
+                
+                const unifiedEquipment = equipmentList as InventoryItem[];
                 setAllEquipment(unifiedEquipment);
 
                 const newCache: Record<string, InventoryItem[]> = {};
@@ -54,10 +55,10 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     add(item.equipment_category?.index, item);
                     add((item as any).gear_category?.index, item);
                     
-                    if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}`, item);
-                    if (item.armor_category) add(`${item.armor_category.toLowerCase()}`, item);
+                    if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}-weapons`, item);
+                    if (item.armor_category) add(`${item.armor_category.toLowerCase()}-armor`, item);
                 });
-
+                
                 // Adiciona categorias compostas
                 newCache['simple-melee-weapons'] = (newCache['simple-weapons'] || []).filter(i => i.weapon_range === 'Melee');
                 newCache['martial-melee-weapons'] = (newCache['martial-weapons'] || []).filter(i => i.weapon_range === 'Melee');
@@ -152,7 +153,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             ]);
             setClassDetails(details);
             
-            // Normalize levelsData. It might be an array or an object { "0": {...}, "1": {...} }
              const levels = Array.isArray(levelsData)
               ? levelsData
               : (levelsData ? Object.values(levelsData) : []);
