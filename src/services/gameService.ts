@@ -1,15 +1,11 @@
 // src/services/gameService.ts
 import { apiClient } from './apiClient';
-import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse, HomebrewContent } from "@/types";
+import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from "@/types";
 
 // --- Character Management ---
 
 export const getCharacters = async (): Promise<Character[]> => {
     return apiClient<Character[]>('/characters', { method: 'GET' });
-};
-
-export const getCharacterById = async (characterId: number): Promise<Character> => {
-    return apiClient<Character>(`/characters/${characterId}`, { method: 'GET' });
 };
 
 export const createNewCharacter = async (characterData: NewCharacterInfo) => {
@@ -77,14 +73,4 @@ export const processPlayerAction = async (
             useAiHomebrew,
         }),
     });
-};
-
-// --- Homebrew Details ---
-export const getHomebrewDetails = async (id: string): Promise<HomebrewContent | null> => {
-    try {
-        return await apiClient<HomebrewContent>(`/homebrew/${id}`);
-    } catch (error) {
-        console.error(`Failed to fetch homebrew details for id: ${id}`, error);
-        return null;
-    }
 };
