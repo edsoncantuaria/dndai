@@ -170,102 +170,106 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     }
 };
 
-/**
- * Cria uma cópia profunda de um personagem e todas as suas entidades relacionadas.
- * @param characterId O ID do personagem a ser clonado.
- * @param userId O ID do usuário que será o dono do clone.
- * @param newName Opcional. Um novo nome para o clone.
- * @returns O personagem recém-criado e salvo.
- */
 export const cloneCharacter = async (
   originalCharacterId: number,
   userId: number,
   newName?: string
 ): Promise<Character> => {
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+  const queryRunner = AppDataSource.createQueryRunner();
+  await queryRunner.connect();
+  await queryRunner.startTransaction();
 
-    try {
-        const characterRepo = queryRunner.manager.getRepository(Character);
+  try {
+    const characterRepo = queryRunner.manager.getRepository(Character);
+    const attrRepo = queryRunner.manager.getRepository(CharacterAttributes);
+    const profRepo = queryRunner.manager.getRepository(CharacterProficiency);
+    const itemRepo = queryRunner.manager.getRepository(CharacterItem);
+    const spellRepo = queryRunner.manager.getRepository(CharacterSpell);
 
-        const original = await characterRepo.findOne({
-            where: { id: originalCharacterId, userId },
-            relations: ["attributes", "items", "proficiencies", "spells", "journal", "relationships"],
-        });
+    const original = await characterRepo.findOne({
+      where: { id: originalCharacterId, userId },
+      relations: ["attributes", "items", "proficiencies", "spells"],
+    });
 
-        if (!original) {
-            throw createError(404, 'Personagem original não encontrado para clonagem.');
-        }
-
-        // 1. Cria a nova entidade Character principal
-        const clonedCharacter = characterRepo.create({
-            ...original,
-            id: undefined, // Garante que um novo ID será gerado
-            name: newName || `${original.name} (Clone)`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: undefined,
-            sessoes: [],
-            journal: [],
-        });
-        
-        const savedClone = await characterRepo.save(clonedCharacter);
-
-        // 2. Clona as entidades relacionadas, garantindo que novos IDs sejam gerados
-        // e que o characterId aponte para o novo personagem salvo.
-        if (original.attributes) {
-            const { id, characterId, ...safeAttributes } = original.attributes;
-            const clonedAttributes = queryRunner.manager.create(CharacterAttributes, {
-                ...safeAttributes,
-                characterId: savedClone.id,
-            });
-            await queryRunner.manager.save(clonedAttributes);
-        }
-
-        if (original.proficiencies?.length) {
-            const clonedProficiencies = original.proficiencies.map(p => {
-                const { id, characterId, ...safeProf } = p;
-                return queryRunner.manager.create(CharacterProficiency, {
-                    ...safeProf,
-                    characterId: savedClone.id,
-                })
-            });
-            await queryRunner.manager.save(clonedProficiencies);
-        }
-        
-        if (original.items?.length) {
-            const clonedItems = original.items.map(item => {
-                const { id, characterId, ...safeItem } = item;
-                return queryRunner.manager.create(CharacterItem, {
-                    ...safeItem,
-                    characterId: savedClone.id,
-                })
-            });
-            await queryRunner.manager.save(clonedItems);
-        }
-
-        if (original.spells?.length) {
-            const clonedSpells = original.spells.map(spell => {
-                const { id, characterId, ...safeSpell } = spell;
-                return queryRunner.manager.create(CharacterSpell, {
-                    ...safeSpell,
-                    characterId: savedClone.id,
-                })
-            });
-            await queryRunner.manager.save(clonedSpells);
-        }
-        
-        await queryRunner.commitTransaction();
-        return savedClone;
-
-    } catch (error) {
-        await queryRunner.rollbackTransaction();
-        console.error("Erro ao clonar personagem:", error);
-        throw createError(500, 'Falha ao clonar o personagem para a nova sessão.');
-    } finally {
-        await queryRunner.release();
+    if (!original) {
+      throw createError(404, "Personagem original não encontrado para clonagem.");
     }
+
+    // 🔹 Passo 1: cria o novo personagem sem copiar objetos anexados (evita cache de relação antiga)
+    const clonedCharacter = characterRepo.create({
+      userId,
+      name: newName || `${original.name} (Clone)`,
+      race: original.race,
+      subrace: original.subrace,
+      characterClass: original.characterClass,
+      subclassFlavor: original.subclassFlavor,
+      level: original.level,
+      background: original.background,
+      alignment: original.alignment,
+      backstory: original.backstory,
+      ideal: original.ideal,
+      bond: original.bond,
+      flaw: original.flaw,
+      sex: original.sex,
+      hairStyle: original.hairStyle,
+      beardStyle: original.beardStyle,
+      skinColor: original.skinColor,
+      feats: original.feats || [],
+      homebrewContentIds: original.homebrewContentIds || [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const savedClone = await characterRepo.save(clonedCharacter);
+
+    // 🔹 Passo 2: clonar atributos (garantindo que o antigo relacionamento não seja reutilizado)
+    if (original.attributes) {
+      const { id, characterId, ...safeAttributes } = original.attributes;
+
+      // verifica se há algo preso ao characterId (raro, mas seguro)
+      const existing = await attrRepo.findOne({ where: { characterId: savedClone.id } });
+      if (existing) await attrRepo.delete({ characterId: savedClone.id });
+
+      const clonedAttributes = attrRepo.create({
+        ...safeAttributes,
+        characterId: savedClone.id,
+      });
+      await attrRepo.save(clonedAttributes);
+    }
+
+    // 🔹 Passo 3: clonar proficiências
+    if (original.proficiencies?.length) {
+      const newProfs = original.proficiencies.map(({ id, characterId, ...safe }) =>
+        profRepo.create({ ...safe, characterId: savedClone.id })
+      );
+      await profRepo.save(newProfs);
+    }
+
+    // 🔹 Passo 4: clonar itens
+    if (original.items?.length) {
+      const newItems = original.items.map(({ id, characterId, ...safe }) =>
+        itemRepo.create({ ...safe, characterId: savedClone.id })
+      );
+      await itemRepo.save(newItems);
+    }
+
+    // 🔹 Passo 5: clonar magias
+    if (original.spells?.length) {
+      const newSpells = original.spells.map(({ id, characterId, ...safe }) =>
+        spellRepo.create({ ...safe, characterId: savedClone.id })
+      );
+      await spellRepo.save(newSpells);
+    }
+
+    await queryRunner.commitTransaction();
+    return savedClone;
+  } catch (error) {
+    await queryRunner.rollbackTransaction();
+    console.error("Erro ao clonar personagem:", error);
+    throw createError(500, "Falha ao clonar o personagem para a nova sessão.");
+  } finally {
+    await queryRunner.release();
+  }
 };
 
 
