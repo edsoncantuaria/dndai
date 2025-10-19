@@ -2,7 +2,7 @@
 import fetch from 'node-fetch';
 import redisClient from '../database/redis-client.js';
 
-const API_BASE = 'https://www.dnd5eapi.co/api/2014';
+const API_BASE = 'https://www.dnd5eapi.co/api';
 
 /**
  * Normaliza uma string para uso em chaves de cache.
@@ -81,10 +81,18 @@ export async function getResourceList(resource: string): Promise<{ count: number
 /**
  * Obtém detalhes de um item específico (ex: /classes/barbarian, /equipment/greataxe).
  * Garante que sempre retorne um objeto, mesmo em caso de falha, para segurança no merge.
+ * Adiciona normalização para endpoints /levels.
  */
 export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
   const key = cacheKey(resource, index);
-  return await fetchWithCache<any>(`/${resource}/${index}`, key) || {}; // Retorna objeto vazio em falha
+  const data = await fetchWithCache<any>(`/${resource}/${index}`, key);
+  
+  // Normaliza a resposta para endpoints /levels, retornando o array diretamente.
+  if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
+    return data.levels;
+  }
+
+  return data || {}; // Retorna objeto vazio em falha
 }
 
 /**

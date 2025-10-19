@@ -124,11 +124,16 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         }
         const fetchClass = async () => {
             setLoadingStates({ isLoading: true, message: 'Estudando as artes...', progress: 0 });
-            const [details, levels] = await Promise.all([
+            const [details, levelsData] = await Promise.all([
                 DndApiService.getClassDetails(characterClass),
                 DndApiService.getClassLevels(characterClass)
             ]);
             setClassDetails(details);
+            
+            // Normalize levelsData into an array if it's an object with a 'levels' property.
+            const levels = Array.isArray(levelsData)
+              ? levelsData
+              : (levelsData?.levels || []);
             setClassLevels(levels);
 
             if (details?.spellcasting) {
