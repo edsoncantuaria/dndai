@@ -87,106 +87,86 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-
+    
         const addEquipment = (list: any[] = [], source: string) => {
-            if (!Array.isArray(list)) {
-                console.warn(`[useDerivedCharacterData] addEquipment recebeu uma lista inválida da fonte: ${source}`);
-                return;
-            }
+            if (!Array.isArray(list)) return;
             list.forEach(item => {
                 if (item?.equipment?.index) {
-                    const normalizedIndex = item.equipment.index.replace(/^\/?api\/2014\//, '').split('/').pop();
+                    const normalizedIndex = item.equipment.index.replace(/^\/?api\/\d+\/equipment\//, '');
                     const itemDetails = allEquipment.find((e: any) => e && e.index === normalizedIndex);
                     if (itemDetails) {
-                        fixed.push({
-                            ...itemDetails,
-                            id: uuidv4(),
-                            quantity: item.quantity || 1,
-                            equipped: false,
-                        });
-                    } else {
-                        console.warn(`[useDerivedCharacterData] Item não encontrado na lista 'allEquipment' para o índice '${normalizedIndex}' da fonte '${source}'.`);
+                        fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
                     }
                 }
             });
         };
-
+    
         addEquipment(classDetails?.starting_equipment, 'Classe');
         addEquipment(backgroundDetails?.starting_equipment, 'Antecedente');
-
+    
         (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
         (backgroundDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
     
         const finalEquip: InventoryItem[] = [];
-        const processPromises: Promise<void>[] = [];
-        
-        const processEquipmentSelection = async () => {
-            for (const group of choiceGroups) {
-                const selection = equipmentSelections[group.id];
-                if (selection === undefined || selection.main === undefined || selection.main < 0) continue;
-        
-                let optionsSource: any[] | undefined = group.choice?.from?.options;
-
-                 if (!optionsSource && group.choice?.from?.equipment_category) {
-                    const cat = group.choice.from.equipment_category;
-                    const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
-                    const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
-                    
-                    let resolvedCategory = cacheKey && equipmentCategoryCache[cacheKey];
-
-                    if (!resolvedCategory?.length) {
-                        resolvedCategory = await resolveEquipmentCategory(categoryKey, equipmentCategoryCache);
-                    }
-                  
-                    if (resolvedCategory?.length) {
-                        optionsSource = resolvedCategory.map((item: InventoryItem) => ({
-                            option_type: 'counted_reference',
-                            count: 1,
-                            of: { index: item.index, name: item.name, url: (item as any).url || `/api/data/equipment/${item.index}` },
-                        }));
+    
+        for (const group of choiceGroups) {
+            const selection = equipmentSelections[group.id];
+            if (selection?.main === undefined || selection.main < 0) continue;
+    
+            let optionsSource: any[] | undefined = group.choice?.from?.options;
+            
+            if (!optionsSource && group.choice?.from?.equipment_category) {
+                const cat = group.choice.from.equipment_category;
+                const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+                const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
+                const resolvedCategory = cacheKey ? equipmentCategoryCache[cacheKey] : [];
+                if (resolvedCategory.length > 0) {
+                    optionsSource = resolvedCategory.map((item: InventoryItem) => ({
+                        option_type: 'counted_reference',
+                        count: 1,
+                        of: { index: item.index, name: item.name, url: (item as any).url || `/api/data/equipment/${item.index}` },
+                    }));
+                }
+            }
+            if (!optionsSource) continue;
+    
+            const mainOption = optionsSource[selection.main];
+            if (!mainOption) continue;
+    
+            const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
+                if (subOpt.option_type === 'counted_reference' && subOpt.of) {
+                    const normalizedIndex = subOpt.of.index.replace(/^\/?api\/\d+\/equipment\//, '');
+                    const item = allEquipment.find((e: any) => e.index === normalizedIndex);
+                    if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4(), equipped: false });
+                } else if (subOpt.option_type === 'choice') {
+                    const subSelection = selection.sub?.[subIndex];
+                    if (subSelection) {
+                        const normalizedIndex = subSelection.replace(/^\/?api\/\d+\/equipment\//, '');
+                        const item = allEquipment.find((e: any) => e.index === normalizedIndex);
+                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
                     }
                 }
-
-                if (!optionsSource) continue;
-        
-                const mainOption = optionsSource[selection.main];
-                if (!mainOption) continue;
-        
-                const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
-                    if (subOpt.option_type === 'counted_reference' && subOpt.of) {
-                        const item = allEquipment.find((e:any) => e.index === subOpt.of!.index);
-                        if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4(), equipped: false });
-                    } else if (subOpt.option_type === 'choice') {
-                        const subSelection = selection.sub?.[subIndex];
-                        if (subSelection) {
-                            const item = allEquipment.find((e:any) => e.index === subSelection);
-                            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
-                        }
-                    }
-                };
-        
-                if (mainOption.option_type === 'counted_reference' && mainOption.of) {
-                    const item = allEquipment.find((e:any) => e.index === mainOption.of!.index);
-                    if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4(), equipped: false });
-                } else if (mainOption.option_type === 'multiple' && mainOption.items) {
-                     mainOption.items.forEach(processSubOption);
-                } else if (mainOption.option_type === 'choice') {
-                    const source = mainOption.choice || mainOption;
-                    const iterations = source.choose || 1;
-                    for (let i = 0; i < iterations; i++) {
-                        const subSelection = selection.sub?.[i];
-                        if (subSelection) {
-                            const item = allEquipment.find((e:any) => e.index === subSelection);
-                            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
-                        }
+            };
+    
+            if (mainOption.option_type === 'counted_reference' && mainOption.of) {
+                const normalizedIndex = mainOption.of.index.replace(/^\/?api\/\d+\/equipment\//, '');
+                const item = allEquipment.find((e: any) => e.index === normalizedIndex);
+                if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4(), equipped: false });
+            } else if (mainOption.option_type === 'multiple' && mainOption.items) {
+                mainOption.items.forEach(processSubOption);
+            } else if (mainOption.option_type === 'choice') {
+                const source = mainOption.choice || mainOption;
+                const iterations = source.choose || 1;
+                for (let i = 0; i < iterations; i++) {
+                    const subSelection = selection.sub?.[i];
+                    if (subSelection) {
+                         const normalizedIndex = subSelection.replace(/^\/?api\/\d+\/equipment\//, '');
+                         const item = allEquipment.find((e:any) => e.index === normalizedIndex);
+                         if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
                     }
                 }
             }
-        };
-
-        processPromises.push(processEquipmentSelection());
-    
-        Promise.all(processPromises);
+        }
     
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
