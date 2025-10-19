@@ -12,6 +12,16 @@ export const normalizeKey = (str: string): string =>
     .replace(/--+/g, '-')
     .trim();
 
+export const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
+    if (!key || !cache) return null;
+    const nk = normalizeKey(key);
+    const keys = Object.keys(cache);
+    if (keys.includes(nk)) return nk;
+    const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
+    for (const v of variants) if (keys.includes(v)) return v;
+    return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
+};
+
 export async function buildEquipmentCache(): Promise<Record<string, InventoryItem[]>> {
   const equipmentList = await DndApiService.getEquipment();
   if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
@@ -172,3 +182,5 @@ export async function resolveEquipmentCategory(
     return [];
   }
 }
+
+    

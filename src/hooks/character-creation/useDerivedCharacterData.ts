@@ -87,8 +87,7 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-    
-        // ✅ Garantia: não processa até o cache estar pronto
+
         if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
             console.warn('[useDerivedCharacterData] allEquipment está vazio ou inválido. Retornando estado vazio.');
             return {
@@ -260,3 +259,5 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
+
+    
