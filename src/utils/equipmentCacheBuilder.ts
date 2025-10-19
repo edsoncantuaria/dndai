@@ -1,4 +1,3 @@
-
 // src/utils/equipmentCacheBuilder.ts
 import type { InventoryItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
@@ -25,14 +24,19 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
   if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
 
   const cache: Record<string, InventoryItem[]> = {};
+  
+  // CORREÇÃO: A função `add` agora itera corretamente sobre múltiplos itens.
   const add = (keys: string[], ...items: InventoryItem[]) => {
-    for (const k of keys.map(normalizeKey)) {
-      if (!k) continue;
-      if (!cache[k]) cache[k] = [];
+    keys.forEach((k) => {
+      const nk = normalizeKey(k);
+      if (!nk) return;
+      if (!cache[nk]) cache[nk] = [];
       for (const it of items) {
-        if (!cache[k].some(e => e.index === it.index)) cache[k].push(it);
+        if (!cache[nk].some(e => e.index === it.index)) {
+            cache[nk].push(it);
+        }
       }
-    }
+    });
   };
 
   // 🔹 Aliases globais conhecidos
@@ -40,10 +44,10 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     'holy-symbols': ['holy-symbol', 'holy symbols', 'holy symbol', 'símbolos sagrados'],
     'simple-weapons': ['simple-weapon', 'simple weapons', 'simple weapon', 'armas simples'],
     'martial-weapons': ['martial-weapon', 'martial weapons', 'martial weapon', 'armas marciais'],
-    'musical-instruments': ['musical instrument', 'instrumentos musicais', 'any other musical instrument'],
+    'musical-instruments': ['musical instrument', 'instrumentos musicais'],
     'arcane-foci': ['arcane focus', 'foco arcano', 'arcane focuses'],
     'druidic-foci': ['druidic focus', 'foco druídico', 'druidic focuses'],
-    'shield': ['shields', 'any shield', 'escudo', 'a shield'],
+    'shield': ['shields', 'any shield', 'escudo'],
   };
 
   for (const item of equipmentList) {
@@ -56,11 +60,13 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
       (item as any).gear_category?.index,
       item.weapon_category,
       item.armor_category,
-    ].filter(Boolean) as string[];
+    ]
+      .filter(Boolean)
+      .map(String);
 
     if (baseCats.length) add(baseCats, item);
 
-    // 🔸 Armas
+    // 🔸 Aliases universais para armas
     if (item.weapon_category) {
       const w = item.weapon_category.toLowerCase();
       add(
@@ -76,70 +82,74 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
       );
     }
     
-    // Armas corpo a corpo e à distância
-    if (item.weapon_range === 'Melee') {
-      add(
-        [
-          'melee-weapon',
-          'melee-weapons',
-          'melee weapon',
-          'simple melee weapon',
-          'martial melee weapon',
-          'any melee weapon',
-        ],
-        item
-      );
-    }
-    if (item.weapon_range === 'Ranged') {
-      add(
-        [
-          'ranged-weapon',
-          'ranged-weapons',
-          'ranged weapon',
-          'simple ranged weapon',
-          'martial ranged weapon',
-          'any ranged weapon',
-        ],
-        item
-      );
+    // Escudos
+    if (name.includes('shield')) {
+        add(['shield', 'shields', 'a-shield', 'any-shield'], item);
     }
 
-    // Itens específicos
+    // Símbolos sagrados
     if (
       index.includes('holy-symbol') ||
       name.includes('holy symbol') ||
-      item.equipment_category?.index === 'holy-symbols'
+      name.includes('amuleto') ||
+      name.includes('emblema') ||
+      name.includes('relicário')
     ) {
-      add(['holy-symbols'], item);
+      add(['holy-symbol', 'holy-symbols'], item);
     }
-    if (index.match(/(crystal|orb|rod|staff|wand)/)) {
-      add(['arcane-foci'], item);
+
+    // Focos arcanos
+    if (index.match(/(crystal|orb|rod|staff|wand)/i)) {
+      add(['arcane-foci', 'arcane-focus', 'an-arcane-focus'], item);
     }
-    if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/)) {
-      add(['druidic-foci'], item);
+
+    // Focos druidicos
+    if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) {
+      add(['druidic-foci', 'druidic-focus'], item);
     }
-    if (name.includes('shield')) {
-      add(['shield'], item);
+    
+    // Armas corpo a corpo e à distância
+    if (item.weapon_range === 'Melee') {
+        add(['melee-weapon', 'melee-weapons', 'melee weapon', 'simple melee weapon', 'martial melee weapon', 'any melee weapon'], item);
     }
+    if (item.weapon_range === 'Ranged') {
+        add(['ranged-weapon', 'ranged-weapons', 'ranged weapon', 'simple ranged weapon', 'martial ranged weapon', 'any ranged weapon'], item);
+    }
+
+    // Itens gerais
     if (item.equipment_category?.index === 'adventuring-gear') {
-      add(['gear', 'adventuring gear'], item);
+        add(['gear', 'adventuring gear'], item);
+    }
+     // Instrumentos Musicais
+    if (item.equipment_category?.index === 'musical-instrument') {
+        add(['musical-instruments', 'musical instrument', 'any other musical instrument'], item);
     }
   }
 
-  // 🔹 Agrupamentos compostos
-  const simpleWeapons = equipmentList.filter(i => i.weapon_category === 'Simple');
-  const martialWeapons = equipmentList.filter(i => i.weapon_category === 'Martial');
-  add(['simple-weapons'], ...simpleWeapons);
-  add(['martial-weapons'], ...martialWeapons);
+  /* --- Agrupamentos compostos --- */
+  const simpleWeapons = equipmentList.filter((i) => i.weapon_category === 'Simple');
+  const martialWeapons = equipmentList.filter((i) => i.weapon_category === 'Martial');
 
+  add(['simple-weapons', 'simple-weapon', 'any-simple-weapon'], ...simpleWeapons);
+  add(['martial-weapons', 'martial-weapon', 'any-martial-weapon'], ...martialWeapons);
+
+  // Fallback explícito para garantir que a categoria principal exista
+  if (!cache['holy-symbols']) {
+      cache['holy-symbols'] = equipmentList.filter(i =>
+          i.index.includes('holy-symbol') ||
+          i.equipment_category?.index === 'holy-symbols' ||
+          (i as any).gear_category?.index === 'holy-symbols'
+      );
+  }
+  
   // 🔹 Cria aliases explícitos
   for (const [base, aliases] of Object.entries(ALIASES)) {
     const baseKey = normalizeKey(base);
     if (!cache[baseKey]) continue;
     for (const alias of aliases) {
-      const aliasKey = normalizeKey(alias);
-      if (!cache[aliasKey]) {
-        cache[aliasKey] = cache[baseKey];
+      const nk = normalizeKey(alias);
+      if (!cache[nk] || cache[nk].length === 0) {
+        cache[nk] = cache[baseKey];
       }
     }
   }
