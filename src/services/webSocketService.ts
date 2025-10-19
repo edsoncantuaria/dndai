@@ -1,6 +1,6 @@
 // src/services/webSocketService.ts
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://backend-5e.edsin-server.space';
+const WEBSOCKET_URL = 'wss://backend-5e.edsin-server.space';
 
 let socket: WebSocket | null = null;
 let messageQueue: any[] = [];
