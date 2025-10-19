@@ -76,19 +76,6 @@ interface Props {
     nextStep: () => void;
 }
 
-const DAMAGE_TYPE_MAP: Record<string, string> = {
-    'Black': 'Ácido',
-    'Blue': 'Elétrico',
-    'Brass': 'Fogo',
-    'Bronze': 'Elétrico',
-    'Copper': 'Ácido',
-    'Gold': 'Fogo',
-    'Green': 'Veneno',
-    'Red': 'Fogo',
-    'Silver': 'Frio',
-    'White': 'Frio',
-};
-
 const NewStep1_RaceClass: React.FC<Props> = ({
     hook,
     races,
@@ -182,7 +169,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({
                             <option value="" disabled>Escolha sua linhagem...</option>
                             {draconicAncestryOptions.map(opt => {
                                 const dragonName = opt.name.replace('Draconic Ancestry: ', '');
-                                const damageType = DAMAGE_TYPE_MAP[dragonName] || 'Desconhecido';
+                                const damageType = opt.damage_type || 'Desconhecido';
                                 return (
                                     <option key={opt.index} value={opt.index}>
                                         {dragonName} (Sopro de {damageType})

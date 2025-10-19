@@ -13,7 +13,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     const [classLevels, setClassLevels] = useState<ApiClassLevel[] | null>(null);
     const [availableFeats, setAvailableFeats] = useState<Feat[]>([]);
     const [traitChoiceDetails, setTraitChoiceDetails] = useState<ApiTrait[]>([]);
-    const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<ApiListItem[]>([]);
+    const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<any[]>([]); // Será populado com detalhes
     const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
     const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
     
@@ -80,16 +80,38 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     useEffect(() => {
         if (!race) {
             setRaceDetails(null);
+            setDraconicAncestryOptions([]);
             return;
         }
         const fetchRace = async () => {
             setLoadingStates({ isLoading: true, message: 'Buscando linhagens...', progress: 50 });
             const details = await DndApiService.getRaceDetails(race);
             setRaceDetails(details);
+
             if (race === 'dragonborn') {
                 const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
                 if (ancestryTrait?.trait_specific?.subtrait_options?.from?.options) {
-                    setDraconicAncestryOptions(ancestryTrait.trait_specific.subtrait_options.from.options.map((o: any) => o.item));
+                    const ancestryRefs = ancestryTrait.trait_specific.subtrait_options.from.options.map((o: any) => o.item);
+                    
+                    // Busca os detalhes de cada ancestralidade para obter o tipo de dano
+                    const ancestryDetails = await fetchDetailsInChunks(
+                        ancestryRefs,
+                        DndApiService.getTraitDetails,
+                        () => {} // Progress opcional
+                    );
+                    
+                    const detailedOptions = ancestryDetails.map(detail => {
+                        if (detail && detail.trait_specific?.damage_type) {
+                            return {
+                                index: detail.index,
+                                name: detail.name,
+                                damage_type: detail.trait_specific.damage_type.name,
+                            };
+                        }
+                        return null;
+                    }).filter(Boolean);
+
+                    setDraconicAncestryOptions(detailedOptions);
                 }
             } else {
                 setDraconicAncestryOptions([]);
@@ -131,7 +153,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setClassDetails(details);
             
             // Normalize levelsData. It might be an array or an object { "0": {...}, "1": {...} }
-            const levels = Array.isArray(levelsData)
+             const levels = Array.isArray(levelsData)
               ? levelsData
               : (levelsData ? Object.values(levelsData) : []);
 
