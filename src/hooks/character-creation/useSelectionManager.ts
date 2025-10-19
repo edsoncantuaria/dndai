@@ -13,8 +13,7 @@ export const useSelectionManager = (
     state: CharacterCreatorState,
     details: any,
     allLanguages: ApiListItem[],
-    dispatch: React.Dispatch<CharacterCreatorAction>,
-    finalAttributes: Attributes,
+    dispatch: React.Dispatch<CharacterCreatorAction>
 ) => {
     const { 
         isVariantHuman, 
@@ -129,6 +128,7 @@ export const useSelectionManager = (
     }, [allLanguages, setField]);
 
      // --- SPELLS ---
+    
     const cantripsKnown = useMemo(() => {
         if (!classDetails?.spellcasting) return 0;
         const level1Data = details.classLevels?.find((l: any) => l.level === 1);
@@ -142,8 +142,7 @@ export const useSelectionManager = (
     const spellsKnown = useMemo(() => {
         if (!classDetails?.spellcasting || !characterClass) return 0;
     
-        // Classes that PREPARE spells (Cleric, Druid, Paladin) don't "know" a fixed number at level 1, they have access to their whole list.
-        // For our creator, this means they don't have to make choices here.
+        // Classes that PREPARE spells (Cleric, Druid, Paladin) don't "know" a fixed number at level 1.
         if (['cleric', 'druid', 'paladin'].includes(characterClass.toLowerCase())) {
             return 0;
         }
@@ -166,10 +165,9 @@ export const useSelectionManager = (
         // Default calculation for others like Bard if specific data is missing
         const mainStatShort = classDetails.spellcasting.spellcasting_ability.index;
         const mainStat: keyof Attributes = (Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).find(key => characterUtils.ATTRIBUTE_SHORT_MAP[key as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP] === mainStatShort) || 'wisdom') as keyof Attributes;
-        const modifier = characterUtils.calculateModifier(finalAttributes[mainStat] || 10);
+        const modifier = characterUtils.calculateModifier(state.baseAttributes[mainStat] || 10);
         return Math.max(1, modifier + state.level);
-    }, [classDetails, characterClass, finalAttributes, state.level, details.classLevels]);
-    
+    }, [classDetails, characterClass, state.baseAttributes, state.level, details.classLevels]);
 
     const handleClassSpellChange = useCallback((spellIndex: string) => {
         setField('chosenClassSpells', (prev: string[]) => {
@@ -194,6 +192,7 @@ export const useSelectionManager = (
             return prev;
         });
     }, [setField, classSpellOptions, subclassSpells, cantripsKnown, spellsKnown]);
+
 
     const handleRandomizeSpells = useCallback(() => {
         // Randomize Class Spells
@@ -309,6 +308,7 @@ export const useSelectionManager = (
         handleRacialSpellChange,
         handleRandomizeProficiencies,
         handleRandomizeLanguages,
+        handleRandomizeSpells,
         canProceedFromProficiencies,
         areClassSpellsSelected,
         areRacialSpellsSelected,
@@ -318,6 +318,5 @@ export const useSelectionManager = (
         racialSpellTraits,
         languageChoicesCount,
         setField,
-        handleRandomizeSpells,
     };
 };

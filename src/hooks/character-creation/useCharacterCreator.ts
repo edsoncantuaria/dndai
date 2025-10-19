@@ -6,7 +6,7 @@ import { useDataManager } from './useDataManager';
 import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
 import * as DndApiService from '../../services/dndApiService';
-import type { NewCharacterInfo, ProficiencyChoice, ApiListItem, Attributes } from '../../types';
+import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '../../types';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -39,10 +39,10 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const attributeManager = useAttributeManager(state, dispatch);
 
-    const derivedData = useDerivedCharacterData(state, details, selectionManager);
+    const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    // CORREÇÃO: Passar os atributos finais para o selectionManager
-    const selectionManager = useSelectionManager(state, details, allLanguages, dispatch, derivedData.finalAttributes);
+    // CORREÇÃO: Passar o selectionManager já criado para o derivedData.
+    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
 
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
@@ -189,7 +189,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         handleSubraceChange,
         handleClassChange,
         handleBackgroundChange,
-        handleRandomizeRaceAndClass, // Mantém esta função aqui
+        handleRandomizeRaceAndClass,
         fetchFeats,
         isComplete,
         buildCharacter,
