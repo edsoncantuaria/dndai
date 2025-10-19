@@ -32,13 +32,14 @@ const ItemChoiceSelector: React.FC<{
     const cacheKey = findCacheMatch(normalizeCategoryKey(categoryIndex), equipmentCategoryCache);
     const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
     
+    if (process.env.NODE_ENV === 'development' && !cacheKey && categoryIndex) {
+        console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: '${categoryIndex}' (chave normalizada: '${normalizeCategoryKey(categoryIndex)}').`);
+    }
+
+
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
-
-    if (subOptions.length === 0) {
-        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}' (chave normalizada: '${cacheKey}').`, "Cache dump:", equipmentCategoryCache);
-    }
 
     return (
          <div className="mt-2 pl-4 border-l-2 border-stone-600">
@@ -60,24 +61,41 @@ const ItemChoiceSelector: React.FC<{
 };
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-    if (!cache) return null;
-    const allKeys = Object.keys(cache);
-    if (allKeys.includes(key)) return key;
+  if (!cache || !key) return null;
+  const normalizedKey = key.toLowerCase().trim().replace(/\s+/g, '-');
+  const allKeys = Object.keys(cache);
 
-    const fallbackKeys = [
-        key.replace(/s$/, ''),
-        `${key}s`,
-        key.replace(/-weapon$/, '-weapons'),
-        key.replace(/-weapons$/, '-weapon'),
-    ];
+  // 🔹 Correspondência exata
+  if (allKeys.includes(normalizedKey)) return normalizedKey;
 
-    for (const fk of fallbackKeys) {
-        if (allKeys.includes(fk)) return fk;
-    }
+  // 🔹 Fallbacks plurais, singulares e compostos
+  const variants = [
+    normalizedKey,
+    normalizedKey.replace(/s$/, ''),
+    normalizedKey + 's',
+    normalizedKey.replace(/-weapons$/, '-weapon'),
+    normalizedKey.replace(/-weapon$/, '-weapons'),
+    normalizedKey.replace(/-symbols$/, '-symbol'),
+    normalizedKey.replace(/-symbol$/, '-symbols'),
+    normalizedKey.replace(/holy-symbols?/, 'holy-symbol'),
+    normalizedKey.replace(/simple-weapons?/, 'simple-weapon'),
+    normalizedKey.replace(/martial-weapons?/, 'martial-weapon'),
+    normalizedKey.replace(/ /g, '-'),
+  ];
 
-    const partialMatch = allKeys.find(k => k.includes(key) || key.includes(k));
-    return partialMatch || null;
-}
+  for (const variant of variants) {
+    const match = allKeys.find(k => k === variant);
+    if (match) return match;
+  }
+
+  // 🔹 Busca parcial (fallback leve)
+  const partial = allKeys.find(k =>
+    k.includes(normalizedKey) ||
+    normalizedKey.includes(k) ||
+    k.replace(/-/g, '').includes(normalizedKey.replace(/-/g, ''))
+  );
+  return partial || null;
+};
 
 
 const EquipmentOptionRenderer: React.FC<{
@@ -133,11 +151,12 @@ const EquipmentChoice: React.FC<{
         mainOptions = group.choice.from.options || [];
     } else if (group.choice?.from?.option_set_type === 'equipment_category') {
         const cat = group.choice.from.equipment_category;
-        const categoryKey = normalizeCategoryKey(typeof cat === 'string' ? cat : cat?.name || cat?.index);
+        const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
 
         if (process.env.NODE_ENV === 'development' && !cacheKey) {
-            console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
+            console.warn(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
+            console.log(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Chaves disponíveis no cache:`, Object.keys(equipmentCategoryCache));
         }
 
         if (cacheKey && equipmentCategoryCache[cacheKey]) {
@@ -147,12 +166,14 @@ const EquipmentChoice: React.FC<{
                 of: { index: item.index, name: item.name, url: item.url }
             }));
         } else {
-             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache`, equipmentCategoryCache);
+             if (process.env.NODE_ENV === 'development') {
+                console.error("[EquipmentChoice] Impossível renderizar opções para o grupo:", group);
+                console.log("[EquipmentChoice] Cache dump:", equipmentCategoryCache);
+            }
         }
     }
     
     if (mainOptions.length === 0) {
-        console.error("[EquipmentChoice] Impossível renderizar opções para o grupo:", group);
         return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
     }
     
@@ -176,10 +197,7 @@ const EquipmentChoice: React.FC<{
     );
 };
 
-const normalizeCategoryKey = (str: string) => {
-    if (!str) return '';
-    return str.toLowerCase().replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
-}
+
 
 
 const NewStep5_Equipment2: React.FC<{
