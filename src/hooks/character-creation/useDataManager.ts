@@ -33,8 +33,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
                 const equipmentList = await DndApiService.getEquipment();
-                if (!equipmentList) {
-                    throw new Error("A lista de equipamentos não pôde ser carregada.");
+                if (!Array.isArray(equipmentList)) { // Ensure it's an array now
+                    throw new Error("A lista de equipamentos não pôde ser carregada ou está em formato incorreto.");
                 }
                 
                 const unifiedEquipment = equipmentList as InventoryItem[];
@@ -57,6 +57,11 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     
                     if (item.weapon_category) add(`${item.weapon_category.toLowerCase()}-weapons`, item);
                     if (item.armor_category) add(`${item.armor_category.toLowerCase()}-armor`, item);
+
+                    // Manual categorization for special cases
+                    if (item.index.includes('holy-symbol') || item.name.toLowerCase().includes('amuleto') || item.name.toLowerCase().includes('emblema') || item.name.toLowerCase().includes('relicário')) add('holy-symbols', item);
+                    if (item.index.includes('crystal') || item.index.includes('orb') || item.index.includes('rod') || item.index.includes('staff') || item.index.includes('wand')) add('arcane-foci', item);
+                    if (item.index.includes('mistletoe') || item.index.includes('totem') || item.index.includes('wooden-staff') || item.index.includes('yew-wand')) add('druidic-foci', item);
                 });
                 
                 // Adiciona categorias compostas
@@ -69,6 +74,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
              } catch (error) {
                 console.error("Falha catastrófica ao carregar equipamentos:", error);
+                setEquipmentCategoryCache({}); // Set to empty object on failure
              } finally {
                 setLoadingStates({ isLoading: false, message: '', progress: 0 });
              }
