@@ -55,7 +55,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             setAllEquipment(equipmentList);
 
             // O cache de categorias ainda pode ser útil para seletores de UI.
-            const categoryCache = await buildEquipmentCache();
+            const categoryCache = await buildEquipmentCache(equipmentList);
             setEquipmentCategoryCache(categoryCache);
             console.log(`[useDataManager] 📦 Cache de categorias construído com ${Object.keys(categoryCache).length} categorias.`);
             console.log('[useDataManager] Categorias no cache:', Object.keys(categoryCache));

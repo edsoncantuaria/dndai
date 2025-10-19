@@ -46,12 +46,8 @@ export const findCacheMatch = (key: string, cache: Record<string, any[]>): strin
 /**
  * 🔹 Constrói o cache completo de equipamentos com aliases e fallbacks
  */
-export async function buildEquipmentCache(): Promise<Record<string, InventoryItem[]>> {
-  console.log('[EquipmentCache] Iniciando construção do cache de equipamentos...');
-  // A função getEquipment agora já retorna a lista detalhada.
-  const allEquipmentDetails = await DndApiService.getEquipment();
-  
-  console.log(`[EquipmentCache] ${allEquipmentDetails.length} detalhes de itens recebidos. Indexando...`);
+export async function buildEquipmentCache(allEquipmentDetails: InventoryItem[]): Promise<Record<string, InventoryItem[]>> {
+  console.log(`[EquipmentCache] 📦 Construindo cache com ${allEquipmentDetails.length} itens.`);
 
   const cache: Record<string, InventoryItem[]> = {};
 
@@ -160,8 +156,7 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     for (const alias of aliases) cache[normalizeKey(alias)] = list;
   }
   
-  console.log(`[✅ Equipment Cache Built] Cache reconstruído com ${allEquipmentDetails.length} itens.`);
-  console.log('[EquipmentCache] Categorias principais:', Object.keys(ALIASES));
+  console.log(`[✅ Equipment Cache Built] Cache reconstruído com ${Object.keys(cache).length} categorias indexadas.`);
 
 
   return cache;
