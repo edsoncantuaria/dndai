@@ -192,7 +192,17 @@ export const useSelectionManager = (
             return prev;
         });
     }, [setField, classSpellOptions, subclassSpells, cantripsKnown, spellsKnown]);
+    
+    const racialSpellTraits = useMemo(() => {
+        const traitsWithOptions = (details.traitChoiceDetails || [])
+            .filter((t:any) => t?.trait_specific?.spell_options);
 
+        return traitsWithOptions.map((t:any) => ({
+            traitName: t.name,
+            choose: t.trait_specific!.spell_options!.choose,
+            options: t.trait_specific!.spell_options!.from.options.map((o: any) => o.item)
+        }));
+    }, [details.traitChoiceDetails]);
 
     const handleRandomizeSpells = useCallback(() => {
         // Randomize Class Spells
@@ -241,16 +251,6 @@ export const useSelectionManager = (
         });
     }, [setField]);
     
-    const racialSpellTraits = useMemo(() => {
-        const traitsWithOptions = (details.traitChoiceDetails || [])
-            .filter((t:any) => t?.trait_specific?.spell_options);
-
-        return traitsWithOptions.map((t:any) => ({
-            traitName: t.name,
-            choose: t.trait_specific!.spell_options!.choose,
-            options: t.trait_specific!.spell_options!.from.options.map((o: any) => o.item)
-        }));
-    }, [details.traitChoiceDetails]);
 
     useEffect(() => {
         const fetchRacialSpellDetails = async () => {
