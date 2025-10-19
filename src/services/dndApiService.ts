@@ -120,16 +120,13 @@ export const getBackgroundDetails = (index: string) => getResourceDetails('backg
 export const getEquipment = async (): Promise<InventoryItem[]> => {
     // Se o cache já foi construído, retorna imediatamente.
     if (fullEquipmentListCache) {
-      console.log("[DndApiService] Retornando lista de equipamentos do cache em memória.");
       return fullEquipmentListCache;
     }
   
-    console.log("[DndApiService] Construindo lista de equipamentos detalhada...");
     const listResponse = await fetchList<ApiListItem>('/equipment');
     const equipmentList = listResponse.results.filter(item => item && item.index);
     
     if (!equipmentList || equipmentList.length === 0) {
-      console.error("[DndApiService] A lista inicial de equipamentos está vazia ou falhou ao carregar.");
       return [];
     }
   
@@ -137,15 +134,18 @@ export const getEquipment = async (): Promise<InventoryItem[]> => {
     const allEquipmentDetails = await fetchDetailsInChunks(
       equipmentList,
       (item) => getResourceDetails('equipment', item.index) as Promise<InventoryItem>,
-      (loaded, total, progress) => {
-        console.log(`[DndApiService] Carregando detalhes de equipamentos... ${loaded}/${total} (${progress.toFixed(0)}%)`);
-      }
+      () => {} // Progress callback optional
     );
   
-    const validDetails = allEquipmentDetails.filter((item): item is InventoryItem => !!item);
+    // ✅ Normaliza os índices de todos os equipamentos na fonte.
+    const validDetails = allEquipmentDetails
+      .filter((item): item is InventoryItem => !!item)
+      .map(item => ({
+          ...item,
+          index: item.index.replace(/^\/?api\/\d+\/equipment\//, ''),
+      }));
     
-    console.log(`[DndApiService] Lista de equipamentos detalhada construída com ${validDetails.length} itens.`);
-    fullEquipmentListCache = validDetails; // Salva a lista completa no cache
+    fullEquipmentListCache = validDetails; // Salva a lista completa e normalizada no cache
     return validDetails;
 };
 
