@@ -26,25 +26,35 @@ import type {
   InventoryItem
 } from '../types';
 
-// O backend unificado já usa /api/data, vamos manter consistência.
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/data';
 
-/* 🔹 Helper genérico de fetch */
+/* 🔹 Helper genérico de fetch (PRIVADO) */
 async function fetchJson<T>(endpoint: string): Promise<T> {
-  // O apiClient já adiciona /api, então não precisamos dele aqui.
-  // A rota no backend é /api/data, então o endpoint deve ser /data/...
   const finalEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const res = await apiClient<T>(finalEndpoint.replace('/api', ''));
   return res;
 }
 
-
-/* 🔹 Helper para listas no formato { results: [...] } */
+/* 🔹 Helper para listas (PÚBLICO) */
 async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ results: T[] }> {
   const data = await fetchJson<any>(endpoint);
-  // A API unificada já retorna um array, então essa normalização é uma camada extra de segurança.
   const results = Array.isArray(data) ? data : data?.results || [];
   return { results };
+}
+
+/* 🔹 Helper inteligente para detalhes (PÚBLICO) */
+export async function getResourceDetails(resource: string, index: string): Promise<any> {
+  const data = await fetchJson<any>(`/${resource}/${index}`);
+
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
+    return data.levels;
+  }
+
+  return data || {};
 }
 
 
@@ -52,44 +62,44 @@ async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ res
  * 🧬 Raças e Sub-raças
  * =========================================================== */
 export const getRaces = () => fetchList<ApiListItem>('/data/races');
-export const getRaceDetails = (index: string) => fetchJson<ApiRace>(`/data/races/${index}`);
+export const getRaceDetails = (index: string) => getResourceDetails('races', index) as Promise<ApiRace>;
 export const getSubraces = () => fetchList<ApiListItem>('/data/subraces');
-export const getSubraceDetails = (index: string) => fetchJson<ApiSubrace>(`/data/subraces/${index}`);
+export const getSubraceDetails = (index: string) => getResourceDetails('subraces', index) as Promise<ApiSubrace>;
 
 /* ===========================================================
  * 🧑‍🎓 Classes, Subclasses e Níveis
  * =========================================================== */
 export const getClasses = () => fetchList<ApiListItem>('/data/classes');
-export const getClassDetails = (index: string) => fetchJson<ApiClass>(`/data/classes/${index}`);
-export const getClassLevels = (index: string) => fetchJson<ApiClassLevel[]>(`/data/classes/${index}/levels`);
+export const getClassDetails = (index: string) => getResourceDetails('classes', index) as Promise<ApiClass>;
+export const getClassLevels = (index: string) => getResourceDetails(`classes/${index}`, 'levels') as Promise<ApiClassLevel[]>;
 export const getSubclasses = () => fetchList<ApiListItem>('/data/subclasses');
-export const getSubclassDetails = (index: string) => fetchJson<ApiSubclass>(`/data/subclasses/${index}`);
-export const getSubclassLevels = (index: string) => fetchJson<ApiClassLevel[]>(`/data/subclasses/${index}/levels`);
+export const getSubclassDetails = (index: string) => getResourceDetails('subclasses', index) as Promise<ApiSubclass>;
+export const getSubclassLevels = (index: string) => getResourceDetails(`subclasses/${index}`, 'levels') as Promise<ApiClassLevel[]>;
 export const getSpellsForClass = (index: string) => fetchList<ApiListItem>(`/data/classes/${index}/spells`);
-export const getStartingEquipment = (index: string) => fetchJson<any>(`/data/classes/${index}/starting-equipment`);
-export const getMultiClassing = (index: string) => fetchJson<any>(`/data/classes/${index}/multi-classing`);
+export const getStartingEquipment = (index: string) => getResourceDetails(`classes/${index}`, 'starting-equipment');
+export const getMultiClassing = (index: string) => getResourceDetails(`classes/${index}`, 'multi-classing');
 
 /* ===========================================================
  * 🔮 Magias e Escolas
  * =========================================================== */
 export const getSpells = () => fetchList<ApiListItem>('/data/spells');
-export const getSpellDetails = (index: string) => fetchJson<ApiSpell>(`/data/spells/${index}`);
+export const getSpellDetails = (index: string) => getResourceDetails('spells', index) as Promise<ApiSpell>;
 export const getMagicSchools = () => fetchList<ApiListItem>('/data/magic-schools');
-export const getMagicSchoolDetails = (index: string) => fetchJson<ApiMagicSchool>(`/data/magic-schools/${index}`);
+export const getMagicSchoolDetails = (index: string) => getResourceDetails('magic-schools', index) as Promise<ApiMagicSchool>;
 
 /* ===========================================================
  * 🎭 Backgrounds
  * =========================================================== */
 export const getBackgrounds = () => fetchList<ApiListItem>('/data/backgrounds');
-export const getBackgroundDetails = (index: string) => fetchJson<ApiBackground>(`/data/backgrounds/${index}`);
+export const getBackgroundDetails = (index: string) => getResourceDetails('backgrounds', index) as Promise<ApiBackground>;
 
 /* ===========================================================
  * ⚔️ Equipamentos
  * =========================================================== */
 export const getEquipment = () => fetchList<InventoryItem>('/data/equipment');
-export const getEquipmentDetails = (index: string) => fetchJson<InventoryItem>(`/data/equipment/${index}`);
+export const getEquipmentDetails = (index: string) => getResourceDetails('equipment', index) as Promise<InventoryItem>;
 export const getWeaponProperties = () => fetchList<ApiListItem>('/data/weapon-properties');
-export const getWeaponPropertyDetails = (index: string) => fetchJson<ApiWeaponProperty>(`/data/weapon-properties/${index}`);
+export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;
 export const getEquipmentCategories = () => fetchList<ApiListItem>('/data/equipment-categories');
 
 
@@ -97,45 +107,45 @@ export const getEquipmentCategories = () => fetchList<ApiListItem>('/data/equipm
  * 💪 Habilidades, Proficiências e Idiomas
  * =========================================================== */
 export const getAbilityScores = () => fetchList<ApiListItem>('/data/ability-scores');
-export const getAbilityScoreDetails = (index: string) => fetchJson<ApiAbilityScore>(`/data/ability-scores/${index}`);
+export const getAbilityScoreDetails = (index: string) => getResourceDetails('ability-scores', index) as Promise<ApiAbilityScore>;
 export const getSkills = () => fetchList<ApiListItem>('/data/skills');
-export const getSkillDetails = (index: string) => fetchJson<any>(`/data/skills/${index}`);
+export const getSkillDetails = (index: string) => getResourceDetails('skills', index) as Promise<ApiSkill>;
 export const getProficiencies = () => fetchList<ApiListItem>('/data/proficiencies');
-export const getProficiencyDetails = (index: string) => fetchJson<any>(`/data/proficiencies/${index}`);
+export const getProficiencyDetails = (index: string) => getResourceDetails('proficiencies', index) as Promise<ApiProficiency>;
 export const getLanguages = () => fetchList<ApiListItem>('/data/languages');
-export const getLanguageDetails = (index: string) => fetchJson<any>(`/data/languages/${index}`);
+export const getLanguageDetails = (index: string) => getResourceDetails('languages', index) as Promise<ApiLanguage>;
 
 /* ===========================================================
  * 🧩 Traits, Features e Feats
  * =========================================================== */
 export const getTraits = () => fetchList<ApiListItem>('/data/traits');
-export const getTraitDetails = (index: string) => fetchJson<ApiTrait>(`/data/traits/${index}`);
+export const getTraitDetails = (index: string) => getResourceDetails('traits', index) as Promise<ApiTrait>;
 export const getFeatures = () => fetchList<ApiListItem>('/data/features');
-export const getFeatureDetails = (index: string) => fetchJson<ApiFeature>(`/data/features/${index}`);
+export const getFeatureDetails = (index: string) => getResourceDetails('features', index) as Promise<ApiFeature>;
 export const getFeats = () => fetchList<ApiListItem>('/data/feats');
-export const getFeatDetails = (index: string) => fetchJson<Feat>(`/data/feats/${index}`);
+export const getFeatDetails = (index: string) => getResourceDetails('feats', index) as Promise<Feat>;
 
 /* ===========================================================
  * 🧟 Monstros
  * =========================================================== */
 export const getMonsters = () => fetchList<ApiListItem>('/data/monsters');
-export const getMonsterDetails = (index: string) => fetchJson<any>(`/data/monsters/${index}`);
+export const getMonsterDetails = (index: string) => getResourceDetails('monsters', index) as Promise<ApiMonster>;
 
 /* ===========================================================
  * 📜 Regras e Seções
  * =========================================================== */
 export const getRules = () => fetchList<ApiListItem>('/data/rules');
-export const getRuleDetails = (index: string) => fetchJson<ApiRule>(`/data/rules/${index}`);
+export const getRuleDetails = (index: string) => getResourceDetails('rules', index) as Promise<ApiRule>;
 export const getRuleSections = () => fetchList<ApiListItem>('/data/rule-sections');
-export const getRuleSectionDetails = (index: string) => fetchJson<ApiRuleSection>(`/data/rule-sections/${index}`);
+export const getRuleSectionDetails = (index: string) => getResourceDetails('rule-sections', index) as Promise<ApiRuleSection>;
 
 /* ===========================================================
  * ⚖️ Condições e Alinhamentos
  * =========================================================== */
 export const getConditions = () => fetchList<ApiListItem>('/data/conditions');
-export const getConditionDetails = (index: string) => fetchJson<ApiCondition>(`/data/conditions/${index}`);
+export const getConditionDetails = (index: string) => getResourceDetails('conditions', index) as Promise<ApiCondition>;
 export const getAlignments = () => fetchList<ApiListItem>('/data/alignments');
-export const getAlignmentDetails = (index: string) => fetchJson<ApiAlignment>(`/data/alignments/${index}`);
+export const getAlignmentDetails = (index: string) => getResourceDetails('alignments', index) as Promise<ApiAlignment>;
 
 
 /* ===========================================================
@@ -147,7 +157,7 @@ const DndApiService = {
 
   // Classes
   getClasses, getClassDetails, getClassLevels, getSubclasses, getSubclassDetails,
-  getSpellsForClass, getStartingEquipment, getMultiClassing,
+  getSpellsForClass, getStartingEquipment, getMultiClassing, getSubclassLevels,
 
   // Spells
   getSpells, getSpellDetails, getMagicSchools, getMagicSchoolDetails,
