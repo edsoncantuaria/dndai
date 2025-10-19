@@ -48,24 +48,21 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
         setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
         try {
-            // A função getEquipment agora retorna a lista detalhada e já faz cache.
+            console.log('[useDataManager] 🚀 Iniciando carregamento de equipamentos...');
             const equipmentList = await DndApiService.getEquipment();
+            
+            console.log(`[useDataManager] ✅ Equipamentos recebidos: ${equipmentList.length} itens.`);
             setAllEquipment(equipmentList);
-            console.log(`[useDataManager] Lista de equipamentos carregada com ${equipmentList.length} itens.`);
 
             // O cache de categorias ainda pode ser útil para seletores de UI.
-            const categoryCache: Record<string, InventoryItem[]> = {};
-            equipmentList.forEach(item => {
-                const categoryKey = item.equipment_category?.index;
-                if(categoryKey) {
-                    if (!categoryCache[categoryKey]) categoryCache[categoryKey] = [];
-                    categoryCache[categoryKey].push(item);
-                }
-            });
+            const categoryCache = await buildEquipmentCache();
             setEquipmentCategoryCache(categoryCache);
+            console.log(`[useDataManager] 📦 Cache de categorias construído com ${Object.keys(categoryCache).length} categorias.`);
+            console.log('[useDataManager] Categorias no cache:', Object.keys(categoryCache));
+
 
         } catch (err) {
-            console.error('[useDataManager] Falha ao carregar equipamentos:', err);
+            console.error('[useDataManager] ❌ Falha ao carregar equipamentos:', err);
         } finally {
             setLoadingStates({ isLoading: false, message: '', progress: 0 });
         }
