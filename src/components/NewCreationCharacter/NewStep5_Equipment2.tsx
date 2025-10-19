@@ -16,8 +16,9 @@ const ItemChoiceSelector: React.FC<{
     
     let categoryIndex = '';
     // A API D&D pode usar 'equipment_category' ou 'options' para definir a fonte.
-    if (choice?.from?.equipment_category?.index) {
-        categoryIndex = choice.from.equipment_category.index;
+    if (choice?.from?.equipment_category) {
+        const cat = choice.from.equipment_category;
+        categoryIndex = typeof cat === 'string' ? cat : cat?.index;
     } else {
         // Se for um array de opções, não precisamos buscar no cache de categorias.
         const subOptions = choice?.from?.options?.map((opt: any) => opt.item);
@@ -121,11 +122,18 @@ const EquipmentChoice: React.FC<{
     if (group.choice?.from?.option_set_type === 'options_array' && group.choice?.from?.options) {
         mainOptions = group.choice.from.options;
     } else if (group.choice?.from?.option_set_type === 'equipment_category' && group.choice?.from?.equipment_category) {
-        mainOptions = (equipmentCategoryCache[group.choice.from.equipment_category.index] || []).map(item => ({
+        const cat = group.choice.from.equipment_category;
+        const catIndex = typeof cat === 'string' ? cat : cat?.index;
+
+        mainOptions = (equipmentCategoryCache[catIndex] || []).map((item: any) => ({
             option_type: 'counted_reference',
-            count: 1, // Assumindo 1 por padrão se não especificado
+            count: 1,
             of: { index: item.index, name: item.name, url: item.url }
         }));
+    
+        if (mainOptions.length === 0) {
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: ${catIndex}`);
+        }
     }
     
     if (mainOptions.length === 0) return null;
