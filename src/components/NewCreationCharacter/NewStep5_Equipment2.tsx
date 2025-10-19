@@ -5,44 +5,17 @@ import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCrea
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
+import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
   if (!key || !cache) return null;
-  const normalizedKey = key.toLowerCase().trim().replace(/\s+/g, '-');
-  const allKeys = Object.keys(cache);
-
-  // 🔹 Correspondência exata
-  if (allKeys.includes(normalizedKey)) return normalizedKey;
-
-  // 🔹 Fallbacks plurais, singulares e compostos
-  const variants = [
-    normalizedKey,
-    normalizedKey.replace(/s$/, ''),
-    normalizedKey + 's',
-    normalizedKey.replace(/-weapons$/, '-weapon'),
-    normalizedKey.replace(/-weapon$/, '-weapons'),
-    normalizedKey.replace(/-symbols$/, '-symbol'),
-    normalizedKey.replace(/-symbol$/, '-symbols'),
-    normalizedKey.replace(/holy-symbols?/, 'holy-symbol'),
-    normalizedKey.replace(/simple-weapons?/, 'simple-weapon'),
-    normalizedKey.replace(/martial-weapons?/, 'martial-weapon'),
-    normalizedKey.replace(/ /g, '-'),
-  ];
-
-  for (const variant of variants) {
-    const match = allKeys.find(k => k === variant);
-    if (match) return match;
-  }
-
-  // 🔹 Busca parcial (fallback leve)
-  const partial = allKeys.find(k =>
-    k.includes(normalizedKey) ||
-    normalizedKey.includes(k) ||
-    k.replace(/-/g, '').includes(normalizedKey.replace(/-/g, ''))
-  );
-  return partial || null;
+  const nk = normalizeKey(key);
+  const keys = Object.keys(cache);
+  if (keys.includes(nk)) return nk;
+  const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
+  for (const v of variants) if (keys.includes(v)) return v;
+  return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
 };
-
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -137,13 +110,11 @@ const EquipmentChoice: React.FC<{
 }> = ({ group, hook }) => {
     const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
+    const [lazyItems, setLazyItems] = useState<InventoryItem[] | null>(null);
+    const [lazyLoading, setLazyLoading] = useState(false);
 
-    if (!equipmentCategoryCache) {
-      return <p className="text-stone-500 text-xs italic">Carregando categorias...</p>;
-    }
-    
     let mainOptions: ApiEquipmentOption[] = [];
-    
+
     if (group.choice?.from?.option_set_type === 'options_array') {
         mainOptions = group.choice.from.options || [];
     } else if (group.choice?.from?.option_set_type === 'equipment_category') {
@@ -151,25 +122,35 @@ const EquipmentChoice: React.FC<{
         const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
 
-        if (!cacheKey) {
-            console.error(`[EquipmentChoice] Impossível renderizar opções para o grupo:`, group);
-        }
+        const source = cacheKey ? equipmentCategoryCache[cacheKey] : lazyItems;
 
-        if (cacheKey && equipmentCategoryCache[cacheKey]) {
-            mainOptions = equipmentCategoryCache[cacheKey].map(item => ({
+        if (source?.length) {
+            mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url }
+                of: { index: item.index, name: item.name, url: item.url },
             }));
-        } else {
-             if (process.env.NODE_ENV === 'development') {
-                console.error("[EquipmentChoice] Impossível renderizar opções para o grupo:", group);
-            }
+        } else if (!lazyItems && !lazyLoading && categoryKey) {
+            setLazyLoading(true);
+            resolveEquipmentCategory(categoryKey, equipmentCategoryCache)
+                .then((items) => setLazyItems(items))
+                .finally(() => setLazyLoading(false));
         }
     }
     
-    if (mainOptions.length === 0) {
-        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
+    if (lazyLoading) {
+        return <p className="text-stone-400 text-xs italic">Carregando opções de {group.choice?.from?.equipment_category?.name || 'categoria'}…</p>;
+    }
+
+    if (!mainOptions.length) {
+        const categoryName = group.choice?.from?.equipment_category?.name || 'categoria desconhecida';
+        if (process.env.NODE_ENV === 'development') {
+            const catKey = group.choice?.from?.equipment_category?.index || 'N/A';
+            const nk = normalizeKey(catKey);
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${nk}'.`);
+            console.log("[EquipmentChoice] Cache dump:", equipmentCategoryCache);
+        }
+        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryName}'. Verifique o cache.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
@@ -191,8 +172,6 @@ const EquipmentChoice: React.FC<{
         </div>
     );
 };
-
-
 
 
 const NewStep5_Equipment2: React.FC<{

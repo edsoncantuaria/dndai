@@ -2,23 +2,16 @@
 import type { InventoryItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 
-/**
- * 🔹 Normaliza uma string em formato de chave
- * Ex: "Holy Symbols" -> "holy-symbols"
- */
 export const normalizeKey = (str: string): string =>
-  str
-    ?.toLowerCase()
-    ?.normalize('NFD')
-    ?.replace(/[\u0300-\u036f]/g, '') // remove acentos
-    ?.replace(/\s+/g, '-')
-    ?.replace(/[^a-z0-9-]/g, '')
-    ?.replace(/--+/g, '-')
-    ?.trim();
+  String(str ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/--+/g, '-')
+    .trim();
 
-/**
- * 🔹 Cria o cache global de equipamentos categorizados
- */
 export async function buildEquipmentCache(): Promise<Record<string, InventoryItem[]>> {
   const equipmentList = await DndApiService.getEquipment();
   if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
@@ -26,50 +19,34 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
   const cache: Record<string, InventoryItem[]> = {};
 
   const add = (keys: string[], ...items: InventoryItem[]) => {
-    for (const k of keys.map(normalizeKey)) {
+    for (const k0 of keys) {
+      const k = normalizeKey(k0);
       if (!k) continue;
       if (!cache[k]) cache[k] = [];
       for (const it of items) {
-        // Evita adicionar duplicatas à mesma chave
-        if (it && it.index && !cache[k].some(e => e.index === it.index)) {
-            cache[k].push(it);
-        }
+        if (!it?.index) continue;
+        if (!cache[k].some((e) => e.index === it.index)) cache[k].push(it);
       }
     }
   };
 
-  /** Aliases globais conhecidos (SRD + Homebrew) */
   const ALIASES: Record<string, string[]> = {
-    'holy-symbols': [
-      'holy-symbol', 'holy symbols', 'holy symbol', 'símbolos sagrados',
-      'símbolo sagrado', 'símbolo', 'holy symbols category'
-    ],
-    'simple-weapons': [
-      'simple-weapon', 'simple weapons', 'simple weapon', 'armas simples'
-    ],
-    'martial-weapons': [
-      'martial-weapon', 'martial weapons', 'martial weapon', 'armas marciais'
-    ],
-    'musical-instruments': [
-      'musical instrument', 'instrumentos musicais', 'any musical instrument'
-    ],
-    'arcane-foci': [
-      'arcane focus', 'foco arcano', 'arcane focuses', 'arcane-focus'
-    ],
-    'druidic-foci': [
-      'druidic focus', 'foco druídico', 'druidic focuses', 'druidic-focus'
-    ],
-    'shield': ['shields', 'any shield', 'escudo', 'a shield'],
+    'holy-symbols': ['holy-symbol', 'holy symbols', 'holy symbol', 'símbolos sagrados', 'símbolo sagrado', 'símbolo'],
+    'simple-weapons': ['simple-weapon', 'armas simples'],
+    'martial-weapons': ['martial-weapon', 'armas marciais'],
+    'musical-instruments': ['musical-instrument', 'instrumentos musicais', 'any other musical instrument'],
+    'arcane-foci': ['arcane-focus', 'foco arcano', 'arcane focuses'],
+    'druidic-foci': ['druidic-focus', 'foco druídico', 'druidic focuses'],
+    shield: ['shields', 'a-shield', 'any-shield', 'escudo'],
   };
 
-  /** 🔹 Percorre todos os itens e os insere nas categorias adequadas */
+  // Passo 1: indexar tudo que vier da lista base
   for (const item of equipmentList) {
     if (!item) continue;
 
-    const name = item.name.toLowerCase();
-    const index = item.index.toLowerCase();
+    const name = item.name?.toLowerCase() ?? '';
+    const index = item.index?.toLowerCase() ?? '';
 
-    // Categorias base do SRD
     const categories = [
       item.equipment_category?.index,
       (item as any).gear_category?.index,
@@ -82,90 +59,147 @@ export async function buildEquipmentCache(): Promise<Record<string, InventoryIte
     // Armas
     if (item.weapon_category) {
       const w = item.weapon_category.toLowerCase();
-      add([`${w}-weapon`, `${w}-weapons`, `${w} weapon`, `any ${w} weapon`], item);
+      add(
+        [
+          `${w}-weapon`,
+          `${w}-weapons`,
+          `${w} weapon`,
+          `${w} weapons`,
+          `any ${w} weapon`,
+          `any ${w} weapons`,
+        ],
+        item
+      );
     }
-    
+
     // Escudos
-    if (name.includes('shield')) add(['shield', 'shields', 'a-shield', 'any-shield'], item);
-    
+    if (name.includes('shield')) {
+      add(['shield', 'shields', 'a shield', 'any shield'], item);
+    }
+
+    // Símbolos Sagrados
+    if (
+      index.includes('holy-symbol') ||
+      name.includes('holy symbol') ||
+      ['amulet', 'emblem', 'reliquary'].includes(index) ||
+      item.equipment_category?.index === 'holy-symbols' ||
+      (item as any).gear_category?.index === 'holy-symbols'
+    ) {
+      add(['holy-symbols', 'holy-symbol'], item);
+    }
+
     // Focos Arcanos
-    if (index.match(/(crystal|orb|rod|staff|wand)/i)) add(['arcane-foci', 'arcane-focus'], item);
-    
+    if (/(crystal|orb|rod|staff|wand)/i.test(index))
+      add(['arcane-foci', 'arcane-focus'], item);
+
     // Focos Druidicos
-    if (index.match(/(mistletoe|totem|wooden-staff|yew-wand)/i)) add(['druidic-foci', 'druidic-focus'], item);
-    
+    if (/(mistletoe|totem|wooden-staff|yew-wand)/i.test(index))
+      add(['druidic-foci', 'druidic-focus'], item);
+
+    // Armas corpo a corpo e à distância
+    if (item.weapon_range === 'Melee') {
+      add(
+        [
+          'melee-weapon',
+          'melee-weapons',
+          'melee weapon',
+          'simple melee weapon',
+          'martial melee weapon',
+          'any melee weapon',
+        ],
+        item
+      );
+    }
+    if (item.weapon_range === 'Ranged') {
+      add(
+        [
+          'ranged-weapon',
+          'ranged-weapons',
+          'ranged weapon',
+          'simple ranged weapon',
+          'martial ranged weapon',
+          'any ranged weapon',
+        ],
+        item
+      );
+    }
+
     // Equipamento de aventureiro
-    if (item.equipment_category?.index === 'adventuring-gear') add(['gear', 'adventuring gear'], item);
-    
+    if (item.equipment_category?.index === 'adventuring-gear') {
+      add(['gear', 'adventuring gear'], item);
+    }
+
     // Instrumentos Musicais
-    if (item.equipment_category?.index === 'musical-instruments') add(['musical-instruments', 'musical instrument'], item);
+    if (
+      item.equipment_category?.index === 'musical-instruments' ||
+      item.equipment_category?.index === 'musical-instrument'
+    ) {
+      add(['musical-instruments', 'musical-instrument', 'any other musical instrument'], item);
+    }
   }
 
-  /* --- Agrupamentos compostos e fallbacks críticos --- */
-  const simpleWeapons = equipmentList.filter(i => i.weapon_category === 'Simple');
-  const martialWeapons = equipmentList.filter(i => i.weapon_category === 'Martial');
-  const holySymbols = equipmentList.filter(i =>
-    i.equipment_category?.index === 'holy-symbols' ||
-    (i as any).gear_category?.index === 'holy-symbols' || // Verifica gear_category também
-    i.index.includes('holy-symbol') ||
-    ['amulet', 'emblem', 'reliquary'].includes(i.index)
-  );
+  // Passo 2: garantir que as categorias críticas tenham itens
+  async function ensureCategory(key: string) {
+    const nk = normalizeKey(key);
+    const has = cache[nk]?.length;
+    if (has) return;
 
-  add(['simple-weapons', 'simple-weapon', 'any-simple-weapon'], ...simpleWeapons);
-  add(['martial-weapons', 'martial-weapon', 'any-martial-weapon'], ...martialWeapons);
-  add(['holy-symbols', 'holy-symbol'], ...holySymbols);
-
-  /* --- Criação de aliases explícitos --- */
-  for (const [base, aliases] of Object.entries(ALIASES)) {
-    const baseKey = normalizeKey(base);
-    if (!cache[baseKey] || cache[baseKey].length === 0) {
-        if (process.env.NODE_ENV === 'development') {
-            console.warn(`[EquipmentCache] A categoria base '${baseKey}' para aliases está vazia ou ausente.`);
-        }
-        continue;
-    };
-    for (const alias of aliases) {
-      const nk = normalizeKey(alias);
-      if(!cache[nk] || cache[nk].length === 0) {
-        cache[nk] = cache[baseKey];
+    try {
+      const details = await DndApiService.getEquipmentCategoryDetails(nk);
+      const raw = (details?.equipment || details?.results || []) as Array<{ index: string; name: string; url?: string }>;
+      const items: InventoryItem[] = raw
+        .filter(Boolean)
+        .map((i) => ({ index: i.index, name: i.name, url: i.url ?? `/api/2014/equipment/${i.index}` })) as InventoryItem[];
+      if (items.length) add([nk], ...items);
+    } catch {
+      // silencioso em prod; se quiser, log em dev
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[EquipmentCache] Fallback falhou para categoria: ${nk}`);
       }
     }
   }
 
+  await Promise.all([
+    ensureCategory('holy-symbols'),
+    ensureCategory('simple-weapons'),
+    ensureCategory('martial-weapons'),
+    ensureCategory('musical-instruments'),
+  ]);
+
+  // Passo 3: aliases explícitos
+  for (const [base, aliases] of Object.entries(ALIASES)) {
+    const baseKey = normalizeKey(base);
+    const list = cache[baseKey];
+    if (!list?.length) continue;
+    for (const alias of aliases) cache[normalizeKey(alias)] = list;
+  }
+
   if (process.env.NODE_ENV === 'development') {
     console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
-    console.log('Categorias disponíveis:', Object.keys(cache));
-    console.log('Itens em "holy-symbols":', cache['holy-symbols']?.map(i => i.name) || 'Nenhum');
-    console.log('Itens em "simple-weapons":', cache['simple-weapons']?.map(i => i.name) || 'Nenhum');
-    console.log('Itens em "martial-weapons":', cache['martial-weapons']?.map(i => i.name) || 'Nenhum');
+    console.log('Categorias:', Object.keys(cache));
+    console.log('holy-symbols:', cache['holy-symbols']?.map((i) => i.name));
     console.groupEnd();
   }
 
   return cache;
 }
 
-/**
- * 🔹 Resolve categoria (com fallback dinâmico na API se necessário)
- */
 export async function resolveEquipmentCategory(
   key: string,
   cache: Record<string, InventoryItem[]>
 ): Promise<InventoryItem[]> {
   const nk = normalizeKey(key);
-  if (cache[nk]) return cache[nk];
+  if (cache[nk]?.length) return cache[nk];
 
   try {
     const category = await DndApiService.getEquipmentCategoryDetails(nk);
-    if (category?.equipment) {
-      const list = category.equipment as InventoryItem[];
-      cache[nk] = list; // Salva no cache para futuras buscas
-      return list;
-    }
-  } catch (err: any) {
-    if (process.env.NODE_ENV === 'development') {
-        console.warn(`[EquipmentCache] Fallback falhou para categoria: ${nk} (${err?.message})`);
-    }
+    const raw = (category?.equipment || category?.results || []) as Array<{ index: string; name: string; url?: string }>;
+    const list: InventoryItem[] = raw
+      .filter(Boolean)
+      .map((i) => ({ index: i.index, name: i.name, url: i.url ?? `/api/2014/equipment/${i.index}` })) as InventoryItem[];
+    if (list.length) cache[nk] = list;
+    return list;
+  } catch {
+    return [];
   }
-
-  return [];
 }

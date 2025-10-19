@@ -1,6 +1,6 @@
 // src/hooks/character-creation/useDataManager.ts
 import { useEffect, useMemo, useState } from 'react';
-import { buildEquipmentCache } from '@/utils/equipmentCacheBuilder';
+import { buildEquipmentCache, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 import * as DndApiService from '../../services/dndApiService';
 import type {
   ApiRace,
@@ -46,41 +46,51 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
         initialized = true;
 
-        const cachedData = sessionStorage.getItem('equipmentCache');
-        if (cachedData) {
+        const cached = sessionStorage.getItem('equipmentCache');
+        if (cached) {
             try {
-                const parsed = JSON.parse(cachedData);
+                const parsed = JSON.parse(cached);
                 setEquipmentCategoryCache(parsed);
-                const flattened = Object.values(parsed).flat() as InventoryItem[];
-                const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
-                setAllEquipment(unique);
+                setAllEquipment(Object.values(parsed).flat() as InventoryItem[]);
                 if (process.env.NODE_ENV === 'development') {
                     console.log('[♻️ EquipmentCache] Cache carregado do sessionStorage.');
                 }
-                return; // Pula a construção se o cache já existir
+                return;
             } catch (e) {
                 console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
                 sessionStorage.removeItem('equipmentCache');
             }
         }
-        
+
         setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
         try {
             const cache = await buildEquipmentCache();
-            sessionStorage.setItem('equipmentCache', JSON.stringify(cache)); // Salva no sessionStorage
-            setEquipmentCategoryCache(cache);
+            
+            // Garante que categorias críticas existem após a construção inicial
+            await Promise.all([
+                resolveEquipmentCategory('holy-symbols', cache),
+                resolveEquipmentCategory('simple-weapons', cache),
+                resolveEquipmentCategory('martial-weapons', cache),
+                resolveEquipmentCategory('musical-instruments', cache),
+            ]);
+
+            sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
+            setEquipmentCategoryCache({ ...cache });
 
             const flattened = Object.values(cache).flat();
             const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
             setAllEquipment(unique);
-
+            
             if (process.env.NODE_ENV === 'development') {
-                console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
-                console.log('Total de categorias:', Object.keys(cache).length);
-                console.log('Categorias:', Object.keys(cache));
-                console.log('Itens únicos:', unique.length);
-                console.groupEnd();
+                const checkKeys = ['holy-symbols', 'simple-weapons', 'martial-weapons'];
+                for (const key of checkKeys) {
+                    if (!Object.keys(cache).includes(key)) {
+                        console.warn(`[⚠️ EquipmentCache] Categoria '${key}' não foi registrada corretamente.`);
+                    }
+                }
+                console.log('[✅ Equipment Cache Loaded]', Object.keys(cache));
             }
+
         } catch (err) {
             console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
             setEquipmentCategoryCache({});
@@ -90,13 +100,13 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     };
 
     initializeEquipment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** =============================================================
    * 🧬 Demais fetches (raças, classes, magias etc.)
    * ============================================================= */
-  
+
   useEffect(() => {
     if (!race) {
       setRaceDetails(null);

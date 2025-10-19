@@ -112,15 +112,15 @@ export const getBackgroundDetails = (index: string) => getResourceDetails('backg
  * ⚔️ Equipamentos
  * =========================================================== */
 export const getEquipment = async (): Promise<InventoryItem[]> => {
-    const data = await fetchList<InventoryItem>('/equipment');
-    return data.results || [];
+    return await apiClient<InventoryItem[]>(`${API_BASE}/equipment`);
 };
 export const getEquipmentDetails = (index: string) => getResourceDetails('equipment', index) as Promise<InventoryItem>;
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');
 export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;
 export const getEquipmentCategories = () => fetchList<ApiListItem>('/equipment-categories');
-export const getEquipmentCategoryDetails = async (index: string) => apiClient<any>(`${API_BASE}/equipment-categories/${index}`);
-
+export const getEquipmentCategoryDetails = async (index: string) => {
+    return apiClient<any>(`${API_BASE}/equipment-categories/${index}`);
+};
 
 /* ===========================================================
  * 💪 Habilidades, Proficiências e Idiomas
