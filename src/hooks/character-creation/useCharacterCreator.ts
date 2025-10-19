@@ -41,8 +41,9 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
+    // CORREÇÃO: `selectionManager` deve ser criado antes e passado para `derivedData`.
     const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
-
+    
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
             const newSelections = { ...prev };

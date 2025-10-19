@@ -1,9 +1,13 @@
 // src/components/NewCreationCharacter/NewStep8_Finalize.tsx
-import React from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import type { Attributes } from '@/types';
-import { ArrowLeft, Play, Shield, Heart, Dices } from 'lucide-react';
+import type { Attributes, ApiSpell } from '@/types';
+import { ArrowLeft, Play, Shield, Heart, Dices, BookOpen, Loader2 } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
+import NewSpellCard from '../Spells/NewSpellCard';
+import * as DndApiService from '@/services/dndApiService';
+import { fetchDetailsInChunks } from '@/utils/apiUtils';
+
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -23,11 +27,60 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
         hp,
         speed,
         hitDie,
+        chosenClassSpells,
+        chosenRacialSpells,
+        racialSpellOptions,
+        details: { classSpellOptions, subclassSpells },
     } = hook;
+    
+    const [spellDetails, setSpellDetails] = useState<ApiSpell[]>([]);
+    const [isLoadingSpells, setIsLoadingSpells] = useState(false);
 
     // Fallback seguro: se o hook ainda não tiver calculado os modificadores, calculamos aqui.
     const modifiers = hook.modifiers || characterUtils.calculateModifiers(finalAttributes);
     const proficiencyBonus = hook.proficiencyBonus || 2;
+
+    const allChosenSpellIndices = useMemo(() => {
+        const classSpells = chosenClassSpells || [];
+        const racialSpells = Object.values(chosenRacialSpells || {}).flat();
+        return Array.from(new Set([...classSpells, ...racialSpells]));
+    }, [chosenClassSpells, chosenRacialSpells]);
+
+     useEffect(() => {
+        const fetchSpells = async () => {
+            if (allChosenSpellIndices.length === 0) {
+                setSpellDetails([]);
+                return;
+            }
+            setIsLoadingSpells(true);
+            const spellRefs = allChosenSpellIndices.map(index => ({ index, name: '', url: '' }));
+            const results = await fetchDetailsInChunks(
+                spellRefs,
+                DndApiService.getSpellDetails,
+                () => {}
+            );
+            setSpellDetails(results.filter((s): s is ApiSpell => s !== null));
+            setIsLoadingSpells(false);
+        };
+
+        fetchSpells();
+    }, [allChosenSpellIndices]);
+
+    const groupedSpells = useMemo(() => {
+        return spellDetails.reduce((acc, spell) => {
+            if (!spell) return acc;
+            const levelKey = `Nível ${spell.level}`;
+            if (!acc[levelKey]) acc[levelKey] = [];
+            acc[levelKey].push(spell);
+            return acc;
+        }, {} as Record<string, ApiSpell[]>);
+    }, [spellDetails]);
+
+     const spellLevelOrder = Object.keys(groupedSpells).sort((a, b) => {
+        if (a.includes('0')) return -1; // Cantrips first
+        if (b.includes('0')) return 1;
+        return a.localeCompare(b, undefined, { numeric: true });
+    });
 
 
     return (
@@ -79,7 +132,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                         {/* Atributos */}
                         <div className="space-y-2">
                              {attributeOrder.map(attr => {
-                                const total = finalAttributes[attr];
+                                const total = finalAttributes?.[attr] || 10;
                                 const modifier = Math.floor((total - 10) / 2);
                                 return (
                                     <div key={attr} className="bg-stone-800/60 p-2 rounded-lg border border-stone-700 text-center">
@@ -96,7 +149,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                             {characterUtils.ALL_SKILLS.map(skill => {
                                 const prof = finalProficiencies.find(p => p.name.includes(skill));
                                 const attr = characterUtils.SKILL_ATTRIBUTE_MAP[skill as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-                                const modifier = finalAttributes[attr] ? (modifiers[attr] || 0) + (prof ? proficiencyBonus : 0) : 0;
+                                const modifier = (finalAttributes && modifiers) ? modifiers[attr] + (prof ? proficiencyBonus : 0) : 0;
                                 return (
                                     <div key={skill} className="flex items-center text-xs border-b border-stone-800 pb-1">
                                         <div className={`w-3 h-3 rounded-full border-2 mr-2 ${prof ? 'bg-amber-400 border-amber-300' : 'bg-stone-700 border-stone-600'}`}></div>
@@ -154,7 +207,30 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                                 ))}
                             </div>
                         </div>
-                        
+
+                        {/* Magias */}
+                         {allChosenSpellIndices.length > 0 && (
+                            <div className="space-y-3">
+                                <h4 className="font-semibold text-amber-200 flex items-center gap-2"><BookOpen className="h-4 w-4"/> Magias Conhecidas</h4>
+                                {isLoadingSpells ? (
+                                    <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {spellLevelOrder.map(levelKey => (
+                                            <div key={levelKey}>
+                                                <h5 className="font-semibold text-stone-300 text-sm mb-2">{levelKey === 'Nível 0' ? 'Truques' : levelKey}</h5>
+                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
+                                                    {groupedSpells[levelKey].sort((a,b) => a.name.localeCompare(b.name)).map(spell => (
+                                                        <NewSpellCard key={spell.index} spell={spell} />
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                         )}
+
                         {/* Personalidade */}
                         <div className="space-y-3">
                              <h4 className="font-semibold text-amber-200 mb-2">Personalidade</h4>
