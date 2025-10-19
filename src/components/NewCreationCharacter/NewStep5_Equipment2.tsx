@@ -8,29 +8,14 @@ import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
 import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
-
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
   if (!key || !cache) return null;
   const nk = normalizeKey(key);
-  const allKeys = Object.keys(cache);
-  if (allKeys.includes(nk)) return nk;
-
-  const variants = [
-    nk,
-    nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
-    nk.replace(/-weapons$/, '-weapon'),
-    nk.replace(/-weapon$/, '-weapons'),
-    nk.replace(/-symbols$/, '-symbol'),
-    nk.replace(/-symbol$/, '-symbols'),
-  ];
-
-  for (const v of variants) {
-    const match = allKeys.find(k => k === v);
-    if (match) return match;
-  }
-  
-  const partial = allKeys.find(k => k.includes(nk) || nk.includes(k));
-  return partial || null;
+  const keys = Object.keys(cache);
+  if (keys.includes(nk)) return nk;
+  const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
+  for (const v of variants) if (keys.includes(v)) return v;
+  return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
 };
 
 
@@ -85,7 +70,7 @@ const EquipmentOptionRenderer: React.FC<{
 }> = ({ option, selectionPath, hook }) => {
     switch (option.option_type) {
         case 'counted_reference':
-            return null;
+            return null; // Already handled by the main selection
 
         case 'choice':
              if (option.choice?.choose && option.choice.choose > 1) {
@@ -121,8 +106,8 @@ const EquipmentChoice: React.FC<{
 }> = ({ group, hook }) => {
     const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
-    const [lazyItems, setLazyItems] = React.useState<InventoryItem[] | null>(null);
-    const [lazyLoading, setLazyLoading] = React.useState(false);
+    const [lazyItems, setLazyItems] = useState<InventoryItem[] | null>(null);
+    const [lazyLoading, setLazyLoading] = useState(false);
 
     let mainOptions: ApiEquipmentOption[] = [];
 
@@ -139,7 +124,7 @@ const EquipmentChoice: React.FC<{
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url || '' },
+                of: { index: item.index, name: item.name, url: (item as any).url || '' },
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -153,11 +138,12 @@ const EquipmentChoice: React.FC<{
         return <div className="text-center p-2"><Loader2 className="animate-spin h-5 w-5 text-amber-400 mx-auto" /></div>;
     }
     
-    if (!mainOptions || mainOptions.length === 0) {
+    if (!mainOptions.length) {
+        const categoryName = group.choice?.from?.equipment_category?.name;
         if (process.env.NODE_ENV === 'development') {
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryFrom?.name}'. Chave normalizada: '${normalizeKey(categoryFrom?.name || '')}'.`);
+             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${normalizeKey(categoryName || '')}'.`, "Verifique o cache:", equipmentCategoryCache);
         }
-        return <p className="text-red-400 text-xs text-center p-2">Nenhuma opção encontrada para '{categoryFrom?.name}'.</p>;
+        return <p className="text-red-400 text-xs text-center p-2">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
@@ -209,7 +195,7 @@ const NewStep5_Equipment2: React.FC<{
                     const existing = consolidated.get(item.index)!;
                     existing.quantity += item.quantity || 1;
                 } else {
-                    consolidated.set(item.index, { ...item, quantity: item.quantity || 1, id: item.id || uuidv4() });
+                    consolidated.set(item.index, { ...item, quantity: item.quantity || 1, id: (item as any).id || uuidv4() });
                 }
             }
         }
