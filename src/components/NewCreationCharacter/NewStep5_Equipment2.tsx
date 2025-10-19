@@ -6,7 +6,33 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
-import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder'; // Importar a função centralizada
+import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+
+
+const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
+  if (!key || !cache) return null;
+  const nk = normalizeKey(key);
+  const allKeys = Object.keys(cache);
+  if (allKeys.includes(nk)) return nk;
+
+  const variants = [
+    nk,
+    nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
+    nk.replace(/-weapons$/, '-weapon'),
+    nk.replace(/-weapon$/, '-weapons'),
+    nk.replace(/-symbols$/, '-symbol'),
+    nk.replace(/-symbol$/, '-symbols'),
+  ];
+
+  for (const v of variants) {
+    const match = allKeys.find(k => k === v);
+    if (match) return match;
+  }
+  
+  const partial = allKeys.find(k => k.includes(nk) || nk.includes(k));
+  return partial || null;
+};
+
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -59,7 +85,6 @@ const EquipmentOptionRenderer: React.FC<{
 }> = ({ option, selectionPath, hook }) => {
     switch (option.option_type) {
         case 'counted_reference':
-            // This is handled by the main selection, nothing to render here.
             return null;
 
         case 'choice':
@@ -74,7 +99,6 @@ const EquipmentOptionRenderer: React.FC<{
             return (
                 <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
                     {option.items?.map((subItem, subIndex) => {
-                        // Itens fixos dentro de uma opção múltipla são apenas informativos aqui, pois já são adicionados ao inventário
                         if (subItem.option_type === 'counted_reference' && subItem.of) {
                             return (
                                 <p key={subIndex} className="text-sm text-stone-300 pl-4">+ {subItem.count || 1}x {subItem.of.name}</p>
@@ -97,25 +121,25 @@ const EquipmentChoice: React.FC<{
 }> = ({ group, hook }) => {
     const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
-    const [lazyItems, setLazyItems] = useState<InventoryItem[] | null>(null);
-    const [lazyLoading, setLazyLoading] = useState(false);
+    const [lazyItems, setLazyItems] = React.useState<InventoryItem[] | null>(null);
+    const [lazyLoading, setLazyLoading] = React.useState(false);
 
     let mainOptions: ApiEquipmentOption[] = [];
 
+    const categoryFrom = group.choice?.from?.equipment_category;
+
     if (group.choice?.from?.option_set_type === 'options_array') {
         mainOptions = group.choice.from.options || [];
-    } else if (group.choice?.from?.option_set_type === 'equipment_category') {
-        const cat = group.choice.from.equipment_category;
-        const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+    } else if (categoryFrom) {
+        const categoryKey = typeof categoryFrom === 'string' ? categoryFrom : categoryFrom.name || categoryFrom.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
-        
         const source = cacheKey ? equipmentCategoryCache[cacheKey] : lazyItems;
 
         if (source?.length) {
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url || `/api/2014/equipment/${item.index}` },
+                of: { index: item.index, name: item.name, url: item.url || '' },
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -126,15 +150,14 @@ const EquipmentChoice: React.FC<{
     }
     
     if (lazyLoading) {
-        return <p className="text-stone-400 text-xs italic">Carregando opções de {group.choice?.from?.equipment_category?.name || 'categoria'}…</p>;
+        return <div className="text-center p-2"><Loader2 className="animate-spin h-5 w-5 text-amber-400 mx-auto" /></div>;
     }
-
-    if (!mainOptions.length) {
-         if (process.env.NODE_ENV === 'development') {
-            const categoryKey = group.choice?.from?.equipment_category?.name || group.choice?.from?.equipment_category?.index || 'undefined';
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Chave normalizada: '${categoryKey.toLowerCase().replace(/\s+/g, '-')}'.`);
-         }
-        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
+    
+    if (!mainOptions || mainOptions.length === 0) {
+        if (process.env.NODE_ENV === 'development') {
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryFrom?.name}'. Chave normalizada: '${normalizeKey(categoryFrom?.name || '')}'.`);
+        }
+        return <p className="text-red-400 text-xs text-center p-2">Nenhuma opção encontrada para '{categoryFrom?.name}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
