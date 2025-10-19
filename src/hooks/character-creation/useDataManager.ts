@@ -51,8 +51,14 @@ export const useDataManager = (
     const fetchBaseEquipment = async () => {
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
-        const equipmentList = await DndApiService.getEquipment();
-        if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
+        const equipmentResponse = await DndApiService.getEquipment();
+        const equipmentList = Array.isArray(equipmentResponse)
+            ? equipmentResponse
+            : equipmentResponse?.results || [];
+
+        if (!Array.isArray(equipmentList)) {
+            throw new Error("A lista de equipamentos não pôde ser carregada ou está em formato incorreto.");
+        }
 
         const unifiedEquipment = equipmentList as InventoryItem[];
         setAllEquipment(unifiedEquipment);
@@ -100,7 +106,6 @@ export const useDataManager = (
                 `${w} weapon`,
                 `${w} weapons`,
                 `any ${w} weapon`,
-                `any ${w} weapons`,
               ],
               item
             );
@@ -114,10 +119,10 @@ export const useDataManager = (
           // Símbolos sagrados
           if (
             index.includes('holy-symbol') ||
-            name.includes('símbolo') ||
             name.includes('amuleto') ||
             name.includes('emblema') ||
-            name.includes('relicário')
+            name.includes('relicário') ||
+            name.includes('símbolo')
           ) {
             add(['holy-symbol', 'holy-symbols', 'holy symbol', 'holy symbols'], item);
           }
@@ -134,30 +139,10 @@ export const useDataManager = (
 
           // Armas corpo a corpo e à distância
           if (item.weapon_range === 'Melee') {
-            add(
-              [
-                'melee-weapon',
-                'melee-weapons',
-                'melee weapon',
-                'simple melee weapon',
-                'martial melee weapon',
-                'any melee weapon',
-              ],
-              item
-            );
+            add(['melee-weapon', 'melee-weapons', 'melee weapon', 'any melee weapon'], item);
           }
           if (item.weapon_range === 'Ranged') {
-            add(
-              [
-                'ranged-weapon',
-                'ranged-weapons',
-                'ranged weapon',
-                'simple ranged weapon',
-                'martial ranged weapon',
-                'any ranged weapon',
-              ],
-              item
-            );
+            add(['ranged-weapon', 'ranged-weapons', 'ranged weapon', 'any ranged weapon'], item);
           }
 
           // Itens gerais
@@ -167,22 +152,22 @@ export const useDataManager = (
         }
 
         /* --- Agrupamentos compostos --- */
-        const simple = unifiedEquipment.filter((i) => i.weapon_category === 'Simple');
-        const martial = unifiedEquipment.filter((i) => i.weapon_category === 'Martial');
+        const simpleWeapons = unifiedEquipment.filter((i) => i.weapon_category === 'Simple');
+        const martialWeapons = unifiedEquipment.filter((i) => i.weapon_category === 'Martial');
 
-        add(['simple-weapons', 'simple weapon', 'any simple weapon'], ...simple);
-        add(['martial-weapons', 'martial weapon', 'any martial weapon'], ...martial);
-
-        // Garante fallback explícito
-        newCache['holy-symbol'] ??= unifiedEquipment.filter((i) =>
-          i.index.includes('holy-symbol')
-        );
+        add(['simple-weapons', 'simple weapon', 'any simple weapon'], ...simpleWeapons);
+        add(['martial-weapons', 'martial weapon', 'any martial weapon'], ...martialWeapons);
+        add(['simple melee weapon', 'any simple melee weapon'], ...simpleWeapons.filter(i => i.weapon_range === 'Melee'));
+        add(['martial melee weapon', 'any martial melee weapon'], ...martialWeapons.filter(i => i.weapon_range === 'Melee'));
+        
+        newCache['holy-symbol'] ??= unifiedEquipment.filter((i) => i.index.includes('holy-symbol'));
 
         setEquipmentCategoryCache(newCache);
-
+        
         if (process.env.NODE_ENV === 'development') {
           console.log('[Equipment Cache Loaded]', Object.keys(newCache));
         }
+
       } catch (err) {
         console.error('Falha ao carregar equipamentos:', err);
         setEquipmentCategoryCache({});
