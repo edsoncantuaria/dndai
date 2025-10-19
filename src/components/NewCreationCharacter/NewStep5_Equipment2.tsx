@@ -15,6 +15,7 @@ const ItemChoiceSelector: React.FC<{
     const { handleEquipmentSubChoiceChange, equipmentCategoryCache } = hook;
     
     let categoryIndex = '';
+    
     // A API D&D pode usar 'equipment_category' ou 'options' para definir a fonte.
     if (choice?.from?.equipment_category) {
         const cat = choice.from.equipment_category;
@@ -51,8 +52,9 @@ const ItemChoiceSelector: React.FC<{
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
 
+    // LOG DE DEBUG
     if (subOptions.length === 0) {
-        return <p className="text-yellow-400 text-xs mt-1">Nenhuma opção encontrada para a categoria '{categoryIndex}'.</p>;
+        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}'. Verifique o cache.`, equipmentCategoryCache);
     }
 
     return (
@@ -118,9 +120,9 @@ const EquipmentChoice: React.FC<{
     const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
 
-    // ✅ Correção: Adiciona uma guarda para garantir que o cache está pronto.
     if (!equipmentCategoryCache) {
-      return <p className="text-stone-500 text-xs italic">Carregando categorias de equipamento...</p>;
+      console.log(`[EquipmentChoice] Cache de equipamento ainda não está pronto para o grupo: ${group.choice.desc}`);
+      return <p className="text-stone-500 text-xs italic">Carregando categorias...</p>;
     }
     
     let mainOptions: ApiEquipmentOption[] = [];
@@ -128,7 +130,9 @@ const EquipmentChoice: React.FC<{
         mainOptions = group.choice.from.options;
     } else if (group.choice?.from?.option_set_type === 'equipment_category' && group.choice?.from?.equipment_category) {
         const cat = group.choice.from.equipment_category;
-        const catIndex = typeof cat === 'string' ? cat : cat?.index;
+        const catIndex = normalizeCategoryKey(typeof cat === 'string' ? cat : cat?.name || cat?.index);
+
+        console.log(`[EquipmentChoice] Buscando no cache com a chave normalizada: '${catIndex}' para a descrição: "${group.choice.desc}"`);
 
         mainOptions = (equipmentCategoryCache[catIndex] || []).map((item: any) => ({
             option_type: 'counted_reference',
@@ -137,11 +141,14 @@ const EquipmentChoice: React.FC<{
         }));
     
         if (mainOptions.length === 0) {
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para categoria: ${catIndex}`);
+            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${catIndex}'. Chaves disponíveis no cache:`, Object.keys(equipmentCategoryCache));
         }
     }
     
-    if (mainOptions.length === 0) return null;
+    if (mainOptions.length === 0) {
+         console.error(`[EquipmentChoice] Impossível renderizar opções para o grupo:`, group);
+        return <p className="text-red-400 text-xs">Erro: Opções de equipamento para "{group.choice.desc}" não puderam ser carregadas.</p>;
+    }
     
     const mainSelectionIndex = selection?.main;
     const selectedOption = (mainSelectionIndex !== undefined && mainSelectionIndex >= 0) ? mainOptions[mainSelectionIndex] : undefined;
@@ -162,6 +169,11 @@ const EquipmentChoice: React.FC<{
         </div>
     );
 };
+
+const normalizeCategoryKey = (str: string) => {
+    if (!str) return '';
+    return str.toLowerCase().replace(/\b(a|an|any)\b/g, '').replace(/[\s_]+/g, '-').replace(/[^a-z0-9-]/g, '');
+}
 
 
 const NewStep5_Equipment2: React.FC<{
