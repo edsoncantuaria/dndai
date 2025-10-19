@@ -117,6 +117,11 @@ const EquipmentChoice: React.FC<{
 }> = ({ group, hook }) => {
     const { equipmentSelections, handleEquipmentChoiceChange, equipmentCategoryCache } = hook;
     const selection = equipmentSelections[group.id];
+
+    // ✅ Correção: Adiciona uma guarda para garantir que o cache está pronto.
+    if (!equipmentCategoryCache) {
+      return <p className="text-stone-500 text-xs italic">Carregando categorias de equipamento...</p>;
+    }
     
     let mainOptions: ApiEquipmentOption[] = [];
     if (group.choice?.from?.option_set_type === 'options_array' && group.choice?.from?.options) {
