@@ -1,5 +1,5 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type { ApiRace, ApiClass, ApiBackground, ApiClassLevel, ApiSubrace, Feat, ApiTrait, ApiSpell, ApiListItem, InventoryItem } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
@@ -25,18 +25,19 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     });
 
     const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
-    const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
+    const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>(() => ({}));
 
     // Pre-load all equipment data
     useEffect(() => {
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
-                const equipmentList = await DndApiService.getEquipment();
-                if (!Array.isArray(equipmentList)) { // Ensure it's an array now
+                const equipmentList = await DndApiService.getEquipment(); // Retorna InventoryItem[] diretamente
+                
+                if (!Array.isArray(equipmentList)) {
                     throw new Error("A lista de equipamentos não pôde ser carregada ou está em formato incorreto.");
                 }
-                
+
                 const unifiedEquipment = equipmentList as InventoryItem[];
                 setAllEquipment(unifiedEquipment);
 
@@ -59,9 +60,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
                     if (item.armor_category) add(`${item.armor_category.toLowerCase()}-armor`, item);
 
                     // Manual categorization for special cases
-                    if (item.index.includes('holy-symbol') || item.name.toLowerCase().includes('amuleto') || item.name.toLowerCase().includes('emblema') || item.name.toLowerCase().includes('relicário')) add('holy-symbols', item);
-                    if (item.index.includes('crystal') || item.index.includes('orb') || item.index.includes('rod') || item.index.includes('staff') || item.index.includes('wand')) add('arcane-foci', item);
-                    if (item.index.includes('mistletoe') || item.index.includes('totem') || item.index.includes('wooden-staff') || item.index.includes('yew-wand')) add('druidic-foci', item);
+                    const itemName = item.name.toLowerCase();
+                    const itemIndex = item.index.toLowerCase();
+
+                    if (itemIndex.includes('holy-symbol') || itemName.includes('amuleto') || itemName.includes('emblema') || itemName.includes('relicário')) add('holy-symbols', item);
+                    if (itemIndex.includes('crystal') || itemIndex.includes('orb') || itemIndex.includes('rod') || itemIndex.includes('staff') || itemIndex.includes('wand')) add('arcane-foci', item);
+                    if (itemIndex.includes('mistletoe') || itemIndex.includes('totem') || itemIndex.includes('wooden-staff') || itemIndex.includes('yew-wand')) add('druidic-foci', item);
                 });
                 
                 // Adiciona categorias compostas
@@ -74,7 +78,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
              } catch (error) {
                 console.error("Falha catastrófica ao carregar equipamentos:", error);
-                setEquipmentCategoryCache({}); // Set to empty object on failure
+                setEquipmentCategoryCache({}); // Garante que não seja undefined em caso de erro
              } finally {
                 setLoadingStates({ isLoading: false, message: '', progress: 0 });
              }
@@ -240,6 +244,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         }
         setLoadingStates({ isLoading: false, message: '', progress: 0 });
     };
+    
+    const safeCache = useMemo(() => equipmentCategoryCache || {}, [equipmentCategoryCache]);
+
 
     return {
         details: {
@@ -253,9 +260,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             draconicAncestryOptions,
             classSpellOptions,
             subclassSpells,
-            equipmentCategoryCache,
         },
         allEquipment,
+        equipmentCategoryCache: safeCache,
         loadingStates,
         fetchFeats,
     };

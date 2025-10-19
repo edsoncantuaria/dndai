@@ -26,8 +26,7 @@ import type {
   InventoryItem
 } from '../types';
 
-// O apiClient já lida com a URL base. Este serviço só precisa saber o caminho da API.
-const API_PREFIX = '/data';
+const API_PREFIX = '/api/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
@@ -58,22 +57,18 @@ async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ res
   return { results };
 }
 
-/* 🔹 Helper inteligente para detalhes que lida com inconsistências da API */
+/* 🔹 Helper inteligente para detalhes */
 export async function getResourceDetails(resource: string, index: string): Promise<any> {
     const data = await fetchJson<any>(`/${resource}/${index}`);
 
-    // Se o endpoint retornar um array diretamente (ex: /classes/{index}/levels), o usamos.
     if (Array.isArray(data)) {
         return data;
     }
 
-    // Se a API retornar um objeto que *contém* uma propriedade `levels` (caso legado),
-    // retornamos apenas o array de níveis para manter a consistência.
     if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
         return data.levels;
     }
 
-    // Caso contrário, retorna o objeto de detalhes ou um objeto vazio como fallback.
     return data || {};
 }
 
@@ -116,7 +111,10 @@ export const getBackgroundDetails = (index: string) => getResourceDetails('backg
 /* ===========================================================
  * ⚔️ Equipamentos
  * =========================================================== */
-export const getEquipment = () => fetchList<InventoryItem>('/equipment');
+export const getEquipment = async (): Promise<InventoryItem[]> => {
+    const data = await fetchList<InventoryItem>('/equipment');
+    return data.results || [];
+};
 export const getEquipmentDetails = (index: string) => getResourceDetails('equipment', index) as Promise<InventoryItem>;
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');
 export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;
