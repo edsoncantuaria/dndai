@@ -14,7 +14,7 @@ interface Props {
 const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, classLevels }) => {
     
     // Log para depuração
-    console.log('[ClassDetailsModal] Dados recebidos para classLevels:', classLevels);
+    console.log('[ClassDetailsModal] Rendering with props:', { classDetails, classLevels });
 
     return (
         <ActionModal

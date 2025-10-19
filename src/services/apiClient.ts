@@ -32,12 +32,15 @@ const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data', '/translations'
  */
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const { headers: customHeaders, ...customOptions } = options;
+    const fullUrl = `${API_URL}${endpoint}`;
+
+    // Log detalhado de cada requisição
+    console.log(`[apiClient] Requesting: ${options.method || 'GET'} ${fullUrl}`);
 
     const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
     
     let authHeaders: HeadersInit | null = getAuthHeaders();
 
-    // Se a rota não for pública e não houver token, lança um erro.
     if (!isPublic && !authHeaders) {
         throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
     }
@@ -50,13 +53,6 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         },
         ...customOptions
     };
-    
-    // Constrói a URL final para a chamada.
-    const fullUrl = `${API_URL}${endpoint}`;
-    
-    if (process.env.NODE_ENV === 'development') {
-        console.log(`[apiClient] ${requestOptions.method || 'GET'} ${fullUrl}`);
-    }
 
     const response = await fetch(fullUrl, requestOptions);
 
@@ -67,7 +63,6 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         } catch (e) {
             throw new Error(`Erro de rede: ${response.status} ${response.statusText}`);
         }
-        // Usa a mensagem de erro do backend ou uma mensagem padrão.
         throw new Error(errorData?.message || `Erro desconhecido: ${response.statusText}`);
     }
     
@@ -75,5 +70,9 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         return { success: true } as unknown as T;
     }
 
-    return await response.json() as T;
+    const responseData = await response.json();
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[apiClient] Response OK for ${fullUrl}:`, responseData);
+    }
+    return responseData as T;
 };
