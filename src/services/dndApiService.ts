@@ -26,12 +26,16 @@ import type {
   InventoryItem
 } from '../types';
 
+// O apiClient já lida com a URL base. Este serviço só precisa saber o caminho da API.
+const API_PREFIX = '/api/data';
+
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
 
 /* 🔹 Helper genérico de fetch com cache */
 async function fetchJson<T>(endpoint: string): Promise<T> {
-  const fullEndpoint = `/api/data${endpoint}`;
+  const fullEndpoint = `${API_PREFIX}${endpoint}`;
+
   if (cache.has(fullEndpoint)) {
     return cache.get(fullEndpoint);
   }
@@ -49,24 +53,27 @@ async function fetchJson<T>(endpoint: string): Promise<T> {
 /* 🔹 Helper para listas no formato { results: [...] } */
 async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ results: T[] }> {
   const data = await fetchJson<any>(endpoint);
-  // O backend unificado já garante o formato { results: [...] }, mas mantemos a segurança
+  // O backend unificado pode retornar um array diretamente ou um objeto com 'results'.
   const results = Array.isArray(data) ? data : data?.results || [];
   return { results };
 }
 
-/* 🔹 Helper inteligente para detalhes */
+/* 🔹 Helper inteligente para detalhes que lida com inconsistências da API */
 export async function getResourceDetails(resource: string, index: string): Promise<any> {
     const data = await fetchJson<any>(`/${resource}/${index}`);
 
+    // Se o endpoint retornar um array diretamente (ex: /classes/{index}/levels), o usamos.
     if (Array.isArray(data)) {
         return data;
     }
 
-    // Mantém a compatibilidade com outras respostas que podem ter um objeto com a propriedade `levels`
+    // Se a API retornar um objeto que *contém* uma propriedade `levels` (caso legado),
+    // retornamos apenas o array de níveis para manter a consistência.
     if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
         return data.levels;
     }
 
+    // Caso contrário, retorna o objeto de detalhes ou um objeto vazio como fallback.
     return data || {};
 }
 

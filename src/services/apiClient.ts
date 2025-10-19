@@ -24,7 +24,7 @@ const PUBLIC_ROUTES = ['/api/auth/login', '/api/auth/register', '/api/data', '/a
 /**
  * Um wrapper para a API fetch que centraliza a lógica de chamada ao nosso backend.
  * Ele automaticamente adiciona a URL base, os headers de autenticação e trata as respostas de erro.
- * @param endpoint O endpoint da API a ser chamado (ex: '/auth/login').
+ * @param endpoint O endpoint da API a ser chamado (ex: '/api/auth/login').
  * @param options As opções de configuração para a chamada fetch (método, corpo, etc.).
  * @returns A resposta JSON da API.
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
@@ -49,7 +49,12 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         ...customOptions
     };
     
+    // A URL completa agora é construída simplesmente juntando a base com o endpoint fornecido.
     const fullUrl = `${API_URL}${endpoint}`;
+    
+    if (process.env.NODE_ENV === 'development') {
+        console.log(`[apiClient] ${requestOptions.method || 'GET'} ${fullUrl}`);
+    }
 
     const response = await fetch(fullUrl, requestOptions);
 
@@ -60,7 +65,8 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         } catch (e) {
             throw new Error(response.statusText || 'Ocorreu um erro de rede.');
         }
-        throw new Error(errorData.message || 'Ocorreu um erro desconhecido na comunicação com o servidor.');
+        // Use a mensagem de erro do backend ou uma mensagem padrão.
+        throw new Error(errorData?.message || `Erro de rede: ${response.statusText}`);
     }
     
     if (response.status === 204 || response.headers.get('content-length') === '0') {
