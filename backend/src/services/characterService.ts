@@ -85,7 +85,8 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
-        const itemPromises = characterData.inventory.map(async (itemData: any) => {
+        const itemPromises = (characterData.inventory || []).map(async (itemData: any) => {
+             if (!itemData || !itemData.index) return null;
             const details = await DndApiService.getResourceDetails('equipment', itemData.index);
             return { 
                 ...details, 
@@ -93,7 +94,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
                 quantity: itemData.quantity || 1 
             };
         });
-        const detailedItems = await Promise.all(itemPromises);
+        const detailedItems = (await Promise.all(itemPromises)).filter(Boolean);
         
         const newCharacter = new Character();
         Object.assign(newCharacter, {
@@ -115,7 +116,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             beardStyle: characterData.beardStyle,
             skinColor: characterData.skinColor,
             feats: characterData.feats || [],
-            homebrewContentIds: characterData.homebrewIds || [], // Salva os IDs de homebrew do personagem
+            homebrewContentIds: characterData.homebrewIds || [],
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
@@ -194,18 +195,18 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
         // 1. Cria a nova entidade Character
         const clonedCharacter = new Character();
         Object.assign(clonedCharacter, originalCharacter);
-        delete (clonedCharacter as any).id; // Remove o ID para que o TypeORM crie um novo
+        delete (clonedCharacter as any).id;
         clonedCharacter.name = newName || `${originalCharacter.name} (Cópia)`;
         clonedCharacter.userId = userId;
-        clonedCharacter.sessoes = []; // Um clone nunca tem sessões pré-existentes
+        clonedCharacter.sessoes = [];
 
         const savedClone = await queryRunner.manager.save(clonedCharacter);
 
-        // 2. Clona as entidades relacionadas
+        // 2. Clona as entidades relacionadas, garantindo a remoção dos IDs antigos
         if (originalCharacter.attributes) {
             const clonedAttributes = new CharacterAttributes();
             Object.assign(clonedAttributes, originalCharacter.attributes);
-            delete (clonedAttributes as any).id; // GARANTE que um novo ID seja gerado
+            delete (clonedAttributes as any).id;
             clonedAttributes.character = savedClone;
             clonedAttributes.characterId = savedClone.id;
             await queryRunner.manager.save(clonedAttributes);
