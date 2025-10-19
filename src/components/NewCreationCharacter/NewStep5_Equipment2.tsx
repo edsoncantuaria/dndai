@@ -7,10 +7,27 @@ import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-  if (!key || !cache) return null;
-  const nk = key.toLowerCase().replace(/\s+/g, '-');
-  return Object.keys(cache).find(k => k === nk || k.includes(nk) || nk.includes(k)) || null;
-};
+    if (!key || !cache) return null;
+    const nk = key.toLowerCase().trim().replace(/\s+/g, '-');
+  
+    const allKeys = Object.keys(cache);
+    const exact = allKeys.find(k => k === nk);
+    if (exact) return exact;
+  
+    const normalizedVariants = [
+      nk,
+      nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
+      nk.replace(/-s$/, ''),
+      nk.replace(/s$/, ''),
+    ];
+  
+    for (const variant of normalizedVariants) {
+      const found = allKeys.find(k => k === variant || k.includes(variant) || variant.includes(k));
+      if (found) return found;
+    }
+  
+    return null;
+  };
 
 
 const ItemChoiceSelector: React.FC<{

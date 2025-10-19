@@ -1,4 +1,3 @@
-
 // src/services/dndApiService.ts
 import { apiClient } from './apiClient';
 import type {
@@ -120,8 +119,7 @@ export const getEquipmentDetails = (index: string) => getResourceDetails('equipm
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');
 export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;
 export const getEquipmentCategories = () => fetchList<ApiListItem>('/equipment-categories');
-export const getEquipmentCategoryDetails = (index: string) => getResourceDetails('equipment-categories', index) as Promise<{ equipment: InventoryItem[] }>;
-
+export const getEquipmentCategoryDetails = (index: string) => apiClient<any>(`${API_PREFIX}/equipment-categories/${index}`);
 
 
 /* ===========================================================

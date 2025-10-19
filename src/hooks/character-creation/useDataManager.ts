@@ -40,21 +40,25 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
    * ⚙️ Construção e cache do arsenal base
    * ============================================================= */
   useEffect(() => {
+    let initialized = false;
+  
     const initializeEquipment = async () => {
+      if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
+      initialized = true;
+  
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
         const cache = await buildEquipmentCache();
         setEquipmentCategoryCache(cache);
-
+  
         const flattened = Object.values(cache).flat();
         const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
         setAllEquipment(unique);
-
+  
         if (process.env.NODE_ENV === 'development') {
-          console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
-          console.log('Total de categorias:', Object.keys(cache).length);
+          console.groupCollapsed('%c[✅ EquipmentCache]', 'color:#7fffd4');
           console.log('Categorias:', Object.keys(cache));
-          console.log('Itens únicos:', unique.length);
+          console.log('Total de itens únicos:', unique.length);
           console.groupEnd();
         }
       } catch (err) {
@@ -64,7 +68,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         setLoadingStates({ isLoading: false, message: '', progress: 0 });
       }
     };
+  
     initializeEquipment();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** =============================================================
