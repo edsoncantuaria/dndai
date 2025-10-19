@@ -79,11 +79,16 @@ export const mergeCharacterUpdates = async (
   // --- Invalidação de Cache ---
   const cacheKeysToInvalidate = [
       `character:${characterId}`,
-      `character:${characterId}:optimized`
+      `character:${characterId}:optimized`,
+      `session:${character.sessoes?.[0]?.id}:homebrew_summary` // Invalida o resumo da sessão também
   ];
   if (redisClient && redisClient.isOpen) {
-      await redisClient.del(cacheKeysToInvalidate);
-      console.log(`[Cache] INVALIDATED: Caches para personagem ${characterId} foram invalidados devido à atualização.`);
+      try {
+        await redisClient.del(cacheKeysToInvalidate);
+        console.log(`[Cache] INVALIDATED: Caches para personagem ${characterId} foram invalidados devido à atualização.`);
+      } catch (cacheError) {
+        console.error(`[Cache] Erro ao invalidar cache para personagem ${characterId}:`, cacheError);
+      }
   }
 
 
@@ -154,7 +159,7 @@ export const mergeCharacterUpdates = async (
   }
 
   // --- Spells (Adiciona/Remove baseado na lista) ---
-  if (updates.spells && Array.isArray(updates.spells)) {
+    if (updates.spells && Array.isArray(updates.spells)) {
     const spellsRepo = queryRunner.manager.getRepository(CharacterSpell);
     const existingSpells = new Set((character.spells || []).map(s => s.spellName));
     const newSpells = new Set(sanitizeArray(updates.spells));
