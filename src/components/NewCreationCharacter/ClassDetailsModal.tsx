@@ -53,9 +53,9 @@ const ClassDetailsModal: React.FC<Props> = ({ isOpen, onClose, classDetails, cla
                 {classLevels && classLevels.length > 0 ? (
                     <div className="space-y-2 pt-4 border-t border-stone-700/50">
                         <h5 className="font-semibold text-stone-300">Progressão de Nível</h5>
-                        {classLevels.map(level => (
+                        {classLevels.map((level, index) => (
                             <LevelCard
-                                key={level.level}
+                                key={`${level?.level}-${index}`}
                                 level={level.level}
                                 classLevelData={level}
                                 subclassLevelData={undefined} // Será ajustado se necessário
