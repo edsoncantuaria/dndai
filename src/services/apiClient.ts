@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
 // A URL base da API é lida das variáveis de ambiente do Next.js
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/';
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
