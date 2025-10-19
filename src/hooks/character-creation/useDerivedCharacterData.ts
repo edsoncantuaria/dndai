@@ -264,6 +264,34 @@ export const useDerivedCharacterData = (
     return feats;
   }, [isVariantHuman, selectedFeat, availableFeats]);
 
+  // =============== DADOS DE COMBATE DERIVADOS ===============
+  const { ac, hp, speed, hitDie, modifiers, proficiencyBonus } = useMemo(() => {
+    const mods = characterUtils.calculateModifiers(finalAttributes);
+    const profBonus = characterUtils.getProficiencyBonus(1);
+    
+    // Combine fixed and chosen equipment for AC calculation
+    const currentInventory = [...fixedEquipment, ...finalizedEquipment];
+    
+    // Safe calculation for AC, with a fallback
+    const calculatedAc = characterUtils.calculateAC(currentInventory, mods) || { value: 10, source: 'Base' };
+
+    const calculatedHp = {
+      current: (classDetails?.hit_die || 0) + (mods.constitution || 0),
+      max: (classDetails?.hit_die || 0) + (mods.constitution || 0),
+      temp: 0
+    };
+    
+    return {
+      ac: calculatedAc,
+      hp: calculatedHp,
+      speed: raceDetails?.speed || 30,
+      hitDie: classDetails?.hit_die || 8,
+      modifiers: mods,
+      proficiencyBonus: profBonus
+    };
+  }, [finalAttributes, fixedEquipment, finalizedEquipment, classDetails, raceDetails]);
+
+
   return {
     racialBonuses,
     finalAttributes,
@@ -274,5 +302,11 @@ export const useDerivedCharacterData = (
     areAllEquipmentChoicesMade,
     baseLanguages,
     finalFeats,
+    ac,
+    hp,
+    speed,
+    hitDie,
+    modifiers,
+    proficiencyBonus,
   };
 };

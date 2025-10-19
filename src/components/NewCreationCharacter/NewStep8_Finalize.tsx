@@ -4,8 +4,6 @@ import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCrea
 import type { Attributes } from '@/types';
 import { ArrowLeft, Play, Shield, Heart, Dices } from 'lucide-react';
 import * as characterUtils from '@/utils/characterUtils';
-import { normalizeProficiencyName } from '@/utils/translator';
-
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -27,7 +25,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
         hitDie,
     } = hook;
 
-    // Fallback in case modifiers aren't calculated yet in the hook during the first render
+    // Fallback seguro: se o hook ainda não tiver calculado os modificadores, calculamos aqui.
     const modifiers = hook.modifiers || characterUtils.calculateModifiers(finalAttributes);
     const proficiencyBonus = hook.proficiencyBonus || 2;
 
@@ -117,7 +115,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-center">
                             <div className="bg-stone-800/60 p-3 rounded-lg border border-stone-700">
                                 <div className="text-xs text-stone-400 flex items-center justify-center gap-1"><Shield className="h-3 w-3"/> CA</div>
-                                <div className="font-bold text-3xl text-stone-200">{ac.value}</div>
+                                <div className="font-bold text-3xl text-stone-200">{ac?.value || 10}</div>
                             </div>
                             <div className="bg-stone-800/60 p-3 rounded-lg border border-stone-700">
                                 <div className="text-xs text-stone-400">Iniciativa</div>
@@ -129,7 +127,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                             </div>
                             <div className="bg-red-900/40 p-3 rounded-lg border border-red-700/60">
                                 <div className="text-xs text-red-300 flex items-center justify-center gap-1"><Heart className="h-3 w-3"/> Pontos de Vida</div>
-                                <div className="font-bold text-3xl text-red-200">{hp.max}</div>
+                                <div className="font-bold text-3xl text-red-200">{hp?.max || 0}</div>
                             </div>
                              <div className="bg-stone-800/60 p-3 rounded-lg border border-stone-700 col-span-2 lg:col-span-4">
                                 <div className="text-xs text-stone-400 flex items-center justify-center gap-1"><Dices className="h-3 w-3"/> Dado de Vida</div>
