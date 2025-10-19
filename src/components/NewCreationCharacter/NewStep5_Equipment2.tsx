@@ -8,13 +8,29 @@ import ItemCard from '../ItemCard';
 import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-    if (!cache || !key) return null;
+    if (!key || !cache) return null;
     const nk = normalizeKey(key);
-    const keys = Object.keys(cache);
-    if (keys.includes(nk)) return nk;
-    const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
-    for (const v of variants) if (keys.includes(v)) return v;
-    return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
+  
+    const allKeys = Object.keys(cache);
+    if (allKeys.includes(nk)) return nk;
+  
+    const variants = [
+      nk,
+      nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
+      nk.replace(/-weapons?$/, '-weapon'),
+      nk.replace(/-weapon$/, '-weapons'),
+      nk.replace(/-symbols?$/, '-symbol'),
+      nk.replace(/-symbol$/, '-symbols'),
+      nk.replace(/any-/, ''),
+    ];
+  
+    for (const variant of variants) {
+      const found = allKeys.find(k => k === variant);
+      if (found) return found;
+    }
+  
+    // Fallback para correspondência parcial se nenhuma variante exata for encontrada
+    return allKeys.find(k => k.includes(nk) || nk.includes(k)) || null;
   };
 
 const ItemChoiceSelector: React.FC<{
@@ -37,13 +53,6 @@ const ItemChoiceSelector: React.FC<{
     
     const cacheKey = findCacheMatch(categoryIndex, equipmentCategoryCache);
     const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
-    
-    if (process.env.NODE_ENV === 'development' && !cacheKey && categoryIndex) {
-        console.groupCollapsed(`⚠️ [EquipmentCategory Mismatch] ${categoryIndex}`);
-        console.log('Chave normalizada:', categoryIndex.toLowerCase().trim().replace(/\s+/g, '-'));
-        console.log('Categorias disponíveis:', Object.keys(hook.equipmentCategoryCache).slice(0, 15), '...');
-        console.groupEnd();
-    }
 
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
@@ -75,6 +84,7 @@ const EquipmentOptionRenderer: React.FC<{
 }> = ({ option, selectionPath, hook }) => {
     switch (option.option_type) {
         case 'counted_reference':
+            // This is handled by the main selection, nothing to render here.
             return null;
 
         case 'choice':
@@ -89,9 +99,10 @@ const EquipmentOptionRenderer: React.FC<{
             return (
                 <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
                     {option.items?.map((subItem, subIndex) => {
+                        // Itens fixos dentro de uma opção múltipla são apenas informativos aqui, pois já são adicionados ao inventário
                         if (subItem.option_type === 'counted_reference' && subItem.of) {
                             return (
-                                <p key={subIndex} className="text-sm text-stone-300 pl-4">+ {subItem.count}x {subItem.of.name}</p>
+                                <p key={subIndex} className="text-sm text-stone-300 pl-4">+ {subItem.count || 1}x {subItem.of.name}</p>
                             )
                         } else if (subItem.option_type === 'choice') {
                            return <ItemChoiceSelector key={subIndex} choice={subItem.choice} selectionPath={selectionPath} subIndex={subIndex} hook={hook} />
@@ -134,7 +145,7 @@ const EquipmentChoice: React.FC<{
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url || `/api/equipment/${item.index}`},
+                of: { index: item.index, name: item.name, url: item.url || `/api/2014/equipment/${item.index}`},
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -149,9 +160,8 @@ const EquipmentChoice: React.FC<{
     }
 
     if (!mainOptions.length) {
-        const categoryName = group.choice?.from?.equipment_category?.name || 'categoria desconhecida';
-        console.error(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Verifique o cache.`);
-        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
+        console.error("[EquipmentChoice] Nenhum item encontrado para o grupo:", group);
+        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'. Verifique o cache.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
@@ -198,11 +208,13 @@ const NewStep5_Equipment2: React.FC<{
         const items = [...fixedEquipment, ...finalizedEquipment];
 
         for (const item of items) {
-            if (consolidated.has(item.index)) {
-                const existing = consolidated.get(item.index)!;
-                existing.quantity += item.quantity;
-            } else {
-                consolidated.set(item.index, { ...item });
+            if (item && item.index) {
+                if (consolidated.has(item.index)) {
+                    const existing = consolidated.get(item.index)!;
+                    existing.quantity += item.quantity || 1;
+                } else {
+                    consolidated.set(item.index, { ...item, quantity: item.quantity || 1, id: item.id || uuidv4() });
+                }
             }
         }
         return Array.from(consolidated.values());

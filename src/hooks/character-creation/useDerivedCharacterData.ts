@@ -1,6 +1,6 @@
 // src/hooks/character-creation/useDerivedCharacterData.ts
 import { useMemo } from 'react';
-import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat, ApiEquipmentOption } from '@/types';
+import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat, ApiEquipmentOption, CharacterProficiency, ProficiencyChoice } from '@/types';
 import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
@@ -84,33 +84,50 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-
-        const addEquipment = (list: any[] = []) => list.forEach(item => {
-            if (item.equipment) {
-                const itemDetails = allEquipment.find(e => e && e.index === item.equipment.index);
-                 if (itemDetails) {
-                    fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
+    
+        const addEquipment = (list: any[] = []) => {
+            if (!Array.isArray(list)) return;
+            list.forEach(item => {
+                if (item.equipment) {
+                    const itemDetails = allEquipment.find(e => e && e.index === item.equipment.index);
+                    if (itemDetails) {
+                        fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
+                    }
                 }
-            }
-        });
-
-        if (classDetails) {
-            addEquipment(classDetails.starting_equipment);
-            (classDetails.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
-        }
-        if (backgroundDetails) {
-            addEquipment(backgroundDetails.starting_equipment);
-            (backgroundDetails.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
-        }
+            });
+        };
+    
+        // Adiciona equipamentos fixos da classe e do antecedente
+        addEquipment(classDetails?.starting_equipment);
+        addEquipment(backgroundDetails?.starting_equipment);
+    
+        // Adiciona grupos de escolha da classe e do antecedente
+        (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
+        (backgroundDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
     
         const finalEquip: InventoryItem[] = [];
         choiceGroups.forEach(group => {
             const selection = equipmentSelections[group.id];
             if (selection === undefined || selection.main === undefined || selection.main < 0) return;
-            
-            const optionsSource = group.choice?.from?.options;
-            if (!optionsSource) return;
+    
+            let optionsSource = group.choice?.from?.options;
 
+            // Resolve categoria para opções
+            if (!optionsSource && group.choice?.from?.equipment_category) {
+                 const cat = group.choice.from.equipment_category;
+                 const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+                 const cacheKey = characterUtils.findCacheMatch(categoryKey, equipmentCategoryCache);
+                 if (cacheKey && equipmentCategoryCache[cacheKey]) {
+                     optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({
+                         option_type: 'counted_reference',
+                         count: 1,
+                         of: { index: item.index, name: item.name, url: `/api/2014/equipment/${item.index}` },
+                     }));
+                 }
+            }
+
+            if (!optionsSource) return;
+    
             const mainOption = optionsSource[selection.main];
             if (!mainOption) return;
     
@@ -150,13 +167,14 @@ export const useDerivedCharacterData = (
             if (selection?.main === undefined || selection.main < 0) return false;
             
             let optionsSource = group.choice?.from?.options;
-
-            // **CORREÇÃO CRÍTICA**: Se as opções vierem de uma categoria, use o cache.
-            if (!optionsSource && group.choice?.from?.equipment_category) {
-                 const categoryKey = group.choice.from.equipment_category.index;
-                 optionsSource = (equipmentCategoryCache[categoryKey] || []).map(item => ({ item }));
+             if (!optionsSource && group.choice?.from?.equipment_category) {
+                 const cat = group.choice.from.equipment_category;
+                 const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+                 const cacheKey = characterUtils.findCacheMatch(categoryKey, equipmentCategoryCache);
+                 if (cacheKey && equipmentCategoryCache[cacheKey]) {
+                     optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({ item }));
+                 }
             }
-
             if (!optionsSource) return true;
 
             const mainOption = optionsSource[selection.main];
@@ -214,5 +232,3 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
-
-    
