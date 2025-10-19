@@ -56,34 +56,39 @@ const ItemCard: React.FC<ItemCardProps> = ({
 
   const isProficient = useMemo(() => {
     if (!currentItem) return true;
-
-    // Normalize proficiencies for easier lookup
+  
+    const normalizeKey = (str: string) => str.toLowerCase().replace(/\s+/g, '-');
+  
     const characterProficiencies = new Set(
-      proficiencies.map((p) => p.index.toLowerCase().replace(/\s+/g, '-'))
+      proficiencies.map((p) => normalizeKey(p.index))
     );
-
-    const checkProficiency = (key: string | undefined): boolean => {
-        if (!key) return false;
-        return characterProficiencies.has(key.toLowerCase().replace(/\s+/g, '-'));
+  
+    const checkProficiency = (key?: string): boolean => {
+      if (!key) return false;
+      const normalizedKey = normalizeKey(key);
+      const singularKey = normalizedKey.endsWith('s') ? normalizedKey.slice(0, -1) : normalizedKey;
+      const pluralKey = singularKey + 's';
+      
+      return characterProficiencies.has(normalizedKey) || characterProficiencies.has(singularKey) || characterProficiencies.has(pluralKey);
     };
-    
+  
     // 1. General proficiencies
-    if (checkProficiency('all-armor') && currentItem.armor_category) return true;
-    if (checkProficiency('martial-weapons') && currentItem.weapon_category === 'Martial') return true;
-    if (checkProficiency('simple-weapons') && currentItem.weapon_category === 'Simple') return true;
-    if (checkProficiency('shields') && currentItem.equipment_category?.index === 'shields') return true;
-
-    // 2. Specific category proficiencies (e.g., 'light-armor')
+    if (currentItem.armor_category && checkProficiency('all-armor')) return true;
+    if (currentItem.weapon_category === 'Martial' && checkProficiency('martial-weapons')) return true;
+    if (currentItem.weapon_category === 'Simple' && checkProficiency('simple-weapons')) return true;
+    if (currentItem.equipment_category?.index === 'shields' && checkProficiency('shields')) return true;
+  
+    // 2. Specific category proficiencies
     if (currentItem.armor_category && checkProficiency(`${currentItem.armor_category.toLowerCase()}-armor`)) {
-        return true;
+      return true;
     }
-    
-    // 3. Specific item proficiency (e.g., 'longsword')
+  
+    // 3. Specific item proficiency by index (e.g., 'longsword')
     if (currentItem.index && checkProficiency(currentItem.index)) {
-        return true;
+      return true;
     }
-
-    // Default to not proficient if a specific proficiency is required and not met
+  
+    // 4. Default to not proficient for items requiring proficiency, if no match found
     if (
       currentItem.armor_category ||
       currentItem.weapon_category ||
@@ -91,7 +96,7 @@ const ItemCard: React.FC<ItemCardProps> = ({
     ) {
       return false;
     }
-
+  
     // True for items that don't require proficiency (like general gear)
     return true;
   }, [currentItem, proficiencies]);
