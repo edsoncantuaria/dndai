@@ -148,7 +148,7 @@ export const useSelectionManager = (
             return level1Data.spellcasting.spells_known;
         }
 
-        const spellsKnownInfo = classDetails.spellcasting.info.find(i => i.name.startsWith('Spells Known'));
+        const spellsKnownInfo = classDetails.spellcasting.info.find((i: any) => i.name.startsWith('Spells Known'));
         if (spellsKnownInfo) {
             return parseInt(spellsKnownInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10);
         }
@@ -181,7 +181,7 @@ export const useSelectionManager = (
             }
             return prev;
         });
-    }, [setField, classSpellOptions, subclassSpells]);
+    }, [setField, classSpellOptions, subclassSpells, cantripsKnown, spellsKnown]);
     
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
@@ -208,8 +208,8 @@ export const useSelectionManager = (
 
         return traitsWithOptions.map((t:any) => ({
             traitName: t.name,
-            choose: t.trait_specific.spell_options.choose,
-            options: t.trait_specific.spell_options.from.options.map((o: any) => o.item)
+            choose: t.trait_specific!.spell_options!.choose,
+            options: t.trait_specific!.spell_options!.from.options.map((o: any) => o.item)
         }));
     }, [details.traitChoiceDetails]);
 
@@ -252,6 +252,34 @@ export const useSelectionManager = (
         return allChoicesMade && allLangsChosen;
     }, [allProficiencyChoices, proficiencySelections, state.chosenLanguages, languageChoicesCount]);
 
+    const handleRandomizeSpells = useCallback(() => {
+        // Randomize Class Spells
+        const allClassSpells = [...classSpellOptions, ...subclassSpells];
+        const cantrips = allClassSpells.filter(s => s.level === 0);
+        const level1Spells = allClassSpells.filter(s => s.level === 1);
+
+        const shuffledCantrips = [...cantrips].sort(() => 0.5 - Math.random());
+        const shuffledLevel1s = [...level1Spells].sort(() => 0.5 - Math.random());
+
+        const selectedCantrips = shuffledCantrips.slice(0, cantripsKnown).map(s => s.index);
+        const selectedLevel1s = shuffledLevel1s.slice(0, spellsKnown).map(s => s.index);
+        
+        setField('chosenClassSpells', [...selectedCantrips, ...selectedLevel1s]);
+
+        // Randomize Racial Spells
+        const newRacialSelections: Record<string, string[]> = {};
+        racialSpellTraits.forEach((trait: any) => {
+            const availableOptions = racialSpellOptions.filter(spell => 
+                trait.options.some((opt: any) => opt.index === spell.index)
+            );
+            const shuffled = [...availableOptions].sort(() => 0.5 - Math.random());
+            newRacialSelections[trait.traitName] = shuffled.slice(0, trait.choose).map(s => s.index);
+        });
+
+        setField('chosenRacialSpells', newRacialSelections);
+
+    }, [classSpellOptions, subclassSpells, cantripsKnown, spellsKnown, racialSpellTraits, racialSpellOptions, setField]);
+
 
     return {
         proficiencySelections,
@@ -269,6 +297,7 @@ export const useSelectionManager = (
         handleRacialSpellChange,
         handleRandomizeProficiencies,
         handleRandomizeLanguages,
+        handleRandomizeSpells,
         canProceedFromProficiencies,
         areClassSpellsSelected,
         areRacialSpellsSelected,
