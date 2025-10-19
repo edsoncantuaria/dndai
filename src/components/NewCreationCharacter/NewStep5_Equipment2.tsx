@@ -7,6 +7,7 @@ import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
 import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { translateEquipment } from '@/utils/translator'; // Importar a função de tradução
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -181,14 +182,15 @@ const NewStep5_Equipment2: React.FC<{
 
         for (const item of items) {
             if (item && item.index) {
-                 if (item.index.startsWith('pouch-with-')) {
+                const translatedItem = translateEquipment(item);
+                if (translatedItem.index.startsWith('pouch-with-')) {
                     continue;
                 }
-                if (consolidated.has(item.index)) {
-                    const existing = consolidated.get(item.index)!;
-                    existing.quantity += item.quantity || 1;
+                if (consolidated.has(translatedItem.index)) {
+                    const existing = consolidated.get(translatedItem.index)!;
+                    existing.quantity += translatedItem.quantity || 1;
                 } else {
-                    consolidated.set(item.index, { ...item, quantity: item.quantity || 1, id: (item as any).id || uuidv4() });
+                    consolidated.set(translatedItem.index, { ...translatedItem, quantity: translatedItem.quantity || 1, id: (translatedItem as any).id || uuidv4() });
                 }
             }
         }

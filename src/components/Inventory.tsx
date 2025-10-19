@@ -5,6 +5,7 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
 import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword, Coins } from 'lucide-react';
+import { translateEquipment } from '../utils/translator'; // Importar a função de tradução
 
 const LootDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
@@ -57,10 +58,13 @@ const Inventory: React.FC = () => {
     const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
-    const weapons = character.inventory.filter(i => i.weapon_category);
-    const armors = character.inventory.filter(i => i.armor_category);
-    const magicItems = character.inventory.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
-    const otherItems = character.inventory.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)') && !['gp', 'sp', 'cp', 'ep', 'pp'].includes(i.index));
+    const inventoryItems = character.inventory.map(item => translateEquipment(item));
+
+    const weapons = inventoryItems.filter(i => i.weapon_category);
+    const armors = inventoryItems.filter(i => i.armor_category);
+    const magicItems = inventoryItems.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
+    const otherItems = inventoryItems.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)') && !COIN_TYPES.includes(i.index));
+    const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
 
     const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
         <div>

@@ -1,8 +1,10 @@
 // src/utils/translator.ts
 import { getTranslations } from '@/services/translationService';
+import type { InventoryItem } from '@/types';
 
 // Armazena as traduções em memória após o primeiro carregamento.
 let translations: Record<string, Record<string, string>> = {};
+let equipmentTranslations: Record<string, any> = {};
 let isLoaded = false;
 
 /**
@@ -12,12 +14,15 @@ let isLoaded = false;
 export const loadTranslations = async () => {
     if (isLoaded) return;
     try {
-        translations = await getTranslations();
+        const data = await getTranslations();
+        // Assume que uma das categorias será 'Equipment'
+        const { Equipment, ...rest } = data;
+        translations = rest;
+        equipmentTranslations = Equipment || {};
         isLoaded = true;
         console.log('[Translator] Traduções carregadas com sucesso.');
     } catch (error) {
         console.error('[Translator] Falha ao carregar traduções do backend:', error);
-        // O sistema continuará a funcionar, mas sem traduções.
     }
 };
 
@@ -28,6 +33,7 @@ export const loadTranslations = async () => {
  * @returns A string traduzida ou a chave original se não encontrada.
  */
 const translate = (category: string, key: string): string => {
+    if (!key) return '';
     return translations[category]?.[key] || key;
 };
 
@@ -57,7 +63,6 @@ export const translateAttribute = (attributeKey: string): string => {
 export const translateApiString = (apiString: string): string => {
     if (!apiString) return '';
 
-    // Itera sobre as principais categorias para encontrar uma correspondência.
     const categoriesToTry: (keyof typeof translations)[] = [
         'Races', 'Classes', 'Subclasses', 'Skills & Proficiencies', 'Equipment Categories'
     ];
@@ -67,11 +72,6 @@ export const translateApiString = (apiString: string): string => {
         if (translation) return translation;
     }
     
-    const key = apiString.toLowerCase().replace(/ /g, '-');
-    const specific = translations['Skills & Proficiencies']?.[key];
-    if (specific) return specific;
-
-
     return apiString;
 };
 
@@ -85,7 +85,6 @@ export const normalizeProficiencyName = (name: string): string => {
     if (!name) return '';
     const lowerCaseName = name.toLowerCase();
 
-    // Remove prefixos conhecidos
     const prefixesToRemove = ['skill:', 'saving throw:', 'saving throw :'];
     for (const prefix of prefixesToRemove) {
         if (lowerCaseName.startsWith(prefix)) {
@@ -95,4 +94,42 @@ export const normalizeProficiencyName = (name: string): string => {
     }
 
     return translateApiString(name);
+};
+
+
+/**
+ * Traduz de forma profunda um objeto de equipamento, incluindo suas propriedades.
+ * @param equipment O objeto de equipamento a ser traduzido.
+ * @returns Um novo objeto de equipamento com os campos traduzidos.
+ */
+export const translateEquipment = (equipment: InventoryItem): InventoryItem => {
+    if (!equipment?.index) return equipment;
+
+    // Deep copy para não mutar o objeto original
+    const newEquipment = JSON.parse(JSON.stringify(equipment));
+    
+    const translation = equipmentTranslations[equipment.index];
+
+    if (translation) {
+        if (translation.name) newEquipment.name = translation.name;
+        if (translation.desc) newEquipment.desc = translation.desc;
+        if (translation.weapon_category) newEquipment.weapon_category = translation.weapon_category;
+        if (translation.weapon_range) newEquipment.weapon_range = translation.weapon_range;
+        if (translation.category_range) newEquipment.category_range = translation.category_range;
+
+        if (translation.damage_type_name && newEquipment.damage?.damage_type) {
+            newEquipment.damage.damage_type.name = translation.damage_type_name;
+        }
+        if (translation.two_handed_damage_type_name && newEquipment.two_handed_damage?.damage_type) {
+            newEquipment.two_handed_damage.damage_type.name = translation.two_handed_damage_type_name;
+        }
+
+        if (translation.properties && newEquipment.properties && newEquipment.properties.length === translation.properties.length) {
+            newEquipment.properties.forEach((p: any, i: number) => {
+                p.name = translation.properties[i];
+            });
+        }
+    }
+    
+    return newEquipment;
 };
