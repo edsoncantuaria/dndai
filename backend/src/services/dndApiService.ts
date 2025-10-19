@@ -87,7 +87,12 @@ export async function getResourceDetails(resource: string, index: string): Promi
   const key = cacheKey(resource, index);
   const data = await fetchWithCache<any>(`/${resource}/${index}`, key);
   
-  // Normaliza a resposta para endpoints /levels, retornando o array diretamente.
+  // Se a resposta for um array direto (como em /classes/{index}/levels), retorne-o.
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  // Mantém a compatibilidade com outras respostas que podem ter um objeto com a propriedade `levels`
   if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
     return data.levels;
   }
