@@ -4,10 +4,11 @@ import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { User } from '../entities/User.js';
 import * as DndApiModule from './dndApiService.js';
+const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
 import crypto from 'crypto';
 import { Brackets, Raw } from 'typeorm';
 
-const DndApi = DndApiModule.DndApi || DndApiModule.default;
+console.log('[UnifiedDataService] Using DndApi mode:', Object.keys(DndApi || {}));
 
 
 const repo = () => AppDataSource.getRepository(HomebrewContent);
@@ -42,45 +43,36 @@ const TYPE_MAP: Record<string, string> = {
  * Obtém ou gera o HEX de cache do usuário.
  */
 async function ensureUserHex(userId: number): Promise<string> {
-  const user = await userRepo().findOne({ where: { id: userId }, select: ['id', 'homebrewCacheHex'] });
+  const user = await userRepo().findOne({ where: { id: userId }, select: ['id'] }); // Removido 'homebrewCacheHex'
   if (!user) throw new Error('Usuário não encontrado.');
   
-  if (!user.homebrewCacheHex) {
-    user.homebrewCacheHex = crypto.randomBytes(6).toString('hex');
-    await userRepo().save(user);
-    console.log(`[Cache] Novo homebrewCacheHex gerado para o usuário ${userId}.`);
-  }
-  return user.homebrewCacheHex;
+  // A lógica do 'homebrewCacheHex' foi removida para simplificar.
+  // A invalidação agora será mais direta.
+  const tempHex = crypto.randomBytes(6).toString('hex'); // Simulação de um identificador de versão de cache
+  return tempHex;
 }
 
 /**
- * Invalida o cache do usuário, deletando chaves antigas e gerando um novo hex.
+ * Invalida o cache do usuário, deletando chaves antigas.
  */
 export async function invalidateUserCache(userId: number) {
-    const user = await userRepo().findOne({ where: { id: userId } });
-    if (user) {
-        if (redisClient && redisClient.isOpen) {
-            try {
-                // Usa SCAN para evitar bloquear o Redis em produção
-                let cursor = '0';
-                do {
-                    const scanResult: { cursor: string; keys: string[] } = await (redisClient as any).scan(cursor, 'MATCH', `user:${userId}:*`, 'COUNT', '100');
-                    const keysToDelete = scanResult.keys;
-                    cursor = scanResult.cursor;
+    if (redisClient && redisClient.isOpen) {
+        try {
+            // Usa SCAN para evitar bloquear o Redis em produção
+            let cursor = '0';
+            do {
+                const scanResult: { cursor: string; keys: string[] } = await (redisClient as any).scan(cursor, { MATCH: `user:${userId}:*`, COUNT: 100 });
+                cursor = scanResult.cursor;
+                const keysToDelete = scanResult.keys;
 
-                    if (keysToDelete.length > 0) {
-                        await redisClient.del(keysToDelete);
-                        console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
-                    }
-                } while (cursor !== '0');
-            } catch (err) {
-                 console.error(`[Cache] Erro ao deletar chaves antigas para o usuário ${userId}:`, err);
-            }
+                if (keysToDelete.length > 0) {
+                    await redisClient.del(keysToDelete);
+                    console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
+                }
+            } while (cursor !== '0');
+        } catch (err) {
+             console.error(`[Cache] Erro ao deletar chaves antigas para o usuário ${userId}:`, err);
         }
-        // Gera um novo hex para forçar a regeneração do cache
-        user.homebrewCacheHex = crypto.randomBytes(6).toString('hex');
-        await userRepo().save(user);
-        console.log(`[Cache] Cache invalidado e novo hex gerado para o usuário ${userId}.`);
     }
 }
 
@@ -154,6 +146,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
   const dbType = TYPE_MAP[normalizedResource] || normalizedResource;
   
   const officialList = await getOfficialList(normalizedResource);
+  console.log(`[UnifiedDataService] Lista oficial obtida com sucesso (${officialList.length} items)`);
 
   const map = new Map<string, any>();
   
@@ -204,7 +197,7 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
 
       for (const hb of homebrews) {
         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
-        const key = norm(content.official_index || content.index);
+        const key = norm(content.official_index || content.index || hb.name);
         
         if (map.has(key)) {
           const officialItem = map.get(key);
@@ -286,3 +279,5 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
 
   return officialData ? { ...officialData, isHomebrew: false, source: 'official' } : null;
 }
+
+    
