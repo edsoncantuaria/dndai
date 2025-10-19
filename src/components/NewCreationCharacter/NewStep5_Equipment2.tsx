@@ -17,7 +17,6 @@ const ItemChoiceSelector: React.FC<{
     let categoryIndex = '';
     let optionsSource: any[] = [];
     
-    // A API D&D pode usar 'equipment_category' ou 'options' para definir a fonte.
     if (choice?.from?.equipment_category) {
         const cat = choice.from.equipment_category;
         categoryIndex = typeof cat === 'string' ? cat : cat?.name || cat?.index;
@@ -31,14 +30,14 @@ const ItemChoiceSelector: React.FC<{
     }
 
     const cacheKey = findCacheMatch(normalizeCategoryKey(categoryIndex), equipmentCategoryCache);
-    const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item);
+    const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
     
     const currentMainSelection = hook.equipmentSelections[selectionPath];
     const currentSubSelections = (typeof currentMainSelection === 'object' && currentMainSelection?.sub) ? currentMainSelection.sub : {};
     const thisSubSelection = currentSubSelections[subIndex];
 
     if (subOptions.length === 0) {
-        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}' (chave normalizada: '${cacheKey}').`);
+        console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryIndex}' (chave normalizada: '${cacheKey}').`, "Cache dump:", equipmentCategoryCache);
     }
 
     return (
@@ -50,8 +49,8 @@ const ItemChoiceSelector: React.FC<{
                 className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-1 focus:ring-amber-500 focus:border-amber-500 text-sm mt-1"
             >
                 <option value="" disabled>Selecione uma opção...</option>
-                {subOptions.map((item: any) => (
-                    <option key={item.index} value={item.index}>
+                {subOptions.map((item: any, idx: number) => (
+                    item && <option key={item.index || idx} value={item.index}>
                         {item.name}
                     </option>
                 ))}
@@ -137,7 +136,7 @@ const EquipmentChoice: React.FC<{
         const categoryKey = normalizeCategoryKey(typeof cat === 'string' ? cat : cat?.name || cat?.index);
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
 
-        if (process.env.NODE_ENV === 'development') {
+        if (process.env.NODE_ENV === 'development' && !cacheKey) {
             console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${cacheKey}"`);
         }
 
@@ -148,11 +147,12 @@ const EquipmentChoice: React.FC<{
                 of: { index: item.index, name: item.name, url: item.url }
             }));
         } else {
-             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Cache dump:`, equipmentCategoryCache);
+             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache`, equipmentCategoryCache);
         }
     }
     
     if (mainOptions.length === 0) {
+        console.error("[EquipmentChoice] Impossível renderizar opções para o grupo:", group);
         return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
     }
     
