@@ -10,7 +10,7 @@ import { IsNull } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
-import * as DndApiService from './dndApiService.js';
+import DndApiService from './dndApiService.js';
 import redisClient from '../database/redis-client.js';
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
@@ -80,13 +80,13 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        const classDetails: any = await DndApiService.getDetails('classes', characterData.characterClass.toLowerCase());
+        const classDetails: any = await DndApiService.getResourceDetails('classes', characterData.characterClass.toLowerCase());
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
         const itemPromises = characterData.inventory.map(async (itemData: any) => {
-            const details = await DndApiService.getEquipmentDetails(itemData.index);
+            const details = await DndApiService.getDetails('equipment', itemData.index);
             return { 
                 ...details, 
                 ...itemData, 
