@@ -6,7 +6,7 @@ import { useDataManager } from './useDataManager';
 import { useSelectionManager } from './useSelectionManager';
 import { useDerivedCharacterData } from './useDerivedCharacterData';
 import * as DndApiService from '../../services/dndApiService';
-import type { NewCharacterInfo, ProficiencyChoice, ApiListItem } from '../../types';
+import type { NewCharacterInfo, ProficiencyChoice, ApiListItem, InventoryItem } from '../../types';
 
 export interface ProficiencyChoiceWithSource extends ProficiencyChoice {
     id: string;
@@ -41,9 +41,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    // CORREÇÃO: Passar o selectionManager já criado para o derivedData.
     const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
-
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {
@@ -74,6 +72,54 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         });
     }, [setField]);
 
+    const handleRandomizeEquipment = useCallback(() => {
+        const newSelections: Record<string, { main: number, sub: Record<number, string> }> = {};
+    
+        derivedData.equipmentChoiceGroups.forEach(group => {
+            if (!group.choice?.from) return;
+    
+            let mainOptions: any[] = [];
+            
+            if (group.choice.from.option_set_type === 'options_array') {
+                mainOptions = group.choice.from.options || [];
+            } else if (group.choice.from.equipment_category) {
+                const catKey = group.choice.from.equipment_category.index || group.choice.from.equipment_category.name;
+                mainOptions = equipmentCategoryCache[catKey] || [];
+                // Transform items into the expected option format for consistency
+                mainOptions = mainOptions.map(item => ({ option_type: 'counted_reference', of: item }));
+            }
+    
+            if (mainOptions.length > 0) {
+                const randomMainIndex = Math.floor(Math.random() * mainOptions.length);
+                const selectedMainOpt = mainOptions[randomMainIndex];
+                const newSubSelections: Record<number, string> = {};
+
+                // Handle sub-choices if the main choice requires it
+                if (selectedMainOpt.option_type === 'choice' && selectedMainOpt.choice?.from) {
+                     const subChoice = selectedMainOpt.choice;
+                    const subCategoryKey = subChoice.from.equipment_category?.index;
+                    let subOptions: any[] = [];
+
+                    if (subCategoryKey && equipmentCategoryCache[subCategoryKey]) {
+                        subOptions = equipmentCategoryCache[subCategoryKey];
+                    } else if (subChoice.from.options) {
+                        subOptions = subChoice.from.options.map((opt:any) => opt.item || opt.of);
+                    }
+
+                    if (subOptions.length > 0) {
+                        for (let i = 0; i < (subChoice.choose || 1); i++) {
+                            const randomSubIndex = Math.floor(Math.random() * subOptions.length);
+                            newSubSelections[i] = subOptions[randomSubIndex]?.index;
+                        }
+                    }
+                }
+                
+                newSelections[group.id] = { main: randomMainIndex, sub: newSubSelections };
+            }
+        });
+    
+        setField('equipmentSelections', newSelections);
+    }, [derivedData.equipmentChoiceGroups, equipmentCategoryCache, setField]);
 
     const handleRaceChange = useCallback(async (newRaceIndex: string) => {
         setField('race', newRaceIndex);
@@ -133,7 +179,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
             
             const homebrewIds = [state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]
                 .concat(Object.values(selectionManager.proficiencySelections).flat())
-                .concat(derivedData.finalizedEquipment.map((item: any) => item.index))
+                .concat(derivedData.finalizedEquipment.map((item: InventoryItem) => item.id))
                 .concat(selectionManager.chosenClassSpells)
                 .concat(Object.values(selectionManager.chosenRacialSpells).flat())
                 .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
@@ -182,6 +228,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         equipmentCategoryCache,
         handleEquipmentChoiceChange,
         handleEquipmentSubChoiceChange,
+        handleRandomizeEquipment,
         ...attributeManager,
         ...selectionManager,
         ...derivedData,

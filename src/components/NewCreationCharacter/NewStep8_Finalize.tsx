@@ -27,6 +27,11 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
         hitDie,
     } = hook;
 
+    // Fallback in case modifiers aren't calculated yet in the hook during the first render
+    const modifiers = hook.modifiers || characterUtils.calculateModifiers(finalAttributes);
+    const proficiencyBonus = hook.proficiencyBonus || 2;
+
+
     return (
         <div className="space-y-6 animate-fadeIn">
             <div className="text-center">
@@ -93,7 +98,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                             {characterUtils.ALL_SKILLS.map(skill => {
                                 const prof = finalProficiencies.find(p => p.name.includes(skill));
                                 const attr = characterUtils.SKILL_ATTRIBUTE_MAP[skill as keyof typeof characterUtils.SKILL_ATTRIBUTE_MAP];
-                                const modifier = finalAttributes[attr] ? hook.modifiers[attr] + (prof ? hook.proficiencyBonus : 0) : 0;
+                                const modifier = finalAttributes[attr] ? (modifiers[attr] || 0) + (prof ? proficiencyBonus : 0) : 0;
                                 return (
                                     <div key={skill} className="flex items-center text-xs border-b border-stone-800 pb-1">
                                         <div className={`w-3 h-3 rounded-full border-2 mr-2 ${prof ? 'bg-amber-400 border-amber-300' : 'bg-stone-700 border-stone-600'}`}></div>
@@ -116,7 +121,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                             </div>
                             <div className="bg-stone-800/60 p-3 rounded-lg border border-stone-700">
                                 <div className="text-xs text-stone-400">Iniciativa</div>
-                                <div className="font-bold text-3xl text-stone-200">{hook.modifiers.dexterity >= 0 ? `+${hook.modifiers.dexterity}`: hook.modifiers.dexterity}</div>
+                                <div className="font-bold text-3xl text-stone-200">{modifiers.dexterity >= 0 ? `+${modifiers.dexterity}`: modifiers.dexterity}</div>
                             </div>
                             <div className="bg-stone-800/60 p-3 rounded-lg border border-stone-700">
                                 <div className="text-xs text-stone-400">Velocidade</div>
