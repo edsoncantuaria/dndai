@@ -5,33 +5,8 @@ import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCrea
 import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
-import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
-
-const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-    if (!key || !cache) return null;
-    const nk = normalizeKey(key);
-  
-    const allKeys = Object.keys(cache);
-    if (allKeys.includes(nk)) return nk;
-  
-    const variants = [
-      nk,
-      nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
-      nk.replace(/-weapons?$/, '-weapon'),
-      nk.replace(/-weapon$/, '-weapons'),
-      nk.replace(/-symbols?$/, '-symbol'),
-      nk.replace(/-symbol$/, '-symbols'),
-      nk.replace(/any-/, ''),
-    ];
-  
-    for (const variant of variants) {
-      const found = allKeys.find(k => k === variant);
-      if (found) return found;
-    }
-  
-    // Fallback para correspondência parcial se nenhuma variante exata for encontrada
-    return allKeys.find(k => k.includes(nk) || nk.includes(k)) || null;
-  };
+import { v4 as uuidv4 } from 'uuid';
+import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder'; // Importar a função centralizada
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -134,18 +109,13 @@ const EquipmentChoice: React.FC<{
         const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
         
-        let source: InventoryItem[] | null = null;
-        if (cacheKey && equipmentCategoryCache[cacheKey]) {
-            source = equipmentCategoryCache[cacheKey];
-        } else if(lazyItems) {
-            source = lazyItems;
-        }
+        const source = cacheKey ? equipmentCategoryCache[cacheKey] : lazyItems;
 
         if (source?.length) {
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url || `/api/2014/equipment/${item.index}`},
+                of: { index: item.index, name: item.name, url: item.url || `/api/2014/equipment/${item.index}` },
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -160,8 +130,13 @@ const EquipmentChoice: React.FC<{
     }
 
     if (!mainOptions.length) {
-        console.error("[EquipmentChoice] Nenhum item encontrado para o grupo:", group);
-        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'. Verifique o cache.</p>;
+         if (process.env.NODE_ENV === 'development') {
+            const categoryKey = group.choice?.from?.equipment_category?.name || group.choice?.from?.equipment_category?.index || 'undefined';
+            console.error(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryKey}'. Verifique o cache.`);
+            console.log(`[EquipmentChoice] Desc: "${group.choice.desc}", CatKey: "${categoryKey}", CacheKey: "${findCacheMatch(categoryKey, equipmentCategoryCache)}"`);
+            console.log(`[EquipmentChoice] Cache dump:`, equipmentCategoryCache);
+         }
+        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{group.choice?.from?.equipment_category?.name}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;

@@ -5,6 +5,7 @@ import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
+import { findCacheMatch } from '@/utils/equipmentCacheBuilder'; // Importar a função centralizada
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -116,7 +117,7 @@ export const useDerivedCharacterData = (
             if (!optionsSource && group.choice?.from?.equipment_category) {
                  const cat = group.choice.from.equipment_category;
                  const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
-                 const cacheKey = characterUtils.findCacheMatch(categoryKey, equipmentCategoryCache);
+                 const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
                  if (cacheKey && equipmentCategoryCache[cacheKey]) {
                      optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({
                          option_type: 'counted_reference',
@@ -170,7 +171,7 @@ export const useDerivedCharacterData = (
              if (!optionsSource && group.choice?.from?.equipment_category) {
                  const cat = group.choice.from.equipment_category;
                  const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
-                 const cacheKey = characterUtils.findCacheMatch(categoryKey, equipmentCategoryCache);
+                 const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
                  if (cacheKey && equipmentCategoryCache[cacheKey]) {
                      optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({ item }));
                  }
