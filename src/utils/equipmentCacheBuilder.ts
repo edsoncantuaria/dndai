@@ -48,16 +48,8 @@ export const findCacheMatch = (key: string, cache: Record<string, any[]>): strin
  */
 export async function buildEquipmentCache(): Promise<Record<string, InventoryItem[]>> {
   console.log('[EquipmentCache] Iniciando construção do cache de equipamentos...');
-  const equipmentList = await DndApiService.getEquipment();
-  if (!Array.isArray(equipmentList)) throw new Error('Lista de equipamentos inválida.');
-  
-  console.log(`[EquipmentCache] Lista oficial com ${equipmentList.length} itens recebida. Buscando detalhes...`);
-
-  const allEquipmentDetails = await fetchDetailsInChunks(
-    equipmentList,
-    (item) => DndApiService.getEquipmentDetails(item.index),
-    () => {}
-  );
+  // A função getEquipment agora já retorna a lista detalhada.
+  const allEquipmentDetails = await DndApiService.getEquipment();
   
   console.log(`[EquipmentCache] ${allEquipmentDetails.length} detalhes de itens recebidos. Indexando...`);
 

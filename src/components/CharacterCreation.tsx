@@ -24,6 +24,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         const loadInitialData = async () => {
             setIsDataLoading(true);
             try {
+                console.log("[CharacterCreation] Iniciando busca de dados iniciais...");
                 const [racesData, classesData, backgroundsData, alignmentsData, languagesData] = await Promise.all([
                     DndApiService.getRaces(),
                     DndApiService.getClasses(),
@@ -32,6 +33,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
                     DndApiService.getLanguages(),
                 ]);
 
+                console.log("[CharacterCreation] Dados recebidos:", { races: racesData?.results?.length, classes: classesData?.results?.length });
                 setRaces(racesData?.results || []);
                 setClasses(classesData?.results || []);
                 setBackgrounds(backgroundsData?.results || []);

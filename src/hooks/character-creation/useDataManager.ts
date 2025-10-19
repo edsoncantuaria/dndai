@@ -43,48 +43,32 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
    * ============================================================= */
   useEffect(() => {
     const initializeEquipment = async () => {
-      if (initialized.current || Object.keys(equipmentCategoryCache).length > 0) return;
-      initialized.current = true;
-      
-      const cached = sessionStorage.getItem('equipmentCache');
-      if (cached) {
-          try {
-              const parsed = JSON.parse(cached);
-              setEquipmentCategoryCache(parsed);
-              setAllEquipment(Object.values(parsed).flat() as InventoryItem[]);
-              console.log('[useDataManager] Cache de equipamento carregado do sessionStorage.');
-              return;
-          } catch (e) {
-              console.warn('[⚠️ EquipmentCache] Falha ao analisar o cache do sessionStorage, reconstruindo...');
-              sessionStorage.removeItem('equipmentCache');
-          }
-      }
+        if (initialized.current) return;
+        initialized.current = true;
 
+        setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+        try {
+            // A função getEquipment agora retorna a lista detalhada e já faz cache.
+            const equipmentList = await DndApiService.getEquipment();
+            setAllEquipment(equipmentList);
+            console.log(`[useDataManager] Lista de equipamentos carregada com ${equipmentList.length} itens.`);
 
-      setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-      try {
-          const cache = await buildEquipmentCache();
-          
-          await Promise.all([
-            resolveEquipmentCategory('holy-symbols', cache),
-            resolveEquipmentCategory('simple-weapons', cache),
-            resolveEquipmentCategory('martial-weapons', cache),
-            resolveEquipmentCategory('musical-instruments', cache),
-          ]);
-          
-          sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
-          setEquipmentCategoryCache({ ...cache });
+            // O cache de categorias ainda pode ser útil para seletores de UI.
+            const categoryCache: Record<string, InventoryItem[]> = {};
+            equipmentList.forEach(item => {
+                const categoryKey = item.equipment_category?.index;
+                if(categoryKey) {
+                    if (!categoryCache[categoryKey]) categoryCache[categoryKey] = [];
+                    categoryCache[categoryKey].push(item);
+                }
+            });
+            setEquipmentCategoryCache(categoryCache);
 
-          const flattened = Object.values(cache).flat();
-          const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
-          setAllEquipment(unique);
-
-      } catch (err) {
-          console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
-          setEquipmentCategoryCache({});
-      } finally {
-          setLoadingStates({ isLoading: false, message: '', progress: 0 });
-      }
+        } catch (err) {
+            console.error('[useDataManager] Falha ao carregar equipamentos:', err);
+        } finally {
+            setLoadingStates({ isLoading: false, message: '', progress: 0 });
+        }
     };
 
     initializeEquipment();

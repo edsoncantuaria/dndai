@@ -25,11 +25,17 @@ import type {
   Feat,
   InventoryItem
 } from '../types';
+import { fetchDetailsInChunks } from '@/utils/apiUtils';
+
 
 const API_BASE = '/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
+
+// Nova variável de cache para a lista completa de equipamentos
+let fullEquipmentListCache: InventoryItem[] | null = null;
+
 
 /* 🔹 Helper genérico de fetch com cache */
 async function fetchJson<T>(endpoint: string): Promise<T> {
@@ -109,11 +115,40 @@ export const getBackgrounds = () => fetchList<ApiListItem>('/backgrounds');
 export const getBackgroundDetails = (index: string) => getResourceDetails('backgrounds', index) as Promise<ApiBackground>;
 
 /* ===========================================================
- * ⚔️ Equipamentos
+ * ⚔️ Equipamentos - LÓGICA CENTRALIZADA
  * =========================================================== */
 export const getEquipment = async (): Promise<InventoryItem[]> => {
-    return apiClient<InventoryItem[]>(`${API_BASE}/equipment`);
+    // Se o cache já foi construído, retorna imediatamente.
+    if (fullEquipmentListCache) {
+      console.log("[DndApiService] Retornando lista de equipamentos do cache em memória.");
+      return fullEquipmentListCache;
+    }
+  
+    console.log("[DndApiService] Construindo lista de equipamentos detalhada...");
+    const listResponse = await fetchList<ApiListItem>('/equipment');
+    const equipmentList = listResponse.results.filter(item => item && item.index);
+    
+    if (!equipmentList || equipmentList.length === 0) {
+      console.error("[DndApiService] A lista inicial de equipamentos está vazia ou falhou ao carregar.");
+      return [];
+    }
+  
+    // Busca os detalhes de todos os itens em lotes.
+    const allEquipmentDetails = await fetchDetailsInChunks(
+      equipmentList,
+      (item) => getResourceDetails('equipment', item.index) as Promise<InventoryItem>,
+      (loaded, total, progress) => {
+        console.log(`[DndApiService] Carregando detalhes de equipamentos... ${loaded}/${total} (${progress.toFixed(0)}%)`);
+      }
+    );
+  
+    const validDetails = allEquipmentDetails.filter((item): item is InventoryItem => !!item);
+    
+    console.log(`[DndApiService] Lista de equipamentos detalhada construída com ${validDetails.length} itens.`);
+    fullEquipmentListCache = validDetails; // Salva a lista completa no cache
+    return validDetails;
 };
+
 export const getEquipmentDetails = (index: string) => getResourceDetails('equipment', index) as Promise<InventoryItem>;
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');
 export const getWeaponPropertyDetails = (index: string) => getResourceDetails('weapon-properties', index) as Promise<ApiWeaponProperty>;

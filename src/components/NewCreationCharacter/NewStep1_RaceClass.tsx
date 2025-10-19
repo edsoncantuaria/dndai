@@ -105,6 +105,10 @@ const NewStep1_RaceClass: React.FC<Props> = ({
         return true;
     }, [race, characterClass, draconicAncestry]);
 
+    console.log("[NewStep1] Props recebidas:", { racesCount: races.length, classesCount: classes.length });
+    console.log("[NewStep1] Estado atual:", { race, characterClass });
+
+
     return (
         <>
             <div className="space-y-8 animate-fadeIn">
