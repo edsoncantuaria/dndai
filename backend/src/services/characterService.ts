@@ -198,59 +198,61 @@ export const cloneCharacter = async (
             throw createError(404, 'Personagem original não encontrado para clonagem.');
         }
 
-        // 1. Cria a nova entidade Character
+        // 1. Cria a nova entidade Character principal
         const clonedCharacter = characterRepo.create({
             ...original,
             id: undefined, // Garante que um novo ID será gerado
-            name: newName || `${original.name} (Cópia)`,
-            userId: userId,
+            name: newName || `${original.name} (Clone)`,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            deletedAt: undefined,
             sessoes: [],
             journal: [],
-            relationships: [],
         });
         
         const savedClone = await characterRepo.save(clonedCharacter);
 
-        // 2. Clona as entidades relacionadas
+        // 2. Clona as entidades relacionadas, garantindo que novos IDs sejam gerados
+        // e que o characterId aponte para o novo personagem salvo.
         if (original.attributes) {
+            const { id, characterId, ...safeAttributes } = original.attributes;
             const clonedAttributes = queryRunner.manager.create(CharacterAttributes, {
-                ...original.attributes,
-                id: undefined,
+                ...safeAttributes,
                 characterId: savedClone.id,
             });
             await queryRunner.manager.save(clonedAttributes);
         }
 
         if (original.proficiencies?.length) {
-            const clonedProficiencies = original.proficiencies.map(p => 
-                queryRunner.manager.create(CharacterProficiency, {
-                    ...p,
-                    id: undefined,
+            const clonedProficiencies = original.proficiencies.map(p => {
+                const { id, characterId, ...safeProf } = p;
+                return queryRunner.manager.create(CharacterProficiency, {
+                    ...safeProf,
                     characterId: savedClone.id,
                 })
-            );
+            });
             await queryRunner.manager.save(clonedProficiencies);
         }
         
         if (original.items?.length) {
-            const clonedItems = original.items.map(item => 
-                queryRunner.manager.create(CharacterItem, {
-                    ...item,
-                    id: undefined,
+            const clonedItems = original.items.map(item => {
+                const { id, characterId, ...safeItem } = item;
+                return queryRunner.manager.create(CharacterItem, {
+                    ...safeItem,
                     characterId: savedClone.id,
                 })
-            );
+            });
             await queryRunner.manager.save(clonedItems);
         }
 
         if (original.spells?.length) {
-            const clonedSpells = original.spells.map(spell => 
-                queryRunner.manager.create(CharacterSpell, {
-                    ...spell,
-                    id: undefined,
+            const clonedSpells = original.spells.map(spell => {
+                const { id, characterId, ...safeSpell } = spell;
+                return queryRunner.manager.create(CharacterSpell, {
+                    ...safeSpell,
                     characterId: savedClone.id,
                 })
-            );
+            });
             await queryRunner.manager.save(clonedSpells);
         }
         
@@ -319,5 +321,3 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
         await redisClient.del(`character:${characterId}`);
     }
 };
-
-```
