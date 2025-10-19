@@ -5,7 +5,9 @@ import type { CharacterCreatorState } from './reducer';
 import * as characterUtils from '@/utils/characterUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { getOptionLabel } from '@/utils/creationHelpers';
-import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
+import { useCharacterCreator } from './useCharacterCreator';
+
 
 export const useDerivedCharacterData = (
     state: CharacterCreatorState,
@@ -13,7 +15,7 @@ export const useDerivedCharacterData = (
     selectionManager: any,
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
-    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats, equipmentCategoryCache, allEquipment } = details;
+    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats, allEquipment, equipmentCategoryCache } = details;
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -84,7 +86,7 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-    
+
         // ✅ Garantia: não processa até o cache estar pronto
         if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
             return {
@@ -133,7 +135,7 @@ export const useDerivedCharacterData = (
                      optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({
                          option_type: 'counted_reference',
                          count: 1,
-                         of: { index: item.index, name: item.name, url: `/api/data/equipment/${item.index}` },
+                         of: { index: item.index, name: item.name, url: (item as any).url || `/api/data/equipment/${item.index}` },
                      }));
                  }
             }
@@ -146,19 +148,19 @@ export const useDerivedCharacterData = (
             const processSubOption = (subOpt: ApiEquipmentOption, subIndex: number) => {
                 if (subOpt.option_type === 'counted_reference' && subOpt.of) {
                     const item = allEquipment.find((e:any) => e.index === subOpt.of!.index);
-                    if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4() });
+                    if (item) finalEquip.push({ ...item, quantity: subOpt.count || 1, id: uuidv4(), equipped: false });
                 } else if (subOpt.option_type === 'choice') {
                     const subSelection = selection.sub?.[subIndex];
                     if (subSelection) {
                         const item = allEquipment.find((e:any) => e.index === subSelection);
-                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
                     }
                 }
             };
     
             if (mainOption.option_type === 'counted_reference' && mainOption.of) {
                 const item = allEquipment.find((e:any) => e.index === mainOption.of!.index);
-                if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4() });
+                if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4(), equipped: false });
             } else if (mainOption.option_type === 'multiple' && mainOption.items) {
                  mainOption.items.forEach(processSubOption);
             } else if (mainOption.option_type === 'choice') {
@@ -168,7 +170,7 @@ export const useDerivedCharacterData = (
                     const subSelection = selection.sub?.[i];
                     if (subSelection) {
                         const item = allEquipment.find((e:any) => e.index === subSelection);
-                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4() });
+                        if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
                     }
                 }
             }
@@ -212,7 +214,7 @@ export const useDerivedCharacterData = (
             equipmentChoiceGroups: choiceGroups,
             fixedEquipment: fixed,
             finalizedEquipment: finalEquip,
-            areAllEquipmentChoicesMade: allChoicesMade,
+            areAllEquipmentChoicesMade: choiceGroups.length === 0 ? true : allChoicesMade,
         };
     }, [classDetails, backgroundDetails, equipmentSelections, allEquipment, equipmentCategoryCache]);
 
@@ -244,3 +246,5 @@ export const useDerivedCharacterData = (
         finalFeats,
     };
 };
+
+    
