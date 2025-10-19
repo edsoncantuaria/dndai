@@ -177,28 +177,32 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
  * @param newName Opcional. Um novo nome para o clone.
  * @returns O personagem recém-criado e salvo.
  */
-export const cloneCharacter = async (characterId: number, userId: number, newName?: string): Promise<Character | null> => {
+export const cloneCharacter = async (
+  originalCharacterId: number,
+  userId: number,
+  newName?: string
+): Promise<Character> => {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-        const originalCharacter = await queryRunner.manager.findOne(Character, {
-            where: { id: characterId, userId },
-            relations: ["attributes", "proficiencies", "items", "spells", "journal", "relationships"]
+        const characterRepo = queryRunner.manager.getRepository(Character);
+
+        const original = await characterRepo.findOne({
+            where: { id: originalCharacterId, userId },
+            relations: ["attributes", "items", "proficiencies", "spells", "journal", "relationships"],
         });
 
-        if (!originalCharacter) {
+        if (!original) {
             throw createError(404, 'Personagem original não encontrado para clonagem.');
         }
-        
-        const characterRepo = queryRunner.manager.getRepository(Character);
 
         // 1. Cria a nova entidade Character
         const clonedCharacter = characterRepo.create({
-            ...originalCharacter,
+            ...original,
             id: undefined, // Garante que um novo ID será gerado
-            name: newName || `${originalCharacter.name} (Cópia)`,
+            name: newName || `${original.name} (Cópia)`,
             userId: userId,
             sessoes: [],
             journal: [],
@@ -208,17 +212,17 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
         const savedClone = await characterRepo.save(clonedCharacter);
 
         // 2. Clona as entidades relacionadas
-        if (originalCharacter.attributes) {
+        if (original.attributes) {
             const clonedAttributes = queryRunner.manager.create(CharacterAttributes, {
-                ...originalCharacter.attributes,
+                ...original.attributes,
                 id: undefined,
                 characterId: savedClone.id,
             });
             await queryRunner.manager.save(clonedAttributes);
         }
 
-        if (originalCharacter.proficiencies?.length) {
-            const clonedProficiencies = originalCharacter.proficiencies.map(p => 
+        if (original.proficiencies?.length) {
+            const clonedProficiencies = original.proficiencies.map(p => 
                 queryRunner.manager.create(CharacterProficiency, {
                     ...p,
                     id: undefined,
@@ -228,8 +232,8 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
             await queryRunner.manager.save(clonedProficiencies);
         }
         
-        if (originalCharacter.items?.length) {
-            const clonedItems = originalCharacter.items.map(item => 
+        if (original.items?.length) {
+            const clonedItems = original.items.map(item => 
                 queryRunner.manager.create(CharacterItem, {
                     ...item,
                     id: undefined,
@@ -239,8 +243,8 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
             await queryRunner.manager.save(clonedItems);
         }
 
-        if (originalCharacter.spells?.length) {
-            const clonedSpells = originalCharacter.spells.map(spell => 
+        if (original.spells?.length) {
+            const clonedSpells = original.spells.map(spell => 
                 queryRunner.manager.create(CharacterSpell, {
                     ...spell,
                     id: undefined,
@@ -256,11 +260,11 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
     } catch (error) {
         await queryRunner.rollbackTransaction();
         console.error("Erro ao clonar personagem:", error);
-        return null;
+        throw createError(500, 'Falha ao clonar o personagem para a nova sessão.');
     } finally {
         await queryRunner.release();
     }
-}
+};
 
 
 export const getCharactersForUser = async (userId: number) => {
@@ -315,3 +319,5 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
         await redisClient.del(`character:${characterId}`);
     }
 };
+
+```
