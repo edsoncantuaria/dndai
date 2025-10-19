@@ -80,13 +80,13 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        const classDetails: any = await DndApi.getResourceDetails('classes', characterData.characterClass.toLowerCase());
+        const classDetails: any = await DndApiService.getResourceDetails('classes', characterData.characterClass.toLowerCase());
         if (!classDetails) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
         const itemPromises = characterData.inventory.map(async (itemData: any) => {
-            const details = await DndApi.getResourceDetails('equipment', itemData.index);
+            const details = await DndApiService.getResourceDetails('equipment', itemData.index);
             return { 
                 ...details, 
                 ...itemData, 
@@ -205,7 +205,7 @@ export const cloneCharacter = async (characterId: number, userId: number, newNam
         if (originalCharacter.attributes) {
             const clonedAttributes = new CharacterAttributes();
             Object.assign(clonedAttributes, originalCharacter.attributes);
-            delete (clonedAttributes as any).id;
+            delete (clonedAttributes as any).id; // GARANTE que um novo ID seja gerado
             clonedAttributes.character = savedClone;
             clonedAttributes.characterId = savedClone.id;
             await queryRunner.manager.save(clonedAttributes);
