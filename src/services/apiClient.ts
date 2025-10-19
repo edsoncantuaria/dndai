@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
-// A URL base da API é fixada para o endereço de produção para garantir consistência.
-const API_URL = 'https://backend-5e.edsin-server.space';
+// A URL da API agora é dinâmica, usando a variável de ambiente ou um fallback local.
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8071';
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
