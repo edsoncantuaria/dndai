@@ -8,14 +8,14 @@ import ItemCard from '../ItemCard';
 import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
-  if (!key || !cache) return null;
-  const nk = normalizeKey(key);
-  const keys = Object.keys(cache);
-  if (keys.includes(nk)) return nk;
-  const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
-  for (const v of variants) if (keys.includes(v)) return v;
-  return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
-};
+    if (!cache || !key) return null;
+    const nk = normalizeKey(key);
+    const keys = Object.keys(cache);
+    if (keys.includes(nk)) return nk;
+    const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
+    for (const v of variants) if (keys.includes(v)) return v;
+    return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
+  };
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -88,15 +88,16 @@ const EquipmentOptionRenderer: React.FC<{
         case 'multiple':
             return (
                 <div className="space-y-3 pt-3 mt-3 border-t border-stone-700/50">
-                    {option.items?.map((subItem, subIndex) => (
-                        <div key={subIndex}>
-                            {subItem.option_type === 'counted_reference' && subItem.of ? (
-                                <p className="text-sm text-stone-300 pl-4">+ {subItem.count}x {subItem.of.name}</p>
-                            ) : subItem.option_type === 'choice' ? (
-                                <ItemChoiceSelector choice={subItem.choice} selectionPath={selectionPath} subIndex={subIndex} hook={hook} />
-                            ) : null}
-                        </div>
-                    ))}
+                    {option.items?.map((subItem, subIndex) => {
+                        if (subItem.option_type === 'counted_reference' && subItem.of) {
+                            return (
+                                <p key={subIndex} className="text-sm text-stone-300 pl-4">+ {subItem.count}x {subItem.of.name}</p>
+                            )
+                        } else if (subItem.option_type === 'choice') {
+                           return <ItemChoiceSelector key={subIndex} choice={subItem.choice} selectionPath={selectionPath} subIndex={subIndex} hook={hook} />
+                        }
+                        return null;
+                    })}
                 </div>
             );
         default:
@@ -121,14 +122,19 @@ const EquipmentChoice: React.FC<{
         const cat = group.choice.from.equipment_category;
         const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
         const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
-
-        const source = cacheKey ? equipmentCategoryCache[cacheKey] : lazyItems;
+        
+        let source: InventoryItem[] | null = null;
+        if (cacheKey && equipmentCategoryCache[cacheKey]) {
+            source = equipmentCategoryCache[cacheKey];
+        } else if(lazyItems) {
+            source = lazyItems;
+        }
 
         if (source?.length) {
             mainOptions = source.map(item => ({
                 option_type: 'counted_reference',
                 count: 1,
-                of: { index: item.index, name: item.name, url: item.url },
+                of: { index: item.index, name: item.name, url: item.url || `/api/equipment/${item.index}`},
             }));
         } else if (!lazyItems && !lazyLoading && categoryKey) {
             setLazyLoading(true);
@@ -144,13 +150,8 @@ const EquipmentChoice: React.FC<{
 
     if (!mainOptions.length) {
         const categoryName = group.choice?.from?.equipment_category?.name || 'categoria desconhecida';
-        if (process.env.NODE_ENV === 'development') {
-            const catKey = group.choice?.from?.equipment_category?.index || 'N/A';
-            const nk = normalizeKey(catKey);
-            console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${nk}'.`);
-            console.log("[EquipmentChoice] Cache dump:", equipmentCategoryCache);
-        }
-        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryName}'. Verifique o cache.</p>;
+        console.error(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Verifique o cache.`);
+        return <p className="text-red-400 text-xs">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;
