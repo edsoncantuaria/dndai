@@ -112,7 +112,7 @@ export const getSpellsForClass = async (classIndex: string) => {
 /**
  * Atalhos de conveniência para os principais recursos usados no jogo.
  */
-export const DndApi = {
+const DndApi = {
   getAbilityScores: () => getResourceList('ability-scores'),
   getAlignments: () => getResourceList('alignments'),
   getBackgrounds: () => getResourceList('backgrounds'),
@@ -135,6 +135,11 @@ export const DndApi = {
 
   // Detalhes individuais
   getDetails: (resource: string, index: string) => getResourceDetails(resource, index),
+
+  // Expor também as funções base diretamente
+  getResourceList,
+  getResourceDetails
 };
 
+export { DndApi };
 export default DndApi;
