@@ -128,6 +128,36 @@ export const useSelectionManager = (
     }, [allLanguages, setField]);
 
      // --- SPELLS ---
+    const cantripsKnown = useMemo(() => {
+        if (!classDetails?.spellcasting) return 0;
+        // Prioritize level 1 data if available
+        const level1Data = details.classLevels?.find((l: any) => l.level === 1);
+        if (level1Data?.spellcasting?.cantrips_known) {
+            return level1Data.spellcasting.cantrips_known;
+        }
+        // Fallback to general spellcasting info
+        const cantripInfo = classDetails.spellcasting.info.find(i => i.name === 'Cantrips Known' || i.name === 'Cantrips');
+        return cantripInfo ? parseInt(cantripInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10) : 0;
+    }, [classDetails, details.classLevels]);
+    
+    const spellsKnown = useMemo(() => {
+        if (!classDetails?.spellcasting || !characterClass) return 0;
+
+        const level1Data = details.classLevels?.find((l: any) => l.level === 1);
+        if (level1Data?.spellcasting?.spells_known) {
+            return level1Data.spellcasting.spells_known;
+        }
+
+        const spellsKnownInfo = classDetails.spellcasting.info.find(i => i.name.startsWith('Spells Known'));
+        if (spellsKnownInfo) {
+            return parseInt(spellsKnownInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10);
+        }
+
+        const mainStatShort = classDetails.spellcasting.spellcasting_ability.index;
+        const mainStat: keyof Attributes = (Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).find(key => characterUtils.ATTRIBUTE_SHORT_MAP[key as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP] === mainStatShort) || 'wisdom') as keyof Attributes;
+        const modifier = characterUtils.calculateModifier(state.baseAttributes[mainStat] || 10);
+        return Math.max(1, modifier + state.level);
+    }, [classDetails, characterClass, state.baseAttributes, state.level, details.classLevels]);
 
     const handleClassSpellChange = useCallback((spellIndex: string) => {
         setField('chosenClassSpells', (prev: string[]) => {
@@ -151,7 +181,7 @@ export const useSelectionManager = (
             }
             return prev;
         });
-    }, [setField, classSpellOptions, subclassSpells, state.chosenClassSpells]);
+    }, [setField, classSpellOptions, subclassSpells]);
     
 
     const handleRacialSpellChange = useCallback((traitName: string, spellIndex: string, limit: number) => {
@@ -196,37 +226,6 @@ export const useSelectionManager = (
         fetchRacialSpellDetails();
     }, [racialSpellTraits]);
 
-
-    const cantripsKnown = useMemo(() => {
-        if (!classDetails?.spellcasting) return 0;
-        // Prioritize level 1 data if available
-        const level1Data = details.classLevels?.find((l: any) => l.level === 1);
-        if (level1Data?.spellcasting?.cantrips_known) {
-            return level1Data.spellcasting.cantrips_known;
-        }
-        // Fallback to general spellcasting info
-        const cantripInfo = classDetails.spellcasting.info.find(i => i.name === 'Cantrips Known' || i.name === 'Cantrips');
-        return cantripInfo ? parseInt(cantripInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10) : 0;
-    }, [classDetails, details.classLevels]);
-    
-    const spellsKnown = useMemo(() => {
-        if (!classDetails?.spellcasting || !characterClass) return 0;
-
-        const level1Data = details.classLevels?.find((l: any) => l.level === 1);
-        if (level1Data?.spellcasting?.spells_known) {
-            return level1Data.spellcasting.spells_known;
-        }
-
-        const spellsKnownInfo = classDetails.spellcasting.info.find(i => i.name.startsWith('Spells Known'));
-        if (spellsKnownInfo) {
-            return parseInt(spellsKnownInfo.desc[0]?.match(/\d+/)?.[0] || '0', 10);
-        }
-
-        const mainStatShort = classDetails.spellcasting.spellcasting_ability.index;
-        const mainStat: keyof Attributes = (Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).find(key => characterUtils.ATTRIBUTE_SHORT_MAP[key as keyof typeof characterUtils.ATTRIBUTE_SHORT_MAP] === mainStatShort) || 'wisdom') as keyof Attributes;
-        const modifier = characterUtils.calculateModifier(state.finalAttributes[mainStat] || 10);
-        return Math.max(1, modifier + state.level);
-    }, [classDetails, characterClass, state.finalAttributes, state.level, details.classLevels]);
 
     const areClassSpellsSelected = useMemo(() => {
         const allClassSpells = [...classSpellOptions, ...subclassSpells];
