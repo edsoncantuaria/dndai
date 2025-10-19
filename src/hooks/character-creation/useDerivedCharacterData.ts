@@ -89,13 +89,14 @@ export const useDerivedCharacterData = (
         const fixed: InventoryItem[] = [];
 
         const addEquipment = (list: any[] = [], source: string) => {
-            if (!Array.isArray(list)) return;
-            console.log(`[useDerivedCharacterData] Processando ${list.length} itens de ${source}`);
+            if (!Array.isArray(list)) {
+                console.warn(`[useDerivedCharacterData] addEquipment recebeu uma lista inválida da fonte: ${source}`);
+                return;
+            }
             list.forEach(item => {
                 if (item?.equipment?.index) {
-                    console.log(`[useDerivedCharacterData] Item bruto de ${source}:`, item);
-                    const itemDetails = allEquipment.find((e: any) => e && e.index === item.equipment.index);
-                    console.log(`[useDerivedCharacterData] Buscando por índice '${item.equipment.index}'. Encontrado:`, itemDetails);
+                    const normalizedIndex = item.equipment.index.replace(/^\/?api\/2014\//, '').split('/').pop();
+                    const itemDetails = allEquipment.find((e: any) => e && e.index === normalizedIndex);
                     if (itemDetails) {
                         fixed.push({
                             ...itemDetails,
@@ -103,6 +104,8 @@ export const useDerivedCharacterData = (
                             quantity: item.quantity || 1,
                             equipped: false,
                         });
+                    } else {
+                        console.warn(`[useDerivedCharacterData] Item não encontrado na lista 'allEquipment' para o índice '${normalizedIndex}' da fonte '${source}'.`);
                     }
                 }
             });
