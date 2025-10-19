@@ -1,6 +1,5 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useEffect, useMemo, useState, useRef } from 'react';
-import { buildEquipmentCache, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react';
 import * as DndApiService from '../../services/dndApiService';
 import type {
   ApiRace,
@@ -15,6 +14,8 @@ import type {
   InventoryItem,
 } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
+import { normalizeKey } from '@/utils/equipmentCacheBuilder';
+
 
 export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
   const [raceDetails, setRaceDetails] = useState<ApiRace | null>(null);
@@ -41,36 +42,65 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
   /** =============================================================
    * ⚙️ Construção e cache do arsenal base
    * ============================================================= */
-  useEffect(() => {
-    const initializeEquipment = async () => {
-        if (initialized.current) return;
-        initialized.current = true;
+  const initializeEquipment = useCallback(async () => {
+    if (initialized.current) return;
+    initialized.current = true;
 
-        setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-        try {
-            console.log('[useDataManager] 🚀 Iniciando carregamento de equipamentos...');
-            const equipmentList = await DndApiService.getEquipment();
-            
-            console.log(`[useDataManager] ✅ Equipamentos recebidos: ${equipmentList.length} itens.`);
-            setAllEquipment(equipmentList);
+    setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
+    console.log('[useDataManager] 🚀 Iniciando carregamento de equipamentos...');
+    
+    try {
+        // 1. Pega a lista de todas as categorias
+        const categoryList = await DndApiService.getEquipmentCategories();
+        const categories = categoryList?.results || [];
+        console.log(`[useDataManager] 📚 Encontradas ${categories.length} categorias de equipamento.`);
 
-            // O cache de categorias ainda pode ser útil para seletores de UI.
-            const categoryCache = await buildEquipmentCache(equipmentList);
-            setEquipmentCategoryCache(categoryCache);
-            console.log(`[useDataManager] 📦 Cache de categorias construído com ${Object.keys(categoryCache).length} categorias.`);
-            console.log('[useDataManager] Categorias no cache:', Object.keys(categoryCache));
+        const newCache: Record<string, InventoryItem[]> = {};
 
-
-        } catch (err) {
-            console.error('[useDataManager] ❌ Falha ao carregar equipamentos:', err);
-        } finally {
-            setLoadingStates({ isLoading: false, message: '', progress: 0 });
+        // 2. Para cada categoria, busca seus detalhes (que contém a lista de itens)
+        for (const cat of categories) {
+            try {
+                const categoryDetails = await DndApiService.getEquipmentCategoryDetails(cat.index);
+                const itemsInCategory = (categoryDetails?.equipment || []) as InventoryItem[];
+                
+                if (itemsInCategory.length > 0) {
+                     // 3. Normaliza a chave da categoria e armazena os itens
+                    const normalizedCatKey = normalizeKey(cat.index);
+                    newCache[normalizedCatKey] = itemsInCategory;
+                    console.log(`[useDataManager]   - Categoria "${normalizedCatKey}" cacheada com ${itemsInCategory.length} itens.`);
+                }
+            } catch (catError) {
+                console.warn(`[useDataManager] ⚠️ Falha ao buscar detalhes da categoria ${cat.index}:`, catError);
+            }
         }
-    };
+        
+        setEquipmentCategoryCache(newCache);
+        console.log('[useDataManager] 📦 Cache de categorias construído. Chaves:', Object.keys(newCache));
 
-    initializeEquipment();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+        // 4. Constrói a lista plana de todos os equipamentos para buscas rápidas
+        const flatEquipmentList = Object.values(newCache).flat();
+        const uniqueEquipmentMap = new Map<string, InventoryItem>();
+        flatEquipmentList.forEach(item => {
+            if(item && item.index) {
+                uniqueEquipmentMap.set(item.index, item);
+            }
+        });
+
+        const allUniqueEquipment = Array.from(uniqueEquipmentMap.values());
+        setAllEquipment(allUniqueEquipment);
+        console.log(`[useDataManager] ✅ Lista de equipamentos unificada com ${allUniqueEquipment.length} itens únicos.`);
+
+    } catch (err) {
+        console.error('[useDataManager] ❌ Falha catastrófica ao carregar equipamentos:', err);
+    } finally {
+        setLoadingStates({ isLoading: false, message: '', progress: 0 });
+    }
   }, []);
+
+  useEffect(() => {
+    initializeEquipment();
+  }, [initializeEquipment]);
+
 
   /** =============================================================
    * 🧬 Demais fetches (raças, classes, magias etc.)
