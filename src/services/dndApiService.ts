@@ -112,7 +112,7 @@ export const getBackgroundDetails = (index: string) => getResourceDetails('backg
  * ⚔️ Equipamentos
  * =========================================================== */
 export const getEquipment = async (): Promise<InventoryItem[]> => {
-    return await apiClient<InventoryItem[]>(`${API_BASE}/equipment`);
+    return apiClient<InventoryItem[]>(`${API_BASE}/equipment`);
 };
 export const getEquipmentDetails = (index: string) => getResourceDetails('equipment', index) as Promise<InventoryItem>;
 export const getWeaponProperties = () => fetchList<ApiListItem>('/weapon-properties');

@@ -11,11 +11,24 @@ import { normalizeKey, resolveEquipmentCategory } from '@/utils/equipmentCacheBu
 const findCacheMatch = (key: string, cache: Record<string, any[]>): string | null => {
   if (!key || !cache) return null;
   const nk = normalizeKey(key);
-  const keys = Object.keys(cache);
-  if (keys.includes(nk)) return nk;
-  const variants = [nk, nk.replace(/s$/, ''), nk + 's', nk.replace(/-weapons$/, '-weapon'), nk.replace(/-weapon$/, '-weapons')];
-  for (const v of variants) if (keys.includes(v)) return v;
-  return keys.find(k => k.includes(nk) || nk.includes(k)) ?? null;
+
+  const allKeys = Object.keys(cache);
+  const exact = allKeys.find(k => k === nk);
+  if (exact) return exact;
+
+  const normalizedVariants = [
+    nk,
+    nk.endsWith('s') ? nk.slice(0, -1) : nk + 's',
+    nk.replace(/-s$/, ''),
+    nk.replace(/s$/, ''),
+  ];
+
+  for (const variant of normalizedVariants) {
+    const found = allKeys.find(k => k === variant || k.includes(variant) || variant.includes(k));
+    if (found) return found;
+  }
+
+  return null;
 };
 
 
@@ -135,15 +148,22 @@ const EquipmentChoice: React.FC<{
     }
     
     if (lazyLoading) {
-        return <div className="text-center p-2"><Loader2 className="animate-spin h-5 w-5 text-amber-400 mx-auto" /></div>;
+        return (
+            <div className="flex items-center justify-center p-3 text-stone-400">
+                <Loader2 className="animate-spin h-5 w-5 mr-2" />
+                <span>Carregando {group.choice?.from?.equipment_category?.name || 'itens'}...</span>
+            </div>
+        );
     }
     
     if (!mainOptions.length) {
         const categoryName = group.choice?.from?.equipment_category?.name;
-        if (process.env.NODE_ENV === 'development') {
-             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${normalizeKey(categoryName || '')}'.`, "Verifique o cache:", equipmentCategoryCache);
+        if (process.env.NODE_ENV === 'development' && categoryName) {
+            const nk = normalizeKey(categoryName);
+             console.warn(`[EquipmentChoice] Nenhum item encontrado para a categoria: '${categoryName}'. Chave normalizada: '${nk}'.`);
+             console.log(`[EquipmentChoice] Cache dump:`, equipmentCategoryCache);
         }
-        return <p className="text-red-400 text-xs text-center p-2">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
+        return <p className="text-red-400 text-xs p-2 bg-red-900/20 rounded-md">Nenhuma opção encontrada para a categoria '{categoryName}'.</p>;
     }
     
     const mainSelectionIndex = selection?.main;

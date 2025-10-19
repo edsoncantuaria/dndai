@@ -1,5 +1,5 @@
 // src/hooks/character-creation/useDataManager.ts
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { buildEquipmentCache, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
 import * as DndApiService from '../../services/dndApiService';
 import type {
@@ -36,16 +36,16 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     progress: 0,
   });
 
+  const initialized = useRef(false);
+
   /** =============================================================
    * ⚙️ Construção e cache do arsenal base
    * ============================================================= */
   useEffect(() => {
-    let initialized = false;
-
     const initializeEquipment = async () => {
-      if (initialized || Object.keys(equipmentCategoryCache).length > 0) return;
-      initialized = true;
-
+      if (initialized.current || Object.keys(equipmentCategoryCache).length > 0) return;
+      initialized.current = true;
+      
       const cached = sessionStorage.getItem('equipmentCache');
       if (cached) {
           try {
@@ -59,6 +59,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
           }
       }
 
+
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
           const cache = await buildEquipmentCache();
@@ -69,7 +70,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             resolveEquipmentCategory('martial-weapons', cache),
             resolveEquipmentCategory('musical-instruments', cache),
           ]);
-          
+
           sessionStorage.setItem('equipmentCache', JSON.stringify(cache));
           setEquipmentCategoryCache({ ...cache });
 
@@ -79,8 +80,9 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
 
           if (process.env.NODE_ENV === 'development') {
               console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
+              console.log('Total de categorias:', Object.keys(cache).length);
               console.log('Categorias:', Object.keys(cache));
-              console.log('Total de itens únicos:', unique.length);
+              console.log('Itens únicos:', unique.length);
               console.groupEnd();
           }
 
@@ -93,7 +95,7 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     };
 
     initializeEquipment();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /** =============================================================
