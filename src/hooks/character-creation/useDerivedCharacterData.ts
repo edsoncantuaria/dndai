@@ -85,13 +85,28 @@ export const useDerivedCharacterData = (
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
     
+        // ✅ Garantia: não processa até o cache estar pronto
+        if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
+            return {
+                equipmentChoiceGroups: [],
+                fixedEquipment: [],
+                finalizedEquipment: [],
+                areAllEquipmentChoicesMade: false,
+            };
+        }
+    
         const addEquipment = (list: any[] = []) => {
             if (!Array.isArray(list)) return;
             list.forEach(item => {
-                if (item.equipment) {
+                if (item?.equipment?.index) {
                     const itemDetails = allEquipment.find((e: any) => e && e.index === item.equipment.index);
                     if (itemDetails) {
-                        fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
+                        fixed.push({
+                            ...itemDetails,
+                            id: uuidv4(),
+                            quantity: item.quantity || 1,
+                            equipped: false,
+                        });
                     }
                 }
             });
