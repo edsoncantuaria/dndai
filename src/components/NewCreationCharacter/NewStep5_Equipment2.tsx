@@ -6,7 +6,7 @@ import { getOptionLabel } from '@/utils/creationHelpers';
 import { Dice5, Loader2, ArrowLeft, ArrowRight, Backpack } from 'lucide-react';
 import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
-import { findCacheMatch, resolveEquipmentCategory } from '@/utils/equipmentCacheBuilder';
+import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
 import { translateEquipment } from '@/utils/translator'; // Importar a função de tradução
 
 const ItemChoiceSelector: React.FC<{
@@ -29,7 +29,7 @@ const ItemChoiceSelector: React.FC<{
     
     const cacheKey = findCacheMatch(categoryIndex, equipmentCategoryCache);
     if (process.env.NODE_ENV === 'development' && categoryIndex && !cacheKey) {
-        console.warn(`[ItemChoiceSelector] Cache MISS para categoria: "${categoryIndex}"`);
+        console.warn(`[ItemChoiceSelector] Cache MISS para categoria: "${categoryIndex}" (normalizado: "${normalizeKey(categoryIndex)}")`);
     }
 
     const subOptions = cacheKey ? equipmentCategoryCache[cacheKey] : optionsSource.map(opt => opt.item || opt.of);
@@ -254,9 +254,12 @@ const NewStep5_Equipment2: React.FC<{
                            {allInventory.length === 0 ? (
                                 <p className="text-stone-500 italic text-center py-4">Seu inventário está vazio.</p>
                             ) : (
-                                allInventory.map((item, index) => (
-                                    <ItemCard key={`item-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={true}/>
-                                ))
+                                allInventory.map((item, index) => {
+                                    console.log('[Inventário Resultante] Renderizando ItemCard com dados:', item);
+                                    return (
+                                        <ItemCard key={`item-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={true}/>
+                                    )
+                                })
                             )}
                         </div>
                     </div>
