@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
 // A URL da API agora usa a URL de produção como padrão.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
+const API_URL = 'https://backend-5e.edsin-server.space/api';
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
