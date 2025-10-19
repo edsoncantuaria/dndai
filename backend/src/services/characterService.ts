@@ -222,24 +222,18 @@ export const cloneCharacter = async (
 
     const savedClone = await characterRepo.save(clonedCharacter);
 
-    // 🔹 Passo 2: clonar atributos (garantindo que o antigo relacionamento não seja reutilizado)
+    // 🔹 Passo 2: clonar atributos (sem manter vínculo com o Character antigo)
     if (original.attributes) {
-      const { id, characterId, ...safeAttributes } = original.attributes;
-
-      // verifica se há algo preso ao characterId (raro, mas seguro)
-      const existing = await attrRepo.findOne({ where: { characterId: savedClone.id } });
-      if (existing) await attrRepo.delete({ characterId: savedClone.id });
-
-      const clonedAttributes = attrRepo.create({
-        ...safeAttributes,
-        characterId: savedClone.id,
-      });
-      await attrRepo.save(clonedAttributes);
+        const { id, character, ...safeAttributes } = original.attributes;
+        const clonedAttributes = new CharacterAttributes();
+        Object.assign(clonedAttributes, safeAttributes);
+        clonedAttributes.characterId = savedClone.id;
+        await attrRepo.insert(clonedAttributes);
     }
 
     // 🔹 Passo 3: clonar proficiências
     if (original.proficiencies?.length) {
-      const newProfs = original.proficiencies.map(({ id, characterId, ...safe }) =>
+      const newProfs = original.proficiencies.map(({ id, character, ...safe }) =>
         profRepo.create({ ...safe, characterId: savedClone.id })
       );
       await profRepo.save(newProfs);
@@ -247,7 +241,7 @@ export const cloneCharacter = async (
 
     // 🔹 Passo 4: clonar itens
     if (original.items?.length) {
-      const newItems = original.items.map(({ id, characterId, ...safe }) =>
+      const newItems = original.items.map(({ id, character, ...safe }) =>
         itemRepo.create({ ...safe, characterId: savedClone.id })
       );
       await itemRepo.save(newItems);
@@ -255,7 +249,7 @@ export const cloneCharacter = async (
 
     // 🔹 Passo 5: clonar magias
     if (original.spells?.length) {
-      const newSpells = original.spells.map(({ id, characterId, ...safe }) =>
+      const newSpells = original.spells.map(({ id, character, ...safe }) =>
         spellRepo.create({ ...safe, characterId: savedClone.id })
       );
       await spellRepo.save(newSpells);
