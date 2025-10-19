@@ -1,7 +1,7 @@
 // src/services/apiClient.ts
 
-// A URL base da API é lida das variáveis de ambiente do Next.js
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/';
+// A URL base da API é fixada para o endereço de produção para garantir consistência.
+const API_URL = 'https://backend-5e.edsin-server.space';
 
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
@@ -18,13 +18,13 @@ const getAuthHeaders = (): HeadersInit | null => {
     };
 };
 
-// Rotas que não exigem autenticação
-const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data/'];
+// Apenas rotas de autenticação são públicas. A rota /data/ foi removida por segurança.
+const PUBLIC_ROUTES = ['/auth/login', '/auth/register'];
 
 /**
  * Um wrapper para a API fetch que centraliza a lógica de chamada ao nosso backend.
  * Ele automaticamente adiciona a URL base, os headers de autenticação e trata as respostas de erro.
- * @param endpoint O endpoint da API a ser chamado (ex: '/auth/login').
+ * @param endpoint O endpoint da API a ser chamado (ex: '/api/auth/login').
  * @param options As opções de configuração para a chamada fetch (método, corpo, etc.).
  * @returns A resposta JSON da API.
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
@@ -36,8 +36,8 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     
     let authHeaders: HeadersInit | null = getAuthHeaders();
 
-    // Se não for uma rota pública e o token não existir, lança um erro.
     if (!isPublic && !authHeaders) {
+        // Se a rota não é pública e não há token, a chamada não deve prosseguir.
         throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
     }
 
@@ -50,22 +50,20 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         ...customOptions
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, requestOptions);
+    const fullUrl = `${API_URL}${endpoint.startsWith('/api') ? '' : '/api'}${endpoint}`;
+
+    const response = await fetch(fullUrl, requestOptions);
 
     if (!response.ok) {
         let errorData;
         try {
-            // Tenta parsear o corpo do erro como JSON.
             errorData = await response.json();
         } catch (e) {
-            // Se falhar, usa o texto de status como fallback.
             throw new Error(response.statusText || 'Ocorreu um erro de rede.');
         }
-        // Lança um erro com a mensagem fornecida pelo backend.
         throw new Error(errorData.message || 'Ocorreu um erro desconhecido na comunicação com o servidor.');
     }
     
-    // Se a resposta não tiver conteúdo (ex: DELETE com status 204), retorna um objeto de sucesso.
     if (response.status === 204 || response.headers.get('content-length') === '0') {
         return { success: true } as unknown as T;
     }
