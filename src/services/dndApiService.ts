@@ -26,32 +26,31 @@ import type {
   InventoryItem
 } from '../types';
 
-const API_BASE_URL = '/api/data';
-
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
 
 /* 🔹 Helper genérico de fetch com cache */
 async function fetchJson<T>(endpoint: string): Promise<T> {
-  if (cache.has(endpoint)) {
-    return cache.get(endpoint);
+  const fullEndpoint = `/data${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+  if (cache.has(fullEndpoint)) {
+    return cache.get(fullEndpoint);
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.debug(`[DndApiService] GET ${endpoint}`);
+    console.debug(`[DndApiService] GET ${fullEndpoint}`);
   }
 
-  const finalEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  // O apiClient já remove o /api, então não precisamos mais fazer isso aqui.
-  const res = await apiClient<T>(finalEndpoint);
+  const res = await apiClient<T>(fullEndpoint);
   
-  cache.set(endpoint, res); // Armazena a resposta no cache
+  cache.set(fullEndpoint, res); // Armazena a resposta no cache
   return res;
 }
 
 /* 🔹 Helper para listas no formato { results: [...] } */
 async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ results: T[] }> {
   const data = await fetchJson<any>(endpoint);
+  // O backend unificado já garante o formato { results: [...] }, mas mantemos a segurança
   const results = Array.isArray(data) ? data : data?.results || [];
   return { results };
 }
