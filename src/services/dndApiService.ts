@@ -26,7 +26,7 @@ import type {
   InventoryItem
 } from '../types';
 
-const API_PREFIX = '/api/data';
+const API_PREFIX = '/data';
 
 // Cache em memória para a sessão atual do navegador
 const cache = new Map<string, any>();
