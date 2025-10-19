@@ -32,8 +32,11 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
         const fetchBaseEquipment = async () => {
              setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
              try {
-                const unifiedEquipmentList = await DndApiService.getEquipment();
-                const unifiedEquipment = unifiedEquipmentList.results as InventoryItem[];
+                const equipmentList = await DndApiService.getEquipment();
+                if (!equipmentList || !equipmentList.results) {
+                    throw new Error("A lista de equipamentos não pôde ser carregada.");
+                }
+                const unifiedEquipment = equipmentList.results as InventoryItem[];
                 setAllEquipment(unifiedEquipment);
 
                 const newCache: Record<string, InventoryItem[]> = {};
