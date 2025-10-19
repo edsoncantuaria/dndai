@@ -1,6 +1,6 @@
-
 // src/hooks/character-creation/useDataManager.ts
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { buildEquipmentCache } from '@/utils/equipmentCacheBuilder';
 import * as DndApiService from '../../services/dndApiService';
 import type {
   ApiRace,
@@ -15,15 +15,8 @@ import type {
   InventoryItem,
 } from '../../types';
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
-import { buildEquipmentCache } from '@/utils/equipmentCacheBuilder';
 
-export const useDataManager = (
-  race: string,
-  subrace: string,
-  characterClass: string,
-  background: string
-) => {
-  // Estados principais
+export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
   const [raceDetails, setRaceDetails] = useState<ApiRace | null>(null);
   const [subraceDetails, setSubraceDetails] = useState<ApiSubrace | null>(null);
   const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
@@ -34,6 +27,8 @@ export const useDataManager = (
   const [draconicAncestryOptions, setDraconicAncestryOptions] = useState<any[]>([]);
   const [classSpellOptions, setClassSpellOptions] = useState<ApiSpell[]>([]);
   const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
+  const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
+  const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
 
   const [loadingStates, setLoadingStates] = useState({
     isLoading: false,
@@ -41,36 +36,41 @@ export const useDataManager = (
     progress: 0,
   });
 
-  const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
-  const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<
-    Record<string, InventoryItem[]>
-  >({});
-
-  /* ===========================================================
-   * ⚔️ Pré-carregamento de todos os equipamentos
-   * =========================================================== */
+  /** =============================================================
+   * ⚙️ Construção e cache do arsenal base
+   * ============================================================= */
   useEffect(() => {
-    const initCache = async () => {
+    const initializeEquipment = async () => {
       setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
       try {
         const cache = await buildEquipmentCache();
         setEquipmentCategoryCache(cache);
+
+        const flattened = Object.values(cache).flat();
+        const unique = flattened.filter((v, i, arr) => arr.findIndex(x => x.index === v.index) === i);
+        setAllEquipment(unique);
+
         if (process.env.NODE_ENV === 'development') {
-          console.log('[✅ EquipmentCache] Categorias registradas:', Object.keys(cache));
+          console.groupCollapsed('%c[✅ Equipment Cache]', 'color:#7fffd4');
+          console.log('Total de categorias:', Object.keys(cache).length);
+          console.log('Categorias:', Object.keys(cache));
+          console.log('Itens únicos:', unique.length);
+          console.groupEnd();
         }
       } catch (err) {
-        console.error('Falha ao construir cache de equipamentos:', err);
+        console.error('[❌ EquipmentCache] Falha ao construir cache:', err);
+        setEquipmentCategoryCache({});
       } finally {
         setLoadingStates({ isLoading: false, message: '', progress: 0 });
       }
     };
-    initCache();
+    initializeEquipment();
   }, []);
 
-  /* ===========================================================
-   * 🧬 Raças, Classes, Backgrounds, Feats etc.
-   * =========================================================== */
-
+  /** =============================================================
+   * 🧬 Demais fetches (raças, classes, magias etc.)
+   * ============================================================= */
+  
   useEffect(() => {
     if (!race) {
       setRaceDetails(null);
