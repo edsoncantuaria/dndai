@@ -44,7 +44,13 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
         const itemIndex = item.index?.toLowerCase();
         if (itemIndex && characterProficiencies.has(itemIndex)) return true;
     
-        return !(item.armor_category || item.weapon_category || item.equipment_category?.index === 'shields');
+        // Default to not proficient if a specific proficiency is required and not met
+        if(item.armor_category || item.weapon_category || item.equipment_category?.index === 'shields') {
+            return false;
+        }
+
+        // True for items that don't require proficiency (like general gear)
+        return true;
     
     }, [item, proficiencies]);
     
@@ -68,7 +74,7 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 
     return (
         <div className="bg-stone-800/70 p-3 rounded-lg border border-stone-700">
-            <div className="flex justify-between items-start">
+            <div className="flex justify-between items-start cursor-pointer" onClick={() => setIsExpanded(prev => !prev)}>
                 <div className="flex-grow">
                     <h4 className="font-semibold text-stone-200">{item.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}</h4>
                     <div className="flex items-center gap-2 text-xs text-stone-400 mt-1">
@@ -103,11 +109,9 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
                             <Shield />
                         </button>
                     )}
-                    {(item.desc?.length || item.damage || item.armor_class) > 0 && (
-                        <button type="button" onClick={() => setIsExpanded(!isExpanded)} className="p-1 text-stone-400 hover:text-amber-300">
-                            <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                        </button>
-                    )}
+                    <div className="p-1 text-stone-400 hover:text-amber-300 flex-shrink-0">
+                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
                 </div>
             </div>
 

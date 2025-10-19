@@ -85,49 +85,49 @@ export const useDerivedCharacterData = (
 
   // =============== EQUIPAMENTO ===============
   const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
-    console.log('%c[useDerivedCharacterData] ⚙️ Iniciando processamento de equipamentos...', 'color: cyan');
     const choiceGroups: any[] = [];
     const fixed: InventoryItem[] = [];
 
-    console.log('[useDerivedCharacterData] 🔹 allEquipment carregado:', allEquipment.length, 'itens');
-    console.log('[useDerivedCharacterData] 🔹 Itens brutos da Classe:', classDetails?.starting_equipment);
-    console.log('[useDerivedCharacterData] 🔹 Itens brutos do Antecedente:', backgroundDetails?.starting_equipment);
-
     const addEquipment = (list: any[] = [], source: string) => {
       if (!Array.isArray(list)) {
-        console.warn(`[addEquipment] ⚠️ Lista inválida da fonte ${source}`, list);
+        console.warn(`[addEquipment] Lista inválida da fonte ${source}`, list);
         return;
       }
-
-      console.log(`[addEquipment] Processando ${list.length} itens da fonte: ${source}`);
       
       list.forEach(item => {
         if (item?.equipment?.index) {
           const normalizedIndex = item.equipment.index.replace(/^\/?api\/\d+\/equipment\//, '');
+          
+           // Handle currency items separately
+          if (normalizedIndex.startsWith('pouch-with-')) {
+            const match = normalizedIndex.match(/pouch-with-(\d+)-gp/);
+            if (match && match[1]) {
+                 fixed.push({
+                    id: uuidv4(),
+                    index: 'gp',
+                    name: 'Gold Piece',
+                    quantity: parseInt(match[1], 10),
+                    weight: 0,
+                    equipped: false,
+                });
+                // Also add the pouch itself
+                const pouchDetails = allEquipment.find((e: any) => e.index === 'pouch');
+                if(pouchDetails) fixed.push({ ...pouchDetails, id: uuidv4(), quantity: 1, equipped: false });
+                return; // Skip normal processing
+            }
+          }
+          
           const itemDetails = allEquipment.find((e: any) => e && e.index === normalizedIndex);
 
-          console.log(`  🔹 Buscando por índice '${normalizedIndex}'. Encontrado:`, itemDetails);
-          
           if (itemDetails) {
-            fixed.push({
-              ...itemDetails,
-              id: uuidv4(),
-              quantity: item.quantity || 1,
-              equipped: false,
-            });
-          } else {
-            console.warn(`  ❌ Item não encontrado na lista 'allEquipment' para o índice '${normalizedIndex}' (vindo de ${source}).`);
+            fixed.push({ ...itemDetails, id: uuidv4(), quantity: item.quantity || 1, equipped: false });
           }
-        } else {
-            console.warn(`  ⚠️ Item inválido da fonte ${source}, sem 'equipment.index':`, item);
         }
       });
     };
 
     addEquipment(classDetails?.starting_equipment, 'Classe');
     addEquipment(backgroundDetails?.starting_equipment, 'Antecedente');
-
-    console.log('[useDerivedCharacterData] 📦 Equipamentos fixos processados:', fixed.map(i => i.name));
 
     (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) =>
       choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice })
@@ -176,6 +176,17 @@ export const useDerivedCharacterData = (
         if (item) finalEquip.push({ ...item, quantity: mainOption.count || 1, id: uuidv4(), equipped: false });
       } else if (mainOption.option_type === 'multiple' && mainOption.items) {
         mainOption.items.forEach(processSubOption);
+      } else if (mainOption.option_type === 'choice') {
+        const source = mainOption.choice || mainOption;
+        const iterations = source.choose || 1;
+        for (let i = 0; i < iterations; i++) {
+          const subSelection = selection.sub?.[i];
+          if (subSelection) {
+            const normalizedIndex = subSelection.replace(/^\/?api\/\d+\/equipment\//, '');
+            const item = allEquipment.find((e: any) => e.index === normalizedIndex);
+            if (item) finalEquip.push({ ...item, quantity: 1, id: uuidv4(), equipped: false });
+          }
+        }
       }
     }
 
@@ -183,8 +194,6 @@ export const useDerivedCharacterData = (
       const selection = equipmentSelections[group.id];
       return selection?.main !== undefined && selection.main >= 0;
     });
-
-    console.log(`[useDerivedCharacterData] ✅ Finalizou com ${fixed.length} itens fixos e ${finalEquip.length} itens de escolha.`);
 
     return {
       equipmentChoiceGroups: choiceGroups,

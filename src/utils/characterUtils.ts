@@ -65,9 +65,13 @@ export const calculateWeight = (inventory: InventoryItem[]): number => {
         return 0;
     }
     return inventory.reduce((sum, item) => {
+        // Assume items that are actually currency have negligible weight for this calculation,
+        // or that their weight is handled separately if needed.
+        if (COIN_TYPES.includes(item.index)) {
+            return sum;
+        }
         const itemWeight = item?.weight || 0;
         const itemQuantity = item?.quantity || 1;
-        // Coins are handled as regular items with weight now
         return sum + (itemWeight * itemQuantity);
     }, 0);
 }
@@ -86,7 +90,7 @@ export const calculateAC = (inventory: InventoryItem[], modifiers: Attributes): 
     let armorSourceName: string = 'Base';
 
     const equippedArmors = inventory.filter(i => i.equipped && i.armor_class);
-    const equippedShield = inventory.find(i => i.equipped && i.armor_category === 'Shield');
+    const equippedShield = inventory.find(i => i.equipped && i.equipment_category?.index === 'shields');
 
     let bestEquippedArmor: InventoryItem | null = null;
     if (equippedArmors.length > 0) {
