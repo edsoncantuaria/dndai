@@ -130,11 +130,12 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
             ]);
             setClassDetails(details);
             
-            // Normalize levelsData into an array if it's an object with a 'levels' property.
+            // Normalize levelsData. It might be an array or an object { "0": {...}, "1": {...} }
             const levels = Array.isArray(levelsData)
               ? levelsData
-              : (levelsData?.levels || []);
-            setClassLevels(levels);
+              : (levelsData ? Object.values(levelsData) : []);
+
+            setClassLevels(levels as ApiClassLevel[]);
 
             if (details?.spellcasting) {
                 const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
