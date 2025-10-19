@@ -18,13 +18,13 @@ const getAuthHeaders = (): HeadersInit | null => {
     };
 };
 
-// Apenas rotas de autenticação são públicas. A rota /data/ foi removida por segurança.
-const PUBLIC_ROUTES = ['/auth/login', '/auth/register'];
+const PUBLIC_ROUTES = ['/api/auth/login', '/api/auth/register', '/api/data', '/api/translations'];
+
 
 /**
  * Um wrapper para a API fetch que centraliza a lógica de chamada ao nosso backend.
  * Ele automaticamente adiciona a URL base, os headers de autenticação e trata as respostas de erro.
- * @param endpoint O endpoint da API a ser chamado (ex: '/api/auth/login').
+ * @param endpoint O endpoint da API a ser chamado (ex: '/auth/login').
  * @param options As opções de configuração para a chamada fetch (método, corpo, etc.).
  * @returns A resposta JSON da API.
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
@@ -37,20 +37,19 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     let authHeaders: HeadersInit | null = getAuthHeaders();
 
     if (!isPublic && !authHeaders) {
-        // Se a rota não é pública e não há token, a chamada não deve prosseguir.
         throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
     }
 
     const requestOptions: RequestInit = {
         headers: {
-            'Content-Type': 'application/json',
             ...(authHeaders || {}),
             ...customHeaders,
+            'Content-Type': 'application/json',
         },
         ...customOptions
     };
 
-    const fullUrl = `${API_URL}${endpoint.startsWith('/api') ? '' : '/api'}${endpoint}`;
+    const fullUrl = `${API_URL}${endpoint}`;
 
     const response = await fetch(fullUrl, requestOptions);
 

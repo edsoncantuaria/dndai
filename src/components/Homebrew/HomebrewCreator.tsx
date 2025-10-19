@@ -17,9 +17,10 @@ import SubraceForm from './forms/SubraceForm';
 import ExampleModal from './ExampleModal';
 import { EXAMPLES } from '@/data/examples';
 import { useAuth } from '@/contexts/AuthContext';
+import SkillForm from './forms/SkillForm'; // Importar o novo formulário
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
-    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill'
 ];
 
 interface Props {
@@ -44,7 +45,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         if (user?.id === 1) {
             return CONTENT_TYPES; // Admin pode ver tudo
         }
-        return CONTENT_TYPES.filter(t => t !== 'skill'); // Usuários normais não podem ver 'skill'
+        return CONTENT_TYPES.filter(t => t !== 'skill' && t !== 'translation');
     }, [user]);
 
     useEffect(() => {
@@ -58,7 +59,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     const handleLoadExample = () => {
         const exampleData = EXAMPLES[type as keyof typeof EXAMPLES];
         if(exampleData) {
-            setExampleToLoad(exampleData);
+            setContentData(exampleData);
              toast({
                 title: 'Exemplo Carregado',
                 description: `O formulário foi preenchido com dados de exemplo para "${type}".`,
@@ -136,6 +137,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             case 'monster': return <MonsterForm onDataChange={setContentData} initialData={initialDataForForm} />;
             case 'background': return <BackgroundForm onDataChange={setContentData} initialData={initialDataForForm} />;
             case 'feat': return <FeatForm onDataChange={setContentData} initialData={initialDataForForm} />;
+            case 'skill': return <SkillForm onDataChange={setContentData} initialData={initialDataForForm} />;
             default:
                 return <p className="text-stone-400 italic text-center py-8">Selecione um tipo de conteúdo para começar.</p>;
         }
