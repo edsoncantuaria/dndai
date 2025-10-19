@@ -1,3 +1,4 @@
+
 // src/hooks/character-creation/useDerivedCharacterData.ts
 import { useMemo } from 'react';
 import type { ApiRace, ApiClass, ApiBackground, ApiSubrace, InventoryItem, Proficiency, ApiListItem, Feat, ApiEquipmentOption, CharacterProficiency, ProficiencyChoice } from '@/types';
@@ -87,8 +88,9 @@ export const useDerivedCharacterData = (
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
-    
+
         if (!allEquipment || !Array.isArray(allEquipment) || allEquipment.length === 0) {
+            console.warn('[useDerivedCharacterData] allEquipment está vazio ou inválido. Retornando estado vazio.');
             return {
                 equipmentChoiceGroups: [],
                 fixedEquipment: [],
@@ -96,12 +98,15 @@ export const useDerivedCharacterData = (
                 areAllEquipmentChoicesMade: false,
             };
         }
-    
-        const addEquipment = (list: any[] = []) => {
+
+        const addEquipment = (list: any[] = [], source: string) => {
             if (!Array.isArray(list)) return;
+            console.log(`[useDerivedCharacterData] Processando ${list.length} itens de ${source}`);
             list.forEach(item => {
+                console.log(`[useDerivedCharacterData] Item bruto de ${source}:`, item);
                 if (item?.equipment?.index) {
                     const itemDetails = allEquipment.find((e: any) => e && e.index === item.equipment.index);
+                    console.log(`[useDerivedCharacterData] Buscando por índice '${item.equipment.index}'. Encontrado:`, itemDetails);
                     if (itemDetails) {
                         fixed.push({
                             ...itemDetails,
@@ -113,14 +118,15 @@ export const useDerivedCharacterData = (
                 }
             });
         };
-    
-        addEquipment(classDetails?.starting_equipment);
-        addEquipment(backgroundDetails?.starting_equipment);
-    
+
+        addEquipment(classDetails?.starting_equipment, 'Classe');
+        addEquipment(backgroundDetails?.starting_equipment, 'Antecedente');
+
         (classDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `class-${i}`, source: 'Classe', choice }));
         (backgroundDetails?.starting_equipment_options || []).forEach((choice: any, i: number) => choiceGroups.push({ id: `bg-${i}`, source: 'Antecedente', choice }));
     
         const finalEquip: InventoryItem[] = [];
+        const processPromises: Promise<void>[] = [];
         
         const processEquipmentSelection = async () => {
             for (const group of choiceGroups) {
@@ -186,7 +192,9 @@ export const useDerivedCharacterData = (
             }
         };
 
-        processEquipmentSelection();
+        processPromises.push(processEquipmentSelection());
+    
+        Promise.all(processPromises);
     
         const allChoicesMade = choiceGroups.every(group => {
             const selection = equipmentSelections[group.id];
