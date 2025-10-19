@@ -130,5 +130,3 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, onToggleEquip, onUseConsumabl
 };
 
 export default ItemCard;
-
-    
