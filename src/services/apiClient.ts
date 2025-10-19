@@ -48,7 +48,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
         },
         ...customOptions
     };
-
+    
     const fullUrl = `${API_URL}${endpoint}`;
 
     const response = await fetch(fullUrl, requestOptions);
