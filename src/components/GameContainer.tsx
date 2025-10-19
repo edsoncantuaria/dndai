@@ -297,44 +297,46 @@ const GameContainer = () => {
                         <FlaskConical className="mr-3 h-6 w-6"/> Oficina Homebrew
                     </button>
                 </main>
-                 <footer className="mt-12 flex justify-center gap-6">
-                    <button 
-                        onClick={() => setShowSettingsModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
-                        title="Configurações"
-                    >
-                        <Settings className="h-5 w-5"/> Configurações
-                    </button>
-                     <button 
-                        onClick={() => setShowArchitectureModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
-                        title="Arquitetura de Dados"
-                    >
-                        <GitMerge className="h-5 w-5"/> Arquitetura
-                    </button>
-                     <button 
-                        onClick={() => setShowTestModal(true)} 
-                        className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
-                        title="Testes do Sistema"
-                    >
-                        <Beaker className="h-5 w-5"/> Testes
-                    </button>
-                     {user?.id === 1 && (
-                         <button 
-                            onClick={() => setGameStage('translation_studio')} 
-                            className="p-3 text-stone-400 hover:text-amber-300 transition-colors flex items-center gap-2 text-sm"
-                            title="Estúdio de Tradução"
+                 <footer className="mt-12 w-full max-w-md">
+                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button 
+                            onClick={() => setShowSettingsModal(true)} 
+                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
+                            title="Configurações"
                         >
-                            <Languages className="h-5 w-5"/> Traduções
+                            <Settings className="h-5 w-5"/> <span className="md:hidden">Config.</span><span className="hidden md:inline">Configurações</span>
                         </button>
-                    )}
-                     <button 
-                        onClick={logout} 
-                        className="p-3 text-stone-400 hover:text-red-400 transition-colors flex items-center gap-2 text-sm"
-                        title="Sair da Conta"
-                    >
-                        <LogOut className="h-5 w-5"/> Sair
-                    </button>
+                        <button 
+                            onClick={() => setShowArchitectureModal(true)} 
+                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
+                            title="Arquitetura de Dados"
+                        >
+                            <GitMerge className="h-5 w-5"/> <span className="md:hidden">Arquit.</span><span className="hidden md:inline">Arquitetura</span>
+                        </button>
+                        <button 
+                            onClick={() => setShowTestModal(true)} 
+                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
+                            title="Testes do Sistema"
+                        >
+                            <Beaker className="h-5 w-5"/> <span className="md:hidden">Testes</span><span className="hidden md:inline">Testes</span>
+                        </button>
+                         {user?.id === 1 && (
+                            <button 
+                                onClick={() => setGameStage('translation_studio')} 
+                                className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
+                                title="Estúdio de Tradução"
+                            >
+                                <Languages className="h-5 w-5"/> <span className="md:hidden">Trad.</span><span className="hidden md:inline">Traduções</span>
+                            </button>
+                        )}
+                        <button 
+                            onClick={logout} 
+                            className="p-2 text-stone-400 hover:text-red-400 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40 col-span-2 md:col-span-1"
+                            title="Sair da Conta"
+                        >
+                            <LogOut className="h-5 w-5"/> Sair
+                        </button>
+                    </div>
                 </footer>
             </div>
         );
