@@ -124,7 +124,7 @@ export const getEquipment = async (): Promise<InventoryItem[]> => {
     }
   
     const listResponse = await fetchList<ApiListItem>('/equipment');
-    const equipmentList = listResponse.results.filter(item => item && item.index);
+    const equipmentList = listResponse.results;
     
     if (!equipmentList || equipmentList.length === 0) {
       return [];
@@ -134,12 +134,12 @@ export const getEquipment = async (): Promise<InventoryItem[]> => {
     const allEquipmentDetails = await fetchDetailsInChunks(
       equipmentList,
       (item) => getResourceDetails('equipment', item.index) as Promise<InventoryItem>,
-      () => {} // Progress callback optional
+      () => {} // Progress callback opcional
     );
   
-    // ✅ Normaliza os índices de todos os equipamentos na fonte.
+    // ✅ Normaliza os índices e garante que o item e seu índice sejam válidos
     const validDetails = allEquipmentDetails
-      .filter((item): item is InventoryItem => !!item)
+      .filter((item): item is InventoryItem => !!item && typeof item.index === 'string')
       .map(item => ({
           ...item,
           index: item.index.replace(/^\/?api\/\d+\/equipment\//, ''),
