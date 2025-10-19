@@ -3,11 +3,14 @@ import redisClient from '../database/redis-client.js';
 import { AppDataSource } from '../database/data-source.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { User } from '../entities/User.js';
-import * as DndApiModule from './dndApiService.js';
-const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
 import crypto from 'crypto';
 import { Brackets, Raw } from 'typeorm';
 
+// --- Importação compatível com qualquer modo ESM/TS ---
+import * as DndApiModule from './dndApiService.js';
+const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
+
+// Log de debug
 console.log('[UnifiedDataService] Using DndApi mode:', Object.keys(DndApi || {}));
 
 
@@ -76,13 +79,14 @@ export async function invalidateUserCache(userId: number) {
     }
 }
 
-
 /**
  * Busca lista oficial, validando o cache.
  */
 async function getOfficialList(resource: string): Promise<any[]> {
   const listKey = globalKey(resource);
-  if (redisClient && redisClient.isOpen) {
+  const useCache = redisClient && redisClient.isOpen;
+
+  if (useCache) {
     try {
       const cached = await redisClient.get(listKey);
       if (cached) {
@@ -97,16 +101,29 @@ async function getOfficialList(resource: string): Promise<any[]> {
     }
   }
 
-  const data = await DndApi.getResourceList(resource);
+  // 🔧 Aqui está o ponto crítico:
+  // Asseguramos que o método seja chamado corretamente independente da exportação
+  const getListFn =
+    DndApi.getResourceList ||
+    DndApi.getList ||
+    (typeof DndApi === 'function' ? DndApi : null);
+
+  if (!getListFn) {
+    throw new Error('[UnifiedDataService] Erro: DndApi.getResourceList não está definido.');
+  }
+
+  const data = await getListFn.call(DndApi, resource);
   const results = data?.results || [];
 
-  if (redisClient && redisClient.isOpen && data) { // Salva o objeto completo { count, results }
+  if (useCache && data) {
     try {
-        await redisClient.set(listKey, JSON.stringify(data));
-    } catch(err) {
-         console.error(`[Cache] Falha ao salvar no Redis ${listKey}:`, err);
+      await redisClient.set(listKey, JSON.stringify(data));
+      console.log(`[Cache] SET persistente: ${listKey}`);
+    } catch (err) {
+      console.error(`[Cache] Falha ao salvar no Redis ${listKey}:`, err);
     }
   }
+
   return results;
 }
 
@@ -115,26 +132,41 @@ async function getOfficialList(resource: string): Promise<any[]> {
  */
 async function getOfficialDetails(resource: string, index: string): Promise<any | null> {
   const key = globalKey(resource, index);
-  if (redisClient && redisClient.isOpen) {
+  const useCache = redisClient && redisClient.isOpen;
+
+  if (useCache) {
     try {
       const cached = await redisClient.get(key);
       if (cached && cached !== 'null' && cached !== '{}') {
+        console.log(`[dndApiService-Cache] HIT detalhes: ${key}`);
         return JSON.parse(cached);
       }
     } catch (err) {
       console.error(`[Cache] Erro ao ler chave ${key}:`, err);
     }
   }
-  const data = await DndApi.getDetails(resource, index);
 
-  if (redisClient && redisClient.isOpen && data) {
+  // Mesmo esquema de fallback seguro
+  const getDetailsFn =
+    DndApi.getDetails ||
+    DndApi.getResourceDetails ||
+    (typeof DndApi === 'function' ? DndApi : null);
+
+  if (!getDetailsFn) {
+    throw new Error('[UnifiedDataService] Erro: DndApi.getDetails não está definido.');
+  }
+
+  const data = await getDetailsFn.call(DndApi, resource, index);
+
+  if (useCache && data) {
     try {
       await redisClient.set(key, JSON.stringify(data));
     } catch (err) {
        console.error(`[Cache] Falha ao salvar no Redis ${key}:`, err);
     }
   }
-  return data || {}; // Retorna objeto vazio em vez de nulo para segurança no merge
+
+  return data || {};
 }
 
 
@@ -279,5 +311,3 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
 
   return officialData ? { ...officialData, isHomebrew: false, source: 'official' } : null;
 }
-
-    
