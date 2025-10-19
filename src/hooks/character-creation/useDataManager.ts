@@ -27,10 +27,10 @@ const normalizeEquipmentUrl = (urlOrIndex: string): string => {
 
   const normalized = urlOrIndex
     .replace(/^\/?api\/\d{0,4}\/?/, '') // remove /api/2014/, /api/5e/, etc
-    .replace(/^\/?v\d+\//, '')          // remove /v1/, /v2/, /v10/, etc
+    .replace(/^\/?v\d+\//, '')          // remove /v1/, /v2/, etc
     .replace(/^\/?equipment\//, '')     // remove equipment/
     .replace(/^\/+/, '');               // remove barras extras
-
+  
   return `/api/data/equipment/${normalized}`;
 };
 
@@ -64,23 +64,19 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     initialized.current = true;
   
     setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-    console.log('[useDataManager] 🚀 Iniciando carregamento de equipamentos...');
     
     try {
-      // 1. Pega a lista de todas as categorias
       const categoryList = await DndApiService.getEquipmentCategories();
       const categories = categoryList?.results || [];
-      console.log(`[useDataManager] 📚 Encontradas ${categories.length} categorias de equipamento.`);
-  
       const newCache: Record<string, InventoryItem[]> = {};
+      let loadedCategories = 0;
+      const totalCategories = categories.length;
   
-      // 2. Para cada categoria, busca seus detalhes (que contém a lista de itens)
       for (const cat of categories) {
         try {
           const categoryDetails = await DndApiService.getEquipmentCategoryDetails(cat.index);
           let itemsInCategory = (categoryDetails?.equipment || []) as InventoryItem[];
   
-          // 🔄 Normaliza todas as URLs antes de armazenar no cache
           itemsInCategory = itemsInCategory.map((item) => ({
             ...item,
             url: normalizeEquipmentUrl(item.url || item.index),
@@ -89,19 +85,20 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
           if (itemsInCategory.length > 0) {
             const normalizedCatKey = normalizeKey(cat.index);
             newCache[normalizedCatKey] = itemsInCategory;
-            console.log(
-              `[useDataManager]   - Categoria "${normalizedCatKey}" cacheada com ${itemsInCategory.length} itens.`
-            );
           }
         } catch (catError) {
           console.warn(`[useDataManager] ⚠️ Falha ao buscar detalhes da categoria ${cat.index}:`, catError);
         }
+        loadedCategories++;
+        setLoadingStates({
+            isLoading: true,
+            message: `Carregando categoria: ${cat.name}`,
+            progress: (loadedCategories / totalCategories) * 100,
+        });
       }
       
       setEquipmentCategoryCache(newCache);
-      console.log('[useDataManager] 📦 Cache de categorias construído. Chaves:', Object.keys(newCache));
   
-      // 4. Constrói a lista plana de todos os equipamentos para buscas rápidas
       const flatEquipmentList = Object.values(newCache).flat();
       const uniqueEquipmentMap = new Map<string, InventoryItem>();
       flatEquipmentList.forEach(item => {
@@ -116,7 +113,6 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
       }));
   
       setAllEquipment(allUniqueEquipment);
-      console.log(`[useDataManager] ✅ Lista de equipamentos unificada com ${allUniqueEquipment.length} itens únicos.`);
   
     } catch (err) {
       console.error('[useDataManager] ❌ Falha catastrófica ao carregar equipamentos:', err);
