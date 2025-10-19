@@ -32,8 +32,8 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     // A lógica de "get" foi removida. Esta função agora SEMPRE cria uma nova sessão com um personagem clonado.
     // A sessão antiga pode ser continuada pela sua própria rota.
     
-    // 1. Clonar o personagem
-    const newCharacterForSession = await cloneCharacter(characterTemplate.id, userId, `Clone para Sessão: ${nome}`);
+    // 1. Clonar o personagem, mantendo o nome original.
+    const newCharacterForSession = await cloneCharacter(characterTemplate.id, userId, characterTemplate.name);
     if (!newCharacterForSession) {
         throw createError(500, 'Falha ao clonar o personagem para a nova sessão.');
     }
