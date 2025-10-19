@@ -40,7 +40,8 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
     const attributeManager = useAttributeManager(state, dispatch);
     const selectionManager = useSelectionManager(state, details, allLanguages, dispatch);
     
-    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment);
+    // CORREÇÃO: Passar 'allEquipment' e 'equipmentCategoryCache' diretamente.
+    const derivedData = useDerivedCharacterData(state, details, selectionManager, allEquipment, equipmentCategoryCache);
 
     const handleEquipmentChoiceChange = useCallback((groupId: string, mainOptionIndex: number) => {
         setField('equipmentSelections', (prev: any) => {

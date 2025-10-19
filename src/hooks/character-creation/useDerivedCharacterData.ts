@@ -12,9 +12,11 @@ export const useDerivedCharacterData = (
     state: CharacterCreatorState,
     details: any,
     selectionManager: any,
+    allEquipment: InventoryItem[],
+    equipmentCategoryCache: Record<string, InventoryItem[]>
 ) => {
     const { isVariantHuman, variantHumanBonusSelections, equipmentSelections, selectedFeat, proficiencySelections } = state;
-    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats, allEquipment, equipmentCategoryCache } = details;
+    const { raceDetails, subraceDetails, classDetails, backgroundDetails, availableFeats } = details;
 
     const racialBonuses = useMemo(() => {
         const bonuses: Partial<characterUtils.Attributes> = {};
@@ -83,7 +85,6 @@ export const useDerivedCharacterData = (
     }, [raceDetails, subraceDetails, classDetails, backgroundDetails, proficiencySelections, isVariantHuman, selectionManager.allProficiencyChoices]);
     
     const { equipmentChoiceGroups, fixedEquipment, finalizedEquipment, areAllEquipmentChoicesMade } = useMemo(() => {
-        console.log('[useDerivedCharacterData] Recalculando equipamentos...');
         const choiceGroups: any[] = [];
         const fixed: InventoryItem[] = [];
 
@@ -109,8 +110,6 @@ export const useDerivedCharacterData = (
                             quantity: item.quantity || 1,
                             equipped: false,
                         });
-                    } else {
-                        console.warn(`[useDerivedCharacterData] Item fixo não encontrado no allEquipment: ${item.equipment.index}`);
                     }
                 }
             });
@@ -127,12 +126,12 @@ export const useDerivedCharacterData = (
             const selection = equipmentSelections[group.id];
             if (selection === undefined || selection.main === undefined || selection.main < 0) return;
     
-            let optionsSource = group.choice?.from?.options;
+            let optionsSource: any[] | undefined = group.choice?.from?.options;
 
             if (!optionsSource && group.choice?.from?.equipment_category) {
-                const cat = group.choice.from.equipment_category;
-                const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
-                const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
+                 const cat = group.choice.from.equipment_category;
+                 const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
+                 const cacheKey = findCacheMatch(categoryKey, equipmentCategoryCache);
                  if (cacheKey && equipmentCategoryCache[cacheKey]) {
                      optionsSource = equipmentCategoryCache[cacheKey].map((item: InventoryItem) => ({
                          option_type: 'counted_reference',
@@ -182,7 +181,7 @@ export const useDerivedCharacterData = (
             const selection = equipmentSelections[group.id];
             if (selection?.main === undefined || selection.main < 0) return false;
             
-            let optionsSource = group.choice?.from?.options;
+            let optionsSource: any[] | undefined = group.choice?.from?.options;
              if (!optionsSource && group.choice?.from?.equipment_category) {
                  const cat = group.choice.from.equipment_category;
                  const categoryKey = typeof cat === 'string' ? cat : cat?.name || cat?.index;
@@ -212,8 +211,6 @@ export const useDerivedCharacterData = (
             return true;
         });
     
-        console.log('[useDerivedCharacterData] Equipamentos Processados:', { fixed, finalEquip, allChoicesMade });
-
         return {
             equipmentChoiceGroups: choiceGroups,
             fixedEquipment: fixed,
