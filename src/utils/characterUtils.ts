@@ -2,6 +2,8 @@
 import type { Attributes, InventoryItem, ApiClassLevel, ApiClass, NewCharacterInfo, Character, Feat, ApiListItem, ApiTrait, CharacterAttributes, CharacterProficiency, CharacterSpell, JournalEntry, Relationship, ApiCondition, ApiSubrace } from "../types";
 import * as DndApiService from '../services/dndApiService';
 import { v4 as uuidv4 } from 'uuid';
+import { calculateTotalValueInCP, COIN_TYPES, COIN_WEIGHT } from './currency';
+
 
 export const XP_THRESHOLDS: Record<number, number> = {
     1: 300, 2: 900, 3: 2700, 4: 6500, 5: 14000, 6: 23000, 7: 34000, 8: 48000, 9: 64000,
@@ -13,12 +15,6 @@ export const PROFICIENCY_BONUS: Record<number, number> = {
     1: 2, 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3, 8: 3, 9: 4, 10: 4, 11: 4, 12: 4,
     13: 5, 14: 5, 15: 5, 16: 5, 17: 6, 18: 6, 19: 6, 20: 6
 };
-
-// Standard D&D 5e rule: 50 coins weigh 1 pound.
-export const COIN_WEIGHT = 0.02;
-
-export const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'];
-
 
 export const calculateModifier = (score: number): number => {
     return Math.floor((score - 10) / 2);
@@ -63,16 +59,22 @@ export const calculateWeight = (inventory: InventoryItem[]): number => {
         console.warn("calculateWeight received a non-array inventory:", inventory);
         return 0;
     }
-    return inventory.reduce((sum, item) => {
-        // Assume items that are actually currency have negligible weight for this calculation,
-        // or that their weight is handled separately if needed.
+
+    let totalCoinCount = 0;
+    
+    const itemWeight = inventory.reduce((sum, item) => {
         if (COIN_TYPES.includes(item.index)) {
+            totalCoinCount += item.quantity;
             return sum;
         }
         const itemWeight = item?.weight || 0;
         const itemQuantity = item?.quantity || 1;
         return sum + (itemWeight * itemQuantity);
     }, 0);
+    
+    const coinWeight = totalCoinCount * COIN_WEIGHT;
+
+    return itemWeight + coinWeight;
 }
 
 

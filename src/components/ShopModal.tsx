@@ -1,9 +1,10 @@
+// src/components/ShopModal.tsx
 'use client';
 import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { ShopItem, InventoryItem } from '../types';
 import { translateEquipment } from '../utils/translator';
-import ItemCard from './ItemCard';
+import { canAfford } from '@/utils/currency'; // Importar a função de validação
 
 const ShopModal: React.FC = () => {
     const { shopState, character, buyItem, sellItem, processPlayerAction, isLoading } = useGameStateContext();
@@ -26,6 +27,9 @@ const ShopModal: React.FC = () => {
             ) : (
                 shopState.inventory.map((item: ShopItem) => {
                     const translatedItem = translateEquipment(item);
+                    // A verificação de `canAfford` agora acontece aqui
+                    const playerCanAfford = canAfford(character.currency, { quantity: item.cost.quantity, unit: item.cost.unit as any });
+
                     return (
                         <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
                             <div>
@@ -36,7 +40,7 @@ const ShopModal: React.FC = () => {
                                  <p className="font-mono text-amber-400 font-bold">{item.cost.quantity} {item.cost.unit}</p>
                                  <button
                                     onClick={() => buyItem(item as any, item.cost.quantity)}
-                                    disabled={isInteractionDisabled || character.currency.gp < item.cost.quantity}
+                                    disabled={isInteractionDisabled || !playerCanAfford}
                                     className="mt-1 bg-green-700 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     Comprar
