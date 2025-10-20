@@ -3,15 +3,34 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService'; // Importa authService
 
-// Lista de modelos disponíveis
 export const AVAILABLE_MODELS = [
-    "gemini-1.5-pro-latest",
-    "gemini-1.5-flash-latest",
+    "gemini-2.5-pro",
+    "gemini-2.5-pro-preview-06-05",
+    "gemini-2.5-pro-preview-05-06",
+    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-preview-05-20",
+    "gemini-2.5-flash-preview-09-2025",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-flash-lite-preview-09-2025",
+    "gemini-2.5-flash-lite-preview-06-17",
+    "gemini-2.0-pro-exp",
+    "gemini-2.0-pro-exp-02-05",
+    "gemini-2.0-flash-exp",
+    "gemini-2.0-flash",
+    "gemini-2.0-flash-001",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-lite-001",
+    "gemini-flash-latest",
+    "gemini-flash-lite-latest",
+    "gemini-pro-latest",
+    "gemini-2.5-computer-use-preview-10-2025"
   ];
   
 
   export const AVAILABLE_TTS_MODELS = [
-    "gemini-1.5-flash-preview-tts",
+    "gemini-2.5-flash-preview-tts",
+    "gemini-2.5-pro-preview-tts"
   ];
   
 
