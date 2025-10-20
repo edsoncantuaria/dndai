@@ -1,116 +1,143 @@
-// src/services/webSocketService.ts
+/**
+ * WebSocket Service - Crônicas de Aventuras
+ * Conexão segura com o backend via Cloudflare Tunnel.
+ */
 
-const WEBSOCKET_URL = 'wss://backend-5e.edsin-server.space';
+const WEBSOCKET_URL = 'wss://backend-5e.edsin-server.space/';
 
 let socket: WebSocket | null = null;
 let messageQueue: any[] = [];
 let isConnecting = false;
 let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 5;
-const RECONNECT_DELAY = 3000;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const RECONNECT_DELAY = 4000;
 
 interface MessagePayload {
-    type: string;
-    payload: any;
+  type: string;
+  payload: any;
 }
 
 const eventListeners: Record<string, ((payload: any) => void)[]> = {};
 
+/**
+ * 🔐 Cria o WebSocket autenticado
+ */
 function connect() {
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-        return;
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    console.debug('[WSS] Já existe uma conexão ativa ou pendente.');
+    return;
+  }
+
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('[WSS] ❌ Nenhum token encontrado. Usuário não autenticado.');
+    return;
+  }
+
+  const urlWithToken = `${WEBSOCKET_URL}?token=${encodeURIComponent(token)}`;
+  console.log(`[WSS] 🌐 Tentando conectar a: ${urlWithToken}`);
+  isConnecting = true;
+
+  socket = new WebSocket(urlWithToken);
+
+  socket.onopen = () => {
+    console.log('%c[WSS] ✅ Conexão estabelecida.', 'color: #4ade80');
+    isConnecting = false;
+    reconnectAttempts = 0;
+
+    // Envia mensagens enfileiradas após reconexão
+    messageQueue.forEach((msg) => socket?.send(JSON.stringify(msg)));
+    messageQueue = [];
+  };
+
+  socket.onmessage = (event) => {
+    try {
+      const message: MessagePayload = JSON.parse(event.data);
+      console.log('%c[WSS] 📩 Mensagem recebida:', 'color: #60a5fa', message.type);
+
+      const listeners = eventListeners[message.type] || [];
+      listeners.forEach((callback) => callback(message.payload));
+    } catch (error) {
+      console.error('[WSS] ❌ Erro ao processar mensagem recebida:', error);
     }
-    
-    isConnecting = true;
-    const token = localStorage.getItem('token');
-    if (!token) {
-        console.error("WebSocket: Token não encontrado, abortando conexão.");
-        isConnecting = false;
-        return;
-    }
+  };
 
-    const urlWithToken = `${WEBSOCKET_URL}?token=${token}`;
-    console.log("[WSS] Tentando conectar a:", urlWithToken);
-    socket = new WebSocket(urlWithToken);
+  socket.onclose = (event) => {
+    const reason = event.reason || '—';
+    console.warn(`[WSS] ⚠️ Conexão fechada (código ${event.code}) | Motivo: ${reason}`);
+    socket = null;
+    isConnecting = false;
 
-    socket.onopen = () => {
-        console.log('[WSS] Conexão WebSocket estabelecida.');
-        isConnecting = false;
-        reconnectAttempts = 0;
-        // Envia mensagens enfileiradas após a conexão
-        messageQueue.forEach(msg => socket?.send(JSON.stringify(msg)));
-        messageQueue = [];
-    };
-
-    socket.onmessage = (event) => {
-        try {
-            const message: MessagePayload = JSON.parse(event.data);
-            console.log('[WSS] Mensagem recebida:', message.type);
-
-            if (eventListeners[message.type]) {
-                eventListeners[message.type].forEach(callback => callback(message.payload));
-            }
-
-        } catch (error) {
-            console.error('[WSS] Erro ao processar mensagem recebida:', error);
-        }
-    };
-
-    socket.onclose = (event) => {
-        console.warn(`[WSS] Conexão WebSocket fechada: Código ${event.code}. Motivo: ${event.reason}`);
-        isConnecting = false;
-        socket = null;
-        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-            reconnectAttempts++;
-            console.log(`[WSS] Tentando reconectar em ${RECONNECT_DELAY / 1000}s... (Tentativa ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`);
-            setTimeout(connect, RECONNECT_DELAY);
-        } else {
-            console.error('[WSS] Número máximo de tentativas de reconexão atingido.');
-        }
-    };
-
-    socket.onerror = (error) => {
-        console.error('[WSS] Erro na conexão WebSocket:', error);
-        isConnecting = false;
-        socket?.close();
-    };
-}
-
-export function initializeWebSocket() {
-    if (typeof window !== 'undefined') {
-        connect();
-    }
-}
-
-export function sendMessage(type: string, payload: any) {
-    const message = { type, payload };
-    if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.send(JSON.stringify(message));
+    // Reconexão automática com limite
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+      reconnectAttempts++;
+      const delay = RECONNECT_DELAY * reconnectAttempts;
+      console.log(`[WSS] Tentando reconectar em ${delay / 1000}s (tentativa ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})...`);
+      setTimeout(connect, delay);
     } else {
-        console.log('[WSS] Conexão não está aberta. Enfileirando mensagem.');
-        messageQueue.push(message);
-        if (!isConnecting) {
-            connect();
-        }
+      console.error('[WSS] ❌ Número máximo de tentativas de reconexão atingido.');
     }
+  };
+
+  socket.onerror = (event) => {
+    console.error('[WSS] 💥 Erro na conexão WebSocket:', event);
+    isConnecting = false;
+
+    // Força fechamento — o onclose cuidará da reconexão
+    socket?.close();
+  };
 }
 
+/**
+ * 🚀 Inicializa o WebSocket (executado no carregamento do app)
+ */
+export function initializeWebSocket() {
+  if (typeof window !== 'undefined') {
+    connect();
+  }
+}
+
+/**
+ * 📤 Envia uma mensagem ao servidor via WS
+ */
+export function sendMessage(type: string, payload: any) {
+  const message = { type, payload };
+
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify(message));
+  } else {
+    console.log('[WSS] 🕓 Conexão não está aberta. Enfileirando mensagem.');
+    messageQueue.push(message);
+    if (!isConnecting) connect();
+  }
+}
+
+/**
+ * 🧩 Inscreve listeners para tipos de mensagens
+ */
 export function addEventListener(type: string, callback: (payload: any) => void) {
-    if (!eventListeners[type]) {
-        eventListeners[type] = [];
-    }
-    eventListeners[type].push(callback);
+  if (!eventListeners[type]) {
+    eventListeners[type] = [];
+  }
+  eventListeners[type].push(callback);
 }
 
+/**
+ * ❌ Remove listener específico
+ */
 export function removeEventListener(type: string, callback: (payload: any) => void) {
-    if (eventListeners[type]) {
-        eventListeners[type] = eventListeners[type].filter(cb => cb !== callback);
-    }
+  if (eventListeners[type]) {
+    eventListeners[type] = eventListeners[type].filter((cb) => cb !== callback);
+  }
 }
 
+/**
+ * 🔒 Fecha o WebSocket e desativa reconexão automática
+ */
 export function closeWebSocket() {
-    reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Impede a reconexão
-    if (socket) {
-        socket.close();
-    }
+  reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+  if (socket) {
+    console.warn('[WSS] 🔒 Fechando conexão manualmente...');
+    socket.close(1000, 'Closed by client');
+  }
 }
