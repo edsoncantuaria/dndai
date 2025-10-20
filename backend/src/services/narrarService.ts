@@ -13,6 +13,7 @@ import { mergeCharacterUpdates } from './safeMerge.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getGameUpdate } from './aiService.js';
 
 
 // Função auxiliar para calcular o modificador de um atributo
