@@ -73,10 +73,10 @@ interface SettingsContextType {
 }
 
 export const defaultGenerationConfig: GenerationConfig = {
-    temperature: 1,
-    topP: 0.95,
+    temperature: 1.1,
+    topP: 0.9,
     topK: 64,
-    maxOutputTokens: 8192,
+    maxOutputTokens: 32768,
 };
 
 const defaultSettings = {
