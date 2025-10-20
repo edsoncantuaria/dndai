@@ -187,8 +187,17 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         subraceDetails = await DndApiService.getSubraceDetails(subraceIndex);
     }
     
-    const classLevelsData = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const subclassLevelsData = classDetails?.subclasses?.[0] ? (await DndApiService.getSubclassLevels(classDetails.subclasses[0].index) || []) : [];
+    const rawClassLevels = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
+    const classLevelsData = Array.isArray(rawClassLevels)
+      ? rawClassLevels
+      : (rawClassLevels as any)?.results || Object.values(rawClassLevels || {});
+      
+    const rawSubclassLevels = classDetails?.subclasses?.[0]
+      ? await DndApiService.getSubclassLevels(classDetails.subclasses[0].index)
+      : [];
+    const subclassLevelsData = Array.isArray(rawSubclassLevels)
+      ? rawSubclassLevels
+      : (rawSubclassLevels as any)?.results || Object.values(rawSubclassLevels || {});
     
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
