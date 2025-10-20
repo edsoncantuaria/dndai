@@ -44,6 +44,7 @@ const LootDisplay: React.FC = () => {
 
 const Inventory: React.FC = () => {
     const { character, toggleEquipped, useConsumable, isLoading, combatState, playerRollRequest } = useGameStateContext();
+    const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
 
     if (!character) return null;
 
@@ -64,7 +65,6 @@ const Inventory: React.FC = () => {
     const armors = inventoryItems.filter(i => i.armor_category);
     const magicItems = inventoryItems.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
     const otherItems = inventoryItems.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)') && !COIN_TYPES.includes(i.index));
-    const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
 
     const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
         <div>
