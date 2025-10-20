@@ -184,7 +184,6 @@ export const useNewGameState = () => {
     }, [sessionId, isLoading, processPlayerAction]);
 
      const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: any[] } | null> => {
-        clearGameState();
         setIsLoading(true);
         setApiError(null);
         try {
