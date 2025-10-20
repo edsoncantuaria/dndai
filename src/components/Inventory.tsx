@@ -44,7 +44,8 @@ const LootDisplay: React.FC = () => {
 
 const Inventory: React.FC = () => {
     const { character, toggleEquipped, useConsumable, isLoading, combatState, playerRollRequest } = useGameStateContext();
-    const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
+    const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'];
+
 
     if (!character) return null;
 
@@ -103,15 +104,23 @@ const Inventory: React.FC = () => {
                          <div className="flex justify-around text-center">
                             <div>
                                 <p className="font-mono font-bold text-lg text-yellow-500">{character.currency.gp || 0}</p>
-                                <p className="text-xs text-stone-500">Ouro</p>
+                                <p className="text-xs text-stone-500">Ouro (PO)</p>
                             </div>
                             <div>
                                 <p className="font-mono font-bold text-lg text-slate-400">{character.currency.sp || 0}</p>
-                                <p className="text-xs text-stone-500">Prata</p>
+                                <p className="text-xs text-stone-500">Prata (PP)</p>
+                            </div>
+                             <div>
+                                <p className="font-mono font-bold text-lg text-amber-700">{character.currency.ep || 0}</p>
+                                <p className="text-xs text-stone-500">Electro (PE)</p>
                             </div>
                             <div>
                                 <p className="font-mono font-bold text-lg text-orange-400">{character.currency.cp || 0}</p>
-                                <p className="text-xs text-stone-500">Cobre</p>
+                                <p className="text-xs text-stone-500">Cobre (PC)</p>
+                            </div>
+                             <div>
+                                <p className="font-mono font-bold text-lg text-cyan-300">{character.currency.pp || 0}</p>
+                                <p className="text-xs text-stone-500">Platina (PL)</p>
                             </div>
                         </div>
                     </div>

@@ -231,6 +231,7 @@ export interface InventoryItem {
     recoverable?: boolean;
     restrictions?: string[];
     itemData?: any; // Para compatibilidade com o backend
+    url?: string; // Adicionado para consistência
 }
 
 export interface ShopItem extends InventoryItem {
@@ -293,7 +294,7 @@ export interface Character {
     speed: number;
     deathSaves: { successes: number; failures: number };
     conditions: ApiCondition[];
-    currency: { gp: number, sp: number, cp: number };
+    currency: { pp: number, gp: number, ep: number, sp: number, cp: number };
     currentWeight: number;
     carryingCapacity: number;
     spellSlots: { [key: string]: { current: number; max: number } };

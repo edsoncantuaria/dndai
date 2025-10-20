@@ -17,7 +17,7 @@ export const PROFICIENCY_BONUS: Record<number, number> = {
 // Standard D&D 5e rule: 50 coins weigh 1 pound.
 export const COIN_WEIGHT = 0.02;
 
-export const COIN_TYPES = ['gp', 'sp', 'cp', 'ep', 'pp'];
+export const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'];
 
 
 export const calculateModifier = (score: number): number => {
@@ -46,7 +46,7 @@ export const calculateCarryingCapacity = (strength: number): number => {
 };
 
 export const calculateCurrency = (inventory: InventoryItem[]): Character['currency'] => {
-    const currency: Character['currency'] = { gp: 0, sp: 0, cp: 0 };
+    const currency: Character['currency'] = { gp: 0, sp: 0, cp: 0, ep: 0, pp: 0 };
     if (!Array.isArray(inventory)) return currency;
 
     inventory.forEach(item => {
@@ -187,17 +187,11 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         subraceDetails = await DndApiService.getSubraceDetails(subraceIndex);
     }
     
-    const rawClassLevels = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase()) || [];
-    const classLevelsData = Array.isArray(rawClassLevels)
-      ? rawClassLevels
-      : (rawClassLevels as any)?.results || Object.values(rawClassLevels || {});
+    const rawClassLevels = await DndApiService.getClassLevels(backendChar.characterClass.toLowerCase());
+    const classLevelsData = Array.isArray(rawClassLevels) ? rawClassLevels : (rawClassLevels as any)?.results || Object.values(rawClassLevels || {});
       
-    const rawSubclassLevels = classDetails?.subclasses?.[0]
-      ? await DndApiService.getSubclassLevels(classDetails.subclasses[0].index)
-      : [];
-    const subclassLevelsData = Array.isArray(rawSubclassLevels)
-      ? rawSubclassLevels
-      : (rawSubclassLevels as any)?.results || Object.values(rawSubclassLevels || {});
+    const rawSubclassLevels = classDetails?.subclasses?.[0] ? await DndApiService.getSubclassLevels(classDetails.subclasses[0].index) : [];
+    const subclassLevelsData = Array.isArray(rawSubclassLevels) ? rawSubclassLevels : (rawSubclassLevels as any)?.results || Object.values(rawSubclassLevels || {});
     
     const attributes: CharacterAttributes = {
         strength: backendChar.attributes.strength,
