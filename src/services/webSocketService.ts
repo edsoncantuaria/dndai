@@ -140,10 +140,14 @@ export function removeEventListener(type: string, callback: (payload: any) => vo
  * 🔒 Fecha o WebSocket e desativa reconexão automática
  */
 export function closeWebSocket() {
-  manualClose = true; // Sinaliza que o fechamento é intencional
-  reconnectAttempts = MAX_RECONNECT_ATTEMPTS; // Impede futuras tentativas de reconexão
-  if (socket) {
-    console.warn('[WSS] 🔒 Fechando conexão manualmente...');
+  if (!socket || socket.readyState === WebSocket.CLOSED) return;
+
+  manualClose = true;
+  reconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+  console.warn('[WSS] 🔒 Fechando conexão manualmente...');
+  try {
     socket.close(1000, 'Closed by client');
+  } catch (e) {
+    console.error('[WSS] Erro ao fechar WebSocket:', e);
   }
 }

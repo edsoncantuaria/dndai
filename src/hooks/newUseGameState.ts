@@ -247,10 +247,12 @@ export const useNewGameState = () => {
             }
         } catch (err: any) {
             const httpError = err as any;
+            console.error("[loadGameSession] Erro ao carregar sessão:", err);
             setApiError(httpError.message || "Erro ao carregar sessão.");
-            // Só faz o logout e limpa tudo se o erro for de autenticação ou se o recurso não for encontrado.
-            if (httpError?.response?.status === 401 || httpError?.response?.status === 404) {
-                clearGameState();
+            // Fecha o socket apenas em erro de autenticação real
+            if (httpError?.response?.status === 401) {
+              console.warn("[loadGameSession] Sessão expirada — limpando estado e desconectando.");
+              clearGameState();
             }
             return null;
         } finally {
