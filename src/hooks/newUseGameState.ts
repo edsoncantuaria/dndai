@@ -183,7 +183,7 @@ export const useNewGameState = () => {
         await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", targetSessionId);
     }, [sessionId, isLoading, processPlayerAction]);
 
-     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: any[] } | null> => {
+    const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: any[] } | null> => {
         setIsLoading(true);
         setApiError(null);
         try {
@@ -221,7 +221,7 @@ export const useNewGameState = () => {
             };
 
             if (missingIds.length > 0) {
-                const deps = await Promise.all(missingIds.map(id => GameService.getHomebrewDetails(id)));
+                const deps = await Promise.all(missingIds.map(id => HomebrewService.getHomebrewDetails(id)));
                 setReinstallModal({
                     open: true,
                     deps: deps.filter((d): d is HomebrewContent => !!d),
@@ -245,14 +245,18 @@ export const useNewGameState = () => {
             } else {
                 return await loadSessionContent();
             }
-        } catch(err: any) {
-            setApiError(err.message);
-            clearGameState();
+        } catch (err: any) {
+            const httpError = err as any;
+            setApiError(httpError.message || "Erro ao carregar sessão.");
+            // Só faz o logout e limpa tudo se o erro for de autenticação ou se o recurso não for encontrado.
+            if (httpError?.response?.status === 401 || httpError?.response?.status === 404) {
+                clearGameState();
+            }
             return null;
         } finally {
              setIsLoading(false);
         }
-    }, [user, clearGameState, handleApiResponse, processPlayerAction, startGame, logState, toast]);
+    }, [user, handleApiResponse, processPlayerAction, startGame, logState, toast, clearGameState]);
 
 
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
