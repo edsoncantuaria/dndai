@@ -9,8 +9,8 @@ import type { z } from 'zod';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "gemini-1.5-flash-latest",
-    ttsModel: "gemini-1.5-flash-preview-tts",
+    model: "gemini-2.5-flash",
+    ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
     generationConfig: {
         temperature: 1,
