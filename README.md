@@ -1,4 +1,5 @@
 # Crônicas de Aventuras: Uma Plataforma de RPG com IA
+# 1.0
 
 Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo e imersiva, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js, Genkit e um robusto backend Node.js, este projeto combina a nostalgia do Dungeons & Dragons 5ª Edição com o poder da IA generativa.
 
