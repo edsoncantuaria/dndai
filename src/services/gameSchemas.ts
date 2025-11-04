@@ -202,7 +202,8 @@ export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("The entire current character state object."),
   playerAction: z.string().describe("The action taken by the player. If this action is the result of a dice roll, it will be prefixed with 'O resultado da minha rolagem de...'"),
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
-  combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active.")
+  combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active."),
+  enableNarrativeRevalidation: z.boolean().optional().describe("When true, the AI must perform an additional self-check for narrative and logical bugs and report findings in systemLog."),
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

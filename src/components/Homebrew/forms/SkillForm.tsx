@@ -11,16 +11,34 @@ interface Props {
     initialData?: any;
 }
 
+type SkillFormState = {
+    name: string;
+    desc: string[];
+    official_index: string;
+    ability_score: { index: string; name: string };
+    index?: string;
+};
+
 const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [skillData, setSkillData] = useState(() => ({
-        name: '',
-        desc: [''],
-        official_index: '',
-        ability_score: { index: 'str', name: 'STR' },
-        ...initialData,
-        desc: initialData?.desc || [''],
-    }));
+    const [skillData, setSkillData] = useState<SkillFormState>(() => {
+        const base: SkillFormState = {
+            name: '',
+            desc: [''],
+            official_index: '',
+            ability_score: { index: 'str', name: 'STR' },
+        };
+
+        const merged = {
+            ...base,
+            ...(initialData || {}),
+        };
+
+        return {
+            ...merged,
+            desc: Array.isArray(merged.desc) && merged.desc.length > 0 ? merged.desc : [''],
+        };
+    });
     
     const [allSkills, setAllSkills] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -45,7 +63,7 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
         onDataChange(finalData);
     }, [skillData, onDataChange]);
     
-    const handleFieldChange = (field: keyof typeof skillData, value: any) => {
+    const handleFieldChange = <K extends keyof SkillFormState>(field: K, value: SkillFormState[K]) => {
         setSkillData(prev => ({ ...prev, [field]: value }));
     };
 

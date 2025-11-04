@@ -80,8 +80,19 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     await queryRunner.startTransaction();
 
     try {
-        const classDetails: any = await getResourceDetails('classes', characterData.characterClass.toLowerCase());
-        if (!classDetails) {
+        const classIndex = (characterData.classIndex || characterData.characterClass || '').trim();
+        let classDetails: any = {};
+        if (classIndex) {
+            classDetails = await getResourceDetails('classes', classIndex.toLowerCase());
+            if (!classDetails || Object.keys(classDetails).length === 0) {
+                classDetails = await getResourceDetails('classes', classIndex);
+            }
+        }
+
+        const hasOfficialClassData = classDetails && Object.keys(classDetails).length > 0 && classDetails.name;
+        const isHomebrewClass = (characterData.homebrewIds || []).includes(classIndex);
+
+        if (!hasOfficialClassData && !isHomebrewClass) {
             throw createError(404, `A classe '${characterData.characterClass}' não foi encontrada.`);
         }
         
@@ -102,7 +113,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             name: characterData.name,
             race: characterData.race,
             subrace: characterData.subrace,
-            characterClass: classDetails.name,
+            characterClass: hasOfficialClassData ? classDetails.name : characterData.characterClass,
             subclassFlavor: characterData.subclassFlavor,
             level: characterData.level,
             background: characterData.background,
@@ -123,7 +134,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
 
         const attributes = new CharacterAttributes();
         Object.assign(attributes, characterData.attributes);
-        const hitDie = classDetails.hit_die || 8;
+        const hitDie = typeof classDetails?.hit_die === 'number' ? classDetails.hit_die : (characterData.hitDie || 8);
         attributes.hp = hitDie + Math.floor((characterData.attributes.constitution - 10) / 2);
         attributes.maxHp = attributes.hp;
         attributes.character = savedCharacter;

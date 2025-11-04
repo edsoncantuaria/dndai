@@ -169,11 +169,15 @@ export interface NewCharacterInfo {
     hairStyle: 'Careca' | 'Curto' | 'Médio' | 'Longo';
     beardStyle: 'Sem Barba' | 'Curta' | 'Grande';
     skinColor: 'Branca' | 'Parda' | 'Negra' | 'Indígena' | 'Amarela';
+    raceIndex: string;
     race: string;
+    subraceIndex: string | null;
     subrace: string | null;
     draconicAncestry?: string;
+    classIndex: string;
     characterClass: string;
     subclassFlavor: string | null;
+    backgroundIndex: string;
     background: string;
     alignment: string;
     attributes: Attributes;

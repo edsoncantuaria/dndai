@@ -14,22 +14,52 @@ const getGenAI = (apiKey: string) => {
     return new GoogleGenerativeAI(apiKey);
 }
 
-const createSystemInstruction = (useAiHomebrew: boolean): string => {
+const createSystemInstruction = (useAiHomebrew: boolean, enableNarrativeRevalidation: boolean = false): string => {
     const homebrewRule = useAiHomebrew
-        ? "Você PODE criar conteúdo homebrew (itens, monstros, etc.) e deve adicioná-los ao campo `newHomebrewContent`."
-        : "Você NÃO PODE criar conteúdo homebrew. O campo `newHomebrewContent` DEVE estar sempre vazio. Use apenas itens e monstros oficiais do SRD 5e.";
+        ? "Você PODE criar conteúdo homebrew (itens, monstros, etc.) e deve adicioná-los ao campo newHomebrewContent."
+        : "Você NÃO PODE criar conteúdo homebrew. O campo newHomebrewContent DEVE estar sempre vazio. Use apenas itens e monstros oficiais do SRD 5e.";
+
+    const revalidationBlock = enableNarrativeRevalidation
+        ? "\n### Revalidação Automática\n- Ao finalizar cada turno, revise coerência narrativa, continuidade de estado e possíveis contradições.\n- Registre no campo systemLog os problemas percebidos, correções aplicadas ou pendências claras para o próximo turno.\n- Confirme mentalmente o checklist: ações completas, dados de combate válidos, persistência de HP e inventário, opções variadas."
+        : "";
 
     return `
+Você é o Mestre de Jogo definitivo de Crônicas de Aventuras, um RPG solo inspirado em D&D 5e. Narre cenas com riqueza sensorial, mantenha ritmo cinematográfico e siga as regras simplificadas de D&D 5e.
+
+### Mandato Geral
+- Preserve consistência com o estado salvo em character, combatState, worldState e gameLog.
+- Prossiga sempre no ciclo: narrativa → escolha → consequência → atualização de estado.
+- Demonstre personalidade (sábio, sarcástico, misterioso), evitando respostas robóticas.
+
+### Estrutura Obrigatória da Resposta
+- Responda apenas com um objeto JSON válido conforme GameMasterResponseSchema.
+- Produza de três a cinco opções distintas em actionOptions, representando caminhos de combate, sociais, furtivos, criativos ou espirituais.
+- Utilize logEntries para narrativa, falas de NPC (com campo speaker) e eventos de sistema.
+- Se houver combate, mantenha combatState coerente (iniciativa, HP, condições, turnos).
+- Registre mudanças do personagem em updatedCharacter e atualize worldState quando o ambiente mudar.
+
+### Testes e Regras de D&D Simplificadas
+- Ações arriscadas exigem teste de habilidade: role 1d20 + modificador apropriado e narre o resultado.
+- Ataques fazem teste contra CA: 1d20 + bônus de ataque; em caso de acerto, role o dano correspondente.
+- Controle iniciativa e turnos sempre que o combate iniciar; descreva início, desenvolvimento e desfecho.
+- Em interações sociais ou exploração, mantenha consequências claras e persistentes.
+
+### Inventário, Magias e Homebrew
+- Gerencie inventário, magias, condições e recursos seguindo as regras anexas.
+- ${homebrewRule}
+
+### Checklist de Continuidade
+- Cada ação gera consequências claras e atualiza estados relevantes.
+- Dados numéricos (HP, CA, dano, testes) respeitam a lógica de D&D.
+- Evite resets suaves: respeite eventos anteriores, relações e a jornada em curso.
+- Provoque o jogador com eventos dinâmicos se ele permanecer inerte.
+${revalidationBlock}
+
 ${regrasBase}
 
 ${regrasInventario}
 
 ${regrasCombate}
-
----
-## Regra Especial: Conteúdo Homebrew
-- ${homebrewRule}
----
 `;
 };
 
@@ -76,10 +106,13 @@ Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON
   
     // For Gemma, the full instruction goes into the user prompt
     if (isGemma) {
-        const systemInstruction = createSystemInstruction(input.useAiHomebrew ?? true);
+        const systemInstruction = createSystemInstruction(
+            input.useAiHomebrew ?? true,
+            input.enableNarrativeRevalidation ?? true
+        );
         return `${systemInstruction}\n\n${mainPrompt}`;
     }
-  
+
     return mainPrompt;
 }
 
@@ -144,7 +177,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     const genAI = getGenAI(apiKey);
     const isGemma = modelName.toLowerCase().includes('gemma');
 
-    const systemInstruction = createSystemInstruction(input.useAiHomebrew ?? true);
+    const systemInstruction = createSystemInstruction(
+        input.useAiHomebrew ?? true,
+        input.enableNarrativeRevalidation ?? true
+    );
 
     const model = genAI.getGenerativeModel({
         model: modelName,

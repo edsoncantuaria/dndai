@@ -177,24 +177,24 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
 
         const buildFn = (): NewCharacterInfo | null => {
             if (!isComplete) return null;
-            
-             // Filtra apenas os IDs que são UUIDs (indicativo de homebrew)
-            const getHomebrewIds = (items: (string | undefined | null)[]): string[] => 
-                items.filter((id): id is string => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
 
-             const equipmentHomebrewIds = derivedData.finalizedEquipment
-                .map((item: InventoryItem) => item.id) // O ID do item de inventário já deve ser o ID do homebrew
-                .filter(id => id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+            const HOME_BREW_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+            const collectHomebrewIds = (values: (string | undefined | null)[]) =>
+                values.filter((value): value is string => Boolean(value && HOME_BREW_ID_PATTERN.test(value)));
+
+            const equipmentHomebrewIds = collectHomebrewIds([
+                ...derivedData.fixedEquipment.map((item: InventoryItem) => item?.index),
+                ...derivedData.finalizedEquipment.map((item: InventoryItem) => item?.index),
+            ]);
 
             const homebrewIds = Array.from(new Set([
-                ...getHomebrewIds([state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]),
-                ...getHomebrewIds(Object.values(selectionManager.proficiencySelections).flat()),
+                ...collectHomebrewIds([state.race, state.subrace, state.characterClass, state.background, state.selectedFeat]),
+                ...collectHomebrewIds(Object.values(selectionManager.proficiencySelections).flat()),
                 ...equipmentHomebrewIds,
-                ...getHomebrewIds(selectionManager.chosenClassSpells),
-                ...getHomebrewIds(Object.values(selectionManager.chosenRacialSpells).flat())
+                ...collectHomebrewIds(selectionManager.chosenClassSpells),
+                ...collectHomebrewIds(Object.values(selectionManager.chosenRacialSpells).flat()),
             ]));
-
 
             return {
                 name: state.name,
@@ -202,11 +202,15 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
                 hairStyle: state.hairStyle,
                 beardStyle: state.beardStyle,
                 skinColor: state.skinColor,
+                raceIndex: state.race,
                 race: details.raceDetails!.name,
+                subraceIndex: state.subrace || null,
                 subrace: details.subraceDetails?.name || null,
                 draconicAncestry: state.draconicAncestry,
+                classIndex: state.characterClass,
                 characterClass: details.classDetails!.name,
                 subclassFlavor: details.classDetails?.subclasses?.[0]?.name || null,
+                backgroundIndex: state.background,
                 background: details.backgroundDetails!.name,
                 alignment: state.alignment,
                 attributes: derivedData.finalAttributes,
