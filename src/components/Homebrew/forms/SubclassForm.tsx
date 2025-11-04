@@ -15,17 +15,29 @@ interface Props {
 
 const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const { user } = useAuth();
-    const [subclassData, setSubclassData] = useState(() => ({
-        name: '',
-        subclass_flavor: '',
-        desc: [''],
-        class: { index: '', name: '', url: '' },
-        features: [],
-        dependencies: [],
-        official_index: '',
-        ...(initialData || {}),
-        features: initialData?.features || [],
-    }));
+    const [subclassData, setSubclassData] = useState(() => {
+        const base = {
+            name: '',
+            subclass_flavor: '',
+            desc: [''],
+            class: { index: '', name: '', url: '' },
+            features: [] as any[],
+            dependencies: [] as string[],
+            official_index: '',
+        };
+
+        const merged = {
+            ...base,
+            ...(initialData || {}),
+        };
+
+        return {
+            ...merged,
+            desc: Array.isArray(merged.desc) && merged.desc.length > 0 ? merged.desc : [''],
+            features: Array.isArray(merged.features) ? merged.features : [],
+            dependencies: Array.isArray(merged.dependencies) ? merged.dependencies : [],
+        };
+    });
     const [classes, setClasses] = useState<ApiListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isFeatureCreatorOpen, setIsFeatureCreatorOpen] = useState(false);

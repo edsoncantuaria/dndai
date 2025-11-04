@@ -107,6 +107,7 @@ export const getSpells = () => fetchList<ApiListItem>('/spells');
 export const getSpellDetails = (index: string) => getResourceDetails('spells', index) as Promise<ApiSpell>;
 export const getMagicSchools = () => fetchList<ApiListItem>('/magic-schools');
 export const getMagicSchoolDetails = (index: string) => getResourceDetails('magic-schools', index) as Promise<ApiMagicSchool>;
+export const getDamageTypes = () => fetchList<ApiListItem>('/damage-types');
 
 /* ===========================================================
  * 🎭 Backgrounds

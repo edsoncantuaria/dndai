@@ -24,34 +24,180 @@ const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
  * @param content O objeto de conteúdo homebrew.
  * @returns Uma string de resumo ou null se o conteúdo for inválido.
  */
-const summarizeHomebrewForAI = (content: HomebrewContent): string | null => {
-    if (!content || !content.content) return null;
+const HOMEbrew_TYPE_PRIORITY: Record<HomebrewContent['type'], number> = {
+    monster: 0,
+    subclass: 1,
+    class: 2,
+    race: 3,
+    subrace: 4,
+    feat: 5,
+    spell: 6,
+    item: 7,
+    background: 8,
+    skill: 9,
+    translation: 10,
+};
 
-    const data = content.content;
+const HOMEbrew_TYPE_LABELS: Record<HomebrewContent['type'], string> = {
+    monster: 'monstro homebrew',
+    subclass: 'subclasse homebrew',
+    class: 'classe homebrew',
+    race: 'raça homebrew',
+    subrace: 'sub-raça homebrew',
+    feat: 'talento homebrew',
+    spell: 'magia homebrew',
+    item: 'item homebrew',
+    background: 'antecedente homebrew',
+    skill: 'perícia homebrew',
+    translation: 'tradução customizada',
+};
+
+const HOMEbrew_TYPE_PLURALS: Record<HomebrewContent['type'], string> = {
+    monster: 'monstros homebrew',
+    subclass: 'subclasses homebrew',
+    class: 'classes homebrew',
+    race: 'raças homebrew',
+    subrace: 'sub-raças homebrew',
+    feat: 'talentos homebrew',
+    spell: 'magias homebrew',
+    item: 'itens homebrew',
+    background: 'antecedentes homebrew',
+    skill: 'perícias homebrew',
+    translation: 'traduções customizadas',
+};
+
+const MAX_HOMEbrew_SUMMARY_LINES = 10;
+const MAX_HOMEbrew_SUMMARY_LENGTH = 1100;
+const MAX_HOMEbrew_ENTRY_LENGTH = 220;
+
+const parseHomebrewPayload = (content: HomebrewContent): Record<string, any> | null => {
+    const raw = content?.content;
+
+    if (!raw) return null;
+
+    if (typeof raw === 'string') {
+        try {
+            return JSON.parse(raw);
+        } catch (error) {
+            console.warn(`[Homebrew] Falha ao fazer parse do conteúdo ${content.id}:`, error);
+            return null;
+        }
+    }
+
+    return raw;
+};
+
+const sanitizeSummary = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+const truncateSummary = (value: string, maxLength: number): string => {
+    if (value.length <= maxLength) return value;
+    return `${value.slice(0, Math.max(0, maxLength - 1))}…`;
+};
+
+const summarizeHomebrewForAI = (content: HomebrewContent): { summary: string; type: HomebrewContent['type']; key?: string } | null => {
+    if (!content || content.type === 'translation') return null;
+
+    const data = parseHomebrewPayload(content);
+    if (!data) return null;
+
     const type = content.type;
-    let summary = `[${type.toUpperCase()}] ${data.name}: `;
+    let summary = `[${type.toUpperCase()}] ${data.name || content.name}: `;
 
     try {
         switch (type) {
-            case 'spell':
-                summary += `${data.desc?.[0] || ''} (Nível ${data.level}, Escola: ${data.school?.name || 'Desconhecida'}).`;
+            case 'spell': {
+                const firstLine = Array.isArray(data.desc) ? data.desc[0] : data.desc;
+                summary += `${firstLine || 'Magia personalizada.'}`;
+                if (data.level != null) summary += ` (Nível ${data.level}`;
+                if (data.school?.name) {
+                    summary += data.level != null ? `, Escola: ${data.school.name})` : ` (Escola: ${data.school.name})`;
+                } else if (data.level != null) {
+                    summary += `)`;
+                }
                 break;
-            case 'item':
-                 summary += `${data.desc?.[0] || 'Um item.'}`;
-                 if (data.rarity) summary += ` (Raridade: ${data.rarity.name})`;
+            }
+            case 'item': {
+                 const firstLine = Array.isArray(data.desc) ? data.desc[0] : data.desc;
+                 summary += `${firstLine || 'Item personalizado.'}`;
+                 if (data.rarity?.name) summary += ` (Raridade: ${data.rarity.name})`;
                  break;
-            case 'monster':
-                summary += `ND ${data.challenge_rating || '?'}. ${data.size || ''} ${data.type || ''}. PV: ${data.hit_points || '?'}. CA: ${data.armor_class?.[0]?.value || data.armor_class || '?'}.`;
+            }
+            case 'monster': {
+                const ac = Array.isArray(data.armor_class) ? data.armor_class[0]?.value : data.armor_class;
+                summary += `ND ${data.challenge_rating ?? '?'}. ${data.size || ''} ${data.type || ''}. PV: ${data.hit_points ?? '?'} / CA: ${ac ?? '?'}.`;
                 break;
-            default:
-                summary += `${(data.desc?.[0] || data.desc || 'Conteúdo personalizado.')?.substring(0, 150)}...`;
+            }
+            default: {
+                const firstLine = Array.isArray(data.desc) ? data.desc[0] : data.desc;
+                const fallback = typeof firstLine === 'string' ? firstLine : 'Conteúdo personalizado.';
+                summary += truncateSummary(fallback, 150);
                 break;
+            }
         }
-        return summary;
+
+        const normalizedSummary = sanitizeSummary(truncateSummary(summary, MAX_HOMEbrew_ENTRY_LENGTH));
+        if (!normalizedSummary) return null;
+
+        const key = (data.official_index || data.index || content.id || content.name || '').toString().toLowerCase();
+        return { summary: normalizedSummary, type, key };
     } catch (e) {
-        console.warn(`Falha ao sumarizar o conteúdo homebrew: ${data.name}`, e);
+        console.warn(`Falha ao sumarizar o conteúdo homebrew: ${data.name || content.name}`, e);
         return null;
     }
+};
+
+const buildHomebrewSummaryBlock = (installedContent: HomebrewContent[]): string => {
+    if (!Array.isArray(installedContent) || installedContent.length === 0) {
+        return '';
+    }
+
+    const dedupe = new Set<string>();
+    const summaries: NonNullable<ReturnType<typeof summarizeHomebrewForAI>>[] = [];
+
+    for (const content of installedContent) {
+        const entry = summarizeHomebrewForAI(content);
+        if (!entry) continue;
+        if (entry.key && dedupe.has(entry.key)) continue;
+        summaries.push(entry);
+        if (entry.key) {
+            dedupe.add(entry.key);
+        }
+    }
+
+    if (summaries.length === 0) return '';
+
+    const sorted = summaries.sort((a, b) => {
+        const priorityDiff = (HOMEbrew_TYPE_PRIORITY[a.type] ?? 99) - (HOMEbrew_TYPE_PRIORITY[b.type] ?? 99);
+        if (priorityDiff !== 0) return priorityDiff;
+        return a.summary.localeCompare(b.summary);
+    });
+
+    const lines: string[] = [];
+    let usedChars = 0;
+    const overflow = new Map<HomebrewContent['type'], number>();
+
+    for (const entry of sorted) {
+        const projectedLength = usedChars + entry.summary.length + 3; // bullet + newline
+        if (lines.length < MAX_HOMEbrew_SUMMARY_LINES && projectedLength <= MAX_HOMEbrew_SUMMARY_LENGTH) {
+            lines.push(entry.summary);
+            usedChars = projectedLength;
+        } else {
+            overflow.set(entry.type, (overflow.get(entry.type) ?? 0) + 1);
+        }
+    }
+
+    if (overflow.size > 0) {
+        const overflowParts = Array.from(overflow.entries()).map(([type, count]) => {
+            const baseLabel = HOMEbrew_TYPE_LABELS[type] || 'conteúdo homebrew';
+            const pluralLabel = count > 1 ? (HOMEbrew_TYPE_PLURALS[type] || `${baseLabel}s`) : baseLabel;
+            return `${count} ${pluralLabel}`;
+        });
+        lines.push(`Resumo adicional: ${overflowParts.join(', ')}`);
+    }
+
+    if (lines.length === 0) return '';
+
+    return `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${lines.join('\n- ')}\n`;
 };
 
 
@@ -197,12 +343,11 @@ export const processPlayerTurn = async (
              console.log(`[Cache] MISS: Gerando resumo para sessão ${sessionId}.`);
             if (sessao.homebrewContentIds && sessao.homebrewContentIds.length > 0) {
                 const installedContent = await HomebrewService.getMultipleHomebrewContentByIds(sessao.homebrewContentIds);
-                const summaries = installedContent.map(summarizeHomebrewForAI).filter(Boolean);
-                if (summaries.length > 0) {
-                    homebrewSummaryForAI = `\n\n### Regras e Conteúdo Customizado Ativo (Homebrew)\n- ${summaries.join('\n- ')}\n`;
+                homebrewSummaryForAI = buildHomebrewSummaryBlock(installedContent);
+                if (homebrewSummaryForAI) {
                     // Salva o novo resumo no cache por 24 horas
                      if (redisClient && redisClient.isOpen) {
-                        await redisClient.set(sessionCacheKey, homebrewSummaryForAI, { EX: 86400 }); 
+                        await redisClient.set(sessionCacheKey, homebrewSummaryForAI, { EX: 86400 });
                     }
                 }
             }
@@ -233,6 +378,7 @@ export const processPlayerTurn = async (
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
         useAiHomebrew: useAiHomebrew ?? true,
+        enableNarrativeRevalidation: true,
     };
 
     const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);

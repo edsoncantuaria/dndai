@@ -266,7 +266,7 @@ export const updateBundle = async (bundleId: string, authorId: number, data: Par
     if (data.isPublic !== undefined) bundle.isPublic = data.isPublic;
 
     if (data.contentIds) {
-        await contentRepo.update({ bundleId: bundle.id }, { bundle: null });
+        await contentRepo.update({ bundleId: bundle.id }, { bundle: null, bundleId: null });
         const newContents = await contentRepo.find({ where: { id: In(data.contentIds), authorId } });
         if (newContents.length !== data.contentIds.length) throw createError(400, 'Alguns itens de conteúdo não foram encontrados ou não pertencem a você.');
         const alreadyInAnotherBundle = await contentRepo.count({ where: { id: In(data.contentIds), bundleId: Not(IsNull()) } });
@@ -281,6 +281,6 @@ export const deleteBundle = async (bundleId: string, authorId: number) => {
     const contentRepo = AppDataSource.getRepository(HomebrewContent);
     const bundle = await bundleRepo.findOneBy({ id: bundleId, authorId });
     if (!bundle) throw createError(404, 'Pacote não encontrado ou você não tem permissão.');
-    await contentRepo.update({ bundleId }, { bundle: null });
+    await contentRepo.update({ bundleId }, { bundle: null, bundleId: null });
     await bundleRepo.remove(bundle);
 }

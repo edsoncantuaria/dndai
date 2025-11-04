@@ -157,5 +157,6 @@ export const GameMasterFlowInputSchema = z.object({
   gameLog: z.string().describe("Resumo do histórico recente do jogo em JSON."),
   combatState: CombatStateSchema.optional().describe("Estado do combate atual, se ativo."),
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
+  enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;
