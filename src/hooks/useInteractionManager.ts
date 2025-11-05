@@ -16,14 +16,26 @@ const INITIAL_COMBAT_STATE: CombatState = {
 
 type RequestType = 'roll' | 'skill' | 'spell' | 'levelUp' | 'shop' | 'loot' | 'hitDice';
 
+export type SkillCheckRequestState = {
+    skillName: string;
+    baseAction?: string;
+    promptText?: string;
+};
+
+export type SpellCastRequestState = {
+    spell: ApiSpell;
+    slotLevel?: number;
+    slotsBefore?: { current: number; max: number };
+};
+
 export const useInteractionManager = () => {
     const [actionOptions, setActionOptions] = useState<(string | { text: string; action: string, skill?: string })[]>([]);
     const [combatState, setCombatState] = useState<CombatState>(INITIAL_COMBAT_STATE);
 
     // Modal/Request states
     const [playerRollRequest, setPlayerRollRequest] = useState<PlayerRollRequest | null>(null);
-    const [skillCheckRequest, setSkillCheckRequest] = useState<{ skillName: string } | null>(null);
-    const [spellCastRequest, setSpellCastRequest] = useState<{ spell: ApiSpell } | null>(null);
+    const [skillCheckRequest, setSkillCheckRequest] = useState<SkillCheckRequestState | null>(null);
+    const [spellCastRequest, setSpellCastRequest] = useState<SpellCastRequestState | null>(null);
     const [levelUpState, setLevelUpState] = useState<LevelUpState | null>(null);
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
@@ -81,16 +93,33 @@ export const useInteractionManager = () => {
     const handleSkillCheckSubmit = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (description: string, modelOverride?: string) => {
         if (!skillCheckRequest) return;
         const translatedSkill = translateApiString(skillCheckRequest.skillName);
-        const actionText = `Eu tento usar ${translatedSkill}${description ? `: ${description}` : '.'}`;
+        const base = skillCheckRequest.baseAction || `Eu tento usar ${translatedSkill}.`;
+        const actionText = description
+            ? `${base}${base.trim().endsWith('.') ? '' : '.'} Detalhes: ${description}`
+            : base;
         setSkillCheckRequest(null);
-        processPlayerAction(actionText, -1, modelOverride);
+        processPlayerAction(actionText, undefined, modelOverride);
     }, [skillCheckRequest]);
 
     const submitSpellCast = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (spell: ApiSpell, description: string) => {
-        const actionText = `Eu conjuro ${spell.name}${description ? `: ${description}` : '.'}`;
+        const slotLevel = spellCastRequest?.slotLevel && spellCastRequest.slotLevel > 0 ? spellCastRequest.slotLevel : null;
+        let actionText = '';
+        if (slotLevel) {
+            actionText = `Eu gasto um espaço de magia de nível ${slotLevel} e conjuro ${spell.name}`;
+        } else {
+            actionText = `Eu conjuro ${spell.name}`;
+        }
+        if (description) {
+            actionText += `: ${description}`;
+        } else {
+            actionText += '.';
+        }
+        if (slotLevel && spellCastRequest?.slotsBefore) {
+            actionText += ` (Antes da conjuração: ${spellCastRequest.slotsBefore.current}/${spellCastRequest.slotsBefore.max} espaços de nível ${slotLevel} restantes.)`;
+        }
         setSpellCastRequest(null);
         processPlayerAction(actionText);
-    }, []);
+    }, [spellCastRequest]);
 
     const handleTakeLoot = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (takeAll: boolean) => {
         if (!pendingLootOffer) return;

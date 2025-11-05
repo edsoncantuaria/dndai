@@ -49,8 +49,10 @@ const Inventory: React.FC = () => {
 
     if (!character) return null;
 
-    const currentWeight = character.currentWeight ?? 0;
-    const carryingCapacity = character.carryingCapacity ?? 0;
+    const currentWeight = Number(character.currentWeight ?? 0);
+    const carryingCapacity = Number(
+        character.carryingCapacity ?? (character.attributes?.strength ? character.attributes.strength * 15 : 0)
+    );
     const loadPercentage = carryingCapacity > 0 ? (currentWeight / carryingCapacity) * 100 : 0;
 
     let progressBarColor = 'bg-green-600';
@@ -60,12 +62,26 @@ const Inventory: React.FC = () => {
     const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
 
-    const inventoryItems = character.inventory.map(item => translateEquipment(item));
+    const safeCurrency = {
+        pp: character.currency?.pp ?? 0,
+        gp: character.currency?.gp ?? 0,
+        ep: character.currency?.ep ?? 0,
+        sp: character.currency?.sp ?? 0,
+        cp: character.currency?.cp ?? 0,
+    };
+
+    const inventoryItems = (character.inventory || []).map(item => translateEquipment(item));
 
     const weapons = inventoryItems.filter(i => i.weapon_category);
-    const armors = inventoryItems.filter(i => i.armor_category);
+    const armors = inventoryItems.filter(i => i.armor_category || i.equipment_category?.index === 'shields');
     const magicItems = inventoryItems.filter(i => i.name.includes('(Mágico)')); // Simple check for demo
-    const otherItems = inventoryItems.filter(i => !i.weapon_category && !i.armor_category && !i.name.includes('(Mágico)') && !COIN_TYPES.includes(i.index));
+    const otherItems = inventoryItems.filter(i => 
+        !i.weapon_category &&
+        !i.armor_category &&
+        i.equipment_category?.index !== 'shields' &&
+        !i.name.includes('(Mágico)') &&
+        !COIN_TYPES.includes(i.index)
+    );
 
     const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
         <div>
@@ -103,23 +119,23 @@ const Inventory: React.FC = () => {
                          <h4 className="font-semibold text-stone-300 text-sm mb-2 flex items-center gap-2"><Coins /> Moedas</h4>
                          <div className="flex justify-around text-center">
                             <div>
-                                <p className="font-mono font-bold text-lg text-yellow-500">{character.currency.gp || 0}</p>
+                                <p className="font-mono font-bold text-lg text-yellow-500">{safeCurrency.gp}</p>
                                 <p className="text-xs text-stone-500">Ouro (PO)</p>
                             </div>
                             <div>
-                                <p className="font-mono font-bold text-lg text-slate-400">{character.currency.sp || 0}</p>
+                                <p className="font-mono font-bold text-lg text-slate-400">{safeCurrency.sp}</p>
                                 <p className="text-xs text-stone-500">Prata (PP)</p>
                             </div>
                              <div>
-                                <p className="font-mono font-bold text-lg text-amber-700">{character.currency.ep || 0}</p>
+                                <p className="font-mono font-bold text-lg text-amber-700">{safeCurrency.ep}</p>
                                 <p className="text-xs text-stone-500">Electro (PE)</p>
                             </div>
                             <div>
-                                <p className="font-mono font-bold text-lg text-orange-400">{character.currency.cp || 0}</p>
+                                <p className="font-mono font-bold text-lg text-orange-400">{safeCurrency.cp}</p>
                                 <p className="text-xs text-stone-500">Cobre (PC)</p>
                             </div>
                              <div>
-                                <p className="font-mono font-bold text-lg text-cyan-300">{character.currency.pp || 0}</p>
+                                <p className="font-mono font-bold text-lg text-cyan-300">{safeCurrency.pp}</p>
                                 <p className="text-xs text-stone-500">Platina (PL)</p>
                             </div>
                         </div>

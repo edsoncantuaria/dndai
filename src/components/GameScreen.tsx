@@ -153,20 +153,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         );
     }
     
-    if (isLoading && log.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
-                <Loader2 className="h-12 w-12 animate-spin mb-4" />
-                <h2 className="text-2xl font-bold font-garamond text-amber-300">Aguarde...</h2>
-                <p className="mt-2">O Mestre de Jogo está preparando o início da sua jornada.</p>
-            </div>
-        )
-    }
-
     return (
         <>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
                 <Vignette />
+                {isLoading && (
+                    <div className="absolute top-4 right-4 z-40 bg-stone-900/80 border border-amber-500/60 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-amber-200 shadow-lg">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>O Mestre está elaborando a próxima cena...</span>
+                    </div>
+                )}
                 <ReinstallDependenciesModal />
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
@@ -182,6 +178,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {skillCheckRequest && (
                     <SkillCheckModal
                         skillName={skillCheckRequest.skillName}
+                        promptHint={skillCheckRequest.promptText}
                         onConfirm={handleSkillCheckSubmit}
                         onClose={() => setSkillCheckRequest(null)}
                     />
@@ -189,6 +186,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {spellCastRequest && (
                     <SpellCastModal
                         spell={spellCastRequest.spell}
+                        slotLevel={spellCastRequest.slotLevel}
+                        slotsBefore={spellCastRequest.slotsBefore}
                         onConfirm={(spell, desc) => submitSpellCast(spell, desc)}
                         onClose={() => setSpellCastRequest(null)}
                     />

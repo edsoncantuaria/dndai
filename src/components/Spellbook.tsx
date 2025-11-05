@@ -63,14 +63,25 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
     }, [character?.spells]);
     
     const handleCastSpell = useCallback((spell: ApiSpell) => {
+        if (!character) return;
+
         if(onModalAction) onModalAction();
         
         if (spell.index.startsWith('breath-weapon')) {
             setBreathWeaponUsed(true);
         }
 
-        castSpell(spell);
-    }, [onModalAction, castSpell]);
+        const slotLevel = spell.level > 0 ? spell.level : undefined;
+        const slotKey = slotLevel ? `level${slotLevel}` : null;
+        const slotsBefore = slotKey && character.spellSlots
+            ? character.spellSlots[slotKey as keyof typeof character.spellSlots]
+            : undefined;
+
+        castSpell(spell, {
+            slotLevel,
+            slotsBefore: slotsBefore ? { current: slotsBefore.current, max: slotsBefore.max } : undefined,
+        });
+    }, [onModalAction, castSpell, character]);
 
 
     const groupedSpells = useMemo(() => {

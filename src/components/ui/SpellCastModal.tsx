@@ -1,15 +1,17 @@
 'use client';
 import React, { useState } from 'react';
 import type { ApiSpell } from '@/types';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface SpellCastModalProps {
     spell: ApiSpell;
+    slotLevel?: number;
+    slotsBefore?: { current: number; max: number };
     onConfirm: (spell: ApiSpell, description: string) => void;
     onClose: () => void;
 }
 
-const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, onConfirm, onClose }) => {
+const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, slotLevel, slotsBefore, onConfirm, onClose }) => {
     const [description, setDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -33,7 +35,18 @@ const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, onConfirm, onClo
                 </header>
                 <form onSubmit={handleSubmit}>
                     <main className="p-6 space-y-4">
-                        <label htmlFor="spell-description" className="block text-stone-300">
+                        {slotLevel && slotLevel > 0 && (
+                            <div className="bg-stone-800/60 border border-stone-700 rounded-md p-3 text-sm text-stone-300">
+                                <p>Espaço de magia de nível {slotLevel} disponível: {slotsBefore ? `${slotsBefore.current}/${slotsBefore.max}` : 'desconhecido'}.</p>
+                                <p className="text-xs text-stone-500 mt-1">Ao confirmar, este espaço será consumido.</p>
+                            </div>
+                        )}
+                        {(!slotLevel || slotLevel === 0) && (
+                            <p className="text-xs text-stone-500">
+                                Truques não consomem espaços de magia.
+                            </p>
+                        )}
+                        <label htmlFor="spell-description" className="block text-stone-300 mt-2">
                             Como você quer usar esta magia? (Opcional)
                         </label>
                         <textarea
@@ -52,7 +65,8 @@ const SpellCastModal: React.FC<SpellCastModalProps> = ({ spell, onConfirm, onClo
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors flex items-center gap-2"
+                            disabled={slotLevel && slotLevel > 0 && slotsBefore && slotsBefore.current <= 0}
+                            className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Conjurar
                             <Sparkles className="h-4 w-4"/>

@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getGameUpdate } from './aiService.js';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
+import { hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
 
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -443,6 +444,20 @@ export const processPlayerTurn = async (
     };
 
     const { response: aiResponse, rawText, validationIssues, attempts, usedFallback } = await runValidatedGameUpdate();
+
+    if (aiResponse.updatedCharacter?.inventory && Array.isArray(aiResponse.updatedCharacter.inventory)) {
+        const { items: hydratedItems, metrics } = await hydrateInventoryItems(
+            aiResponse.updatedCharacter.inventory as any[],
+            userId
+        );
+        (aiResponse.updatedCharacter as any).inventory = hydratedItems;
+        const currentCurrency = reconcileCurrency(
+            (aiResponse.updatedCharacter as any).currency,
+            metrics.currency
+        );
+        (aiResponse.updatedCharacter as any).currency = currentCurrency;
+        (aiResponse.updatedCharacter as any).currentWeight = metrics.totalWeight;
+    }
     
     if (isTestRun || !sessao) {
         return aiResponse;

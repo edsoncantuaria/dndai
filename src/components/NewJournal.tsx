@@ -55,7 +55,7 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 
 const NewJournal: React.FC = () => {
     const { character } = useGameStateContext();
-    const currentRegion = character?.currentRegion || 'Desconhecida';
+    const currentRegion = character?.worldState?.currentRegion || character?.currentRegion || 'Desconhecida';
 
 
     if (!character || !character.journal || character.journal.length === 0) {

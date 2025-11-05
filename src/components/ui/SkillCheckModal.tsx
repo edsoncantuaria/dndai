@@ -4,11 +4,12 @@ import { ArrowRight, Dice5 } from 'lucide-react';
 
 interface SkillCheckModalProps {
     skillName: string;
+    promptHint?: string;
     onConfirm: (description: string) => void;
     onClose: () => void;
 }
 
-const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, onConfirm, onClose }) => {
+const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, promptHint, onConfirm, onClose }) => {
     const [description, setDescription] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -32,6 +33,11 @@ const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, onConfirm,
                 </header>
                 <form onSubmit={handleSubmit}>
                     <main className="p-6 space-y-4">
+                        {promptHint && (
+                            <p className="text-xs text-stone-400 bg-stone-800/60 border border-stone-700 rounded-md p-2">
+                                Sugestão do Mestre: {promptHint}
+                            </p>
+                        )}
                         <label htmlFor="skill-description" className="block text-stone-300">
                             Como você quer usar esta perícia? (Opcional)
                         </label>

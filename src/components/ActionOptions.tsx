@@ -117,7 +117,8 @@ const ActionOptions: React.FC = () => {
         playerRollRequest,
         combatState,
         character,
-        nextTurn
+        nextTurn,
+        setSkillCheckRequest,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -147,19 +148,22 @@ const ActionOptions: React.FC = () => {
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: string | { text: string; action: string; skill?: string; }) => {
-        let actionText: string;
         if (typeof action === 'object') {
             if (action.skill) {
-                // Remove a parte entre parênteses do texto principal, se houver
-                const cleanText = action.text.replace(/\s*\([^)]*\)\s*$/, '');
-                actionText = `Eu tento usar ${action.skill}: ${cleanText}`;
-            } else {
-                actionText = action.text;
+                setSkillCheckRequest({
+                    skillName: action.skill,
+                    baseAction: action.action || action.text,
+                    promptText: action.text,
+                });
+                setIsOpen(false);
+                return;
             }
-        } else {
-            actionText = action;
+            const actionCommand = action.action || action.text;
+            processPlayerAction(actionCommand);
+            setIsOpen(false);
+            return;
         }
-        processPlayerAction(actionText);
+        processPlayerAction(action);
         setIsOpen(false);
     };
 

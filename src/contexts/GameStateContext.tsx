@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useNewGameState } from '../hooks/newUseGameState';
 import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent } from '../types';
+import type { SkillCheckRequestState, SpellCastRequestState } from '@/hooks/useInteractionManager';
 
 // Define a mais específica para o valor do contexto
 export interface GameStateContextType {
@@ -16,10 +17,10 @@ export interface GameStateContextType {
     shopState: ShopState | null;
     pendingLootOffer: LootOffer | null;
     pendingHitDiceRequest: UseHitDiceRequest | null;
-    skillCheckRequest: { skillName: string; } | null;
-    setSkillCheckRequest: React.Dispatch<React.SetStateAction<{ skillName: string; } | null>>;
-    spellCastRequest: { spell: ApiSpell; } | null;
-    setSpellCastRequest: React.Dispatch<React.SetStateAction<{ spell: ApiSpell; } | null>>;
+    skillCheckRequest: SkillCheckRequestState | null;
+    setSkillCheckRequest: React.Dispatch<React.SetStateAction<SkillCheckRequestState | null>>;
+    spellCastRequest: SpellCastRequestState | null;
+    setSpellCastRequest: React.Dispatch<React.SetStateAction<SpellCastRequestState | null>>;
     playerRollRequest: PlayerRollRequest | null;
     setPlayerRollRequest: React.Dispatch<React.SetStateAction<PlayerRollRequest | null>>;
     isLoading: boolean;
@@ -45,7 +46,7 @@ export interface GameStateContextType {
     nextTurn: () => void;
     loadGameSession: (id: number) => Promise<{ character: Character; logs: any[] } | null>;
     handleSkillCheckSubmit: (description: string, modelOverride?: string) => void;
-    castSpell: (spell: ApiSpell) => void;
+    castSpell: (spell: ApiSpell, options?: { slotLevel?: number; slotsBefore?: { current: number; max: number } }) => void;
     submitSpellCast: (spell: ApiSpell, description: string) => void;
     handleRollResult: (result: { rawRoll: number; rolls: number[]; }) => void;
     setCharacter: React.Dispatch<React.SetStateAction<Character | null>>;
@@ -66,8 +67,7 @@ export const GameStateProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     // We need to construct a value that perfectly matches the `GameStateContextType`
     const contextValue = useMemo(() => ({
         ...gameState,
-        // Ensure all functions are correctly bound and passed
-        castSpell: (spell: ApiSpell) => gameState.setSpellCastRequest({ spell }),
+        castSpell: (spell: ApiSpell, options?: { slotLevel?: number; slotsBefore?: { current: number; max: number } }) => gameState.setSpellCastRequest({ spell, ...options }),
     }), [gameState]);
 
     return (
