@@ -143,6 +143,10 @@ export const useInteractionManager = () => {
         processPlayerAction("Processar próximo turno");
     }, []);
 
+    const handleSkillCheck = useCallback((skillName: string) => {
+        setSkillCheckRequest({ skillName });
+    }, []);
+
      // --- Debug/Test Triggers ---
     const triggerTestShop = useCallback(() => {
         setShopState({
@@ -195,6 +199,7 @@ export const useInteractionManager = () => {
         // Handlers that need processPlayerAction
         handleRollResult,
         handleSkillCheckSubmit,
+        handleSkillCheck,
         submitSpellCast,
         handleTakeLoot,
         handleBuyItem,

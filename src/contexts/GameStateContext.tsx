@@ -45,6 +45,7 @@ export interface GameStateContextType {
     clearGameState: () => void;
     nextTurn: () => void;
     loadGameSession: (id: number) => Promise<{ character: Character; logs: any[] } | null>;
+    handleSkillCheck: (skillName: string) => void;
     handleSkillCheckSubmit: (description: string, modelOverride?: string) => void;
     castSpell: (spell: ApiSpell, options?: { slotLevel?: number; slotsBefore?: { current: number; max: number } }) => void;
     submitSpellCast: (spell: ApiSpell, description: string) => void;
