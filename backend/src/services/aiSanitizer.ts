@@ -3,6 +3,7 @@ import { GameMasterResponse } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
 
 const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
+const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);
 
 /**
  * Normaliza a string 'timeOfDay' para um valor de enumeração conhecido.
@@ -203,6 +204,36 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
         }
         return {...content, type: type};
     }).filter(Boolean);
+  }
+
+  if (sanitized.updatedCharacter && typeof sanitized.updatedCharacter === 'object') {
+    if (Array.isArray((sanitized.updatedCharacter as any).relationships)) {
+        (sanitized.updatedCharacter as any).relationships = (sanitized.updatedCharacter as any).relationships.map((rel: any) => {
+            if (!rel || typeof rel !== 'object') return null;
+            const normalized: any = { ...rel };
+            if (!normalized.npcId && normalized.name) {
+                normalized.npcId = normalized.name.toLowerCase().replace(/\s+/g, '_');
+            }
+            if (typeof normalized.status === 'string') {
+                const statusValue = normalized.status.toLowerCase().trim();
+                if (!VALID_RELATIONSHIP_STATUSES.has(statusValue)) {
+                    const note = normalized.status;
+                    normalized.status = 'neutral';
+                    if (note) {
+                        normalized.description = normalized.description
+                            ? `${normalized.description}\n${note}`.trim()
+                            : note;
+                    }
+                    sanitationLogs.push(`Relacionamento "${normalized.name || normalized.npcId}" teve status inválido e foi normalizado para 'neutral'.`);
+                } else {
+                    normalized.status = statusValue;
+                }
+            } else if (!normalized.status) {
+                normalized.status = 'neutral';
+            }
+            return normalized;
+        }).filter(Boolean);
+    }
   }
 
   // Sanitize campos opcionais para serem undefined em vez de null/vazios.

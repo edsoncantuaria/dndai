@@ -160,8 +160,8 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
-        // Master loading screen for playing stage
-        if (gameStage === 'playing' && (isGameLoading || !character)) {
+        // Master loading screen for playing stage (before personagem carregar)
+        if (gameStage === 'playing' && !character) {
              return (
                 <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
                     <Loader2 className="h-12 w-12 animate-spin" />

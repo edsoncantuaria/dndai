@@ -150,11 +150,8 @@ const ActionOptions: React.FC = () => {
     const handleActionClick = (action: string | { text: string; action: string; skill?: string; }) => {
         if (typeof action === 'object') {
             if (action.skill) {
-                setSkillCheckRequest({
-                    skillName: action.skill,
-                    baseAction: action.action || action.text,
-                    promptText: action.text,
-                });
+                const actionCommand = action.action || action.text || `Eu tento usar ${action.skill}.`;
+                processPlayerAction(actionCommand);
                 setIsOpen(false);
                 return;
             }
