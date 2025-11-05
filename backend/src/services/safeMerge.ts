@@ -8,7 +8,6 @@ import { Relationship } from '../entities/Relationship.js';
 import { Quest } from '../entities/Quest.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { v4 as uuidv4 } from 'uuid';
-import redisClient from '../database/redis-client.js';
 
 // Função auxiliar para limpar arrays de null/undefined
 const sanitizeArray = <T>(arr?: T[]): T[] => Array.isArray(arr) ? arr.filter(Boolean) : [];
@@ -75,22 +74,6 @@ export const mergeCharacterUpdates = async (
   });
 
   if (!character) throw new Error('Personagem não encontrado para o merge.');
-
-  // --- Invalidação de Cache ---
-  const cacheKeysToInvalidate = [
-      `character:${characterId}`,
-      `character:${characterId}:optimized`,
-      `session:${character.sessoes?.[0]?.id}:homebrew_summary` // Invalida o resumo da sessão também
-  ];
-  if (redisClient && redisClient.isOpen) {
-      try {
-        await redisClient.del(cacheKeysToInvalidate);
-        console.log(`[Cache] INVALIDATED: Caches para personagem ${characterId} foram invalidados devido à atualização.`);
-      } catch (cacheError) {
-        console.error(`[Cache] Erro ao invalidar cache para personagem ${characterId}:`, cacheError);
-      }
-  }
-
 
   // --- Campos diretos e objetos para merge ---
   const directFields = ['level', 'xp', 'storySoFar'];

@@ -73,7 +73,7 @@ interface SettingsContextType {
 }
 
 export const defaultGenerationConfig: GenerationConfig = {
-    temperature: 1.1,
+    temperature: 0.9,
     topP: 0.9,
     topK: 64,
     maxOutputTokens: 32768,
@@ -93,11 +93,22 @@ const defaultSettings = {
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
 
+const clampGenerationConfigValues = (config: GenerationConfig): GenerationConfig => ({
+    temperature: Math.min(Math.max(config.temperature ?? 0.7, 0), 1),
+    topP: Math.min(Math.max(config.topP ?? 0.9, 0), 1),
+    topK: Math.max(config.topK ?? 1, 1),
+    maxOutputTokens: Math.max(config.maxOutputTokens ?? 1, 1),
+});
+
 const saveSettingsToDB = async (settings: Partial<any>) => {
     // A chamada só deve acontecer se houver um token, indicando um usuário logado.
     if (typeof window !== 'undefined' && localStorage.getItem('token')) {
         try {
-            await authService.saveUserSettings(settings);
+            const payload = { ...settings };
+            if (payload.generationConfig) {
+                payload.generationConfig = clampGenerationConfigValues(payload.generationConfig);
+            }
+            await authService.saveUserSettings(payload);
         } catch (error) {
             console.error("Failed to save settings to DB:", error);
         }
@@ -112,7 +123,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [ttsModel, setTtsModel] = useState<string>(defaultSettings.ttsModel);
     const [ttsVoice, setTtsVoice] = useState<string>(defaultSettings.ttsVoice);
     const [apiKey, setApiKey] = useState<string>(defaultSettings.apiKey);
-    const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(defaultSettings.generationConfig);
+    const [generationConfig, setGenerationConfig] = useState<GenerationConfig>(clampGenerationConfigValues(defaultSettings.generationConfig));
     const [volume, setVolume] = useState(defaultSettings.volume);
     const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
     const [playMenuMusic, setPlayMenuMusic] = useState(defaultSettings.playMenuMusic);
@@ -156,7 +167,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (settings.model && AVAILABLE_MODELS.includes(settings.model)) setModel(settings.model);
             if (settings.ttsModel && AVAILABLE_TTS_MODELS.includes(settings.ttsModel)) setTtsModel(settings.ttsModel);
             if (settings.ttsVoice && AVAILABLE_TTS_VOICES.includes(settings.ttsVoice)) setTtsVoice(settings.ttsVoice);
-            if (settings.generationConfig) setGenerationConfig(prev => ({ ...prev, ...settings.generationConfig }));
+            if (settings.generationConfig) setGenerationConfig(prev => clampGenerationConfigValues({ ...prev, ...settings.generationConfig }));
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
@@ -174,13 +185,20 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
     }, [getSettingsObject, isLoaded]);
 
+    const setClampedGenerationConfig = useCallback((config: GenerationConfig | ((prev: GenerationConfig) => GenerationConfig)) => {
+        setGenerationConfig(prev => {
+            const next = typeof config === 'function' ? config(prev) : config;
+            return clampGenerationConfigValues(next);
+        });
+    }, []);
+
     const value: any = {
         isLoaded, loadSettings, getSettingsObject,
         model, setModel,
         ttsModel, setTtsModel,
         ttsVoice, setTtsVoice,
         apiKey, setApiKey,
-        generationConfig, setGenerationConfig,
+        generationConfig, setGenerationConfig: setClampedGenerationConfig,
         volume, setVolume,
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,

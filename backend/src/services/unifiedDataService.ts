@@ -16,6 +16,7 @@ console.log('[UnifiedDataService] Using DndApi mode:', Object.keys(DndApi || {})
 
 const repo = () => AppDataSource.getRepository(HomebrewContent);
 const userRepo = () => AppDataSource.getRepository(User);
+const localHexCache = new Map<number, string>();
 
 const norm = (s?: string) => (s ?? '').toLowerCase().trim();
 const globalKey = (r: string, i?: string) => i ? `dnd5e:v2014:${r}:${i}` : `dnd5e:v2014:${r}:list`;
@@ -49,10 +50,33 @@ async function ensureUserHex(userId: number): Promise<string> {
   const user = await userRepo().findOne({ where: { id: userId }, select: ['id'] }); // Removido 'homebrewCacheHex'
   if (!user) throw new Error('Usuário não encontrado.');
   
-  // A lógica do 'homebrewCacheHex' foi removida para simplificar.
-  // A invalidação agora será mais direta.
-  const tempHex = crypto.randomBytes(6).toString('hex'); // Simulação de um identificador de versão de cache
-  return tempHex;
+  const hexKey = `user:${userId}:cache_hex`;
+
+  if (redisClient && redisClient.isOpen) {
+      try {
+          const cachedHex = await redisClient.get(hexKey);
+          if (cachedHex) {
+              return cachedHex;
+          }
+      } catch (err) {
+          console.error(`[Cache] Falha ao ler hex de usuário ${userId}:`, err);
+      }
+
+      const generatedHex = crypto.randomBytes(6).toString('hex');
+      try {
+          await redisClient.set(hexKey, generatedHex, { EX: 60 * 60 * 24 * 30 }); // 30 dias
+      } catch (err) {
+          console.error(`[Cache] Falha ao salvar hex de usuário ${userId}:`, err);
+      }
+      return generatedHex;
+  }
+
+  const existingLocal = localHexCache.get(userId);
+  if (existingLocal) return existingLocal;
+
+  const generatedHex = crypto.randomBytes(6).toString('hex');
+  localHexCache.set(userId, generatedHex);
+  return generatedHex;
 }
 
 /**

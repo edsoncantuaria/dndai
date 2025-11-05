@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from './use-toast';
 import { initializeWebSocket, sendMessage, addEventListener, removeEventListener, closeWebSocket } from '@/services/webSocketService';
+import { translateAttribute } from '@/utils/translator';
 
 
 export const useNewGameState = () => {
@@ -37,34 +38,109 @@ export const useNewGameState = () => {
         setCharacter(prev => {
             if (!prev) return null;
             
-            const newChar = { ...prev };
+            const newChar: Character = { ...prev };
 
+            if (updates.level !== undefined) {
+                newChar.level = updates.level;
+                newChar.proficiencyBonus = characterUtils.getProficiencyBonus(updates.level);
+            }
             if (updates.attributes) {
                 newChar.attributes = { ...prev.attributes, ...updates.attributes };
             }
             if (updates.hp) {
                 newChar.hp = { ...prev.hp, ...updates.hp };
             }
-            if (updates.xp) {
+            if ('xp' in updates && updates.xp !== undefined) {
                 newChar.xp = updates.xp;
             }
-            if(updates.inventory) {
+            if (updates.inventory) {
                 newChar.inventory = updates.inventory;
             }
-            if(updates.spellSlots) {
+            if (updates.spellSlots) {
                 newChar.spellSlots = { ...prev.spellSlots, ...updates.spellSlots };
             }
-            
-            // Recalculate derived stats
-            const modifiers = characterUtils.calculateModifiers(newChar.attributes);
-            const ac = characterUtils.calculateAC(newChar.inventory, modifiers);
-            const currentWeight = characterUtils.calculateWeight(newChar.inventory);
+            if (updates.spells) {
+                newChar.spells = updates.spells as Character['spells'];
+            }
+            if (updates.classLevelsData) {
+                newChar.classLevelsData = updates.classLevelsData;
+            }
+            if (updates.subclassLevelsData) {
+                newChar.subclassLevelsData = updates.subclassLevelsData;
+            }
+            if (updates.traits) {
+                newChar.traits = updates.traits as Character['traits'];
+            }
+            if (updates.languages) {
+                newChar.languages = updates.languages;
+            }
+            if (updates.personalityTraits) {
+                newChar.personalityTraits = updates.personalityTraits;
+            }
+            if (updates.feats) {
+                newChar.feats = updates.feats;
+            }
+            if (updates.journal) {
+                newChar.journal = updates.journal;
+            }
+            if (updates.relationships) {
+                newChar.relationships = updates.relationships;
+            }
+            if (updates.worldState) {
+                newChar.worldState = { ...(prev.worldState || {}), ...updates.worldState };
+            }
+            if (updates.currentRegion) {
+                newChar.currentRegion = updates.currentRegion;
+            }
+            if ('storySoFar' in updates) {
+                newChar.storySoFar = updates.storySoFar;
+            }
+            if (updates.factionReputation) {
+                newChar.factionReputation = { ...(prev.factionReputation || {}), ...updates.factionReputation };
+            }
+            if (updates.ac) {
+                newChar.ac = { ...prev.ac, ...updates.ac };
+            }
+            if (updates.deathSaves) {
+                newChar.deathSaves = { ...prev.deathSaves, ...updates.deathSaves };
+            }
+            if (updates.conditions) {
+                newChar.conditions = updates.conditions as any;
+            }
+            if (updates.hitDice) {
+                newChar.hitDice = { ...prev.hitDice, ...updates.hitDice };
+            }
+            if (updates.currency) {
+                newChar.currency = { ...(prev.currency || {}), ...updates.currency };
+            }
+
+            const attributesForCalc = newChar.attributes || prev.attributes;
+            const inventoryForCalc = Array.isArray(newChar.inventory) ? newChar.inventory : [];
+            const modifiers = attributesForCalc ? characterUtils.calculateModifiers(attributesForCalc) : prev.modifiers;
+            const ac = updates.ac
+                ? { ...prev.ac, ...updates.ac }
+                : characterUtils.calculateAC(inventoryForCalc, modifiers);
+            const currentWeight = characterUtils.calculateWeight(inventoryForCalc);
+            const carryingCapacity = attributesForCalc ? characterUtils.calculateCarryingCapacity(attributesForCalc.strength) : prev.carryingCapacity;
+            const currency = updates.currency
+                ? { ...(prev.currency || {}), ...updates.currency }
+                : characterUtils.calculateCurrency(inventoryForCalc);
+            const xpToNextLevel = characterUtils.getXpThreshold(newChar.level);
+            newChar.currency = currency;
+            newChar.carryingCapacity = carryingCapacity;
+            newChar.ac = ac;
+            newChar.currentWeight = currentWeight;
+            newChar.modifiers = modifiers;
+            newChar.xpToNextLevel = xpToNextLevel;
             
             return {
                 ...newChar,
                 modifiers,
                 ac,
-                currentWeight
+                currentWeight,
+                carryingCapacity,
+                currency,
+                xpToNextLevel,
             };
         });
     }, []);
@@ -197,7 +273,9 @@ export const useNewGameState = () => {
             const loadSessionContent = async () => {
                 if (sessionDetails && sessionDetails.character) {
                     const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
-                    const displayLogs = (sessionDetails.logs || []).filter(log => log.type !== 'state').map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
+                    const displayLogs = (sessionDetails.logs || [])
+                        .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
+                        .map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
                     setCharacter(fullCharacter);
                     logState.setLog(displayLogs);
                     setSessionId(id);
@@ -312,14 +390,48 @@ export const useNewGameState = () => {
     const handleApplyLevelUp = useCallback(async (selections: LevelUpSelections) => {
         if (!character || !interactionState.levelUpState || !interactionState.levelUpState.isPending) return;
 
-        const updatedChar = await characterUtils.applyLevelUp(character, interactionState.levelUpState, selections);
+        const { newLevel } = interactionState.levelUpState;
+        const summaryParts: string[] = [];
 
-        setCharacter(updatedChar);
+        if (selections.attributes) {
+            const attrChanges = Object.entries(selections.attributes)
+                .filter(([, value]) => !!value)
+                .map(([attr, value]) => `${translateAttribute(attr)} +${value}`);
+            if (attrChanges.length) {
+                summaryParts.push(`Atributos: ${attrChanges.join(', ')}`);
+            }
+        }
 
-        logState.addLogEntry({ type: 'system', content: `Parabéns! Você alcançou o nível ${interactionState.levelUpState.newLevel}!` } as LogEntry);
+        if (selections.spells && selections.spells.length) {
+            summaryParts.push(`Novas magias: ${selections.spells.join(', ')}`);
+        }
+
+        if (selections.featureChoices && selections.featureChoices.length) {
+            const featSummary = selections.featureChoices
+                .map(choice => choice.selections.join(', '))
+                .filter(Boolean);
+            if (featSummary.length) {
+                summaryParts.push(`Características: ${featSummary.join('; ')}`);
+            }
+        }
+
+        if (selections.subclass) {
+            summaryParts.push(`Subclasse: ${selections.subclass}`);
+        }
+
+        if (selections.hpIncrease !== undefined) {
+            summaryParts.push(`Aumento de PV total: +${selections.hpIncrease}`);
+        }
+
+        const actionText = [
+            `Confirmo meu avanço para o nível ${newLevel}.`,
+            summaryParts.length ? summaryParts.join(' | ') : ''
+        ].filter(Boolean).join(' ');
+
         interactionState.clearRequest('levelUp');
         interactionState.setActionOptions([]);
-    }, [character, interactionState, logState.addLogEntry]);
+        await processPlayerAction(actionText);
+    }, [character, interactionState, processPlayerAction]);
 
     const handleToggleEquipped = useCallback((itemId: string) => {
         const item = character?.inventory.find(i => i.id === itemId);

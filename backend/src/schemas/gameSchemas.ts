@@ -156,6 +156,8 @@ export const GameMasterFlowInputSchema = z.object({
   playerAction: z.string().describe("Ação tomada pelo jogador."),
   gameLog: z.string().describe("Resumo do histórico recente do jogo em JSON."),
   combatState: CombatStateSchema.optional().describe("Estado do combate atual, se ativo."),
+  homebrewSummary: z.string().optional().describe("Resumo textual do conteúdo homebrew instalado para esta sessão."),
+  validationFeedback: z.string().optional().describe("Feedback adicional sobre inconsistências detectadas para orientar a próxima resposta."),
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
 });

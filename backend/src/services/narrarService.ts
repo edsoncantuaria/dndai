@@ -14,6 +14,8 @@ import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
 import { getGameUpdate } from './aiService.js';
+import { validateGameMasterResponse } from './gameResponseValidator.js';
+import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
 
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -374,14 +376,73 @@ export const processPlayerTurn = async (
 
     const gameMasterFlowInput = {
         character: characterForAI,
-        playerAction: `${playerAction}${homebrewSummaryForAI}`,
+        playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
         combatState: currentCombatState,
         useAiHomebrew: useAiHomebrew ?? true,
         enableNarrativeRevalidation: true,
+        homebrewSummary: homebrewSummaryForAI || undefined,
     };
 
-    const aiResponse = await getGameUpdate(gameMasterFlowInput, modelToUse, generationConfig, apiKey);
+    const appendSystemNote = (response: GameMasterResponse, note: string) => {
+        if (!note) return;
+        response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
+    };
+
+    const runValidatedGameUpdate = async () => {
+        const MAX_VALIDATION_ATTEMPTS = 3;
+        let attempts = 0;
+        let calls = 0;
+        let validationFeedback: string | undefined;
+        let latestIssues: string[] = [];
+        let rawText: string | null = null;
+        let finalFromModel: GameMasterResponse | null = null;
+        let usedFallback = false;
+
+        while (attempts < MAX_VALIDATION_ATTEMPTS) {
+            calls += 1;
+            const { response: candidate, rawText: currentRaw } = await getGameUpdate(
+                { ...gameMasterFlowInput, validationFeedback },
+                modelToUse,
+                generationConfig,
+                apiKey
+            );
+            rawText = currentRaw;
+            const validation = validateGameMasterResponse(candidate, { character: characterForAI });
+            if (validation.valid) {
+                finalFromModel = candidate;
+                latestIssues = [];
+                break;
+            }
+            latestIssues = validation.issues;
+            validationFeedback = `Foram detectadas inconsistências: ${validation.issues.join('; ')}. Corrija-as e responda novamente seguindo estritamente o schema JSON.`;
+            attempts += 1;
+        }
+
+        if (!finalFromModel) {
+            finalFromModel = generateFallbackResponse({ character: characterForAI }, playerAction, latestIssues);
+            usedFallback = true;
+        }
+
+        const { response: orchestratedResponse } = orchestrateGameMasterResponse(finalFromModel, { character: characterForAI });
+
+        if (!usedFallback && attempts > 1) {
+            appendSystemNote(orchestratedResponse, `[Validador] Resposta reajustada após ${attempts} tentativa(s).`);
+        }
+        if (usedFallback && latestIssues.length > 0) {
+            appendSystemNote(orchestratedResponse, `[Validador] Fallback acionado. Problemas detectados: ${latestIssues.join('; ')}`);
+        }
+
+        return {
+            response: orchestratedResponse,
+            rawText,
+            validationIssues: latestIssues,
+            attempts: calls,
+            usedFallback,
+        };
+    };
+
+    const { response: aiResponse, rawText, validationIssues, attempts, usedFallback } = await runValidatedGameUpdate();
     
     if (isTestRun || !sessao) {
         return aiResponse;
@@ -397,6 +458,24 @@ export const processPlayerTurn = async (
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
+        if (rawText) {
+            const rawLog = new SessionLog();
+            Object.assign(rawLog, {
+                sessaoId: sessao.id,
+                prompt: 'GM Raw Response',
+                response: rawText,
+                type: 'gm_raw',
+            });
+            await logRepository.save(rawLog);
+        }
+        const validationLog = new SessionLog();
+        Object.assign(validationLog, {
+            sessaoId: sessao.id,
+            prompt: 'GM Validation',
+            response: JSON.stringify({ attempts, issues: validationIssues, fallback: usedFallback }),
+            type: 'gm_validation',
+        });
+        await logRepository.save(validationLog);
         
         const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
         
@@ -428,7 +507,7 @@ export const processPlayerTurn = async (
                             playerAction: `Gere uma imagem para o seguinte prompt: ${entry.content.prompt}`
                         }, 'gemini-1.5-flash-latest', { temperature: 0.3, ...generationConfig }, apiKey);
                         // Supondo que a IA retorne a URL da imagem no log
-                        const imageUrl = result.logEntries?.find(le => le.type === 'image')?.content.imageUrl;
+                        const imageUrl = result.response.logEntries?.find(le => le.type === 'image')?.content.imageUrl;
                         contentToSave = { ...entry.content, status: 'done', imageUrl: imageUrl };
                     } catch (imageError: any) {
                         console.error(`[narrarService] Falha ao gerar imagem inline:`, imageError);
@@ -457,6 +536,9 @@ export const processPlayerTurn = async (
                     if (!existing) {
                        const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' });
                        await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
+                        if (redisClient && redisClient.isOpen) {
+                            await redisClient.del(sessionCacheKey);
+                        }
                     }
                 } catch (error) {
                     console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
@@ -470,6 +552,7 @@ export const processPlayerTurn = async (
              // Invalida o cache otimizado após a atualização
             if (redisClient && redisClient.isOpen) {
                 await redisClient.del(`character:${sessao.character!.id}:optimized`);
+                await redisClient.del(sessionCacheKey);
             }
         }
         

@@ -64,8 +64,13 @@ ${regrasCombate}
 };
 
 
+export interface GameUpdateResult {
+    response: GameMasterResponse;
+    rawText: string;
+}
+
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-    const { character, playerAction, gameLog, combatState } = input;
+    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback } = input;
     
     // Create a leaner character object for the prompt
     const characterForPrompt = character ? {
@@ -85,8 +90,13 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
 
     const characterContext = JSON.stringify(characterForPrompt, null, 2);
     const logContext = JSON.stringify(gameLog, null, 2); 
+    const homebrewSection = homebrewSummary ? `${homebrewSummary.trim()}\n` : '';
     const combatContextValue = combatState && combatState.isActive ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
   
+    const feedbackSection = validationFeedback
+        ? `\n### Feedback do Sistema\n${validationFeedback.trim()}\n`
+        : '';
+
     const mainPrompt = `### Estado do Personagem
 \`\`\`json
 ${characterContext}
@@ -99,6 +109,8 @@ ${combatContextValue}
 
 ### Histórico Recente
 ${logContext}
+${homebrewSection ? `\n${homebrewSection}` : ''}
+${feedbackSection}
 
 A ação do jogador é: "${playerAction}"
 
@@ -164,7 +176,7 @@ const miniSanitize = (raw: any): any => {
 /**
  * 🔸 AI Service: Main entry point for getting a game update from the AI.
  */
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameMasterResponse> => {
+export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameUpdateResult> => {
     const inputValidation = GameMasterFlowInputSchema.safeParse(input);
     if (!inputValidation.success) {
         console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
@@ -267,7 +279,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
             }
 
-            return validationResult.data;
+            return {
+                response: validationResult.data,
+                rawText: jsonText,
+            };
 
         } catch (error: any) {
              if(error instanceof createError.HttpError) throw error;
