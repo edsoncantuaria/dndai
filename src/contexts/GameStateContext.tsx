@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useMemo } from 'react';
 import { useNewGameState } from '../hooks/newUseGameState';
-import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent } from '../types';
+import type { Character, LogEntry, CombatState, LevelUpState, ShopState, LootOffer, UseHitDiceRequest, PlayerRollRequest, ApiSpell, InventoryItem, ShopItem, LevelUpSelections, NewCharacterInfo, HomebrewContent, ProgressionFeedItem } from '../types';
 import type { SkillCheckRequestState, SpellCastRequestState } from '@/hooks/useInteractionManager';
 
 // Define a mais específica para o valor do contexto
@@ -26,6 +26,7 @@ export interface GameStateContextType {
     isLoading: boolean;
     apiError: string | null;
     ambientSound: string;
+    progressionFeed: ProgressionFeedItem[];
     reinstallModal: { open: boolean, deps: HomebrewContent[], onConfirm: () => void };
     setReinstallModal: React.Dispatch<React.SetStateAction<{ open: boolean, deps: HomebrewContent[], onConfirm: () => void }>>;
     clearApiError: () => void;

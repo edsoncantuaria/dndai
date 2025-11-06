@@ -93,6 +93,7 @@ Você é o Mestre de Jogo definitivo de Crônicas de Aventuras, um RPG solo insp
 - Preserve consistência com o estado salvo em character, combatState, worldState e gameLog.
 - Prossiga sempre no ciclo: narrativa → escolha → consequência → atualização de estado.
 - Demonstre personalidade (sábio, sarcástico, misterioso), evitando respostas robóticas.
+- Não introduza itens, NPCs ou eventos que não estejam no estado, no resumo ou na timeline; se precisar de algo novo, solicite confirmação explícita do jogador antes.
 
 ### Estrutura Obrigatória da Resposta
 - Responda apenas com um objeto JSON válido conforme GameMasterResponseSchema.
@@ -132,8 +133,64 @@ export interface GameUpdateResult {
     rawText: string;
 }
 
+const condenseCombatStateForPrompt = (combatState: any) => {
+    if (!combatState || typeof combatState !== 'object' || !Array.isArray(combatState.combatants)) {
+        return combatState;
+    }
+
+    const mapEffects = (effects: any[] | undefined, max: number) => {
+        if (!Array.isArray(effects) || effects.length === 0) return [];
+        return effects.slice(0, max).map(effect => ({
+            name: effect?.name,
+            remainingRounds: effect?.remainingRounds,
+            severity: effect?.severity,
+        }));
+    };
+
+    const mapCooldowns = (cooldowns: any[] | undefined, max: number) => {
+        if (!Array.isArray(cooldowns) || cooldowns.length === 0) return [];
+        return cooldowns.slice(0, max).map(entry => ({
+            name: entry?.name,
+            remainingRounds: entry?.remainingRounds,
+            totalRounds: entry?.totalRounds,
+        }));
+    };
+
+    const condensedCombatants = combatState.combatants.map((combatant: any) => ({
+        id: combatant.id,
+        name: combatant.name,
+        attitude: combatant.attitude,
+        hp: combatant.hp,
+        ac: combatant.ac,
+        actionPoints: combatant.actionPoints,
+        bonusActionPoints: combatant.bonusActionPoints,
+        isPlayer: combatant.isPlayer,
+        isDead: combatant.isDead,
+        hasMoved: combatant.hasMoved,
+        hasActed: combatant.hasActed,
+        distance: combatant.distance,
+        zone: combatant.zone,
+        conditions: combatant.conditions,
+        statusEffects: mapEffects(combatant.statusEffects, 4),
+        cooldowns: mapCooldowns(combatant.cooldowns, 4),
+    }));
+
+    const recentLog = Array.isArray(combatState.log)
+        ? combatState.log.slice(-5)
+        : undefined;
+
+    return {
+        isActive: combatState.isActive,
+        round: combatState.round,
+        turn: combatState.turn,
+        initiativeOrder: combatState.initiativeOrder,
+        combatants: condensedCombatants,
+        recentLog,
+    };
+};
+
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary } = input;
+    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary, timelineFacts } = input;
 
     const simplifyInventoryItem = (item: any) => {
         if (!item) return null;
@@ -209,7 +266,9 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const characterContext = JSON.stringify(characterForPrompt, null, 2);
     const logContext = JSON.stringify(gameLog, null, 2); 
     const homebrewSection = homebrewSummary ? `${homebrewSummary.trim()}\n` : '';
-    const combatContextValue = combatState && combatState.isActive ? JSON.stringify(combatState, null, 2) : "Nenhum combate ativo.";
+    const combatContextValue = combatState && combatState.isActive
+        ? JSON.stringify(condenseCombatStateForPrompt(combatState), null, 2)
+        : "Nenhum combate ativo.";
   
     const feedbackSection = validationFeedback
         ? `\n### Feedback do Sistema\n${validationFeedback.trim()}\n`
@@ -222,7 +281,14 @@ ${storySummary}
 `
         : '';
 
-    const mainPrompt = `${summarySection}### Estado do Personagem
+    const timelineSection = timelineFacts
+        ? `### Fatos Relevantes
+${timelineFacts}
+
+`
+        : '';
+
+    const mainPrompt = `${summarySection}${timelineSection}### Estado do Personagem
 \`\`\`json
 ${characterContext}
 \`\`\`

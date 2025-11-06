@@ -26,7 +26,7 @@ import {
     type LoadedCombatEncounter,
 } from './combatStateService.js';
 import { applyXpEvents } from './xpService.js';
-import { getStorySummary, recordTimelineEventAndSummarize } from './storyService.js';
+import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 
 type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
@@ -446,6 +446,11 @@ export const processPlayerTurn = async (
         storySummaryForPrompt = await getStorySummary(sessao.id);
     }
 
+    let timelineFactsForPrompt: string | null = null;
+    if (!isTestRun && sessao) {
+        timelineFactsForPrompt = await buildTimelineFacts(sessao.id);
+    }
+
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
 
     const gameMasterFlowInput = {
@@ -457,6 +462,7 @@ export const processPlayerTurn = async (
         enableNarrativeRevalidation: true,
         homebrewSummary: homebrewSummaryForAI || undefined,
         storySummary: storySummaryForPrompt || undefined,
+        timelineFacts: timelineFactsForPrompt || undefined,
         mode: aiMode,
     };
 
@@ -546,6 +552,15 @@ export const processPlayerTurn = async (
         }
     }
 
+    const progressionFeed: Array<{
+        type: 'xp_gain' | 'level_up';
+        xp?: number;
+        level?: number;
+        summary: string;
+        source?: string;
+        detail?: string;
+    }> = [];
+
     const xpResult = applyXpEvents(
         { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
         (aiResponse as any).xpEvents
@@ -566,7 +581,67 @@ export const processPlayerTurn = async (
         ];
     }
 
+    if (xpResult.details.length) {
+        for (const detail of xpResult.details) {
+            progressionFeed.push({
+                type: 'xp_gain',
+                xp: detail.xp,
+                summary: `+${detail.xp} XP – ${detail.label}`,
+                source: detail.source,
+                detail: detail.description,
+            });
+        }
+
+        if (!isTestRun && sessao) {
+            for (const detail of xpResult.details) {
+                const timelineSummary = `Recebeu +${detail.xp} XP. Origem: ${detail.source}${detail.description ? ` — ${detail.description}` : ''}`;
+                await recordTimelineEvent(sessao.id, {
+                    timestamp: new Date().toISOString(),
+                    action: 'Recompensa de XP',
+                    summary: timelineSummary,
+                    notes: undefined,
+                });
+            }
+        }
+    }
+
     let newStorySummaryForLog: string | null = null;
+    let levelUpRecap: string | null = null;
+
+    if (!isTestRun && sessao) {
+        const currentLevel = characterForAI.level ?? 1;
+        const updatedLevel = aiResponse.updatedCharacter?.level ?? currentLevel;
+
+        if (updatedLevel > currentLevel) {
+            levelUpRecap = await generateLevelUpRecap(sessao.id, apiKey);
+
+            progressionFeed.push({
+                type: 'level_up',
+                level: updatedLevel,
+                summary: `Nível ${updatedLevel} alcançado!`,
+                detail: levelUpRecap ?? undefined,
+            });
+
+            await recordTimelineEvent(sessao.id, {
+                timestamp: new Date().toISOString(),
+                action: `Marco de Nível ${updatedLevel}`,
+                summary: `O herói alcança o nível ${updatedLevel}.`,
+                notes: levelUpRecap ?? undefined,
+            });
+
+            aiResponse.systemLog = aiResponse.systemLog
+                ? `${aiResponse.systemLog}\n[Progressão] Nível ${updatedLevel} alcançado.`
+                : `[Progressão] Nível ${updatedLevel} alcançado.`;
+
+            aiResponse.logEntries = [
+                ...(aiResponse.logEntries ?? []),
+                {
+                    type: 'system',
+                    content: `Sua jornada rendeu frutos: você alcançou o nível ${updatedLevel}!`,
+                },
+            ];
+        }
+    }
 
     if (!isTestRun && sessao) {
         const normalize = (text: string | undefined | null, limit = 400) =>
@@ -586,6 +661,9 @@ export const processPlayerTurn = async (
         if (aiResponse.systemLog) {
             notesPieces.push(normalize(aiResponse.systemLog, 200));
         }
+        if (levelUpRecap) {
+            notesPieces.push(normalize(levelUpRecap, 300));
+        }
 
         const timelineEvent = {
             timestamp: new Date().toISOString(),
@@ -602,6 +680,12 @@ export const processPlayerTurn = async (
                 storySoFar: newStorySummary,
             };
         }
+    }
+
+    if (progressionFeed.length) {
+        (aiResponse as any).progressionFeed = progressionFeed;
+    } else {
+        delete (aiResponse as any).progressionFeed;
     }
 
     const allowHomebrewContent = useAiHomebrew ?? true;

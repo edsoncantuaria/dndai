@@ -28,11 +28,13 @@ export interface GameMasterResponse {
     shopState?: ShopState;
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
+    playerRollRequest?: PlayerRollRequest;
     ambientSound?: string;
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
     xpEvents?: XpEvent[];
+    progressionFeed?: ProgressionEvent[];
 }
 
 export interface XpEvent {
@@ -41,6 +43,20 @@ export interface XpEvent {
     difficulty?: 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard' | 'extreme';
     questLevel?: number;
     description?: string;
+}
+
+export interface ProgressionEvent {
+    type: 'xp_gain' | 'level_up';
+    summary: string;
+    source?: string;
+    detail?: string;
+    xp?: number;
+    level?: number;
+}
+
+export interface ProgressionFeedItem extends ProgressionEvent {
+    id: string;
+    timestamp: string;
 }
 
 
@@ -364,6 +380,24 @@ export interface LogEntry {
     timestamp?: string; // Para compatibilidade com o backend
 };
 
+export interface CombatCooldown {
+    id: string;
+    name: string;
+    remainingRounds: number;
+    totalRounds?: number;
+    description?: string;
+    resource?: string;
+}
+
+export interface CombatStatusEffect {
+    id: string;
+    name: string;
+    remainingRounds?: number;
+    source?: string;
+    description?: string;
+    severity?: 'leve' | 'moderado' | 'grave';
+}
+
 export interface Combatant {
     id: string;
     name: string;
@@ -381,9 +415,12 @@ export interface Combatant {
     bonusActionPoints: number;
     readyAction?: string;
     conditions?: string[];
+    statusEffects?: CombatStatusEffect[];
+    cooldowns?: CombatCooldown[];
     rollHistory?: any[];
     tempModifiers?: any;
     distance?: number;
+    zone?: 'perto' | 'medio' | 'longe' | 'coberto';
 }
 
 

@@ -50,6 +50,15 @@ export interface XpEventPayload {
 export interface AppliedXpResult {
     totalXpAwarded: number;
     summaries: string[];
+    details: AppliedXpDetail[];
+}
+
+export interface AppliedXpDetail {
+    type: XpEventType;
+    xp: number;
+    source: string;
+    label: string;
+    description?: string;
 }
 
 const normaliseDifficultyLabel = (value?: string): (typeof SKILL_XP_TABLE)[number] | null => {
@@ -97,11 +106,12 @@ export const applyXpEvents = (
     events: XpEventPayload[] | undefined | null
 ): AppliedXpResult => {
     if (!Array.isArray(events) || events.length === 0) {
-        return { totalXpAwarded: 0, summaries: [] };
+        return { totalXpAwarded: 0, summaries: [], details: [] };
     }
 
     let total = 0;
     const summaries: string[] = [];
+    const details: AppliedXpDetail[] = [];
 
     for (const event of events) {
         if (!event || typeof event !== 'object') continue;
@@ -111,17 +121,40 @@ export const applyXpEvents = (
             if (xp > 0) {
                 total += xp;
                 const dcInfo = event.dc ? `DC ${event.dc}` : event.difficulty ? `dificuldade ${event.difficulty}` : 'dificuldade estimada';
-                summaries.push(`+${xp} XP por sucesso em teste de perícia (${dcInfo})${event.description ? `: ${event.description}` : ''}.`);
+                const description = event.description ? event.description.trim() : '';
+                summaries.push(`+${xp} XP por sucesso em teste de perícia (${dcInfo})${description ? `: ${description}` : ''}.`);
+
+                const difficultyLabel = (() => {
+                    if (event.dc) return `Perícia (DC ${event.dc})`;
+                    const tableEntry = normaliseDifficultyLabel(event.difficulty);
+                    return tableEntry ? `Perícia (${tableEntry.label})` : 'Perícia';
+                })();
+
+                details.push({
+                    type: 'skill',
+                    xp,
+                    source: difficultyLabel,
+                    label: description || 'Sucesso em perícia',
+                    description: description || undefined,
+                });
             }
         } else if (event.type === 'quest') {
             const questLevel = event.questLevel ?? character.level;
             const xp = calculateQuestCompletionXp(questLevel);
             if (xp > 0) {
                 total += xp;
-                summaries.push(`+${xp} XP por concluir missão de nível ${questLevel}${event.description ? `: ${event.description}` : ''}.`);
+                const description = event.description ? event.description.trim() : '';
+                summaries.push(`+${xp} XP por concluir missão de nível ${questLevel}${description ? `: ${description}` : ''}.`);
+                details.push({
+                    type: 'quest',
+                    xp,
+                    source: `Missão nível ${questLevel}`,
+                    label: description || 'Objetivo cumprido',
+                    description: description || undefined,
+                });
             }
         }
     }
 
-    return { totalXpAwarded: total, summaries };
+    return { totalXpAwarded: total, summaries, details };
 };

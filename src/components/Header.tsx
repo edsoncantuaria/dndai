@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import ProgressionFeed from './ProgressionFeed';
 
 
 interface HeaderProps {
@@ -20,7 +21,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
-    const { character, isLoading } = useGameStateContext();
+    const { character, isLoading, progressionFeed } = useGameStateContext();
     const { logout } = useAuth();
     
     const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -88,6 +89,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                                 </div>
                             </div>
                         </div>
+                        <ProgressionFeed items={progressionFeed} />
 
                         {/* Desktop Action Buttons */}
                         <div className="hidden md:flex items-center justify-end gap-2 flex-shrink-0">

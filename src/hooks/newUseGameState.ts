@@ -7,14 +7,13 @@ import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
 import * as HomebrewService from '../services/homebrewService';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell, LevelUpState, LevelUpSelections } from '../types';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell, LevelUpState, LevelUpSelections, ProgressionFeedItem } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from './use-toast';
 import { initializeWebSocket, sendMessage, addEventListener, removeEventListener, closeWebSocket } from '@/services/webSocketService';
 import { translateAttribute } from '@/utils/translator';
-
 
 export const useNewGameState = () => {
     const { user, revalidateUserSession } = useAuth();
@@ -25,6 +24,7 @@ export const useNewGameState = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
+    const [progressionFeed, setProgressionFeed] = useState<ProgressionFeedItem[]>([]);
     
     const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
 
@@ -151,6 +151,7 @@ export const useNewGameState = () => {
         interactionState.clearAllInteractions();
         setSessionId(null);
         setApiError(null);
+        setProgressionFeed([]);
         closeWebSocket();
     }, [logState, interactionState]);
 
@@ -190,7 +191,37 @@ export const useNewGameState = () => {
         
         if (response.ambientSound) setAmbientSound(response.ambientSound);
 
-    }, [logState, updateCharacter, interactionState]);
+        if (Array.isArray(response.progressionFeed) && response.progressionFeed.length) {
+            const enrichedEvents: ProgressionFeedItem[] = response.progressionFeed.map(event => ({
+                ...event,
+                id: uuidv4(),
+                timestamp: new Date().toISOString(),
+            }));
+
+            setProgressionFeed(prev => {
+                const merged = [...prev, ...enrichedEvents];
+                return merged.slice(-10);
+            });
+
+            if (!isRestoring) {
+                enrichedEvents.forEach(event => {
+                    if (event.type === 'level_up') {
+                        toast({
+                            title: event.summary,
+                            description: event.detail || 'Você avançou para um novo patamar de poder.',
+                        });
+                    } else if (event.type === 'xp_gain') {
+                        const detailParts = [event.source, event.detail].filter(Boolean);
+                        toast({
+                            title: event.summary,
+                            description: detailParts.length ? detailParts.join(' • ') : undefined,
+                        });
+                    }
+                });
+            }
+        }
+
+    }, [logState, updateCharacter, interactionState, toast, setProgressionFeed]);
 
     // WebSocket event handlers
     useEffect(() => {
@@ -463,8 +494,9 @@ export const useNewGameState = () => {
         reinstallModal,
         setReinstallModal,
         isLoading,
-        apiError,
-        ambientSound,
+       apiError,
+       ambientSound,
+        progressionFeed,
         clearApiError,
         getApiKey,
         createCharacter,
@@ -490,7 +522,7 @@ export const useNewGameState = () => {
         setSessionId,
     }), [
         character, logState, sessionId, interactionState, reinstallModal,
-        isLoading, apiError, ambientSound,
+        isLoading, apiError, ambientSound, progressionFeed,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
         startGame, processPlayerAction, clearGameState, loadGameSession, handleApplyLevelUp,
         handleToggleEquipped, handleUseConsumable, handleSpendHitDice, setCharacter

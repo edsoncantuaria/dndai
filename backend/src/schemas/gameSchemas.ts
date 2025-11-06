@@ -33,6 +33,36 @@ export const XpEventSchema = z.object({
 }).describe("Evento de XP que o backend usará para calcular recompensas.");
 export type XpEvent = z.infer<typeof XpEventSchema>;
 
+export const ProgressionEventSchema = z.object({
+  type: z.enum(['xp_gain', 'level_up']).describe("Tipo de evento de progressão apresentado ao jogador."),
+  summary: z.string().describe("Resumo curto exibido no feed de progressão."),
+  source: z.string().optional().describe("Fonte da recompensa, como a descrição da perícia ou missão."),
+  detail: z.string().optional().describe("Detalhes adicionais do evento."),
+  xp: z.number().optional().describe("Quantidade de XP concedida, quando aplicável."),
+  level: z.number().optional().describe("Nível alcançado em um marco de progressão."),
+}).describe("Evento resumido apresentado ao jogador para acompanhar progresso.");
+export type ProgressionEvent = z.infer<typeof ProgressionEventSchema>;
+
+const CooldownEntrySchema = z.object({
+  id: z.string().optional().describe("Identificador único da habilidade ou recurso."),
+  name: z.string().describe("Nome da habilidade em recarga."),
+  remainingRounds: z.number().nonnegative().describe("Rodadas restantes até a recarga completa."),
+  totalRounds: z.number().nonnegative().optional().describe("Quantidade total de rodadas necessárias para recarregar."),
+  description: z.string().optional().describe("Resumo textual para facilitar decisões."),
+  resource: z.string().optional().describe("Tipo de recurso associado (ex.: magia, manobra, tecnologia)."),
+});
+
+const StatusEffectSchema = z.object({
+  id: z.string().optional().describe("Identificador interno para rastreamento."),
+  name: z.string().describe("Nome do efeito ou condição."),
+  remainingRounds: z.number().nonnegative().optional().describe("Rodadas restantes até expirar."),
+  source: z.string().optional().describe("Origem do efeito (magia, habilidade, item)."),
+  description: z.string().optional().describe("Descrição breve do impacto do efeito."),
+  severity: z.enum(['leve', 'moderado', 'grave']).optional().describe("Severidade opcional para priorização."),
+});
+
+const CombatZoneSchema = z.enum(['perto', 'medio', 'longe', 'coberto']).describe("Faixa tática simplificada de posicionamento.");
+
 /* -------------------------------- COMBAT -------------------------------- */
 export const CombatAttitudeSchema = z.enum(['hostile', 'neutral', 'ally']).describe("Postura do combatente em relação ao jogador.");
 export const FullCombatantSchema = z.object({
@@ -46,7 +76,10 @@ export const FullCombatantSchema = z.object({
   initiative: z.number().optional().describe("Score total de iniciativa."),
   isPlayer: z.boolean().optional().default(false).describe("Se o combatente é o personagem do jogador."),
   conditions: z.array(z.string()).optional().default([]).describe("Lista de condições ativas (ex.: 'Grappled', 'Poisoned')."),
+  statusEffects: z.array(StatusEffectSchema).optional().default([]).describe("Efeitos detalhados com duração e origem."),
+  cooldowns: z.array(CooldownEntrySchema).optional().default([]).describe("Habilidades em recarga e seus tempos restantes."),
   distance: z.number().optional().describe("Distância em metros do jogador."),
+  zone: CombatZoneSchema.optional().describe("Categoria de alcance (perto/médio/longe/coberto)."),
   hasMoved: z.boolean().default(false).describe("Se o combatente já se moveu neste turno."),
   hasActed: z.boolean().default(false).describe("Se o combatente já realizou uma ação neste turno."),
   actionPoints: z.number().default(1).describe("Número de ações principais disponíveis."),
@@ -161,6 +194,7 @@ export const GameMasterResponseSchema = z.object({
   worldState: WorldStateSchema.optional().describe("Atualizações do estado global do mundo."),
   newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
   xpEvents: z.array(XpEventSchema).optional().describe("Lista de eventos de XP para o sistema validar e aplicar."),
+  progressionFeed: z.array(ProgressionEventSchema).optional().describe("Feed resumido com ganhos de XP e marcos de progressão para o jogador."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 
@@ -176,6 +210,7 @@ export const GameMasterFlowInputSchema = z.object({
   validationFeedback: z.string().optional().describe("Feedback adicional sobre inconsistências detectadas para orientar a próxima resposta."),
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
+  timelineFacts: z.string().optional().describe("Linha do tempo resumida com eventos relevantes da sessão."),
   mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

@@ -4,6 +4,8 @@ import { SessionLog } from "./SessionLog.js";
 import { User } from "./User.js";
 import { Character } from "./Character.js"; // Importa a nova entidade
 import { CombatEncounter } from "./CombatEncounter.js";
+import { TimelineEvent } from "./TimelineEvent.js";
+import { StorySummary } from "./StorySummary.js";
 
 @Entity('sessoes_ia')
 export class SessaoIA {
@@ -35,6 +37,12 @@ export class SessaoIA {
 
     @OneToMany(() => CombatEncounter, combat => combat.sessao)
     combatEncounters: CombatEncounter[];
+
+    @OneToMany(() => TimelineEvent, event => event.sessao)
+    timelineEvents: TimelineEvent[];
+
+    @OneToMany(() => StorySummary, summary => summary.sessao)
+    storySummaries: StorySummary[];
     
     @Index()
     @Column({ type: 'simple-json', nullable: true })

@@ -31,6 +31,15 @@ export interface GameMasterResponse {
     systemLog?: string;
     worldState?: { [key: string]: any };
     newHomebrewContent?: any[]; // Adicionado para criações da IA
+    xpEvents?: any[];
+    progressionFeed?: {
+        type: 'xp_gain' | 'level_up';
+        summary: string;
+        source?: string;
+        detail?: string;
+        xp?: number;
+        level?: number;
+    }[];
 }
 
 
@@ -342,6 +351,24 @@ export interface LogEntry {
     };
 };
 
+export interface CombatCooldown {
+    id: string;
+    name: string;
+    remainingRounds: number;
+    totalRounds?: number;
+    description?: string;
+    resource?: string;
+}
+
+export interface CombatStatusEffect {
+    id: string;
+    name: string;
+    remainingRounds?: number;
+    source?: string;
+    description?: string;
+    severity?: 'leve' | 'moderado' | 'grave';
+}
+
 export interface Combatant {
     id: string;
     name: string;
@@ -357,8 +384,10 @@ export interface Combatant {
     actionPoints: number;
     bonusActionPoints: number;
     readyWeapon?: string;
-    readySpell?: string;
-    conditions: ApiCondition[];
+   readySpell?: string;
+   conditions: ApiCondition[];
+    statusEffects?: CombatStatusEffect[];
+    cooldowns?: CombatCooldown[];
     rollHistory: {
         type: 'initiative' | 'attack' | 'check' | 'save' | 'damage';
         total: number;
@@ -374,6 +403,7 @@ export interface Combatant {
     }[];
     tempModifiers?: any;
     distance?: number;
+    zone?: 'perto' | 'medio' | 'longe' | 'coberto';
 }
 
 export interface CombatState {

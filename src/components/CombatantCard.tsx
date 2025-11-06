@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import type { Combatant } from '../types';
 import { translateCondition } from '../utils/translator';
-import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap, ArrowDown, ArrowUp, LocateFixed, Handshake, AlertTriangle } from 'lucide-react';
+import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap, ArrowDown, ArrowUp, LocateFixed, Handshake, AlertTriangle, Timer, Activity } from 'lucide-react';
 
 type Attitude = NonNullable<Combatant['attitude']>;
 
@@ -43,6 +43,19 @@ const statusColorMap: Record<string, string> = {
     'Restrained': 'bg-orange-600/50 text-orange-200',
     'Poisoned': 'bg-green-700/50 text-green-300',
     'Frightened': 'bg-indigo-600/50 text-indigo-200',
+};
+
+const zoneLabels: Record<NonNullable<Combatant['zone']>, string> = {
+    perto: 'Perto',
+    medio: 'Médio',
+    longe: 'Longe',
+    coberto: 'Em Cobertura',
+};
+
+const severityTone: Record<NonNullable<Required<NonNullable<Combatant['statusEffects']>>[number]['severity']>, string> = {
+    leve: 'text-emerald-300',
+    moderado: 'text-amber-300',
+    grave: 'text-red-300',
 };
 
 const RollHistoryDisplay: React.FC<{ rollHistory?: any[] }> = ({ rollHistory }) => {
@@ -97,6 +110,8 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
     const disadvantage = combatant.tempModifiers?.disadvantage;
     const IconComponent = isPlayer ? User : attitude === 'ally' ? Handshake : Bot;
     const iconColor = isCurrentTurn ? 'text-amber-200' : attitudeStyle.icon;
+    const statusEffects = combatant.statusEffects ?? [];
+    const cooldowns = combatant.cooldowns ?? [];
 
     return (
         <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${bgColor}`}>
@@ -158,10 +173,91 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                     </div>
                 </div>
             </div>
-             {combatant.distance !== undefined && !isPlayer && (
-                 <div className="mt-2 bg-stone-900/50 p-1.5 rounded-md text-center">
-                    <div className="text-xs text-purple-300 flex items-center justify-center gap-1"><LocateFixed className="h-3 w-3"/> Distância</div>
-                    <div className="font-mono text-lg font-bold text-purple-200">{combatant.distance}m</div>
+            {(combatant.zone || combatant.distance !== undefined) && (
+                <div className="mt-2 bg-stone-900/50 p-1.5 rounded-md text-center">
+                    <div className="text-xs text-purple-300 flex items-center justify-center gap-1">
+                        <LocateFixed className="h-3 w-3" /> Posicionamento
+                    </div>
+                    <div className="flex justify-center gap-2 font-mono text-sm text-purple-200">
+                        {combatant.zone && (
+                            <span className="uppercase tracking-wide">
+                                {zoneLabels[combatant.zone] ?? combatant.zone}
+                            </span>
+                        )}
+                        {combatant.distance !== undefined && (
+                            <span>{combatant.distance}m</span>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {statusEffects.length > 0 && (
+                <div className="mt-3 bg-stone-900/50 p-2 rounded-md border border-stone-800/70">
+                    <div className="text-xs text-amber-300 flex items-center gap-1 font-semibold uppercase tracking-wide">
+                        <Activity className="h-3 w-3" /> Efeitos Ativos
+                    </div>
+                    <div className="mt-1 space-y-1">
+                        {statusEffects.map((effect, index) => {
+                            const key = effect.id || `${effect.name}-${index}`;
+                            const rounds =
+                                effect.remainingRounds !== undefined && effect.remainingRounds !== null
+                                    ? `${effect.remainingRounds}r`
+                                    : 'contínuo';
+                            const severityClass = effect.severity ? severityTone[effect.severity] : 'text-amber-200';
+                            return (
+                                <div key={key} className="bg-stone-950/40 border border-stone-800 rounded-md px-2 py-1 text-xs text-stone-200">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold">{effect.name}</span>
+                                        <span className={`font-mono ${severityClass}`}>{rounds}</span>
+                                    </div>
+                                    {effect.source && (
+                                        <p className="text-[0.6rem] text-stone-500 mt-0.5">Fonte: {effect.source}</p>
+                                    )}
+                                    {effect.description && (
+                                        <p className="text-[0.65rem] text-stone-300 mt-0.5 leading-snug">{effect.description}</p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {cooldowns.length > 0 && (
+                <div className="mt-3 bg-stone-900/50 p-2 rounded-md border border-stone-800/70">
+                    <div className="text-xs text-sky-300 flex items-center gap-1 font-semibold uppercase tracking-wide">
+                        <Timer className="h-3 w-3" /> Recargas
+                    </div>
+                    <div className="mt-1 space-y-1">
+                        {cooldowns.map((cooldown, index) => {
+                            const remaining = Math.max(0, cooldown.remainingRounds ?? 0);
+                            const total = Math.max(remaining, cooldown.totalRounds ?? remaining);
+                            const progress = total > 0 ? Math.min(100, ((total - remaining) / total) * 100) : 0;
+                            const key = cooldown.id || `${cooldown.name}-${index}`;
+                            return (
+                                <div key={key} className="bg-stone-950/40 border border-stone-800 rounded-md px-2 py-1 text-xs text-stone-200">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="font-semibold">{cooldown.name}</span>
+                                        <span className="font-mono text-amber-300">{remaining}r</span>
+                                    </div>
+                                    {total > 0 && (
+                                        <div className="mt-1 h-1.5 bg-stone-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-amber-500 rounded-full transition-all"
+                                                style={{ width: `${Math.max(6, progress)}%` }}
+                                            />
+                                        </div>
+                                    )}
+                                    {cooldown.description && (
+                                        <p className="text-[0.65rem] text-stone-300 mt-0.5 leading-snug">{cooldown.description}</p>
+                                    )}
+                                    {cooldown.resource && (
+                                        <p className="text-[0.6rem] text-stone-500 mt-0.5 uppercase tracking-wide">{cooldown.resource}</p>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             )}
         </div>

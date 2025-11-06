@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import type { Combatant } from '../types';
-import { Heart, Shield, Zap } from 'lucide-react';
+import { Heart, Shield, Zap, LocateFixed } from 'lucide-react';
 
 type Attitude = NonNullable<Combatant['attitude']>;
 
@@ -15,6 +15,13 @@ const attitudeColors: Record<Attitude, string> = {
     ally: 'bg-emerald-900/40 text-emerald-200 border border-emerald-700/60',
     neutral: 'bg-slate-900/40 text-slate-200 border border-slate-700/60',
     hostile: 'bg-red-900/40 text-red-200 border border-red-700/60',
+};
+
+const zoneLabels: Record<NonNullable<Combatant['zone']>, string> = {
+    perto: 'Perto',
+    medio: 'Médio',
+    longe: 'Longe',
+    coberto: 'Coberto',
 };
 
 const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) => {
@@ -46,6 +53,16 @@ const CombatantHeaderInfo: React.FC<{ combatant: Combatant }> = ({ combatant }) 
                 <Zap className="h-4 w-4" />
                 <span>{actionPoints}/30 AP</span>
             </div>
+            {(combatant.zone || combatant.distance !== undefined) && (
+                <div className="flex items-center gap-1 text-purple-300">
+                    <LocateFixed className="h-4 w-4" />
+                    <span>
+                        {combatant.zone ? zoneLabels[combatant.zone] ?? combatant.zone : null}
+                        {combatant.zone && combatant.distance !== undefined ? ' • ' : ''}
+                        {combatant.distance !== undefined ? `${combatant.distance}m` : null}
+                    </span>
+                </div>
+            )}
             {combatant.conditions && combatant.conditions.length > 0 && (
                  <div className="flex items-center gap-1.5 text-yellow-300" title={combatant.conditions.join(', ')}>
                     <span>⚠️</span>

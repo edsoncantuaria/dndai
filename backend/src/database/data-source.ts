@@ -18,6 +18,12 @@ import { Relationship } from '../entities/Relationship.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import { CombatEncounter } from '../entities/CombatEncounter.js';
+import { TimelineEvent } from '../entities/TimelineEvent.js';
+import { StorySummary } from '../entities/StorySummary.js';
+import { CombatantState } from '../entities/CombatantState.js';
+import { CombatCooldown } from '../entities/CombatCooldown.js';
+import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
+import { CombatLogEntry } from '../entities/CombatLogEntry.js';
 
 
 /**
@@ -57,6 +63,12 @@ export const AppDataSource = new DataSource({
         HomebrewContent,
         HomebrewBundle,
         CombatEncounter,
+        TimelineEvent,
+        StorySummary,
+        CombatantState,
+        CombatCooldown,
+        CombatStatusEffect,
+        CombatLogEntry,
     ], 
     
     migrations: [],

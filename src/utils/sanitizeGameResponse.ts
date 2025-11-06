@@ -52,5 +52,6 @@ export const sanitizeGameMasterResponse = (response: any): GameMasterResponse =>
         systemLog: response.systemLog ?? undefined,
         imagePrompt: response.imagePrompt ?? undefined,
         xpEvents: Array.isArray(response.xpEvents) ? response.xpEvents : undefined,
+        progressionFeed: Array.isArray(response.progressionFeed) ? response.progressionFeed : undefined,
     };
 };

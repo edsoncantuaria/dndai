@@ -31,7 +31,36 @@ const XpEventSchema = z.object({
     description: z.string().optional(),
 });
 
+const ProgressionEventSchema = z.object({
+    type: z.enum(['xp_gain', 'level_up']),
+    summary: z.string(),
+    source: z.string().optional(),
+    detail: z.string().optional(),
+    xp: z.number().optional(),
+    level: z.number().optional(),
+});
+
 const CombatAttitudeSchema = z.enum(['hostile', 'neutral', 'ally']).describe("Relação do combatente com o jogador.");
+
+const CooldownEntrySchema = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    remainingRounds: z.number().nonnegative(),
+    totalRounds: z.number().nonnegative().optional(),
+    description: z.string().optional(),
+    resource: z.string().optional(),
+});
+
+const StatusEffectSchema = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    remainingRounds: z.number().nonnegative().optional(),
+    source: z.string().optional(),
+    description: z.string().optional(),
+    severity: z.enum(['leve', 'moderado', 'grave']).optional(),
+});
+
+const CombatZoneSchema = z.enum(['perto', 'medio', 'longe', 'coberto']);
 
 const CombatantBaseSchema = z.object({
     id: z.string(),
@@ -76,6 +105,9 @@ export const FullCombatantSchema = CombatantBaseSchema.extend({
     })).default([]).describe("Histórico de rolagens do combatente durante o combate."),
     isDead: z.boolean().default(false).describe("Se o combatente está inconsciente ou morto."),
     readyAction: z.string().optional().describe("Ação planejada para o turno."),
+    statusEffects: z.array(StatusEffectSchema).optional().default([]).describe("Efeitos ativos com duração e severidade."),
+    cooldowns: z.array(CooldownEntrySchema).optional().default([]).describe("Habilidades e recursos em recarga."),
+    zone: CombatZoneSchema.optional().describe("Faixa de distância tática simplificada."),
   });
 
 
@@ -205,6 +237,7 @@ export const GameMasterResponseSchema = z.object({
         currencyGained: z.object({ gp: z.number() }).optional(),
     }).optional().describe("Resultado do loot, baú ou corpo, incluindo itens e moedas adquiridas."),
     xpEvents: z.array(XpEventSchema).optional().describe("Eventos de XP calculados pelo mestre para o backend validar."),
+    progressionFeed: z.array(ProgressionEventSchema).optional().describe("Feed rápido com ganhos de XP e marcos de progressão."),
 
 }).describe("The Game Master's response, containing all updates to the game state.");
 
