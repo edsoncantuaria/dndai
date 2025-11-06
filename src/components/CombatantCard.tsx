@@ -2,7 +2,39 @@
 import React, { useState } from 'react';
 import type { Combatant } from '../types';
 import { translateCondition } from '../utils/translator';
-import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap, ArrowDown, ArrowUp, LocateFixed } from 'lucide-react';
+import { Heart, Shield, User, Bot, Skull, History, PlusSquare, Zap, ArrowDown, ArrowUp, LocateFixed, Handshake, AlertTriangle } from 'lucide-react';
+
+type Attitude = NonNullable<Combatant['attitude']>;
+
+const attitudeLabels: Record<Attitude, string> = {
+    ally: 'Aliado',
+    neutral: 'Neutro',
+    hostile: 'Hostil',
+};
+
+const attitudeStyles: Record<Attitude, { border: string; icon: string; badge: string; background: string; text: string }> = {
+    ally: {
+        border: 'border-emerald-500/70',
+        icon: 'text-emerald-300',
+        badge: 'bg-emerald-900/50 text-emerald-200 border border-emerald-700/60',
+        background: 'bg-emerald-900/10',
+        text: 'text-emerald-200',
+    },
+    neutral: {
+        border: 'border-slate-600/60',
+        icon: 'text-slate-300',
+        badge: 'bg-slate-900/40 text-slate-200 border border-slate-700/60',
+        background: 'bg-slate-900/20',
+        text: 'text-slate-200',
+    },
+    hostile: {
+        border: 'border-red-600/70',
+        icon: 'text-red-300',
+        badge: 'bg-red-900/40 text-red-200 border border-red-700/60',
+        background: 'bg-red-900/20',
+        text: 'text-red-200',
+    },
+};
 
 const statusColorMap: Record<string, string> = {
     'Stunned': 'bg-yellow-600/50 text-yellow-200',
@@ -36,6 +68,8 @@ const RollHistoryDisplay: React.FC<{ rollHistory?: any[] }> = ({ rollHistory }) 
 
 const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; isPlayer: boolean }> = ({ combatant, isCurrentTurn, isPlayer }) => {
     const [showHistory, setShowHistory] = useState(false);
+    const MAX_AP = 30;
+    const MAX_BONUS_AP = 3;
 
     if (combatant.isDead) {
         return (
@@ -48,23 +82,35 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
             </div>
         );
     }
+
+    const attitude: Attitude = combatant.attitude ?? (isPlayer ? 'ally' : 'hostile');
+    const attitudeStyle = attitudeStyles[attitude];
     
-    const borderColor = isCurrentTurn ? 'border-amber-400 shadow-lg shadow-amber-900/50' : isPlayer ? 'border-blue-500/70' : 'border-stone-700';
-    const bgColor = isCurrentTurn ? 'bg-amber-900/20' : 'bg-stone-800/50';
+    const borderColor = isCurrentTurn
+        ? 'border-amber-400 shadow-lg shadow-amber-900/50'
+        : attitudeStyle.border;
+    const bgColor = isCurrentTurn ? 'bg-amber-900/20' : attitudeStyle.background;
 
     const currentHp = typeof combatant.hp === 'object' ? combatant.hp.current : (typeof combatant.hp === 'number' ? combatant.hp : '?');
     const maxHp = typeof combatant.hp === 'object' ? combatant.hp.max : (combatant.maxHp ?? '?');
     const advantage = combatant.tempModifiers?.advantage;
     const disadvantage = combatant.tempModifiers?.disadvantage;
-
+    const IconComponent = isPlayer ? User : attitude === 'ally' ? Handshake : Bot;
+    const iconColor = isCurrentTurn ? 'text-amber-200' : attitudeStyle.icon;
 
     return (
         <div className={`p-2.5 rounded-lg border-2 transition-all duration-300 ${borderColor} ${bgColor}`}>
             <div className="flex justify-between items-start">
                 <div className="flex items-center gap-3">
-                     <div className={`p-2 rounded-full ${isCurrentTurn ? 'bg-amber-800' : 'bg-stone-900'}`}>{isPlayer ? <User className="h-5 w-5 text-blue-300"/> : <Bot className="h-5 w-5 text-red-300"/>}</div>
+                     <div className={`p-2 rounded-full ${isCurrentTurn ? 'bg-amber-800' : 'bg-stone-900/80'}`}>
+                        <IconComponent className={`h-5 w-5 ${iconColor}`} />
+                    </div>
                     <div>
-                        <h4 className={`font-bold text-lg ${isCurrentTurn ? 'text-white' : 'text-stone-200'}`}>{combatant.name}</h4>
+                        <h4 className={`font-bold text-lg ${isCurrentTurn ? 'text-white' : attitudeStyle.text}`}>{combatant.name}</h4>
+                        <span className={`inline-flex items-center gap-1 text-[0.65rem] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${attitudeStyle.badge}`}>
+                            <span>{attitudeLabels[attitude]}</span>
+                            {attitude === 'neutral' && <AlertTriangle className="h-3 w-3" />}
+                        </span>
                         <div className="flex flex-wrap gap-1 mt-1">
                             {(combatant.conditions || []).map((cond, i) => (
                                 <span key={i} className={`px-1.5 py-0.5 text-xs font-semibold rounded-full ${statusColorMap[cond] || 'bg-stone-600/50 text-stone-300'}`}>
@@ -100,12 +146,16 @@ const CombatantCard: React.FC<{ combatant: Combatant; isCurrentTurn: boolean; is
                     <div className="font-mono text-lg font-bold text-red-300">{currentHp} / {maxHp}</div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
-                    <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> Ação</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.actionPoints ?? 1 > 0 ? 'text-sky-300' : 'text-stone-500'}`}>{combatant.actionPoints ?? 1}</div>
+                    <div className="text-xs text-sky-400 flex items-center justify-center gap-1"><Zap className="h-3 w-3"/> AP</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${(combatant.actionPoints ?? 0) > 0 ? 'text-sky-300' : 'text-stone-500'}`}>
+                        {(combatant.actionPoints ?? 0)}<span className="text-xs text-sky-500">/{MAX_AP}</span>
+                    </div>
                 </div>
                  <div className="bg-stone-900/50 p-1.5 rounded-md">
                     <div className="text-xs text-lime-400 flex items-center justify-center gap-1"><PlusSquare className="h-3 w-3"/> Bônus</div>
-                    <div className={`font-mono text-lg font-bold transition-colors ${combatant.bonusActionPoints ?? 1 > 0 ? 'text-lime-300' : 'text-stone-500'}`}>{combatant.bonusActionPoints ?? 1}</div>
+                    <div className={`font-mono text-lg font-bold transition-colors ${(combatant.bonusActionPoints ?? 0) > 0 ? 'text-lime-300' : 'text-stone-500'}`}>
+                        {(combatant.bonusActionPoints ?? 0)}<span className="text-xs text-lime-500">/{MAX_BONUS_AP}</span>
+                    </div>
                 </div>
             </div>
              {combatant.distance !== undefined && !isPlayer && (

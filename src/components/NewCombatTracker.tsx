@@ -29,12 +29,13 @@ const NewCombatTracker: React.FC = () => {
             hp: { current: character.hp.current, max: character.hp.max },
             ac: character.ac.value,
             isPlayer: true,
+            attitude: 'ally',
             initiative: 0,
             isDead: character.hp.current <= 0,
             hasMoved: false,
             hasActed: false,
-            actionPoints: 1,
-            bonusActionPoints: 1,
+            actionPoints: 3,
+            bonusActionPoints: 3,
             conditions: character.conditions.map(c => c.name),
             rollHistory: [],
         };
@@ -47,6 +48,7 @@ const NewCombatTracker: React.FC = () => {
             if (!id) return;
             
             const isPlayer = id === 'player';
+            const attitude = (apiCombatant.attitude as Combatant['attitude']) ?? (isPlayer ? 'ally' : 'hostile');
 
             const existing = combatantMap.get(id) || (isPlayer ? playerCombatant : {});
             
@@ -58,9 +60,10 @@ const NewCombatTracker: React.FC = () => {
                 ...apiCombatant,
                 id,
                 isPlayer,
-                 hp: {
-                    current: currentHp,
-                    max: maxHp,
+                attitude,
+                hp: {
+                   current: currentHp,
+                   max: maxHp,
                 },
                 ac: apiCombatant.ac ?? existing.ac ?? 10,
                 isDead: apiCombatant.isDead ?? (currentHp <= 0),

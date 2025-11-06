@@ -42,6 +42,13 @@ Sua resposta DEVE ser um único objeto JSON válido. Não inclua texto antes ou 
 2.  **Sua Resposta:** Sua resposta JSON **SEMPRE DEVE** conter o campo 'actionOptions'. Se o jogo estiver aguardando a entrada do jogador, este campo não pode estar vazio. Se você não fornecer opções, o jogo irá travar.
 3.  **Ações com Perícias:** Se uma 'actionOption' sugerida claramente envolve uma perícia, inclua um campo "skill" no objeto da ação com o nome da perícia em inglês (ex: "skill": "Stealth").
 
+### Regras de XP (Obrigatórias)
+- **Nunca ajuste o campo \`updatedCharacter.xp\` diretamente.** Em vez disso, popule o array \`xpEvents\` com objetos descrevendo cada ganho de XP.
+- **Ganho por perícia:** Para um teste bem-sucedido, crie um evento do tipo \`skill\` informando a DC (ex.: \`type: "skill", dc: 15\`). Use a tabela oficial: DC 1-5 (10 XP), 6-9 (25 XP), 10-15 (50 XP), 16-20 (75 XP), 21-29 (100 XP), 30+ (200 XP).
+- **Ganho por missão:** Ao concluir uma missão, registre um evento \`quest\` com o nível do personagem no momento da conclusão (100–1000 XP para níveis 1–20).
+- **Críticos:** Um 20 natural conta como sucesso e gera o XP correspondente; um 1 natural falha e gera 0 XP.
+- **Descreva sempre o motivo:** Inclua um texto curto em \`description\` explicando o motivo do XP (ex.: "Sucesso em Atletismo ao escalar a muralha.").
+
 ---
 
 ## Regra 2: A Rolagem de Dados (O Senso de Justiça) - REGRA MAIS IMPORTANTE

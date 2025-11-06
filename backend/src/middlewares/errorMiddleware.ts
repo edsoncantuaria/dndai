@@ -28,7 +28,7 @@ const errorMiddleware = (err: any, req: Request, res: Response, next: NextFuncti
     console.error(err); // Loga o erro completo para debugging
 
     let statusCode: number;
-    let responseBody: { message: string; stack?: string, details?: any } = { message: err.message || 'Ocorreu um erro interno no servidor.' };
+    let responseBody: { message: string; stack?: string; details?: any } = { message: err.message || 'Ocorreu um erro interno no servidor.' };
 
     // Tratamento específico para erros de validação do Zod
     if (err instanceof ZodError) {
@@ -55,12 +55,13 @@ const errorMiddleware = (err: any, req: Request, res: Response, next: NextFuncti
         // Em ambiente de desenvolvimento, podemos enviar mais detalhes
         if (process.env.NODE_ENV === 'development') {
             responseBody.stack = err.stack;
-            if(err.errors) {
-                responseBody.details = err.errors;
-            }
         }
     }
 
+    const fieldErrors = err?.errors || err?.details;
+    if (fieldErrors && typeof fieldErrors === 'object') {
+        responseBody.details = fieldErrors;
+    }
 
     res.status(statusCode).json(responseBody);
 };

@@ -295,14 +295,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             min={1} max={100} step={1}
                             onChange={handleConfigChange}
                         />
-                         <Slider 
-                            id="maxOutputTokens"
-                            label="Tamanho da Resposta"
-                            tooltip="O 'Fôlego' do Mestre. Define o quão longas e detalhadas suas respostas podem ser. Valores altos permitem narrativas épicas, mas podem levar mais tempo."
-                            value={generationConfig.maxOutputTokens}
-                            min={2048} max={8192} step={256}
-                            onChange={handleConfigChange}
-                        />
+                        <div className="rounded-md border border-stone-700 bg-stone-900/40 p-4 space-y-2">
+                            <p className="text-sm font-semibold text-stone-300">Tamanho da Resposta (Automático)</p>
+                            <p className="text-xs text-stone-400 leading-relaxed">
+                                O sistema ajusta dinamicamente o limite de tokens de saída com base no tamanho do prompt e no modelo escolhido.
+                                Dessa forma você evita desperdício de créditos e garante respostas completas sem precisar configurar nada.
+                            </p>
+                        </div>
                     </div>
                     
                     <CacheManagement />

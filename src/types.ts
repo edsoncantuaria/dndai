@@ -32,6 +32,15 @@ export interface GameMasterResponse {
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };
+    xpEvents?: XpEvent[];
+}
+
+export interface XpEvent {
+    type: 'skill' | 'quest';
+    dc?: number;
+    difficulty?: 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard' | 'extreme';
+    questLevel?: number;
+    description?: string;
 }
 
 
@@ -367,6 +376,7 @@ export interface Combatant {
     isDead: boolean;
     hasMoved: boolean;
     hasActed: boolean;
+    attitude?: 'hostile' | 'neutral' | 'ally';
     actionPoints: number;
     bonusActionPoints: number;
     readyAction?: string;

@@ -2,6 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService';
+import { ApiError } from '@/services/apiClient';
+import type { ApiFieldErrors } from '@/services/apiClient';
 import { useSettingsContext } from './SettingsContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,14 +16,21 @@ interface User {
     installedHomebrewIds?: string[];
 }
 
+interface AuthActionResult {
+    success: boolean;
+    message?: string;
+    fieldErrors?: Record<string, string[]>;
+}
+
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLicenseActive: boolean;
     hasApiKey: boolean;
     isLoading: boolean;
-    login: (credentials: authService.LoginCredentials) => Promise<boolean>;
-    register: (details: authService.RegisterDetails) => Promise<boolean>;
+    isActionLoading: boolean;
+    login: (credentials: authService.LoginCredentials) => Promise<AuthActionResult>;
+    register: (details: authService.RegisterDetails) => Promise<AuthActionResult>;
     activateLicense: (licenseKey: string) => Promise<boolean>;
     saveApiKey: (apiKey: string) => Promise<boolean>;
     logout: () => void;
@@ -34,10 +43,28 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://backend-5e.edsin-server.space/api';
 
+const normalizeFieldErrors = (details?: ApiFieldErrors | null): Record<string, string[]> | undefined => {
+    if (!details || typeof details !== 'object') {
+        return undefined;
+    }
+    const normalized: Record<string, string[]> = {};
+
+    Object.entries(details).forEach(([field, value]) => {
+        if (Array.isArray(value)) {
+            normalized[field] = value.filter(Boolean).map(String);
+        } else if (value) {
+            normalized[field] = [String(value)];
+        }
+    });
+
+    return Object.keys(normalized).length > 0 ? normalized : undefined;
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isLicenseActive, setIsLicenseActive] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [isActionLoading, setIsActionLoading] = useState(false);
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
@@ -91,68 +118,124 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         validateSession();
     }, [revalidateUserSession]);
 
-    const login = async (credentials: authService.LoginCredentials) => {
-        setIsLoading(true);
+    const login = async (credentials: authService.LoginCredentials): Promise<AuthActionResult> => {
+        const sanitizedCredentials = {
+            login: credentials.login.trim(),
+            password: credentials.password,
+        };
+
+        setIsActionLoading(true);
         try {
-            const response = await authService.loginUser(credentials);
+            const response = await authService.loginUser(sanitizedCredentials);
             if (response && response.user && response.token) {
                 localStorage.setItem('token', response.token);
-                await revalidateUserSession(); 
+                await revalidateUserSession();
 
                 toast({
                     title: "Login bem-sucedido!",
                     description: "Sua aventura o aguarda.",
                 });
 
-                return true;
+                return { success: true };
             }
-            throw new Error(response.message || 'Login falhou.');
-        } catch (err: any) {
-            toast({
-                variant: "destructive",
-                title: "Erro no Login",
-                description: err.message || 'Ocorreu um erro desconhecido.',
-            });
-            return false;
+            throw new Error(response?.message || 'Login falhou.');
+        } catch (err: unknown) {
+            console.error('Erro ao efetuar login', err);
+            let message = 'Ocorreu um erro desconhecido.';
+            let fieldErrors: Record<string, string[]> | undefined;
+
+            if (err instanceof ApiError) {
+                message = err.message || message;
+                fieldErrors = normalizeFieldErrors(err.details);
+            } else if (err instanceof Error) {
+                message = err.message || message;
+            }
+
+            if ((!message || message === 'Ocorreu um erro desconhecido.') && fieldErrors) {
+                const firstFieldError = Object.values(fieldErrors)[0]?.[0];
+                if (firstFieldError) {
+                    message = firstFieldError;
+                }
+            }
+
+            if (!fieldErrors) {
+                toast({
+                    variant: "destructive",
+                    title: "Erro no Login",
+                    description: message,
+                });
+            }
+            return { success: false, message, fieldErrors };
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
-    const register = async (details: authService.RegisterDetails) => {
-        if(details.password !== details.confirmPassword){
-            toast({
-                variant: "destructive",
-                title: "Erro no Registro",
-                description: "As senhas não coincidem.",
-            });
-            return false;
+    const register = async (details: authService.RegisterDetails): Promise<AuthActionResult> => {
+        if (details.password !== details.confirmPassword) {
+            const message = "As senhas não coincidem.";
+            return {
+                success: false,
+                message,
+                fieldErrors: {
+                    password: [message],
+                    confirmPassword: [message],
+                },
+            };
         }
-        setIsLoading(true);
+
+        setIsActionLoading(true);
+        const sanitizedDetails = {
+            ...details,
+            username: details.username.trim(),
+            email: details.email.trim().toLowerCase(),
+        };
+
         try {
-            const response = await authService.registerUser(details);
+            const response = await authService.registerUser(sanitizedDetails);
             if (response.success) {
-                 toast({
+                toast({
                     title: "Registro Concluído!",
                     description: response.message + " Por favor, faça o login.",
                 });
-                return true;
+                return { success: true, message: response.message };
             }
             throw new Error(response.message || 'Registro falhou.');
-        } catch (err: any) {
-            toast({
-                variant: "destructive",
-                title: "Erro no Registro",
-                description: err.message || 'Ocorreu um erro desconhecido.',
-            });
-            return false;
+        } catch (err: unknown) {
+            console.error('Erro ao registrar usuário', err);
+            let message = 'Ocorreu um erro desconhecido.';
+            let fieldErrors: Record<string, string[]> | undefined;
+
+            if (err instanceof ApiError) {
+                message = err.message || message;
+                fieldErrors = normalizeFieldErrors(err.details);
+            } else if (err instanceof Error) {
+                message = err.message || message;
+            }
+
+            if ((!message || message === 'Ocorreu um erro desconhecido.') && fieldErrors) {
+                const firstFieldError = Object.values(fieldErrors)[0]?.[0];
+                if (firstFieldError) {
+                    message = firstFieldError;
+                }
+            }
+
+            if (!fieldErrors) {
+                toast({
+                    variant: "destructive",
+                    title: "Erro no Registro",
+                    description: message,
+                });
+            }
+
+            return { success: false, message, fieldErrors };
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
     const activateLicense = async (licenseKey: string) => {
-        setIsLoading(true);
+        setIsActionLoading(true);
         try {
             const response = await authService.activateUserLicense(licenseKey);
             if (response.success) {
@@ -172,7 +255,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             });
             return false;
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
@@ -187,7 +270,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     
      const acknowledgeHomebrew = async () => {
         if (!user) return;
-        setIsLoading(true);
+        setIsActionLoading(true);
         try {
             await authService.acknowledgeHomebrewDisclaimer();
             setUser(prev => prev ? { ...prev, acknowledgedHomebrewDisclaimer: true } : null);
@@ -198,13 +281,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 description: err.message || 'Não foi possível salvar sua preferência.',
             });
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
     const invalidateUserCache = async () => {
         if (!user) return;
-        setIsLoading(true);
+        setIsActionLoading(true);
         try {
             await authService.invalidateUserCache();
             await revalidateUserSession(); // Revalida os dados do usuário para obter informações frescas
@@ -213,7 +296,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error("[AuthContext] Falha ao invalidar cache do usuário:", err);
             throw err; // Re-lança para o componente poder tratar
         } finally {
-            setIsLoading(false);
+            setIsActionLoading(false);
         }
     };
 
@@ -224,6 +307,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isLicenseActive,
         hasApiKey,
         isLoading,
+        isActionLoading,
         login,
         register,
         activateLicense,

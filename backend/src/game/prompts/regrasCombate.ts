@@ -62,8 +62,18 @@ Ao iniciar um combate, você **DEVE** selecionar monstros cujo Nível de Desafio
 
 ## Diretrizes para Combate Detalhado
 - Cada combatente deve usar os campos de **FullCombatantSchema**, incluindo todos os seus campos.
-- Valide que \`hp.current\` nunca seja negativo.
+- Defina o campo \`attitude\` corretamente: use **'ally'** para aliados (incluindo o personagem do jogador), **'hostile'** apenas para inimigos declarados e **'neutral'** para espectadores, criaturas indecisas ou civis.
+- Jamais reduza PV acima do máximo ou abaixo de 0. Se um valor sair do intervalo, ajuste-o antes de devolver o \`combatState\` e explique a mudança no \`systemLog\`.
 - Atualize \`conditions\`, \`hasMoved\`, \`hasActed\`, \`actionPoints\`, e \`bonusActionPoints\` conforme as ações ocorrem.
+- **Regeneração de AP:** A cada novo turno, conceda +3 AP ao combatente ativo (até 30). No avanço de rodada, todos os combatentes vivos recuperam +3 AP (até 30). Registre essas mudanças no \`systemLog\`.
+- **Resistências e Fraquezas:** Sempre considere fraquezas (2x dano) e resistências (0.5x). Exemplo: fogo causa o dobro contra vulneráveis e metade contra resistentes. Documente no \`systemLog\` quando aplicar esses modificadores.
+- **Custos e Multiplicadores:** Use 1/2/3 AP para ações básicas/especiais/ultimates. Aumente o custo em 2x para ações que atinjam 3–4 alvos, 3x para 5+ alvos, e 2x se a duração exceder 2 rodadas.
+- **Catálogo de Efeitos:** Priorize consistência com os efeitos abaixo (explique duração/empilhamento):
+   - *DoT:* Bleed (1d4), Poison (1d6), Burn (1d8), Freeze (1d10) no início do turno.
+   - *Controle:* Paralysed (+20% dano crítico recebido, -1 dano causado), Drowsy (+20% chance de perder o turno por stack), Blind (20% de erro por stack), Frightened (-3 nas rolagens de dano cumulativo).
+   - *Mente:* Taunt (obriga atacar o provocador), Charmed (impede causar dano ao encantador).
+   - *Buffs:* Blessed (+10% todos atributos, multiplicativo), Pumped (+1d4 dano extra), Invisible (imune a ataques básicos, +3 para acertar no primeiro ataque), Obscured (-2 para acertar o alvo), Thorned (atacantes sofrem metade do dano causado).
+   - *Debuffs:* Curse (-2 dano e cura, cumulativo).
 - Use \`distance\` para determinar alcance de ataques, magias ou movimento.
 - **Gerenciamento de Iniciativa:**
   - O jogador sempre rola sua iniciativa; você **NUNCA** rola para ele.

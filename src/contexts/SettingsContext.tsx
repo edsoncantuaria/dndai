@@ -76,7 +76,7 @@ export const defaultGenerationConfig: GenerationConfig = {
     temperature: 0.9,
     topP: 0.9,
     topK: 64,
-    maxOutputTokens: 32768,
+    maxOutputTokens: 1024,
 };
 
 const defaultSettings = {
@@ -96,8 +96,8 @@ const SettingsContext = createContext<SettingsContextType | null>(null);
 const clampGenerationConfigValues = (config: GenerationConfig): GenerationConfig => ({
     temperature: Math.min(Math.max(config.temperature ?? 0.7, 0), 1),
     topP: Math.min(Math.max(config.topP ?? 0.9, 0), 1),
-    topK: Math.max(config.topK ?? 1, 1),
-    maxOutputTokens: Math.max(config.maxOutputTokens ?? 1, 1),
+    topK: Math.max(Math.min(config.topK ?? 64, 128), 1),
+    maxOutputTokens: Math.max(Math.min(config.maxOutputTokens ?? 1024, 4096), 256),
 });
 
 const saveSettingsToDB = async (settings: Partial<any>) => {

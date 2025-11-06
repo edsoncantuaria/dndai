@@ -3,6 +3,21 @@
 // A URL da API agora usa a URL de produção como padrão.
 const API_URL = 'https://backend-5e.edsin-server.space/api';
 
+export type ApiFieldErrors = Record<string, string[] | string>;
+
+export class ApiError extends Error {
+    status: number;
+    details?: ApiFieldErrors;
+
+    constructor(message: string, status: number, details?: ApiFieldErrors) {
+        super(message);
+        this.name = 'ApiError';
+        this.status = status;
+        this.details = details;
+        Object.setPrototypeOf(this, ApiError.prototype);
+    }
+}
+
 /**
  * Obtém os headers de autenticação, incluindo o token JWT do localStorage.
  * Retorna null se o token não for encontrado, permitindo que a chamada decida como proceder.
@@ -54,13 +69,17 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     const response = await fetch(fullUrl, requestOptions);
 
     if (!response.ok) {
-        let errorData;
+        let errorData: any = null;
         try {
             errorData = await response.json();
         } catch (e) {
-            throw new Error(`Erro de rede: ${response.status} ${response.statusText}`);
+            throw new ApiError(`Erro de rede: ${response.status} ${response.statusText}`, response.status);
         }
-        throw new Error(errorData?.message || `Erro desconhecido: ${response.statusText}`);
+        const message = typeof errorData?.message === 'string'
+            ? errorData.message
+            : `Erro desconhecido: ${response.statusText}`;
+        const details = errorData?.details || errorData?.errors;
+        throw new ApiError(message, response.status, details);
     }
     
     if (response.status === 204 || response.headers.get('content-length') === '0') {

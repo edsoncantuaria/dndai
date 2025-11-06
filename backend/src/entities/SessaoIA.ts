@@ -3,6 +3,7 @@ import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateCol
 import { SessionLog } from "./SessionLog.js";
 import { User } from "./User.js";
 import { Character } from "./Character.js"; // Importa a nova entidade
+import { CombatEncounter } from "./CombatEncounter.js";
 
 @Entity('sessoes_ia')
 export class SessaoIA {
@@ -31,6 +32,9 @@ export class SessaoIA {
 
     @OneToMany(() => SessionLog, log => log.sessao, { cascade: true, eager: true })
     logs: SessionLog[];
+
+    @OneToMany(() => CombatEncounter, combat => combat.sessao)
+    combatEncounters: CombatEncounter[];
     
     @Index()
     @Column({ type: 'simple-json', nullable: true })

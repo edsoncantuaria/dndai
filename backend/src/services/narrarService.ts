@@ -17,6 +17,43 @@ import { getGameUpdate } from './aiService.js';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
 import { hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
+import {
+    loadCombatEncounterState,
+    reconcileCombatStateUpdate,
+    saveCombatEncounterState,
+    projectPublicCombatState,
+    type CombatReconciliationResult,
+    type LoadedCombatEncounter,
+} from './combatStateService.js';
+import { applyXpEvents } from './xpService.js';
+import { getStorySummary, recordTimelineEventAndSummarize } from './storyService.js';
+import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
+
+type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
+
+const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
+    if (combatState?.isActive) return 'combat';
+
+    if (isInternalAction) {
+        if (playerAction.toLowerCase().includes('diagn') || playerAction.toLowerCase().includes('auditor')) {
+            return 'audit';
+        }
+        return 'gameplay';
+    }
+
+    const normalized = playerAction.toLowerCase();
+    const generationHints = ['gere', 'gerar', 'crie', 'criar', 'invente', 'imagine', 'forje', 'desenhe', 'sintetize', 'mount'];
+    if (generationHints.some(keyword => normalized.includes(keyword))) {
+        return 'generation';
+    }
+
+    const auditHints = ['auditoria', 'diagnóstico', 'diagnostico', 'diagnose', 'relatório', 'analise', 'análise estrutural'];
+    if (auditHints.some(keyword => normalized.includes(keyword))) {
+        return 'audit';
+    }
+
+    return 'gameplay';
+};
 
 
 // Função auxiliar para calcular o modificador de um atributo
@@ -243,7 +280,14 @@ const buildOptimizedCharacterForAI = async (characterId: number, useCache: boole
     const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
     const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
 
-    const inventory = Array.isArray(fullCharacter.items) ? fullCharacter.items.map(item => ({...item.itemData, equipped: item.equipped})) : [];
+    const inventory = Array.isArray(fullCharacter.items)
+        ? fullCharacter.items.map(item => ({
+            ...item.itemData,
+            id: item.id?.toString(),
+            quantity: item.quantity ?? item.itemData?.quantity ?? 1,
+            equipped: item.equipped,
+        }))
+        : [];
     const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells.map(s => s?.spellName).filter(Boolean) : [];
 
     const characterForAI = {
@@ -252,6 +296,7 @@ const buildOptimizedCharacterForAI = async (characterId: number, useCache: boole
         race: fullCharacter.race,
         characterClass: fullCharacter.characterClass,
         level: fullCharacter.level,
+        xp: fullCharacter.xp ?? 0,
         attributes: {
             strength: fullCharacter.attributes.strength,
             dexterity: fullCharacter.attributes.dexterity,
@@ -301,11 +346,14 @@ export const processPlayerTurn = async (
 ): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
-    let user: User | null = null;
+   let user: User | null = null;
     let characterForAI: any = null;
     let homebrewSummaryForAI = "";
+    let combatReconciliation: CombatReconciliationResult | null = null;
     
     const sessionCacheKey = `session:${sessionId}:homebrew_summary`;
+
+    let storySummaryForPrompt: string | null = null;
 
     if (sessionId === -1) {
         isTestRun = true;
@@ -316,6 +364,7 @@ export const processPlayerTurn = async (
             proficiencies: [], inventory: [], spells: [], storySoFar: '', worldState: { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Plano de Testes' },
             relationships: [], journal: [], factionReputation: {}, currentRegion: 'Plano de Testes',
             passivePerception: 10, passiveInsight: 10, passiveInvestigation: 10,
+            xp: 0,
         };
     } else {
         const sessaoRepository = AppDataSource.getRepository(SessaoIA);
@@ -356,7 +405,7 @@ export const processPlayerTurn = async (
             }
         }
     }
-    
+
     if (!apiKey) {
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
@@ -375,14 +424,40 @@ export const processPlayerTurn = async (
         content: log.response
     }));
 
+    const isInternalAction = playerAction.startsWith("Recarregar estado atual")
+        || playerAction.startsWith("A aventura começa.")
+        || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+
+    let loadedCombat: LoadedCombatEncounter = { encounterId: null, state: null };
+    if (!isTestRun && sessao) {
+        loadedCombat = await loadCombatEncounterState(sessao.id);
+    }
+    if (!loadedCombat.state && currentCombatState && currentCombatState.isActive) {
+        const bootstrap = reconcileCombatStateUpdate(null, currentCombatState);
+        if (bootstrap.canonicalState) {
+            loadedCombat.state = bootstrap.canonicalState;
+        }
+    }
+
+    const promptCombatState = projectPublicCombatState(loadedCombat.state) ??
+        (currentCombatState && currentCombatState.isActive ? currentCombatState : null);
+
+    if (!isTestRun && sessao) {
+        storySummaryForPrompt = await getStorySummary(sessao.id);
+    }
+
+    const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
+
     const gameMasterFlowInput = {
         character: characterForAI,
         playerAction,
         gameLog: JSON.stringify(chronologicalLogs),
-        combatState: currentCombatState,
+        combatState: promptCombatState ?? undefined,
         useAiHomebrew: useAiHomebrew ?? true,
         enableNarrativeRevalidation: true,
         homebrewSummary: homebrewSummaryForAI || undefined,
+        storySummary: storySummaryForPrompt || undefined,
+        mode: aiMode,
     };
 
     const appendSystemNote = (response: GameMasterResponse, note: string) => {
@@ -445,10 +520,98 @@ export const processPlayerTurn = async (
 
     const { response: aiResponse, rawText, validationIssues, attempts, usedFallback } = await runValidatedGameUpdate();
 
+    combatReconciliation = reconcileCombatStateUpdate(
+        loadedCombat.state,
+        aiResponse.combatState as any
+    );
+    aiResponse.combatState = combatReconciliation.publicState as any;
+        if (combatReconciliation.telemetry.length) {
+            const telemetryNote = combatReconciliation.telemetry
+                .map(msg => `[Combate] ${msg}`)
+                .join('\n');
+            aiResponse.systemLog = aiResponse.systemLog
+                ? `${aiResponse.systemLog}\n${telemetryNote}`
+                : telemetryNote;
+
+            const autoResolution = combatReconciliation.telemetry.find(msg =>
+                msg.toLowerCase().includes('encerrado automaticamente')
+            );
+            if (autoResolution) {
+                const fallbackNarration = 'O combate se encerra rapidamente assim que a poeira baixa. Você recupera o fôlego e avalia os próximos passos.';
+                aiResponse.logEntries = [
+                    ...(aiResponse.logEntries ?? []),
+                    { type: 'system', content: autoResolution },
+                    { type: 'narration', content: fallbackNarration }
+                ];
+        }
+    }
+
+    const xpResult = applyXpEvents(
+        { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
+        (aiResponse as any).xpEvents
+    );
+    if (xpResult.totalXpAwarded > 0) {
+        const newXpTotal = (characterForAI.xp ?? 0) + xpResult.totalXpAwarded;
+        aiResponse.updatedCharacter = {
+            ...(aiResponse.updatedCharacter || {}),
+            xp: newXpTotal,
+        };
+        const xpSummary = xpResult.summaries.join(' ');
+        aiResponse.systemLog = aiResponse.systemLog
+            ? `${aiResponse.systemLog}\n[XP] ${xpSummary}`
+            : `[XP] ${xpSummary}`;
+        aiResponse.logEntries = [
+            ...(aiResponse.logEntries ?? []),
+            { type: 'system', content: `Você recebeu ${xpResult.totalXpAwarded} XP.` },
+        ];
+    }
+
+    let newStorySummaryForLog: string | null = null;
+
+    if (!isTestRun && sessao) {
+        const normalize = (text: string | undefined | null, limit = 400) =>
+            text ? text.replace(/\s+/g, ' ').trim().slice(0, limit) : '';
+
+        const narrationEntries = (aiResponse.logEntries || []).filter(entry => entry?.type === 'narration');
+        const mainNarration = normalize(narrationEntries[0]?.content);
+        const extraNarration = narrationEntries.slice(1, 3).map(entry => normalize(entry?.content, 200)).filter(Boolean).join(' ');
+
+        const notesPieces: string[] = [];
+        if (xpResult.totalXpAwarded > 0) {
+            notesPieces.push(xpResult.summaries.join(' '));
+        }
+        if (combatReconciliation.telemetry.length) {
+            notesPieces.push(combatReconciliation.telemetry.join(' '));
+        }
+        if (aiResponse.systemLog) {
+            notesPieces.push(normalize(aiResponse.systemLog, 200));
+        }
+
+        const timelineEvent = {
+            timestamp: new Date().toISOString(),
+            action: normalize(playerAction, 200),
+            summary: [mainNarration, extraNarration].filter(Boolean).join(' ').trim() || 'Narrativa indisponível.',
+            notes: notesPieces.filter(Boolean).join(' | ') || undefined,
+        };
+
+        const { summary: newStorySummary } = await recordTimelineEventAndSummarize(sessao.id, timelineEvent, apiKey);
+        if (newStorySummary) {
+            newStorySummaryForLog = newStorySummary;
+            aiResponse.updatedCharacter = {
+                ...(aiResponse.updatedCharacter || {}),
+                storySoFar: newStorySummary,
+            };
+        }
+    }
+
+    const allowHomebrewContent = useAiHomebrew ?? true;
+
     if (aiResponse.updatedCharacter?.inventory && Array.isArray(aiResponse.updatedCharacter.inventory)) {
         const { items: hydratedItems, metrics } = await hydrateInventoryItems(
             aiResponse.updatedCharacter.inventory as any[],
-            userId
+            userId,
+            Array.isArray(characterForAI?.inventory) ? characterForAI.inventory : undefined,
+            { allowHomebrew: allowHomebrewContent }
         );
         (aiResponse.updatedCharacter as any).inventory = hydratedItems;
         const currentCurrency = reconcileCurrency(
@@ -457,6 +620,48 @@ export const processPlayerTurn = async (
         );
         (aiResponse.updatedCharacter as any).currency = currentCurrency;
         (aiResponse.updatedCharacter as any).currentWeight = metrics.totalWeight;
+    }
+
+    if (aiResponse.shopState?.inventory && Array.isArray(aiResponse.shopState.inventory)) {
+        const { items: sanitizedShopItems } = await hydrateInventoryItems(
+            aiResponse.shopState.inventory as any[],
+            userId,
+            undefined,
+            { allowHomebrew: allowHomebrewContent }
+        );
+        aiResponse.shopState.inventory = sanitizedShopItems;
+        if (aiResponse.shopState.sellPrices && typeof aiResponse.shopState.sellPrices === 'object') {
+            const validIds = new Set(sanitizedShopItems.map(item => String(item.id)));
+            const filteredPrices: Record<string, number> = {};
+            for (const [itemId, value] of Object.entries(aiResponse.shopState.sellPrices)) {
+                if (!validIds.has(itemId)) continue;
+                const numericValue = Number(value);
+                if (Number.isFinite(numericValue) && numericValue >= 0) {
+                    filteredPrices[itemId] = numericValue;
+                }
+            }
+            aiResponse.shopState.sellPrices = filteredPrices;
+        }
+    }
+
+    if (aiResponse.lootOffer?.items && Array.isArray(aiResponse.lootOffer.items)) {
+        const { items: sanitizedLootItems } = await hydrateInventoryItems(
+            aiResponse.lootOffer.items as any[],
+            userId,
+            undefined,
+            { allowHomebrew: allowHomebrewContent }
+        );
+        aiResponse.lootOffer.items = sanitizedLootItems;
+        if (aiResponse.lootOffer.currency && typeof aiResponse.lootOffer.currency === 'object') {
+            const currency = aiResponse.lootOffer.currency as Record<string, unknown>;
+            for (const [coin, value] of Object.entries(currency)) {
+                const numericValue = Number(value);
+                currency[coin] = Number.isFinite(numericValue) && numericValue >= 0 ? numericValue : 0;
+            }
+        }
+        if (!aiResponse.lootOffer.items.length && (!aiResponse.lootOffer.currency || Object.values(aiResponse.lootOffer.currency).every(val => (val as number) <= 0))) {
+            aiResponse.lootOffer = null;
+        }
     }
     
     if (isTestRun || !sessao) {
@@ -492,9 +697,7 @@ export const processPlayerTurn = async (
         });
         await logRepository.save(validationLog);
         
-        const isInternalAction = playerAction.startsWith("Recarregar estado atual") || playerAction.startsWith("A aventura começa.") || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
-        
-        if(!isInternalAction) {
+    if(!isInternalAction) {
             const playerLogEntry = new SessionLog();
             Object.assign(playerLogEntry, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
             await logRepository.save(playerLogEntry);
@@ -510,6 +713,26 @@ export const processPlayerTurn = async (
             type: 'state',
         });
         await logRepository.save(stateLogEntry);
+
+        if (newStorySummaryForLog) {
+            const summaryLogEntry = new SessionLog();
+            Object.assign(summaryLogEntry, {
+                sessaoId: sessao.id,
+                prompt: 'Story Summary',
+                response: newStorySummaryForLog,
+                type: 'summary',
+            });
+            await logRepository.save(summaryLogEntry);
+        }
+
+        if (combatReconciliation?.changed) {
+            await saveCombatEncounterState(
+                queryRunner,
+                sessao.id,
+                loadedCombat.encounterId,
+                combatReconciliation.canonicalState
+            );
+        }
 
         if (aiResponse.logEntries) {
             for (const entry of aiResponse.logEntries) {

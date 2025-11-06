@@ -23,7 +23,18 @@ const LogEntrySchema = z.object({
   rollResult: z.any().optional().describe("Dados estruturados opcionais para rolagens de dados."),
 }).describe("Uma entrada do log de aventura.");
 
+/* -------------------------------- XP EVENTS -------------------------------- */
+export const XpEventSchema = z.object({
+  type: z.enum(['skill', 'quest']).describe("Origem do XP: sucesso em perícia ou conclusão de missão."),
+  dc: z.number().optional().describe("Classe de Dificuldade (DC) do teste, se aplicável."),
+  difficulty: z.enum(['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'extreme']).optional().describe("Dificuldade textual do teste, se DC não estiver disponível."),
+  questLevel: z.number().optional().describe("Nível do personagem ou missão ao concluir uma quest."),
+  description: z.string().optional().describe("Descrição breve do motivo do XP."),
+}).describe("Evento de XP que o backend usará para calcular recompensas.");
+export type XpEvent = z.infer<typeof XpEventSchema>;
+
 /* -------------------------------- COMBAT -------------------------------- */
+export const CombatAttitudeSchema = z.enum(['hostile', 'neutral', 'ally']).describe("Postura do combatente em relação ao jogador.");
 export const FullCombatantSchema = z.object({
   id: z.string().describe("ID único do combatente (ex.: 'player', 'goblin-1')."),
   name: z.string().describe("Nome de exibição do combatente."),
@@ -43,6 +54,7 @@ export const FullCombatantSchema = z.object({
   isDead: z.boolean().default(false).describe("Se o combatente está morto ou inconsciente."),
   readyAction: z.string().optional().describe("Descrição da ação preparada para um gatilho."),
   tempModifiers: z.any().optional().describe("Modificadores temporários de feitiços ou efeitos."),
+  attitude: CombatAttitudeSchema.optional().default('neutral').describe("Relação atual com o personagem do jogador."),
   rollHistory: z.array(z.object({
     type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
     roll: z.number(),
@@ -61,6 +73,9 @@ export const CombatStateSchema = z.object({
   log: z.array(z.union([z.string(), LogEntrySchema])).optional().default([]).describe("Registro de eventos importantes do combate."),
 }).describe("Estado completo do combate.");
 
+export type CombatAttitude = z.infer<typeof CombatAttitudeSchema>;
+export type FullCombatant = z.infer<typeof FullCombatantSchema>;
+export type CombatState = z.infer<typeof CombatStateSchema>;
 
 /* -------------------------------- GAME STATES -------------------------------- */
 export const LevelUpStateSchema = z.object({
@@ -145,6 +160,7 @@ export const GameMasterResponseSchema = z.object({
   useHitDiceRequest: UseHitDiceRequestSchema.nullable().optional(),
   worldState: WorldStateSchema.optional().describe("Atualizações do estado global do mundo."),
   newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
+  xpEvents: z.array(XpEventSchema).optional().describe("Lista de eventos de XP para o sistema validar e aplicar."),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 
@@ -160,5 +176,6 @@ export const GameMasterFlowInputSchema = z.object({
   validationFeedback: z.string().optional().describe("Feedback adicional sobre inconsistências detectadas para orientar a próxima resposta."),
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
+  mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

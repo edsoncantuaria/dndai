@@ -17,6 +17,7 @@ import { Quest } from '../entities/Quest.js';
 import { Relationship } from '../entities/Relationship.js';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import { HomebrewBundle } from '../entities/HomebrewBundle.js';
+import { CombatEncounter } from '../entities/CombatEncounter.js';
 
 
 /**
@@ -55,6 +56,7 @@ export const AppDataSource = new DataSource({
         Relationship,
         HomebrewContent,
         HomebrewBundle,
+        CombatEncounter,
     ], 
     
     migrations: [],

@@ -119,19 +119,50 @@ export const mergeCharacterUpdates = async (
       const key = item.index || item.name;
       updatedItemKeys.add(key);
       const existing = existingItemsMap.get(key);
-      const quantity = item.quantity === undefined ? 1 : item.quantity;
+      const parsedQuantity = Number(item.quantity ?? 1);
+      const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
       
       if (quantity <= 0) {
         if (existing) await itemsRepo.remove(existing);
         continue;
       }
       if (existing) {
+        const mergedItemData = {
+            ...(existing.itemData || {}),
+            ...item,
+        };
+
+        if (!mergedItemData.index && existing.itemData?.index) {
+            mergedItemData.index = existing.itemData.index;
+        }
+        if (!mergedItemData.name && existing.itemData?.name) {
+            mergedItemData.name = existing.itemData.name;
+        }
+        mergedItemData.quantity = quantity;
+        const nextEquipped = item.equipped !== undefined ? Boolean(item.equipped) : existing.equipped;
+        mergedItemData.equipped = nextEquipped;
+        mergedItemData.id = existing.id?.toString();
+
         existing.quantity = quantity;
-        existing.equipped = item.equipped || false;
-        existing.itemData = item; // Atualiza os dados completos
+        existing.equipped = nextEquipped;
+        existing.name = mergedItemData.name || existing.name;
+        existing.itemData = mergedItemData;
         await itemsRepo.save(existing);
       } else {
-        const newItem = itemsRepo.create({ characterId, name: item.name, quantity: quantity, equipped: item.equipped || false, itemData: item });
+        const nextEquipped = item.equipped !== undefined ? Boolean(item.equipped) : false;
+        const itemName = item.name || item.index || 'Item Desconhecido';
+        const itemDataToPersist = {
+            ...item,
+            quantity,
+            equipped: nextEquipped,
+        };
+        const newItem = itemsRepo.create({
+            characterId,
+            name: itemName,
+            quantity,
+            equipped: nextEquipped,
+            itemData: itemDataToPersist,
+        });
         await itemsRepo.save(newItem);
       }
     }

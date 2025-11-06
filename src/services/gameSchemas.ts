@@ -23,6 +23,16 @@ const LogEntrySchema = z.object({
     rollResult: z.any().optional(),
 }).describe("An entry in the game's adventure log.");
 
+const XpEventSchema = z.object({
+    type: z.enum(['skill', 'quest']),
+    dc: z.number().optional(),
+    difficulty: z.enum(['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'extreme']).optional(),
+    questLevel: z.number().optional(),
+    description: z.string().optional(),
+});
+
+const CombatAttitudeSchema = z.enum(['hostile', 'neutral', 'ally']).describe("Relação do combatente com o jogador.");
+
 const CombatantBaseSchema = z.object({
     id: z.string(),
     name: z.string(),
@@ -42,6 +52,8 @@ const CombatantBaseSchema = z.object({
   });
 
 export const FullCombatantSchema = CombatantBaseSchema.extend({
+    isPlayer: z.boolean().optional().default(false),
+    attitude: CombatAttitudeSchema.optional().default('neutral'),
     initiativeRoll: z.number().optional().describe("O valor da rolagem de iniciativa antes de aplicar modificadores."),
     armorClass: z.number().optional().describe("Classe de armadura do combatente."),
     hasMoved: z.boolean().default(false).describe("Se o combatente já se moveu neste turno."),
@@ -192,6 +204,7 @@ export const GameMasterResponseSchema = z.object({
         itemsGained: z.array(LootItemSchema).optional(),
         currencyGained: z.object({ gp: z.number() }).optional(),
     }).optional().describe("Resultado do loot, baú ou corpo, incluindo itens e moedas adquiridas."),
+    xpEvents: z.array(XpEventSchema).optional().describe("Eventos de XP calculados pelo mestre para o backend validar."),
 
 }).describe("The Game Master's response, containing all updates to the game state.");
 
@@ -204,6 +217,7 @@ export const GameMasterFlowInputSchema = z.object({
   gameLog: z.array(LogEntrySchema).describe("The last 15 entries of the game log."),
   combatState: ExtendedCombatStateSchema.optional().describe("The current state of combat, if active."),
   enableNarrativeRevalidation: z.boolean().optional().describe("When true, the AI must perform an additional self-check for narrative and logical bugs and report findings in systemLog."),
+  mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Interaction mode used to tune token limits."),
 });
 
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

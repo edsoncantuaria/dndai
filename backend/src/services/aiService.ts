@@ -9,10 +9,73 @@ import { regrasInventario } from '../game/prompts/regrasInventario.js';
 import { sanitizeGameMasterResponse } from './aiSanitizer.js';
 import createError from 'http-errors';
 
+type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
+
 
 const getGenAI = (apiKey: string) => {
     return new GoogleGenerativeAI(apiKey);
 }
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const estimateTokenCount = (text: string) => Math.ceil(text.length / 4);
+
+const MIN_OUTPUT_TOKENS = 256;
+const DEFAULT_OUTPUT_TOKENS = 1024;
+const HARD_OUTPUT_CAP = 4096;
+
+const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { input: number; output: number; temperature: number }> = {
+    gameplay: { input: 16000, output: 2048, temperature: 0.9 },
+    combat: { input: 8000, output: 1000, temperature: 0.6 },
+    generation: { input: 32000, output: 8192, temperature: 1.0 },
+    audit: { input: 12000, output: 3000, temperature: 0.7 },
+};
+
+const buildGenerationConfig = (
+    promptText: string,
+    requestedConfig: GenerationConfig | undefined,
+    mode: AiInteractionMode
+) => {
+    const profile = TOKEN_LIMIT_PROFILES[mode] ?? TOKEN_LIMIT_PROFILES.gameplay;
+    const totalBudget = profile.input + profile.output;
+
+    const base: GenerationConfig = {
+        temperature: requestedConfig?.temperature ?? profile.temperature,
+        topP: requestedConfig?.topP ?? 0.9,
+        topK: requestedConfig?.topK ?? 64,
+        maxOutputTokens: requestedConfig?.maxOutputTokens ?? profile.output,
+    };
+
+    const sanitized: Record<string, any> = {
+        temperature: clamp(base.temperature, 0, 1),
+        topP: clamp(base.topP, 0, 1),
+        topK: Math.max(1, Math.min(base.topK, 128)),
+    };
+
+    const promptTokens = estimateTokenCount(promptText);
+    if (promptTokens > profile.input) {
+        console.warn(`[aiService] Prompt estimado em ${promptTokens} tokens excede o limite sugerido (${profile.input}) para o modo ${mode}. Considere resumir o contexto ou usar o cache.`);
+    }
+
+    const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
+    const availableBudget = Math.max(
+        MIN_OUTPUT_TOKENS,
+        Math.min(profile.output, HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
+    );
+    const appliedMax = Math.max(MIN_OUTPUT_TOKENS, Math.min(requestedMax, availableBudget));
+
+    sanitized.temperature = clamp(base.temperature ?? profile.temperature, 0, 1);
+    sanitized.maxOutputTokens = appliedMax;
+    sanitized.responseMimeType = "application/json";
+
+    return {
+        config: sanitized,
+        promptTokens,
+        requestedMax,
+        appliedMax,
+        budget: availableBudget,
+        profile,
+    };
+};
 
 const createSystemInstruction = (useAiHomebrew: boolean, enableNarrativeRevalidation: boolean = false): string => {
     const homebrewRule = useAiHomebrew
@@ -70,7 +133,60 @@ export interface GameUpdateResult {
 }
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback } = input;
+    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary } = input;
+
+    const simplifyInventoryItem = (item: any) => {
+        if (!item) return null;
+        const parsedQuantity = Number(item.quantity);
+        const safeQuantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+
+        const simplified: Record<string, any> = {
+            id: item.id ?? null,
+            index: item.index ?? null,
+            name: item.name,
+            quantity: safeQuantity,
+            equipped: Boolean(item.equipped),
+        };
+
+        if (item.weight !== undefined) simplified.weight = item.weight;
+        if (item.weapon_category) simplified.weapon_category = item.weapon_category;
+        if (item.weapon_range) simplified.weapon_range = item.weapon_range;
+        if (item.armor_category) simplified.armor_category = item.armor_category;
+        if (item.armor_class) {
+            simplified.armor_class = {
+                base: item.armor_class.base ?? null,
+                dex_bonus: item.armor_class.dex_bonus ?? false,
+                max_bonus: item.armor_class.max_bonus ?? null,
+            };
+        }
+        const equipmentCategoryIndex = item.equipment_category?.index || item.equipment_category;
+        if (equipmentCategoryIndex) simplified.equipment_category = equipmentCategoryIndex;
+        if (item.cost?.quantity && item.cost?.unit) {
+            simplified.cost = { quantity: item.cost.quantity, unit: item.cost.unit };
+        }
+        if (item.damage?.damage_dice || item.damage?.damage_type?.name) {
+            simplified.damage = {
+                dice: item.damage?.damage_dice ?? null,
+                type: item.damage?.damage_type?.name ?? null,
+            };
+        }
+        if (item.two_handed_damage?.damage_dice || item.two_handed_damage?.damage_type?.name) {
+            simplified.two_handed_damage = {
+                dice: item.two_handed_damage?.damage_dice ?? null,
+                type: item.two_handed_damage?.damage_type?.name ?? null,
+            };
+        }
+        if (Array.isArray(item.properties) && item.properties.length > 0) {
+            simplified.properties = item.properties
+                .map((prop: any) => prop?.index || prop?.name)
+                .filter(Boolean);
+        }
+        if (item.consumable) simplified.consumable = true;
+        if (item.usable) simplified.usable = true;
+        if (item.recoverable) simplified.recoverable = true;
+
+        return simplified;
+    };
     
     // Create a leaner character object for the prompt
     const characterForPrompt = character ? {
@@ -80,7 +196,9 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         level: character.level,
         attributes: character.attributes,
         proficiencies: character.proficiencies,
-        inventory: character.inventory.map((item: any) => ({ name: item.name, equipped: item.equipped })), // only name and equipped status
+        inventory: character.inventory
+            .map((item: any) => simplifyInventoryItem(item))
+            .filter(Boolean),
         spells: character.spells,
         storySoFar: character.storySoFar,
         worldState: character.worldState,
@@ -97,7 +215,14 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         ? `\n### Feedback do Sistema\n${validationFeedback.trim()}\n`
         : '';
 
-    const mainPrompt = `### Estado do Personagem
+    const summarySection = storySummary
+        ? `### Resumo da Jornada
+${storySummary}
+
+`
+        : '';
+
+    const mainPrompt = `${summarySection}### Estado do Personagem
 \`\`\`json
 ${characterContext}
 \`\`\`
@@ -209,20 +334,33 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     delete (jsonSchema as any).definitions;
     delete (jsonSchema as any).$schema;
 
+    const basePrompt = createPrompt(input, isGemma);
 
-    const finalGenerationConfig: any = { ...generationConfig };
-    
     const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse> => {
         try {
-            let prompt = createPrompt(input, isGemma);
+            let prompt = basePrompt;
             if (isRetry) {
                 prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
+            }
+
+            const mode = input.mode ?? 'gameplay';
+            const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
+                buildGenerationConfig(prompt, generationConfig, mode);
+
+            if (appliedMax !== requestedMax) {
+                console.log(
+                    `[aiService (${modelName})][${mode}] maxOutputTokens ajustado de ${requestedMax} para ${appliedMax} (prompt estimado em ${promptTokens} tokens, perfil sugere ${profile.output}).`
+                );
+            } else {
+                console.log(
+                    `[aiService (${modelName})][${mode}] maxOutputTokens=${appliedMax} (prompt estimado em ${promptTokens} tokens).`
+                );
             }
 
             console.log(`[aiService (${modelName})] Gerando conteúdo com prompt...`);
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: finalGenerationConfig,
+                generationConfig: sanitizedGenerationConfig,
             });
 
             const response = result.response;

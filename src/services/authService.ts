@@ -31,7 +31,7 @@ export const registerUser = async (details: RegisterDetails) => {
 export const loginUser = async (credentials: LoginCredentials) => {
     return apiClient<{ success: boolean; user: any; token: string; message: string }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: credentials.login, password: credentials.password }),
+        body: JSON.stringify({ login: credentials.login, password: credentials.password }),
     });
 };
 

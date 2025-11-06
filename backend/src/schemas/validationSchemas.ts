@@ -2,14 +2,30 @@
 import { z } from 'zod';
 
 // --- Auth ---
+const usernameRegex = /^[a-zA-Z0-9]+$/;
+const usernameSchema = z.string()
+    .trim()
+    .min(2, "O nome de usuário deve ter pelo menos 2 caracteres.")
+    .max(30, "O nome de usuário deve ter no máximo 30 caracteres.")
+    .regex(usernameRegex, "O nome de usuário deve conter apenas letras e números.");
+
 export const RegisterSchema = z.object({
-    username: z.string().min(3, "O nome de usuário deve ter pelo menos 3 caracteres.").max(50),
-    email: z.string().email("Formato de email inválido."),
+    username: usernameSchema,
+    email: z.string().trim().email("Formato de email inválido."),
     password: z.string().min(6, "A senha deve ter pelo menos 6 caracteres."),
 });
 
 export const LoginSchema = z.object({
-    email: z.string().email("Formato de email inválido."),
+    login: z.string()
+        .trim()
+        .min(1, "Informe seu email ou nome de usuário.")
+        .max(100, "O identificador de login é muito longo.")
+        .refine((value) => {
+            if (value.includes('@')) {
+                return z.string().email().safeParse(value).success;
+            }
+            return value.length >= 2 && value.length <= 30 && usernameRegex.test(value);
+        }, "Informe um email válido ou nome de usuário com letras e números."),
     password: z.string().min(1, "A senha é obrigatória."),
 });
 
@@ -23,7 +39,7 @@ export const GenerationConfigSchema = z.object({
     temperature: z.number().min(0).max(1),
     topP: z.number().min(0).max(1),
     topK: z.number().min(1),
-    maxOutputTokens: z.number().min(1),
+    maxOutputTokens: z.number().min(256).max(4096),
 });
 
 export const SettingsSchema = z.object({

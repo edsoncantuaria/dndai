@@ -116,6 +116,29 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitized.actionOptions = [];
     sanitationLogs.push('actionOptions não era um array, resetado para [].');
   }
+
+  if (Array.isArray((sanitized as any).xpEvents)) {
+    (sanitized as any).xpEvents = (sanitized as any).xpEvents
+      .map((event: any) => {
+        if (!event || typeof event !== 'object') return null;
+        const { type } = event;
+        if (type !== 'skill' && type !== 'quest') return null;
+        const xpEvent: Record<string, any> = { type };
+        if (type === 'skill') {
+            if (typeof event.dc === 'number' && Number.isFinite(event.dc)) xpEvent.dc = event.dc;
+            if (typeof event.difficulty === 'string') xpEvent.difficulty = event.difficulty;
+        }
+        if (type === 'quest') {
+            if (typeof event.questLevel === 'number' && Number.isFinite(event.questLevel)) xpEvent.questLevel = event.questLevel;
+        }
+        if (event.description && typeof event.description === 'string') xpEvent.description = event.description.slice(0, 140);
+        return xpEvent;
+      })
+      .filter(Boolean);
+  } else if ((sanitized as any).xpEvents !== undefined) {
+    delete (sanitized as any).xpEvents;
+    sanitationLogs.push('xpEvents inválido removido.');
+  }
   
   // Sanitize worldState
   if (!sanitized.worldState || typeof sanitized.worldState !== 'object' || Object.keys(sanitized.worldState).length === 0) {

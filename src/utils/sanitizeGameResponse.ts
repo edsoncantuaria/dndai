@@ -51,5 +51,6 @@ export const sanitizeGameMasterResponse = (response: any): GameMasterResponse =>
         ambientSound: response.ambientSound ?? 'none',
         systemLog: response.systemLog ?? undefined,
         imagePrompt: response.imagePrompt ?? undefined,
+        xpEvents: Array.isArray(response.xpEvents) ? response.xpEvents : undefined,
     };
 };

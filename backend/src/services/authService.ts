@@ -13,10 +13,10 @@ const defaultSettings = {
     ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
     generationConfig: {
-        temperature: 1.1,
+        temperature: 0.9,
         topP: 0.9,
         topK: 64,
-        maxOutputTokens: 32768,
+        maxOutputTokens: 1024,
     },
     volume: 0.3,
     isMuted: false,
@@ -26,11 +26,22 @@ const defaultSettings = {
 
 export const registerUser = async (userData: z.infer<typeof RegisterSchema>) => {
     const userRepository = AppDataSource.getRepository(User);
-    const { username, email, password } = userData;
+    const username = userData.username.trim();
+    const email = userData.email.trim().toLowerCase();
+    const { password } = userData;
 
-    const existingUser = await userRepository.findOne({ where: [{ email }, { username }] });
-    if (existingUser) {
-        throw createError(409, 'Usuário ou email já existente.');
+    const existingUsername = await userRepository.findOne({ where: { username } });
+    if (existingUsername) {
+        const error = createError(409, 'O nome de usuário já está em uso.');
+        (error as any).errors = { username: ['Este nome de usuário já está em uso.'] };
+        throw error;
+    }
+
+    const existingEmail = await userRepository.findOne({ where: { email } });
+    if (existingEmail) {
+        const error = createError(409, 'O email informado já está cadastrado.');
+        (error as any).errors = { email: ['Este email já está em uso.'] };
+        throw error;
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -47,20 +58,31 @@ export const registerUser = async (userData: z.infer<typeof RegisterSchema>) => 
 };
 
 
-export const loginUser = async (email: string, password_input: string) => {
+export const loginUser = async (login: string, password_input: string) => {
     const userRepository = AppDataSource.getRepository(User);
+    const normalizedLogin = login.trim();
+    const isEmail = normalizedLogin.includes('@');
+
+    const whereClause = isEmail
+        ? { email: normalizedLogin.toLowerCase() }
+        : { username: normalizedLogin };
+
     const user = await userRepository.findOne({
-        where: { email },
+        where: whereClause,
         relations: ["licenseKey"]
     });
 
     if (!user) {
-        throw createError(404, 'Usuário não encontrado.');
+        const error = createError(401, 'Credenciais inválidas.');
+        (error as any).errors = { login: ['Usuário ou email não encontrado.'] };
+        throw error;
     }
 
     const isMatch = await bcrypt.compare(password_input, user.password);
     if (!isMatch) {
-        throw createError(401, 'Credenciais inválidas.');
+        const error = createError(401, 'Credenciais inválidas.');
+        (error as any).errors = { password: ['Senha incorreta.'] };
+        throw error;
     }
 
     const token = jwt.sign(

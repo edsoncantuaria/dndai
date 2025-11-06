@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 const LicenseActivationForm = () => {
-    const { activateLicense, logout, isLoading } = useAuth();
+    const { activateLicense, logout, isActionLoading } = useAuth();
     const [licenseKey, setLicenseKey] = useState('');
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -43,10 +43,10 @@ const LicenseActivationForm = () => {
                 <div>
                     <button
                         type="submit"
-                        disabled={isLoading || !licenseKey.trim()}
+                        disabled={isActionLoading || !licenseKey.trim()}
                         className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-bold text-stone-900 bg-amber-500 hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 disabled:opacity-50"
                     >
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Ativar Licença'}
+                        {isActionLoading ? <Loader2 className="animate-spin" /> : 'Ativar Licença'}
                     </button>
                 </div>
             </form>
