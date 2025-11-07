@@ -1,8 +1,9 @@
 // src/components/NewCreationCharacter/NewStep4_ProficienciesAndLanguages.tsx
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import type { ApiListItem } from '@/types';
 import { ArrowLeft, ArrowRight, Dice5, Languages, Shield, BookOpenCheck } from 'lucide-react';
+import { normalizeProficiencyName } from '@/utils/translator';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -11,7 +12,7 @@ interface Props {
     allLanguages: ApiListItem[];
 }
 
-const SectionShell: React.FC<{ title: string; subtitle?: string; icon?: React.ReactNode; actions?: React.ReactNode }> = ({
+const SectionShell: React.FC<{ title: string; subtitle?: string; icon?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode }> = ({
     title,
     subtitle,
     icon,
@@ -92,14 +93,14 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                     Parte das proficiências vem do seu legado; outras precisam ser escolhidas agora. Complete cada grupo para
                     desbloquear o avanço.
                 </p>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     <div className="rounded-2xl border border-white/5 bg-stone-950/60 p-4">
                         <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Proficiências Fixas</p>
                         <div className="mt-3 flex flex-wrap gap-2">
                             {Array.from(allFixedProficiencies.values())
                                 .filter(p => p?.name && !p.name.includes('Saving Throw'))
                                 .map(prof => (
-                                    <Chip key={prof.index}>{prof?.name}</Chip>
+                                    <Chip key={prof.index}>{normalizeProficiencyName(prof?.name || '')}</Chip>
                                 ))}
                         </div>
                     </div>
@@ -109,7 +110,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                             {Array.from(allFixedProficiencies.values())
                                 .filter(p => p?.name && p.name.includes('Saving Throw'))
                                 .map(prof => (
-                                    <Chip key={prof.index}>{prof?.name}</Chip>
+                                    <Chip key={prof.index}>{normalizeProficiencyName(prof?.name || '')}</Chip>
                                 ))}
                         </div>
                     </div>
@@ -152,7 +153,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                                     <div className="flex flex-wrap items-center justify-between gap-3">
                                         <div>
                                             <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{choice.source}</p>
-                                            <h4 className="text-lg font-semibold text-stone-100">{choice.desc}</h4>
+                                            <h4 className="text-lg font-semibold text-stone-100">{normalizeProficiencyName(choice.desc)}</h4>
                                         </div>
                                         <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
                                             {selectedCountInGroup}/{choice.choose}
@@ -168,7 +169,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                                             return (
                                                 <SelectableTile
                                                     key={option.index}
-                                                    label={option.name}
+                                                    label={normalizeProficiencyName(option.name)}
                                                     description={option.type || 'Perícia'}
                                                     isActive={isSelected}
                                                     disabled={disabled}
@@ -192,7 +193,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                     actions={
                         <button
                             type="button"
-                            onClick={handleRandomizeLanguages}
+                            onClick={() => handleRandomizeLanguages(baseLanguages || [], languageChoicesCount)}
                             className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
                         >
                             <Dice5 className="h-4 w-4" />

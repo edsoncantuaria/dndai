@@ -19,7 +19,7 @@ const SectionHeader: React.FC<{ title: string; subtitle?: string; icon?: React.R
     <div className="flex items-center gap-3">
         {icon && <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-stone-900 text-amber-200">{icon}</div>}
         <div>
-            <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">{subtitle}</p>
+            {subtitle && <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">{subtitle}</p>}
             <h3 className="text-2xl font-semibold text-amber-50">{title}</h3>
         </div>
     </div>
@@ -198,7 +198,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                                             const value = opt.string || opt.desc;
                                             return (
                                                 <SelectCard key={`${section.key}-${i}`} isActive={currentValue === value} onClick={() => setValue(value)}>
-                                                    <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{opt.alignments?.join(', ') || 'Livre'}</p>
+                                                    <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{opt.alignments?.map((a: any) => a.name).join(', ') || 'Livre'}</p>
                                                     <p className="text-sm text-stone-200">{value}</p>
                                                 </SelectCard>
                                             );
