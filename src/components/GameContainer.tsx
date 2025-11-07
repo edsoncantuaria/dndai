@@ -239,7 +239,7 @@ const GameContainer = () => {
 
         if (gameStage === 'session_list') {
             return (
-                <div className="relative isolate min-h-screen w-full overflow-hidden bg-[#030812]">
+                <div className="relative isolate min-h-full w-full overflow-hidden bg-[#030812]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),transparent_60%)]" />
                     <div className="absolute -bottom-32 right-0 h-96 w-96 bg-emerald-500/20 blur-[160px]" />
                     <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-8">
@@ -334,7 +334,7 @@ const GameContainer = () => {
             ];
 
             return (
-                <div className="relative isolate min-h-screen w-full overflow-hidden bg-[#04070f]">
+                <div className="relative isolate min-h-full w-full overflow-y-auto bg-[#04070f]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.15),transparent_60%)]" />
                     <div className="absolute -top-32 right-0 h-96 w-96 bg-rose-500/20 blur-[180px]" />
                     <div className="absolute bottom-0 left-0 h-72 w-72 bg-emerald-500/15 blur-[160px]" />
@@ -378,7 +378,7 @@ const GameContainer = () => {
                         {characters.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 {characters.map(char => {
-                                    const updatedAt = new Date(char.updatedAt).toLocaleDateString('pt-BR');
+                                    const updatedAt = char.updatedAt ? new Date(char.updatedAt).toLocaleDateString('pt-BR') : 'Data inválida';
                                     return (
                                         <article
                                             key={char.id}
