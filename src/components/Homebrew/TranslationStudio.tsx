@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Check, Loader2, Save } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as translationService from '@/services/translationService';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 // Lista expandida para incluir todos os novos tipos de tradução
 const TRANSLATION_CATEGORIES = [
@@ -77,10 +78,13 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
     
     if(isLoading) {
         return (
-             <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando estúdio de tradução...</p>
-            </div>
+            <PremiumLoader
+                title="Carregando o Estúdio de Tradução"
+                subtitle="Sincronizando termos base, categorias e conteúdo compartilhado."
+                description="Requisitando todas as traduções para você editar em um só lugar..."
+                actionLabel="Voltar para a Oficina"
+                onAction={onCancel}
+            />
         )
     }
 

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
-import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import * as DndApiService from '@/services/dndApiService';
-import { Loader2 } from 'lucide-react';
+import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 
 interface CharacterCreationProps {
@@ -53,10 +53,11 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
 
     if (isDataLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando tomos antigos...</p>
-            </div>
+            <PremiumLoader
+                title="Preparando o criador de heróis"
+                subtitle="Buscando raças, classes, antecedentes e idiomas disponíveis."
+                description="Sincronizando catálogos básicos para liberar todas as opções da ficha..."
+            />
         );
     }
     
