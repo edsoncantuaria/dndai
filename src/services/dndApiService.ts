@@ -63,19 +63,25 @@ async function fetchList<T extends ApiListItem>(endpoint: string): Promise<{ res
   return { results };
 }
 
-/* 🔹 Helper inteligente para detalhes */
-export async function getResourceDetails(resource: string, index: string): Promise<any> {
+/**
+ * Obtém detalhes de um item específico (ex: /classes/barbarian, /equipment/greataxe).
+ * Garante que sempre retorne um objeto, mesmo em caso de falha, para segurança no merge.
+ * Adiciona normalização para endpoints /levels.
+ */
+export async function getResourceDetails(resource: string, index: string): Promise<any | null> {
     const data = await fetchJson<any>(`/${resource}/${index}`);
-
+  
+    // Se a resposta for um array direto (como em /classes/{index}/levels), retorne-o.
     if (Array.isArray(data)) {
-        return data;
+      return data;
     }
-
+  
+    // Mantém a compatibilidade com outras respostas que podem ter um objeto com a propriedade `levels`
     if (data && typeof data === 'object' && 'levels' in data && Array.isArray(data.levels)) {
-        return data.levels;
+      return data.levels;
     }
-
-    return data || {};
+  
+    return data || {}; // Retorna objeto vazio em falha
 }
 
 
