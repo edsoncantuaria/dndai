@@ -357,10 +357,10 @@ const GameContainer = () => {
 
         // Default: main_menu or loading
         return (
-            <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-[#02060d]">
+            <div className="relative min-h-full flex flex-col overflow-x-hidden overflow-y-auto bg-[#02060d]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),_transparent_55%)]" />
                 <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-amber-500/5 via-transparent to-transparent blur-3xl" />
-                <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col gap-12 animate-fadeIn min-w-0">
+                <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col flex-grow gap-12 animate-fadeIn min-w-0">
                     <div className="space-y-6 md:hidden">
                         <div className="space-y-2">
                             <p className="text-[11px] uppercase tracking-[0.35em] text-amber-300">Mestre virtual</p>
@@ -500,13 +500,13 @@ const GameContainer = () => {
                                     <p className="text-sm text-stone-400">{action.description}</p>
                                 </div>
                                 {action.cta && (
-                                    <span className="text-sm font-semibold text-amber-200">{action.cta}</span>
+                                    <span className="text-sm font-semibold text-amber-200 mt-auto">{action.cta}</span>
                                 )}
                             </button>
                         ))}
                     </main>
 
-                    <footer className="w-full rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm">
+                    <footer className="w-full rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm mt-auto">
                         <div className="flex flex-wrap gap-3 justify-between">
                             <button
                                 onClick={() => setShowSettingsModal(true)}
