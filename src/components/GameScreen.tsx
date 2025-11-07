@@ -34,6 +34,7 @@ import DailyRecapPanel from './DailyRecapPanel';
 import GuidedTipsOverlay from './GuidedTipsOverlay';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import PremiumLoader from '@/components/ui/PremiumLoader';
+import { TooltipProvider } from './ui/tooltip';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -301,7 +302,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     }
     
     return (
-        <>
+        <TooltipProvider>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
                 <Vignette />
                 {isLoading && (
@@ -483,7 +484,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     }}
                 />
             </div>
-        </>
+        </TooltipProvider>
     );
 };
 
