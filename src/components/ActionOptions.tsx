@@ -343,7 +343,7 @@ const ActionOptions: React.FC = () => {
                     )}
                 </AnimatePresence>
                 {(isMobileCombatButtonVisible || isMobileNonCombatButtonVisible) && (
-                    <div className="fixed bottom-20 right-4 z-30">
+                    <div className="fixed bottom-5 right-4 z-30">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             disabled={!isMobileCombatButtonEnabled && combatState.isActive}
