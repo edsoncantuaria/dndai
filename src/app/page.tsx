@@ -35,7 +35,7 @@ const AppContent = () => {
 
 export default function HomePage() {
   return (
-    <main className="h-full w-full p-2 md:p-4 flex items-center justify-center">
+    <main className="h-full w-full p-2 md:p-4 flex flex-col items-center justify-start md:justify-center">
       <SettingsProvider>
         <AuthProvider>
           <AppContent />
