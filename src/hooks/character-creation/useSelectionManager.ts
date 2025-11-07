@@ -79,20 +79,23 @@ export const useSelectionManager = (
         return selectedInOtherGroups;
     }, [proficiencySelections, allFixedProficiencies]);
 
-    const handleProficiencyChange = useCallback((profIndex: string, choiceGroup: ProficiencyChoiceWithSource) => {
+    const handleProficiencyChange = (choiceId: string, profIndex: string) => {
+        const choiceGroup = allProficiencyChoices.find(c => c.id === choiceId);
+        if (!choiceGroup) return;
+
         setField('proficiencySelections', (prev: Record<string, string[]>) => {
             const newSelections = { ...prev };
-            const currentGroup = newSelections[choiceGroup.id] || [];
+            const currentGroup = newSelections[choiceId] || [];
             const isSelected = currentGroup.includes(profIndex);
 
             if (isSelected) {
-                newSelections[choiceGroup.id] = currentGroup.filter(p => p !== profIndex);
+                newSelections[choiceId] = currentGroup.filter(p => p !== profIndex);
             } else if (currentGroup.length < choiceGroup.choose) {
-                newSelections[choiceGroup.id] = [...currentGroup, profIndex];
+                newSelections[choiceId] = [...currentGroup, profIndex];
             }
             return newSelections;
         });
-    }, [setField]);
+    };
 
     const handleRandomizeProficiencies = useCallback(() => {
         const newSelections: Record<string, string[]> = {};
