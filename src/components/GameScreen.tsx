@@ -388,17 +388,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     <NewCombatTracker /> 
                 </div>
 
-                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4", "md:mb-0 mb-16")}>
+                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4 min-h-0", "md:mb-0 mb-16")}>
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 xl:col-span-6 flex flex-col rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
                         <div className="hidden md:block xl:hidden flex-none p-4 border-b border-white/5 bg-white/5">
                             <StoryHighlightsCard />
                         </div>
-                        <div className="flex-grow p-4">
+                        <div className="flex-grow p-4 min-h-0">
                             <div className="rounded-3xl border border-white/5 bg-black/30 p-4 h-full overflow-y-auto">
                                 <NewNarrativeLog />
                             </div>
                         </div>
-                        <ActionOptions />
+                        <div className="flex-shrink-0">
+                           <ActionOptions />
+                        </div>
                     </div>
                     
                     <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 xl:col-span-3 rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
@@ -489,3 +491,5 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
+
+    
