@@ -75,6 +75,33 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
+  if (sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
+    const previousItems = currentCharacter.inventory as any[];
+    const mergeMap = new Map<string, any>();
+    for (const item of previousItems) {
+      const key = (item?.id || item?.index || item?.name || '').toString().toLowerCase();
+      if (key) mergeMap.set(key, item);
+    }
+    sanitized.updatedCharacter.inventory = sanitized.updatedCharacter.inventory.map((item: any) => {
+      if (!item) return item;
+      const key = (item.id || item.index || item.name || '').toString().toLowerCase();
+      const fallback = key ? mergeMap.get(key) : null;
+      return fallback ? { ...fallback, ...item } : item;
+    });
+    const userId = currentCharacter?.userId || currentCharacter?.playerId || 0;
+    hydrateInventoryItems(sanitized.updatedCharacter.inventory, userId, previousItems).then(({ items, metrics }) => {
+      sanitized.updatedCharacter!.inventory = items as any;
+      sanitized.updatedCharacter!.currency = reconcileCurrency(
+        sanitized.updatedCharacter!.currency,
+        metrics.currency
+      );
+      sanitized.updatedCharacter!.currentWeight = metrics.totalWeight;
+    }).catch(() => {
+      sanitized.updatedCharacter!.currency = sanitized.updatedCharacter!.currency || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
+    });
+  }
+
+
 
   // Sanitize logEntries
   if (Array.isArray(sanitized.logEntries)) {
@@ -164,6 +191,21 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }
   }
 
+  if (sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
+    const previousItems = currentCharacter.inventory as any[];
+    const mergeMap = new Map<string, any>();
+    for (const item of previousItems) {
+      const key = (item?.id || item?.index || item?.name || '').toString().toLowerCase();
+      if (key) mergeMap.set(key, item);
+    }
+    sanitized.updatedCharacter.inventory = sanitized.updatedCharacter.inventory.map((item: any) => {
+      if (!item) return item;
+      const key = (item.id || item.index || item.name || '').toString().toLowerCase();
+      const fallback = key ? mergeMap.get(key) : null;
+      return fallback ? { ...fallback, ...item } : item;
+    });
+  }
+
   // **NOVO**: Sanitize combatState de forma agressiva
   if (sanitized.combatState) {
       if (!sanitized.combatState.isActive) {
@@ -230,6 +272,10 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   }
 
   if (sanitized.updatedCharacter && typeof sanitized.updatedCharacter === 'object') {
+    if (Array.isArray((sanitized.updatedCharacter as any).quests)) {
+        (sanitized.updatedCharacter as any).quests = (sanitized.updatedCharacter as any).quests.filter((quest: any) => quest && quest.id);
+    }
+
     if (Array.isArray((sanitized.updatedCharacter as any).relationships)) {
         (sanitized.updatedCharacter as any).relationships = (sanitized.updatedCharacter as any).relationships.map((rel: any) => {
             if (!rel || typeof rel !== 'object') return null;

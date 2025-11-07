@@ -1,8 +1,9 @@
 // src/components/ActionOptions.tsx
 'use client';
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Loader2, Send, Swords, X } from 'lucide-react';
+import { Loader2, Send, Swords, X, MessageSquare, Compass, Eye, Zap, Shield, Sparkles } from 'lucide-react';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -55,7 +56,7 @@ const LootOfferDisplay: React.FC = () => {
     if (!hasItems && !hasCurrency) return null;
 
     return (
-        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn">
+        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn spotlight-card">
             <h4 className="font-semibold text-amber-300">Tesouro Encontrado!</h4>
             <ul className="text-sm text-stone-300 my-2 list-disc list-inside">
                 {pendingLootOffer.items.map(item => (
@@ -74,7 +75,7 @@ const LootOfferDisplay: React.FC = () => {
     )
 };
 
-const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean }> = ({ onActionSubmit, disabled }) => {
+const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean, compact?: boolean }> = ({ onActionSubmit, disabled, compact }) => {
     const [inputValue, setInputValue] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -86,24 +87,98 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-4">
+        <form onSubmit={handleSubmit} className={`flex items-center gap-2 mt-4 ${compact ? 'flex-col' : ''}`}>
             <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="O que você faz?"
                 disabled={disabled}
-                className="flex-grow bg-stone-800 border border-stone-600 rounded-md py-2 px-3 text-stone-200 focus:ring-amber-500 focus:border-amber-500 disabled:opacity-50"
+                className={`bg-white/5 border border-white/15 rounded-2xl py-2 px-3 text-stone-100 placeholder:text-stone-500 focus:ring-2 focus:ring-amber-400/60 focus:border-transparent disabled:opacity-50 ${compact ? 'w-full' : 'flex-grow'}`}
             />
             <button
                 type="submit"
                 disabled={disabled || !inputValue.trim()}
-                className="bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold p-2 rounded-md transition-colors disabled:opacity-50"
+                className={`bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-900 font-semibold ${compact ? 'w-full py-2 rounded-2xl' : 'p-2 rounded-full'} transition-colors disabled:opacity-50`}
                 aria-label="Enviar Ação"
             >
                 <Send className="h-5 w-5" />
             </button>
         </form>
+    );
+};
+
+interface ActionSuggestionButtonProps {
+    label: string;
+    skillName?: string | null;
+    disabled: boolean;
+    delay: number;
+    onSelect: () => void;
+}
+
+const getActionIcon = (text: string) => {
+    const normalized = text.toLowerCase();
+    if (normalized.includes('atac') || normalized.includes('lutar')) return <Swords className="h-5 w-5" />;
+    if (normalized.includes('investig') || normalized.includes('percep')) return <Eye className="h-5 w-5" />;
+    if (normalized.includes('falar') || normalized.includes('negociar')) return <MessageSquare className="h-5 w-5" />;
+    if (normalized.includes('mover') || normalized.includes('explorar')) return <Compass className="h-5 w-5" />;
+    if (normalized.includes('magia') || normalized.includes('conjurar')) return <Sparkles className="h-5 w-5" />;
+    if (normalized.includes('defender') || normalized.includes('prote')) return <Shield className="h-5 w-5" />;
+    return <Zap className="h-5 w-5" />;
+};
+
+const ActionSuggestionButton: React.FC<ActionSuggestionButtonProps> = ({ label, skillName, disabled, delay, onSelect }) => {
+    const [ripples, setRipples] = useState<Array<{ id: number; x: number; y: number; size: number }>>([]);
+
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        if (disabled) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const ripple = {
+            id: Date.now(),
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top,
+            size,
+        };
+        setRipples(prev => [...prev, ripple]);
+        onSelect();
+        setTimeout(() => {
+            setRipples(prev => prev.filter(r => r.id !== ripple.id));
+        }, 450);
+    };
+
+    return (
+        <motion.button
+            type="button"
+            onClick={handleClick}
+            disabled={disabled}
+            className="relative text-left w-full bg-white/5 hover:bg-white/10 border border-white/10 text-stone-100 font-semibold py-3 px-4 rounded-2xl shadow-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay }}
+            whileTap={{ scale: disabled ? 1 : 0.97 }}
+        >
+            {ripples.map(ripple => (
+                <span
+                    key={ripple.id}
+                    className="action-ripple"
+                    style={{ width: ripple.size, height: ripple.size, left: ripple.x, top: ripple.y }}
+                />
+            ))}
+            <span className="relative z-10 flex items-center gap-2">
+                <span className="hidden sm:block">{label}</span>
+                <span className="sm:hidden flex items-center gap-2 w-full">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-stone-900/60 border border-stone-700">
+                        {getActionIcon(label)}
+                    </span>
+                    <span className="flex-1 text-left">
+                        <span className="block text-sm font-semibold text-stone-200">{label}</span>
+                        {skillName && <span className="text-[11px] text-amber-300/80">{skillName}</span>}
+                    </span>
+                </span>
+                {skillName && <span className="hidden sm:inline text-xs text-amber-300/80 ml-1">({skillName})</span>}
+            </span>
+        </motion.button>
     );
 };
 
@@ -118,7 +193,6 @@ const ActionOptions: React.FC = () => {
         combatState,
         character,
         nextTurn,
-        setSkillCheckRequest,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -169,7 +243,8 @@ const ActionOptions: React.FC = () => {
         setIsOpen(false);
     };
 
-    const renderActionContent = () => {
+    const renderActionContent = (options?: { compact?: boolean }) => {
+        const compact = options?.compact ?? false;
         if (combatState.isActive && !isPlayerTurn) {
             return (
                 <div className="text-center">
@@ -216,29 +291,26 @@ const ActionOptions: React.FC = () => {
         return (
             <div className="w-full">
                 {hasSuggestedActions && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className={`grid gap-2 ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
                         {actionOptions.map((action, index) => {
                             const actionText = typeof action === 'object' ? action.text : action;
-                            const skillName = typeof action === 'object' && action.skill ? `(${action.skill})` : null;
-                            const display_text = actionText; // Agora não inclui a perícia no texto
-
+                            const skillName = typeof action === 'object' && action.skill ? action.skill : null;
                             if (!actionText || typeof actionText !== 'string') return null;
-    
+
                             return (
-                                <button
-                                    key={index}
-                                    onClick={() => handleActionClick(action)}
+                                <ActionSuggestionButton
+                                    key={`${actionText}-${index}`}
+                                    label={actionText}
+                                    skillName={skillName}
                                     disabled={isActionLocked}
-                                    className="text-left w-full bg-stone-700/80 hover:bg-stone-600 border border-stone-600 text-stone-300 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-                                    style={{ animation: `staggerIn 300ms ease-out ${index * 80}ms forwards`, opacity: 0 }}
-                                >
-                                    {display_text} {skillName && <span className="text-xs text-amber-300/80 ml-1">{skillName}</span>}
-                                </button>
-                            )
+                                    delay={index * 0.05}
+                                    onSelect={() => handleActionClick(action)}
+                                />
+                            );
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
+                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} compact={compact} />
                  {!hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
@@ -253,36 +325,51 @@ const ActionOptions: React.FC = () => {
     return (
         <>
             {/* Desktop: Static Panel */}
-            <div className="hidden md:block p-4 flex-shrink-0 border-t border-stone-700/80 bg-stone-900/30 overflow-y-auto">
+            <div className="hidden md:block p-4 flex-shrink-0 border-t border-white/10 bg-white/5 backdrop-blur-sm rounded-b-2xl overflow-y-auto">
                  {renderActionContent()}
             </div>
 
             {/* Mobile: Floating Action Button and Modal */}
             <div className="md:hidden">
-                {isOpen && (
-                    <div 
-                        className="fixed inset-0 bg-black/50 z-20"
-                        onClick={() => setIsOpen(false)}
-                    />
-                )}
+                <AnimatePresence>
+                    {isOpen && (
+                        <motion.div
+                            key="action-backdrop"
+                            className="fixed inset-0 bg-black/60 z-20"
+                            onClick={() => setIsOpen(false)}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                        />
+                    )}
+                </AnimatePresence>
                 {(isMobileCombatButtonVisible || isMobileNonCombatButtonVisible) && (
                     <div className="fixed bottom-20 right-4 z-30">
                         <button
                             onClick={() => setIsOpen(!isOpen)}
                             disabled={!isMobileCombatButtonEnabled && combatState.isActive}
-                            className="h-16 w-16 rounded-full bg-amber-600 text-stone-900 flex items-center justify-center shadow-lg transition-all duration-300 ease-in-out disabled:bg-stone-500 disabled:cursor-not-allowed"
+                            className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-stone-900 flex items-center justify-center shadow-lg shadow-amber-900/50 border border-white/10 transition-all duration-300 ease-in-out disabled:from-stone-600 disabled:to-stone-700 disabled:text-stone-300 disabled:cursor-not-allowed"
                             aria-label={isOpen ? "Fechar Ações" : "Abrir Ações"}
                         >
                             {isOpen ? <X className="h-8 w-8" /> : (isLoading ? <Loader2 className="h-8 w-8 animate-spin" /> : <Swords className="h-8 w-8" />)}
                         </button>
                     </div>
                 )}
-                
-                {isOpen && (
-                     <div className="fixed bottom-[11rem] top-20 right-4 left-4 bg-stone-800/80 backdrop-blur-md rounded-lg shadow-2xl p-4 border border-stone-600 z-30 animate-fadeInSlideUp overflow-y-auto">
-                        {renderActionContent()}
-                    </div>
-                )}
+                <AnimatePresence>
+                    {isOpen && (
+                        <motion.div
+                            key="action-sheet"
+                            initial={{ opacity: 0, y: 35 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            transition={{ duration: 0.25 }}
+                            className="fixed bottom-[11rem] top-20 right-4 left-4 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
+                        >
+                            <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-300 mb-3">Escolha sua ação</h3>
+                            {renderActionContent({ compact: true })}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </>
     );

@@ -1,6 +1,6 @@
 // backend/src/routes/sessoesRoutes.ts
 import { Router } from 'express';
-import { createSessao, getSessoes, getSessaoById, deleteSessao, updateHomebrewInstallation as updateSessaoHomebrew } from '../controllers/sessoesController.js';
+import { createSessao, getSessoes, getSessaoById, deleteSessao, updateHomebrewInstallation as updateSessaoHomebrew, getSessaoFacts, getSessaoReplayMarkdown } from '../controllers/sessoesController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
 const router = Router();
@@ -11,6 +11,8 @@ router.use(authMiddleware);
 router.post('/', createSessao);
 router.get('/', getSessoes);
 router.get('/:id', getSessaoById);
+router.get('/:id/facts', getSessaoFacts);
+router.get('/:id/replay', getSessaoReplayMarkdown);
 router.delete('/:id', deleteSessao);
 router.patch('/:id/homebrew', updateSessaoHomebrew); // Nova Rota
 

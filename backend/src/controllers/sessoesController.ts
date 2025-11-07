@@ -111,3 +111,43 @@ export const updateHomebrewInstallation = async (req: AuthRequest, res: Response
         next(error);
     }
 };
+
+export const getSessaoFacts = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
+
+    try {
+        const payload = await SessaoService.getSessaoFacts(sessionIdNum, userId);
+        res.status(200).json(payload);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const getSessaoReplayMarkdown = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
+
+    try {
+        const replay = await SessaoService.generateSessionReplayMarkdown(sessionIdNum, userId);
+        res.status(200).json(replay);
+    } catch (error) {
+        next(error);
+    }
+};

@@ -7,20 +7,24 @@ import { AlertTriangle, ChevronDown, Coffee, BedDouble } from 'lucide-react';
 import DeathSavesTracker from './CharacterSheet/DeathSavesTracker';
 import SkillItem from './CharacterSheet/SkillItem';
 
+const GLASS_CARD = 'rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm';
+
 const CollapsibleSection: React.FC<{ title: string, children: React.ReactNode, defaultOpen?: boolean }> = ({ title, children, defaultOpen = false }) => {
     const [isExpanded, setIsExpanded] = useState(defaultOpen);
     return (
-        <div className="border-t border-stone-700 pt-3 mt-4">
+        <div className="border-t border-white/10 pt-4 mt-4">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
                 className="w-full flex justify-between items-center text-left"
                 aria-expanded={isExpanded}
             >
-                <h3 className="text-lg font-bold font-garamond text-amber-300 text-shadow-amber">{title}</h3>
-                <ChevronDown className={`h-5 w-5 text-stone-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                <h3 className="text-base font-semibold text-amber-200 tracking-wide uppercase">{title}</h3>
+                <ChevronDown className={`h-5 w-5 text-amber-200/70 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
             </button>
-            <div className={`transition-all ease-in-out duration-300 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100 mt-2' : 'max-h-0 opacity-0'}`}>
-                {children}
+            <div className={`transition-all ease-in-out duration-300 overflow-hidden ${isExpanded ? 'max-h-[1000px] opacity-100 mt-3' : 'max-h-0 opacity-0'}`}>
+                <div className={`${GLASS_CARD} p-4 text-sm text-stone-200`}>
+                    {children}
+                </div>
             </div>
         </div>
     );
@@ -38,27 +42,27 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
     );
     
     return (
-        <div className="p-4 space-y-4">
-            <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold font-garamond text-stone-100">{character.name}</h2>
-                <p className="text-sm text-stone-400">{character.race} {character.characterClass} de Nível {character.level}</p>
+        <div className="space-y-5 text-sm text-stone-200">
+            <div className={`${GLASS_CARD} p-4 text-center`}>
+                <h2 className="text-2xl font-bold font-garamond text-white">{character.name}</h2>
+                <p className="text-sm text-stone-300">{character.race} {character.characterClass} de Nível {character.level}</p>
             </div>
             
             <DeathSavesTracker />
 
             {conditions && conditions.length > 0 && (
-                <div>
-                    <h3 className="text-lg font-bold font-garamond text-amber-300 mb-2 text-shadow-amber">Condições Ativas</h3>
-                    <div className="flex flex-wrap gap-2">
+                <div className={`${GLASS_CARD} p-4`}>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-200 mb-3">Condições Ativas</h3>
+                    <div className="flex flex-wrap gap-2 text-xs">
                         {conditions.map(condition => (
                             <div key={condition.index} className="relative group">
-                                <span className="flex items-center gap-1 bg-red-900/70 text-red-300 text-xs font-semibold px-2 py-1 rounded-full border border-red-700/80">
+                                <span className="flex items-center gap-1 bg-red-500/20 text-red-200 font-semibold px-2 py-1 rounded-full border border-red-500/40">
                                     <AlertTriangle className="h-3 w-3" />
                                     {condition.name}
                                 </span>
                                 {condition.desc && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-stone-900 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-600">
-                                    <h4 className="font-bold text-red-400 mb-1">{condition.name}</h4>
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-black/90 text-stone-200 text-xs rounded-xl py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-white/10">
+                                    <h4 className="font-bold text-red-300 mb-1">{condition.name}</h4>
                                     {condition.desc.map((d: string, i: number) => <p key={i} className="mb-1 last:mb-0">{d}</p>)}
                                 </div>
                                 )}
@@ -68,17 +72,22 @@ const CharacterSheet: React.FC<{ onModalAction?: () => void }> = ({ onModalActio
                 </div>
             )}
             
-            <div className="grid grid-cols-3 gap-2">
+            <div className={`${GLASS_CARD} p-4`}>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-stone-300 mb-3">Atributos</h3>
+                <div className="grid grid-cols-3 gap-3">
                 {coreAttributeKeys.map((key) => {
                     const value = attributes[key as keyof typeof attributes];
                     return (
-                        <div key={key} className="bg-stone-800/50 p-2 rounded-lg text-center">
-                            <div className="font-bold text-md text-amber-300">{key.substring(0,3).toUpperCase()}</div>
-                            <div className="text-2xl font-bold text-stone-100 my-1">{String(value)}</div>
-                            <div className="text-md text-amber-400 bg-stone-900/50 rounded-full w-8 h-8 flex items-center justify-center mx-auto">{modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}</div>
+                        <div key={key} className="rounded-2xl border border-white/10 bg-black/30 p-3 text-center">
+                            <div className="font-bold text-xs uppercase tracking-[0.35em] text-stone-400">{key.substring(0,3)}</div>
+                            <div className="text-2xl font-bold text-white my-1">{String(value)}</div>
+                            <div className="text-sm text-amber-300 bg-white/10 rounded-full w-10 h-10 flex items-center justify-center mx-auto">
+                                {modifiers[key as keyof Attributes] >= 0 ? `+${modifiers[key as keyof Attributes]}` : modifiers[key as keyof Attributes]}
+                            </div>
                         </div>
                     );
                 })}
+            </div>
             </div>
 
             <CollapsibleSection title="Perícias">

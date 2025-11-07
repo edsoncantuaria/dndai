@@ -5,10 +5,13 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import { ShopItem, InventoryItem } from '../types';
 import { translateEquipment } from '../utils/translator';
 import { canAfford } from '@/utils/currency'; // Importar a função de validação
+import { useEventFeedback } from '@/hooks/useEventFeedback';
 
 const ShopModal: React.FC = () => {
     const { shopState, character, buyItem, sellItem, processPlayerAction, isLoading } = useGameStateContext();
     const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+    const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+    const { playCue } = useEventFeedback();
 
     if (!shopState?.isOpen || !character) {
         return null;
@@ -31,7 +34,7 @@ const ShopModal: React.FC = () => {
                     const playerCanAfford = canAfford(character.currency, { quantity: item.cost.quantity, unit: item.cost.unit as any });
 
                     return (
-                        <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
+                        <div key={item.id} className={`bg-stone-800/70 p-3 rounded-lg border flex justify-between items-center transition-shadow ${highlightedItemId === item.id ? 'border-amber-400 spotlight-card' : 'border-stone-700'}`}>
                             <div>
                                 <h4 className="font-semibold text-stone-200">{translatedItem.name}</h4>
                                 <p className="text-xs text-stone-400">Quantidade: {item.quantity === Infinity ? 'Infinita' : item.quantity}</p>
@@ -39,7 +42,12 @@ const ShopModal: React.FC = () => {
                             <div className="text-right">
                                  <p className="font-mono text-amber-400 font-bold">{item.cost.quantity} {item.cost.unit}</p>
                                  <button
-                                    onClick={() => buyItem(item as any, item.cost.quantity)}
+                                    onClick={() => {
+                                        buyItem(item as any, item.cost.quantity);
+                                        playCue('shop');
+                                        setHighlightedItemId(item.id);
+                                        setTimeout(() => setHighlightedItemId(null), 1200);
+                                    }}
                                     disabled={isInteractionDisabled || !playerCanAfford}
                                     className="mt-1 bg-green-700 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
@@ -62,7 +70,7 @@ const ShopModal: React.FC = () => {
                     const sellPrice = shopState.sellPrices[item.id] || Math.floor((item.cost?.quantity || 2) / 2);
                     const translatedItem = translateEquipment(item);
                      return (
-                         <div key={item.id} className="bg-stone-800/70 p-3 rounded-lg border border-stone-700 flex justify-between items-center">
+                         <div key={item.id} className={`bg-stone-800/70 p-3 rounded-lg border flex justify-between items-center transition-shadow ${highlightedItemId === item.id ? 'border-emerald-400 spotlight-card' : 'border-stone-700'}`}>
                             <div className="max-w-[60%]">
                                 <h4 className="font-semibold text-stone-200 truncate">{translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
                                 <p className="text-xs text-stone-400">Valor Base: {item.cost?.quantity || '-'} {item.cost?.unit || ''}</p>
@@ -70,7 +78,12 @@ const ShopModal: React.FC = () => {
                             <div className="text-right">
                                 <p className="font-mono text-amber-400 font-bold">{sellPrice} gp</p>
                                 <button
-                                    onClick={() => sellItem(item, sellPrice)}
+                                    onClick={() => {
+                                        sellItem(item, sellPrice);
+                                        playCue('shop');
+                                        setHighlightedItemId(item.id);
+                                        setTimeout(() => setHighlightedItemId(null), 1200);
+                                    }}
                                     disabled={isInteractionDisabled}
                                     className="mt-1 bg-amber-700 hover:bg-amber-600 text-stone-900 font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 >

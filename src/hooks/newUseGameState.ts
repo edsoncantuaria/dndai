@@ -15,6 +15,28 @@ import { useToast } from './use-toast';
 import { initializeWebSocket, sendMessage, addEventListener, removeEventListener, closeWebSocket } from '@/services/webSocketService';
 import { translateAttribute } from '@/utils/translator';
 
+const buildItemKey = (item?: InventoryItem) => {
+    if (!item) return null;
+    const raw = item.id ?? item.index ?? item.name;
+    if (!raw) return null;
+    return String(raw).toLowerCase();
+};
+
+const mergeInventoryItems = (previous: InventoryItem[] | undefined, incoming: InventoryItem[]): InventoryItem[] => {
+    const prevMap = new Map<string, InventoryItem>();
+    (previous || []).forEach(item => {
+        const key = buildItemKey(item) ?? `${Date.now()}-${Math.random()}`;
+        prevMap.set(key, item);
+    });
+
+    return incoming.map(item => {
+        const key = buildItemKey(item) ?? `${Date.now()}-${Math.random()}`;
+        const prevItem = prevMap.get(key);
+        if (!prevItem) return item;
+        return { ...prevItem, ...item };
+    });
+};
+
 export const useNewGameState = () => {
     const { user, revalidateUserSession } = useAuth();
     const { apiKey, model, useAiHomebrew } = useSettingsContext();
@@ -54,10 +76,25 @@ export const useNewGameState = () => {
                 newChar.xp = updates.xp;
             }
             if (updates.inventory) {
-                newChar.inventory = updates.inventory;
+                const mergedInventory = mergeInventoryItems(prev.inventory, updates.inventory as InventoryItem[]);
+                newChar.inventory = mergedInventory;
+                newChar.currency = characterUtils.calculateCurrency(mergedInventory);
+                newChar.currentWeight = characterUtils.calculateWeight(mergedInventory);
+                const strengthScore = newChar.attributes?.strength ?? prev.attributes?.strength ?? 10;
+                newChar.carryingCapacity = characterUtils.calculateCarryingCapacity(strengthScore);
             }
             if (updates.spellSlots) {
-                newChar.spellSlots = { ...prev.spellSlots, ...updates.spellSlots };
+                const mergedSlots = { ...prev.spellSlots };
+                Object.entries(updates.spellSlots).forEach(([key, slot]) => {
+                    const prevSlot = mergedSlots[key as keyof typeof mergedSlots];
+                    const max = Math.max(slot?.max ?? prevSlot?.max ?? 0, prevSlot?.max ?? 0);
+                    const current = slot?.current ?? prevSlot?.current ?? max;
+                    mergedSlots[key as keyof typeof mergedSlots] = {
+                        max,
+                        current: Math.min(Math.max(current, 0), max),
+                    };
+                });
+                newChar.spellSlots = mergedSlots;
             }
             if (updates.spells) {
                 newChar.spells = updates.spells as Character['spells'];
@@ -84,10 +121,34 @@ export const useNewGameState = () => {
                 newChar.journal = updates.journal;
             }
             if (updates.relationships) {
-                newChar.relationships = updates.relationships;
+                const prevRelationships = prev.relationships || [];
+                const relMap = new Map<string, typeof prevRelationships[number]>();
+                prevRelationships.forEach(rel => {
+                    const key = rel.npcId || rel.name;
+                    if (key) relMap.set(key, rel);
+                });
+                newChar.relationships = updates.relationships.map(rel => {
+                    const key = rel.npcId || rel.name;
+                    const existing = key ? relMap.get(key) : null;
+                    if (!existing) return rel;
+                    return {
+                        ...existing,
+                        ...rel,
+                        quests: Array.isArray(rel.quests) ? rel.quests : existing.quests || [],
+                        status: rel.status || existing.status,
+                    };
+                });
             }
             if (updates.worldState) {
-                newChar.worldState = { ...(prev.worldState || {}), ...updates.worldState };
+                const prevWorld = prev.worldState || {};
+                const nextWorld = { ...prevWorld, ...updates.worldState };
+                newChar.worldState = {
+                    ...nextWorld,
+                    timeOfDay: updates.worldState.timeOfDay || prevWorld.timeOfDay || 'Manhã',
+                    weather: updates.worldState.weather || prevWorld.weather || 'Ensolarado',
+                    location: updates.worldState.location || prevWorld.location,
+                    currentRegion: updates.worldState.currentRegion || prevWorld.currentRegion || 'Desconhecida',
+                };
             }
             if (updates.currentRegion) {
                 newChar.currentRegion = updates.currentRegion;
@@ -168,6 +229,8 @@ export const useNewGameState = () => {
         
         if (response.worldState) {
             updateCharacter({ worldState: response.worldState });
+        } else if (character?.worldState) {
+            updateCharacter({ worldState: character.worldState });
         }
         
         if(response.playerRollRequest && Object.keys(response.playerRollRequest).length > 0) {

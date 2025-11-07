@@ -1,9 +1,9 @@
 // src/components/SettingsModal.tsx
 'use client';
 
-import React, { ChangeEvent, useState } from 'react';
-import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser } from 'lucide-react';
+import React, { ChangeEvent, useMemo, useState } from 'react';
+import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -87,6 +87,162 @@ const AudioControls: React.FC = () => {
         </div>
     )
 }
+
+const themeOptions: Array<{ id: ThemePreset; title: string; description: string; gradient: string }> = [
+    { id: 'classic', title: 'Stone', description: 'Âmbar + pedra (visual original)', gradient: 'from-stone-900 via-stone-800 to-amber-800' },
+    { id: 'aurora', title: 'Aurora', description: 'Crepúsculo vibrante e quente', gradient: 'from-rose-900 via-purple-700 to-sky-600' },
+    { id: 'midnight', title: 'Midnight', description: 'Noite profunda com contraste frio', gradient: 'from-indigo-950 via-slate-900 to-cyan-900' },
+];
+
+const ToggleRow: React.FC<{
+    id: string;
+    label: string;
+    description?: string;
+    enabled: boolean;
+    onToggle: () => void;
+}> = ({ id, label, description, enabled, onToggle }) => (
+    <div className="flex items-start justify-between gap-4 bg-stone-900/40 rounded-md p-3 border border-stone-800/60">
+        <div>
+            <p className="text-sm font-semibold text-stone-200">{label}</p>
+            {description && <p className="text-xs text-stone-400 mt-0.5">{description}</p>}
+        </div>
+        <button
+            id={id}
+            onClick={onToggle}
+            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${enabled ? 'bg-amber-600' : 'bg-stone-600'}`}
+        >
+            <span
+                aria-hidden="true"
+                className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${enabled ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+        </button>
+    </div>
+);
+
+const AppearanceControls: React.FC = () => {
+    const {
+        theme,
+        setTheme,
+        fontScale,
+        setFontScale,
+        reducedMotion,
+        setReducedMotion,
+        highContrast,
+        setHighContrast,
+        hasSeenGuidedTips,
+        setHasSeenGuidedTips,
+    } = useSettingsContext();
+
+    const sliderValue = useMemo(() => Math.max(themeOptions.findIndex(option => option.id === theme), 0), [theme]);
+
+    return (
+        <div className="space-y-4 pt-4 border-t border-stone-700/50">
+            <h3 className="text-lg font-semibold text-stone-300 flex items-center gap-2">
+                <Palette className="h-5 w-5 text-amber-400" /> Aparência & Acessibilidade
+            </h3>
+            <div className="rounded-lg border border-stone-700/80 bg-stone-900/50 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 text-sm text-stone-300">
+                    <span>Paleta dinâmica</span>
+                    <Sparkles className="h-4 w-4 text-amber-300" />
+                </div>
+                <input
+                    type="range"
+                    min={0}
+                    max={themeOptions.length - 1}
+                    value={sliderValue}
+                    onChange={(event) => {
+                        const nextIdx = Number(event.target.value);
+                        const selected = themeOptions[nextIdx];
+                        if (selected) setTheme(selected.id);
+                    }}
+                    className="w-full accent-amber-400"
+                    aria-label="Selecionar tema visual"
+                />
+                <div className="grid grid-cols-3 gap-2 text-xs text-center">
+                    {themeOptions.map(option => (
+                        <button
+                            key={option.id}
+                            onClick={() => setTheme(option.id)}
+                            className={`rounded-md border p-2 transition-all ${
+                                option.id === theme
+                                    ? 'border-amber-400 text-amber-200 bg-stone-900/70'
+                                    : 'border-stone-700 text-stone-400 hover:border-amber-500/60'
+                            }`}
+                        >
+                            <div className={`h-8 rounded bg-gradient-to-r ${option.gradient} mb-1`} />
+                            <p className="font-semibold">{option.title}</p>
+                            <p className="text-[10px] text-stone-400">{option.description}</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2">
+                <ToggleRow
+                    id="reading-mode"
+                    label="Modo Leitura"
+                    description="Aumenta tipografia para sessões longas."
+                    enabled={fontScale === 'reading'}
+                    onToggle={() => setFontScale(fontScale === 'reading' ? 'normal' : 'reading')}
+                />
+                <ToggleRow
+                    id="reduced-motion"
+                    label="Animações Reduzidas"
+                    description="Torna as transições mais sutis."
+                    enabled={reducedMotion}
+                    onToggle={() => setReducedMotion(!reducedMotion)}
+                />
+                <ToggleRow
+                    id="high-contrast"
+                    label="Alto Contraste"
+                    description="Refina bordas e textos para ambientes claros."
+                    enabled={highContrast}
+                    onToggle={() => setHighContrast(!highContrast)}
+                />
+                <div className="flex flex-col gap-2 bg-stone-900/40 rounded-md p-3 border border-stone-800/60">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-stone-200">
+                        <Accessibility className="h-4 w-4 text-amber-300" /> Guia Interativo
+                    </div>
+                    <p className="text-xs text-stone-400">
+                        Reabra o tour guiado que explica cada painel da mesa virtual.
+                    </p>
+                    <button
+                        onClick={() => setHasSeenGuidedTips(false)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md border border-amber-400 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+                        disabled={!hasSeenGuidedTips}
+                    >
+                        <Undo2 className="h-3.5 w-3.5" /> Rever dicas
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const FeedbackControls: React.FC = () => {
+    const { eventCuesEnabled, setEventCuesEnabled, hapticsEnabled, setHapticsEnabled } = useSettingsContext();
+    return (
+        <div className="space-y-4 pt-4 border-t border-stone-700/50">
+            <h3 className="text-lg font-semibold text-stone-300 flex items-center gap-2">
+                <AudioWaveform className="h-5 w-5 text-amber-300" /> Feedback Sensorial
+            </h3>
+            <ToggleRow
+                id="audio-cues"
+                label="Alertas sonoros"
+                description="Dispara um breve tom quando você ganha XP, saqueia itens ou altera relações."
+                enabled={eventCuesEnabled}
+                onToggle={() => setEventCuesEnabled(!eventCuesEnabled)}
+            />
+            <ToggleRow
+                id="haptics-cues"
+                label="Vibração discreta"
+                description="Requer suporte do navegador/dispositivo."
+                enabled={hapticsEnabled}
+                onToggle={() => setHapticsEnabled(!hapticsEnabled)}
+            />
+        </div>
+    );
+};
 
 const CacheManagement: React.FC = () => {
     const { invalidateUserCache } = useAuth();
@@ -186,6 +342,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </div>
 
                     <AudioControls />
+                    <AppearanceControls />
+                    <FeedbackControls />
 
                     <div className="space-y-4 pt-4 border-t border-stone-700/50">
                         <h3 className="text-lg font-semibold text-stone-300">Homebrew e IA</h3>

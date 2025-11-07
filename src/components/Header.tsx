@@ -2,7 +2,7 @@
 'use client';
 import React, { useState, useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { User, Heart, Shield, Loader2, Settings, DoorOpen, Zap, Eye, Brain, Search } from 'lucide-react';
+import { User, Heart, Shield, Loader2, Settings, DoorOpen, Zap, Eye, Brain, Search, BookOpenCheck } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,13 +14,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import ProgressionFeed from './ProgressionFeed';
+import { cn } from '@/lib/utils';
 
 
 interface HeaderProps {
     returnToMenu: () => void;
+    onOpenGuidedTips?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
+const Header: React.FC<HeaderProps> = ({ returnToMenu, onOpenGuidedTips }) => {
     const { character, isLoading, progressionFeed } = useGameStateContext();
     const { logout } = useAuth();
     
@@ -63,10 +65,21 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
     const initiativeBonus = modifiers?.dexterity ?? 0;
     const isInteractionDisabled = isLoading;
 
+    const timeOfDayClass = useMemo(() => {
+        const time = character.worldState?.timeOfDay?.toLowerCase() || '';
+        if (time.includes('manhã')) return 'from-amber-200/40 via-yellow-100/5 to-transparent';
+        if (time.includes('tarde')) return 'from-orange-300/40 via-amber-200/10 to-transparent';
+        if (time.includes('noite')) return 'from-indigo-900/40 via-purple-800/20 to-transparent';
+        if (time.includes('madrugada')) return 'from-blue-900/40 via-indigo-800/20 to-transparent';
+        return 'from-stone-800/30 via-stone-900/20 to-transparent';
+    }, [character.worldState?.timeOfDay]);
+
     return (
         <>
             <TooltipProvider delayDuration={0}>
-                <div className="flex-shrink-0 bg-stone-900/50 backdrop-blur-sm p-3 rounded-lg border border-stone-700">
+                <div className="relative flex-shrink-0 rounded-lg border border-stone-700 bg-stone-900/70 overflow-hidden">
+                    <div className={cn('pointer-events-none absolute inset-0 bg-gradient-to-r opacity-70 transition-colors duration-700', timeOfDayClass)} />
+                    <div className="relative p-3">
                     <div className="flex justify-between items-start gap-4">
                         {/* Character Info & XP */}
                         <div className="flex-grow">
@@ -93,6 +106,16 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 
                         {/* Desktop Action Buttons */}
                         <div className="hidden md:flex items-center justify-end gap-2 flex-shrink-0">
+                            {onOpenGuidedTips && (
+                                <button
+                                    onClick={onOpenGuidedTips}
+                                    disabled={isInteractionDisabled}
+                                    className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                    title="Tour guiado"
+                                >
+                                    <BookOpenCheck className="h-5 w-5 text-amber-300" />
+                                </button>
+                            )}
                             <button
                                 onClick={() => setShowSettingsModal(true)}
                                 disabled={isInteractionDisabled}
@@ -113,6 +136,16 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
 
                         {/* Mobile Action Buttons */}
                         <div className="md:hidden flex items-center gap-1.5 flex-shrink-0">
+                            {onOpenGuidedTips && (
+                                <button
+                                    onClick={onOpenGuidedTips}
+                                    disabled={isInteractionDisabled}
+                                    className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                                    title="Tour guiado"
+                                >
+                                    <BookOpenCheck className="h-4 w-4 text-amber-300" />
+                                </button>
+                            )}
                             <button
                                 onClick={() => setShowSettingsModal(true)}
                                 disabled={isInteractionDisabled}
@@ -219,6 +252,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu }) => {
                         </Tooltip>
                     </div>
                 </div>
+            </div>
             </TooltipProvider>
 
             {showExitModal && (

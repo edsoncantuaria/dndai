@@ -9,6 +9,40 @@ import { buildFullCharacterObject, cloneCharacter } from './characterService.js'
 import * as HomebrewService from './homebrewService.js';
 import type { z } from 'zod';
 import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
+import { buildTimelineFacts, getStorySummary, getTimeline } from './storyService.js';
+import type { Relationship as CharacterRelationship, JournalEntry } from '../types.js';
+
+interface SessionFactsPayload {
+    storySummary: string | null;
+    timelineFacts: string | null;
+    recentEvents: Array<{
+        turn: number;
+        timestamp: string;
+        action: string;
+        summary: string;
+        notes?: string;
+    }>;
+    activeNPCs: Array<{
+        npcId?: string;
+        name: string;
+        status: string;
+        affinity: number;
+        description?: string;
+        quests: Array<{ id: string; title: string; status: string }>;
+    }>;
+    activeQuests: Array<{
+        id: string;
+        title: string;
+        status: string;
+        source: string;
+        summary?: string;
+    }>;
+}
+
+interface SessionReplayPayload {
+    fileName: string;
+    markdown: string;
+}
 
 export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
     const { nome, characterId } = data;
@@ -152,4 +186,183 @@ export const updateHomebrewInstallation = async (sessionId: number, userId: numb
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...sessaoSegura } = sessao;
     return sessaoSegura;
-}
+};
+
+const findSessaoWithCharacter = async (sessionId: number, userId: number) => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const sessao = await sessaoRepository.findOne({
+        where: { id: sessionId, userId, deletedAt: IsNull() },
+        relations: ['character'],
+    });
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
+    }
+    return sessao;
+};
+
+const prepareCharacterSnapshot = async (character: Character | null) => {
+    if (!character) return null;
+    return await buildFullCharacterObject(character) as Character;
+};
+
+const flattenJournalEntries = (entries?: JournalEntry[]): JournalEntry[] => {
+    if (!entries) return [];
+    const result: JournalEntry[] = [];
+    for (const entry of entries) {
+        if (!entry) continue;
+        result.push(entry);
+        if (entry.subLocations?.length) {
+            result.push(...flattenJournalEntries(entry.subLocations));
+        }
+    }
+    return result;
+};
+
+export const getSessaoFacts = async (sessionId: number, userId: number): Promise<SessionFactsPayload> => {
+    const sessao = await findSessaoWithCharacter(sessionId, userId);
+    const characterSnapshot = await prepareCharacterSnapshot(sessao.character);
+
+    const [storySummary, timelineFacts, timeline] = await Promise.all([
+        getStorySummary(sessionId),
+        buildTimelineFacts(sessionId),
+        getTimeline(sessionId),
+    ]);
+
+    const recentEvents = timeline.slice(-6).map(event => ({
+        turn: event.turn,
+        timestamp: event.timestamp,
+        action: event.action,
+        summary: event.summary,
+        notes: event.notes,
+    }));
+
+    const relationships: CharacterRelationship[] = Array.isArray((characterSnapshot as any)?.relationships)
+        ? (characterSnapshot as any).relationships
+        : [];
+
+    const activeNPCs = relationships
+        .sort((a, b) => (b.affinity ?? 0) - (a.affinity ?? 0))
+        .slice(0, 6)
+        .map(rel => ({
+            npcId: rel.npcId,
+            name: rel.name,
+            status: rel.status,
+            affinity: rel.affinity,
+            description: rel.description,
+            quests: (rel.quests || []).map(quest => ({
+                id: quest.id,
+                title: quest.title,
+                status: quest.status,
+            })),
+        }));
+
+    const questEntries: Array<{
+        id: string;
+        title: string;
+        status: string;
+        source: string;
+        summary?: string;
+    }> = [];
+
+    for (const rel of relationships) {
+        for (const quest of rel.quests || []) {
+            if (quest.status === 'completed') continue;
+            questEntries.push({
+                id: quest.id,
+                title: quest.title,
+                status: quest.status,
+                source: rel.name,
+                summary: quest.objectives?.[0],
+            });
+        }
+    }
+
+    const journalEntries = flattenJournalEntries((characterSnapshot as any)?.journal);
+    for (const entry of journalEntries) {
+        if (entry.looted) continue;
+        questEntries.push({
+            id: entry.id,
+            title: entry.name,
+            status: 'in-progress',
+            source: entry.region || 'Desconhecido',
+            summary: entry.summary,
+        });
+    }
+
+    return {
+        storySummary: storySummary || null,
+        timelineFacts: timelineFacts || null,
+        recentEvents,
+        activeNPCs,
+        activeQuests: questEntries.slice(0, 8),
+    };
+};
+
+const formatDateTime = (value: Date | string | undefined): string => {
+    if (!value) return 'Desconhecido';
+    const date = typeof value === 'string' ? new Date(value) : value;
+    if (Number.isNaN(date.getTime())) return 'Desconhecido';
+    return date.toLocaleString('pt-BR', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+};
+
+const sanitizeFileName = (value: string) => {
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .substring(0, 40) || 'sessao';
+};
+
+export const generateSessionReplayMarkdown = async (
+    sessionId: number,
+    userId: number
+): Promise<SessionReplayPayload> => {
+    const sessao = await findSessaoWithCharacter(sessionId, userId);
+    const characterSnapshot = await prepareCharacterSnapshot(sessao.character);
+
+    const [storySummary, timelineFacts, timeline] = await Promise.all([
+        getStorySummary(sessionId),
+        buildTimelineFacts(sessionId),
+        getTimeline(sessionId),
+    ]);
+
+    const heroLines: string[] = [];
+    if (characterSnapshot) {
+        heroLines.push(`- **Nome:** ${characterSnapshot.name}`);
+        heroLines.push(`- **Classe:** ${characterSnapshot.characterClass}${characterSnapshot.subclassFlavor ? ` (${characterSnapshot.subclassFlavor})` : ''}`);
+        heroLines.push(`- **Nível:** ${characterSnapshot.level}`);
+        heroLines.push(`- **Raça:** ${characterSnapshot.race}${characterSnapshot.subrace ? ` (${characterSnapshot.subrace})` : ''}`);
+        if (characterSnapshot.alignment) {
+            heroLines.push(`- **Alinhamento:** ${characterSnapshot.alignment}`);
+        }
+    }
+
+    const recentEvents = timeline.slice(-12).map(event => `- Turno ${event.turn}: ${event.summary}${event.notes ? ` (${event.notes})` : ''}`);
+    const xpEvents = timeline
+        .filter(event => event.action === 'Recompensa de XP')
+        .slice(-10)
+        .map(event => `- ${event.summary}`);
+
+    const markdownSections: string[] = [
+        `# Crônicas de ${sessao.nome}`,
+        `_Gerado em ${formatDateTime(new Date())}_`,
+        `## Herói`,
+        heroLines.length ? heroLines.join('\n') : 'Informações do herói indisponíveis.',
+        `## Resumo Atual`,
+        storySummary || 'Ainda não há um resumo consolidado desta jornada.',
+        `## Fatos Relevantes`,
+        timelineFacts || 'Nenhum fato destacado recentemente.',
+        `## Eventos Recentes`,
+        recentEvents.length ? recentEvents.join('\n') : 'Nenhum evento registrado.',
+        `## Recompensas Recentes`,
+        xpEvents.length ? xpEvents.join('\n') : 'Nenhuma recompensa registrada nos últimos turnos.',
+    ];
+
+    return {
+        fileName: `replay-${sanitizeFileName(sessao.nome)}.md`,
+        markdown: markdownSections.join('\n\n').trim(),
+    };
+};

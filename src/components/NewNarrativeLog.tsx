@@ -40,40 +40,76 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     
     const isDamageRoll = rollType === 'damage';
 
-    let outcomeText = '';
-    let themeColor = 'text-cyan-300';
-    let bgColor = 'bg-stone-900/50 border-stone-700';
-    let resultColor = 'text-cyan-400';
-
-    if (!isDamageRoll && success !== undefined) {
-        if (success) {
-            outcomeText = 'Sucesso!';
-            themeColor = 'text-green-300';
-            bgColor = 'bg-green-900/30 border-green-700/50';
-            resultColor = 'text-green-400';
-        } else {
-            outcomeText = 'Falha.';
-            themeColor = 'text-red-300';
-            bgColor = 'bg-red-900/30 border-red-700/50';
-            resultColor = 'text-red-500';
+    const palette = (() => {
+        if (isDamageRoll) {
+            return {
+                badge: 'bg-rose-500/20 text-rose-200 border border-rose-300/30',
+                border: 'border-rose-400/30',
+                gradient: 'from-rose-900/50 via-rose-900/20 to-transparent',
+                accent: 'text-rose-300'
+            };
         }
-    } else if (isDamageRoll) {
-        outcomeText = `${total} de Dano`;
-        themeColor = 'text-rose-300';
-        bgColor = 'bg-rose-900/30 border-rose-700/50';
-        resultColor = 'text-rose-400';
-    }
+        if (success === true) {
+            return {
+                badge: 'bg-emerald-500/15 text-emerald-200 border border-emerald-300/30',
+                border: 'border-emerald-400/30',
+                gradient: 'from-emerald-900/45 via-emerald-900/15 to-transparent',
+                accent: 'text-emerald-300'
+            };
+        }
+        if (success === false) {
+            return {
+                badge: 'bg-red-500/15 text-red-200 border border-red-300/30',
+                border: 'border-red-400/30',
+                gradient: 'from-red-900/45 via-red-900/15 to-transparent',
+                accent: 'text-red-300'
+            };
+        }
+        return {
+            badge: 'bg-cyan-500/15 text-cyan-200 border border-cyan-300/30',
+            border: 'border-cyan-400/30',
+            gradient: 'from-slate-900/50 via-slate-900/15 to-transparent',
+            accent: 'text-cyan-300'
+        };
+    })();
 
-    const advantageText = advantage ? " (Vantagem)" : disadvantage ? " (Desvantagem)" : "";
+    const outcomeText = isDamageRoll
+        ? `${total} de Dano`
+        : success === true
+            ? 'Sucesso'
+            : success === false
+                ? 'Falha'
+                : 'Resultado';
+
+    const advantageText = advantage ? "Vantagem" : disadvantage ? "Desvantagem" : null;
     const rollsText = rolls?.join(', ') || total - (modifier || 0);
 
     return (
-         <div className={`${bgColor} border p-3 rounded-md text-sm space-y-1`}>
-            <p className={`${themeColor} font-mono flex items-center gap-2`}><Dice5 className="h-4 w-4"/> {description}{advantageText}</p>
-            <div className={`font-mono ${resultColor}`}>
-                <span>Rolagem: {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier || 0)}`) : ''} = <span className="font-bold text-lg">{total}</span>. </span>
-                {dc !== undefined && <span className="text-stone-400 text-xs">(CD: {dc}) </span>}
-                <span className={`font-bold`}>{outcomeText}</span>
+         <div className={`relative overflow-hidden rounded-2xl border ${palette.border} bg-black/40 p-4 text-sm shadow-lg`}>
+            <div className={`absolute inset-0 bg-gradient-to-br ${palette.gradient} opacity-80 pointer-events-none`} />
+            <div className="relative space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-stone-400">
+                    <span className={`px-2 py-0.5 rounded-full ${palette.badge} font-semibold flex items-center gap-1`}>
+                        <Dice5 className="h-3.5 w-3.5" /> {outcomeText}
+                    </span>
+                    {advantageText && (
+                        <span className="px-2 py-0.5 rounded-full border border-white/10 text-stone-200">
+                            {advantageText}
+                        </span>
+                    )}
+                    {typeof dc === 'number' && (
+                        <span className="px-2 py-0.5 rounded-full border border-white/10 text-stone-200">
+                            CD {dc}
+                        </span>
+                    )}
+                </div>
+                <p className={`font-semibold text-base ${palette.accent}`}>{description}</p>
+                <div className="rounded-2xl border border-white/10 bg-black/40 p-3 font-mono text-stone-200">
+                    <p>
+                        {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier || 0)}`) : ''} ={' '}
+                        <span className="text-2xl font-bold">{total}</span>
+                    </p>
+                </div>
             </div>
         </div>
     );

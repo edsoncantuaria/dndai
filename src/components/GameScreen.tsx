@@ -1,7 +1,8 @@
 // src/components/GameScreen.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Header from './Header';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
@@ -22,9 +23,16 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import ActionModal from './ui/ActionModal'; // Importar o ActionModal
-import { User, Backpack, BookOpen, Map, Users, TrendingUp, Loader2, Download } from 'lucide-react';
+import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
+import StoryHighlightsCard from './StoryHighlightsCard';
+import GameHud from './GameHud';
+import { useToast } from '@/hooks/use-toast';
+import { useEventFeedback } from '@/hooks/useEventFeedback';
+import DailyRecapPanel from './DailyRecapPanel';
+import GuidedTipsOverlay from './GuidedTipsOverlay';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -87,11 +95,68 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         spellCastRequest,
         setSpellCastRequest,
         submitSpellCast,
+        combatState,
     } = useGameStateContext();
 
     const [isMobileSheetOpen, setIsMobileSheetOpen] = useState(false);
+    const [isStoryDrawerOpen, setIsStoryDrawerOpen] = useState(false);
+    const [isGuidedTipsOpen, setIsGuidedTipsOpen] = useState(false);
+    const [guidedDismissed, setGuidedDismissed] = useState(false);
+    const [guidedStep, setGuidedStep] = useState(0);
+    const { toast } = useToast();
+    const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
+    const { playCue } = useEventFeedback();
+    const [eventBadges, setEventBadges] = useState<Array<{ id: string; text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }>>([]);
+    const showCombatHud = combatState?.isActive;
+    const prevStatsRef = React.useRef<{
+        xp?: number;
+        inventoryTotal?: number;
+        relationships?: Map<string, number>;
+    }>({});
     
     const showDiceModal = !!playerRollRequest;
+    
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const storedStep = window.localStorage.getItem('guidedTipsStep');
+        if (storedStep) {
+            const parsed = parseInt(storedStep, 10);
+            if (!Number.isNaN(parsed)) {
+                setGuidedStep(parsed);
+            }
+        }
+    }, []);
+
+    const handleGuidedStepChange = useCallback((next: number) => {
+        setGuidedStep(next);
+        if (typeof window !== 'undefined') {
+            window.localStorage.setItem('guidedTipsStep', String(next));
+        }
+    }, []);
+
+    const handleGuidedComplete = useCallback(() => {
+        setHasSeenGuidedTips(true);
+        setGuidedStep(0);
+        if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('guidedTipsStep');
+        }
+    }, [setHasSeenGuidedTips]);
+
+    const handleGuidedClose = useCallback(() => {
+        setGuidedDismissed(true);
+        setIsGuidedTipsOpen(false);
+    }, []);
+
+    const handleOpenGuidedTour = useCallback(() => {
+        setGuidedDismissed(false);
+        setIsGuidedTipsOpen(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hasSeenGuidedTips) {
+            setGuidedDismissed(false);
+        }
+    }, [hasSeenGuidedTips]);
 
     useEffect(() => {
         if (isMobileSheetOpen) {
@@ -104,6 +169,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         }
     }, [isMobileSheetOpen]);
 
+
+    useEffect(() => {
+        if (character && !hasSeenGuidedTips && !guidedDismissed) {
+            setIsGuidedTipsOpen(true);
+        }
+    }, [character, hasSeenGuidedTips, guidedDismissed]);
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
 
@@ -130,7 +201,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         character: { label: 'Personagem', icon: <User className="h-5 w-5"/> },
         inventory: { label: 'Inventário', icon: <Backpack className="h-5 w-5"/> },
         spells: { label: 'Magias', icon: <BookOpen className="h-5 w-5"/> },
-        journal: { label: 'Diário', icon: <Map className="h-5 w-5"/> },
+        journal: { label: 'Diário', icon: <MapIcon className="h-5 w-5"/> },
         relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
@@ -143,6 +214,80 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
            </div>
        );
     }
+
+    const pushBadge = useCallback((badge: { text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }) => {
+        const id = `${Date.now()}-${Math.random()}`;
+        setEventBadges(prev => [...prev, { ...badge, id }]);
+        setTimeout(() => {
+            setEventBadges(prev => prev.filter(item => item.id !== id));
+        }, 3000);
+    }, []);
+
+    useEffect(() => {
+        if (!character) return;
+        const prev = prevStatsRef.current;
+        const safeRelationships = Array.isArray(character.relationships) ? character.relationships : [];
+
+        if (prev.xp !== undefined && character.xp > prev.xp) {
+            toast({
+                title: 'XP ganho!',
+                description: `+${character.xp - prev.xp} XP obtidos.`,
+                className: 'bg-emerald-900/80 border border-emerald-500 text-emerald-100',
+            });
+            playCue('xp');
+            pushBadge({
+                text: `+${character.xp - prev.xp} XP`,
+                variant: 'xp',
+                icon: <Star className="h-3.5 w-3.5" />,
+            });
+        }
+
+        const currentRelMap = new Map<string, number>(
+            safeRelationships.map(rel => [rel.npcId || rel.name, rel.affinity ?? 0])
+        );
+        if (prev.relationships) {
+            currentRelMap.forEach((affinity, npcId) => {
+                const before = prev.relationships?.get(npcId);
+                if (before !== undefined && affinity !== before) {
+                    const delta = affinity - before;
+                    toast({
+                        title: delta > 0 ? 'Afinidade aumentou' : 'Afinidade caiu',
+                        description: `${npcId.replace(/_/g, ' ')} ${delta > 0 ? `+${delta}` : delta} pontos.`,
+                        className: delta > 0
+                            ? 'bg-sky-900/80 border border-sky-500 text-sky-100'
+                            : 'bg-rose-900/80 border border-rose-500 text-rose-100',
+                    });
+                    playCue(delta > 0 ? 'relationshipUp' : 'relationshipDown');
+                    pushBadge({
+                        text: `${npcId.replace(/_/g, ' ')} ${delta > 0 ? `+${delta}` : delta}`,
+                        variant: delta > 0 ? 'ally' : 'enemy',
+                        icon: <Heart className="h-3.5 w-3.5" />,
+                    });
+                }
+            });
+        }
+
+        const inventoryTotal = (character.inventory || []).reduce((sum, item) => sum + (item.quantity || 1), 0);
+        if (prev.inventoryTotal !== undefined && inventoryTotal > prev.inventoryTotal) {
+            toast({
+                title: 'Inventário atualizado',
+                description: `Você adquiriu ${inventoryTotal - prev.inventoryTotal} item(s).`,
+                className: 'bg-amber-900/80 border border-amber-500 text-amber-100',
+            });
+            playCue('loot');
+            pushBadge({
+                text: `+${inventoryTotal - prev.inventoryTotal} item(s)`,
+                variant: 'xp',
+                icon: <Backpack className="h-3.5 w-3.5" />,
+            });
+        }
+
+        prevStatsRef.current = {
+            xp: character.xp,
+            inventoryTotal,
+            relationships: currentRelMap,
+        };
+    }, [character, toast, playCue, pushBadge]);
 
     if (!character) {
         return (
@@ -164,6 +309,28 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     </div>
                 )}
                 <ReinstallDependenciesModal />
+                <AnimatePresence>
+                    {eventBadges.map(badge => (
+                        <motion.div
+                            key={badge.id}
+                            initial={{ opacity: 0, x: 40, y: 0 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 40 }}
+                            transition={{ duration: 0.2 }}
+                            className={cn(
+                                'fixed top-4 right-4 z-50 flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold shadow-lg border',
+                                badge.variant === 'xp'
+                                    ? 'bg-amber-500/90 text-stone-900 border-amber-300'
+                                    : badge.variant === 'ally'
+                                        ? 'bg-emerald-500/90 text-stone-900 border-emerald-300'
+                                        : 'bg-rose-500/90 text-stone-900 border-rose-300'
+                            )}
+                        >
+                            {badge.icon}
+                            {badge.text}
+                        </motion.div>
+                    ))}
+                </AnimatePresence>
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
@@ -192,24 +359,47 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         onClose={() => setSpellCastRequest(null)}
                     />
                 )}
-                <AmbientPlayer /> 
+                <div className="space-y-4 w-full">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]">
+                        <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-[240px]">
+                                    <AmbientPlayer /> 
+                                </div>
+                                <button
+                                    onClick={() => setIsStoryDrawerOpen(true)}
+                                    className="md:hidden inline-flex items-center gap-1 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 shadow-lg"
+                                >
+                                    <MapPinned className="h-4 w-4" />
+                                    Fatos
+                                </button>
+                            </div>
+                        </div>
+                        <Header returnToMenu={returnToMenu} onOpenGuidedTips={handleOpenGuidedTour} />
+                    </div>
+                    {showCombatHud && (
+                        <div>
+                            <GameHud />
+                        </div>
+                    )}
+                    <NewCombatTracker /> 
+                </div>
 
-                <Header returnToMenu={returnToMenu} />
-                
-                <NewCombatTracker /> 
-
-                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4 overflow-hidden", "md:mb-0 mb-16")}>
-                    <div className="col-span-12 md:col-span-7 lg:col-span-8 flex flex-col bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                        <div className={cn(
-                            "flex-grow p-4 overflow-y-auto h-0"
-                        )}>
-                            <NewNarrativeLog />
+                <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4", "md:mb-0 mb-16")}>
+                    <div className="col-span-12 md:col-span-7 lg:col-span-8 xl:col-span-6 flex flex-col rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                        <div className="hidden md:block xl:hidden flex-none p-4 border-b border-white/5 bg-white/5">
+                            <StoryHighlightsCard />
+                        </div>
+                        <div className="flex-grow p-4">
+                            <div className="rounded-3xl border border-white/5 bg-black/30 p-4 h-full overflow-y-auto">
+                                <NewNarrativeLog />
+                            </div>
                         </div>
                         <ActionOptions />
                     </div>
                     
-                    <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 bg-stone-800/60 backdrop-blur-sm rounded-lg border border-stone-700/80 overflow-hidden">
-                        <div className="flex-none border-b border-stone-700 flex justify-around">
+                    <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 xl:col-span-3 rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                        <div className="flex-none border-b border-white/5 flex justify-around">
                             {(Object.keys(tabConfig) as Tab[]).map((key) => {
                                 const tabKey = key as Tab;
                                 return (
@@ -224,11 +414,49 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                 </button>
                             )})}
                         </div>
-                        <div className="flex-grow overflow-y-auto">
-                            {renderSidebarContent()}
+                        <div className="flex-grow overflow-y-auto relative">
+                            <AnimatePresence mode="wait">
+                                <motion.div
+                                    key={activeTab}
+                                    initial={{ opacity: 0, y: 12 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -12 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="h-full"
+                                >
+                                    <div className="tab-shell px-3 py-4">
+                                        {renderSidebarContent()}
+                                    </div>
+                                </motion.div>
+                            </AnimatePresence>
                         </div>
                     </aside>
+                    <div className="hidden xl:flex xl:flex-col col-span-3 gap-4">
+                        <StoryHighlightsCard />
+                        <DailyRecapPanel />
+                    </div>
                 </div>
+
+                {isStoryDrawerOpen && (
+                    <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+                        <div
+                            className="absolute inset-0"
+                            onClick={() => setIsStoryDrawerOpen(false)}
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border border-stone-700 bg-stone-900/95 p-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-fadeIn">
+                            <div className="flex items-center justify-between mb-2 text-stone-200">
+                                <span className="font-semibold uppercase text-xs tracking-wide">Fatos Atualizados</span>
+                                <button
+                                    onClick={() => setIsStoryDrawerOpen(false)}
+                                    className="text-sm text-stone-400 hover:text-stone-200"
+                                >
+                                    Fechar
+                                </button>
+                            </div>
+                            <StoryHighlightsCard variant="compact" />
+                        </div>
+                    </div>
+                )}
 
                 <MobileToolbar 
                     activeTab={activeTab}
@@ -237,8 +465,21 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     isOpen={isMobileSheetOpen}
                     setIsOpen={setIsMobileSheetOpen}
                 >
-                    {renderSidebarContent()}
+                    <div className="tab-shell px-3 py-4">
+                        {renderSidebarContent()}
+                    </div>
                 </MobileToolbar>
+
+                <GuidedTipsOverlay
+                    isOpen={isGuidedTipsOpen}
+                    initialStep={guidedStep}
+                    onStepChange={handleGuidedStepChange}
+                    onClose={handleGuidedClose}
+                    onComplete={() => {
+                        handleGuidedComplete();
+                        handleGuidedClose();
+                    }}
+                />
             </div>
         </>
     );

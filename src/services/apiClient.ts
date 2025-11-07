@@ -45,6 +45,42 @@ const PUBLIC_ROUTES = ['/auth/login', '/auth/register', '/data', '/translations'
  * @returns A resposta JSON da API.
  * @throws Lança um erro com a mensagem do servidor se a resposta não for 'ok'.
  */
+const buildRequestOptions = (endpoint: string, options: RequestInit = {}) => {
+    const { headers: customHeaders, ...customOptions } = options;
+    const fullUrl = `${API_URL}${endpoint}`;
+    const isPublic = PUBLIC_ROUTES.some(route => endpoint.startsWith(route));
+    let authHeaders: HeadersInit | null = getAuthHeaders();
+
+    if (!isPublic && !authHeaders) {
+        throw new Error(`A rota ${endpoint} requer autenticação, mas o token não foi fornecido.`);
+    }
+
+    const requestOptions: RequestInit = {
+        headers: {
+            ...(authHeaders || {}),
+            ...customHeaders,
+            'Content-Type': 'application/json',
+        },
+        ...customOptions
+    };
+
+    return { fullUrl, requestOptions };
+};
+
+const handleErrorResponse = async (response: Response, endpoint: string) => {
+    let errorData: any = null;
+    try {
+        errorData = await response.json();
+    } catch (e) {
+        throw new ApiError(`Erro de rede: ${response.status} ${response.statusText}`, response.status);
+    }
+    const message = typeof errorData?.message === 'string'
+        ? errorData.message
+        : `Erro desconhecido: ${response.statusText}`;
+    const details = errorData?.details || errorData?.errors;
+    throw new ApiError(message, response.status, details);
+};
+
 export const apiClient = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
     const { headers: customHeaders, ...customOptions } = options;
     const fullUrl = `${API_URL}${endpoint}`;
@@ -69,17 +105,7 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
     const response = await fetch(fullUrl, requestOptions);
 
     if (!response.ok) {
-        let errorData: any = null;
-        try {
-            errorData = await response.json();
-        } catch (e) {
-            throw new ApiError(`Erro de rede: ${response.status} ${response.statusText}`, response.status);
-        }
-        const message = typeof errorData?.message === 'string'
-            ? errorData.message
-            : `Erro desconhecido: ${response.statusText}`;
-        const details = errorData?.details || errorData?.errors;
-        throw new ApiError(message, response.status, details);
+        await handleErrorResponse(response, endpoint);
     }
     
     if (response.status === 204 || response.headers.get('content-length') === '0') {
@@ -88,4 +114,13 @@ export const apiClient = async <T>(endpoint: string, options: RequestInit = {}):
 
     const responseData = await response.json();
     return responseData as T;
+};
+
+export const apiClientText = async (endpoint: string, options: RequestInit = {}): Promise<string> => {
+    const { fullUrl, requestOptions } = buildRequestOptions(endpoint, options);
+    const response = await fetch(fullUrl, requestOptions);
+    if (!response.ok) {
+        await handleErrorResponse(response, endpoint);
+    }
+    return await response.text();
 };

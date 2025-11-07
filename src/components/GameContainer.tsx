@@ -4,13 +4,12 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles } from 'lucide-react';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import HomebrewStore from './Homebrew/HomebrewStore';
 import ArchitectureHelpModal from './system/ArchitectureHelpModal';
@@ -58,7 +57,10 @@ const GameContainer = () => {
                 GameService.getGameSessions(),
                 GameService.getCharacters()
             ]);
-            setSessions(userSessions || []);
+            const sortedSessions = (userSessions || [])
+                .slice()
+                .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            setSessions(sortedSessions);
             setCharacters(userCharacters || []);
         } catch (err) {
             console.error("[GameContainer] Falha ao buscar dados iniciais:", err);
@@ -160,14 +162,76 @@ const GameContainer = () => {
     // --- Render Logic ---
 
     const renderContent = () => {
+        const featuredSession = sessions[0];
+        const hasSessions = sessions.length > 0;
+        const heroMetrics = [
+            { label: 'Sessões Ativas', value: sessions.length, detail: 'crônicas salvas' },
+            { label: 'Heróis Prontos', value: characters.length, detail: 'personagens jogáveis' },
+            { label: 'Homebrews', value: useAiHomebrew ? 'IA + Manual' : 'Manual', detail: 'fontes habilitadas' },
+        ];
+
+        const menuActions = [
+            {
+                title: 'Continuar aventura',
+                description: hasSessions ? 'Retome instantaneamente a crônica mais recente.' : 'Crie um herói antes de continuar.',
+                icon: BookOpen,
+                gradient: 'from-amber-500/20 via-amber-300/5 to-transparent',
+                accent: 'text-amber-300',
+                disabled: !hasSessions,
+                action: () => {
+                    if (featuredSession) {
+                        handleContinueGame(featuredSession.id);
+                    } else {
+                        setGameStage('session_list');
+                    }
+                },
+                cta: hasSessions ? 'Retomar agora' : 'Escolher crônica'
+            },
+            {
+                title: 'Nova jornada',
+                description: 'Clone um herói e gere um cenário inédito em segundos.',
+                icon: Sword,
+                gradient: 'from-emerald-500/15 via-emerald-300/5 to-transparent',
+                accent: 'text-emerald-300',
+                action: () => setGameStage('character_vault'),
+                cta: 'Abrir cofre'
+            },
+            {
+                title: 'Oficina homebrew',
+                description: 'Gerencie criaturas, itens e pacotes personalizados.',
+                icon: FlaskConical,
+                gradient: 'from-purple-500/20 via-purple-300/5 to-transparent',
+                accent: 'text-purple-300',
+                action: () => setGameStage('homebrew_store'),
+                cta: 'Entrar'
+            },
+        ];
+
         // Master loading screen for playing stage (before personagem carregar)
         if (gameStage === 'playing' && !character) {
              return (
-                <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400 text-center">
-                    <Loader2 className="h-12 w-12 animate-spin" />
-                    <p className="mt-4 text-lg">Carregando suas crônicas...</p>
+                <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12 text-center">
+                    <div className="max-w-md w-full space-y-6 rounded-3xl border border-white/10 bg-[#080b12]/95 p-8 shadow-[0_35px_80px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[10px] uppercase tracking-[0.4em] text-amber-200">
+                            Preparando cena
+                        </div>
+                        <div className="space-y-2">
+                            <p className="text-sm text-stone-400">O Mestre está reconstruindo o estado da sua crônica premium.</p>
+                            <p className="text-lg font-serif text-white">Sincronizando jornada...</p>
+                        </div>
+                        <div className="flex justify-center">
+                            <div className="h-16 w-16 rounded-full border border-amber-400/30 border-t-transparent animate-spin" />
+                        </div>
+                    <p className="text-xs text-stone-500">Isso pode levar alguns segundos enquanto buscamos personagens, diário e combate.</p>
+                    <button
+                        onClick={returnToMenu}
+                        className="w-full px-4 py-2 rounded-full border border-white/20 text-sm text-stone-100 hover:bg-white/10 transition"
+                    >
+                        Voltar ao menu
+                    </button>
                 </div>
-            );
+            </div>
+        );
         }
 
         // Once loaded, if the stage is 'playing', render the Game component.
@@ -183,37 +247,51 @@ const GameContainer = () => {
 
         if (gameStage === 'session_list') {
              return (
-                <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
-                     <header className="mb-8">
-                        <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Continuar Aventura</h1>
-                        <p className="text-stone-400 mt-2">Escolha uma de suas jornadas salvas.</p>
+                <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col gap-6 animate-fadeIn px-4 text-left">
+                     <header className="space-y-2 text-center md:text-left">
+                        <p className="text-xs uppercase tracking-[0.35em] text-amber-300">Continuar</p>
+                        <h1 className="text-4xl md:text-5xl font-bold text-amber-50 font-serif">Retome uma crônica</h1>
+                        <p className="text-stone-400 mt-1">Selecione uma sessão salva para mergulhar direto na história.</p>
                     </header>
-                    <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
+                    <main className="w-full space-y-3 max-h-[65vh] overflow-y-auto pr-1 sm:pr-2">
                          {sessions.length > 0 ? (
                             sessions.map(session => (
-                                 <div key={session.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center group">
-                                    <div>
-                                        <span className="font-bold text-xl text-stone-200 group-hover:text-amber-300 transition-colors">{session.nome}</span>
-                                        <p className="text-sm text-stone-400">Herói: {session.character?.name} ({session.character?.characterClass} Nível {session.character?.level})</p>
-                                        <p className="text-xs text-stone-500 mt-1">Última vez jogado: {new Date(session.updatedAt).toLocaleDateString()}</p>
+                                 <article
+                                    key={session.id}
+                                    className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                    <div className="flex-1">
+                                        <p className="text-xs uppercase tracking-wide text-stone-500">Atualizado em {new Date(session.updatedAt).toLocaleDateString()}</p>
+                                        <h2 className="text-xl font-semibold text-stone-100 mt-1">{session.nome}</h2>
+                                        <p className="text-sm text-stone-400">
+                                            Herói: {session.character?.name} · {session.character?.characterClass} Nível {session.character?.level}
+                                        </p>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => handleContinueGame(session.id)} className="p-3 bg-green-700/80 hover:bg-green-600 rounded-md transition-transform group-hover:scale-110" title="Continuar Aventura">
-                                            <Play className="h-6 w-6 text-white" />
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => handleContinueGame(session.id)}
+                                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-colors"
+                                        >
+                                            <Play className="h-4 w-4" />
+                                            Retomar
                                         </button>
-                                        <button onClick={() => setSessionToDelete(session)} className="p-3 bg-red-800/80 hover:bg-red-700 rounded-md transition-transform group-hover:scale-110" title="Deletar Sessão">
-                                            <Trash2 className="h-6 w-6 text-white" />
+                                        <button
+                                            onClick={() => setSessionToDelete(session)}
+                                            className="inline-flex items-center gap-2 rounded-xl border border-red-500/50 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                            Excluir
                                         </button>
                                     </div>
-                                </div>
+                                </article>
                             ))
                         ) : (
-                            <p className="text-stone-400 italic py-8">Nenhuma aventura em andamento.</p>
+                            <p className="text-stone-400 italic py-8 text-center">Nenhuma aventura em andamento.</p>
                         )}
                     </main>
-                     <footer className="mt-6">
-                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2 mx-auto">
-                           <ArrowLeft className="h-4 w-4" /> Voltar ao Menu Principal
+                     <footer className="mt-2 flex justify-center">
+                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline inline-flex items-center gap-2">
+                           <ArrowLeft className="h-4 w-4" /> Voltar ao menu premium
                         </button>
                     </footer>
                 </div>
@@ -279,65 +357,192 @@ const GameContainer = () => {
 
         // Default: main_menu or loading
         return (
-            <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
-                 <header className="mb-10" style={{ animationDelay: '200ms' }}>
-                    <h1 className="text-6xl md:text-8xl font-bold text-amber-50 font-serif text-shadow-amber">
-                        Crônicas de Aventuras
-                    </h1>
-                    <p className="text-stone-400 text-lg mt-4">Uma experiência de RPG gerada por Inteligência Artificial</p>
-                </header>
-                 <main className="w-full flex flex-col items-center gap-4" style={{ animationDelay: '400ms' }}>
-                    <button onClick={() => setGameStage('session_list')} className="menu-button btn-new max-w-sm text-2xl py-5">
-                       <BookOpen className="mr-3 h-7 w-7"/> Continuar Aventura
-                    </button>
-                    <button onClick={() => setGameStage('character_vault')} className="menu-button btn-import max-w-sm text-2xl py-5">
-                        <Sword className="mr-3 h-7 w-7"/> Nova Jornada
-                    </button>
-                    <button onClick={() => setGameStage('homebrew_store')} className="menu-button btn-import max-w-sm text-lg py-3 bg-gradient-to-r from-purple-800 via-purple-700 to-purple-800 border-purple-600 hover:border-purple-500">
-                        <FlaskConical className="mr-3 h-6 w-6"/> Oficina Homebrew
-                    </button>
-                </main>
-                 <footer className="mt-12 w-full max-w-md">
-                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        <button 
-                            onClick={() => setShowSettingsModal(true)} 
-                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
-                            title="Configurações"
-                        >
-                            <Settings className="h-5 w-5"/> <span className="md:hidden">Config.</span><span className="hidden md:inline">Configurações</span>
-                        </button>
-                        <button 
-                            onClick={() => setShowArchitectureModal(true)} 
-                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
-                            title="Arquitetura de Dados"
-                        >
-                            <GitMerge className="h-5 w-5"/> <span className="md:hidden">Arquit.</span><span className="hidden md:inline">Arquitetura</span>
-                        </button>
-                        <button 
-                            onClick={() => setShowTestModal(true)} 
-                            className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
-                            title="Testes do Sistema"
-                        >
-                            <Beaker className="h-5 w-5"/> <span className="md:hidden">Testes</span><span className="hidden md:inline">Testes</span>
-                        </button>
-                         {user?.id === 1 && (
-                            <button 
-                                onClick={() => setGameStage('translation_studio')} 
-                                className="p-2 text-stone-400 hover:text-amber-300 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40"
-                                title="Estúdio de Tradução"
-                            >
-                                <Languages className="h-5 w-5"/> <span className="md:hidden">Trad.</span><span className="hidden md:inline">Traduções</span>
-                            </button>
-                        )}
-                        <button 
-                            onClick={logout} 
-                            className="p-2 text-stone-400 hover:text-red-400 transition-colors flex items-center justify-center gap-2 text-sm rounded-md bg-black/20 hover:bg-black/40 col-span-2 md:col-span-1"
-                            title="Sair da Conta"
-                        >
-                            <LogOut className="h-5 w-5"/> Sair
-                        </button>
+            <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-[#02060d]">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),_transparent_55%)]" />
+                <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-amber-500/5 via-transparent to-transparent blur-3xl" />
+                <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col gap-12 animate-fadeIn min-w-0">
+                    <div className="space-y-6 md:hidden">
+                        <div className="space-y-2">
+                            <p className="text-[11px] uppercase tracking-[0.35em] text-amber-300">Mestre virtual</p>
+                            <h1 className="text-3xl font-bold text-white font-serif leading-tight">Crônicas de Aventuras</h1>
+                            <p className="text-stone-300 text-sm leading-relaxed">
+                                Campanhas cinematográficas, combate estratégico e gerenciamento automatizado em um hub premium.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3">
+                            {heroMetrics.map(metric => (
+                                <div key={metric.label} className="rounded-2xl border border-white/5 bg-white/5 p-4">
+                                    <p className="text-xs uppercase tracking-wide text-stone-400">{metric.label}</p>
+                                    <p className="text-2xl font-semibold text-white mt-1">{metric.value}</p>
+                                    <p className="text-[11px] text-stone-500">{metric.detail}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-left backdrop-blur-md shadow-xl space-y-3">
+                            {featuredSession ? (
+                                <>
+                                    <div className="space-y-1">
+                                        <p className="text-xs uppercase tracking-wide text-amber-200">Última crônica</p>
+                                        <h3 className="text-xl font-semibold text-white">{featuredSession.nome}</h3>
+                                        <p className="text-sm text-stone-300">Herói: {featuredSession.character?.name}</p>
+                                        <p className="text-[11px] uppercase tracking-wide text-stone-500">Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}</p>
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <button
+                                            onClick={() => handleContinueGame(featuredSession.id)}
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400/90 px-4 py-3 text-base font-semibold text-stone-900 hover:bg-amber-300 transition-colors"
+                                        >
+                                            <Sparkles className="h-5 w-5" /> Retomar agora
+                                        </button>
+                                        <button
+                                            onClick={() => setGameStage('session_list')}
+                                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-white/20 px-4 py-3 text-base font-semibold text-stone-100 hover:border-amber-200/60 transition-colors"
+                                        >
+                                            <BookOpen className="h-5 w-5" /> Ver crônicas
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="space-y-2 text-stone-300">
+                                    <p className="text-xs uppercase tracking-wide text-stone-500">Sem sessões recentes</p>
+                                    <h3 className="text-xl font-semibold text-white">Inicie sua primeira mesa</h3>
+                                    <p className="text-sm text-stone-400">Crie um herói no Cofre e gere um capítulo totalmente novo com a IA.</p>
+                                    <button
+                                        onClick={() => setGameStage('character_vault')}
+                                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400/90 px-4 py-3 text-base font-semibold text-stone-900 hover:bg-amber-300 transition-colors"
+                                    >
+                                        <Plus className="h-5 w-5" /> Criar herói
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </footer>
+                    <header className="hidden md:grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-stretch">
+                        <div className="text-left space-y-6">
+                            <p className="text-[11px] uppercase tracking-[0.35em] text-amber-300">Mestre virtual</p>
+                            <div className="space-y-3">
+                                <h1 className="text-4xl md:text-5xl font-bold text-white font-serif leading-tight">Crônicas de Aventuras</h1>
+                                <p className="text-stone-300 text-lg leading-relaxed">
+                                    Campanhas cinematográficas, combate estratégico e gerenciamento automatizado em um hub premium.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {heroMetrics.map(metric => (
+                                    <div key={metric.label} className="rounded-2xl border border-white/5 bg-white/5 p-4 backdrop-blur-sm">
+                                        <p className="text-xs uppercase tracking-wide text-stone-400">{metric.label}</p>
+                                        <p className="text-3xl font-semibold text-white mt-1">{metric.value}</p>
+                                        <p className="text-[11px] text-stone-500">{metric.detail}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-left backdrop-blur-md flex flex-col justify-between shadow-xl">
+                            {featuredSession ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <p className="text-xs uppercase tracking-wide text-amber-200">Última crônica</p>
+                                        <h3 className="text-2xl font-semibold text-white">{featuredSession.nome}</h3>
+                                        <p className="text-sm text-stone-300">
+                                            Herói: {featuredSession.character?.name}
+                                        </p>
+                                        <p className="text-xs uppercase tracking-wide text-stone-500">
+                                            Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}
+                                        </p>
+                                    </div>
+                                    <div className="mt-6 flex flex-wrap gap-3">
+                                        <button
+                                            onClick={() => handleContinueGame(featuredSession.id)}
+                                            className="inline-flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-2xl bg-amber-400/90 px-4 py-3 text-base font-semibold text-stone-900 hover:bg-amber-300 transition-colors"
+                                        >
+                                            <Sparkles className="h-5 w-5" /> Retomar agora
+                                        </button>
+                                        <button
+                                            onClick={() => setGameStage('session_list')}
+                                            className="inline-flex flex-1 min-w-[160px] items-center justify-center gap-2 rounded-2xl border border-white/20 px-4 py-3 text-base font-semibold text-stone-100 hover:border-amber-200/60 transition-colors"
+                                        >
+                                            <BookOpen className="h-5 w-5" /> Ver crônicas
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <div className="text-stone-300 space-y-3">
+                                    <p className="text-xs uppercase tracking-wide text-stone-500">Sem sessões recentes</p>
+                                    <h3 className="text-2xl font-semibold text-white">Inicie sua primeira mesa</h3>
+                                    <p className="text-sm text-stone-400">
+                                        Crie um herói no Cofre e gere um capítulo totalmente novo com a IA.
+                                    </p>
+                                    <button
+                                        onClick={() => setGameStage('character_vault')}
+                                        className="mt-2 inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-400/90 px-4 py-3 text-base font-semibold text-stone-900 hover:bg-amber-300 transition-colors"
+                                    >
+                                        <Plus className="h-5 w-5" /> Criar herói
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </header>
+
+                    <main className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+                        {menuActions.map(action => (
+                            <button
+                                key={action.title}
+                                onClick={action.action}
+                                disabled={action.disabled}
+                                className={`w-full rounded-3xl border border-white/10 bg-white/5 p-5 text-left shadow-lg flex flex-col gap-4 transition-all ${
+                                    action.disabled ? 'opacity-50 cursor-not-allowed' : 'hover:border-amber-400/60 hover:bg-white/10'
+                                }`}
+                            >
+                                <div className={`flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br ${action.gradient}`}>
+                                    <action.icon className={`h-6 w-6 ${action.accent}`} />
+                                </div>
+                                <div className="space-y-2">
+                                    <p className="text-xl font-semibold text-white">{action.title}</p>
+                                    <p className="text-sm text-stone-400">{action.description}</p>
+                                </div>
+                                {action.cta && (
+                                    <span className="text-sm font-semibold text-amber-200">{action.cta}</span>
+                                )}
+                            </button>
+                        ))}
+                    </main>
+
+                    <footer className="w-full rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm">
+                        <div className="flex flex-wrap gap-3 justify-between">
+                            <button
+                                onClick={() => setShowSettingsModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors"
+                            >
+                                <Settings className="h-4 w-4" /> Configurações
+                            </button>
+                            <button
+                                onClick={() => setShowArchitectureModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors"
+                            >
+                                <GitMerge className="h-4 w-4" /> Arquitetura
+                            </button>
+                            <button
+                                onClick={() => setShowTestModal(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors"
+                            >
+                                <Beaker className="h-4 w-4" /> Testes
+                            </button>
+                            {user?.id === 1 && (
+                                <button
+                                    onClick={() => setGameStage('translation_studio')}
+                                    className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors"
+                                >
+                                    <Languages className="h-4 w-4" /> Traduções
+                                </button>
+                            )}
+                            <button
+                                onClick={logout}
+                                className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-red-300 hover:border-red-400 transition-colors"
+                            >
+                                <LogOut className="h-4 w-4" /> Sair
+                            </button>
+                        </div>
+                    </footer>
+                </div>
             </div>
         );
     }

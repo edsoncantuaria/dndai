@@ -46,6 +46,11 @@ export interface GenerationConfig {
     maxOutputTokens: number;
 }
 
+export type ThemePreset = 'classic' | 'aurora' | 'midnight';
+export type FontScale = 'normal' | 'reading';
+const THEME_PRESETS: ThemePreset[] = ['classic', 'aurora', 'midnight'];
+const FONT_SCALES: FontScale[] = ['normal', 'reading'];
+
 interface SettingsContextType {
     isLoaded: boolean;
     loadSettings: (settings: any) => void;
@@ -68,6 +73,20 @@ interface SettingsContextType {
     setPlayMenuMusic: (play: boolean) => void;
     useAiHomebrew: boolean;
     setUseAiHomebrew: (use: boolean) => void;
+    theme: ThemePreset;
+    setTheme: (theme: ThemePreset) => void;
+    fontScale: FontScale;
+    setFontScale: (scale: FontScale) => void;
+    reducedMotion: boolean;
+    setReducedMotion: (value: boolean) => void;
+    highContrast: boolean;
+    setHighContrast: (value: boolean) => void;
+    hasSeenGuidedTips: boolean;
+    setHasSeenGuidedTips: (value: boolean) => void;
+    eventCuesEnabled: boolean;
+    setEventCuesEnabled: (value: boolean) => void;
+    hapticsEnabled: boolean;
+    setHapticsEnabled: (value: boolean) => void;
     getApiKey: () => string | undefined;
     saveSettingsToDB: (settings: Partial<Omit<SettingsContextType, 'saveSettingsToDB' | 'loadSettings' | 'isLoaded' | 'getApiKey' | 'getSettingsObject'>>) => Promise<void>;
 }
@@ -86,9 +105,16 @@ const defaultSettings = {
     apiKey: '',
     generationConfig: defaultGenerationConfig,
     volume: 0.3,
-    isMuted: false,
-    playMenuMusic: true,
-    useAiHomebrew: true,
+   isMuted: false,
+   playMenuMusic: true,
+   useAiHomebrew: true,
+    theme: 'classic' as ThemePreset,
+    fontScale: 'normal' as FontScale,
+    reducedMotion: false,
+    highContrast: false,
+    hasSeenGuidedTips: false,
+    eventCuesEnabled: true,
+    hapticsEnabled: false,
 };
 
 const SettingsContext = createContext<SettingsContextType | null>(null);
@@ -128,6 +154,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
     const [playMenuMusic, setPlayMenuMusic] = useState(defaultSettings.playMenuMusic);
     const [useAiHomebrew, setUseAiHomebrew] = useState(defaultSettings.useAiHomebrew);
+    const [theme, setTheme] = useState<ThemePreset>(defaultSettings.theme);
+    const [fontScale, setFontScale] = useState<FontScale>(defaultSettings.fontScale);
+    const [reducedMotion, setReducedMotion] = useState(defaultSettings.reducedMotion);
+    const [highContrast, setHighContrast] = useState(defaultSettings.highContrast);
+    const [hasSeenGuidedTips, setHasSeenGuidedTips] = useState(defaultSettings.hasSeenGuidedTips);
+    const [eventCuesEnabled, setEventCuesEnabled] = useState(defaultSettings.eventCuesEnabled);
+    const [hapticsEnabled, setHapticsEnabled] = useState(defaultSettings.hapticsEnabled);
 
     const getApiKey = useCallback(() => apiKey, [apiKey]);
     
@@ -149,9 +182,41 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const getSettingsObject = useCallback(() => {
         return {
-            model, ttsModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew
+            model,
+            ttsModel,
+            generationConfig,
+            ttsVoice,
+            volume,
+            isMuted,
+            playMenuMusic,
+            apiKey,
+            useAiHomebrew,
+            theme,
+            fontScale,
+            reducedMotion,
+            highContrast,
+            hasSeenGuidedTips,
+            eventCuesEnabled,
+            hapticsEnabled,
         }
-    }, [model, ttsModel, generationConfig, ttsVoice, volume, isMuted, playMenuMusic, apiKey, useAiHomebrew]);
+    }, [
+        model,
+        ttsModel,
+        generationConfig,
+        ttsVoice,
+        volume,
+        isMuted,
+        playMenuMusic,
+        apiKey,
+        useAiHomebrew,
+        theme,
+        fontScale,
+        reducedMotion,
+        highContrast,
+        hasSeenGuidedTips,
+        eventCuesEnabled,
+        hapticsEnabled,
+    ]);
 
     // Save to localStorage whenever a setting changes
     useEffect(() => {
@@ -173,6 +238,17 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
             if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew);
             if (settings.apiKey) setApiKey(settings.apiKey);
+            if (settings.theme && THEME_PRESETS.includes(settings.theme as ThemePreset)) {
+                setTheme(settings.theme as ThemePreset);
+            }
+            if (settings.fontScale && FONT_SCALES.includes(settings.fontScale as FontScale)) {
+                setFontScale(settings.fontScale as FontScale);
+            }
+            if (typeof settings.reducedMotion === 'boolean') setReducedMotion(settings.reducedMotion);
+            if (typeof settings.highContrast === 'boolean') setHighContrast(settings.highContrast);
+            if (typeof settings.hasSeenGuidedTips === 'boolean') setHasSeenGuidedTips(settings.hasSeenGuidedTips);
+            if (typeof settings.eventCuesEnabled === 'boolean') setEventCuesEnabled(settings.eventCuesEnabled);
+            if (typeof settings.hapticsEnabled === 'boolean') setHapticsEnabled(settings.hapticsEnabled);
         }
     }, []);
 
@@ -192,6 +268,26 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         });
     }, []);
 
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.dataset.theme = theme;
+    }, [theme]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.dataset.fontScale = fontScale;
+    }, [fontScale]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.dataset.reduceMotion = reducedMotion ? 'true' : 'false';
+    }, [reducedMotion]);
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        document.body.dataset.contrast = highContrast ? 'high' : 'normal';
+    }, [highContrast]);
+
     const value: any = {
         isLoaded, loadSettings, getSettingsObject,
         model, setModel,
@@ -203,6 +299,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,
         useAiHomebrew, setUseAiHomebrew,
+        theme, setTheme,
+        fontScale, setFontScale,
+        reducedMotion, setReducedMotion,
+        highContrast, setHighContrast,
+        hasSeenGuidedTips, setHasSeenGuidedTips,
+        eventCuesEnabled, setEventCuesEnabled,
+        hapticsEnabled, setHapticsEnabled,
         getApiKey,
         saveSettingsToDB,
     };

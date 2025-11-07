@@ -19,45 +19,49 @@ const SkillCheckModal: React.FC<SkillCheckModalProps> = ({ skillName, promptHint
 
     return (
         <div 
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
-            style={{ animationDuration: '200ms' }}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-black/80 backdrop-blur-sm animate-fadeIn"
             onClick={onClose}
         >
             <div 
-                className="bg-stone-900 border border-amber-500 rounded-lg shadow-2xl w-full max-w-md flex flex-col"
+                className="w-full max-w-lg rounded-3xl border border-white/15 bg-[#080b12]/95 shadow-[0_40px_80px_rgba(0,0,0,0.65)] overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-garamond text-amber-300">Usar Perícia: {skillName}</h2>
-                    <button onClick={onClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
+                <header className="p-6 border-b border-white/10 flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-[0.5em] text-amber-300">Teste de perícia</p>
+                        <h2 className="text-2xl font-serif text-white mt-1">{skillName}</h2>
+                    </div>
+                    <button onClick={onClose} className="rounded-full border border-white/20 p-2 text-stone-300 hover:text-white transition">
+                        &times;
+                    </button>
                 </header>
                 <form onSubmit={handleSubmit}>
-                    <main className="p-6 space-y-4">
+                    <main className="p-6 space-y-4 text-sm text-stone-200">
                         {promptHint && (
-                            <p className="text-xs text-stone-400 bg-stone-800/60 border border-stone-700 rounded-md p-2">
+                            <p className="rounded-2xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-100">
                                 Sugestão do Mestre: {promptHint}
                             </p>
                         )}
-                        <label htmlFor="skill-description" className="block text-stone-300">
-                            Como você quer usar esta perícia? (Opcional)
+                        <label htmlFor="skill-description" className="text-xs uppercase tracking-[0.35em] text-stone-400">
+                            Como você quer usar esta perícia?
                         </label>
                         <textarea
                             id="skill-description"
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            rows={3}
-                            className="w-full bg-stone-800 border border-stone-600 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            rows={4}
+                            className="w-full rounded-2xl border border-white/15 bg-black/40 p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-transparent placeholder:text-stone-500"
                             placeholder={`Ex: "para intimidar o guarda" ou "para procurar por armadilhas"`}
                         />
-                         <p className="text-xs text-stone-500">Deixe em branco para uma tentativa geral ou descreva sua intenção.</p>
+                        <p className="text-xs text-stone-500">Deixe em branco para uma tentativa geral.</p>
                     </main>
-                    <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
-                         <button type="button" onClick={onClose} className="px-6 py-2 rounded-md font-semibold text-stone-200 bg-stone-700 hover:bg-stone-600 transition-colors">
+                    <footer className="p-6 border-t border-white/10 bg-white/5 flex flex-wrap justify-end gap-3">
+                         <button type="button" onClick={onClose} className="px-5 py-2 rounded-full border border-white/20 text-stone-200 hover:bg-white/10 transition">
                             Cancelar
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors flex items-center gap-2"
+                            className="px-6 py-2 rounded-full font-semibold text-stone-900 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 transition flex items-center gap-2"
                         >
                             Confirmar
                             <Dice5 className="h-4 w-4"/>

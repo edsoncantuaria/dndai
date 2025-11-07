@@ -1,11 +1,13 @@
 // src/components/NewCombatTracker.tsx
 'use client';
 import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import CombatantCard from './CombatantCard';
 import type { Combatant } from '../types';
 import { Swords, ChevronDown, Loader2 } from 'lucide-react';
 import CombatantHeaderInfo from './CombatantHeaderInfo';
+import { cn } from '@/lib/utils';
 
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
@@ -111,59 +113,97 @@ const NewCombatTracker: React.FC = () => {
 
     const isPlayerTurn = currentCombatant?.isPlayer || false;
 
+    const containerGlow = isPlayerTurn
+        ? 'border-amber-500/70 shadow-[0_0_25px_rgba(251,191,36,0.35)]'
+        : 'border-red-800/80 shadow-[0_0_30px_rgba(239,68,68,0.25)]';
+    const headerAccent = isPlayerTurn ? 'text-amber-200' : 'text-red-200';
+
     return (
-        <div className="flex-shrink-0 bg-red-950/40 backdrop-blur-sm p-3 rounded-lg border-2 border-red-800/80 mt-4 animate-fadeIn shadow-2xl shadow-red-950/50">
+        <motion.div
+            className={cn(
+                'flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border mt-4 animate-fadeIn relative overflow-hidden',
+                isPlayerTurn ? 'bg-amber-950/30' : 'bg-red-950/40',
+                containerGlow
+            )}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+        >
+            <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-r opacity-40', isPlayerTurn ? 'from-amber-500/20 via-amber-300/10 to-transparent' : 'from-red-600/20 via-rose-500/10 to-transparent')} />
+            <div className="relative">
             <button 
                 className="flex justify-between items-center w-full"
                 onClick={() => setIsExpanded(!isExpanded)}
                 aria-expanded={isExpanded}
             >
-                <h3 className="text-xl font-bold font-garamond text-red-200 flex items-center gap-2">
+                <h3 className={cn('text-xl font-bold font-garamond flex items-center gap-2', headerAccent)}>
                     <Swords /> 
                     <span>COMBATE ATIVO</span>
                 </h3>
 
                 <div className="flex items-center gap-4">
                   { !isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant as Combatant} /> }
-                  <span className="font-mono text-lg text-red-300">Round {round}</span>
-                  <ChevronDown className={`h-6 w-6 transition-transform text-red-300 hover:text-white ${isExpanded ? 'rotate-180' : ''}`} />
+                  <span className={cn('font-mono text-lg', headerAccent)}>Round {round}</span>
+                  <ChevronDown className={cn('h-6 w-6 transition-transform hover:text-white', headerAccent, { 'rotate-180': isExpanded })} />
                 </div>
             </button>
 
-            {isExpanded && (
-                <div className="mt-4 animate-fadeIn" style={{ animationDuration: '300ms'}}>
-                    {currentCombatant && (
-                        <div className="space-y-3">
-                            <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
-                            <CombatantCard
-                                key={currentCombatant.id}
-                                combatant={currentCombatant as Combatant}
-                                isCurrentTurn={true}
-                                isPlayer={!!currentCombatant.isPlayer}
-                            />
-                        </div>
-                    )}
-                    
-                    {upcomingCombatants.length > 0 && (
-                        <div className="mt-4 space-y-2">
-                            <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
-                            <div className="space-y-3 opacity-80">
-                                {upcomingCombatants.map((combatant) => (
-                                    combatant ? (
-                                        <CombatantCard
-                                            key={combatant.id}
-                                            combatant={combatant as Combatant}
-                                            isCurrentTurn={false}
-                                            isPlayer={!!combatant.isPlayer}
-                                        />
-                                    ) : null
-                                ))}
+            <AnimatePresence initial={false}>
+                {isExpanded && (
+                    <motion.div
+                        key="combat-body"
+                        className="mt-4"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                    >
+                        {currentCombatant && (
+                            <motion.div
+                                className="space-y-3"
+                                initial={{ opacity: 0, y: -6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.2 }}
+                            >
+                                <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
+                                <CombatantCard
+                                    key={currentCombatant.id}
+                                    combatant={currentCombatant as Combatant}
+                                    isCurrentTurn={true}
+                                    isPlayer={!!currentCombatant.isPlayer}
+                                />
+                            </motion.div>
+                        )}
+                        
+                        {upcomingCombatants.length > 0 && (
+                            <div className="mt-4 space-y-2">
+                                <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
+                                <div className="space-y-3 opacity-90">
+                                    <AnimatePresence>
+                                        {upcomingCombatants.map((combatant) =>
+                                            combatant ? (
+                                                <motion.div
+                                                    key={combatant.id}
+                                                    initial={{ opacity: 0, x: 12 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -10 }}
+                                                >
+                                                    <CombatantCard
+                                                        combatant={combatant as Combatant}
+                                                        isCurrentTurn={false}
+                                                        isPlayer={!!combatant.isPlayer}
+                                                    />
+                                                </motion.div>
+                                            ) : null
+                                        )}
+                                    </AnimatePresence>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
-            )}
-             {!isPlayerTurn && (
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {!isPlayerTurn && (
                 <div className="mt-4 text-center">
                     <button
                         onClick={nextTurn}
@@ -174,7 +214,8 @@ const NewCombatTracker: React.FC = () => {
                     </button>
                 </div>
             )}
-        </div>
+            </div>
+        </motion.div>
     );
 };
 
