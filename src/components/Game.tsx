@@ -5,13 +5,17 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import GameScreen from '@/components/GameScreen';
-import { Loader2 } from 'lucide-react';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 const CharacterCreation = dynamic(() => import('@/components/CharacterCreation'), {
     loading: () => (
         <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-            <Loader2 className="h-12 w-12 animate-spin" />
-            <p className="mt-4">Carregando o criador de heróis...</p>
+            <PremiumLoader
+                title="Carregando o criador de heróis"
+                subtitle="Preparando tomos antigos e opções personalizadas."
+                description="Sincronizando dados necessários para a criação do personagem..."
+                showSkeletons={false}
+            />
         </div>
     ),
     ssr: false // A criação de personagem depende de interações do cliente

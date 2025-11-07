@@ -33,6 +33,7 @@ import { useEventFeedback } from '@/hooks/useEventFeedback';
 import DailyRecapPanel from './DailyRecapPanel';
 import GuidedTipsOverlay from './GuidedTipsOverlay';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -208,11 +209,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     
     if (isLoading && !character) {
         return (
-           <div className="flex flex-col items-center justify-center h-full text-center text-stone-300">
-               <Loader2 className="h-12 w-12 animate-spin mb-4" />
-               <h2 className="text-2xl font-bold font-garamond text-amber-300">Carregando Aventura...</h2>
-           </div>
-       );
+            <PremiumLoader
+                title="O Mestre está remontando a cena"
+                subtitle="Recuperando aliados, inventário, registros do diário e o último ponto da história."
+                description="Sincronizando dados da sessão, combatentes ativos e trilha de ambientação..."
+            />
+        );
     }
 
     const pushBadge = useCallback((badge: { text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }) => {

@@ -5,6 +5,7 @@ import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles } from 'lucide-react';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
