@@ -31,37 +31,14 @@ const AuthForm = () => {
     const [isLoginView, setIsLoginView] = useState(true);
 
     return (
-        <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-[#04070f]">
+        <div className="relative min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#04070f]">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.25),_transparent_55%)]" />
             <div className="absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-amber-500/10 via-transparent to-transparent blur-3xl" />
 
-            <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 py-10 flex flex-col lg:flex-row gap-10">
-                <section className="w-full lg:w-1/2 space-y-6 text-stone-200">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[11px] uppercase tracking-[0.4em] text-amber-200">
-                        Mesa narrativa com IA
-                    </div>
-                    <div className="space-y-3">
-                        <h1 className="text-3xl md:text-4xl font-bold font-serif text-white leading-tight">Forje crônicas épicas em minutos</h1>
-                        <p className="text-sm md:text-base text-stone-300">
-                            Automação de combate, inventário inteligente e ambientação dinâmica em uma experiência premium.
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {highlights.map(feature => (
-                            <div key={feature.title} className="rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm p-4 flex items-start gap-3">
-                                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/30">
-                                    {feature.icon}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-white">{feature.title}</p>
-                                    <p className="text-xs text-stone-400 leading-relaxed">{feature.description}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </section>
-
-                <section className="w-full lg:w-1/2 flex justify-center">
+            <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 py-10 flex flex-col lg:flex-row items-center lg:items-start gap-10 lg:gap-16">
+                
+                {/* Coluna do Formulário - Aparece primeiro em mobile */}
+                <section className="w-full lg:w-1/2 flex justify-center lg:justify-start">
                     <div className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-stone-950/80 p-6 sm:p-8 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
@@ -99,6 +76,33 @@ const AuthForm = () => {
                         </p>
                     </div>
                 </section>
+
+                {/* Coluna de Destaques - Aparece depois em mobile */}
+                <section className="w-full lg:w-1/2 space-y-6 text-stone-200 pt-8 lg:pt-0">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[11px] uppercase tracking-[0.4em] text-amber-200">
+                        Mesa narrativa com IA
+                    </div>
+                    <div className="space-y-3">
+                        <h1 className="text-3xl md:text-4xl font-bold font-serif text-white leading-tight">Forje crônicas épicas em minutos</h1>
+                        <p className="text-sm md:text-base text-stone-300">
+                            Automação de combate, inventário inteligente e ambientação dinâmica em uma experiência premium.
+                        </p>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {highlights.map(feature => (
+                            <div key={feature.title} className="rounded-2xl border border-white/5 bg-white/5 backdrop-blur-sm p-4 flex items-start gap-3">
+                                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-400/30">
+                                    {feature.icon}
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-white">{feature.title}</p>
+                                    <p className="text-xs text-stone-400 leading-relaxed">{feature.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
             </div>
         </div>
     );
