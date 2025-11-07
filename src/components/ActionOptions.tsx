@@ -362,7 +362,7 @@ const ActionOptions: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                             transition={{ duration: 0.25 }}
-                            className="fixed bottom-[11rem] top-20 right-4 left-4 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
+                            className="fixed bottom-28 top-8 right-4 left-4 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
                         >
                             <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-300 mb-3">Escolha sua ação</h3>
                             {renderActionContent()}
