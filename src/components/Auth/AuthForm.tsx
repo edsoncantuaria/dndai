@@ -31,13 +31,13 @@ const AuthForm = () => {
     const [isLoginView, setIsLoginView] = useState(true);
 
     return (
-        <div className="relative min-h-screen w-full overflow-x-hidden overflow-y-auto bg-[#04070f]">
+        <div className="relative w-full overflow-x-hidden bg-[#04070f] py-16 sm:py-24">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.25),_transparent_55%)]" />
             <div className="absolute inset-x-0 top-0 h-80 bg-gradient-to-b from-amber-500/10 via-transparent to-transparent blur-3xl" />
 
-            <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 py-10 flex flex-col lg:flex-row items-center lg:items-start gap-10 lg:gap-16">
+            <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-8 flex flex-col lg:flex-row items-center lg:items-start gap-10 lg:gap-16">
                 
-                {/* Coluna do Formulário - Aparece primeiro em mobile */}
+                {/* Coluna do Formulário */}
                 <section className="w-full lg:w-1/2 flex justify-center lg:justify-start">
                     <div className="w-full max-w-md rounded-3xl border border-amber-500/30 bg-stone-950/80 p-6 sm:p-8 shadow-[0_25px_80px_rgba(0,0,0,0.45)] backdrop-blur-2xl space-y-6">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -77,7 +77,7 @@ const AuthForm = () => {
                     </div>
                 </section>
 
-                {/* Coluna de Destaques - Aparece depois em mobile */}
+                {/* Coluna de Destaques */}
                 <section className="w-full lg:w-1/2 space-y-6 text-stone-200 pt-8 lg:pt-0">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[11px] uppercase tracking-[0.4em] text-amber-200">
                         Mesa narrativa com IA
