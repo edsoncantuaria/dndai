@@ -20,6 +20,64 @@ import { loadTranslations } from '@/utils/translator';
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
 
 
+const PremiumLoader: React.FC<{ onCancel?: () => void }> = ({ onCancel }) => (
+    <div className="min-h-screen w-full bg-[#02060d] overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.15),_transparent_60%)]" />
+        <div className="relative z-10 max-w-4xl mx-auto px-6 py-16 flex flex-col gap-10">
+            <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-[10px] uppercase tracking-[0.45em] text-amber-200 animate-pulse">Sincronizando</div>
+                <h2 className="text-3xl font-serif text-white">Preparando sua crônica</h2>
+                <p className="text-sm text-stone-400">
+                    Estamos recuperando o estado da mesa, inventário, aliados e missões. Aproveite o brilho enquanto o Mestre organiza a próxima cena.
+                </p>
+            </div>
+            <div className="space-y-4">
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg animate-pulse">
+                    <div className="h-4 w-32 bg-white/30 rounded-full mb-3" />
+                    <div className="space-y-2">
+                        <div className="h-3 bg-white/10 rounded-full w-full" />
+                        <div className="h-3 bg-white/10 rounded-full w-5/6" />
+                        <div className="h-3 bg-white/10 rounded-full w-4/6" />
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {Array.from({ length: 4 }).map((_, idx) => (
+                        <div key={idx} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-lg animate-pulse space-y-3">
+                            <div className="h-3 bg-white/20 rounded-full w-1/2" />
+                            <div className="h-5 bg-white/30 rounded-full w-2/3" />
+                            <div className="h-3 bg-white/10 rounded-full w-full" />
+                        </div>
+                    ))}
+                </div>
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg space-y-4 animate-pulse">
+                    <div className="flex items-center gap-3">
+                        <div className="h-12 w-12 rounded-2xl bg-white/10" />
+                        <div className="flex-1 space-y-2">
+                            <div className="h-4 bg-white/20 rounded-full w-2/3" />
+                            <div className="h-3 bg-white/10 rounded-full w-1/3" />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="h-10 bg-white/10 rounded-2xl" />
+                        <div className="h-10 bg-white/10 rounded-2xl" />
+                    </div>
+                </div>
+            </div>
+            <div className="flex items-center justify-between text-xs text-stone-500">
+                <span>Seu progresso continua salvo automaticamente.</span>
+                {onCancel && (
+                    <button
+                        onClick={onCancel}
+                        className="px-3 py-1.5 rounded-full border border-white/20 text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors"
+                    >
+                        Voltar ao menu
+                    </button>
+                )}
+            </div>
+        </div>
+    </div>
+);
+
 const GameContainer = () => {
     const {
         character,
@@ -209,29 +267,8 @@ const GameContainer = () => {
 
         // Master loading screen for playing stage (before personagem carregar)
         if (gameStage === 'playing' && !character) {
-             return (
-                <div className="flex flex-col items-center justify-center min-h-screen px-6 py-12 text-center">
-                    <div className="max-w-md w-full space-y-6 rounded-3xl border border-white/10 bg-[#080b12]/95 p-8 shadow-[0_35px_80px_rgba(0,0,0,0.65)] backdrop-blur-2xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/40 bg-amber-500/10 text-[10px] uppercase tracking-[0.4em] text-amber-200">
-                            Preparando cena
-                        </div>
-                        <div className="space-y-2">
-                            <p className="text-sm text-stone-400">O Mestre está reconstruindo o estado da sua crônica premium.</p>
-                            <p className="text-lg font-serif text-white">Sincronizando jornada...</p>
-                        </div>
-                        <div className="flex justify-center">
-                            <div className="h-16 w-16 rounded-full border border-amber-400/30 border-t-transparent animate-spin" />
-                        </div>
-                    <p className="text-xs text-stone-500">Isso pode levar alguns segundos enquanto buscamos personagens, diário e combate.</p>
-                    <button
-                        onClick={returnToMenu}
-                        className="w-full px-4 py-2 rounded-full border border-white/20 text-sm text-stone-100 hover:bg-white/10 transition"
-                    >
-                        Voltar ao menu
-                    </button>
-                </div>
-            </div>
-        );
+             return <PremiumLoader onCancel={returnToMenu} />;
+        }
         }
 
         // Once loaded, if the stage is 'playing', render the Game component.
