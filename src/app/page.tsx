@@ -6,12 +6,20 @@ import AuthForm from '@/components/Auth/AuthForm';
 import LicenseActivationForm from '@/components/Auth/LicenseActivationForm';
 import ApiKeyForm from '@/components/Auth/ApiKeyForm';
 import { SettingsProvider } from '@/contexts/SettingsContext';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 const AppContent = () => {
   const { isAuthenticated, isLicenseActive, hasApiKey, isLoading } = useAuth();
 
   if (isLoading) {
-    return <div className="flex h-full w-full items-center justify-center text-white">Carregando...</div>;
+    return (
+      <PremiumLoader
+        title="Carregando seus mundos"
+        subtitle="Validando licença, aplicando preferências e preparando o mestre virtual."
+        description="Sincronizando autenticação e recuperando configurações personalizadas..."
+        showSkeletons={false}
+      />
+    );
   }
 
   if (!isAuthenticated) {
