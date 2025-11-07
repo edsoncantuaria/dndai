@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock } from 'lucide-react';
 import PremiumLoader from '@/components/ui/PremiumLoader';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
@@ -225,96 +225,223 @@ const GameContainer = () => {
             );
         }
 
+        if ((gameStage === 'loading' || isLoadingData) && gameStage !== 'playing') {
+            return (
+                <PremiumLoader
+                    title="Abrindo o salão principal"
+                    subtitle="Sincronizando personagens, crônicas e trilhas sonoras."
+                    description="Buscando cofres, sessões salvas e recursos premium..."
+                    actionLabel="Voltar ao menu"
+                    onAction={() => setGameStage('main_menu')}
+                />
+            );
+        }
+
         if (gameStage === 'session_list') {
-             return (
-                <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col gap-6 animate-fadeIn px-4 text-left">
-                     <header className="space-y-2 text-center md:text-left">
-                        <p className="text-xs uppercase tracking-[0.35em] text-amber-300">Continuar</p>
-                        <h1 className="text-4xl md:text-5xl font-bold text-amber-50 font-serif">Retome uma crônica</h1>
-                        <p className="text-stone-400 mt-1">Selecione uma sessão salva para mergulhar direto na história.</p>
-                    </header>
-                    <main className="w-full space-y-3 max-h-[65vh] overflow-y-auto pr-1 sm:pr-2">
-                         {sessions.length > 0 ? (
-                            sessions.map(session => (
-                                 <article
-                                    key={session.id}
-                                    className="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-lg backdrop-blur-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                    <div className="flex-1">
-                                        <p className="text-xs uppercase tracking-wide text-stone-500">Atualizado em {new Date(session.updatedAt).toLocaleDateString()}</p>
-                                        <h2 className="text-xl font-semibold text-stone-100 mt-1">{session.nome}</h2>
-                                        <p className="text-sm text-stone-400">
-                                            Herói: {session.character?.name} · {session.character?.characterClass} Nível {session.character?.level}
-                                        </p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2">
-                                        <button
-                                            onClick={() => handleContinueGame(session.id)}
-                                            className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-400 transition-colors"
+            return (
+                <div className="relative isolate min-h-screen w-full overflow-hidden bg-[#030812]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),transparent_60%)]" />
+                    <div className="absolute -bottom-32 right-0 h-96 w-96 bg-emerald-500/20 blur-[160px]" />
+                    <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-8">
+                        <header className="space-y-3 text-center sm:text-left">
+                            <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Continuar</p>
+                            <h1 className="text-4xl font-semibold text-white">Retome uma crônica</h1>
+                            <p className="text-sm text-stone-400">
+                                Todas as sessões ficam guardadas aqui. Continue do ponto exato onde parou.
+                            </p>
+                        </header>
+
+                        <div className="grid gap-4">
+                            {sessions.length > 0 ? (
+                                sessions.map(session => {
+                                    const updatedDate = new Date(session.updatedAt).toLocaleDateString();
+                                    return (
+                                        <article
+                                            key={session.id}
+                                            className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                         >
-                                            <Play className="h-4 w-4" />
-                                            Retomar
-                                        </button>
-                                        <button
-                                            onClick={() => setSessionToDelete(session)}
-                                            className="inline-flex items-center gap-2 rounded-xl border border-red-500/50 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                            Excluir
-                                        </button>
-                                    </div>
-                                </article>
-                            ))
-                        ) : (
-                            <p className="text-stone-400 italic py-8 text-center">Nenhuma aventura em andamento.</p>
-                        )}
-                    </main>
-                     <footer className="mt-2 flex justify-center">
-                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline inline-flex items-center gap-2">
-                           <ArrowLeft className="h-4 w-4" /> Voltar ao menu premium
-                        </button>
-                    </footer>
+                                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-[0.35em] text-stone-500">
+                                                        Atualizado em {updatedDate}
+                                                    </p>
+                                                    <h2 className="text-2xl font-semibold text-white">{session.nome}</h2>
+                                                    <p className="text-sm text-stone-300">
+                                                        Herói: {session.character?.name} · {session.character?.characterClass} Nível {session.character?.level}
+                                                    </p>
+                                                </div>
+                                                <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
+                                                    Sessão #{session.id}
+                                                </span>
+                                            </div>
+                                            <div className="mt-4 flex flex-wrap gap-3">
+                                                <button
+                                                    onClick={() => handleContinueGame(session.id)}
+                                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 transition-colors"
+                                                >
+                                                    <Play className="h-4 w-4" /> Retomar
+                                                </button>
+                                                <button
+                                                    onClick={() => setSessionToDelete(session)}
+                                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
+                                                >
+                                                    <Trash2 className="h-4 w-4" /> Excluir
+                                                </button>
+                                            </div>
+                                        </article>
+                                    );
+                                })
+                            ) : (
+                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-stone-300">
+                                    <p className="text-sm">Nenhuma aventura em andamento. Crie um herói e inicie o primeiro capítulo.</p>
+                                    <button
+                                        onClick={() => setGameStage('character_vault')}
+                                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-300/40 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/10 transition"
+                                    >
+                                        <Plus className="h-4 w-4" /> Abrir cofres
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex flex-wrap justify-between gap-3">
+                            <button
+                                onClick={() => setGameStage('main_menu')}
+                                className="inline-flex items-center gap-2 text-sm text-stone-300 hover:text-amber-200 transition"
+                            >
+                                <ArrowLeft className="h-4 w-4" /> Voltar ao menu premium
+                            </button>
+                            <button
+                                onClick={() => setGameStage('character_vault')}
+                                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-stone-100 hover:border-amber-200/60 transition"
+                            >
+                                <User className="h-4 w-4" /> Cofre de heróis
+                            </button>
+                        </div>
+                    </div>
                 </div>
-            )
+            );
         }
 
         if (gameStage === 'character_vault') {
+            const vaultStats = [
+                { label: 'Heróis forjados', value: characters.length || '0' },
+                {
+                    label: 'Última atualização',
+                    value: characters[0]?.updatedAt ? new Date(characters[0].updatedAt).toLocaleDateString() : '--/--',
+                },
+                { label: 'Sessões salvas', value: sessions.length || '0' },
+            ];
+
             return (
-                <div className="relative z-10 w-full max-w-4xl mx-auto flex flex-col items-center text-center animate-fadeIn">
-                    <header className="mb-8">
-                        <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">Cofre de Heróis</h1>
-                        <p className="text-stone-400 mt-2">Escolha um herói para uma nova aventura ou crie um novo campeão.</p>
-                    </header>
-                    <main className="w-full space-y-4 max-h-96 overflow-y-auto pr-2">
-                        {characters.length > 0 ? (
-                            characters.map(char => (
-                                <div key={char.id} className="w-full text-left p-4 bg-stone-800/60 border-2 border-stone-700 rounded-lg hover:bg-stone-700/80 hover:border-amber-600 transition-all flex justify-between items-center">
-                                    <div>
-                                        <p className="font-bold text-lg text-stone-200">{char.name}</p>
-                                        <p className="text-sm text-stone-400">{char.race} {char.characterClass}, Nível {char.level}</p>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={() => handleNewGameFromVault(char as Character)} className="p-2 bg-green-700/80 hover:bg-green-600 rounded-md" title="Iniciar Nova Aventura">
-                                            <Play className="h-6 w-6 text-white" />
-                                        </button>
-                                        <button onClick={() => setCharacterToDelete(char as Character)} className="p-2 bg-red-800/80 hover:bg-red-700 rounded-md" title="Deletar Personagem">
-                                            <Trash2 className="h-6 w-6 text-white" />
-                                        </button>
-                                    </div>
+                <div className="relative isolate min-h-screen w-full overflow-hidden bg-[#04070f]">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.15),transparent_60%)]" />
+                    <div className="absolute -top-32 right-0 h-96 w-96 bg-rose-500/20 blur-[180px]" />
+                    <div className="absolute bottom-0 left-0 h-72 w-72 bg-emerald-500/15 blur-[160px]" />
+
+                    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-12 sm:px-8">
+                        <header className="flex flex-col gap-4 text-center sm:text-left">
+                            <div className="inline-flex items-center gap-2 self-center rounded-full border border-amber-400/40 px-4 py-1 text-[11px] uppercase tracking-[0.4em] text-amber-200 sm:self-start">
+                                Cofre de Heróis
+                            </div>
+                            <div className="space-y-3">
+                                <h1 className="text-4xl font-semibold text-white sm:text-5xl">Escolha o protagonista da próxima saga</h1>
+                                <p className="text-sm text-stone-400">
+                                    Reviva crônicas antigas ou crie um herói inédito para desbloquear narrativas exclusivas com IA.
+                                </p>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                                <button
+                                    onClick={() => setGameStage('creating_character')}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-400/90 px-5 py-3 text-sm font-semibold text-stone-900 hover:bg-amber-300 transition"
+                                >
+                                    <Plus className="h-4 w-4" /> Criar novo herói
+                                </button>
+                                <button
+                                    onClick={() => setGameStage('main_menu')}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full border border-white/10 px-5 py-3 text-sm font-semibold text-stone-100 hover:border-amber-200/60 transition"
+                                >
+                                    <ArrowLeft className="h-4 w-4" /> Voltar ao menu
+                                </button>
+                            </div>
+                        </header>
+
+                        <div className="grid gap-3 sm:grid-cols-3">
+                            {vaultStats.map(stat => (
+                                <div key={stat.label} className="rounded-3xl border border-white/5 bg-white/5 p-4 text-center backdrop-blur">
+                                    <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{stat.label}</p>
+                                    <p className="mt-2 text-3xl font-semibold text-white">{stat.value}</p>
                                 </div>
-                            ))
+                            ))}
+                        </div>
+
+                        {characters.length > 0 ? (
+                            <div className="grid gap-5 md:grid-cols-2">
+                                {characters.map(char => {
+                                    const updatedAt = new Date(char.updatedAt).toLocaleDateString();
+                                    return (
+                                        <article
+                                            key={char.id}
+                                            className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-white/5 p-5 text-left backdrop-blur shadow-xl"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-[0.4em] text-stone-500">#{char.id}</p>
+                                                    <h3 className="text-2xl font-semibold text-amber-50">{char.name}</h3>
+                                                    <p className="text-sm text-stone-300">
+                                                        {char.race}
+                                                        {char.subrace ? ` (${char.subrace})` : ''} · {char.alignment}
+                                                    </p>
+                                                </div>
+                                                <span className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 text-xs text-stone-200">
+                                                    <Crown className="h-3.5 w-3.5" /> Nível {char.level}
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-3 text-xs text-stone-400">
+                                                <div className="flex items-center gap-2">
+                                                    <Shield className="h-3.5 w-3.5 text-stone-500" />
+                                                    {char.characterClass}
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Clock className="h-3.5 w-3.5 text-stone-500" />
+                                                    Atualizado em {updatedAt}
+                                                </div>
+                                                <div className="col-span-2">
+                                                    <p>
+                                                        Antecedente: <span className="text-stone-200">{char.background}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap gap-3">
+                                                <button
+                                                    onClick={() => handleNewGameFromVault(char as Character)}
+                                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 transition"
+                                                >
+                                                    <Play className="h-4 w-4" /> Iniciar aventura
+                                                </button>
+                                                <button
+                                                    onClick={() => setCharacterToDelete(char as Character)}
+                                                    className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition"
+                                                >
+                                                    <Trash2 className="h-4 w-4" /> Excluir
+                                                </button>
+                                            </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
                         ) : (
-                            <p className="text-stone-400 italic py-8">Nenhum herói foi forjado ainda.</p>
+                            <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-stone-300">
+                                <p className="text-sm">Nenhum herói foi forjado ainda. Que tal criar o primeiro campeão?</p>
+                                <button
+                                    onClick={() => setGameStage('creating_character')}
+                                    className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-300/40 px-5 py-3 text-sm font-semibold text-amber-200 hover:bg-amber-500/10 transition"
+                                >
+                                    <Plus className="h-4 w-4" /> Criar agora
+                                </button>
+                            </div>
                         )}
-                    </main>
-                    <footer className="mt-6 flex items-center justify-center gap-4">
-                        <button onClick={() => setGameStage('creating_character')} className="menu-button btn-new">
-                            <User className="mr-2 h-6 w-6"/> Criar Novo Herói
-                        </button>
-                        <button onClick={() => setGameStage('main_menu')} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2">
-                           <ArrowLeft className="h-4 w-4" /> Voltar ao Menu Principal
-                        </button>
-                    </footer>
+                    </div>
                 </div>
             );
         }

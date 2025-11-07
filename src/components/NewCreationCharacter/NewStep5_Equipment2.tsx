@@ -130,8 +130,8 @@ const EquipmentChoice: React.FC<{
     
     if (lazyLoading) {
         return (
-            <div className="flex items-center justify-center p-3 text-stone-400">
-                <Loader2 className="animate-spin h-5 w-5 mr-2" />
+            <div className="flex items-center justify-center rounded-3xl border border-white/5 bg-stone-950/60 p-4 text-stone-400">
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 <span>Carregando {group.choice?.from?.equipment_category?.name || 'itens'}...</span>
             </div>
         );
@@ -141,17 +141,26 @@ const EquipmentChoice: React.FC<{
     const selectedOption = (mainSelectionIndex !== undefined && mainSelectionIndex >= 0) ? mainOptions[mainSelectionIndex] : undefined;
 
     return (
-        <div className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 space-y-3">
-            <h5 className="font-semibold text-stone-300">{group.choice.desc}</h5>
+        <div className="rounded-3xl border border-white/5 bg-stone-950/60 p-5 space-y-4 shadow-inner shadow-black/20">
+            <div className="flex items-center justify-between gap-2">
+                <h5 className="text-sm font-semibold text-stone-100">{group.choice.desc}</h5>
+                <span className="text-xs text-stone-500">{group.source}</span>
+            </div>
             <select
                 value={mainSelectionIndex ?? -1}
-                onChange={(e) => handleEquipmentChoiceChange(group.id, parseInt(e.target.value, 10))}
-                className="w-full bg-stone-900/70 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                onChange={e => handleEquipmentChoiceChange(group.id, parseInt(e.target.value, 10))}
+                className="w-full rounded-2xl border border-white/10 bg-stone-950/70 p-3 text-sm text-stone-100 focus:border-amber-400 focus:outline-none"
             >
-                <option value={-1} disabled>Selecione uma opção...</option>
-                {mainOptions.map((opt: any, index: number) => <option key={index} value={index}>{getOptionLabel(opt)}</option>)}
+                <option value={-1} disabled>
+                    Selecione uma opção...
+                </option>
+                {mainOptions.map((opt: any, index: number) => (
+                    <option key={index} value={index}>
+                        {getOptionLabel(opt)}
+                    </option>
+                ))}
             </select>
-            
+
             {selectedOption && <EquipmentOptionRenderer option={selectedOption} selectionPath={group.id} hook={hook} />}
         </div>
     );
@@ -199,81 +208,99 @@ const NewStep5_Equipment2: React.FC<{
     }, [fixedEquipment, finalizedEquipment]);
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-stone-300">Equipamento Inicial</h3>
-                <button
-                    type="button"
-                    onClick={handleRandomizeEquipment}
-                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
-                >
-                    <Dice5 className="h-4 w-4" />
-                    Aleatório
-                </button>
-            </div>
-            <p className="text-sm text-stone-400 -mt-6">Sua classe e antecedente fornecem seu equipamento inicial. Faça suas escolhas abaixo.</p>
-
-            {loadingStates.isLoading ? (
-                <div className="flex flex-col items-center justify-center p-8 text-stone-400">
-                    <Loader2 className="h-12 w-12 animate-spin" />
-                    <p className="mt-4">{loadingStates.message || 'Carregando opções...'}</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-8">
-                        {backgroundChoices.length > 0 && (
-                            <div>
-                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Equipamentos do Antecedente</h4>
-                                <div className="space-y-4">
-                                {backgroundChoices.map((group) => (
-                                    <EquipmentChoice key={group.id} group={group} hook={hook} />
-                                ))}
-                                </div>
-                            </div>
-                        )}
-                        {classChoices.length > 0 && (
-                             <div>
-                                <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2">Equipamentos da Classe</h4>
-                                <div className="space-y-4">
-                                {classChoices.map((group) => (
-                                    <EquipmentChoice key={group.id} group={group} hook={hook} />
-                                ))}
-                                </div>
-                            </div>
-                        )}
-                         {equipmentChoiceGroups.length === 0 && (
-                            <p className="text-stone-400 italic">Nenhuma escolha de equipamento necessária.</p>
-                        )}
+        <div className="space-y-10 animate-fadeIn">
+            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Arsenal Inicial</p>
+                        <h3 className="text-3xl font-semibold text-amber-50">Monte seu equipamento</h3>
+                        <p className="text-sm text-stone-400">
+                            Combine as opções de classe e antecedente para definir armas, armaduras e utilidades que acompanharão sua jornada.
+                        </p>
                     </div>
-                    
-                    <div className="space-y-4">
-                        <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2 flex items-center gap-2">
-                           <Backpack /> Inventário Resultante
-                        </h4>
-                        <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2 max-h-[60vh] overflow-y-auto">
-                           {allInventory.length === 0 ? (
-                                <p className="text-stone-500 italic text-center py-4">Seu inventário está vazio.</p>
-                            ) : (
-                                allInventory.map((item, index) => {
-                                    console.log('[Inventário Resultante] Renderizando ItemCard com dados:', item);
-                                    return (
-                                        <ItemCard key={`item-${item.index}-${index}`} item={item} proficiencies={finalProficiencies} defaultExpanded={true}/>
-                                    )
-                                })
+                    <button
+                        type="button"
+                        onClick={handleRandomizeEquipment}
+                        className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                    >
+                        <Dice5 className="h-4 w-4" />
+                        Sortear combinações
+                    </button>
+                </div>
+
+                {loadingStates.isLoading ? (
+                    <div className="flex flex-col items-center justify-center p-12 text-stone-400">
+                        <Loader2 className="h-12 w-12 animate-spin" />
+                        <p className="mt-4">{loadingStates.message || 'Carregando opções...'}</p>
+                    </div>
+                ) : (
+                    <div className="grid gap-8 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,1fr)]">
+                        <div className="space-y-6">
+                            {backgroundChoices.length > 0 && (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-semibold uppercase tracking-[0.4em] text-stone-500">Antecedente</h4>
+                                    {backgroundChoices.map(group => (
+                                        <EquipmentChoice key={group.id} group={group} hook={hook} />
+                                    ))}
+                                </div>
+                            )}
+                            {classChoices.length > 0 && (
+                                <div className="space-y-4">
+                                    <h4 className="text-sm font-semibold uppercase tracking-[0.4em] text-stone-500">Classe</h4>
+                                    {classChoices.map(group => (
+                                        <EquipmentChoice key={group.id} group={group} hook={hook} />
+                                    ))}
+                                </div>
+                            )}
+                            {equipmentChoiceGroups.length === 0 && (
+                                <p className="text-sm text-stone-500">Nenhuma escolha adicional de equipamento é necessária.</p>
                             )}
                         </div>
-                    </div>
-                </div>
-            )}
 
-            <div className="flex justify-between pt-8">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3" />
-                    Voltar
+                        <div className="space-y-4 rounded-3xl border border-white/5 bg-stone-950/60 p-5">
+                            <div className="flex items-center gap-2">
+                                <Backpack className="h-5 w-5 text-amber-300" />
+                                <div>
+                                    <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Inventário resultante</p>
+                                    <h4 className="text-lg font-semibold text-stone-100">Prévia completa</h4>
+                                </div>
+                            </div>
+                            <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-2">
+                                {allInventory.length === 0 ? (
+                                    <p className="py-8 text-center text-sm text-stone-500">Seu inventário está vazio.</p>
+                                ) : (
+                                    allInventory.map((item, index) => (
+                                        <ItemCard
+                                            key={`item-${item.index}-${index}`}
+                                            item={item}
+                                            proficiencies={finalProficiencies}
+                                            defaultExpanded={false}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </section>
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Proficiências
                 </button>
-                <button type="button" onClick={nextStep} disabled={!areAllEquipmentChoicesMade || loadingStates.isLoading} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {areAllEquipmentChoicesMade ? 'Avançar' : 'Faça suas escolhas'}
-                    <ArrowRight className="h-6 w-6 ml-3" />
+                <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!areAllEquipmentChoicesMade || loadingStates.isLoading}
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {areAllEquipmentChoicesMade ? 'Prosseguir para Magias' : 'Conclua as escolhas pendentes'}
+                    <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
         </div>

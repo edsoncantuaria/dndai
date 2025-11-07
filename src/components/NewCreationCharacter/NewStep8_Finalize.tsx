@@ -84,13 +84,14 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
 
 
     return (
-        <div className="space-y-6 animate-fadeIn">
-            <div className="text-center">
-                <h3 className="text-2xl font-semibold text-stone-200 mb-2 font-garamond">Ficha do Personagem</h3>
-                <p className="text-sm text-stone-400">Revise seu herói e dê a ele um nome. Sua aventura está prestes a começar!</p>
-            </div>
+        <div className="space-y-10 animate-fadeIn">
+            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40 space-y-6">
+                <div className="text-center space-y-2">
+                    <h3 className="text-3xl font-semibold text-amber-50">Revise sua lenda</h3>
+                    <p className="text-sm text-stone-400">Confirme cada detalhe antes de chamar os dados.</p>
+                </div>
             
-            <div className="bg-stone-900/50 p-4 sm:p-6 rounded-lg border-2 border-stone-700 space-y-6 shadow-lg">
+            <div className="rounded-[28px] border border-white/5 bg-stone-950/60 p-4 sm:p-6 space-y-6">
                 
                 {/* === CABEÇALHO === */}
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-b-2 border-stone-700 pb-6">
@@ -243,20 +244,25 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                     </div>
                 </div>
             </div>
+            </section>
 
-            <div className="flex justify-between items-center pt-6">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3" />
-                    Voltar
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Talentos
                 </button>
                 <button
                     type="button"
                     onClick={handleFinalize}
                     disabled={!isComplete}
-                    className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                    {isComplete ? 'Iniciar Aventura' : 'Preencha os campos'}
-                    <Play className="h-6 w-6 ml-3" />
+                    {isComplete ? 'Iniciar Aventura' : 'Complete os campos pendentes'}
+                    <Play className="h-5 w-5" />
                 </button>
             </div>
         </div>

@@ -2,8 +2,19 @@
 import React from 'react';
 import type { Attributes } from '@/types';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { Minus, Plus, ArrowLeft, ArrowRight, RefreshCw, Star, PlusSquare } from 'lucide-react';
 import { getCostForScore } from '@/utils/creationHelpers';
+import type { LucideIcon } from 'lucide-react';
+import {
+    Minus,
+    Plus,
+    ArrowLeft,
+    ArrowRight,
+    RefreshCw,
+    Star,
+    PlusSquare,
+    Dice5,
+    SlidersHorizontal,
+} from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -11,172 +22,334 @@ interface Props {
     nextStep: () => void;
 }
 
-const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+type AttributeKey = keyof Attributes;
+type AttributeMethod = 'point-buy' | 'roll';
+
+const attributeOrder: AttributeKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+
+const METHOD_OPTIONS: Array<{
+    id: AttributeMethod;
+    title: string;
+    description: string;
+    badge: string;
+    icon: LucideIcon;
+}> = [
+    {
+        id: 'point-buy',
+        title: 'Compra de Pontos',
+        description: 'Controle total de onde investir seu potencial heroico.',
+        badge: 'Estratégico',
+        icon: SlidersHorizontal,
+    },
+    {
+        id: 'roll',
+        title: 'Rolar Dados',
+        description: 'Deixe o destino moldar suas forças e fraquezas.',
+        badge: 'Caótico',
+        icon: Dice5,
+    },
+];
+
+const MethodOptionCard: React.FC<{
+    option: (typeof METHOD_OPTIONS)[number];
+    isActive: boolean;
+    onSelect: () => void;
+}> = ({ option, isActive, onSelect }) => {
+    const Icon = option.icon;
+    return (
+        <button
+            type="button"
+            onClick={onSelect}
+            className={`group relative flex flex-col gap-3 rounded-3xl border px-5 py-4 text-left transition-all duration-300 ${
+                isActive
+                    ? 'border-amber-400/70 bg-gradient-to-br from-amber-500/20 via-transparent to-rose-500/10 shadow-lg shadow-amber-500/20'
+                    : 'border-white/5 bg-stone-950/40 hover:border-amber-400/40 hover:bg-stone-900/60'
+            }`}
+        >
+            <div className="flex items-center justify-between">
+                <span
+                    className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.4em] ${
+                        isActive ? 'border-amber-400/70 text-amber-200' : 'border-white/10 text-stone-500'
+                    }`}
+                >
+                    {option.badge}
+                </span>
+                <div
+                    className={`rounded-full border p-2 ${isActive ? 'border-amber-400/70 bg-amber-500/10 text-amber-100' : 'border-white/10 bg-stone-900 text-stone-400'}`}
+                >
+                    <Icon className="h-4 w-4" />
+                </div>
+            </div>
+            <div>
+                <p className="text-lg font-semibold text-stone-100">{option.title}</p>
+                <p className="text-sm text-stone-400">{option.description}</p>
+            </div>
+        </button>
+    );
+};
 
 const PointBuySection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
-    const { baseAttributes, points, handleAttributeChange, handleSuggestAttributes } = hook;
+    const { baseAttributes, points, handleAttributeChange, handleSuggestAttributes, characterClass, details } = hook;
 
     return (
-        <div className="space-y-4">
-             <div className="flex justify-between items-center flex-wrap gap-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                <div className="flex items-center gap-3">
-                    <h3 className="text-xl font-semibold text-stone-300">Compra de Pontos</h3>
+        <section className="space-y-6 rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/5 bg-stone-950/50 p-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Distribuição Tática</p>
+                    <h4 className="text-2xl font-semibold text-amber-50">Invista seus pontos de habilidade</h4>
+                    <p className="text-sm text-stone-400">
+                        Ajuste cada atributo até que os pontos zerem para liberar o próximo passo.
+                    </p>
+                </div>
+                <div className="flex flex-col items-end gap-2 text-right">
                     <button
                         type="button"
                         onClick={handleSuggestAttributes}
-                        disabled={!hook.characterClass}
-                        title={!hook.characterClass ? "Selecione uma classe primeiro" : "Sugerir atributos para a classe selecionada"}
-                        className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={!characterClass}
+                        title={!characterClass ? 'Selecione uma classe para habilitar sugestões.' : 'Sugerir atributos para a classe atual.'}
+                        className="flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         <Star className="h-4 w-4" />
-                        Sugerir
+                        Sugerir automaticamente
                     </button>
-                </div>
-                <div className="text-right">
-                    <p className="font-bold text-amber-400 text-2xl">{points}</p>
-                    <p className="text-sm text-stone-400">Pontos Restantes</p>
+                    <div>
+                        <p className="text-[11px] uppercase tracking-[0.4em] text-stone-500">Pontos restantes</p>
+                        <p className="text-3xl font-semibold text-amber-300">{points}</p>
+                        <p className="text-xs text-stone-500">
+                            {characterClass
+                                ? `Otimizado para ${details.classDetails?.name || 'classe atual'}`
+                                : 'Selecione uma classe para sugestões inteligentes.'}
+                        </p>
+                    </div>
                 </div>
             </div>
 
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {attributeOrder.map(attr => {
                     const currentScore = baseAttributes[attr];
                     const costToIncrease = getCostForScore(currentScore + 1);
-
+                    const isMaxed = currentScore >= 15 || costToIncrease > points;
                     return (
-                        <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center flex flex-col justify-between">
-                            <label className="font-bold text-lg text-stone-200 font-garamond">{attr.charAt(0).toUpperCase() + attr.slice(1)}</label>
-                            <div className="flex items-center justify-center gap-3 my-3">
-                                <button type="button" onClick={() => handleAttributeChange(attr, -1)} disabled={currentScore <= 8} className="p-2 rounded-full bg-stone-700 hover:bg-red-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                                    <Minus className="h-5 w-5" />
-                                </button>
-                                <p className="text-4xl font-bold text-amber-300 w-16">{currentScore}</p>
-                                <button type="button" onClick={() => handleAttributeChange(attr, 1)} disabled={currentScore >= 15 || points < costToIncrease} className="p-2 rounded-full bg-stone-700 hover:bg-green-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-                                    <Plus className="h-5 w-5" />
-                                </button>
+                        <div
+                            key={attr}
+                            className="rounded-3xl border border-white/5 bg-gradient-to-br from-stone-900/80 to-stone-950/60 p-4"
+                        >
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm uppercase tracking-[0.4em] text-stone-500">{attr.substring(0, 3).toUpperCase()}</p>
+                                <span className="text-xs text-stone-400">
+                                    {costToIncrease > 2 ? 'Limite atingido' : `Custo +${costToIncrease}`}
+                                </span>
                             </div>
-                            <div className="text-xs text-stone-400">
-                                Custo para {currentScore + 1}: {costToIncrease > 2 ? 'N/A' : costToIncrease} ponto(s)
+                            <p className="mt-1 text-2xl font-semibold text-amber-50">
+                                {attr.charAt(0).toUpperCase() + attr.slice(1)}
+                            </p>
+                            <div className="mt-4 flex items-center justify-center gap-4">
+                                <button
+                                    type="button"
+                                    onClick={() => handleAttributeChange(attr, -1)}
+                                    disabled={currentScore <= 8}
+                                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-stone-900 text-stone-200 transition hover:border-amber-400 hover:text-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <Minus className="h-4 w-4" />
+                                </button>
+                                <p className="w-16 text-center text-4xl font-bold text-amber-300">{currentScore}</p>
+                                <button
+                                    type="button"
+                                    onClick={() => handleAttributeChange(attr, 1)}
+                                    disabled={isMaxed}
+                                    className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-stone-900 text-stone-200 transition hover:border-emerald-400 hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                </button>
                             </div>
                         </div>
                     );
                 })}
             </div>
-        </div>
+        </section>
     );
 };
 
 const RollDiceSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
     const { baseAttributes, handleRollAttributes } = hook;
+
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center flex-wrap gap-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                <h3 className="text-xl font-semibold text-stone-300">Rolagem de Dados (4d6, descarte o menor)</h3>
-                <button type="button" onClick={handleRollAttributes} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-2 px-4 rounded-md transition-colors">
+        <section className="space-y-6 rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+            <div className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-white/5 bg-stone-950/50 p-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Destino Aleatório</p>
+                    <h4 className="text-2xl font-semibold text-amber-50">Role 4d6 e descarte o menor dado</h4>
+                    <p className="text-sm text-stone-400">Os resultados são aplicados automaticamente aos atributos.</p>
+                </div>
+                <button
+                    type="button"
+                    onClick={handleRollAttributes}
+                    className="flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                >
                     <RefreshCw className="h-4 w-4" />
-                    Rolar Novamente
+                    Rolar novamente
                 </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {attributeOrder.map(attr => (
-                     <div key={attr} className="bg-stone-800/60 p-4 rounded-lg border border-stone-700 text-center">
-                        <label className="font-bold text-lg text-stone-200 font-garamond">{attr.charAt(0).toUpperCase() + attr.slice(1)}</label>
-                        <p className="text-5xl font-bold text-amber-300 my-2">{baseAttributes[attr]}</p>
+                    <div
+                        key={attr}
+                        className="rounded-3xl border border-dashed border-white/10 bg-stone-950/50 p-4 text-center"
+                    >
+                        <p className="text-sm uppercase tracking-[0.4em] text-stone-500">{attr.substring(0, 3).toUpperCase()}</p>
+                        <p className="mt-2 text-4xl font-bold text-amber-300">{baseAttributes[attr]}</p>
+                        <p className="text-xs text-stone-400">Valor atual após a última rolagem</p>
                     </div>
                 ))}
             </div>
-        </div>
+        </section>
+    );
+};
+
+const VariantHumanSection: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
+    const { variantHumanBonusSelections, setField } = hook;
+    const maxSelections = 2;
+
+    return (
+        <section className="rounded-[32px] border border-emerald-500/30 bg-emerald-500/5 p-6 shadow-2xl shadow-black/30">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.5em] text-emerald-300/80">Humano Variante</p>
+                    <h4 className="text-2xl font-semibold text-emerald-50">Selecione dois atributos para +1</h4>
+                    <p className="text-sm text-emerald-100/80">
+                        {variantHumanBonusSelections.length}/{maxSelections} escolhidos
+                    </p>
+                </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+                {attributeOrder.map(attr => {
+                    const isSelected = variantHumanBonusSelections.includes(attr);
+                    const isDisabled = !isSelected && variantHumanBonusSelections.length >= maxSelections;
+                    return (
+                        <button
+                            key={attr}
+                            type="button"
+                            onClick={() =>
+                                setField('variantHumanBonusSelections', (prev: AttributeKey[]) => {
+                                    if (isSelected) return prev.filter(a => a !== attr);
+                                    if (prev.length < maxSelections) return [...prev, attr];
+                                    return prev;
+                                })
+                            }
+                            disabled={isDisabled}
+                            className={`flex flex-col items-center justify-center rounded-2xl border px-4 py-3 text-center text-sm font-semibold transition ${
+                                isSelected
+                                    ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-50'
+                                    : 'border-white/10 bg-stone-950/40 text-stone-200 hover:border-emerald-400/40 hover:text-emerald-100'
+                            } disabled:cursor-not-allowed disabled:opacity-40`}
+                        >
+                            <PlusSquare className="mb-1 h-5 w-5" />
+                            {attr.substring(0, 3).toUpperCase()}
+                        </button>
+                    );
+                })}
+            </div>
+        </section>
+    );
+};
+
+const FinalAttributesPanel: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
+    const { racialBonuses, finalAttributes, baseAttributes } = hook;
+
+    return (
+        <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Prévia Final</p>
+                    <h4 className="text-2xl font-semibold text-amber-50">Atributos com bônus raciais</h4>
+                </div>
+            </div>
+            <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+                {attributeOrder.map(attr => {
+                    const base = baseAttributes[attr];
+                    const racial = racialBonuses[attr] || 0;
+                    const total = finalAttributes[attr];
+                    const modifier = Math.floor((total - 10) / 2);
+                    return (
+                        <div key={attr} className="rounded-2xl border border-white/5 bg-stone-950/60 p-4 text-center">
+                            <p className="text-sm uppercase tracking-[0.4em] text-stone-500">{attr.substring(0, 3).toUpperCase()}</p>
+                            <p className="mt-1 text-3xl font-bold text-amber-200">{total}</p>
+                            <p className="text-xs text-stone-400">
+                                {base} {racial > 0 ? `+ ${racial}` : ''}
+                            </p>
+                            <p className="mt-1 text-lg font-semibold text-emerald-300">{modifier >= 0 ? `+${modifier}` : modifier}</p>
+                        </div>
+                    );
+                })}
+            </div>
+        </section>
     );
 };
 
 const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
-    const { 
-        attributeMethod, 
+    const {
+        attributeMethod,
         setField,
-        racialBonuses, 
-        finalAttributes, 
-        points, 
-        isVariantHuman, 
+        points,
+        isVariantHuman,
         variantHumanBonusSelections,
     } = hook;
-    const canProceed = (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) && (!isVariantHuman || variantHumanBonusSelections.length === 2);
+
+    const canProceed =
+        (attributeMethod === 'roll' || (attributeMethod === 'point-buy' && points === 0)) &&
+        (!isVariantHuman || variantHumanBonusSelections.length === 2);
 
     return (
         <div className="space-y-8 animate-fadeIn">
-             {!attributeMethod ? (
-                <div className="text-center space-y-4">
-                    <h3 className="text-xl font-semibold text-stone-300">Como você quer determinar seus atributos?</h3>
-                    <div className="flex justify-center gap-4">
-                        <button onClick={() => setField('attributeMethod', 'point-buy')} className="menu-button btn-new">Compra de Pontos</button>
-                        <button onClick={() => setField('attributeMethod', 'roll')} className="menu-button btn-import">Rolar Dados</button>
+            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Método de Distribuição</p>
+                        <h3 className="text-2xl font-semibold text-amber-50">Escolha como definir seus atributos</h3>
+                        {!attributeMethod && (
+                            <p className="text-sm text-stone-400">
+                                Selecione um método para desbloquear as ferramentas de alocação.
+                            </p>
+                        )}
                     </div>
                 </div>
-            ) : (
-                <>
-                    {attributeMethod === 'point-buy' && <PointBuySection hook={hook} />}
-                    {attributeMethod === 'roll' && <RollDiceSection hook={hook} />}
-                </>
-            )}
-
-            {isVariantHuman && attributeMethod && (
-                <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 mt-8">
-                    <h4 className="text-lg font-semibold text-stone-300 mb-2">Bônus de Humano Variante</h4>
-                    <p className="text-sm text-stone-400 mb-4">Escolha dois atributos diferentes para aumentar em +1. ({variantHumanBonusSelections.length}/2)</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                        {attributeOrder.map(attr => {
-                            const isSelected = variantHumanBonusSelections.includes(attr);
-                            const isDisabled = !isSelected && variantHumanBonusSelections.length >= 2;
-                            return (
-                                <button
-                                    key={attr}
-                                    onClick={() => hook.setField('variantHumanBonusSelections', (prev: any) => {
-                                        if (isSelected) return prev.filter((a: any) => a !== attr);
-                                        if (prev.length < 2) return [...prev, attr];
-                                        return prev;
-                                    })}
-                                    disabled={isDisabled}
-                                    className={`p-2 rounded-md border-2 transition-colors text-center disabled:opacity-50 disabled:cursor-not-allowed ${isSelected ? 'bg-amber-800/70 border-amber-500' : 'bg-stone-800/50 border-stone-700 hover:border-amber-600'}`}
-                                >
-                                    <PlusSquare className="mx-auto h-5 w-5 mb-1" />
-                                    <span className="font-bold text-sm">{attr.substring(0,3).toUpperCase()}</span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                <div className="mt-6 grid gap-4 md:grid-cols-2">
+                    {METHOD_OPTIONS.map(option => (
+                        <MethodOptionCard
+                            key={option.id}
+                            option={option}
+                            isActive={attributeMethod === option.id}
+                            onSelect={() => setField('attributeMethod', option.id)}
+                        />
+                    ))}
                 </div>
-            )}
+            </section>
 
-            {attributeMethod && (
-                <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 mt-8">
-                     <h4 className="text-lg font-semibold text-stone-300 mb-4 text-center">Atributos Finais (com Bônus Racial)</h4>
-                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 text-center">
-                        {attributeOrder.map(attr => {
-                            const bonus = racialBonuses[attr] || 0;
-                            const total = finalAttributes[attr];
-                            const modifier = Math.floor((total - 10) / 2);
-                            const modifierString = modifier >= 0 ? `+${modifier}` : modifier.toString();
+            {attributeMethod === 'point-buy' && <PointBuySection hook={hook} />}
+            {attributeMethod === 'roll' && <RollDiceSection hook={hook} />}
 
-                            return (
-                                <div key={attr}>
-                                    <label className="text-sm font-bold text-stone-400">{attr.substring(0,3).toUpperCase()}</label>
-                                    <p className="font-bold text-3xl text-stone-100">{total}</p>
-                                    <p className="text-xs text-amber-400">{`(${hook.baseAttributes[attr]} ${bonus > 0 ? `+ ${bonus}`: ''})`}</p>
-                                    <p className="text-lg font-bold text-amber-300 mt-1">{modifierString}</p>
-                                </div>
-                            )
-                        })}
-                     </div>
-                </div>
-            )}
+            {isVariantHuman && attributeMethod && <VariantHumanSection hook={hook} />}
 
-            <div className="flex justify-between pt-8">
-                 <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3"/>
-                    Voltar
+            {attributeMethod && <FinalAttributesPanel hook={hook} />}
+
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Raça & Classe
                 </button>
-                <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {canProceed ? 'Avançar' : 'Faça suas escolhas'}
-                    <ArrowRight className="h-6 w-6 ml-3"/>
+                <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceed}
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {canProceed ? 'Prosseguir para Antecedente' : 'Conclua os ajustes'}
+                    <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
         </div>

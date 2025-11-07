@@ -1,12 +1,12 @@
 // src/components/NewCreationCharacter/NewStep7_Feats.tsx
 'use client';
 import React, { useEffect } from 'react';
-import { useNewCharacterCreation } from '@/hooks/newUseCharacterCreation';
-import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
+import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import type { Feat } from '@/types';
 
 interface Props {
-    hook: ReturnType<typeof useNewCharacterCreation>;
+    hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
 }
@@ -20,64 +20,92 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         setField,
         fetchFeats,
     } = hook;
-    
+
     useEffect(() => {
         if (isVariantHuman) {
             fetchFeats();
         }
     }, [isVariantHuman, fetchFeats]);
 
-    if (!isVariantHuman) {
-        React.useEffect(() => {
+    useEffect(() => {
+        if (!isVariantHuman) {
             nextStep();
-        }, [nextStep]);
-        return null; // Render nothing, as the effect will navigate away
+        }
+    }, [isVariantHuman, nextStep]);
+
+    if (!isVariantHuman) {
+        return null;
     }
-    
+
     if (loadingStates.feats) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando talentos...</p>
+            <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/5 bg-stone-950/70 p-10 text-stone-400 shadow-2xl shadow-black/40">
+                <Loader2 className="h-12 w-12 animate-spin text-amber-300" />
+                <p className="mt-4 text-sm">Consultando talentos disponíveis...</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <div>
-                <h3 className="text-xl font-semibold text-stone-300 mb-2">Escolha seu Talento</h3>
-                <p className="text-sm text-stone-400 mb-6">Como Humano Variante, você ganha um talento no nível 1. Escolha um da lista abaixo.</p>
-            </div>
-            
-            <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-2">
-                {availableFeats.map((feat: Feat) => (
-                    <div key={feat.index} className={`bg-stone-800 p-3 rounded-md border-2 transition-all duration-200 ${selectedFeat === feat.index ? 'border-amber-500' : 'border-stone-700'}`}>
-                        <label className="flex items-start gap-3 cursor-pointer">
-                            <input
-                                type="radio"
-                                name="feat-selection"
-                                checked={selectedFeat === feat.index}
-                                onChange={() => setField('selectedFeat', feat.index)}
-                                className="form-radio h-5 w-5 text-amber-500 bg-stone-900 border-stone-600 focus:ring-amber-500 mt-1"
-                            />
-                            <div>
-                                <h4 className="font-semibold text-stone-100">{feat.name}</h4>
-                                <p className="text-xs text-stone-400 mt-1">{feat.desc.join(' ')}</p>
-                            </div>
-                        </label>
+        <div className="space-y-10 animate-fadeIn">
+            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+                <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-stone-900 text-amber-200">
+                        <Sparkles className="h-5 w-5" />
                     </div>
-                ))}
-            </div>
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Versatilidade Humana</p>
+                        <h3 className="text-3xl font-semibold text-amber-50">Escolha seu talento inicial</h3>
+                        <p className="text-sm text-stone-400">Como Humano Variante, você libera um talento no nível 1.</p>
+                    </div>
+                </div>
 
-            <div className="flex justify-between pt-8">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3" />
-                    Voltar
+                <div className="mt-6 max-h-[55vh] space-y-4 overflow-y-auto pr-2">
+                    {availableFeats.map((feat: Feat) => {
+                        const isSelected = selectedFeat === feat.index;
+                        return (
+                            <label
+                                key={feat.index}
+                                className={`flex cursor-pointer items-start gap-4 rounded-3xl border px-4 py-3 transition ${
+                                    isSelected
+                                        ? 'border-amber-400/70 bg-amber-500/10 text-amber-100 shadow-lg shadow-amber-500/20'
+                                        : 'border-white/5 bg-stone-950/50 text-stone-100 hover:border-amber-400/40'
+                                }`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="feat-selection"
+                                    checked={isSelected}
+                                    onChange={() => setField('selectedFeat', feat.index)}
+                                    className="mt-1 h-5 w-5 rounded-full border-white/20 bg-stone-900 text-amber-400 focus:ring-amber-400"
+                                />
+                                <div>
+                                    <h4 className="text-lg font-semibold">{feat.name}</h4>
+                                    <p className="mt-1 text-sm text-stone-300">{feat.desc.join(' ')}</p>
+                                </div>
+                            </label>
+                        );
+                    })}
+                </div>
+            </section>
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Magias
                 </button>
-                <button type="button" onClick={nextStep} disabled={!selectedFeat} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {selectedFeat ? 'Avançar' : 'Selecione um talento'}
-                    <ArrowRight className="h-6 w-6 ml-3" />
+                <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!selectedFeat}
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {selectedFeat ? 'Prosseguir para Finalização' : 'Selecione um talento'}
+                    <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
         </div>

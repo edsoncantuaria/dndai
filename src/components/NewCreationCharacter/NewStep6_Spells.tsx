@@ -46,27 +46,35 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     if (loadingStates.isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                <p className="mt-4">Carregando...</p>
+            <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/5 bg-stone-950/70 p-10 text-stone-400 shadow-2xl shadow-black/40">
+                <Loader2 className="h-12 w-12 animate-spin text-amber-300" />
+                <p className="mt-4 text-sm">Carregando grimórios...</p>
             </div>
         );
     }
 
     if (!hasClassSpells && !hasRacialSpells) {
          return (
-            <div className="space-y-8 animate-fadeIn">
-                <div className="text-center text-stone-400 italic p-8 bg-stone-900/50 rounded-lg">
-                    <p>Sua classe e raça não concedem magias no nível 1.</p>
+            <div className="space-y-10 animate-fadeIn">
+                <div className="rounded-[32px] border border-white/5 bg-stone-950/70 p-8 text-center text-stone-400 shadow-2xl shadow-black/40">
+                    <p className="text-sm">Sua classe e raça não concedem magias no nível 1.</p>
                 </div>
-                 <div className="flex justify-between pt-8">
-                    <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                        <ArrowLeft className="h-6 w-6 mr-3" />
-                        Voltar
+                <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                    <button
+                        type="button"
+                        onClick={prevStep}
+                        className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                        Voltar para Equipamentos
                     </button>
-                    <button type="button" onClick={nextStep} className="menu-button btn-new max-w-xs">
-                        Avançar
-                        <ArrowRight className="h-6 w-6 ml-3" />
+                    <button
+                        type="button"
+                        onClick={nextStep}
+                        className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition"
+                    >
+                        Prosseguir
+                        <ArrowRight className="h-5 w-5" />
                     </button>
                 </div>
             </div>
@@ -74,29 +82,33 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     }
 
     return (
-        <div className="space-y-8 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-stone-300">Seleção de Magias</h3>
-                <button
-                    type="button"
-                    onClick={() => handleRandomizeSpells()}
-                    className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors"
-                >
-                    <Dice5 className="h-4 w-4" />
-                    Aleatório
-                </button>
-            </div>
-             <p className="text-sm text-stone-400 -mt-6">Escolha os truques e magias que seu personagem conhece no início de sua jornada.</p>
+        <div className="space-y-10 animate-fadeIn">
+            <section className="rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Grimório Inicial</p>
+                        <h3 className="text-3xl font-semibold text-amber-50">Seleção de Magias</h3>
+                        <p className="text-sm text-stone-400">Escolha os truques e magias que inaugurarão seu repertório arcano.</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => handleRandomizeSpells()}
+                        className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                    >
+                        <Dice5 className="h-4 w-4" />
+                        Sortear magias
+                    </button>
+                </div>
 
-            {hasRacialSpells && (
-                <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                    <h4 className="font-semibold text-amber-300 mb-2">Magias Raciais</h4>
-                    {(racialSpellTraits || []).map((trait) => {
+                {hasRacialSpells && (
+                    <div className="mt-6 space-y-5 rounded-3xl border border-white/5 bg-stone-950/60 p-5">
+                        <h4 className="text-lg font-semibold text-amber-200">Magias Raciais</h4>
+                        {(racialSpellTraits || []).map(trait => {
                         const selectedCount = chosenRacialSpells[trait.traitName]?.length || 0;
                         return (
                              <div key={trait.traitName}>
                                 <h5 className="text-stone-300 font-semibold mb-2">{trait.traitName} <span className="text-stone-400 font-normal">({selectedCount}/{trait.choose})</span></h5>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                     {(trait.options || []).map(spellOption => {
                                         const spell = racialSpellOptions.find(s => s.index === spellOption.index);
                                         if (!spell) return null;
@@ -114,16 +126,16 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                             </div>
                         )
                     })}
-                </div>
-            )}
-            
-            {hasClassSpells && (
-                 <div className="space-y-4 bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                     <h4 className="font-semibold text-amber-300 mb-2">Magias de Classe</h4>
+                    </div>
+                )}
+
+                {hasClassSpells && (
+                    <div className="mt-6 space-y-5 rounded-3xl border border-white/5 bg-stone-950/60 p-5">
+                        <h4 className="text-lg font-semibold text-amber-200">Magias de Classe</h4>
                     {cantripsKnown > 0 && (
                         <div>
                             <h5 className="text-stone-300 font-semibold mb-2">Truques <span className="text-stone-400 font-normal">({selectedCantripsCount}/{cantripsKnown})</span></h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 {allCantrips.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isDisabled = !isSelected && (selectedCantripsCount >= cantripsKnown || allChosenSpellIndices.has(spell.index));
@@ -141,7 +153,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                      {spellsKnown > 0 && (
                          <div>
                             <h5 className="text-stone-300 font-semibold mb-2 mt-4">Magias de Nível 1 <span className="text-stone-400 font-normal">({selectedSpellsCount}/{spellsKnown})</span></h5>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                                 {allLevel1Spells.map(spell => {
                                     const isSelected = chosenClassSpells.includes(spell.index);
                                     const isDisabled = !isSelected && (selectedSpellsCount >= spellsKnown || allChosenSpellIndices.has(spell.index));
@@ -158,15 +170,25 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     )}
                  </div>
             )}
+            </section>
 
-             <div className="flex justify-between pt-8">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3" />
-                    Voltar
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Equipamentos
                 </button>
-                <button type="button" onClick={nextStep} disabled={!canProceed} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {canProceed ? 'Avançar' : 'Selecione suas magias'}
-                    <ArrowRight className="h-6 w-6 ml-3" />
+                <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceed}
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {canProceed ? 'Prosseguir para Talentos' : 'Finalize a seleção de magias'}
+                    <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
         </div>

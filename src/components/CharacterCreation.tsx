@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import type { ApiListItem } from '@/types';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import * as DndApiService from '@/services/dndApiService';
+import { Loader2 } from 'lucide-react';
 
 
 interface CharacterCreationProps {

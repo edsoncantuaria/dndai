@@ -1,8 +1,8 @@
 // src/components/NewCreationCharacter/NewStep4_ProficienciesAndLanguages.tsx
 import React from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { ArrowLeft, ArrowRight, Dice5 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
+import { ArrowLeft, ArrowRight, Dice5, Languages, Shield, BookOpenCheck } from 'lucide-react';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -10,6 +10,58 @@ interface Props {
     nextStep: () => void;
     allLanguages: ApiListItem[];
 }
+
+const SectionShell: React.FC<{ title: string; subtitle?: string; icon?: React.ReactNode; actions?: React.ReactNode }> = ({
+    title,
+    subtitle,
+    icon,
+    actions,
+    children,
+}) => (
+    <section className="space-y-6 rounded-[32px] border border-white/5 bg-stone-950/70 p-6 shadow-2xl shadow-black/40">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/5 pb-4">
+            <div className="flex items-center gap-3">
+                {icon && (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-stone-900 text-amber-200">
+                        {icon}
+                    </div>
+                )}
+                <div>
+                    {subtitle && <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">{subtitle}</p>}
+                    <h3 className="text-2xl font-semibold text-amber-50">{title}</h3>
+                </div>
+            </div>
+            {actions}
+        </div>
+        {children}
+    </section>
+);
+
+const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <span className="rounded-full border border-white/10 bg-stone-900/80 px-3 py-1 text-xs text-stone-200">{children}</span>
+);
+
+const SelectableTile: React.FC<{
+    label: string;
+    description?: string;
+    isActive: boolean;
+    disabled?: boolean;
+    onClick: () => void;
+}> = ({ label, description, isActive, disabled, onClick }) => (
+    <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
+            isActive
+                ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-50 shadow shadow-emerald-500/20'
+                : 'border-white/5 bg-stone-950/40 text-stone-200 hover:border-emerald-400/40 hover:text-emerald-100'
+        } disabled:cursor-not-allowed disabled:opacity-40`}
+    >
+        <p className="text-sm font-semibold">{label}</p>
+        {description && <p className="text-xs text-stone-400">{description}</p>}
+    </button>
+);
 
 const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, nextStep, allLanguages }) => {
     const {
@@ -27,128 +79,184 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
         handleRandomizeLanguages,
     } = hook;
 
-    return (
-        <div className="space-y-8 animate-fadeIn">
-            <div className="flex justify-between items-center">
-                <h3 className="text-xl font-semibold text-stone-300 mb-2">Proficiências e Idiomas</h3>
-            </div>
-            <p className="text-sm text-stone-400 mb-6 -mt-6">Sua raça, classe e antecedente concedem várias perícias, ferramentas e idiomas. Faça suas escolhas abaixo.</p>
+    const availableLanguageOptions = allLanguages.filter(lang => !baseLanguages?.includes(lang.name));
 
-            <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                <h4 className="font-semibold text-amber-300 mb-3">Concedido Automaticamente</h4>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-sm text-stone-400">
-                    <div>
-                        <h5 className="font-bold text-stone-300">Proficiências</h5>
-                        <ul className="list-disc list-inside">
-                            {Array.from(allFixedProficiencies.values()).filter(p => p?.name && !p.name.includes("Saving Throw")).map(prof => (
-                               prof?.name && <li key={prof.index}>{prof.name}</li>
-                            ))}
-                        </ul>
+    return (
+        <div className="space-y-10 animate-fadeIn">
+            <SectionShell
+                title="Proficências e Idiomas"
+                subtitle="Kit heroico"
+                icon={<Shield className="h-5 w-5" />}
+            >
+                <p className="text-sm text-stone-400">
+                    Parte das proficiências vem do seu legado; outras precisam ser escolhidas agora. Complete cada grupo para
+                    desbloquear o avanço.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="rounded-2xl border border-white/5 bg-stone-950/60 p-4">
+                        <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Proficiências Fixas</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {Array.from(allFixedProficiencies.values())
+                                .filter(p => p?.name && !p.name.includes('Saving Throw'))
+                                .map(prof => (
+                                    <Chip key={prof.index}>{prof?.name}</Chip>
+                                ))}
+                        </div>
                     </div>
-                     <div>
-                        <h5 className="font-bold text-stone-300">Resistências</h5>
-                        <ul className="list-disc list-inside">
-                            {Array.from(allFixedProficiencies.values()).filter(p => p?.name && p.name.includes("Saving Throw")).map(prof => (
-                                prof?.name && <li key={prof.index}>{prof.name}</li>
-                            ))}
-                        </ul>
+                    <div className="rounded-2xl border border-white/5 bg-stone-950/60 p-4">
+                        <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Testes de Resistência</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {Array.from(allFixedProficiencies.values())
+                                .filter(p => p?.name && p.name.includes('Saving Throw'))
+                                .map(prof => (
+                                    <Chip key={prof.index}>{prof?.name}</Chip>
+                                ))}
+                        </div>
                     </div>
-                     <div>
-                        <h5 className="font-bold text-stone-300">Idiomas</h5>
-                         <ul className="list-disc list-inside">
+                    <div className="rounded-2xl border border-white/5 bg-stone-950/60 p-4">
+                        <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Idiomas Nativos</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
                             {(baseLanguages || []).map(lang => (
-                                <li key={lang}>{lang}</li>
+                                <Chip key={lang}>{lang}</Chip>
                             ))}
-                        </ul>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </SectionShell>
 
             {allProficiencyChoices.length > 0 && (
-                <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                        <h4 className="font-semibold text-amber-300 text-lg">Escolhas de Proficiência</h4>
-                        <button type="button" onClick={handleRandomizeProficiencies} className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
-                            <Dice5 className="h-4 w-4" />
-                            Aleatório
+                <SectionShell
+                    title="Escolhas de Proficiência"
+                    subtitle="Especialização"
+                    icon={<BookOpenCheck className="h-5 w-5" />}
+                    actions={
+                        <button
+                            type="button"
+                            onClick={handleRandomizeProficiencies}
+                            className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                        >
+                            <Dice5 className="h-4 w-4" /> Sortear tudo
                         </button>
-                    </div>
-                    {allProficiencyChoices.map((choice) => {
-                        const selectedCountInGroup = proficiencySelections[choice.id]?.length || 0;
-                        const availableOptions = choice.options.filter((option: any) => !allFixedProficiencies.has(option.index));
-                        if(availableOptions.length === 0) return null;
-                        return (
-                            <div key={choice.id} className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                                <h5 className="font-semibold text-amber-300 mb-1">{choice.desc}</h5>
-                                <p className="text-sm text-stone-400 mb-4">Fonte: {choice.source} <span className="font-semibold">({selectedCountInGroup}/{choice.choose})</span></p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                    {availableOptions.map((option: any) => {
-                                        if(!option.name) return null;
-                                        const isSelected = !!proficiencySelections[choice.id]?.includes(option.index);
-                                        const isUnavailable = !isSelected && unavailableProficiencies.has(option.index);
-                                        const isLimitReached = !isSelected && selectedCountInGroup >= choice.choose;
-                                        const isDisabled = isUnavailable || isLimitReached;
-                                        let tooltipText = '';
-                                        if (isUnavailable) tooltipText = "Já selecionado em outro grupo";
-                                        else if (isLimitReached) tooltipText = "Limite de escolhas atingido";
-                                        return (
-                                            <div key={option.index} className="relative group">
-                                                <label className={`flex items-center p-3 rounded-md border text-sm transition-all duration-200 ${isSelected ? 'bg-amber-900/50 border-amber-500 shadow-md' : 'bg-stone-800 border-stone-700'} ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-stone-700/70 hover:border-stone-600'}`}>
-                                                    <input type="checkbox" checked={isSelected} onChange={() => handleProficiencyChange(option.index, choice)} disabled={isDisabled} className="form-checkbox h-4 w-4 text-amber-500 bg-stone-900 border-stone-600 rounded focus:ring-amber-500 focus:ring-offset-stone-800" />
-                                                    <span className="ml-3 text-stone-200">{option.name}</span>
-                                                </label>
-                                                {isDisabled && tooltipText && (
-                                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-stone-950 text-stone-300 text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg border border-stone-700">
-                                                        {tooltipText}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-            
-            {languageChoicesCount > 0 && (
-                 <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700">
-                     <div className="flex justify-between items-center mb-4">
-                        <h4 className="font-semibold text-amber-300 text-lg">Escolhas de Idioma ({chosenLanguages.filter(Boolean).length}/{languageChoicesCount})</h4>
-                        <button type="button" onClick={() => handleRandomizeLanguages(baseLanguages, languageChoicesCount)} className="flex items-center gap-1.5 text-xs bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
-                            <Dice5 className="h-4 w-4" />
-                            Aleatório
-                        </button>
-                    </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Array.from({ length: languageChoicesCount }).map((_, index) => {
-                            const unavailableOptions = new Set([...(baseLanguages || []), ...chosenLanguages.filter((_, i) => i !== index)]);
-                            const availableLanguageOptions = allLanguages.filter(lang => !unavailableOptions.has(lang.name));
+                    }
+                >
+                    <div className="space-y-5">
+                        {allProficiencyChoices.map(choice => {
+                            const selectedCountInGroup = proficiencySelections[choice.id]?.length || 0;
+                            const availableOptions = choice.options.filter((option: any) => !allFixedProficiencies.has(option.index));
+                            if (availableOptions.length === 0) return null;
                             return (
-                                <div key={index}>
-                                    <label htmlFor={`lang-choice-${index}`} className="block text-sm font-medium text-stone-300 mb-1">Idioma Adicional {index + 1}</label>
-                                    <select id={`lang-choice-${index}`} value={chosenLanguages[index] || ''} onChange={(e) => handleLanguageChange(index, e.target.value)} required className="w-full bg-stone-800/70 border border-stone-700 rounded-md p-2 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500">
-                                        <option value="" disabled>Selecione...</option>
-                                        {availableLanguageOptions.map(lang => (
-                                            <option key={lang.index} value={lang.name}>{lang.name}</option>
-                                        ))}
-                                    </select>
+                                <div
+                                    key={choice.id}
+                                    className="rounded-3xl border border-white/5 bg-stone-950/60 p-5 shadow-inner shadow-black/20"
+                                >
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div>
+                                            <p className="text-xs uppercase tracking-[0.4em] text-stone-500">{choice.source}</p>
+                                            <h4 className="text-lg font-semibold text-stone-100">{choice.desc}</h4>
+                                        </div>
+                                        <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-100">
+                                            {selectedCountInGroup}/{choice.choose}
+                                        </span>
+                                    </div>
+                                    <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {availableOptions.map((option: any) => {
+                                            if (!option.name) return null;
+                                            const isSelected = !!proficiencySelections[choice.id]?.includes(option.index);
+                                            const isUnavailable = !isSelected && unavailableProficiencies.has(option.index);
+                                            const isLimitReached = !isSelected && selectedCountInGroup >= choice.choose;
+                                            const disabled = isUnavailable || isLimitReached;
+                                            return (
+                                                <SelectableTile
+                                                    key={option.index}
+                                                    label={option.name}
+                                                    description={option.type || 'Perícia'}
+                                                    isActive={isSelected}
+                                                    disabled={disabled}
+                                                    onClick={() => handleProficiencyChange(choice.id, option.index)}
+                                                />
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                             );
                         })}
                     </div>
-                </div>
+                </SectionShell>
             )}
 
-            <div className="flex justify-between pt-8">
-                <button type="button" onClick={prevStep} className="menu-button btn-import max-w-xs">
-                    <ArrowLeft className="h-6 w-6 mr-3" />
-                    Voltar
+            {languageChoicesCount > 0 && (
+                <SectionShell
+                    title="Idiomas Adicionais"
+                    subtitle="Vozes e culturas"
+                    icon={<Languages className="h-5 w-5" />}
+                    actions={
+                        <button
+                            type="button"
+                            onClick={handleRandomizeLanguages}
+                            className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                        >
+                            <Dice5 className="h-4 w-4" />
+                            Sortear idiomas
+                        </button>
+                    }
+                >
+                    <p className="text-sm text-stone-400">
+                        Escolha {languageChoicesCount} idioma(s) adicional(is). Idiomas já conhecidos não aparecem aqui.
+                    </p>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {Array.from({ length: languageChoicesCount }).map((_, index) => (
+                            <div key={index} className="rounded-2xl border border-white/5 bg-stone-950/60 p-4">
+                                <p className="text-xs uppercase tracking-[0.4em] text-stone-500">Idioma {index + 1}</p>
+                                <select
+                                    id={`lang-choice-${index}`}
+                                    value={chosenLanguages[index] || ''}
+                                    onChange={e => handleLanguageChange(index, e.target.value)}
+                                    className="mt-2 w-full rounded-xl border border-white/10 bg-stone-950/60 p-3 text-sm text-stone-100 focus:border-amber-400 focus:outline-none"
+                                >
+                                    <option value="" disabled>
+                                        Selecione...
+                                    </option>
+                                    {availableLanguageOptions.map(lang => (
+                                        <option key={lang.index} value={lang.name}>
+                                            {lang.name}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        ))}
+                    </div>
+                </SectionShell>
+            )}
+
+            {!languageChoicesCount && (
+                <SectionShell
+                    title="Idiomas adicionais"
+                    subtitle="Vozes e culturas"
+                    icon={<Languages className="h-5 w-5" />}
+                >
+                    <p className="text-sm text-stone-400">
+                        Nenhum idioma adicional disponível neste momento. Novos idiomas podem surgir com talentos ou escolhas futuras.
+                    </p>
+                </SectionShell>
+            )}
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                    type="button"
+                    onClick={prevStep}
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                >
+                    <ArrowLeft className="h-4 w-4" />
+                    Voltar para Antecedente
                 </button>
-                <button type="button" onClick={nextStep} disabled={!canProceedFromProficiencies} className="menu-button btn-new max-w-xs disabled:opacity-50 disabled:cursor-not-allowed">
-                    {canProceedFromProficiencies ? 'Avançar' : 'Faça suas escolhas'}
-                    <ArrowRight className="h-6 w-6 ml-3" />
+                <button
+                    type="button"
+                    onClick={nextStep}
+                    disabled={!canProceedFromProficiencies}
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {canProceedFromProficiencies ? 'Prosseguir para Equipamentos' : 'Finalize as escolhas pendentes'}
+                    <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
         </div>
