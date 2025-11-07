@@ -159,25 +159,28 @@ const AccordionSection: React.FC<{
     description: string;
     icon: LucideIcon;
     isComplete: boolean;
+    isOpen: boolean;
+    onToggle: () => void;
     children: React.ReactNode;
-}> = ({ stepNumber, title, description, icon: Icon, isComplete, children }) => {
-    const [isOpen, setIsOpen] = useState(stepNumber === 1);
+}> = ({ stepNumber, title, description, icon: Icon, isComplete, isOpen, onToggle, children }) => {
 
     return (
         <div className="rounded-[28px] border border-white/5 bg-stone-950/70 shadow-2xl shadow-black/40 overflow-hidden">
             <button
                 className="flex w-full items-start justify-between gap-4 p-6 text-left"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={onToggle}
             >
                 <div className="flex items-start gap-4">
                     <div
                         className={`mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition ${
                             isOpen
                                 ? 'border-amber-400 bg-amber-500/20 text-amber-100'
+                                : isComplete
+                                ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-200'
                                 : 'border-white/10 bg-stone-900/80 text-stone-400'
                         }`}
                     >
-                       {isComplete ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Icon className="h-5 w-5" />}
+                       {isComplete && !isOpen ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Icon className="h-5 w-5" />}
                     </div>
                     <div>
                         <p className="text-xs uppercase tracking-[0.5em] text-stone-500">Etapa {stepNumber}</p>
@@ -190,6 +193,7 @@ const AccordionSection: React.FC<{
             <AnimatePresence initial={false}>
                 {isOpen && (
                     <motion.section
+                        key="content"
                         initial="collapsed"
                         animate="open"
                         exit="collapsed"
@@ -229,6 +233,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     const { createCharacter } = useGameStateContext();
     const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+    const [openStep, setOpenStep] = useState(1);
     
     const handleFinalizeAndSubmit = async () => {
         const finalCharacterData = hook.buildCharacter();
@@ -257,16 +262,19 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             default: return false;
         }
     };
+
+    const nextStep = () => setOpenStep(current => Math.min(current + 1, CREATION_STEPS.length));
+    const prevStep = () => setOpenStep(current => Math.max(current - 1, 1));
     
     const stepsContent = [
-        <NewStep1_RaceClass hook={hook} races={races} classes={classes} nextStep={() => {}} />,
-        <NewStep2_Attributes hook={hook} prevStep={() => {}} nextStep={() => {}} />,
-        <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={() => {}} nextStep={() => {}} />,
-        <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={() => {}} nextStep={() => {}} allLanguages={allLanguages} />,
-        <NewStep5_Equipment2 hook={hook} prevStep={() => {}} nextStep={() => {}} />,
-        <NewStep6_Spells hook={hook} prevStep={() => {}} nextStep={() => {}} />,
-        <NewStep7_Feats hook={hook} prevStep={() => {}} nextStep={() => {}} />,
-        <NewStep8_Finalize hook={hook} prevStep={() => {}} handleFinalize={() => setShowConfirmationModal(true)} />,
+        <NewStep1_RaceClass hook={hook} races={races} classes={classes} nextStep={nextStep} />,
+        <NewStep2_Attributes hook={hook} prevStep={prevStep} nextStep={nextStep} />,
+        <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />,
+        <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} allLanguages={allLanguages} />,
+        <NewStep5_Equipment2 hook={hook} prevStep={prevStep} nextStep={nextStep} />,
+        <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />,
+        <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />,
+        <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={() => setShowConfirmationModal(true)} />,
     ];
 
     if (hook.loadingStates.isLoading) {
@@ -292,7 +300,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         <div className="relative isolate min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),transparent_45%)] px-3 py-6 sm:px-6 sm:py-10">
             <div className="pointer-events-none absolute inset-0 -z-10 opacity-70">
                 <div className="absolute inset-y-0 left-1/2 w-[60%] -translate-x-1/2 bg-gradient-to-b from-amber-600/10 via-transparent to-transparent blur-3xl" />
-                <div className="absolute -top-32 right-0 h-72 w-72 bg-rose-500/20 blur-[140px]" />
+                <div className="absolute -top-32 right-0 h-72 w-72 bg-rose-500/20 blur-[180px]" />
                 <div className="absolute bottom-0 left-4 h-64 w-64 bg-amber-500/20 blur-[120px]" />
             </div>
 
@@ -306,6 +314,8 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
                             description={step.description}
                             icon={step.icon}
                             isComplete={getStepCompleteness(index + 1)}
+                            isOpen={openStep === index + 1}
+                            onToggle={() => setOpenStep(openStep === index + 1 ? 0 : index + 1)}
                         >
                             {stepsContent[index]}
                         </AccordionSection>
