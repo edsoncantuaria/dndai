@@ -4,7 +4,6 @@ import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCrea
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import type { ApiListItem } from '@/types';
 import NewStep1_RaceClass from './NewStep1_RaceClass';
-import NewStepper from './NewStepper';
 import NewStep2_Attributes from './NewStep2_Attributes';
 import NewStep3_Background from './NewStep3_Background';
 import NewStep4_ProficienciesAndLanguages from './NewStep4_ProficienciesAndLanguages';
@@ -13,7 +12,8 @@ import NewStep6_Spells from './NewStep6_Spells';
 import NewStep7_Feats from './NewStep7_Feats';
 import NewStep8_Finalize from './NewStep8_Finalize';
 import ActionModal from '../ui/ActionModal';
-import { Loader2, Sparkles, Swords, ScrollText, Languages, Shield, Stars, Crown, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sparkles, Swords, ScrollText, Languages, Shield, Stars, Crown, CheckCircle2, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const CREATION_STEPS = [
     { title: 'Raça & Classe', description: 'Defina legado e vocação inicial.', icon: Sparkles },
@@ -37,9 +37,7 @@ const ATTRIBUTE_ORDER = [
 
 const CharacterSummaryPanel: React.FC<{
     hook: ReturnType<typeof useCharacterCreator>;
-    currentStep: number;
-    totalSteps: number;
-}> = ({ hook, currentStep, totalSteps }) => {
+}> = ({ hook }) => {
     const {
         name,
         details,
@@ -74,10 +72,8 @@ const CharacterSummaryPanel: React.FC<{
         { label: 'Bônus de Proficiência', value: proficiencyBonus ? `+${proficiencyBonus}` : '—', caption: 'Escala heroica' },
     ];
 
-    const progressRatio = currentStep / totalSteps;
-
     return (
-        <aside className="rounded-[28px] border border-white/5 bg-stone-950/40 p-6 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-6">
+        <aside className="rounded-[28px] border border-white/5 bg-stone-950/40 p-6 backdrop-blur-xl shadow-2xl shadow-black/50 space-y-6 h-fit sticky top-6">
             <div>
                 <p className="text-[10px] uppercase tracking-[0.5em] text-amber-400/80">Prévia</p>
                 <h4 className="mt-2 text-xl font-semibold text-amber-50">Visão do Herói</h4>
@@ -153,19 +149,65 @@ const CharacterSummaryPanel: React.FC<{
                     <p className="text-sm text-stone-500">Nenhum idioma selecionado.</p>
                 )}
             </div>
-
-            <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs uppercase tracking-[0.4em] text-stone-500">
-                    <span>Progresso</span>
-                    <span>{Math.round(progressRatio * 100)}%</span>
-                </div>
-                <div className="h-2 rounded-full bg-stone-800">
-                    <div className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 transition-all duration-300" style={{ width: `${Math.max(progressRatio * 100, 5)}%` }} />
-                </div>
-            </div>
         </aside>
     );
 };
+
+const AccordionSection: React.FC<{
+    stepNumber: number;
+    title: string;
+    description: string;
+    icon: LucideIcon;
+    isComplete: boolean;
+    children: React.ReactNode;
+}> = ({ stepNumber, title, description, icon: Icon, isComplete, children }) => {
+    const [isOpen, setIsOpen] = useState(stepNumber === 1);
+
+    return (
+        <div className="rounded-[28px] border border-white/5 bg-stone-950/70 shadow-2xl shadow-black/40 overflow-hidden">
+            <button
+                className="flex w-full items-start justify-between gap-4 p-6 text-left"
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <div className="flex items-start gap-4">
+                    <div
+                        className={`mt-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition ${
+                            isOpen
+                                ? 'border-amber-400 bg-amber-500/20 text-amber-100'
+                                : 'border-white/10 bg-stone-900/80 text-stone-400'
+                        }`}
+                    >
+                       {isComplete ? <CheckCircle2 className="h-5 w-5 text-emerald-300" /> : <Icon className="h-5 w-5" />}
+                    </div>
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.5em] text-stone-500">Etapa {stepNumber}</p>
+                        <h3 className="mt-1 text-2xl font-semibold text-amber-50">{title}</h3>
+                        <p className="mt-1 text-sm text-stone-400">{description}</p>
+                    </div>
+                </div>
+                <ChevronDown className={`h-6 w-6 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence initial={false}>
+                {isOpen && (
+                    <motion.section
+                        initial="collapsed"
+                        animate="open"
+                        exit="collapsed"
+                        variants={{
+                            open: { opacity: 1, height: 'auto' },
+                            collapsed: { opacity: 0, height: 0 },
+                        }}
+                        transition={{ duration: 0.4, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                    >
+                        <div className="p-6 pt-0">{children}</div>
+                    </motion.section>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
 
 interface NewCharacterCreationProps {
     races: ApiListItem[];
@@ -186,29 +228,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
 }) => {
     const { createCharacter } = useGameStateContext();
     const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
-    const [currentStep, setCurrentStep] = useState(1);
-    const [highestStep, setHighestStep] = useState(1);
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-    const totalSteps = CREATION_STEPS.length;
-    const wizardRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (wizardRef.current) {
-            wizardRef.current.scrollTo(0, 0);
-        }
-    }, [currentStep]);
-
-    const nextStep = () => {
-        const next = Math.min(currentStep + 1, totalSteps);
-        setCurrentStep(next);
-        setHighestStep(Math.max(highestStep, next));
-    };
-    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
-    const goToStep = (step: number) => {
-        if (step <= highestStep && step >= 1) {
-            setCurrentStep(step);
-        }
-    };
     
     const handleFinalizeAndSubmit = async () => {
         const finalCharacterData = hook.buildCharacter();
@@ -223,38 +243,31 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
             setShowConfirmationModal(false);
         }
     };
-
-    const promptFinalize = () => {
-        if (hook.isComplete) {
-            setShowConfirmationModal(true);
-        }
-    };
-
-    const renderStep = () => {
-        switch (currentStep) {
-            case 1:
-                return <NewStep1_RaceClass hook={hook} nextStep={nextStep} races={races} classes={classes} />;
-            case 2:
-                return <NewStep2_Attributes hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 3:
-                return <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={prevStep} nextStep={nextStep} />;
-            case 4:
-                return <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={prevStep} nextStep={nextStep} allLanguages={allLanguages} />;
-            case 5:
-                return <NewStep5_Equipment2 hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 6:
-                return <NewStep6_Spells hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 7:
-                return <NewStep7_Feats hook={hook} prevStep={prevStep} nextStep={nextStep} />;
-            case 8:
-                return <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={promptFinalize} />;
-            default:
-                return <div>Etapa Inválida.</div>;
+    
+    const getStepCompleteness = (step: number): boolean => {
+        switch (step) {
+            case 1: return !!hook.race && !!hook.characterClass;
+            case 2: return hook.attributeMethod !== null && (!hook.isVariantHuman || hook.variantHumanBonusSelections.length === 2);
+            case 3: return !!hook.background && !!hook.alignment && !!hook.ideal && !!hook.bond && !!hook.flaw && hook.personalityTraits.length > 0;
+            case 4: return hook.canProceedFromProficiencies;
+            case 5: return hook.areAllEquipmentChoicesMade;
+            case 6: return hook.areClassSpellsSelected && hook.areRacialSpellsSelected;
+            case 7: return !hook.isVariantHuman || !!hook.selectedFeat;
+            case 8: return hook.isComplete;
+            default: return false;
         }
     };
     
-    const progressPercentage = useMemo(() => Math.round((currentStep / totalSteps) * 100), [currentStep, totalSteps]);
-    const currentStepMeta = CREATION_STEPS[currentStep - 1] || CREATION_STEPS[0];
+    const stepsContent = [
+        <NewStep1_RaceClass hook={hook} races={races} classes={classes} nextStep={() => {}} />,
+        <NewStep2_Attributes hook={hook} prevStep={() => {}} nextStep={() => {}} />,
+        <NewStep3_Background hook={hook} backgrounds={backgrounds} alignments={alignments} prevStep={() => {}} nextStep={() => {}} />,
+        <NewStep4_ProficienciesAndLanguages hook={hook} prevStep={() => {}} nextStep={() => {}} allLanguages={allLanguages} />,
+        <NewStep5_Equipment2 hook={hook} prevStep={() => {}} nextStep={() => {}} />,
+        <NewStep6_Spells hook={hook} prevStep={() => {}} nextStep={() => {}} />,
+        <NewStep7_Feats hook={hook} prevStep={() => {}} nextStep={() => {}} />,
+        <NewStep8_Finalize hook={hook} prevStep={() => {}} handleFinalize={() => setShowConfirmationModal(true)} />,
+    ];
 
     if (hook.loadingStates.isLoading) {
         return (
@@ -276,78 +289,31 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     }
 
     return (
-        <div className="relative isolate min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),transparent_45%)] px-3 py-6 sm:px-6 sm:py-10">
+        <div className="relative isolate min-h-screen w-full overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),transparent_45%)] px-3 py-6 sm:px-6 sm:py-10">
             <div className="pointer-events-none absolute inset-0 -z-10 opacity-70">
                 <div className="absolute inset-y-0 left-1/2 w-[60%] -translate-x-1/2 bg-gradient-to-b from-amber-600/10 via-transparent to-transparent blur-3xl" />
                 <div className="absolute -top-32 right-0 h-72 w-72 bg-rose-500/20 blur-[140px]" />
                 <div className="absolute bottom-0 left-4 h-64 w-64 bg-amber-500/20 blur-[120px]" />
             </div>
 
-            <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
-                <header className="relative overflow-hidden rounded-[32px] border border-white/5 bg-gradient-to-br from-stone-900/80 via-stone-950/80 to-black/80 px-6 py-6 sm:px-10 sm:py-8 shadow-2xl shadow-black/50">
-                    <div className="grid gap-6 md:grid-cols-[2fr_1fr] md:items-center">
-                        <div className="space-y-4">
-                            <p className="text-xs uppercase tracking-[0.5em] text-amber-400/80">Forja Arcana</p>
-                            <h2 className="text-3xl sm:text-4xl font-semibold text-amber-50">Criação de Personagem</h2>
-                            <p className="text-sm text-stone-300">
-                                Bem-vindo à nova experiência premium de criação. Cada etapa traz contexto visual, progresso claro e
-                                um painel vivo do herói que você está moldando.
-                            </p>
-                            <div className="flex flex-wrap items-center gap-6 pt-2">
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-[0.4em] text-stone-500">Etapa Atual</p>
-                                    <p className="text-lg font-semibold text-amber-200">{currentStep}. {currentStepMeta.title}</p>
-                                    <p className="text-sm text-stone-400">{currentStepMeta.description}</p>
-                                </div>
-                                <div className="w-full max-w-xs">
-                                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.4em] text-stone-500">
-                                        <span>Progresso</span>
-                                        <span>{progressPercentage}%</span>
-                                    </div>
-                                    <div className="mt-2 h-2 rounded-full bg-stone-800">
-                                        <div className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 transition-all duration-300" style={{ width: `${progressPercentage}%` }} />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="relative hidden rounded-3xl border border-white/5 bg-stone-900/60 p-5 md:block">
-                            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-amber-500/5 via-transparent to-transparent" />
-                            <div className="relative z-10 space-y-3">
-                                <p className="text-[11px] uppercase tracking-[0.5em] text-stone-500">Destaques da Etapa</p>
-                                <ul className="space-y-2 text-sm text-stone-200">
-                                    <li>{currentStepMeta.description}</li>
-                                    <li>Revisite os passos anteriores a qualquer momento.</li>
-                                    <li>O painel à direita mostra o impacto instantâneo das escolhas.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </header>
-
-                <NewStepper
-                    currentStep={currentStep}
-                    totalSteps={totalSteps}
-                    highestStep={highestStep}
-                    goToStep={goToStep}
-                    steps={CREATION_STEPS}
-                />
-
-                <main className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(280px,1.2fr)]">
-                    <section
-                        ref={wizardRef}
-                        className="relative overflow-hidden rounded-[32px] border border-white/5 bg-stone-950/70 p-4 sm:p-6 shadow-2xl shadow-black/40 backdrop-blur-xl"
-                    >
-                        <div className="absolute inset-0 pointer-events-none opacity-30">
-                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.08),transparent_55%)]" />
-                        </div>
-                        <div className="relative z-10 max-h-none overflow-visible pr-1 lg:max-h-[72vh] lg:overflow-y-auto">
-                            {renderStep()}
-                        </div>
-                    </section>
-
-                    <CharacterSummaryPanel hook={hook} currentStep={currentStep} totalSteps={totalSteps} />
-                </main>
-            </div>
+            <main className="mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(320px,1.2fr)] lg:items-start">
+                <div className="space-y-6">
+                    {CREATION_STEPS.map((step, index) => (
+                        <AccordionSection 
+                            key={step.title}
+                            stepNumber={index + 1}
+                            title={step.title}
+                            description={step.description}
+                            icon={step.icon}
+                            isComplete={getStepCompleteness(index + 1)}
+                        >
+                            {stepsContent[index]}
+                        </AccordionSection>
+                    ))}
+                </div>
+                
+                <CharacterSummaryPanel hook={hook} />
+            </main>
 
             {showConfirmationModal && (
                  <ActionModal
