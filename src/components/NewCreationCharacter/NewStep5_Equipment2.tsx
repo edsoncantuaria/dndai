@@ -8,6 +8,7 @@ import ItemCard from '../ItemCard';
 import { v4 as uuidv4 } from 'uuid';
 import { findCacheMatch, resolveEquipmentCategory, normalizeKey } from '@/utils/equipmentCacheBuilder';
 import { translateEquipment } from '@/utils/translator'; // Importar a função de tradução
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 const ItemChoiceSelector: React.FC<{
     choice: any;
@@ -181,6 +182,19 @@ const NewStep5_Equipment2: React.FC<{
         handleRandomizeEquipment,
         finalProficiencies,
     } = hook;
+
+    if (loadingStates.isLoading) {
+        return (
+            <PremiumLoader
+                title="Montando o arsenal inicial"
+                subtitle="Buscando categorias de equipamento da classe e do antecedente."
+                description="Carregando cofres, caches e traduções de itens..."
+                statusLabel={loadingStates.message || 'Carregando equipamentos'}
+                progress={loadingStates.progress}
+                showSkeletons={false}
+            />
+        );
+    }
 
     const classChoices = equipmentChoiceGroups.filter(g => g.source === 'Classe');
     const backgroundChoices = equipmentChoiceGroups.filter(g => g.source === 'Antecedente');

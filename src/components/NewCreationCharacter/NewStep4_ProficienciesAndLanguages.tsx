@@ -39,7 +39,9 @@ const SectionShell: React.FC<{ title: string; subtitle?: string; icon?: React.Re
 );
 
 const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-    <span className="rounded-full border border-white/10 bg-stone-900/80 px-3 py-1 text-xs text-stone-200">{children}</span>
+    <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 shadow-inner shadow-amber-500/20">
+        {children}
+    </span>
 );
 
 const SelectableTile: React.FC<{
@@ -55,7 +57,7 @@ const SelectableTile: React.FC<{
         disabled={disabled}
         className={`w-full rounded-2xl border px-4 py-3 text-left transition ${
             isActive
-                ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-50 shadow shadow-emerald-500/20'
+                ? 'border-emerald-400/60 bg-gradient-to-br from-emerald-500/15 via-transparent to-emerald-400/10 text-emerald-50 shadow shadow-emerald-500/20'
                 : 'border-white/5 bg-stone-950/40 text-stone-200 hover:border-emerald-400/40 hover:text-emerald-100'
         } disabled:cursor-not-allowed disabled:opacity-40`}
     >
@@ -134,7 +136,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         <button
                             type="button"
                             onClick={handleRandomizeProficiencies}
-                            className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                            className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-4 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition hover:brightness-110"
                         >
                             <Dice5 className="h-4 w-4" /> Sortear tudo
                         </button>
@@ -194,7 +196,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                         <button
                             type="button"
                             onClick={() => handleRandomizeLanguages(baseLanguages || [], languageChoicesCount)}
-                            className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
+                            className="inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-4 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition hover:brightness-110"
                         >
                             <Dice5 className="h-4 w-4" />
                             Sortear idiomas
@@ -245,7 +247,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                 <button
                     type="button"
                     onClick={prevStep}
-                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-amber-300/60 hover:text-amber-100"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Voltar para Antecedente

@@ -3,7 +3,8 @@
 import React from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
 import NewSpellCard from '../Spells/NewSpellCard';
-import { Loader2, Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Dice5, ArrowLeft, ArrowRight } from 'lucide-react';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -46,10 +47,14 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     if (loadingStates.isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/5 bg-stone-950/70 p-10 text-stone-400 shadow-2xl shadow-black/40">
-                <Loader2 className="h-12 w-12 animate-spin text-amber-300" />
-                <p className="mt-4 text-sm">Carregando grimórios...</p>
-            </div>
+            <PremiumLoader
+                title="Carregando grimórios iniciais"
+                subtitle="Buscando truques, magias de nível 1 e dons raciais disponíveis."
+                description="Sincronizando grimórios da classe e da subclasse..."
+                statusLabel={loadingStates.message || 'Mapeando magias'}
+                progress={loadingStates.progress}
+                showSkeletons={false}
+            />
         );
     }
 

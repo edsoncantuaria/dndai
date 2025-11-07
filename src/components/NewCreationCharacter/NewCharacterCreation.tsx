@@ -12,8 +12,9 @@ import NewStep6_Spells from './NewStep6_Spells';
 import NewStep7_Feats from './NewStep7_Feats';
 import NewStep8_Finalize from './NewStep8_Finalize';
 import ActionModal from '../ui/ActionModal';
-import { Loader2, Sparkles, Swords, ScrollText, Languages, Shield, Stars, Crown, CheckCircle2, ChevronDown } from 'lucide-react';
+import { Sparkles, Swords, ScrollText, Languages, Shield, Stars, Crown, CheckCircle2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 const CREATION_STEPS = [
     { title: 'Raça & Classe', description: 'Defina legado e vocação inicial.', icon: Sparkles },
@@ -279,20 +280,13 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
 
     if (hook.loadingStates.isLoading) {
         return (
-            <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
-                <Loader2 className="h-12 w-12 animate-spin" />
-                {hook.loadingStates.message && (
-                     <div className="w-full max-w-sm mt-4">
-                        <p className="text-center text-sm mb-2">{hook.loadingStates.message}</p>
-                        <div className="w-full bg-stone-700 rounded-full h-2.5">
-                            <div 
-                                className="bg-amber-600 h-2.5 rounded-full transition-all duration-300" 
-                                style={{ width: `${hook.loadingStates.progress}%` }}
-                            ></div>
-                        </div>
-                    </div>
-                )}
-            </div>
+            <PremiumLoader
+                title="Preparando o Crisol de Criação"
+                subtitle="Buscando raças, classes, magias e equipamentos necessários para liberar todas as escolhas."
+                description="Sincronizando catálogos, caches e referências do herói..."
+                statusLabel={hook.loadingStates.message || 'Sincronizando'}
+                progress={hook.loadingStates.progress}
+            />
         );
     }
 

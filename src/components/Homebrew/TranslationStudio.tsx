@@ -132,12 +132,19 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
                     </div>
                 </div>
             </main>
-             <footer className="mt-8 flex justify-between items-center">
-                <button onClick={onCancel} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2 mx-auto">
+             <footer className="mt-8 flex flex-wrap items-center justify-between gap-4">
+                <button
+                    onClick={onCancel}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-5 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-300 hover:text-amber-200"
+                >
                     <ArrowLeft className="h-4 w-4" /> Voltar para a Oficina
                 </button>
-                 <button onClick={handleSave} disabled={isSaving} className="menu-button btn-new flex items-center justify-center gap-2 text-lg px-6 py-2 disabled:opacity-50">
-                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin"/> : <Save className="h-5 w-5"/>}
+                 <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="inline-flex items-center justify-center gap-2 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/85 via-amber-400/80 to-rose-500/80 px-6 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    {isSaving ? <Loader2 className="h-5 w-5 animate-spin text-stone-950" /> : <Save className="h-5 w-5" />}
                     Salvar Traduções
                 </button>
             </footer>

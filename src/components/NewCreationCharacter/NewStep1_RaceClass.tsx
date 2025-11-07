@@ -188,8 +188,24 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                             </div>
 
                             {loadingStates.isLoading && (
-                                <div className="flex items-center justify-center py-6 text-amber-300">
-                                    <Loader2 className="h-8 w-8 animate-spin" />
+                                <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-stone-900/80 via-stone-900/60 to-stone-900/80 p-5 shadow-inner shadow-black/40">
+                                    <div className="flex flex-col items-center gap-3 text-center">
+                                        <div className="inline-flex items-center gap-3">
+                                            <div className="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
+                                                <Loader2 className="h-6 w-6 animate-spin text-amber-200" />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-[10px] uppercase tracking-[0.5em] text-amber-300">sincronizando</p>
+                                                <p className="text-sm text-stone-200">{loadingStates.message || 'Consultando detalhes de raça e classe...'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                            <div
+                                                className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 transition-all duration-300"
+                                                style={{ width: `${Math.min(100, Math.max(10, loadingStates.progress || 25))}%` }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 

@@ -214,7 +214,23 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                             <div className="space-y-3">
                                 <h4 className="font-semibold text-amber-200 flex items-center gap-2"><BookOpen className="h-4 w-4"/> Magias Conhecidas</h4>
                                 {isLoadingSpells ? (
-                                    <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
+                                    <div className="space-y-3 rounded-3xl border border-white/10 bg-gradient-to-br from-stone-950/70 via-stone-900/60 to-stone-950/70 p-5 text-sm text-stone-200 shadow-inner shadow-black/40">
+                                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-amber-400/30 bg-amber-500/10 text-[10px] uppercase tracking-[0.4em] text-amber-200">
+                                            sincronizando
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <div className="h-12 w-12 rounded-2xl border border-white/10 bg-white/5 flex items-center justify-center">
+                                                <Loader2 className="h-6 w-6 animate-spin text-amber-200" />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-sm font-semibold text-white">Revelando magias selecionadas</p>
+                                                <p className="text-xs text-stone-400">Buscando descrições completas para exibir no resumo.</p>
+                                            </div>
+                                        </div>
+                                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                            <div className="h-full w-2/3 bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 animate-pulse" />
+                                        </div>
+                                    </div>
                                 ) : (
                                     <div className="space-y-3">
                                         {spellLevelOrder.map(levelKey => (
@@ -250,7 +266,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                 <button
                     type="button"
                     onClick={prevStep}
-                    className="flex items-center justify-center gap-2 rounded-full border border-white/10 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-white/40 hover:bg-white/5"
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-stone-100 transition hover:border-amber-300/60 hover:text-amber-100"
                 >
                     <ArrowLeft className="h-4 w-4" />
                     Voltar para Talentos
@@ -259,7 +275,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                     type="button"
                     onClick={handleFinalize}
                     disabled={!isComplete}
-                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center justify-center gap-3 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-500/90 via-amber-400/80 to-rose-500/85 px-8 py-3 text-base font-semibold text-stone-950 shadow-[0_10px_40px_-15px_rgba(251,191,36,0.8)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {isComplete ? 'Iniciar Aventura' : 'Complete os campos pendentes'}
                     <Play className="h-5 w-5" />

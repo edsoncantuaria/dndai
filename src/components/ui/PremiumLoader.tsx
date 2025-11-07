@@ -10,6 +10,8 @@ interface PremiumLoaderProps {
   actionLabel?: string;
   onAction?: () => void;
   showSkeletons?: boolean;
+  statusLabel?: string;
+  progress?: number;
 }
 
 const PremiumLoader: React.FC<PremiumLoaderProps> = ({
@@ -19,7 +21,13 @@ const PremiumLoader: React.FC<PremiumLoaderProps> = ({
   actionLabel,
   onAction,
   showSkeletons = true,
+  statusLabel,
+  progress,
 }) => {
+  const clampedProgress = typeof progress === 'number'
+    ? Math.min(100, Math.max(0, progress))
+    : null;
+
   const skeletonBlocks = showSkeletons ? (
     <div className="space-y-4">
       <div className="rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur-lg animate-pulse">
@@ -58,7 +66,22 @@ const PremiumLoader: React.FC<PremiumLoaderProps> = ({
           <div className="h-12 w-12 rounded-2xl border border-white/15 bg-white/10 flex items-center justify-center">
             <Loader2 className="h-6 w-6 text-amber-200 animate-spin" />
           </div>
-          <p className="text-sm text-stone-300">{description}</p>
+          <div className="flex-1 space-y-2">
+            <p className="text-sm text-stone-300">{description}</p>
+            {(statusLabel || clampedProgress !== null) && (
+              <div className="space-y-1">
+                {statusLabel && <p className="text-xs uppercase tracking-[0.3em] text-amber-200/80">{statusLabel}</p>}
+                {clampedProgress !== null && (
+                  <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400 transition-all duration-300"
+                      style={{ width: `${clampedProgress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex items-center justify-between text-xs text-stone-500">
           <span>Seu progresso está seguro. Isso pode levar alguns segundos.</span>

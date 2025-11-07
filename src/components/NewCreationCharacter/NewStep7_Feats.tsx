@@ -2,8 +2,9 @@
 'use client';
 import React, { useEffect } from 'react';
 import { useCharacterCreator } from '@/hooks/character-creation/useCharacterCreator';
-import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 import type { Feat } from '@/types';
+import PremiumLoader from '@/components/ui/PremiumLoader';
 
 interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
@@ -37,12 +38,18 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
         return null;
     }
 
-    if (loadingStates.feats) {
+    const isLoadingFeats = loadingStates.isLoading && availableFeats.length === 0;
+
+    if (isLoadingFeats) {
         return (
-            <div className="flex flex-col items-center justify-center rounded-[32px] border border-white/5 bg-stone-950/70 p-10 text-stone-400 shadow-2xl shadow-black/40">
-                <Loader2 className="h-12 w-12 animate-spin text-amber-300" />
-                <p className="mt-4 text-sm">Consultando talentos disponíveis...</p>
-            </div>
+            <PremiumLoader
+                title="Consultando talentos disponíveis"
+                subtitle="Buscando feitos lendários liberados para Humanos Variantes."
+                description="Listando talentos e preparando descrições completas..."
+                statusLabel={loadingStates.message || 'Carregando talentos'}
+                progress={loadingStates.progress}
+                showSkeletons={false}
+            />
         );
     }
 
