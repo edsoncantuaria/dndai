@@ -276,16 +276,6 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                             <h4 className="text-2xl font-semibold text-amber-50">Selecione sua Classe</h4>
                             <p className="text-sm text-stone-400">Determine proficiências, equipamentos iniciais e estilo de jogo.</p>
                         </div>
-                        {characterClass && classDetails && !loadingStates.isLoading && (
-                            <button
-                                type="button"
-                                onClick={() => setIsClassModalOpen(true)}
-                                className="flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:border-amber-300 hover:bg-amber-500/20"
-                            >
-                                <Eye className="h-4 w-4" />
-                                Ver detalhes completos
-                            </button>
-                        )}
                     </div>
 
                     <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(260px,1fr)]">
@@ -304,21 +294,23 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                         <div className="space-y-4">
                             {characterClass && classDetails ? (
                                 <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-stone-900/80 to-stone-950/60 p-6">
-                                    <p className="text-[11px] uppercase tracking-[0.4em] text-stone-500">Perfil da Classe</p>
-                                    <h5 className="text-xl font-semibold text-amber-100">{classDetails.name}</h5>
-                                    <div className="mt-4 grid gap-3 text-sm text-stone-200">
-                                        <div className="rounded-2xl border border-white/5 bg-stone-900/70 p-3">
-                                            <p className="text-[10px] uppercase tracking-[0.4em] text-stone-500">Dado de Vida</p>
-                                            <p className="text-lg font-semibold text-stone-100">{classHitDie}</p>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p className="text-[11px] uppercase tracking-[0.4em] text-stone-500">Perfil da Classe</p>
+                                            <h5 className="text-xl font-semibold text-amber-100">{classDetails.name}</h5>
                                         </div>
-                                        <div className="rounded-2xl border border-white/5 bg-stone-900/70 p-3">
-                                            <p className="text-[10px] uppercase tracking-[0.4em] text-stone-500">Testes de Resistência</p>
-                                            <p>{classSavingThrows || '—'}</p>
-                                        </div>
-                                        <div className="rounded-2xl border border-white/5 bg-stone-900/70 p-3">
-                                            <p className="text-[10px] uppercase tracking-[0.4em] text-stone-500">Subclasse</p>
-                                            <p>{classSubclass || 'Obtida em níveis futuros'}</p>
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsClassModalOpen(true)}
+                                            className="text-stone-400 hover:text-amber-300"
+                                        >
+                                            <Eye className="h-5 w-5" />
+                                        </button>
+                                    </div>
+                                    <div className="mt-4 space-y-2 text-sm">
+                                        <p><strong className="text-stone-400">Dado de Vida:</strong> {classHitDie}</p>
+                                        <p><strong className="text-stone-400">Resistências:</strong> {classSavingThrows || '—'}</p>
+                                        <p><strong className="text-stone-400">Subclasse:</strong> {classSubclass || 'Nível 3'}</p>
                                     </div>
                                 </div>
                             ) : (
