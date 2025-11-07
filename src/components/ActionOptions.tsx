@@ -75,7 +75,7 @@ const LootOfferDisplay: React.FC = () => {
     )
 };
 
-const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean, compact?: boolean }> = ({ onActionSubmit, disabled, compact }) => {
+const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, disabled: boolean }> = ({ onActionSubmit, disabled }) => {
     const [inputValue, setInputValue] = useState('');
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -87,19 +87,19 @@ const CustomActionInput: React.FC<{ onActionSubmit: (action: string) => void, di
     };
 
     return (
-        <form onSubmit={handleSubmit} className={`flex items-center gap-2 mt-4 ${compact ? 'flex-col' : ''}`}>
+        <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-4">
             <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="O que você faz?"
                 disabled={disabled}
-                className={`bg-white/5 border border-white/15 rounded-2xl py-2 px-3 text-stone-100 placeholder:text-stone-500 focus:ring-2 focus:ring-amber-400/60 focus:border-transparent disabled:opacity-50 ${compact ? 'w-full' : 'flex-grow'}`}
+                className="flex-grow bg-white/5 border border-white/15 rounded-2xl py-2 px-3 text-stone-100 placeholder:text-stone-500 focus:ring-2 focus:ring-amber-400/60 focus:border-transparent disabled:opacity-50"
             />
             <button
                 type="submit"
                 disabled={disabled || !inputValue.trim()}
-                className={`bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-900 font-semibold ${compact ? 'w-full py-2 rounded-2xl' : 'p-2 rounded-full'} transition-colors disabled:opacity-50`}
+                className="flex-shrink-0 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-stone-900 font-semibold p-2 rounded-full transition-colors disabled:opacity-50"
                 aria-label="Enviar Ação"
             >
                 <Send className="h-5 w-5" />
@@ -243,8 +243,7 @@ const ActionOptions: React.FC = () => {
         setIsOpen(false);
     };
 
-    const renderActionContent = (options?: { compact?: boolean }) => {
-        const compact = options?.compact ?? false;
+    const renderActionContent = () => {
         if (combatState.isActive && !isPlayerTurn) {
             return (
                 <div className="text-center">
@@ -291,7 +290,7 @@ const ActionOptions: React.FC = () => {
         return (
             <div className="w-full">
                 {hasSuggestedActions && (
-                    <div className={`grid gap-2 ${compact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
                             const actionText = typeof action === 'object' ? action.text : action;
                             const skillName = typeof action === 'object' && action.skill ? action.skill : null;
@@ -310,7 +309,7 @@ const ActionOptions: React.FC = () => {
                         })}
                     </div>
                 )}
-                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} compact={compact} />
+                 <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
                  {!hasSuggestedActions && (
                      <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
                  )}
@@ -366,7 +365,7 @@ const ActionOptions: React.FC = () => {
                             className="fixed bottom-[11rem] top-20 right-4 left-4 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
                         >
                             <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-300 mb-3">Escolha sua ação</h3>
-                            {renderActionContent({ compact: true })}
+                            {renderActionContent()}
                         </motion.div>
                     )}
                 </AnimatePresence>
