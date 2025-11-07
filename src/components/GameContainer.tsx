@@ -239,10 +239,10 @@ const GameContainer = () => {
 
         if (gameStage === 'session_list') {
             return (
-                <div className="relative isolate min-h-full w-full overflow-hidden bg-[#030812]">
+                <div className="relative isolate min-h-full w-full overflow-y-auto bg-[#030812]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),transparent_60%)]" />
                     <div className="absolute -bottom-32 right-0 h-96 w-96 bg-emerald-500/20 blur-[160px]" />
-                    <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-12 sm:px-8">
+                    <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12 md:py-16">
                         <header className="space-y-3 text-center sm:text-left">
                             <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Continuar</p>
                             <h1 className="text-4xl font-semibold text-white">Retome uma crônica</h1>
@@ -339,7 +339,7 @@ const GameContainer = () => {
                     <div className="absolute -top-32 right-0 h-96 w-96 bg-rose-500/20 blur-[180px]" />
                     <div className="absolute bottom-0 left-0 h-72 w-72 bg-emerald-500/15 blur-[160px]" />
 
-                    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-12 sm:px-8">
+                    <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col gap-10 px-4 py-8 sm:px-6 md:py-16">
                         <header className="flex flex-col gap-4 text-center sm:text-left">
                             <div className="inline-flex items-center gap-2 self-center rounded-full border border-amber-400/40 px-4 py-1 text-[11px] uppercase tracking-[0.4em] text-amber-200 sm:self-start">
                                 Cofre de Heróis
@@ -397,7 +397,7 @@ const GameContainer = () => {
                                                     <Crown className="h-3.5 w-3.5" /> Nível {char.level}
                                                 </span>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3 text-xs text-stone-400">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-stone-400">
                                                 <div className="flex items-center gap-2">
                                                     <Shield className="h-3.5 w-3.5 text-stone-500" />
                                                     {char.characterClass}
@@ -406,7 +406,7 @@ const GameContainer = () => {
                                                     <Clock className="h-3.5 w-3.5 text-stone-500" />
                                                     Atualizado em {updatedAt}
                                                 </div>
-                                                <div className="col-span-2">
+                                                <div className="col-span-1 sm:col-span-2">
                                                     <p>
                                                         Antecedente: <span className="text-stone-200">{char.background}</span>
                                                     </p>
@@ -467,7 +467,7 @@ const GameContainer = () => {
             <div className="relative min-h-full flex flex-col overflow-x-hidden overflow-y-auto bg-[#02060d]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),_transparent_55%)]" />
                 <div className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-amber-500/5 via-transparent to-transparent blur-3xl" />
-                <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col flex-grow gap-12 animate-fadeIn min-w-0">
+                <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-8 py-12 flex flex-col flex-grow gap-12 min-w-0">
                     <div className="space-y-6 md:hidden">
                         <div className="space-y-2">
                             <p className="text-[11px] uppercase tracking-[0.35em] text-amber-300">Mestre virtual</p>
