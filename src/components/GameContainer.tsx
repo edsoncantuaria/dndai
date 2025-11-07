@@ -269,7 +269,6 @@ const GameContainer = () => {
         if (gameStage === 'playing' && !character) {
              return <PremiumLoader onCancel={returnToMenu} />;
         }
-        }
 
         // Once loaded, if the stage is 'playing', render the Game component.
         if (gameStage === 'playing' && character) {
