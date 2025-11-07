@@ -7,19 +7,27 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import GameScreen from '@/components/GameScreen';
 import PremiumLoader from '@/components/ui/PremiumLoader';
 
-const CharacterCreation = dynamic(() => import('@/components/CharacterCreation'), {
-    loading: () => (
-        <div className="flex flex-col items-center justify-center h-full p-8 text-stone-400">
+const CharacterCreation = dynamic(
+    () =>
+        import('@/components/CharacterCreation').catch((err) => {
+            if (typeof window !== 'undefined' && /ChunkLoadError/i.test(err?.name || err?.message || '')) {
+                console.warn('[CharacterCreation] ChunkLoadError detectado, recarregando...');
+                window.location.reload();
+            }
+            throw err;
+        }),
+    {
+        loading: () => (
             <PremiumLoader
                 title="Carregando o criador de heróis"
                 subtitle="Preparando tomos antigos e opções personalizadas."
                 description="Sincronizando dados necessários para a criação do personagem..."
                 showSkeletons={false}
             />
-        </div>
-    ),
-    ssr: false // A criação de personagem depende de interações do cliente
-});
+        ),
+        ssr: false // A criação de personagem depende de interações do cliente
+    }
+);
 
 
 export type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store';
