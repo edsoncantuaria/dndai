@@ -59,7 +59,7 @@ const buildGenerationConfig = (
     const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
     const availableBudget = Math.max(
         MIN_OUTPUT_TOKENS,
-        Math.min(profile.output, HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
+        Math.min(HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
     );
     const appliedMax = Math.max(MIN_OUTPUT_TOKENS, Math.min(requestedMax, availableBudget));
 

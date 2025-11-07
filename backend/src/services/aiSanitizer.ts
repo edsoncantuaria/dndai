@@ -1,6 +1,7 @@
 // backend/src/services/aiSanitizer.ts
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
+import { hydrateInventoryItems, reconcileCurrency } from "./inventoryService.js";
 
 const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
 const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);

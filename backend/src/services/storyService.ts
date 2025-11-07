@@ -23,6 +23,7 @@ interface TimelineEventInput {
 const TIMELINE_KEY = (sessaoId: number) => `session:${sessaoId}:timeline`;
 const SUMMARY_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary`;
 const SUMMARY_META_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
+const STORY_MODEL = 'gemini-1.5-flash';
 
 const MAX_TIMELINE_ENTRIES = 200;
 const SUMMARY_MIN_BATCH = 5;
@@ -230,7 +231,7 @@ const generateStorySummary = async (
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: STORY_MODEL });
 
         const recentEvents = timeline.slice(-SUMMARY_WINDOW);
         const eventsText = recentEvents
@@ -319,7 +320,7 @@ export const generateLevelUpRecap = async (
 
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+        const model = genAI.getGenerativeModel({ model: STORY_MODEL });
 
         const prompt = `
 Você é o cronista épico da sessão ${sessaoId}. Responda em português do Brasil a pergunta "Como chegamos aqui?" em 2 a 3 frases, destacando os principais eventos que levaram o herói ao novo nível.

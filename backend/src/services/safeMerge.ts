@@ -111,21 +111,48 @@ export const mergeCharacterUpdates = async (
   // --- Inventory (Merge item por item) ---
   if (updates.inventory && Array.isArray(updates.inventory)) {
     const itemsRepo = queryRunner.manager.getRepository(CharacterItem);
-    const existingItemsMap = new Map((character.items || []).map(i => [i.itemData?.index || i.name, i]));
-    const updatedItemKeys = new Set<string>();
+    const normalizeKey = (value?: string | number | null) => {
+        if (value === undefined || value === null) return null;
+        const str = typeof value === 'string' ? value : value.toString();
+        return str.trim().toLowerCase() || null;
+    };
+
+    const existingItemsMap = new Map<string, CharacterItem>();
+    for (const item of character.items || []) {
+        const candidates = [
+            normalizeKey(item.id),
+            normalizeKey(item.itemData?.id),
+            normalizeKey(item.itemData?.index),
+            normalizeKey(item.name),
+            normalizeKey(item.itemData?.name),
+        ].filter(Boolean) as string[];
+        for (const key of candidates) {
+            if (!existingItemsMap.has(key)) {
+                existingItemsMap.set(key, item);
+            }
+        }
+    }
 
     for (const item of sanitizeArray(updates.inventory)) {
-      if(!item.name && !item.index) continue;
-      const key = item.index || item.name;
-      updatedItemKeys.add(key);
-      const existing = existingItemsMap.get(key);
-      const parsedQuantity = Number(item.quantity ?? 1);
-      const quantity = Number.isFinite(parsedQuantity) && parsedQuantity > 0 ? parsedQuantity : 1;
+      if(!item) continue;
+      const key =
+        normalizeKey(item.id) ||
+        normalizeKey(item.index) ||
+        normalizeKey(item.name);
+      const existing = key ? existingItemsMap.get(key) : undefined;
+      const parsedQuantity = Number(item.quantity ?? (existing?.quantity ?? 1));
+      const quantity = Number.isFinite(parsedQuantity) ? parsedQuantity : 1;
+      const requestedDeletion = item.remove === true || item._delete === true || quantity <= 0;
       
-      if (quantity <= 0) {
-        if (existing) await itemsRepo.remove(existing);
+      if (requestedDeletion) {
+        if (existing) {
+            await itemsRepo.remove(existing);
+        }
         continue;
       }
+
+      const safeQuantity = quantity > 0 ? quantity : 1;
+
       if (existing) {
         const mergedItemData = {
             ...(existing.itemData || {}),
@@ -138,12 +165,12 @@ export const mergeCharacterUpdates = async (
         if (!mergedItemData.name && existing.itemData?.name) {
             mergedItemData.name = existing.itemData.name;
         }
-        mergedItemData.quantity = quantity;
+        mergedItemData.quantity = safeQuantity;
         const nextEquipped = item.equipped !== undefined ? Boolean(item.equipped) : existing.equipped;
         mergedItemData.equipped = nextEquipped;
         mergedItemData.id = existing.id?.toString();
 
-        existing.quantity = quantity;
+        existing.quantity = safeQuantity;
         existing.equipped = nextEquipped;
         existing.name = mergedItemData.name || existing.name;
         existing.itemData = mergedItemData;
@@ -153,22 +180,18 @@ export const mergeCharacterUpdates = async (
         const itemName = item.name || item.index || 'Item Desconhecido';
         const itemDataToPersist = {
             ...item,
-            quantity,
+            quantity: safeQuantity,
             equipped: nextEquipped,
         };
         const newItem = itemsRepo.create({
             characterId,
             name: itemName,
-            quantity,
+            quantity: safeQuantity,
             equipped: nextEquipped,
             itemData: itemDataToPersist,
         });
         await itemsRepo.save(newItem);
       }
-    }
-
-    for (const [key, item] of existingItemsMap.entries()) {
-      if (!updatedItemKeys.has(key)) await itemsRepo.remove(item);
     }
   }
 
