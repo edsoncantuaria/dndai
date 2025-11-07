@@ -350,7 +350,7 @@ const GameContainer = () => {
                                     Reviva crônicas antigas ou crie um herói inédito para desbloquear narrativas exclusivas com IA.
                                 </p>
                             </div>
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
                                 <button
                                     onClick={() => setGameStage('creating_character')}
                                     className="inline-flex items-center justify-center gap-2 rounded-full bg-amber-400/90 px-5 py-3 text-sm font-semibold text-stone-900 hover:bg-amber-300 transition"
@@ -376,9 +376,9 @@ const GameContainer = () => {
                         </div>
 
                         {characters.length > 0 ? (
-                            <div className="grid gap-5 md:grid-cols-2">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 {characters.map(char => {
-                                    const updatedAt = new Date(char.updatedAt).toLocaleDateString();
+                                    const updatedAt = new Date(char.updatedAt).toLocaleDateString('pt-BR');
                                     return (
                                         <article
                                             key={char.id}
@@ -412,7 +412,7 @@ const GameContainer = () => {
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-wrap gap-3">
+                                            <div className="mt-auto flex flex-col sm:flex-row gap-3">
                                                 <button
                                                     onClick={() => handleNewGameFromVault(char as Character)}
                                                     className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 transition"
@@ -421,7 +421,7 @@ const GameContainer = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => setCharacterToDelete(char as Character)}
-                                                    className="inline-flex items-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition"
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition"
                                                 >
                                                     <Trash2 className="h-4 w-4" /> Excluir
                                                 </button>
