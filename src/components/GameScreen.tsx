@@ -448,7 +448,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             className="absolute inset-0"
                             onClick={() => setIsStoryDrawerOpen(false)}
                         />
-                        <div className="absolute bottom-0 left-0 right-0 rounded-t-2xl border border-stone-700 bg-stone-900/95 p-4 max-h-[85vh] overflow-y-auto shadow-2xl animate-fadeIn">
+                        <div className="absolute bottom-16 left-0 right-0 rounded-t-2xl border-t border-stone-700 bg-stone-900/95 p-4 max-h-[70vh] overflow-y-auto shadow-2xl animate-fadeIn">
                             <div className="flex items-center justify-between mb-2 text-stone-200">
                                 <span className="font-semibold uppercase text-xs tracking-wide">Fatos Atualizados</span>
                                 <button
