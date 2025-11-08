@@ -10,7 +10,7 @@ import CombatantHeaderInfo from './CombatantHeaderInfo';
 import { cn } from '@/lib/utils';
 
 const NewCombatTracker: React.FC = () => {
-    const { combatState, character, nextTurn, isLoading } = useGameStateContext();
+    const { combatState, character, nextTurn, isLoading, log } = useGameStateContext();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const getCombatantId = (combatantOrId: any): string => {
@@ -39,7 +39,7 @@ const NewCombatTracker: React.FC = () => {
             .filter(entry => entry.content.toLowerCase().includes(key))
             .slice(-5)
             .map(entry => {
-                const summary = extractRollSummary(entry.content);
+                const summary = extractRollSummary(entry.content as string);
                 return {
                     type: 'log',
                     description: entry.content,
@@ -120,7 +120,7 @@ const NewCombatTracker: React.FC = () => {
             })
             .filter((c): c is Combatant => c !== undefined);
 
-    }, [combatState, character]);
+    }, [combatState, character, buildRollHistory]);
 
     useEffect(() => {
         const currentTurnIndex = combatState.turn % (combatState.initiativeOrder?.length || 1);
