@@ -268,19 +268,19 @@ const GameContainer = () => {
                                     return (
                                         <article
                                             key={session.id}
-                                            className="overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
+                                            className="rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div className="max-w-[70%]">
+                                                <div className="max-w-[70%] flex-grow">
                                                     <p className="text-xs uppercase tracking-[0.25em] text-amber-300">Sessão</p>
-                                                    <h2 className="text-2xl font-semibold text-white truncate">{session.nome}</h2>
+                                                    <h2 className="truncate text-2xl font-semibold text-white">{session.nome}</h2>
                                                     <p className="text-sm text-stone-300">
                                                         Herói: {session.character?.name} — Último acesso em {updatedDate}
                                                     </p>
                                                 </div>
                                                 <div className="flex gap-2">
                                                     <button
-                                                        onClick={() => onContinueGame(session.id)}
+                                                        onClick={() => handleContinueGame(session.id)}
                                                         className="inline-flex items-center gap-2 rounded-full bg-amber-400/90 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-300 transition"
                                                     >
                                                         <Play className="h-4 w-4" /> Retomar
