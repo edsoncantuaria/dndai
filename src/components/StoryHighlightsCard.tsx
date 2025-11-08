@@ -4,7 +4,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { getSessionFacts, getSessionReplay, SessionFactsResponse, SessionReplayResponse } from '@/services/gameService';
+import { getSessionFacts, getSessionReplay, SessionReplayResponse } from '@/services/gameService';
+import type { SessionFactsResponse } from '@/services/gameService'; // Corrigido a importação
 import { Loader2, RefreshCw, Download, MapPin, Users, CalendarClock, Bookmark, BookOpen, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ActionModal from '@/components/ui/ActionModal';
@@ -130,7 +131,7 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
         if (!facts?.timelineFacts) return [];
         return facts.timelineFacts
             .split('\n')
-            .map(line => line.trim())
+            .map(line => line.trim().replace(/\[.*?\]/g, '').replace(/\|/g, '').trim()) // Filtra logs do sistema
             .filter(Boolean);
     }, [facts]);
 
