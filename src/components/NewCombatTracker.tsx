@@ -158,7 +158,7 @@ const NewCombatTracker: React.FC = () => {
                 {isExpanded && (
                     <motion.div
                         key="combat-body"
-                        className="mt-4"
+                        className="mt-4 max-h-[70vh] overflow-y-auto pr-2"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
