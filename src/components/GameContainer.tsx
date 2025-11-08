@@ -20,6 +20,7 @@ import type { SessionFactsResponse } from '@/services/gameService';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useToast } from '@/hooks/use-toast';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
@@ -40,6 +41,7 @@ const GameContainer = () => {
     const { useAiHomebrew } = useSettingsContext();
     const { playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
     const { logout, user } = useAuth(); // Obter a função de logout e o usuário
+    const { toast } = useToast();
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
@@ -48,6 +50,7 @@ const GameContainer = () => {
     const [showTestModal, setShowTestModal] = useState(false);
     const [showArchitectureModal, setShowArchitectureModal] = useState(false); 
     const [isLoadingData, setIsLoadingData] = useState(true);
+    const [isActionLoading, setIsActionLoading] = useState(false);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
     const [sessionToRename, setSessionToRename] = useState<SessaoIA | null>(null);
@@ -84,7 +87,7 @@ const GameContainer = () => {
                     const facts = await GameService.getSessionFacts(latestSessionId);
                     setFeaturedSessionFacts(facts);
                 } catch (factError) {
-                    console.warn(`[GameContainer] Não foi possível carregar os fatos da sessão ${'latestSessionId'}:`, factError);
+                    console.warn(`[GameContainer] Não foi possível carregar os fatos da sessão ${latestSessionId}:`, factError);
                     setFeaturedSessionFacts(null);
                 }
             } else {
@@ -204,18 +207,34 @@ const GameContainer = () => {
     
     const confirmRenameSession = useCallback(async () => {
         if (!sessionToRename || !newSessionName.trim()) return;
-        await GameService.renameGameSession(sessionToRename.id, newSessionName);
-        setSessionToRename(null);
-        setNewSessionName("");
-        fetchInitialData();
-    }, [sessionToRename, newSessionName, fetchInitialData]);
+        setIsActionLoading(true);
+        try {
+            await GameService.renameGameSession(sessionToRename.id, newSessionName);
+            toast({ title: "Sessão Renomeada!", description: `Sua aventura agora se chama "${newSessionName}".`});
+            fetchInitialData();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha ao Renomear', description: error.message });
+        } finally {
+            setSessionToRename(null);
+            setNewSessionName("");
+            setIsActionLoading(false);
+        }
+    }, [sessionToRename, newSessionName, fetchInitialData, toast]);
     
     const confirmCloneSession = useCallback(async () => {
         if (!sessionToClone) return;
-        await GameService.cloneGameSession(sessionToClone.id);
-        setSessionToClone(null);
-        fetchInitialData();
-    }, [sessionToClone, fetchInitialData]);
+        setIsActionLoading(true);
+        try {
+            await GameService.cloneGameSession(sessionToClone.id);
+            toast({ title: 'Aventura Clonada!', description: 'Uma nova linha do tempo foi criada com sucesso.' });
+            fetchInitialData();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha na Clonagem', description: error.message });
+        } finally {
+            setSessionToClone(null);
+            setIsActionLoading(false);
+        }
+    }, [sessionToClone, fetchInitialData, toast]);
 
 
     // --- Render Logic ---
@@ -329,10 +348,7 @@ const GameContainer = () => {
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
-                                                        Sessão #{session.id}
-                                                    </span>
-                                                     <div ref={dropdownRef} className="relative">
+                                                    <div ref={dropdownRef} className="relative">
                                                         <button
                                                             onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}
                                                             className="p-2 text-stone-400 hover:text-white rounded-full transition-colors"
@@ -597,14 +613,12 @@ const GameContainer = () => {
                                             </div>
                                         )}
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
-                                            {featuredSession?.character?.worldState?.currentRegion && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSession.character.worldState.currentRegion}</span>
-                                            )}
-                                            {featuredSession?.character?.worldState?.timeOfDay && (
-                                                <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {featuredSession.character.worldState.timeOfDay}</span>
-                                            )}
-                                            {featuredSession?.character?.worldState?.weather && (
-                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSession.character.worldState.weather}</span>
+                                            {featuredSessionFacts?.recentEvents && featuredSessionFacts.recentEvents[0] && (
+                                                <>
+                                                    <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].summary}</span>
+                                                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {new Date(featuredSessionFacts.recentEvents[0].timestamp).toLocaleTimeString()}</span>
+                                                    <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes}</span>
+                                                </>
                                             )}
                                         </div>
                                     </div>
@@ -825,7 +839,7 @@ const GameContainer = () => {
                     onClose={() => setSessionToRename(null)}
                     actions={[
                         { text: "Cancelar", onClick: () => setSessionToRename(null), variant: 'secondary' },
-                        { text: "Salvar Nome", onClick: confirmRenameSession, variant: 'primary' }
+                        { text: "Salvar Nome", onClick: confirmRenameSession, variant: 'primary', disabled: isActionLoading, icon: isActionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : undefined }
                     ]}
                 >
                     <input
@@ -845,7 +859,7 @@ const GameContainer = () => {
                     onClose={() => setSessionToClone(null)}
                     actions={[
                         { text: "Cancelar", onClick: () => setSessionToClone(null), variant: 'secondary' },
-                        { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary' }
+                        { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary', disabled: isActionLoading, icon: isActionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : undefined }
                     ]}
                 >
                     <p className="text-stone-300">
