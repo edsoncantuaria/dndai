@@ -122,17 +122,6 @@ const NewCombatTracker: React.FC = () => {
 
     }, [combatState, character, buildRollHistory]);
 
-    useEffect(() => {
-        const currentTurnIndex = combatState.turn % (combatState.initiativeOrder?.length || 1);
-        const currentCombatantId = getCombatantId(combatState.initiativeOrder?.[currentTurnIndex]);
-        const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
-        if (currentCombatant?.isPlayer) {
-            setIsExpanded(true);
-        } else {
-            setIsExpanded(false);
-        }
-    }, [combatState.turn, combatState.initiativeOrder, allCombatants]);
-
     if (!combatState.isActive || allCombatants.length === 0) {
         return null;
     }
