@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock, MapPin, CloudSun, MoreVertical, Edit, Copy } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock, MapPin, CloudSun, MoreVertical, Edit, Copy, Loader2 } from 'lucide-react';
 import PremiumLoader from './ui/PremiumLoader';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
@@ -348,6 +348,12 @@ const GameContainer = () => {
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={() => handleContinueGame(session.id)}
+                                                        className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 transition-colors"
+                                                    >
+                                                        <Play className="h-4 w-4" /> Retomar
+                                                    </button>
                                                     <div ref={dropdownRef} className="relative">
                                                         <button
                                                             onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}
@@ -375,25 +381,22 @@ const GameContainer = () => {
                                                                     </TooltipTrigger>
                                                                     <TooltipContent><p>Cria uma nova linha do tempo a partir deste ponto.</p></TooltipContent>
                                                                 </Tooltip>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                         <button
+                                                                            onClick={() => setSessionToDelete(session)}
+                                                                            className="w-full text-left px-4 py-2 text-sm text-red-300 hover:bg-red-900/50 flex items-center gap-2"
+                                                                        >
+                                                                            <Trash2 className="h-4 w-4" /> Excluir
+                                                                        </button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>Exclui permanentemente esta aventura.</p></TooltipContent>
+                                                                </Tooltip>
                                                             </motion.div>
                                                         )}
                                                         </AnimatePresence>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="mt-4 flex flex-wrap gap-3">
-                                                <button
-                                                    onClick={() => handleContinueGame(session.id)}
-                                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-emerald-950 hover:bg-emerald-300 transition-colors"
-                                                >
-                                                    <Play className="h-4 w-4" /> Retomar
-                                                </button>
-                                                <button
-                                                    onClick={() => setSessionToDelete(session)}
-                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
-                                                >
-                                                    <Trash2 className="h-4 w-4" /> Excluir
-                                                </button>
                                             </div>
                                         </article>
                                     );
@@ -613,12 +616,14 @@ const GameContainer = () => {
                                             </div>
                                         )}
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
-                                            {featuredSessionFacts?.recentEvents && featuredSessionFacts.recentEvents[0] && (
-                                                <>
-                                                    <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].summary}</span>
-                                                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {new Date(featuredSessionFacts.recentEvents[0].timestamp).toLocaleTimeString()}</span>
-                                                    <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes}</span>
-                                                </>
+                                            {featuredSession?.character?.worldState?.currentRegion && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSession.character.worldState.currentRegion}</span>
+                                            )}
+                                            {featuredSession?.character?.worldState?.timeOfDay && (
+                                                <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {featuredSession.character.worldState.timeOfDay}</span>
+                                            )}
+                                            {featuredSession?.character?.worldState?.weather && (
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSession.character.worldState.weather}</span>
                                             )}
                                         </div>
                                     </div>
