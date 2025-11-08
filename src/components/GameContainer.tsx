@@ -258,8 +258,8 @@ const GameContainer = () => {
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
                 onRequestDeleteCharacter={requestDeleteCharacter}
-                onRequestDeleteSession={onRequestDeleteSession}
-                onRequestRenameSession={onRequestRenameSession}
+                onRequestDeleteSession={requestDeleteSession}
+                onRequestRenameSession={requestRenameSession}
                 onRequestCloneSession={requestCloneSession}
                 onOpenSettings={openSettings}
                 onOpenSystemTests={openSystemTests}
