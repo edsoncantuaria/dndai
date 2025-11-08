@@ -245,8 +245,9 @@ const FeedbackControls: React.FC = () => {
 };
 
 const CacheManagement: React.FC = () => {
-    const { invalidateUserCache } = useAuth();
+    const { user, invalidateUserCache } = useAuth();
     const { toast } = useToast();
+    const [isFlushingRedis, setIsFlushingRedis] = useState(false);
 
     const handleClearEquipmentCache = () => {
         sessionStorage.removeItem('equipmentCache');
@@ -263,6 +264,36 @@ const CacheManagement: React.FC = () => {
         }
     };
 
+    const handleFlushRedis = async () => {
+        setIsFlushingRedis(true);
+        try {
+            const response = await fetch('/api/cache/flush', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken') || ''}`,
+                },
+            });
+            if (!response.ok) {
+                const msg = await response.text();
+                throw new Error(msg || 'Falha ao limpar caches globais.');
+            }
+            const body = await response.json();
+            toast({
+                title: 'Cache global limpo!',
+                description: body.message || 'Todos os caches foram limpos no servidor.',
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Não foi possível limpar o cache global',
+                description: error.message,
+            });
+        } finally {
+            setIsFlushingRedis(false);
+        }
+    };
+
     return (
         <div className="space-y-4 pt-4 border-t border-stone-700/50">
             <h3 className="text-lg font-semibold text-stone-300">Manutenção e Cache</h3>
@@ -274,6 +305,17 @@ const CacheManagement: React.FC = () => {
                     <RefreshCw className="h-4 w-4" /> Sincronizar Dados de Homebrew
                 </button>
             </div>
+            {user?.id === 1 && (
+                <button
+                    onClick={handleFlushRedis}
+                    disabled={isFlushingRedis}
+                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-red-900/80 hover:bg-red-800 text-red-100 disabled:opacity-60"
+                    title="Limpa todos os caches compartilhados (Redis). Use apenas quando necessário."
+                >
+                    {isFlushingRedis ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                    Limpar Caches Globais
+                </button>
+            )}
              <p className="text-xs text-stone-500 text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
         </div>
     );
