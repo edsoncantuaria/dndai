@@ -169,9 +169,9 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                                                 className="relative rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                             >
                                                 <div className="flex flex-wrap items-center justify-between gap-3">
-                                                    <div className="flex-grow max-w-[calc(100%-150px)]">
+                                                    <div className="flex-grow">
                                                         <p className="text-xs uppercase tracking-[0.25em] text-amber-300">Sessão</p>
-                                                        <h2 className="truncate text-2xl font-semibold text-white">{session.nome}</h2>
+                                                        <h2 className="text-2xl font-semibold text-white">{session.nome}</h2>
                                                         <p className="text-sm text-stone-300">
                                                             Herói: {session.character?.name} — Último acesso em {updatedDate}
                                                         </p>
@@ -229,28 +229,13 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                         isOpen={isActionModalOpen}
                         title={`Ações para "${selectedSessionForAction.nome}"`}
                         onClose={handleActionModalClose}
-                        actions={[{ text: "Fechar", onClick: handleActionModalClose, variant: 'secondary' }]}
+                        actions={[
+                            { text: "Renomear", onClick: () => { onRequestRenameSession(selectedSessionForAction); handleActionModalClose(); }, variant: 'secondary', icon: <Edit className="h-4 w-4"/> },
+                            { text: "Clonar", onClick: () => { onRequestCloneSession(selectedSessionForAction); handleActionModalClose(); }, variant: 'secondary', icon: <Copy className="h-4 w-4"/> },
+                            { text: "Excluir", onClick: () => { onRequestDeleteSession(selectedSessionForAction); handleActionModalClose(); }, variant: 'destructive', icon: <Trash2 className="h-4 w-4"/> },
+                        ]}
                     >
-                        <div className="flex flex-col gap-3">
-                            <button
-                                onClick={() => { onRequestRenameSession(selectedSessionForAction); handleActionModalClose(); }}
-                                className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-3"
-                            >
-                                <Edit className="h-5 w-5" /> Renomear Aventura
-                            </button>
-                            <button
-                                onClick={() => { onRequestCloneSession(selectedSessionForAction); handleActionModalClose(); }}
-                                className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-2"
-                            >
-                                <Copy className="h-5 w-5" /> Clonar Aventura
-                            </button>
-                            <button
-                                onClick={() => { onRequestDeleteSession(selectedSessionForAction); handleActionModalClose(); }}
-                                className="w-full text-left px-4 py-3 text-red-300 bg-red-900/40 hover:bg-red-900/60 rounded-md flex items-center gap-2"
-                            >
-                                <Trash2 className="h-5 w-5" /> Excluir Aventura
-                            </button>
-                        </div>
+                       <p className="text-stone-300">Escolha uma ação de gerenciamento para esta sessão. Tenha cuidado, pois algumas ações não podem ser desfeitas.</p>
                     </ActionModal>
                 )}
             </>
