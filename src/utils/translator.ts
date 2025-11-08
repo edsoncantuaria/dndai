@@ -124,9 +124,16 @@ export const translateEquipment = (equipment: InventoryItem): InventoryItem => {
             newEquipment.two_handed_damage.damage_type.name = translation.two_handed_damage_type_name;
         }
 
-        if (translation.properties && newEquipment.properties && newEquipment.properties.length === translation.properties.length) {
+        if (translation.properties && Array.isArray(newEquipment.properties)) {
             newEquipment.properties.forEach((p: any, i: number) => {
-                p.name = translation.properties[i];
+                if(i < translation.properties.length) {
+                    if (typeof p === 'object' && p !== null) {
+                        p.name = translation.properties[i];
+                    } else {
+                        // Se 'p' for uma string, transforme-o em um objeto antes de atribuir.
+                        newEquipment.properties[i] = { name: translation.properties[i], index: p };
+                    }
+                }
             });
         }
     }
