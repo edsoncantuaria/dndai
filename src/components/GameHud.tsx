@@ -76,7 +76,7 @@ const GameHud: React.FC = () => {
             'relative rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 shadow-lg overflow-hidden'
         )}>
             <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-r opacity-70', timeGradient)} />
-            <div className="relative z-10 flex flex-wrap items-center gap-4">
+            <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
                 
                 <StatBar 
                     label="Vida"
@@ -86,7 +86,7 @@ const GameHud: React.FC = () => {
                     barClass="bg-gradient-to-r from-rose-500 via-rose-400 to-amber-300"
                 />
 
-                <div className="flex-1 min-w-[140px] grid grid-cols-2 gap-3">
+                <div className="flex flex-shrink-0 items-center gap-3">
                     <CompactStat 
                         label="CA"
                         icon={<Shield className="h-4 w-4 text-blue-200" />}
@@ -95,7 +95,7 @@ const GameHud: React.FC = () => {
                     <CompactStat
                         label="AP"
                         icon={<Zap className="h-4 w-4 text-amber-200" />}
-                        value={currentAp}
+                        value={`${currentAp}/30`}
                     />
                 </div>
 
