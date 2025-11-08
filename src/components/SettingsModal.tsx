@@ -3,7 +3,7 @@
 
 import React, { ChangeEvent, useMemo, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
