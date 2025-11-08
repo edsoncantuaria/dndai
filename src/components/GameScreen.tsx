@@ -378,7 +378,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                 </button>
                             </div>
                         </div>
-                        <Header returnToMenu={returnToMenu} onOpenGuidedTips={handleOpenGuidedTour} />
+                        {!combatState.isActive && <Header returnToMenu={returnToMenu} onOpenGuidedTips={handleOpenGuidedTour} />}
                     </div>
                     {showCombatHud && (
                         <div>
@@ -491,5 +491,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 };
 
 export default GameScreen;
+
+    
 
     
