@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Loader2, Send, Swords, X, MessageSquare, Compass, Eye, Zap, Shield, Sparkles } from 'lucide-react';
+import { Loader2, Send, Swords, MessageSquare, Compass, Eye, Zap, Shield, Sparkles, X } from 'lucide-react';
 
 
 const HitDiceRoller: React.FC = () => {
@@ -182,7 +182,11 @@ const ActionSuggestionButton: React.FC<ActionSuggestionButtonProps> = ({ label, 
     );
 };
 
-const ActionOptions: React.FC = () => {
+interface ActionOptionsProps {
+    variant?: 'default' | 'embedded';
+}
+
+const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) => {
     const { 
         processPlayerAction, 
         isLoading, 
@@ -196,7 +200,7 @@ const ActionOptions: React.FC = () => {
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
-    
+
     const getCombatantId = (entry: any): string => {
         if (!entry) return '';
         return typeof entry === 'string' ? entry : (entry.id || entry.name || '');
@@ -230,7 +234,6 @@ const ActionOptions: React.FC = () => {
         if (actionCommand) {
             processPlayerAction(actionCommand);
         }
-        
         setIsOpen(false);
     };
 
@@ -316,10 +319,15 @@ const ActionOptions: React.FC = () => {
     const isMobileCombatButtonVisible = combatState.isActive;
     const isMobileCombatButtonEnabled = isPlayerTurn && !isLoading;
     const isMobileNonCombatButtonVisible = !combatState.isActive;
-    
+
+    const desktopWrapperClasses =
+        variant === 'embedded'
+            ? 'hidden md:block border-t border-white/5 bg-black/40 px-4 py-3'
+            : 'hidden md:block p-4 flex-shrink-0 border-t border-white/10 bg-white/5 backdrop-blur-sm rounded-b-2xl overflow-y-auto';
+
     return (
         <>
-            <div className="hidden md:block p-4 flex-shrink-0 border-t border-white/10 bg-white/5 backdrop-blur-sm rounded-b-2xl overflow-y-auto">
+            <div className={desktopWrapperClasses}>
                 {renderActionContent()}
             </div>
             <div className="md:hidden">

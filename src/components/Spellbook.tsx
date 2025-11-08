@@ -6,7 +6,9 @@ import * as DndApiService from '../services/dndApiService';
 import type { ApiSpell } from '../types';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
 import NewSpellCard from './Spells/NewSpellCard';
-import { Book, Loader2 } from 'lucide-react';
+import { Book, Loader2, Sparkles, Wand } from 'lucide-react';
+
+const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]';
 
 interface SpellbookProps {
     onModalAction?: () => void;
@@ -111,32 +113,35 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
     const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
 
     return (
-        <div className="p-4 space-y-4">
-            <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2">
-                <Book />
-                Grimório
-            </h3>
+        <div className="p-5 space-y-4 text-sm text-stone-200">
+            <div className={`${PANEL} p-5 space-y-3`}>
+                <div className="flex items-center gap-3">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-black/40 border border-white/10 text-amber-200">
+                        <Book className="h-6 w-6" />
+                    </span>
+                    <div>
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200">grimório vivo</p>
+                        <h3 className="text-2xl font-serif text-white leading-tight">Magias & Conjurações</h3>
+                        <p className="text-xs text-stone-400">Magias conhecidas: {spellDetails.length}</p>
+                    </div>
+                </div>
 
-            {spellSlotLevels.length > 0 && (
-                 <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700">
-                    <h4 className="font-semibold text-stone-300 text-sm mb-2">Espaços de Magia</h4>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                {spellSlotLevels.length > 0 && (
+                    <div className="grid grid-cols-2 gap-3">
                         {spellSlotLevels.map(level => {
                             const slotKey = `level${level}` as keyof typeof character.spellSlots;
                             const slots = character.spellSlots[slotKey];
                             if (!slots || slots.max === 0) return null;
                             return (
-                                <div key={level} className="text-center">
-                                    <div className="text-xs text-stone-400">Nível {level}</div>
-                                    <div className="font-mono font-bold text-amber-300 text-lg">
-                                        {slots.current}/{slots.max}
-                                    </div>
+                                <div key={level} className="rounded-2xl border border-white/10 bg-black/30 p-3 text-center">
+                                    <p className="text-[10px] uppercase tracking-[0.45em] text-stone-400">Nível {level}</p>
+                                    <p className="font-mono text-amber-200 text-lg">{slots.current}/{slots.max}</p>
                                 </div>
-                            )
+                            );
                         })}
                     </div>
-                 </div>
-            )}
+                )}
+            </div>
 
             {isSpellsLoading ? (
                 <div className="flex items-center justify-center p-4 text-stone-400">
@@ -148,10 +153,14 @@ const Spellbook: React.FC<SpellbookProps> = ({ onModalAction }) => {
             ) : (
                 <div className="space-y-4">
                     {spellLevelOrder.map(levelKey => (
-                        <div key={levelKey}>
-                            <h4 className="font-semibold text-amber-200 border-b border-stone-700 pb-1 mb-2">
-                                {levelKey === 'Nível 0' ? 'Truques' : levelKey}
-                            </h4>
+                        <div key={levelKey} className={`${PANEL} p-4`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <h4 className="text-sm font-semibold uppercase tracking-widest text-amber-200 flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4" />
+                                    {levelKey === 'Nível 0' ? 'Truques' : levelKey}
+                                </h4>
+                                <span className="text-xs text-stone-400 flex items-center gap-1"><Wand className="h-3 w-3" />{groupedSpells[levelKey].length}</span>
+                            </div>
                             <div className="space-y-2">
                                 {groupedSpells[levelKey].sort((a,b) => a.name.localeCompare(b.name)).map(spell => {
                                     let canCast = true;

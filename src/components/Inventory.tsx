@@ -4,8 +4,10 @@ import React from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import ItemCard from './ItemCard';
 import type { InventoryItem } from '../types';
-import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword, Coins } from 'lucide-react';
+import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword, Coins, Layers, Package } from 'lucide-react';
 import { translateEquipment } from '../utils/translator'; // Importar a função de tradução
+
+const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]';
 
 const LootDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
@@ -17,11 +19,11 @@ const LootDisplay: React.FC = () => {
 
     return (
         <div className="mt-6 animate-fadeIn">
-             <h4 className="font-semibold text-amber-300 mb-3 border-b border-stone-700 pb-2 flex items-center gap-2">
+             <h4 className="text-xs font-semibold uppercase tracking-[0.35em] text-amber-200 mb-3 flex items-center gap-2">
                 <Hand className="h-5 w-5" />
                 Saque Próximo
             </h4>
-            <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 space-y-2">
+            <div className="rounded-3xl border border-white/10 bg-black/40 p-4 space-y-2">
                 {pendingLootOffer.items.map((item, index) => (
                     <div key={item.id || index} className="text-sm text-stone-300">
                          <span className="font-semibold text-stone-200">{item.name}</span> {item.quantity > 1 ? `(x${item.quantity})` : ''}
@@ -55,9 +57,9 @@ const Inventory: React.FC = () => {
     );
     const loadPercentage = carryingCapacity > 0 ? (currentWeight / carryingCapacity) * 100 : 0;
 
-    let progressBarColor = 'bg-green-600';
-    if (loadPercentage > 90) progressBarColor = 'bg-red-600';
-    else if (loadPercentage > 75) progressBarColor = 'bg-yellow-500';
+    let progressBarColor = 'bg-gradient-to-r from-emerald-400 to-emerald-600';
+    if (loadPercentage > 90) progressBarColor = 'bg-gradient-to-r from-rose-500 to-red-600';
+    else if (loadPercentage > 75) progressBarColor = 'bg-gradient-to-r from-amber-400 to-orange-500';
     
     const isPlayerTurn = combatState?.isActive ? character.id != null && combatState.combatants[combatState.turn]?.id === character.id.toString() : true;
     const actionDisabled = isLoading || !!playerRollRequest || !isPlayerTurn;
@@ -84,10 +86,18 @@ const Inventory: React.FC = () => {
     );
 
     const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
-        <div>
-            <h4 className="font-semibold text-amber-200 border-b border-stone-700 pb-1 mb-2 flex items-center gap-2">{icon} {title}</h4>
+        <div className={`${PANEL} p-4 space-y-3`}>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-amber-200 uppercase tracking-widest">
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-2xl bg-black/40 border border-white/10">
+                        {icon}
+                    </span>
+                    {title}
+                </div>
+                <span className="text-xs text-stone-400">{items.length} itens</span>
+            </div>
             {items.length > 0 ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                     {items.map(item => (
                         <ItemCard 
                             key={item.id} 
@@ -106,62 +116,50 @@ const Inventory: React.FC = () => {
     );
 
     return (
-        <div className="p-4 space-y-6">
-            <div>
-                <h3 className="text-lg font-bold font-garamond text-amber-300 flex items-center gap-2 text-shadow-amber">
-                    <Backpack />
-                    Inventário
-                </h3>
-
-                <div className="bg-stone-800/50 p-3 rounded-lg border border-stone-700 space-y-3">
-                    {/* Currency */}
+        <div className="p-5 space-y-6 text-sm text-stone-200">
+            <div className={`${PANEL} p-5 space-y-4`}>
+                <div className="flex items-center gap-3">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-black/40 border border-white/10 text-amber-200">
+                        <Backpack className="h-6 w-6" />
+                    </span>
                     <div>
-                         <h4 className="font-semibold text-stone-300 text-sm mb-2 flex items-center gap-2"><Coins /> Moedas</h4>
-                         <div className="flex justify-around text-center">
-                            <div>
-                                <p className="font-mono font-bold text-lg text-yellow-500">{safeCurrency.gp}</p>
-                                <p className="text-xs text-stone-500">Ouro (PO)</p>
-                            </div>
-                            <div>
-                                <p className="font-mono font-bold text-lg text-slate-400">{safeCurrency.sp}</p>
-                                <p className="text-xs text-stone-500">Prata (PP)</p>
-                            </div>
-                             <div>
-                                <p className="font-mono font-bold text-lg text-amber-700">{safeCurrency.ep}</p>
-                                <p className="text-xs text-stone-500">Electro (PE)</p>
-                            </div>
-                            <div>
-                                <p className="font-mono font-bold text-lg text-orange-400">{safeCurrency.cp}</p>
-                                <p className="text-xs text-stone-500">Cobre (PC)</p>
-                            </div>
-                             <div>
-                                <p className="font-mono font-bold text-lg text-cyan-300">{safeCurrency.pp}</p>
-                                <p className="text-xs text-stone-500">Platina (PL)</p>
-                            </div>
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200">Inventário & Carga</p>
+                        <h3 className="text-2xl font-serif text-white leading-tight">Bolsa do Aventureiro</h3>
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                        <h4 className="text-xs uppercase tracking-[0.35em] text-stone-400 mb-3 flex items-center gap-2"><Coins className="h-4 w-4 text-amber-200" /> Tesouro</h4>
+                        <div className="grid grid-cols-3 gap-3 text-center text-xs">
+                            {(['gp','sp','pp','cp','ep'] as const).map((type) => (
+                                <div key={type} className="rounded-2xl bg-black/40 border border-white/5 p-2">
+                                    <p className="font-mono text-lg text-amber-200">{safeCurrency[type]}</p>
+                                    <p className="uppercase tracking-wide text-[10px] text-stone-500">{type.toUpperCase()}</p>
+                                </div>
+                            ))}
                         </div>
                     </div>
-
-                    {/* Weight */}
-                    <div className="pt-3 border-t border-stone-700">
-                        <div className="flex justify-between text-sm mb-1">
-                            <span className="font-semibold text-stone-300">Carga</span>
-                            <span className="font-mono text-stone-400">{currentWeight.toFixed(1)} / {carryingCapacity.toFixed(1)} lbs</span>
+                    <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+                        <div className="flex items-center justify-between text-xs uppercase tracking-[0.35em] text-stone-400">
+                            <span>Carga Atual</span>
+                            <span className="font-mono text-stone-200 tracking-normal">{currentWeight.toFixed(1)} / {carryingCapacity.toFixed(1)} lbs</span>
                         </div>
-                        <div className="w-full bg-stone-700 rounded-full h-2.5 border border-stone-600 overflow-hidden">
-                            <div 
-                                className={`${progressBarColor} h-full rounded-full transition-all duration-300`} 
+                        <div className="h-3 rounded-full border border-white/10 overflow-hidden bg-black/60">
+                            <div
+                                className={`h-full rounded-full ${progressBarColor}`}
                                 style={{ width: `${Math.min(loadPercentage, 100)}%`}}
-                            ></div>
+                            />
                         </div>
+                        <p className="text-xs text-stone-400 text-right">{loadPercentage.toFixed(0)}% da capacidade</p>
                     </div>
                 </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
                 {renderCategory("Armas", weapons, <Sword className="h-4 w-4" />)}
                 {renderCategory("Armaduras e Escudos", armors, <ShieldCheck className="h-4 w-4" />)}
                 {renderCategory("Itens Mágicos", magicItems, <Gem className="h-4 w-4" />)}
-                {renderCategory("Itens Gerais", otherItems, <Backpack className="h-4 w-4" />)}
+                {renderCategory("Itens Gerais", otherItems, <Package className="h-4 w-4" />)}
             </div>
 
             <LootDisplay />

@@ -537,12 +537,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                     <div className="flex-1 overflow-y-auto p-4">
                                         <NewNarrativeLog />
                                     </div>
+                                    <ActionOptions variant="embedded" />
                                 </div>
                             </div>
-                        </div>
-
-                        <div className="border-t border-white/10 bg-white/5 p-4">
-                            <ActionOptions />
                         </div>
 
                     </div>
@@ -626,8 +623,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         {renderSidebarContent()}
                     </div>
                 </MobileToolbar>
-
-                <ActionOptions mode="mobile-only" />
 
                 <GuidedTipsOverlay
                     isOpen={isGuidedTipsOpen}

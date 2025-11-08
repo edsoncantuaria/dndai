@@ -2,6 +2,8 @@
 import { getTranslations } from '@/services/translationService';
 import type { InventoryItem } from '@/types';
 
+const ENABLE_TRANSLATIONS = process.env.NEXT_PUBLIC_ENABLE_TRANSLATIONS === 'true';
+
 // Armazena as traduções em memória após o primeiro carregamento.
 let translations: Record<string, Record<string, string>> = {};
 let equipmentTranslations: Record<string, any> = {};
@@ -12,6 +14,11 @@ let isLoaded = false;
  * Deve ser chamado na inicialização do aplicativo.
  */
 export const loadTranslations = async () => {
+    if (!ENABLE_TRANSLATIONS) {
+        isLoaded = true;
+        return;
+    }
+
     if (isLoaded) return;
     try {
         const data = await getTranslations();
@@ -33,6 +40,7 @@ export const loadTranslations = async () => {
  * @returns A string traduzida ou a chave original se não encontrada.
  */
 const translate = (category: string, key: string): string => {
+    if (!ENABLE_TRANSLATIONS) return key;
     if (!key) return '';
     return translations[category]?.[key] || key;
 };
@@ -103,6 +111,10 @@ export const normalizeProficiencyName = (name: string): string => {
  * @returns Um novo objeto de equipamento com os campos traduzidos.
  */
 export const translateEquipment = (equipment: InventoryItem): InventoryItem => {
+    if (!ENABLE_TRANSLATIONS) {
+        return equipment;
+    }
+
     if (!equipment?.index) return equipment;
 
     // Deep copy para não mutar o objeto original
