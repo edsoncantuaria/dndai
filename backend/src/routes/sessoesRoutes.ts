@@ -15,7 +15,7 @@ router.get('/:id/facts', getSessaoFacts);
 router.get('/:id/replay', getSessaoReplayMarkdown);
 router.delete('/:id', deleteSessao);
 router.patch('/:id/homebrew', updateSessaoHomebrew); 
-router.patch('/:id', renameSessao); // Rota para renomear
-router.post('/:id/clone', cloneSessao); // Rota para clonar
+router.patch('/:id', renameSessao);
+router.post('/:id/clone', cloneSessao);
 
 export default router;
