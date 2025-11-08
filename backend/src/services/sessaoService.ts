@@ -394,9 +394,7 @@ export const cloneSessao = async (sessionId: number, userId: number) => {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
     }
 
-    const originalCharacterName = sessao.character?.name || 'Herói';
-    const clonedCharacterName = `${originalCharacterName} (Cópia)`.slice(0, 60);
-    const clonedCharacter = await cloneCharacter(sessao.characterId, userId, clonedCharacterName);
+    const clonedCharacter = await cloneCharacter(sessao.characterId, userId); // O nome já será mantido
     if (!clonedCharacter) {
         throw createError(500, 'Falha ao clonar o personagem da sessão.');
     }

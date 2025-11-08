@@ -209,7 +209,7 @@ export const cloneCharacter = async (
     // 🔹 Passo 1: cria o novo personagem sem copiar objetos anexados (evita cache de relação antiga)
     const clonedCharacter = characterRepo.create({
       userId,
-      name: newName || `${original.name}`, // Usa o nome fornecido ou o nome original
+      name: newName || original.name, // Usa o nome fornecido ou mantém o nome original
       race: original.race,
       subrace: original.subrace,
       characterClass: original.characterClass,
