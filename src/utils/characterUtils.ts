@@ -195,15 +195,17 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const rawSubclassLevels = classDetails?.subclasses?.[0] ? await DndApiService.getSubclassLevels(classDetails.subclasses[0].index) : [];
     const subclassLevelsData = Array.isArray(rawSubclassLevels) ? rawSubclassLevels : (rawSubclassLevels as any)?.results || Object.values(rawSubclassLevels || {});
     
+    const backendAttributes = backendChar.attributes ?? {};
+    const defaultAbilityScore = 10;
     const attributes: CharacterAttributes = {
-        strength: backendChar.attributes.strength,
-        dexterity: backendChar.attributes.dexterity,
-        constitution: backendChar.attributes.constitution,
-        intelligence: backendChar.attributes.intelligence,
-        wisdom: backendChar.attributes.wisdom,
-        charisma: backendChar.attributes.charisma,
-        id: backendChar.attributes.id,
-        characterId: backendChar.attributes.characterId,
+        strength: backendAttributes.strength ?? defaultAbilityScore,
+        dexterity: backendAttributes.dexterity ?? defaultAbilityScore,
+        constitution: backendAttributes.constitution ?? defaultAbilityScore,
+        intelligence: backendAttributes.intelligence ?? defaultAbilityScore,
+        wisdom: backendAttributes.wisdom ?? defaultAbilityScore,
+        charisma: backendAttributes.charisma ?? defaultAbilityScore,
+        id: backendAttributes.id ?? backendChar.id ?? 0,
+        characterId: backendAttributes.characterId ?? backendChar.id ?? 0,
     };
     
     const modifiers = calculateModifiers(attributes);
@@ -219,7 +221,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         : [];
     
     const ac = calculateAC(inventory, modifiers);
-    const maxHp = backendChar.attributes.maxHp || backendChar.attributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
+    const maxHp = backendAttributes.maxHp || backendAttributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);
 
     const traits: ApiListItem[] = [...(raceDetails?.traits || [])];
     if (subraceDetails && subraceDetails.racial_traits) {
@@ -287,7 +289,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         })),
         modifiers,
         proficiencyBonus,
-        hp: { current: backendChar.attributes.hp || maxHp, max: maxHp, temp: 0 },
+        hp: { current: backendAttributes.hp || maxHp, max: maxHp, temp: 0 },
         ac: ac,
         xp: backendChar.xp || 0,
         xpToNextLevel: getXpThreshold(backendChar.level),
@@ -295,7 +297,7 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
         hitDice: { current: backendChar.level, total: backendChar.level },
         speed: raceDetails?.speed || 30,
         deathSaves: { successes: 0, failures: 0 },
-        conditions: (backendChar.attributes.conditions || []) as ApiCondition[],
+        conditions: (backendAttributes.conditions || []) as ApiCondition[],
         currency: calculateCurrency(inventory),
         currentWeight: calculateWeight(inventory),
         carryingCapacity: calculateCarryingCapacity(attributes.strength),

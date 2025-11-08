@@ -44,6 +44,32 @@ const ensureBucket = async () => {
 
 export const isObjectStorageEnabled = !!minioClient;
 
+export const checkObjectStorageHealth = async (): Promise<{ ok: boolean; message: string }> => {
+  if (!minioClient) {
+    const message = 'Cliente MinIO não configurado. Variáveis de ambiente ausentes.';
+    console.warn(`[objectStorage] ${message}`);
+    return { ok: false, message };
+  }
+
+  const ready = await ensureBucket();
+  if (!ready) {
+    const message = 'Não foi possível preparar o bucket padrão.';
+    console.error(`[objectStorage] ${message}`);
+    return { ok: false, message };
+  }
+
+  try {
+    await minioClient.listBuckets();
+    const message = `Conexão com MinIO verificada com sucesso (bucket "${bucketName}").`;
+    console.log(`[objectStorage] ${message}`);
+    return { ok: true, message };
+  } catch (error) {
+    const message = `Falha ao validar credenciais do MinIO: ${(error as Error).message}`;
+    console.error(`[objectStorage] ${message}`, error);
+    return { ok: false, message };
+  }
+};
+
 interface OffloadOptions {
   prefix?: string;
   contentType?: string;

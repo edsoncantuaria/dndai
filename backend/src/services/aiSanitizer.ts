@@ -59,6 +59,25 @@ const normalizeWeather = (weatherString: string): string => {
     return found || 'Ensolarado';
 };
 
+const DEFAULT_WORLD_STATE = {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Desconhecida',
+};
+
+const buildSafeWorldState = (source?: any, fallbackRegion?: string) => {
+    const base = (source && typeof source === 'object') ? source : {};
+    const timeOfDay = normalizeTimeOfDay(typeof base.timeOfDay === 'string' ? base.timeOfDay : '');
+    const weather = normalizeWeather(typeof base.weather === 'string' ? base.weather : '');
+    const currentRegion = base.currentRegion ?? fallbackRegion ?? DEFAULT_WORLD_STATE.currentRegion;
+    return {
+        ...base,
+        timeOfDay,
+        weather,
+        currentRegion,
+    };
+};
+
 /**
  * Sanitiza a resposta validada da IA para garantir consistência lógica e semântica.
  * Atua como a camada final de "senso de jogo" antes de retornar a resposta.
@@ -283,26 +302,25 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   }
   
   // Sanitize worldState
+  const characterWorldState = buildSafeWorldState(currentCharacter?.worldState, currentCharacter?.currentRegion);
   if (!sanitized.worldState || typeof sanitized.worldState !== 'object' || Object.keys(sanitized.worldState).length === 0) {
-    sanitized.worldState = currentCharacter?.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' };
+    sanitized.worldState = characterWorldState;
     sanitationLogs.push('worldState era inválido, restaurado para o estado anterior ou padrão.');
   } else {
-    const originalTimeOfDay = sanitized.worldState.timeOfDay;
-    const originalWeather = sanitized.worldState.weather;
-    const normalizedTimeOfDay = normalizeTimeOfDay(originalTimeOfDay);
-    const normalizedWeather = normalizeWeather(originalWeather);
-    
-    sanitized.worldState = { 
-        ...(currentCharacter?.worldState || {}), 
+    const mergedWorldState = {
+        ...characterWorldState,
         ...sanitized.worldState,
-        timeOfDay: normalizedTimeOfDay,
-        weather: normalizedWeather,
     };
-    if(normalizedTimeOfDay !== originalTimeOfDay) {
-        sanitationLogs.push(`worldState.timeOfDay normalizado de "${originalTimeOfDay}" para "${normalizedTimeOfDay}".`);
+    const originalTimeOfDay = mergedWorldState.timeOfDay;
+    const originalWeather = mergedWorldState.weather;
+    mergedWorldState.timeOfDay = normalizeTimeOfDay(mergedWorldState.timeOfDay);
+    mergedWorldState.weather = normalizeWeather(mergedWorldState.weather);
+    sanitized.worldState = mergedWorldState;
+    if(mergedWorldState.timeOfDay !== originalTimeOfDay) {
+        sanitationLogs.push(`worldState.timeOfDay normalizado de "${originalTimeOfDay}" para "${mergedWorldState.timeOfDay}".`);
     }
-    if(normalizedWeather !== originalWeather) {
-        sanitationLogs.push(`worldState.weather normalizado de "${originalWeather}" para "${normalizedWeather}".`);
+    if(mergedWorldState.weather !== originalWeather) {
+        sanitationLogs.push(`worldState.weather normalizado de "${originalWeather}" para "${mergedWorldState.weather}".`);
     }
   }
 

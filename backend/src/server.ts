@@ -8,6 +8,7 @@ import { AppDataSource } from './database/data-source.js';
 import errorMiddleware from './middlewares/errorMiddleware.js';
 import { configureWebSocket } from './websocket/webSocketServer.js';
 import { getTranslations } from './services/translationService.js'; // Importa o novo serviço
+import { checkObjectStorageHealth } from './services/objectStorageService.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
@@ -91,6 +92,14 @@ const startServer = async () => {
     try {
         await AppDataSource.initialize();
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
+
+        const storageHealth = await checkObjectStorageHealth();
+        const storageMessagePrefix = '[Startup][ObjectStorage]';
+        if (storageHealth.ok) {
+            console.log(`${storageMessagePrefix} ${storageHealth.message}`);
+        } else {
+            console.warn(`${storageMessagePrefix} ${storageHealth.message}`);
+        }
         
         // Configurar o servidor WebSocket, passando o servidor HTTP
         configureWebSocket(server);

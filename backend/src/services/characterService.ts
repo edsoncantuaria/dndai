@@ -18,6 +18,23 @@ import { Quest } from '../entities/Quest.js';
 import { v4 as uuidv4 } from 'uuid';
 
 
+const createAttributesFallback = (characterId: number): CharacterAttributes => {
+    const attrs = new CharacterAttributes();
+    attrs.id = 0;
+    attrs.characterId = characterId;
+    attrs.strength = 10;
+    attrs.dexterity = 10;
+    attrs.constitution = 10;
+    attrs.intelligence = 10;
+    attrs.wisdom = 10;
+    attrs.charisma = 10;
+    attrs.hp = 10;
+    attrs.maxHp = 10;
+    attrs.ac = 10;
+    attrs.conditions = [];
+    return attrs;
+};
+
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
     const cacheKey = `character:${character.id}`;
@@ -63,6 +80,14 @@ export const buildFullCharacterObject = async (character: Character) => {
         .where('character.id = :id', { id: character.id })
         .getOne();
     if (!fullCharacter) return character;
+
+    if (!fullCharacter.attributes) {
+        const attrRepo = AppDataSource.getRepository(CharacterAttributes);
+        const storedAttributes = await attrRepo.findOne({ where: { characterId: character.id } });
+        fullCharacter.attributes = storedAttributes ?? createAttributesFallback(character.id);
+    } else if (!Array.isArray(fullCharacter.attributes.conditions)) {
+        fullCharacter.attributes.conditions = [];
+    }
 
     const inventory = fullCharacter.items.map((item: CharacterItem) => ({ 
         ...item.itemData, 
