@@ -385,11 +385,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             <GameHud />
                         </div>
                     )}
-                    <NewCombatTracker /> 
                 </div>
 
                 <div className={cn("flex-grow grid grid-cols-12 gap-4 mt-4 min-h-0", "md:mb-0 mb-16")}>
                     <div className="col-span-12 md:col-span-7 lg:col-span-8 xl:col-span-6 flex flex-col rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
+                        
+                        <NewCombatTracker />
+                        
                         <div className="hidden md:block xl:hidden flex-none p-4 border-b border-white/5 bg-white/5">
                             <StoryHighlightsCard />
                         </div>
@@ -443,12 +445,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 </div>
 
                 {isStoryDrawerOpen && (
-                    <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm">
+                    <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm animate-fadeIn">
                         <div
                             className="absolute inset-0"
                             onClick={() => setIsStoryDrawerOpen(false)}
                         />
-                        <div className="absolute bottom-16 left-0 right-0 rounded-t-2xl border-t border-stone-700 bg-stone-900/95 p-4 max-h-[70vh] overflow-y-auto shadow-2xl animate-fadeIn">
+                        <div className="absolute bottom-16 left-0 right-0 rounded-t-2xl border-t border-stone-700 bg-stone-900/95 p-4 max-h-[70vh] overflow-y-auto shadow-2xl">
                             <div className="flex items-center justify-between mb-2 text-stone-200">
                                 <span className="font-semibold uppercase text-xs tracking-wide">Fatos Atualizados</span>
                                 <button

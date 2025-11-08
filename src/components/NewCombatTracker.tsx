@@ -128,8 +128,7 @@ const NewCombatTracker: React.FC = () => {
     return (
         <motion.div
             className={cn(
-                'flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border mt-4 animate-fadeIn relative overflow-hidden',
-                isPlayerTurn ? 'bg-amber-950/30' : 'bg-red-950/40',
+                'flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border',
                 containerGlow
             )}
             initial={{ opacity: 0, y: -6 }}
