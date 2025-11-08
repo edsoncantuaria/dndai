@@ -16,11 +16,9 @@ import type { SessionFactsResponse } from '@/services/gameService';
 import { useToast } from '@/hooks/use-toast';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
-import { Loader2, MoreVertical, User } from 'lucide-react';
+import { Loader2, MoreVertical, User, ArrowLeft, BookOpen, Edit, Plus, Trash2, Copy, Play } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
-import { ArrowLeft, BookOpen, Edit, Plus, Trash2, Copy, Play } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 
 const GameContainer = () => {
@@ -260,8 +258,8 @@ const GameContainer = () => {
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
                 onRequestDeleteCharacter={requestDeleteCharacter}
-                onRequestDeleteSession={requestDeleteSession}
-                onRequestRenameSession={requestRenameSession}
+                onRequestDeleteSession={onRequestDeleteSession}
+                onRequestRenameSession={onRequestRenameSession}
                 onRequestCloneSession={requestCloneSession}
                 onOpenSettings={openSettings}
                 onOpenSystemTests={openSystemTests}
@@ -328,7 +326,7 @@ const GameContainer = () => {
                         { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary', disabled: isActionLoading, icon: isActionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : undefined }
                     ]}
                 >
-                    <p className="text-stone-300">
+                     <p className="text-stone-300">
                         Isso criará uma nova linha do tempo, independente da original. Você poderá explorar caminhos diferentes a partir deste exato momento. Deseja continuar?
                     </p>
                 </ActionModal>
