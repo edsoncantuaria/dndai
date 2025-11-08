@@ -157,13 +157,12 @@ const NewCombatTracker: React.FC = () => {
                 {isExpanded && (
                     <motion.div
                         key="combat-body"
-                        className="mt-4" // Removido o overflow e max-h daqui
+                        className="mt-4 overflow-hidden" 
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25 }}
                     >
-                        {/* NOVO: Contêiner com rolagem e altura máxima */}
                         <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-3">
                             {currentCombatant && (
                                 <motion.div
