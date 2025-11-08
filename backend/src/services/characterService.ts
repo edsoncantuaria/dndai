@@ -211,7 +211,6 @@ export const cloneCharacter = async (
   originalCharacterId: number,
   userId: number,
   qr?: QueryRunner,
-  newName?: string,
 ): Promise<Character> => {
   const queryRunner = qr || AppDataSource.createQueryRunner();
   if (!qr) {
@@ -231,12 +230,26 @@ export const cloneCharacter = async (
       throw createError(404, "Personagem original não encontrado para clonagem.");
     }
 
-    const { id, createdAt, updatedAt, deletedAt, sessoes, user, ...restOfCharacter } = original;
+    const {
+      id: originalId,
+      createdAt,
+      updatedAt,
+      deletedAt,
+      sessoes,
+      user,
+      attributes,
+      proficiencies,
+      items,
+      spells,
+      journal,
+      relationships,
+      ...restOfCharacter
+    } = original;
     
     const clonedCharacter = characterRepo.create({
       ...restOfCharacter,
       userId,
-      name: newName || original.name, // Usa o nome fornecido ou mantém o nome original
+      name: original.name,
     });
 
     const savedClone = await characterRepo.save(clonedCharacter);

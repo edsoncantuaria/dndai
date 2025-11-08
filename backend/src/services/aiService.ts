@@ -183,6 +183,49 @@ const attemptJsonRepair = (input: string): string | null => {
     return result;
 };
 
+const trimAfterLastClosingBracket = (input: string): string | null => {
+    if (!input) return null;
+    let inString = false;
+    let escape = false;
+    const stack: string[] = [];
+    let lastClosingIndex = -1;
+
+    for (let i = 0; i < input.length; i++) {
+        const char = input[i];
+        if (inString) {
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+            if (char === '"') {
+                inString = false;
+            }
+            continue;
+        }
+        if (char === '"') {
+            inString = true;
+            continue;
+        }
+        if (char === '{' || char === '[') {
+            stack.push(char);
+            continue;
+        }
+        if (char === '}' || char === ']') {
+            if (stack.length) {
+                stack.pop();
+            }
+            lastClosingIndex = i;
+        }
+    }
+
+    if (lastClosingIndex === -1) return null;
+    return input.slice(0, lastClosingIndex + 1);
+};
+
 const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { input: number; output: number; temperature: number }> = {
     gameplay: { input: 16000, output: 2048, temperature: 0.9 },
     combat: { input: 8000, output: 1000, temperature: 0.6 },
@@ -631,6 +674,18 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                         console.warn('[aiService] attemptJsonRepair conseguiu reconstruir a resposta inválida.');
                     } catch (repairParseError: any) {
                         console.error('[aiService] attemptJsonRepair falhou ao gerar JSON válido:', repairParseError);
+                    }
+                }
+
+                if (!repairedData) {
+                    const trimmed = trimAfterLastClosingBracket(jsonText);
+                    if (trimmed && trimmed.length < jsonText.length) {
+                        try {
+                            repairedData = JSON.parse(trimmed);
+                            console.warn('[aiService] truncou fragmento final incompleto e conseguiu analisar o JSON.');
+                        } catch (trimError: any) {
+                            console.error('[aiService] Falha ao analisar JSON mesmo após truncar fragmento:', trimError);
+                        }
                     }
                 }
 
