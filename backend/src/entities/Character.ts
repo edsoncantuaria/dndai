@@ -118,6 +118,9 @@ export class Character {
     @Column({ type: 'boolean', default: true })
     isTemplate: boolean;
 
+    @Column({ type: 'int', nullable: true })
+    sessionId: number | null;
+
 
     @CreateDateColumn()
     createdAt: Date;

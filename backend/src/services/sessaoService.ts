@@ -94,6 +94,7 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     novaSessao.homebrewContentIds = Array.from(allDependentIds);
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
+    await characterRepository.update({ id: newCharacterForSession.id }, { sessionId: sessaoSalva.id, isTemplate: false });
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
     
@@ -140,7 +141,13 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
     }
 
     if (sessao.character) {
-        sessao.character = await buildFullCharacterObject(sessao.character) as Character;
+        sessao.character = await buildFullCharacterObject(sessao.character, { disableCache: true }) as Character;
+        console.log('[getSessaoDetails] personagem carregado', {
+            sessionId,
+            characterId: sessao.character?.id,
+            attributes: sessao.character?.attributes,
+            inventory: sessao.character?.inventory?.length,
+        });
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -210,7 +217,7 @@ const findSessaoWithCharacter = async (sessionId: number, userId: number) => {
 
 const prepareCharacterSnapshot = async (character: Character | null) => {
     if (!character) return null;
-    return await buildFullCharacterObject(character) as Character;
+    return await buildFullCharacterObject(character, { disableCache: true }) as Character;
 };
 
 const flattenJournalEntries = (entries?: JournalEntry[]): JournalEntry[] => {
@@ -417,6 +424,7 @@ export const cloneSessao = async (sessionId: number, userId: number, queryRunner
         homebrewContentIds: originalSessao.homebrewContentIds ?? [],
     });
     const sessaoClonada = await sessaoRepo.save(novaSessao);
+    await queryRunner.manager.getRepository(Character).update({ id: clonedCharacter.id }, { sessionId: sessaoClonada.id, isTemplate: false });
 
     // Replicar logs
     if (originalSessao.logs?.length) {

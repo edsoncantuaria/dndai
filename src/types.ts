@@ -336,6 +336,7 @@ export interface Character {
     subclassFlavor: string | null;
     currentRegion?: string;
     isTemplate?: boolean;
+    sessionId?: number | null;
 }
 
 export interface CharacterAttributes extends Attributes {

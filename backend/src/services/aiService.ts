@@ -720,6 +720,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         };
 
         try {
+            const mode = input.mode ?? 'gameplay';
             let prompt = basePrompt + (RETRY_PROMPT_HINTS[attemptIndex] ?? '');
             if (attemptIndex === 0 && env.AI_DEBUG_LOGS) {
                 void debugLogAiStage('prompt', {
@@ -730,8 +731,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     prompt,
                 });
             }
-
-            const mode = input.mode ?? 'gameplay';
             let measuredTokens: number | undefined;
             try {
                 const tokenCountResult = await model.countTokens({
@@ -791,6 +790,16 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             );
 
             console.log(`[aiService (${modelName})] Gerando conteúdo com prompt...`);
+            if (env.AI_DEBUG_LOGS) {
+                void debugLogAiStage('prompt', {
+                    mode,
+                    attempt: attemptIndex + 1,
+                    playerAction: input.playerAction,
+                    characterId: input.character?.id,
+                    prompt,
+                    generationConfig: sanitizedGenerationConfig,
+                });
+            }
             const result = await model.generateContent({
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: sanitizedGenerationConfig,
@@ -810,6 +819,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             const jsonText = extractResponseText(response);
             if (env.AI_DEBUG_LOGS) {
+                console.log(`[aiService][raw-response][${mode}][attempt ${attemptIndex + 1}]`, jsonText);
                 void debugLogAiStage('raw-response', {
                     mode,
                     attempt: attemptIndex + 1,

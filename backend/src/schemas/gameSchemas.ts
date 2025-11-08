@@ -23,6 +23,7 @@ const LogEntrySchema = z.object({
   content: z.string().describe("Conteúdo da entrada no log: string simples ou objeto estruturado para tipos especiais."),
   rollResult: z.any().optional().describe("Dados estruturados opcionais para rolagens de dados."),
 }).describe("Uma entrada do log de aventura.");
+const LogEntriesSchema = z.array(LogEntrySchema).min(1, "logEntries deve conter pelo menos uma entrada.");
 
 /* -------------------------------- XP EVENTS -------------------------------- */
 export const XpEventSchema = z.object({
@@ -177,12 +178,14 @@ const WorldStateSchema = z.object({
 }).describe("Estado global do mundo.");
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
+const ActionOptionsSchema = z.array(z.union([
+  z.string(),
+  z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
+])).min(2, "actionOptions deve conter pelo menos duas opções.");
+
 export const GameMasterResponseSchema = z.object({
-  logEntries: z.array(LogEntrySchema).optional().default([]).describe("Novas entradas do log de aventura."),
-  actionOptions: z.array(z.union([
-    z.string(),
-    z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
-  ])).optional().default([]).describe("Ações sugeridas para o jogador."),
+  logEntries: LogEntriesSchema.describe("Novas entradas do log de aventura."),
+  actionOptions: ActionOptionsSchema.describe("Ações sugeridas para o jogador."),
   updatedCharacter: z.object({}).catchall(z.any()).optional().describe("Campos do personagem modificados pela última ação."),
   combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),

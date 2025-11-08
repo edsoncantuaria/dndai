@@ -59,6 +59,10 @@ export const mergeCharacterUpdates = async (
   updates: any,
   queryRunner: QueryRunner
 ) => {
+  console.log('[mergeCharacterUpdates] iniciando', {
+    characterId,
+    updates,
+  });
   const characterRepo = queryRunner.manager.getRepository(Character);
   const character = await characterRepo
     .createQueryBuilder('character')
@@ -86,21 +90,24 @@ export const mergeCharacterUpdates = async (
   if (!character) throw new Error('Personagem não encontrado para o merge.');
 
   // --- Campos diretos e objetos para merge ---
-  const directFields = ['level', 'xp', 'storySoFar'];
+  const directPayload: Partial<Character> = {};
+  const directFields = ['level', 'xp', 'storySoFar'] as const;
   directFields.forEach(field => {
     if (updates[field] !== undefined) {
-      (character as any)[field] = updates[field];
+      (directPayload as any)[field] = updates[field];
     }
   });
 
   if (updates.factionReputation && typeof updates.factionReputation === 'object') {
-    character.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
+    directPayload.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
   }
   if (updates.worldState && typeof updates.worldState === 'object') {
-    character.worldState = { ...(character.worldState || {}), ...updates.worldState };
-    if (updates.worldState.currentRegion) character.currentRegion = updates.worldState.currentRegion;
+    directPayload.worldState = { ...(character.worldState || {}), ...updates.worldState };
+    if (updates.worldState.currentRegion) directPayload.currentRegion = updates.worldState.currentRegion;
   }
-  await characterRepo.save(character);
+  if (Object.keys(directPayload).length > 0) {
+    await characterRepo.update({ id: characterId }, directPayload);
+  }
 
   // --- Attributes (Update direto) ---
   if (updates.attributes && typeof updates.attributes === 'object') {
@@ -156,6 +163,7 @@ export const mergeCharacterUpdates = async (
       
       if (requestedDeletion) {
         if (existing) {
+            console.log('[mergeCharacterUpdates] removing item', existing.id);
             await itemsRepo.remove(existing);
         }
         continue;
@@ -164,6 +172,7 @@ export const mergeCharacterUpdates = async (
       const safeQuantity = quantity > 0 ? quantity : 1;
 
       if (existing) {
+        console.log('[mergeCharacterUpdates] updating item', existing.id);
         const mergedItemData = {
             ...(existing.itemData || {}),
             ...item,
@@ -186,6 +195,7 @@ export const mergeCharacterUpdates = async (
         existing.itemData = mergedItemData;
         await itemsRepo.save(existing);
       } else {
+        console.log('[mergeCharacterUpdates] inserting new item', { name: item.name || item.index, safeQuantity });
         const nextEquipped = item.equipped !== undefined ? Boolean(item.equipped) : false;
         const itemName = item.name || item.index || 'Item Desconhecido';
         const itemDataToPersist = {
@@ -296,6 +306,7 @@ export const mergeCharacterUpdates = async (
       }
       await upsertJournalEntries(queryRunner, updates.journal, characterId);
   }
+  console.log('[mergeCharacterUpdates] finalizado', { characterId });
 };
 
     

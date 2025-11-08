@@ -324,6 +324,7 @@ export interface Character {
     journal: JournalEntry[];
     currentRegion: string;
     isTemplate?: boolean;
+    sessionId?: number | null;
     hitDice: {
         current: number;
         total: number;

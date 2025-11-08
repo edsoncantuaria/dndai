@@ -235,14 +235,18 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     };
   }
 
+  if (sanitized.updatedCharacter) {
+    console.log('[aiSanitizer] updatedCharacter após merge', sanitized.updatedCharacter);
+  }
+
 
 
   // Sanitize logEntries
   if (Array.isArray(sanitized.logEntries)) {
     sanitized.logEntries = sanitized.logEntries.map((entry: any) => {
-      if (!entry || typeof entry !== 'object' || !entry.content) return null;
-      let content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : String(entry.content);
-      try {
+        if (!entry || typeof entry !== 'object' || !entry.content) return null;
+        let content = typeof entry.content === 'object' ? JSON.stringify(entry.content) : String(entry.content);
+        try {
         const parsed = JSON.parse(content);
         if (parsed && typeof parsed.content === 'string') {
           content = parsed.content;
@@ -255,6 +259,13 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   } else {
     sanitized.logEntries = [];
     sanitationLogs.push('logEntries não era um array, resetado para [].');
+  }
+  if (sanitized.logEntries.length === 0) {
+    sanitized.logEntries.push({
+      type: 'narration',
+      content: 'O tempo passa calmamente enquanto o herói considera suas próximas ações.',
+    });
+    sanitationLogs.push('logEntries estava vazio, adicionada narração padrão.');
   }
   
   // Sanitize actionOptions
@@ -276,6 +287,14 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   } else {
     sanitized.actionOptions = [];
     sanitationLogs.push('actionOptions não era um array, resetado para [].');
+  }
+  if (sanitized.actionOptions.length === 0) {
+    sanitized.actionOptions = [
+      'Observar o ambiente em busca de algo incomum.',
+      'Ouvir conversas próximas para recolher boatos.',
+      'Conversar com o NPC mais próximo.',
+    ];
+    sanitationLogs.push('actionOptions estava vazio, adicionadas opções padrão.');
   }
 
   if (Array.isArray((sanitized as any).xpEvents)) {

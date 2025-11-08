@@ -14,6 +14,7 @@ type EnvShape = {
     QDRANT_VECTOR_SIZE: number;
     GEMINI_API_KEY: string;
     AI_DEBUG_LOGS: boolean;
+    CHARACTER_CACHE_ENABLED: boolean;
 };
 
 export const env: EnvShape = {
@@ -24,6 +25,7 @@ export const env: EnvShape = {
     QDRANT_VECTOR_SIZE: Number(process.env.QDRANT_VECTOR_SIZE) || 3072,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
     AI_DEBUG_LOGS: toBoolean(process.env.AI_DEBUG_LOGS, false),
+    CHARACTER_CACHE_ENABLED: toBoolean(process.env.CHARACTER_CACHE_ENABLED, false),
 };
 
 export const assertEnv = <K extends keyof EnvShape>(key: K): EnvShape[K] => {

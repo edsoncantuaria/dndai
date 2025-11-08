@@ -403,6 +403,9 @@ export const useNewGameState = () => {
                 if (sessionDetails) {
                     const characterId = sessionDetails.character?.id ?? sessionDetails.characterId;
                     let backendCharacterPayload: Character | null = null;
+                    const inventorySnapshot = Array.isArray(sessionDetails.character?.inventory)
+                        ? sessionDetails.character?.inventory
+                        : null;
 
                     if (characterId) {
                         try {
@@ -421,6 +424,9 @@ export const useNewGameState = () => {
                     }
 
                     const fullCharacter = await characterUtils.buildFrontendCharacter(backendCharacterPayload as any);
+                    if ((!fullCharacter.inventory || fullCharacter.inventory.length === 0) && inventorySnapshot?.length) {
+                        fullCharacter.inventory = inventorySnapshot as InventoryItem[];
+                    }
                     const displayLogs = (sessionDetails.logs || [])
                         .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
                         .map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));

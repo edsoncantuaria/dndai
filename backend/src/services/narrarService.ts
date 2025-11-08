@@ -1024,6 +1024,10 @@ export const processPlayerTurn = async (
         const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
 
         if (hasWorldStateUpdates || hasCharacterUpdates) {
+            console.log('[narrarService] mergeCharacterUpdates payload', {
+                characterId: sessao.character!.id,
+                updates: updatesFromAi,
+            });
             await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
             if (redisClient && redisClient.isOpen) {
                 await redisClient.del(
@@ -1035,6 +1039,10 @@ export const processPlayerTurn = async (
         }
 
         const canonicalInventory = await getInventorySnapshotFromDb(sessao.character!.id, queryRunner.manager);
+        console.log('[narrarService] canonicalInventory snapshot', {
+            characterId: sessao.character!.id,
+            count: canonicalInventory.length,
+        });
         const hydratedSnapshot = await hydrateInventoryItems(
             canonicalInventory,
             userId,
@@ -1058,6 +1066,7 @@ export const processPlayerTurn = async (
             xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
             level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
         };
+        console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
 
         aiResponse.updatedCharacter = {
             ...(aiResponse.updatedCharacter || {}),

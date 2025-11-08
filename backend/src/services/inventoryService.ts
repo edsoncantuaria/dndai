@@ -65,6 +65,7 @@ export const getInventorySnapshotFromDb = async (
         where: { characterId },
         order: { id: 'ASC' },
     });
+    console.log('[inventoryService] snapshot from DB', { characterId, count: storedItems.length });
     return storedItems.map(normaliseDbItem);
 };
 

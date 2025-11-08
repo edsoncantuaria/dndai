@@ -12,6 +12,7 @@ import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import { getResourceDetails } from './dndApiService.js';
 import redisClient from '../database/redis-client.js';
+import { env } from '../config/env.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { Relationship } from '../entities/Relationship.js';
 import { Quest } from '../entities/Quest.js';
@@ -36,11 +37,17 @@ const createAttributesFallback = (characterId: number): CharacterAttributes => {
 };
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
-export const buildFullCharacterObject = async (character: Character) => {
+interface BuildCharacterOptions {
+    disableCache?: boolean;
+}
+
+export const buildFullCharacterObject = async (character: Character, options: BuildCharacterOptions = {}) => {
     const cacheKey = `character:${character.id}`;
+    const cacheAllowed = env.CHARACTER_CACHE_ENABLED && redisClient && redisClient.isOpen;
+    const useCache = cacheAllowed && !options.disableCache;
 
     // 1. Tenta buscar do cache
-    if (redisClient && redisClient.isOpen) {
+    if (useCache) {
         try {
             const cachedCharacter = await redisClient.get(cacheKey);
             if (cachedCharacter) {
@@ -108,7 +115,7 @@ export const buildFullCharacterObject = async (character: Character) => {
     };
     
     // 2. Salva o resultado no cache antes de retornar
-    if (redisClient && redisClient.isOpen) {
+    if (useCache) {
         try {
             // Cache por 1 hora para dados de personagem
             await redisClient.set(cacheKey, JSON.stringify(characterData), { EX: 3600 });
@@ -117,6 +124,12 @@ export const buildFullCharacterObject = async (character: Character) => {
             console.error(`[Cache] Erro ao salvar personagem ${character.id} no Redis:`, error);
         }
     }
+
+    console.log('[buildFullCharacterObject] carregado', {
+        characterId: character.id,
+        attributes: characterData.attributes,
+        inventoryCount: characterData.inventory.length,
+    });
 
     return characterData;
 };
@@ -176,6 +189,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             feats: characterData.feats || [],
             homebrewContentIds: characterData.homebrewIds || [],
             isTemplate: true,
+            sessionId: null,
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
@@ -318,23 +332,47 @@ export const cloneCharacter = async (
     });
 
     const savedClone = await characterRepo.save(clonedCharacter);
+    console.log('[cloneCharacter] Clonando personagem', {
+        originalCharacterId,
+        newCharacterId: savedClone.id,
+        hasAttributes: !!original.attributes,
+        items: original.items?.length ?? 0,
+        proficiencies: original.proficiencies?.length ?? 0,
+    });
 
     // Clonar relações
     if (original.attributes) {
-        const { id, character, ...attrs } = original.attributes;
-        const newAttrs = queryRunner.manager.create(CharacterAttributes, { ...attrs, characterId: savedClone.id });
+        const { id, character, characterId: _oldCharacterId, ...attrs } = original.attributes;
+        const newAttrs = queryRunner.manager.create(CharacterAttributes, { ...attrs });
+        newAttrs.characterId = savedClone.id;
+        newAttrs.character = savedClone;
         await queryRunner.manager.save(newAttrs);
     }
     if (original.proficiencies?.length) {
-        const newProfs = original.proficiencies.map(({ id, character, ...prof }) => queryRunner.manager.create(CharacterProficiency, { ...prof, characterId: savedClone.id }));
+        const newProfs = original.proficiencies.map(({ id, character, characterId: _oldCharacterId, ...prof }) => {
+            const entity = queryRunner.manager.create(CharacterProficiency, { ...prof });
+            entity.characterId = savedClone.id;
+            entity.character = savedClone;
+            return entity;
+        });
         await queryRunner.manager.save(newProfs);
     }
     if (original.items?.length) {
-        const newItems = original.items.map(({ id, character, ...item }) => queryRunner.manager.create(CharacterItem, { ...item, characterId: savedClone.id }));
+        const newItems = original.items.map(({ id, character, characterId: _oldCharacterId, ...item }) => {
+            const entity = queryRunner.manager.create(CharacterItem, { ...item });
+            entity.characterId = savedClone.id;
+            entity.character = savedClone;
+            return entity;
+        });
         await queryRunner.manager.save(newItems);
     }
     if (original.spells?.length) {
-        const newSpells = original.spells.map(({ id, character, ...spell }) => queryRunner.manager.create(CharacterSpell, { ...spell, characterId: savedClone.id }));
+        const newSpells = original.spells.map(({ id, character, characterId: _oldCharacterId, ...spell }) => {
+            const entity = queryRunner.manager.create(CharacterSpell, { ...spell });
+            entity.characterId = savedClone.id;
+            entity.character = savedClone;
+            return entity;
+        });
         await queryRunner.manager.save(newSpells);
     }
     if (original.relationships?.length) {
@@ -356,6 +394,10 @@ export const cloneCharacter = async (
 
 
     if (!qr) await queryRunner.commitTransaction();
+    console.log('[cloneCharacter] Clone finalizado', {
+        newCharacterId: savedClone.id,
+        sessionId: savedClone.sessionId,
+    });
     return savedClone;
   } catch (error) {
     if (!qr) await queryRunner.rollbackTransaction();
@@ -369,28 +411,14 @@ export const cloneCharacter = async (
 
 export const getCharactersForUser = async (userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
-    await characterRepository
-        .createQueryBuilder()
-        .update(Character)
-        .set({ isTemplate: false })
-        .where('userId = :userId', { userId })
-        .andWhere('isTemplate = true')
-        .andWhere(`EXISTS (SELECT 1 FROM sessoes_ia sessao WHERE sessao.characterId = characters.id AND sessao.deletedAt IS NULL)`)
-        .execute();
-
-    // Adiciona a condição para buscar apenas personagens que NÃO estão em uma sessão.
-    // Isso os torna "modelos" reutilizáveis.
-    const characters = await characterRepository
+    return characterRepository
         .createQueryBuilder('character')
-        .leftJoin('character.sessoes', 'sessao')
         .where('character.userId = :userId', { userId })
         .andWhere('character.deletedAt IS NULL')
         .andWhere('character.isTemplate = true')
-        .andWhere('sessao.id IS NULL') // A condição chave!
+        .andWhere('character.sessionId IS NULL')
         .select(['character.id', 'character.name', 'character.race', 'character.characterClass', 'character.level', 'character.createdAt'])
         .getMany();
-
-    return characters;
 };
 
 export const getCharacterById = async (characterId: number, userId: number) => {
@@ -404,7 +432,9 @@ export const getCharacterById = async (characterId: number, userId: number) => {
         throw createError(404, 'Personagem não encontrado ou você não tem permissão.');
     }
 
-    return buildFullCharacterObject(character);
+    const full = await buildFullCharacterObject(character, { disableCache: true });
+    console.log('[getCharacterById] retorno', { characterId, attributes: full.attributes, inventory: full.inventory?.length });
+    return full;
 };
 
 export const deleteCharacter = async (characterId: number, userId: number) => {
