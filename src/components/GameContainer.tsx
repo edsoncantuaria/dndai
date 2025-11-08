@@ -16,9 +16,8 @@ import type { SessionFactsResponse } from '@/services/gameService';
 import { useToast } from '@/hooks/use-toast';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
-import { Loader2, MoreVertical, User, ArrowLeft, BookOpen, Edit, Plus, Trash2, Copy, Play } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip';
+import { Loader2 } from 'lucide-react';
+import Game from './Game';
 
 
 const GameContainer = () => {
@@ -246,91 +245,6 @@ const GameContainer = () => {
     const openSystemTests = useCallback(() => setShowTestModal(true), []);
     const openArchitecture = useCallback(() => setShowArchitectureModal(true), []);
 
-    if (gameStage === 'session_list') {
-        return (
-            <TooltipProvider>
-                <div className="relative isolate min-h-full w-full overflow-y-auto bg-[#030812]">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),transparent_60%)]" />
-                    <div className="absolute -bottom-32 right-0 h-96 w-96 bg-emerald-500/20 blur-[160px]" />
-                    <div className="relative z-10 mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-12 md:py-16">
-                        <header className="space-y-3 text-center sm:text-left">
-                            <p className="text-xs uppercase tracking-[0.35em] text-emerald-300">Continuar</p>
-                            <h1 className="text-4xl font-semibold text-white">Retome uma crônica</h1>
-                            <p className="text-sm text-stone-400">
-                                Todas as sessões ficam guardadas aqui. Continue do ponto exato onde parou.
-                            </p>
-                        </header>
-
-                        <div className="grid gap-4">
-                            {sessions.length > 0 ? (
-                                sessions.map(session => {
-                                    const updatedDate = new Date(session.updatedAt).toLocaleDateString();
-                                    return (
-                                        <article
-                                            key={session.id}
-                                            className="rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
-                                        >
-                                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div className="flex-grow max-w-[calc(100%-150px)]">
-                                                    <p className="text-xs uppercase tracking-[0.25em] text-amber-300">Sessão</p>
-                                                    <h2 className="truncate text-2xl font-semibold text-white">{session.nome}</h2>
-                                                    <p className="text-sm text-stone-300">
-                                                        Herói: {session.character?.name} — Último acesso em {updatedDate}
-                                                    </p>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleContinueGame(session.id)}
-                                                        className="inline-flex items-center gap-2 rounded-full bg-amber-400/90 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-amber-300 transition"
-                                                    >
-                                                        <Play className="h-4 w-4" /> Retomar
-                                                    </button>
-                                                    <div className="relative">
-                                                        <button
-                                                            onClick={() => openSessionActionModal(session)}
-                                                            className="rounded-full border border-white/20 p-2 text-stone-200 hover:text-amber-200"
-                                                        >
-                                                            <MoreVertical className="h-5 w-5" />
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </article>
-                                    );
-                                })
-                            ) : (
-                                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-8 text-center text-stone-300">
-                                    <p className="text-sm">Nenhuma aventura em andamento. Crie um herói e inicie o primeiro capítulo.</p>
-                                    <button
-                                        onClick={() => onSetStage('character_vault')}
-                                        className="mt-4 inline-flex items-center gap-2 rounded-full border border-amber-300/40 px-4 py-2 text-sm font-semibold text-amber-200 hover:bg-amber-500/10 transition"
-                                    >
-                                        <Plus className="h-4 w-4" /> Abrir cofres
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="flex flex-wrap justify-between gap-3">
-                            <button
-                                onClick={() => onSetStage('main_menu')}
-                                className="inline-flex items-center gap-2 text-sm text-stone-300 hover:text-amber-200 transition"
-                            >
-                                <ArrowLeft className="h-4 w-4" /> Voltar ao menu premium
-                            </button>
-                            <button
-                                onClick={() => onSetStage('character_vault')}
-                                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-stone-100 hover:border-amber-200/60 transition"
-                            >
-                                <User className="h-4 w-4" /> Cofre de heróis
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </TooltipProvider>
-        );
-    }
-    
     return (
         <>
             <GameMenuContent
@@ -355,6 +269,10 @@ const GameContainer = () => {
                 onOpenArchitecture={openArchitecture}
                 onLogout={logout}
                 user={user}
+                isActionModalOpen={isActionModalOpen}
+                selectedSessionForAction={selectedSessionForAction}
+                handleActionModalClose={handleActionModalClose}
+                openSessionActionModal={openSessionActionModal}
             />
 
             {characterToDelete && (
@@ -368,38 +286,6 @@ const GameContainer = () => {
                     ]}
                 >
                     <p className="text-stone-300">Esta ação é irreversível e irá apagar o personagem permanentemente. Tem certeza?</p>
-                </ActionModal>
-            )}
-
-            {isActionModalOpen && selectedSessionForAction && (
-                <ActionModal
-                    isOpen={isActionModalOpen}
-                    title={`Ações para "${selectedSessionForAction.nome}"`}
-                    onClose={handleActionModalClose}
-                    actions={[
-                        { text: "Cancelar", onClick: handleActionModalClose, variant: 'secondary' },
-                    ]}
-                >
-                    <div className="flex flex-col gap-3">
-                        <button
-                            onClick={() => { requestRenameSession(selectedSessionForAction); handleActionModalClose(); }}
-                            className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-3"
-                        >
-                            <Edit className="h-5 w-5" /> Renomear Aventura
-                        </button>
-                        <button
-                            onClick={() => { requestCloneSession(selectedSessionForAction); handleActionModalClose(); }}
-                            className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-3"
-                        >
-                            <Copy className="h-5 w-5" /> Clonar Aventura
-                        </button>
-                        <button
-                            onClick={() => { requestDeleteSession(selectedSessionForAction); handleActionModalClose(); }}
-                            className="w-full text-left px-4 py-3 text-red-300 bg-red-900/40 hover:bg-red-900/60 rounded-md flex items-center gap-3"
-                        >
-                            <Trash2 className="h-5 w-5" /> Excluir Aventura
-                        </button>
-                    </div>
                 </ActionModal>
             )}
 
