@@ -4,8 +4,11 @@ import React, { useState } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import { ShopItem, InventoryItem } from '../types';
 import { translateEquipment } from '../utils/translator';
-import { canAfford } from '@/utils/currency'; // Importar a função de validação
+import { canAfford } from '@/utils/currency';
 import { useEventFeedback } from '@/hooks/useEventFeedback';
+import { Coins, X, Store, Wallet } from 'lucide-react';
+
+const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
 
 const ShopModal: React.FC = () => {
     const { shopState, character, buyItem, sellItem, processPlayerAction, isLoading } = useGameStateContext();
@@ -18,30 +21,38 @@ const ShopModal: React.FC = () => {
     }
 
     const handleClose = () => {
-        processPlayerAction("Eu saio da loja.");
+        processPlayerAction('Eu saio da loja.');
     };
 
     const isInteractionDisabled = isLoading || shopState.isHaggling;
 
     const renderBuyTab = () => (
-        <div className="space-y-2">
+        <div className="space-y-3">
             {shopState.inventory.length === 0 ? (
-                <p className="text-stone-400 italic text-center py-4">O mercador não tem nada para vender no momento.</p>
+                <p className="text-stone-400 italic text-center py-6">O mercador não tem nada para vender no momento.</p>
             ) : (
                 shopState.inventory.map((item: ShopItem) => {
                     const translatedItem = translateEquipment(item);
-                    // A verificação de `canAfford` agora acontece aqui
                     const playerCanAfford = canAfford(character.currency, { quantity: item.cost.quantity, unit: item.cost.unit as any });
 
                     return (
-                        <div key={item.id} className={`bg-stone-800/70 p-3 rounded-lg border flex justify-between items-center transition-shadow ${highlightedItemId === item.id ? 'border-amber-400 spotlight-card' : 'border-stone-700'}`}>
-                            <div>
-                                <h4 className="font-semibold text-stone-200">{translatedItem.name}</h4>
+                        <div
+                            key={item.id}
+                            className={`rounded-2xl border bg-black/35 backdrop-blur-sm p-4 flex justify-between items-center gap-4 transition-all ${
+                                highlightedItemId === item.id
+                                    ? 'border-amber-400/70 shadow-[0_0_30px_rgba(251,191,36,0.35)]'
+                                    : 'border-white/5 hover:border-amber-200/40'
+                            }`}
+                        >
+                            <div className="space-y-1 min-w-0">
+                                <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">Oferta</p>
+                                <h4 className="font-semibold text-lg text-white truncate">{translatedItem.name}</h4>
                                 <p className="text-xs text-stone-400">Quantidade: {item.quantity === Infinity ? 'Infinita' : item.quantity}</p>
                             </div>
                             <div className="text-right">
-                                 <p className="font-mono text-amber-400 font-bold">{item.cost.quantity} {item.cost.unit}</p>
-                                 <button
+                                <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">Preço</p>
+                                <p className="font-mono text-amber-300 text-xl">{item.cost.quantity} {item.cost.unit}</p>
+                                <button
                                     onClick={() => {
                                         buyItem(item as any, item.cost.quantity);
                                         playCue('shop');
@@ -49,34 +60,45 @@ const ShopModal: React.FC = () => {
                                         setTimeout(() => setHighlightedItemId(null), 1200);
                                     }}
                                     disabled={isInteractionDisabled || !playerCanAfford}
-                                    className="mt-1 bg-green-700 hover:bg-green-600 text-white font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-1.5 text-sm font-semibold text-stone-900 bg-gradient-to-r from-emerald-400 to-emerald-500 hover:from-emerald-300 hover:to-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Comprar
                                 </button>
                             </div>
                         </div>
-                    )
+                    );
                 })
             )}
         </div>
     );
-    
+
     const renderSellTab = () => (
-        <div className="space-y-2">
+        <div className="space-y-3">
             {character.inventory.length === 0 ? (
-                 <p className="text-stone-400 italic text-center py-4">Você não tem nada para vender.</p>
+                <p className="text-stone-400 italic text-center py-6">Você não tem nada para vender.</p>
             ) : (
                 character.inventory.map(item => {
                     const sellPrice = shopState.sellPrices[item.id] || Math.floor((item.cost?.quantity || 2) / 2);
                     const translatedItem = translateEquipment(item);
-                     return (
-                         <div key={item.id} className={`bg-stone-800/70 p-3 rounded-lg border flex justify-between items-center transition-shadow ${highlightedItemId === item.id ? 'border-emerald-400 spotlight-card' : 'border-stone-700'}`}>
-                            <div className="max-w-[60%]">
-                                <h4 className="font-semibold text-stone-200 truncate">{translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})`: ''}</h4>
+                    return (
+                        <div
+                            key={item.id}
+                            className={`rounded-2xl border bg-black/35 backdrop-blur-sm p-4 flex justify-between items-center gap-4 transition-all ${
+                                highlightedItemId === item.id
+                                    ? 'border-emerald-400/70 shadow-[0_0_30px_rgba(16,185,129,0.35)]'
+                                    : 'border-white/5 hover:border-emerald-200/40'
+                            }`}
+                        >
+                            <div className="max-w-[60%] space-y-1">
+                                <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">Inventário</p>
+                                <h4 className="font-semibold text-lg text-white truncate">
+                                    {translatedItem.name} {item.quantity > 1 ? `(x${item.quantity})` : ''}
+                                </h4>
                                 <p className="text-xs text-stone-400">Valor Base: {item.cost?.quantity || '-'} {item.cost?.unit || ''}</p>
                             </div>
                             <div className="text-right">
-                                <p className="font-mono text-amber-400 font-bold">{sellPrice} gp</p>
+                                <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">Oferta</p>
+                                <p className="font-mono text-amber-300 text-xl">{sellPrice} gp</p>
                                 <button
                                     onClick={() => {
                                         sellItem(item, sellPrice);
@@ -85,38 +107,74 @@ const ShopModal: React.FC = () => {
                                         setTimeout(() => setHighlightedItemId(null), 1200);
                                     }}
                                     disabled={isInteractionDisabled}
-                                    className="mt-1 bg-amber-700 hover:bg-amber-600 text-stone-900 font-semibold py-1 px-3 rounded-md text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="mt-3 inline-flex items-center justify-center rounded-full px-4 py-1.5 text-sm font-semibold text-stone-900 bg-gradient-to-r from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                     Vender
                                 </button>
                             </div>
                         </div>
-                    )
+                    );
                 })
             )}
         </div>
     );
 
     return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-stone-900 border border-amber-500 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold font-garamond text-amber-300">{shopState.name}</h2>
-                        <p className="text-stone-400 text-sm">Seu Ouro: <span className="font-mono font-semibold text-amber-300">{character.currency.gp} gp</span></p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#04060a]/90 backdrop-blur">
+            <div className={`${PANEL} w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden`}>
+                <header className="p-6 border-b border-white/10 flex justify-between items-start gap-4">
+                    <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200 flex items-center gap-2">
+                            <Store className="h-4 w-4" /> Loja Premium
+                        </p>
+                        <h2 className="text-3xl font-serif text-white leading-tight">{shopState.name}</h2>
+                        <p className="text-stone-400 text-sm flex items-center gap-2">
+                            <Wallet className="h-4 w-4 text-amber-200" />
+                            Seu Ouro: <span className="font-mono font-semibold text-amber-300">{character.currency.gp} gp</span>
+                        </p>
                     </div>
-                    <button onClick={handleClose} disabled={isLoading} className="text-stone-400 hover:text-white text-2xl">&times;</button>
+                    <button
+                        onClick={handleClose}
+                        disabled={isLoading}
+                        className="rounded-full border border-white/15 p-2 text-stone-300 hover:text-white hover:border-white/40 transition"
+                        aria-label="Fechar loja"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
                 </header>
-                 <nav className="flex border-b border-stone-700 flex-shrink-0">
-                    <button onClick={() => setActiveTab('buy')} className={`flex-1 py-2 px-4 text-sm font-semibold ${activeTab === 'buy' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-stone-400'}`}>Comprar</button>
-                    <button onClick={() => setActiveTab('sell')} className={`flex-1 py-2 px-4 text-sm font-semibold ${activeTab === 'sell' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-stone-400'}`}>Vender</button>
+
+                <nav className="flex justify-between items-center px-6 py-4 border-b border-white/10 gap-3">
+                    <div className="inline-flex items-center rounded-full border border-white/10 bg-black/30 p-1">
+                        <button
+                            onClick={() => setActiveTab('buy')}
+                            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition ${
+                                activeTab === 'buy' ? 'bg-white/90 text-stone-900 shadow' : 'text-stone-400'
+                            }`}
+                        >
+                            Comprar
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('sell')}
+                            className={`px-4 py-1.5 rounded-full text-sm font-semibold transition ${
+                                activeTab === 'sell' ? 'bg-white/90 text-stone-900 shadow' : 'text-stone-400'
+                            }`}
+                        >
+                            Vender
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs uppercase tracking-[0.4em] text-stone-400">
+                        <Coins className="h-4 w-4" />
+                        Cofre global
+                    </div>
                 </nav>
-                 {shopState.isHaggling && (
-                    <div className="p-2 text-center bg-yellow-900/50 text-yellow-300 text-sm border-b border-stone-700">
+
+                {shopState.isHaggling && (
+                    <div className="px-6 py-3 bg-amber-500/10 text-amber-200 text-sm border-b border-amber-400/40 text-center">
                         Negociando preços...
                     </div>
-                 )}
-                <main className="p-4 overflow-y-auto">
+                )}
+
+                <main className="p-6 overflow-y-auto min-h-0 flex-1">
                     {activeTab === 'buy' ? renderBuyTab() : renderSellTab()}
                 </main>
             </div>

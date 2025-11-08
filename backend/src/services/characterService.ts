@@ -37,14 +37,19 @@ export const buildFullCharacterObject = async (character: Character) => {
     }
 
 
-    const fullCharacter = await AppDataSource.getRepository(Character).findOne({
-        where: { id: character.id },
-        relations: [
-            "attributes", "proficiencies", "items", "spells",
-            "journal", "journal.subLocations",
-            "relationships", "relationships.quests",
-        ],
-    });
+    const characterRepo = AppDataSource.getRepository(Character);
+    const fullCharacter = await characterRepo
+        .createQueryBuilder('character')
+        .leftJoinAndSelect('character.attributes', 'attributes')
+        .leftJoinAndSelect('character.proficiencies', 'proficiencies')
+        .leftJoinAndSelect('character.items', 'items')
+        .leftJoinAndSelect('character.spells', 'spells')
+        .leftJoinAndSelect('character.journal', 'journal')
+        .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
+        .leftJoinAndSelect('character.relationships', 'relationships')
+        .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+        .where('character.id = :id', { id: character.id })
+        .getOne();
     if (!fullCharacter) return character;
 
     const inventory = fullCharacter.items.map((item: CharacterItem) => ({ 

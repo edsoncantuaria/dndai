@@ -7,9 +7,11 @@ import { AlertTriangle } from 'lucide-react';
 interface ErrorModalProps {
     message: string;
     onClose: () => void;
+    actionLabel?: string;
+    onAction?: () => void;
 }
 
-const ErrorModal: React.FC<ErrorModalProps> = ({ message, onClose }) => {
+const ErrorModal: React.FC<ErrorModalProps> = ({ message, onClose, actionLabel, onAction }) => {
     return (
         <div 
             className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
@@ -24,6 +26,14 @@ const ErrorModal: React.FC<ErrorModalProps> = ({ message, onClose }) => {
                     <p className="text-red-100 whitespace-pre-wrap">{message}</p>
                 </main>
                 <footer className="p-4 flex justify-end items-center gap-4 bg-black/30 rounded-b-lg flex-shrink-0">
+                    {actionLabel && onAction && (
+                        <button
+                            onClick={onAction}
+                            className="px-5 py-2 rounded-md font-semibold text-yellow-100 border border-yellow-300/60 hover:bg-yellow-400/10 transition-colors"
+                        >
+                            {actionLabel}
+                        </button>
+                    )}
                     <button
                         onClick={onClose}
                         className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-yellow-400 hover:bg-yellow-500 transition-colors"

@@ -6,6 +6,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Compass, Clock, CloudSun, Flame, Sparkles, MapPin, Trophy, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
 const iconClasses = 'h-4 w-4 text-amber-300';
 
 const parseLogSummary = (entry: any): string => {
@@ -63,22 +64,22 @@ const DailyRecapPanel: React.FC = () => {
     }, [combatState]);
 
     return (
-        <div className="rounded-2xl border border-stone-700/70 bg-stone-950/60 backdrop-blur-md p-4 shadow-xl shadow-black/20 space-y-4">
+        <div className={`${PANEL} p-5 space-y-4`}>
             <header className="flex items-center justify-between">
                 <div>
-                    <p className="text-xs uppercase tracking-wide text-stone-500 font-semibold">Panorama</p>
-                    <h3 className="text-lg font-bold text-amber-200">Resumo do Dia</h3>
+                    <p className="text-[11px] uppercase tracking-[0.35em] text-stone-400 font-semibold">Panorama</p>
+                    <h3 className="text-2xl font-serif text-white">Resumo do Dia</h3>
                 </div>
                 <Sparkles className="h-5 w-5 text-amber-300" />
             </header>
 
             <section className="grid grid-cols-1 gap-3">
-                <div className="rounded-xl border border-stone-700 bg-stone-900/50 p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-stone-500">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-stone-500">
                         <span>World Snapshot</span>
                         <Compass className={iconClasses} />
                     </div>
-                    <div className="space-y-1 text-sm text-stone-200">
+                    <div className="space-y-1 text-sm text-stone-100">
                         <p className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-emerald-300" /> {location}
                         </p>
@@ -91,18 +92,18 @@ const DailyRecapPanel: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="rounded-xl border border-stone-700 bg-stone-900/50 p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-stone-500">
+                <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-stone-500">
                         <span>Progresso</span>
                         <Trophy className="h-4 w-4 text-amber-300" />
                     </div>
-                    <div className="flex items-center justify-between text-stone-200 text-sm">
+                    <div className="flex items-center justify-between text-stone-100 text-sm">
                         <span>Nível {character.level}</span>
                         {xpDiff !== null && <span>{xpDiff} XP para subir</span>}
                     </div>
-                    <div className="h-2 w-full rounded-full bg-stone-800 overflow-hidden border border-stone-700">
+                    <div className="h-2 w-full rounded-full bg-white/5 overflow-hidden border border-white/10">
                         <div
-                            className="h-full bg-gradient-to-r from-amber-500 via-yellow-400 to-lime-300 transition-all duration-700"
+                            className="h-full bg-gradient-to-r from-amber-400 via-yellow-300 to-lime-300 transition-all duration-700"
                             style={{ width: `${xpProgress}%` }}
                         />
                     </div>
@@ -110,22 +111,22 @@ const DailyRecapPanel: React.FC = () => {
             </section>
 
             {combatPulse && (
-                <section className="rounded-xl border border-red-800/50 bg-red-950/30 p-3 space-y-2">
-                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-red-200">
+                <section className="rounded-2xl border border-rose-500/40 bg-rose-900/20 p-4 space-y-3">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-rose-100">
                         <span>Combate em andamento</span>
-                        <Flame className="h-4 w-4 text-red-200" />
+                        <Flame className="h-4 w-4 text-rose-200" />
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-center">
-                        <div className="rounded-lg border border-red-900/40 bg-red-950/40 p-2">
-                            <p className="text-[10px] uppercase text-red-200/70">Round</p>
-                            <p className="text-xl font-bold text-red-100">{combatPulse.round}</p>
+                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3">
+                            <p className="text-[10px] uppercase text-rose-200/70">Round</p>
+                            <p className="text-xl font-bold text-rose-100">{combatPulse.round}</p>
                         </div>
-                        <div className="rounded-lg border border-red-900/40 bg-red-950/40 p-2">
-                            <p className="text-[10px] uppercase text-red-200/70">Turno</p>
-                            <p className="text-xl font-bold text-red-100">{combatPulse.turn}</p>
+                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/40 p-3">
+                            <p className="text-[10px] uppercase text-rose-200/70">Turno</p>
+                            <p className="text-xl font-bold text-rose-100">{combatPulse.turn}</p>
                         </div>
                     </div>
-                    <div className="flex items-center justify-between text-xs text-stone-200">
+                    <div className="flex items-center justify-between text-xs text-stone-100">
                         <span>{combatPulse.allies} aliados</span>
                         <span>{combatPulse.foes} inimigos</span>
                     </div>
@@ -134,7 +135,7 @@ const DailyRecapPanel: React.FC = () => {
 
             {recentMoments.length > 0 && (
                 <section>
-                    <div className="flex items-center justify-between text-xs uppercase tracking-wide text-stone-500 mb-2">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-stone-500 mb-2">
                         <span>Últimos acontecimentos</span>
                         <Activity className="h-4 w-4 text-emerald-300" />
                     </div>
@@ -143,11 +144,11 @@ const DailyRecapPanel: React.FC = () => {
                             <li
                                 key={moment.id ?? `moment-${index}`}
                                 className={cn(
-                                    'rounded-lg border border-stone-800/70 bg-stone-900/40 p-2',
-                                    moment.type === 'combat' && 'border-red-700/70 bg-red-950/20'
+                                    'rounded-2xl border border-white/10 bg-black/30 p-3',
+                                    moment.type === 'combat' && 'border-rose-500/40 bg-rose-950/20'
                                 )}
                             >
-                                <p className="text-xs uppercase tracking-wide text-amber-300">{moment.type}</p>
+                                <p className="text-[10px] uppercase tracking-[0.4em] text-amber-300">{moment.type}</p>
                                 <p className="text-stone-100 text-sm leading-snug max-h-12 overflow-hidden">
                                     {moment.summary}
                                 </p>

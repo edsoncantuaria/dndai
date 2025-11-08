@@ -3,9 +3,11 @@
 
 import React, { ChangeEvent, useMemo, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2 } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_35px_90px_rgba(0,0,0,0.65)]';
 
 interface SettingsModalProps {
     isOpen: boolean;
@@ -25,12 +27,12 @@ interface SliderProps {
 
 const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, step, onChange }) => (
     <div>
-        <div className="flex justify-between items-center mb-1">
-            <label htmlFor={id} className="text-stone-300 font-semibold flex items-center gap-2">
+        <div className="flex justify-between items-center mb-2">
+            <label htmlFor={id} className="text-stone-100 font-semibold flex items-center gap-2">
                 {label}
                 <div className="relative group">
                     <Info className="h-4 w-4 text-stone-500 cursor-help" />
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-stone-950 text-stone-300 text-xs rounded py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-stone-700">
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-black/90 text-stone-200 text-xs rounded-2xl py-2 px-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-lg border border-white/10">
                         {tooltip}
                     </div>
                 </div>
@@ -45,7 +47,7 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
             step={step}
             value={value}
             onChange={onChange}
-            className="w-full h-2 bg-stone-700 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 rounded-full appearance-none cursor-pointer bg-white/10 accent-amber-400"
         />
     </div>
 );
@@ -54,10 +56,10 @@ const AudioControls: React.FC = () => {
     const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic } = useSettingsContext();
 
     return (
-         <div className="space-y-4 pt-4 border-t border-stone-700/50">
-            <h3 className="text-lg font-semibold text-stone-300">Áudio</h3>
+         <div className="space-y-4 pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold text-stone-100">Áudio</h3>
             <div className="flex items-center gap-3">
-                 <button onClick={() => setIsMuted(m => !m)} className="text-stone-300 hover:text-white p-2 rounded-full bg-stone-700/50 hover:bg-stone-600/50 transition-colors">
+                 <button onClick={() => setIsMuted(m => !m)} className="text-stone-200 hover:text-white p-2 rounded-full bg-black/40 border border-white/10 hover:border-amber-400/40 transition-colors">
                     {isMuted ? <VolumeX size={20}/> : <Volume2 size={20} />}
                 </button>
                  <Slider 
@@ -71,12 +73,12 @@ const AudioControls: React.FC = () => {
                     onChange={(e) => setVolume(Number(e.target.value) / 100)}
                 />
             </div>
-            <div className="flex items-center justify-between bg-stone-800/50 p-3 rounded-md">
-                <label htmlFor="menu-music-toggle" className="text-stone-300">Música da Tela Principal</label>
+            <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
+                <label htmlFor="menu-music-toggle" className="text-stone-200 font-semibold">Música da Tela Principal</label>
                 <button
                     id="menu-music-toggle"
                     onClick={() => setPlayMenuMusic(p => !p)}
-                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-600' : 'bg-stone-600'}`}
+                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-500' : 'bg-stone-600'}`}
                 >
                     <span
                         aria-hidden="true"
@@ -101,15 +103,15 @@ const ToggleRow: React.FC<{
     enabled: boolean;
     onToggle: () => void;
 }> = ({ id, label, description, enabled, onToggle }) => (
-    <div className="flex items-start justify-between gap-4 bg-stone-900/40 rounded-md p-3 border border-stone-800/60">
+    <div className="flex items-start justify-between gap-4 bg-black/30 rounded-2xl p-4 border border-white/10">
         <div>
-            <p className="text-sm font-semibold text-stone-200">{label}</p>
+            <p className="text-sm font-semibold text-stone-100">{label}</p>
             {description && <p className="text-xs text-stone-400 mt-0.5">{description}</p>}
         </div>
         <button
             id={id}
             onClick={onToggle}
-            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${enabled ? 'bg-amber-600' : 'bg-stone-600'}`}
+            className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${enabled ? 'bg-amber-500' : 'bg-stone-600'}`}
         >
             <span
                 aria-hidden="true"
@@ -136,12 +138,12 @@ const AppearanceControls: React.FC = () => {
     const sliderValue = useMemo(() => Math.max(themeOptions.findIndex(option => option.id === theme), 0), [theme]);
 
     return (
-        <div className="space-y-4 pt-4 border-t border-stone-700/50">
-            <h3 className="text-lg font-semibold text-stone-300 flex items-center gap-2">
+        <div className="space-y-4 pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold text-stone-100 flex items-center gap-2">
                 <Palette className="h-5 w-5 text-amber-400" /> Aparência & Acessibilidade
             </h3>
-            <div className="rounded-lg border border-stone-700/80 bg-stone-900/50 p-4 space-y-3">
-                <div className="flex items-center justify-between gap-2 text-sm text-stone-300">
+            <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2 text-sm text-stone-200">
                     <span>Paleta dinâmica</span>
                     <Sparkles className="h-4 w-4 text-amber-300" />
                 </div>
@@ -163,10 +165,10 @@ const AppearanceControls: React.FC = () => {
                         <button
                             key={option.id}
                             onClick={() => setTheme(option.id)}
-                            className={`rounded-md border p-2 transition-all ${
+                            className={`rounded-xl border p-2 transition-all ${
                                 option.id === theme
-                                    ? 'border-amber-400 text-amber-200 bg-stone-900/70'
-                                    : 'border-stone-700 text-stone-400 hover:border-amber-500/60'
+                                    ? 'border-amber-400 text-amber-200 bg-black/40'
+                                    : 'border-white/10 text-stone-400 hover:border-amber-500/60'
                             }`}
                         >
                             <div className={`h-8 rounded bg-gradient-to-r ${option.gradient} mb-1`} />
@@ -199,8 +201,8 @@ const AppearanceControls: React.FC = () => {
                     enabled={highContrast}
                     onToggle={() => setHighContrast(!highContrast)}
                 />
-                <div className="flex flex-col gap-2 bg-stone-900/40 rounded-md p-3 border border-stone-800/60">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-stone-200">
+                <div className="flex flex-col gap-2 bg-black/30 rounded-2xl p-4 border border-white/10">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-stone-100">
                         <Accessibility className="h-4 w-4 text-amber-300" /> Guia Interativo
                     </div>
                     <p className="text-xs text-stone-400">
@@ -208,7 +210,7 @@ const AppearanceControls: React.FC = () => {
                     </p>
                     <button
                         onClick={() => setHasSeenGuidedTips(false)}
-                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-md border border-amber-400 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border border-amber-400 text-amber-200 hover:bg-amber-500/10 disabled:opacity-60"
                         disabled={!hasSeenGuidedTips}
                     >
                         <Undo2 className="h-3.5 w-3.5" /> Rever dicas
@@ -222,8 +224,8 @@ const AppearanceControls: React.FC = () => {
 const FeedbackControls: React.FC = () => {
     const { eventCuesEnabled, setEventCuesEnabled, hapticsEnabled, setHapticsEnabled } = useSettingsContext();
     return (
-        <div className="space-y-4 pt-4 border-t border-stone-700/50">
-            <h3 className="text-lg font-semibold text-stone-300 flex items-center gap-2">
+        <div className="space-y-4 pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold text-stone-100 flex items-center gap-2">
                 <AudioWaveform className="h-5 w-5 text-amber-300" /> Feedback Sensorial
             </h3>
             <ToggleRow
@@ -295,13 +297,13 @@ const CacheManagement: React.FC = () => {
     };
 
     return (
-        <div className="space-y-4 pt-4 border-t border-stone-700/50">
-            <h3 className="text-lg font-semibold text-stone-300">Manutenção e Cache</h3>
-            <div className="flex flex-col sm:flex-row gap-2">
-                <button onClick={handleClearEquipmentCache} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
+        <div className="space-y-4 pt-6 border-t border-white/10">
+            <h3 className="text-lg font-semibold text-stone-100">Manutenção e Cache</h3>
+            <div className="flex flex-col sm:flex-row gap-3">
+                <button onClick={handleClearEquipmentCache} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-sky-400 to-sky-600 text-stone-900 hover:from-sky-300 hover:to-sky-500">
                     <Eraser className="h-4 w-4" /> Limpar Cache de Equipamentos
                 </button>
-                 <button onClick={handleSyncHomebrew} className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-purple-800 hover:bg-purple-700 text-purple-200">
+                 <button onClick={handleSyncHomebrew} className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-purple-400 to-purple-600 text-white hover:from-purple-300 hover:to-purple-500">
                     <RefreshCw className="h-4 w-4" /> Sincronizar Dados de Homebrew
                 </button>
             </div>
@@ -309,14 +311,14 @@ const CacheManagement: React.FC = () => {
                 <button
                     onClick={handleFlushRedis}
                     disabled={isFlushingRedis}
-                    className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-red-900/80 hover:bg-red-800 text-red-100 disabled:opacity-60"
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-rose-500 to-red-600 text-white disabled:opacity-50"
                     title="Limpa todos os caches compartilhados (Redis). Use apenas quando necessário."
                 >
                     {isFlushingRedis ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                     Limpar Caches Globais
                 </button>
             )}
-             <p className="text-xs text-stone-500 text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
+             <p className="text-xs text-stone-400 text-center">Use estas opções se notar que itens, equipamentos ou conteúdos homebrew não estão aparecendo ou atualizando corretamente.</p>
         </div>
     );
 };
@@ -348,19 +350,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
     return (
         <div 
-            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fadeIn"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#04060a]/90 backdrop-blur animate-fadeIn p-4"
             style={{ animationDuration: '200ms' }}
             onClick={handleSaveAndClose}
         >
             <div 
-                className="bg-stone-900 border border-amber-600/50 rounded-lg shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+                className={`${PANEL} w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden`}
                 onClick={(e) => e.stopPropagation()}
             >
-                <header className="p-4 border-b border-stone-700 flex justify-between items-center">
-                    <h2 className="text-xl font-bold font-garamond text-amber-300">Configurações</h2>
-                    <button onClick={handleSaveAndClose} className="text-stone-400 hover:text-white text-2xl">&times;</button>
+                <header className="p-6 border-b border-white/10 flex justify-between items-start gap-4">
+                    <div className="space-y-2">
+                        <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200 flex items-center gap-2">
+                            <Shield className="h-4 w-4" /> Configurações Avançadas
+                        </p>
+                        <h2 className="text-3xl font-serif text-white leading-tight">Painel do Mestre Virtual</h2>
+                        <p className="text-sm text-stone-400">Personalize áudio, IA, aparências e integrações para toda a mesa.</p>
+                    </div>
+                    <button onClick={handleSaveAndClose} className="rounded-full border border-white/15 p-2 text-stone-300 hover:text-white hover:border-white/40 transition" aria-label="Fechar configurações">
+                        &times;
+                    </button>
                 </header>
-                <main className="p-6 space-y-6 overflow-y-auto">
+                <main className="p-6 space-y-6 overflow-y-auto min-h-0">
                      <div>
                         <div className="flex justify-between items-center mb-2">
                            <label htmlFor="api-key-input" className="text-stone-300 font-semibold flex items-center gap-2">
@@ -376,7 +386,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             placeholder="Cole sua chave aqui"
-                            className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                            className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                         />
                          <p className="text-xs text-stone-500 mt-2">
                             Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
@@ -387,11 +397,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <AppearanceControls />
                     <FeedbackControls />
 
-                    <div className="space-y-4 pt-4 border-t border-stone-700/50">
-                        <h3 className="text-lg font-semibold text-stone-300">Homebrew e IA</h3>
-                         <div className="flex items-center justify-between bg-stone-800/50 p-3 rounded-md">
-                            <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer">
-                                <span className="font-semibold text-stone-300 flex items-center gap-2">
+                    <div className="space-y-4 pt-6 border-t border-white/10">
+                        <h3 className="text-lg font-semibold text-stone-100">Homebrew e IA</h3>
+                         <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
+                            <label htmlFor="ai-homebrew-toggle" className="flex flex-col cursor-pointer text-stone-200">
+                                <span className="font-semibold flex items-center gap-2">
                                     <FlaskConical className="h-4 w-4 text-purple-400" />
                                     Permitir que a IA crie Homebrew
                                 </span>
@@ -400,7 +410,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             <button
                                 id="ai-homebrew-toggle"
                                 onClick={() => setUseAiHomebrew(p => !p)}
-                                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${useAiHomebrew ? 'bg-amber-600' : 'bg-stone-600'}`}
+                                className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${useAiHomebrew ? 'bg-amber-500' : 'bg-stone-600'}`}
                             >
                                 <span
                                     aria-hidden="true"
@@ -421,7 +431,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 id="ai-model-select"
                                 value={model}
                                 onChange={(e) => setModel(e.target.value)}
-                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                             >
                                 {AVAILABLE_MODELS.map(modelName => (
                                     <option key={modelName} value={modelName}>
@@ -439,7 +449,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 id="tts-model-select"
                                 value={ttsModel}
                                 onChange={(e) => setTtsModel(e.target.value)}
-                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                             >
                                 {AVAILABLE_TTS_MODELS.map(modelName => (
                                     <option key={modelName} value={modelName}>
@@ -457,7 +467,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 id="tts-voice-select"
                                 value={ttsVoice}
                                 onChange={(e) => setTtsVoice(e.target.value)}
-                                className="w-full bg-stone-800 border border-stone-700 rounded-md p-3 text-stone-200 focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                                className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                             >
                                 {AVAILABLE_TTS_VOICES.map(voiceName => (
                                     <option key={voiceName} value={voiceName}>
@@ -495,8 +505,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             min={1} max={100} step={1}
                             onChange={handleConfigChange}
                         />
-                        <div className="rounded-md border border-stone-700 bg-stone-900/40 p-4 space-y-2">
-                            <p className="text-sm font-semibold text-stone-300">Tamanho da Resposta (Automático)</p>
+                        <div className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2">
+                            <p className="text-sm font-semibold text-stone-100">Tamanho da Resposta (Automático)</p>
                             <p className="text-xs text-stone-400 leading-relaxed">
                                 O sistema ajusta dinamicamente o limite de tokens de saída com base no tamanho do prompt e no modelo escolhido.
                                 Dessa forma você evita desperdício de créditos e garante respostas completas sem precisar configurar nada.
@@ -508,10 +518,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
 
                 </main>
-                <footer className="p-4 flex justify-end items-center gap-4 bg-stone-950/50 rounded-b-lg">
+                <footer className="p-5 flex justify-end items-center gap-4 border-t border-white/10 bg-black/30">
                     <button
                         onClick={handleSaveAndClose}
-                        className="px-6 py-2 rounded-md font-semibold text-stone-900 bg-amber-600 hover:bg-amber-700 transition-colors"
+                        className="px-6 py-2.5 rounded-full font-semibold text-stone-900 bg-gradient-to-r from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 transition-colors"
                     >
                         Fechar
                     </button>

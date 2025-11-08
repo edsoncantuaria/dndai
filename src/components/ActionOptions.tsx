@@ -56,20 +56,30 @@ const LootOfferDisplay: React.FC = () => {
     if (!hasItems && !hasCurrency) return null;
 
     return (
-        <div className="p-3 bg-stone-700/50 border border-amber-500 rounded-lg text-center animate-fadeIn spotlight-card">
-            <h4 className="font-semibold text-amber-300">Tesouro Encontrado!</h4>
-            <ul className="text-sm text-stone-300 my-2 list-disc list-inside">
+        <div className="p-4 rounded-3xl border border-amber-300/40 bg-gradient-to-br from-amber-500/15 via-black/40 to-transparent text-center animate-fadeIn spotlight-card">
+            <h4 className="font-serif text-xl text-white flex items-center justify-center gap-2">
+                Tesouro Encontrado!
+            </h4>
+            <ul className="text-sm text-stone-200 my-3 space-y-1 text-left">
                 {pendingLootOffer.items.map(item => (
-                    <li key={item.id}>{item.name} (x{item.quantity})</li>
+                    <li key={item.id} className="flex justify-between gap-2">
+                        <span>{item.name}</span>
+                        <span className="text-amber-200 font-semibold">x{item.quantity}</span>
+                    </li>
                 ))}
-                {pendingLootOffer.currency.gp > 0 && <li>{pendingLootOffer.currency.gp} moedas de ouro</li>}
+                {pendingLootOffer.currency.gp > 0 && (
+                    <li className="flex justify-between gap-2">
+                        <span>Moedas de ouro</span>
+                        <span className="text-amber-200 font-semibold">{pendingLootOffer.currency.gp} gp</span>
+                    </li>
+                )}
             </ul>
              <button
                 onClick={() => takeLoot(true)}
                 disabled={isLoading}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-stone-900 font-semibold py-2.5 px-4 rounded-full transition-colors disabled:opacity-50"
             >
-                {isLoading ? <Loader2 className="mx-auto animate-spin" /> : 'Pegar Tudo'}
+                {isLoading ? <Loader2 className="mx-auto animate-spin" /> : 'Recolher tudo'}
             </button>
         </div>
     )

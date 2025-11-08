@@ -1,7 +1,7 @@
 // src/hooks/newUseGameState.ts
 'use client';
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useGameLog } from './useGameLog';
 import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
@@ -47,6 +47,7 @@ export const useNewGameState = () => {
     const [apiError, setApiError] = useState<string | null>(null);
     const [ambientSound, setAmbientSound] = useState<string>('none');
     const [progressionFeed, setProgressionFeed] = useState<ProgressionFeedItem[]>([]);
+    const actionOptionsBackupRef = useRef<(string | { text: string; action: string; skill?: string })[] | null>(null);
     
     const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
 
@@ -237,12 +238,14 @@ export const useNewGameState = () => {
             interactionState.setRequest({ type: 'roll', request: response.playerRollRequest });
             if (response.actionOptions !== undefined) {
                 interactionState.setActionOptions(response.actionOptions);
+                actionOptionsBackupRef.current = null;
             }
             return;
         }
 
         if (response.actionOptions !== undefined) {
             interactionState.setActionOptions(response.actionOptions);
+            actionOptionsBackupRef.current = null;
         }
         
         if (response.combatState) interactionState.setCombatState(response.combatState);
@@ -289,7 +292,13 @@ export const useNewGameState = () => {
     // WebSocket event handlers
     useEffect(() => {
         const handleGameStateUpdate = (payload: GameMasterResponse) => handleApiResponse(payload);
-        const handleError = (payload: { message: string }) => setApiError(payload.message);
+        const handleError = (payload: { message: string }) => {
+            setApiError(payload.message);
+            if (actionOptionsBackupRef.current) {
+                interactionState.setActionOptions(actionOptionsBackupRef.current);
+                actionOptionsBackupRef.current = null;
+            }
+        };
         const handleStartLoading = () => setIsLoading(true);
         const handleStopLoading = () => setIsLoading(false);
 
@@ -304,7 +313,7 @@ export const useNewGameState = () => {
             removeEventListener('startLoading', handleStartLoading);
             removeEventListener('stopLoading', handleStopLoading);
         };
-    }, [handleApiResponse]);
+    }, [handleApiResponse, interactionState]);
 
 
     const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
@@ -333,8 +342,9 @@ export const useNewGameState = () => {
             logState.addLogEntry({ id: uuidv4(), type: 'action', content: action });
         }
 
+        actionOptionsBackupRef.current = interactionState.actionOptions.slice();
         interactionState.clearTransientInteractions();
-        interactionState.setActionOptions([]); 
+        interactionState.setActionOptions([]);
         
         sendMessage('processAction', {
             sessionId: finalSessionId,
@@ -530,9 +540,24 @@ export const useNewGameState = () => {
     const handleToggleEquipped = useCallback((itemId: string) => {
         const item = character?.inventory.find(i => i.id === itemId);
         if (!item) return;
-        const actionText = item.equipped ? `Eu desequipo meu ${item.name}.` : `Eu equipo meu ${item.name}.`;
+
+        const willEquip = !item.equipped;
+
+        setCharacter(prev => {
+            if (!prev || !Array.isArray(prev.inventory)) return prev;
+            return {
+                ...prev,
+                inventory: prev.inventory.map(invItem =>
+                    invItem.id === itemId ? { ...invItem, equipped: willEquip } : invItem
+                ),
+            };
+        });
+
+        const actionText = willEquip
+            ? `Eu equipo meu ${item.name}.`
+            : `Eu desequipo meu ${item.name}.`;
         processPlayerAction(actionText);
-    }, [character, processPlayerAction]);
+    }, [character, processPlayerAction, setCharacter]);
 
     const handleUseConsumable = useCallback((itemId: string) => {
         const item = character?.inventory.find(i => i.id === itemId);

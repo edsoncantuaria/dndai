@@ -60,18 +60,17 @@ export const mergeCharacterUpdates = async (
   queryRunner: QueryRunner
 ) => {
   const characterRepo = queryRunner.manager.getRepository(Character);
-  const character = await characterRepo.findOne({
-    where: { id: characterId },
-    relations: [
-      'attributes', // Carrega a relação de atributos
-      'items',
-      'spells',
-      'journal',
-      'journal.subLocations',
-      'relationships',
-      'relationships.quests'
-    ],
-  });
+  const character = await characterRepo
+    .createQueryBuilder('character')
+    .leftJoinAndSelect('character.attributes', 'attributes')
+    .leftJoinAndSelect('character.items', 'items')
+    .leftJoinAndSelect('character.spells', 'spells')
+    .leftJoinAndSelect('character.journal', 'journal')
+    .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
+    .leftJoinAndSelect('character.relationships', 'relationships')
+    .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+    .where('character.id = :id', { id: characterId })
+    .getOne();
 
   if (!character) throw new Error('Personagem não encontrado para o merge.');
 

@@ -13,7 +13,6 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import LevelUpModal from './LevelUpModal';
 import ProgressionTab from './ProgressionTab';
 import ShopModal from './ShopModal';
-import ErrorModal from './ui/ErrorModal';
 import NewNarrativeLog from './NewNarrativeLog';
 import NewJournal from './NewJournal';
 import NewRelationships from './NewRelationships';
@@ -85,8 +84,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         isLoading,
         levelUpState, 
         shopState, 
-        apiError, 
-        clearApiError,
         playerRollRequest,
         setPlayerRollRequest,
         handleRollResult,
@@ -402,7 +399,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 </AnimatePresence>
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
-                {apiError && <ErrorModal message={apiError} onClose={clearApiError} />}
                 {showDiceModal && (
                     <DiceRollModal 
                         request={playerRollRequest!}

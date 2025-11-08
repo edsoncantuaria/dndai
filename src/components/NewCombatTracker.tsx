@@ -147,32 +147,40 @@ const NewCombatTracker: React.FC = () => {
     const isPlayerTurn = currentCombatant?.isPlayer || false;
 
     const containerGlow = isPlayerTurn
-        ? 'border-amber-500/70 shadow-[0_0_25px_rgba(251,191,36,0.35)]'
-        : 'border-red-800/80 shadow-[0_0_30px_rgba(239,68,68,0.25)]';
-    const headerAccent = isPlayerTurn ? 'text-amber-200' : 'text-red-200';
+        ? 'border-amber-400/70 shadow-[0_0_35px_rgba(251,191,36,0.35)]'
+        : 'border-rose-500/40 shadow-[0_0_35px_rgba(244,63,94,0.3)]';
+    const headerAccent = isPlayerTurn ? 'text-amber-200' : 'text-rose-200';
 
     return (
         <motion.div
-            className={cn('relative flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border flex flex-col', containerGlow)}
+            className={cn(
+                'relative flex-shrink-0 rounded-3xl border bg-[#070b14]/90 backdrop-blur-xl p-4 flex flex-col overflow-hidden',
+                containerGlow
+            )}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             layout
         >
-            <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-r opacity-40', isPlayerTurn ? 'from-amber-500/20 via-amber-300/10 to-transparent' : 'from-red-600/20 via-rose-500/10 to-transparent')} />
+            <div
+                className={cn(
+                    'absolute inset-0 pointer-events-none bg-gradient-to-r opacity-40',
+                    isPlayerTurn ? 'from-amber-500/20 via-amber-300/10 to-transparent' : 'from-red-600/20 via-rose-500/10 to-transparent'
+                )}
+            />
             <div className="relative flex-shrink-0">
                 <button 
                     className="flex justify-between items-center w-full"
                     onClick={() => setIsExpanded(!isExpanded)}
                     aria-expanded={isExpanded}
                 >
-                    <h3 className={cn('text-xl font-bold font-garamond flex items-center gap-2', headerAccent)}>
+                    <h3 className={cn('text-xl font-bold font-serif flex items-center gap-2', headerAccent)}>
                         <Swords /> 
                         <span>COMBATE ATIVO</span>
                     </h3>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 text-xs uppercase tracking-[0.4em] text-stone-400">
                         {!isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant as Combatant} />}
-                        <span className={cn('font-mono text-lg', headerAccent)}>Round {round}</span>
+                        <span className={cn('font-mono text-base px-3 py-1 rounded-full border border-white/10', headerAccent)}>Round {round}</span>
                         <ChevronDown className={cn('h-6 w-6 transition-transform hover:text-white', headerAccent, { 'rotate-180': isExpanded })} />
                     </div>
                 </button>
@@ -198,7 +206,7 @@ const NewCombatTracker: React.FC = () => {
                                     transition={{ duration: 0.2 }}
                                     layout
                                 >
-                                    <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
+                                    <p className="text-amber-200 font-semibold uppercase tracking-[0.4em] text-xs">Turno Atual: {currentCombatant.name}</p>
                                     <CombatantCard
                                         key={currentCombatant.id}
                                         combatant={currentCombatant as Combatant}
@@ -210,7 +218,7 @@ const NewCombatTracker: React.FC = () => {
                             
                             {upcomingCombatants.length > 0 && (
                                 <div className="mt-4 space-y-2">
-                                    <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
+                                    <p className="text-stone-300 font-semibold uppercase tracking-[0.4em] text-xs">Próximos</p>
                                     <div className="space-y-3 opacity-90">
                                         <AnimatePresence>
                                             {upcomingCombatants.map((combatant) =>
@@ -244,7 +252,7 @@ const NewCombatTracker: React.FC = () => {
                     <button
                         onClick={nextTurn}
                         disabled={isLoading}
-                        className="w-full px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold transition-colors shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="w-full px-4 py-2 rounded-full bg-gradient-to-r from-amber-300 to-amber-500 hover:from-amber-200 hover:to-amber-400 text-stone-900 font-semibold transition shadow-lg disabled:opacity-40 flex items-center justify-center gap-2"
                     >
                         {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : 'Próximo Turno' }
                     </button>

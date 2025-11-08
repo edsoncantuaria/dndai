@@ -226,26 +226,26 @@ const trimAfterLastClosingBracket = (input: string): string | null => {
     return input.slice(0, lastClosingIndex + 1);
 };
 
-const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { input: number; output: number; temperature: number }> = {
-    gameplay: { input: 16000, output: 2048, temperature: 0.9 },
-    combat: { input: 8000, output: 1000, temperature: 0.6 },
-    generation: { input: 32000, output: 8192, temperature: 1.0 },
-    audit: { input: 12000, output: 3000, temperature: 0.7 },
+const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { temperature: number; defaultMaxOutput: number }> = {
+    gameplay: { temperature: 0.9, defaultMaxOutput: 2048 },
+    combat: { temperature: 0.6, defaultMaxOutput: 1200 },
+    generation: { temperature: 1.0, defaultMaxOutput: 8192 },
+    audit: { temperature: 0.7, defaultMaxOutput: 3000 },
 };
 
 const buildGenerationConfig = (
     promptText: string,
     requestedConfig: GenerationConfig | undefined,
-    mode: AiInteractionMode
+    mode: AiInteractionMode,
+    measuredPromptTokens?: number
 ) => {
     const profile = TOKEN_LIMIT_PROFILES[mode] ?? TOKEN_LIMIT_PROFILES.gameplay;
-    const totalBudget = profile.input + profile.output;
 
     const base: GenerationConfig = {
         temperature: requestedConfig?.temperature ?? profile.temperature,
         topP: requestedConfig?.topP ?? 0.9,
         topK: requestedConfig?.topK ?? 64,
-        maxOutputTokens: requestedConfig?.maxOutputTokens ?? profile.output,
+        maxOutputTokens: requestedConfig?.maxOutputTokens ?? profile.defaultMaxOutput,
     };
 
     const sanitized: Record<string, any> = {
@@ -254,28 +254,20 @@ const buildGenerationConfig = (
         topK: Math.max(1, Math.min(base.topK, 128)),
     };
 
-    const promptTokens = estimateTokenCount(promptText);
-    if (promptTokens > profile.input) {
-        console.warn(`[aiService] Prompt estimado em ${promptTokens} tokens excede o limite sugerido (${profile.input}) para o modo ${mode}. Considere resumir o contexto ou usar o cache.`);
-    }
+    const promptTokens = typeof measuredPromptTokens === 'number' && Number.isFinite(measuredPromptTokens)
+        ? measuredPromptTokens
+        : estimateTokenCount(promptText);
 
     const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
-    const availableBudget = Math.max(
-        MIN_OUTPUT_TOKENS,
-        Math.min(HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
-    );
-    const appliedMax = Math.max(MIN_OUTPUT_TOKENS, Math.min(requestedMax, availableBudget));
-
     sanitized.temperature = clamp(base.temperature ?? profile.temperature, 0, 1);
-    sanitized.maxOutputTokens = appliedMax;
+    sanitized.maxOutputTokens = requestedMax;
     sanitized.responseMimeType = "application/json";
 
     return {
         config: sanitized,
         promptTokens,
         requestedMax,
-        appliedMax,
-        budget: availableBudget,
+        appliedMax: sanitized.maxOutputTokens,
         profile,
     };
 };
@@ -613,18 +605,25 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             }
 
             const mode = input.mode ?? 'gameplay';
-            const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
-                buildGenerationConfig(prompt, generationConfig, mode);
-
-            if (appliedMax !== requestedMax) {
-                console.log(
-                    `[aiService (${modelName})][${mode}] maxOutputTokens ajustado de ${requestedMax} para ${appliedMax} (prompt estimado em ${promptTokens} tokens, perfil sugere ${profile.output}).`
-                );
-            } else {
-                console.log(
-                    `[aiService (${modelName})][${mode}] maxOutputTokens=${appliedMax} (prompt estimado em ${promptTokens} tokens).`
-                );
+            let measuredTokens: number | undefined;
+            try {
+                const tokenCountResult = await model.countTokens({
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                });
+                measuredTokens = tokenCountResult?.totalTokens ?? tokenCountResult?.tokenCount ?? undefined;
+                if (typeof measuredTokens === 'number') {
+                    console.log(`[aiService (${modelName})][${mode}] countTokens reportou ${measuredTokens} tokens para o prompt completo.`);
+                }
+            } catch (countError) {
+                console.warn('[aiService] Falha ao contar tokens com countTokens:', countError);
             }
+
+            const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
+                buildGenerationConfig(prompt, generationConfig, mode, measuredTokens);
+
+            console.log(
+                `[aiService (${modelName})][${mode}] maxOutputTokens=${appliedMax} (prompt real ${promptTokens} tokens, default perfil ${profile.defaultMaxOutput}).`
+            );
 
             console.log(`[aiService (${modelName})] Gerando conteúdo com prompt...`);
             const result = await model.generateContent({
@@ -725,7 +724,15 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             };
 
         } catch (error: any) {
-             if(error instanceof createError.HttpError) throw error;
+            const message = String(error?.message || '');
+            const status = error?.status || error?.response?.status;
+            if (status === 400 && /api key not valid/i.test(message)) {
+                throw createError(400, 'Sua chave da API do Google Gemini é inválida ou expirou. Abra as Configurações e atualize a chave para continuar a aventura.');
+            }
+            if (/não respondeu/i.test(message)) {
+                throw createError(503, 'O Mestre de Jogo está em silêncio agora. Tente repetir a ação em alguns instantes.');
+            }
+            if (error instanceof createError.HttpError) throw error;
             console.error(`[aiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
             throw createError(500, `Erro de comunicação com o Mestre de Jogo: ${error.message}`);
         }

@@ -18,6 +18,7 @@ import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
 import { Loader2 } from 'lucide-react';
 import Game from './Game';
+import ErrorModal from './ui/ErrorModal';
 
 
 const GameContainer = () => {
@@ -28,6 +29,7 @@ const GameContainer = () => {
         deleteCharacter,
         deleteSession,
         apiError,
+        clearApiError,
     } = useGameStateContext();
 
     const { useAiHomebrew, playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
@@ -91,13 +93,6 @@ const GameContainer = () => {
             setIsLoadingData(false);
         }
     }, []);
-
-
-    useEffect(() => {
-        if (apiError) {
-            setGameStage('main_menu');
-        }
-    }, [apiError]);
 
     useEffect(() => {
         if (gameStage === 'loading' || gameStage === 'main_menu' || gameStage === 'session_list' || gameStage === 'character_vault') {
@@ -244,6 +239,15 @@ const GameContainer = () => {
     const openSettings = useCallback(() => setShowSettingsModal(true), []);
     const openSystemTests = useCallback(() => setShowTestModal(true), []);
     const openArchitecture = useCallback(() => setShowArchitectureModal(true), []);
+    const handleOpenSettingsFromError = useCallback(() => {
+        clearApiError();
+        setShowSettingsModal(true);
+    }, [clearApiError]);
+
+    const shouldPromptApiKey = Boolean(
+        apiError &&
+        (apiError.toLowerCase().includes('chave da api') || apiError.toLowerCase().includes('api key'))
+    );
 
     return (
         <>
@@ -352,6 +356,15 @@ const GameContainer = () => {
                 isOpen={showArchitectureModal}
                 onClose={() => setShowArchitectureModal(false)}
             />
+
+            {apiError && (
+                <ErrorModal
+                    message={apiError}
+                    onClose={clearApiError}
+                    actionLabel={shouldPromptApiKey ? 'Abrir Configurações' : undefined}
+                    onAction={shouldPromptApiKey ? handleOpenSettingsFromError : undefined}
+                />
+            )}
         </>
     );
 };
