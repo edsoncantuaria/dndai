@@ -9,6 +9,7 @@ import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
 import { regrasInventario } from '../game/prompts/regrasInventario.js';
 import { sanitizeGameMasterResponse } from './aiSanitizer.js';
+import { generateFallbackResponse } from './gameOrchestrator.js';
 import createError from 'http-errors';
 
 type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
@@ -24,6 +25,18 @@ const estimateTokenCount = (text: string) => Math.ceil(text.length / 4);
 const MIN_OUTPUT_TOKENS = 256;
 const DEFAULT_OUTPUT_TOKENS = 1024;
 const HARD_OUTPUT_CAP = 4096;
+const MAX_MODEL_ATTEMPTS = 3;
+const RETRY_OUTPUT_LIMITS = [undefined, 768, 512] as const;
+const RETRY_PROMPT_HINTS = [
+    '',
+    "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.",
+    "\n\nATENÇÃO: Ainda não recebemos um JSON válido. Produza um JSON mínimo com 1-2 'logEntries' e pelo menos 2 'actionOptions', mantendo-se dentro do schema e sem qualquer texto fora do objeto.",
+] as const;
+const MAX_PROMPT_TOKENS_BEFORE_SUMMARY = 9500;
+const MAX_GAMELOG_CHARS = 6000;
+const MAX_JOURNAL_ENTRIES = 12;
+const MAX_RELATIONSHIP_ENTRIES = 15;
+const HEALTHCHECK_PROMPT_TOKENS = 9000;
 
 const extractResponseText = (response: any): string => {
     if (!response) return '';
@@ -96,6 +109,40 @@ const extractResponseText = (response: any): string => {
     }
 
     return '';
+};
+
+const cloneInput = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const condenseGameMasterInput = (input: GameMasterFlowInput, wasAutoCondensed: { value: boolean }): GameMasterFlowInput => {
+    const clone = cloneInput(input);
+
+    if (typeof clone.gameLog === 'string' && clone.gameLog.length > MAX_GAMELOG_CHARS) {
+        clone.gameLog = `[...] (Trecho anterior resumido)\n${clone.gameLog.slice(-MAX_GAMELOG_CHARS)}`;
+        wasAutoCondensed.value = true;
+    }
+
+    if (clone.character) {
+        const journal = Array.isArray(clone.character.journal) ? clone.character.journal : [];
+        if (journal.length > MAX_JOURNAL_ENTRIES) {
+            clone.character.journal = [
+                { type: 'system', summary: `(${journal.length - MAX_JOURNAL_ENTRIES} entradas antigas resumidas)` },
+                ...journal.slice(-MAX_JOURNAL_ENTRIES),
+            ];
+            wasAutoCondensed.value = true;
+        }
+
+        const relationships = Array.isArray(clone.character.relationships) ? clone.character.relationships : [];
+        if (relationships.length > MAX_RELATIONSHIP_ENTRIES) {
+            clone.character.relationships = [
+                ...relationships.slice(0, 5),
+                { name: `+${relationships.length - MAX_RELATIONSHIP_ENTRIES} NPCs`, status: 'summarized' },
+                ...relationships.slice(-5),
+            ];
+            wasAutoCondensed.value = true;
+        }
+    }
+
+    return clone;
 };
 
 const attemptJsonRepair = (input: string): string | null => {
@@ -589,20 +636,78 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             },
         })
     });
+
+    const wasCondensed = { value: false };
+    const condensedInput = condenseGameMasterInput(input, wasCondensed);
+    if (wasCondensed.value) {
+        condensedInput.validationFeedback = condensedInput.validationFeedback
+            ? `${condensedInput.validationFeedback}\n[Prompt] Histórico condensado automaticamente para caber no limite.`
+            : '[Prompt] Histórico condensado automaticamente para caber no limite.';
+    }
     
     const jsonSchema = zodToJsonSchema(GameMasterResponseSchema, "GameMasterResponseSchema");
     delete (jsonSchema as any).$ref;
     delete (jsonSchema as any).definitions;
     delete (jsonSchema as any).$schema;
 
-    const basePrompt = createPrompt(input, isGemma);
+    const basePrompt = createPrompt(condensedInput, isGemma);
 
-    const attemptGeneration = async (isRetry: boolean = false): Promise<GameMasterResponse> => {
-        try {
-            let prompt = basePrompt;
-            if (isRetry) {
-                prompt += "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.";
+    let healthCheckPerformed = false;
+    let healthCheckSucceeded = false;
+
+    const runHealthCheck = async () => {
+        if (healthCheckPerformed) {
+            if (!healthCheckSucceeded) {
+                throw new Error('Health check prévio falhou.');
             }
+            return;
+        }
+        healthCheckPerformed = true;
+        try {
+            const pingResult = await model.generateContent({
+                contents: [{ role: 'user', parts: [{ text: 'Responda apenas com "OK".' }] }],
+                generationConfig: { maxOutputTokens: 4, temperature: 0.1 },
+            });
+            const pingText = extractResponseText(pingResult.response);
+            if (!pingText || !/^ok\b/i.test(pingText)) {
+                throw new Error(`Ping retornou "${pingText ?? '<vazio>'}"`);
+            }
+            healthCheckSucceeded = true;
+        } catch (err) {
+            console.error('[aiService] Health check do modelo falhou:', err);
+            throw err;
+        }
+    };
+
+    const attemptGeneration = async (attemptIndex: number = 0): Promise<GameUpdateResult> => {
+        const isRetry = attemptIndex > 0;
+        const createResilienceFallback = (issue: string): GameUpdateResult => {
+            const fallback = generateFallbackResponse(
+                { character: input.character },
+                input.playerAction ?? 'ação anterior desconhecida',
+                [issue]
+            );
+            const resilienceNote = `[Resiliência] O modelo falhou após ${MAX_MODEL_ATTEMPTS} tentativas. Motivo: ${issue}`;
+            fallback.systemLog = fallback.systemLog
+                ? `${fallback.systemLog}\n${resilienceNote}`
+                : resilienceNote;
+            return {
+                response: fallback,
+                rawText: '',
+            };
+        };
+
+        const ensureRetryOrFallback = (issue: string): Promise<GameUpdateResult> => {
+            if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
+                console.warn(`[aiService] ${issue} | Repetindo (tentativa ${attemptIndex + 2}/${MAX_MODEL_ATTEMPTS}).`);
+                return attemptGeneration(attemptIndex + 1);
+            }
+            console.error(`[aiService] ${issue} | Acionando fallback resiliente.`);
+            return Promise.resolve(createResilienceFallback(issue));
+        };
+
+        try {
+            let prompt = basePrompt + (RETRY_PROMPT_HINTS[attemptIndex] ?? '');
 
             const mode = input.mode ?? 'gameplay';
             let measuredTokens: number | undefined;
@@ -620,6 +725,31 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
                 buildGenerationConfig(prompt, generationConfig, mode, measuredTokens);
+
+            const retryCap = RETRY_OUTPUT_LIMITS[attemptIndex];
+            if (retryCap !== undefined) {
+                const currentMax = sanitizedGenerationConfig.maxOutputTokens ?? appliedMax ?? DEFAULT_OUTPUT_TOKENS;
+                sanitizedGenerationConfig.maxOutputTokens = clamp(
+                    Math.min(currentMax, retryCap),
+                    MIN_OUTPUT_TOKENS,
+                    HARD_OUTPUT_CAP
+                );
+            }
+            if (attemptIndex >= 2) {
+                const currentTemp = typeof sanitizedGenerationConfig.temperature === 'number'
+                    ? sanitizedGenerationConfig.temperature
+                    : 0.7;
+                sanitizedGenerationConfig.temperature = Math.min(currentTemp, 0.4);
+            }
+
+            const shouldPing = (promptTokens ?? measuredTokens ?? 0) >= HEALTHCHECK_PROMPT_TOKENS;
+            if (shouldPing) {
+                try {
+                    await runHealthCheck();
+                } catch (pingError) {
+                    return ensureRetryOrFallback(`Falha no ping do modelo: ${pingError instanceof Error ? pingError.message : 'motivo desconhecido'}`);
+                }
+            }
 
             console.log(
                 `[aiService (${modelName})][${mode}] maxOutputTokens=${appliedMax} (prompt real ${promptTokens} tokens, default perfil ${profile.defaultMaxOutput}).`
@@ -648,9 +778,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             console.log("📜 Resposta bruta da IA:", jsonText);
             
             if (!jsonText) {
-                 console.error(`[aiService] Resposta da IA vazia na tentativa ${isRetry ? 2 : 1}.`);
-                 if (!isRetry) return attemptGeneration(true);
-                 throw new Error("O Mestre de Jogo não respondeu, mesmo após a correção.");
+                 console.error(`[aiService] Resposta da IA vazia na tentativa ${attemptIndex + 1}.`);
+                 return ensureRetryOrFallback("O Mestre de Jogo não respondeu com conteúdo.");
             }
             
             let responseData: any;
@@ -694,8 +823,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                         console.warn('[aiService] JSON5 reparou a resposta parcialmente inválida.');
                     } catch (json5Error: any) {
                         console.error('[aiService] JSON5 também falhou ao interpretar a resposta:', json5Error);
-                        if (!isRetry) return attemptGeneration(true);
-                        throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
+                        return ensureRetryOrFallback(`Resposta em formato inválido: ${e.message}`);
                     }
                 }
 
@@ -730,11 +858,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(400, 'Sua chave da API do Google Gemini é inválida ou expirou. Abra as Configurações e atualize a chave para continuar a aventura.');
             }
             if (/não respondeu/i.test(message)) {
-                throw createError(503, 'O Mestre de Jogo está em silêncio agora. Tente repetir a ação em alguns instantes.');
+                return ensureRetryOrFallback('O Mestre de Jogo não respondeu.');
             }
             if (error instanceof createError.HttpError) throw error;
             console.error(`[aiService (${modelName})] Erro ao chamar a API do Gemini:`, error);
-            throw createError(500, `Erro de comunicação com o Mestre de Jogo: ${error.message}`);
+            return ensureRetryOrFallback(`Erro de comunicação com o Mestre de Jogo: ${error.message}`);
         }
     }
 

@@ -62,6 +62,17 @@ export const mergeCharacterUpdates = async (
   const characterRepo = queryRunner.manager.getRepository(Character);
   const character = await characterRepo
     .createQueryBuilder('character')
+    .select([
+        'character',
+        'attributes',
+        'items',
+        'spells',
+        'journal',
+        'journalSubLocations',
+        'relationships',
+        'relationshipQuests',
+    ])
+    .addSelect('character.id', 'Character_id')
     .leftJoinAndSelect('character.attributes', 'attributes')
     .leftJoinAndSelect('character.items', 'items')
     .leftJoinAndSelect('character.spells', 'spells')

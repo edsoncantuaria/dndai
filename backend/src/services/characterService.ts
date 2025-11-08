@@ -40,6 +40,18 @@ export const buildFullCharacterObject = async (character: Character) => {
     const characterRepo = AppDataSource.getRepository(Character);
     const fullCharacter = await characterRepo
         .createQueryBuilder('character')
+        .select([
+            'character',
+            'attributes',
+            'proficiencies',
+            'items',
+            'spells',
+            'journal',
+            'journalSubLocations',
+            'relationships',
+            'relationshipQuests',
+        ])
+        .addSelect('character.id', 'Character_id')
         .leftJoinAndSelect('character.attributes', 'attributes')
         .leftJoinAndSelect('character.proficiencies', 'proficiencies')
         .leftJoinAndSelect('character.items', 'items')
@@ -226,10 +238,31 @@ export const cloneCharacter = async (
   try {
     const characterRepo = queryRunner.manager.getRepository(Character);
 
-    const original = await characterRepo.findOne({
-      where: { id: originalCharacterId, userId },
-      relations: ["attributes", "items", "proficiencies", "spells", "journal", "journal.subLocations", "relationships", "relationships.quests"],
-    });
+    const original = await characterRepo
+      .createQueryBuilder('character')
+      .select([
+        'character',
+        'attributes',
+        'items',
+        'proficiencies',
+        'spells',
+        'journal',
+        'journalSubLocations',
+        'relationships',
+        'relationshipQuests',
+      ])
+      .addSelect('character.id', 'Character_id')
+      .leftJoinAndSelect('character.attributes', 'attributes')
+      .leftJoinAndSelect('character.items', 'items')
+      .leftJoinAndSelect('character.proficiencies', 'proficiencies')
+      .leftJoinAndSelect('character.spells', 'spells')
+      .leftJoinAndSelect('character.journal', 'journal')
+      .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
+      .leftJoinAndSelect('character.relationships', 'relationships')
+      .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+      .where('character.id = :originalCharacterId', { originalCharacterId })
+      .andWhere('character.userId = :userId', { userId })
+      .getOne();
 
     if (!original) {
       throw createError(404, "Personagem original não encontrado para clonagem.");
@@ -327,6 +360,7 @@ export const getCharacterById = async (characterId: number, userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
     const character = await characterRepository.findOne({
         where: { id: characterId, userId, deletedAt: IsNull() },
+        loadEagerRelations: false,
     });
 
     if (!character) {

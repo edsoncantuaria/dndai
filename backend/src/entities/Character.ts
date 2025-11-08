@@ -96,10 +96,10 @@ export class Character {
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];
     
-    @OneToMany(() => JournalEntry, journal => journal.character, { cascade: true, eager: true })
+    @OneToMany(() => JournalEntry, journal => journal.character, { cascade: true })
     journal: JournalEntry[];
 
-    @OneToMany(() => Relationship, relationship => relationship.character, { cascade: true, eager: true })
+    @OneToMany(() => Relationship, relationship => relationship.character, { cascade: true })
     relationships: Relationship[];
     
     // Campos de narrativa persistente que permanecem aqui

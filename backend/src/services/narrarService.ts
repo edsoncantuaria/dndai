@@ -4,6 +4,7 @@ import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
+import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import createError from 'http-errors';
 import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
@@ -58,6 +59,81 @@ const detectAiMode = (playerAction: string, combatState: SchemaCombatState | nul
 
 // Função auxiliar para calcular o modificador de um atributo
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
+
+const ensureArray = <T>(value: T[] | undefined | null): T[] => Array.isArray(value) ? value : [];
+
+const buildDefaultAttributes = (): Pick<CharacterAttributes, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | 'hp' | 'maxHp' | 'ac' | 'conditions'> => ({
+    strength: 10,
+    dexterity: 10,
+    constitution: 10,
+    intelligence: 10,
+    wisdom: 10,
+    charisma: 10,
+    hp: 10,
+    maxHp: 10,
+    ac: 10,
+    conditions: [],
+});
+
+const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
+    const attributes = fullCharacter.attributes ?? (buildDefaultAttributes() as CharacterAttributes);
+    const proficiencies = ensureArray(fullCharacter.proficiencies);
+    const isProficientInPerception = proficiencies.some(p => p?.name?.toLowerCase().includes('perception'));
+    const isProficientInInsight = proficiencies.some(p => p?.name?.toLowerCase().includes('insight'));
+    const isProficientInInvestigation = proficiencies.some(p => p?.name?.toLowerCase().includes('investigation'));
+
+    const proficiencyBonus = Math.floor((fullCharacter.level - 1) / 4) + 2;
+    const wisdomMod = calculateModifier(attributes.wisdom);
+    const intelligenceMod = calculateModifier(attributes.intelligence);
+
+    const passivePerception = 10 + wisdomMod + (isProficientInPerception ? proficiencyBonus : 0);
+    const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
+    const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
+
+    const inventory = ensureArray(fullCharacter.items).map(item => ({
+        ...(item?.itemData || {}),
+        id: item?.id?.toString(),
+        quantity: item?.quantity ?? item?.itemData?.quantity ?? 1,
+        equipped: item?.equipped ?? false,
+    }));
+
+    const spells = ensureArray(fullCharacter.spells)
+        .map(s => (s as any)?.spellName ?? (s as any)?.name ?? null)
+        .filter(Boolean) as string[];
+
+    return {
+        id: fullCharacter.id,
+        name: fullCharacter.name,
+        race: fullCharacter.race,
+        characterClass: fullCharacter.characterClass,
+        level: fullCharacter.level,
+        xp: fullCharacter.xp ?? 0,
+        attributes: {
+            strength: attributes.strength,
+            dexterity: attributes.dexterity,
+            constitution: attributes.constitution,
+            intelligence: attributes.intelligence,
+            wisdom: attributes.wisdom,
+            charisma: attributes.charisma,
+            hp: attributes.hp ?? attributes.maxHp ?? 10,
+            ac: attributes.ac ?? 10,
+            conditions: attributes.conditions || [],
+        },
+        passivePerception,
+        passiveInsight,
+        passiveInvestigation,
+        proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
+        feats: fullCharacter.feats ?? [],
+        inventory,
+        spells: spells as unknown as ApiSpell[],
+        storySoFar: fullCharacter.storySoFar ?? '',
+        worldState: fullCharacter.worldState ?? {},
+        factionReputation: fullCharacter.factionReputation ?? {},
+        relationships: ensureArray(fullCharacter.relationships),
+        journal: ensureArray(fullCharacter.journal),
+        currentRegion: fullCharacter.currentRegion ?? fullCharacter.worldState?.currentRegion,
+    };
+};
 
 /**
  * Traduz um objeto de conteúdo homebrew em uma string de resumo para a IA.
@@ -262,6 +338,18 @@ const buildOptimizedCharacterForAI = async (characterId: number, useCache: boole
     const characterRepo = AppDataSource.getRepository(Character);
     const fullCharacter = await characterRepo
         .createQueryBuilder('character')
+        .select([
+            'character',
+            'attributes',
+            'proficiencies',
+            'items',
+            'spells',
+            'journal',
+            'journalSubLocations',
+            'relationships',
+            'relationshipQuests',
+        ])
+        .addSelect('character.id', 'Character_id')
         .leftJoinAndSelect('character.attributes', 'attributes')
         .leftJoinAndSelect('character.proficiencies', 'proficiencies')
         .leftJoinAndSelect('character.items', 'items')
@@ -273,63 +361,40 @@ const buildOptimizedCharacterForAI = async (characterId: number, useCache: boole
         .where('character.id = :id', { id: characterId })
         .getOne();
 
-    if (!fullCharacter || !fullCharacter.attributes) return null;
-    
-    const proficiencyBonus = Math.floor((fullCharacter.level - 1) / 4) + 2;
-    const wisdomMod = calculateModifier(fullCharacter.attributes.wisdom);
-    const intelligenceMod = calculateModifier(fullCharacter.attributes.intelligence);
-    
-    const proficiencies = Array.isArray(fullCharacter.proficiencies) ? fullCharacter.proficiencies : [];
-    const isProficientInPerception = proficiencies.some(p => p?.name?.toLowerCase().includes('perception'));
-    const isProficientInInsight = proficiencies.some(p => p?.name?.toLowerCase().includes('insight'));
-    const isProficientInInvestigation = proficiencies.some(p => p?.name?.toLowerCase().includes('investigation'));
+    let characterForAI: any = null;
 
-    const passivePerception = 10 + wisdomMod + (isProficientInPerception ? proficiencyBonus : 0);
-    const passiveInsight = 10 + wisdomMod + (isProficientInInsight ? proficiencyBonus : 0);
-    const passiveInvestigation = 10 + intelligenceMod + (isProficientInInvestigation ? proficiencyBonus : 0);
+    if (fullCharacter?.attributes) {
+        characterForAI = mapCharacterToOptimizedPayload(fullCharacter);
+    } else {
+        console.warn(`[buildOptimizedCharacterForAI] Personagem ${characterId} retornou sem atributos completos. Aplicando fallback enxuto.`);
+        const fallbackBase =
+            fullCharacter ??
+            (await characterRepo
+                .createQueryBuilder('character')
+                .leftJoinAndSelect('character.attributes', 'attributes')
+                .where('character.id = :id', { id: characterId })
+                .getOne());
 
-    const inventory = Array.isArray(fullCharacter.items)
-        ? fullCharacter.items.map(item => ({
-            ...item.itemData,
-            id: item.id?.toString(),
-            quantity: item.quantity ?? item.itemData?.quantity ?? 1,
-            equipped: item.equipped,
-        }))
-        : [];
-    const spells = Array.isArray(fullCharacter.spells) ? fullCharacter.spells.map(s => s?.spellName).filter(Boolean) : [];
+        if (fallbackBase) {
+            if (!fallbackBase.attributes) {
+                const attrRepo = AppDataSource.getRepository(CharacterAttributes);
+                const attrs = await attrRepo.findOne({ where: { characterId } });
+                fallbackBase.attributes = attrs ?? (buildDefaultAttributes() as CharacterAttributes);
+            }
+            fallbackBase.items = ensureArray(fallbackBase.items);
+            fallbackBase.spells = ensureArray(fallbackBase.spells);
+            fallbackBase.proficiencies = ensureArray(fallbackBase.proficiencies);
+            fallbackBase.relationships = ensureArray(fallbackBase.relationships);
+            fallbackBase.journal = ensureArray(fallbackBase.journal);
+            fallbackBase.feats = ensureArray(fallbackBase.feats);
+            characterForAI = mapCharacterToOptimizedPayload(fallbackBase);
+        }
+    }
 
-    const characterForAI = {
-        id: fullCharacter.id,
-        name: fullCharacter.name,
-        race: fullCharacter.race,
-        characterClass: fullCharacter.characterClass,
-        level: fullCharacter.level,
-        xp: fullCharacter.xp ?? 0,
-        attributes: {
-            strength: fullCharacter.attributes.strength,
-            dexterity: fullCharacter.attributes.dexterity,
-            constitution: fullCharacter.attributes.constitution,
-            intelligence: fullCharacter.attributes.intelligence,
-            wisdom: fullCharacter.attributes.wisdom,
-            charisma: fullCharacter.attributes.charisma,
-            hp: fullCharacter.attributes.hp,
-            ac: fullCharacter.attributes.ac,
-            conditions: fullCharacter.attributes.conditions || [],
-        },
-        passivePerception,
-        passiveInsight,
-        passiveInvestigation,
-        proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
-        inventory,
-        spells: spells as ApiSpell[],
-        feats: fullCharacter.feats || [],
-        journal: fullCharacter.journal || [],
-        relationships: fullCharacter.relationships || [],
-        storySoFar: fullCharacter.storySoFar || "",
-        worldState: fullCharacter.worldState || { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' },
-        factionReputation: fullCharacter.factionReputation || {},
-        currentRegion: fullCharacter.currentRegion || "",
-    };
+    if (!characterForAI) {
+        console.error(`[buildOptimizedCharacterForAI] Não foi possível montar snapshot otimizado para o personagem ${characterId}.`);
+        return null;
+    }
 
     // 3. Salva no cache antes de retornar
     if (redisClient && redisClient.isOpen) {
@@ -908,6 +973,7 @@ export const processPlayerTurn = async (
         const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
             where: { id: sessao.character!.id },
             select: ['xp', 'level'],
+            loadEagerRelations: false,
         });
         if (persistedProgress) {
             aiResponse.updatedCharacter.xp = persistedProgress.xp;

@@ -60,7 +60,7 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     const userRepository = AppDataSource.getRepository(User);
 
     const [characterTemplate, user] = await Promise.all([
-        characterRepository.findOne({ where: { id: characterId, userId } }),
+        characterRepository.findOne({ where: { id: characterId, userId }, loadEagerRelations: false }),
         userRepository.findOneBy({ id: userId }),
     ]);
     
