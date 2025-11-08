@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { getSessionFacts, getSessionReplay, SessionFactsResponse, SessionReplayResponse } from '@/services/gameService';
-import { Loader2, RefreshCw, Download, MapPin, Users, CalendarClock, Bookmark, BookOpen } from 'lucide-react';
+import { Loader2, RefreshCw, Download, MapPin, Users, CalendarClock, Bookmark, BookOpen, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -21,6 +21,57 @@ const formatDateTime = (value: string) => {
 interface StoryHighlightsCardProps {
     variant?: 'default' | 'compact';
 }
+
+const CollapsibleCardSection: React.FC<{
+    title: string;
+    icon: React.ReactNode;
+    children: React.ReactNode;
+    hasContent: boolean;
+    defaultOpen?: boolean;
+}> = ({ title, icon, children, hasContent, defaultOpen = false }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+
+    return (
+        <div className="rounded-2xl border border-stone-800/80 bg-stone-900/40">
+            <button
+                className="flex w-full items-center justify-between p-3 text-left"
+                onClick={() => setIsOpen(!isOpen)}
+                disabled={!hasContent}
+            >
+                <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-stone-800 text-amber-300">
+                        {icon}
+                    </div>
+                    <span className="text-sm font-semibold text-stone-200">{title}</span>
+                </div>
+                {hasContent && (
+                    <ChevronDown
+                        className={`h-5 w-5 text-stone-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                    />
+                )}
+            </button>
+            <AnimatePresence initial={false}>
+                {isOpen && hasContent && (
+                    <motion.div
+                        key="content"
+                        initial="collapsed"
+                        animate="open"
+                        exit="collapsed"
+                        variants={{
+                            open: { opacity: 1, height: 'auto' },
+                            collapsed: { opacity: 0, height: 0 },
+                        }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="overflow-hidden"
+                    >
+                        <div className="px-3 pb-3">{children}</div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+
 
 const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'default' }) => {
     const { sessionId } = useGameStateContext();
@@ -113,14 +164,12 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
     }
 
     if (isCompact) {
-        const compactTimeline = facts?.recentEvents?.slice(-3)?.reverse() ?? [];
-        const npcChips = facts?.activeNPCs?.slice(0, 3) ?? [];
-        return (
+         return (
             <div data-tour-id="facts" className="rounded-lg border border-stone-700 bg-stone-900/80 p-4 shadow-inner space-y-3">
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">Painel Vivo</p>
-                        <h3 className="text-base font-bold text-amber-300">Flash de sessão</h3>
+                        <h3 className="text-base font-bold text-amber-300">Flash da Sessão</h3>
                     </div>
                     <button
                         onClick={fetchFacts}
@@ -131,91 +180,15 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                         Atualizar
                     </button>
                 </div>
-
-                <div>
-                    <p className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Resumo</p>
-                    <p className="text-sm text-stone-200 line-clamp-3">
+                
+                <CollapsibleCardSection title="Resumo" icon={<Bookmark className="h-4 w-4" />} hasContent={!!facts?.storySummary} defaultOpen>
+                    <p className="text-sm text-stone-200 line-clamp-4">
                         {facts?.storySummary || 'Continue explorando para gerar novos fatos.'}
                     </p>
-                </div>
+                </CollapsibleCardSection>
 
-                {!!compactTimeline.length && (
-                    <div>
-                        <p className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">Linha do tempo</p>
-                        <ul className="space-y-1 text-xs text-stone-300">
-                            {compactTimeline.map(event => (
-                                <li key={`${event.turn}-${event.timestamp}`} className="flex items-center gap-2">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                                    <span className="flex-1 truncate">
-                                        <strong className="text-amber-200">T{event.turn}</strong> {event.summary}
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-
-                {!!npcChips.length && (
-                    <div>
-                        <p className="text-[10px] uppercase tracking-wide text-stone-500 mb-1">NPCs em foco</p>
-                        <div className="flex flex-wrap gap-1.5">
-                            {npcChips.map(npc => (
-                                <span
-                                    key={npc.npcId ?? npc.name}
-                                    className="text-xs px-2 py-1 rounded-full bg-stone-800 border border-stone-700 text-stone-200"
-                                >
-                                    {npc.name}
-                                </span>
-                            ))}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    }
-
-    return (
-        <div data-tour-id="facts" className="rounded-lg border border-stone-700 bg-stone-900/60 p-4 shadow-inner space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                    <p className="text-xs uppercase tracking-wide text-stone-500 font-semibold">Painel vivo</p>
-                    <h3 className="text-lg font-bold text-amber-300">Fatos Atualizados</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={fetchFacts}
-                        disabled={isLoading}
-                        className="inline-flex items-center gap-1 rounded-md border border-stone-700 px-3 py-1.5 text-xs font-semibold text-stone-200 hover:bg-stone-800 disabled:opacity-50"
-                    >
-                        {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                        Atualizar
-                    </button>
-                    <button
-                        onClick={handleOpenReplayPreview}
-                        disabled={isPreviewLoading}
-                        className="inline-flex items-center gap-1 rounded-md bg-amber-600/90 px-3 py-1.5 text-xs font-semibold text-stone-900 hover:bg-amber-600 disabled:opacity-50"
-                    >
-                        {isPreviewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
-                        Visualizar
-                    </button>
-                </div>
-            </div>
-
-            <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 flex items-center gap-1">
-                    <Bookmark className="h-3.5 w-3.5" /> Resumo Atual
-                </p>
-                <p className="text-sm text-stone-200 leading-relaxed">
-                    {facts?.storySummary || 'Ainda não há um resumo consolidado desta jornada. Continue explorando para registrar acontecimentos.'}
-                </p>
-            </div>
-
-            <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 mb-2 flex items-center gap-1">
-                    <CalendarClock className="h-3.5 w-3.5" /> Fatos Recentes
-                </p>
-                {timelineLines.length ? (
-                    <ul className="space-y-1 text-sm text-stone-300">
+                <CollapsibleCardSection title="Fatos Recentes" icon={<CalendarClock className="h-4 w-4" />} hasContent={timelineLines.length > 0}>
+                     <ul className="space-y-1 text-sm text-stone-300">
                         {timelineLines.map((line, idx) => (
                             <li key={idx} className="pl-4 relative">
                                 <span className="absolute left-0 top-2 h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -223,91 +196,115 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                             </li>
                         ))}
                     </ul>
-                ) : (
-                    <p className="text-sm text-stone-500">Sem destaques no momento.</p>
-                )}
-            </div>
+                </CollapsibleCardSection>
 
-            <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 mb-2 flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5" /> NPCs em foco
+                <CollapsibleCardSection title="NPCs em Foco" icon={<Users className="h-4 w-4" />} hasContent={!!facts?.activeNPCs?.length}>
+                    <div className="flex flex-wrap gap-1.5">
+                        {facts?.activeNPCs?.map(npc => (
+                            <span
+                                key={npc.npcId ?? npc.name}
+                                className="text-xs px-2 py-1 rounded-full bg-stone-800 border border-stone-700 text-stone-200"
+                            >
+                                {npc.name}
+                            </span>
+                        ))}
+                    </div>
+                </CollapsibleCardSection>
+                 <button
+                    onClick={handleOpenReplayPreview}
+                    disabled={isPreviewLoading}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-amber-600/90 px-3 py-2 text-xs font-semibold text-stone-900 hover:bg-amber-600 disabled:opacity-50 mt-2"
+                >
+                    {isPreviewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
+                    Visualizar e Exportar Resumo
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <>
+            <div data-tour-id="facts" className="rounded-lg border border-stone-700 bg-stone-900/60 p-4 shadow-inner space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <p className="text-xs uppercase tracking-wide text-stone-500 font-semibold">Painel vivo</p>
+                        <h3 className="text-lg font-bold text-amber-300">Fatos Atualizados</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={fetchFacts}
+                            disabled={isLoading}
+                            className="inline-flex items-center gap-1 rounded-md border border-stone-700 px-3 py-1.5 text-xs font-semibold text-stone-200 hover:bg-stone-800 disabled:opacity-50"
+                        >
+                            {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                            Atualizar
+                        </button>
+                        <button
+                            onClick={handleOpenReplayPreview}
+                            disabled={isPreviewLoading}
+                            className="inline-flex items-center gap-1 rounded-md bg-amber-600/90 px-3 py-1.5 text-xs font-semibold text-stone-900 hover:bg-amber-600 disabled:opacity-50"
+                        >
+                            {isPreviewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                            Visualizar
+                        </button>
+                    </div>
+                </div>
+
+                <CollapsibleCardSection title="Resumo Atual" icon={<Bookmark className="h-4 w-4" />} hasContent={!!facts?.storySummary} defaultOpen>
+                     <p className="text-sm text-stone-200 leading-relaxed">
+                        {facts?.storySummary || 'Ainda não há um resumo consolidado desta jornada. Continue explorando para registrar acontecimentos.'}
                     </p>
-                    {facts?.activeNPCs?.length ? (
-                        <ul className="space-y-2">
-                            {facts.activeNPCs.map(npc => (
-                                <li key={npc.npcId ?? npc.name} className="rounded-md border border-stone-700/60 bg-stone-900/40 p-2">
-                                    <div className="flex items-center justify-between text-sm font-semibold text-stone-200">
-                                        <span>{npc.name}</span>
-                                        <span className="text-xs text-stone-400">{npc.status}</span>
-                                    </div>
-                                    {npc.description && (
-                                        <p className="text-xs text-stone-400 mt-1">{npc.description}</p>
-                                    )}
-                                    <div className="text-xs text-stone-500 mt-1">Afinidade: {npc.affinity}</div>
+                </CollapsibleCardSection>
+
+                <CollapsibleCardSection title="Fatos Recentes" icon={<CalendarClock className="h-4 w-4" />} hasContent={timelineLines.length > 0}>
+                    {timelineLines.length ? (
+                        <ul className="space-y-1 text-sm text-stone-300">
+                            {timelineLines.map((line, idx) => (
+                                <li key={idx} className="pl-4 relative">
+                                    <span className="absolute left-0 top-2 h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                    {line}
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-sm text-stone-500">Nenhum aliado ou ameaça em destaque.</p>
+                        <p className="text-sm text-stone-500">Sem destaques no momento.</p>
                     )}
-                </div>
+                </CollapsibleCardSection>
 
-                <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 mb-2 flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" /> Missões em curso
-                    </p>
-                    {facts?.activeQuests?.length ? (
-                        <ul className="space-y-2">
-                            {facts.activeQuests.map(quest => (
-                                <li key={quest.id} className="rounded-md border border-stone-700/60 bg-stone-900/40 p-2">
-                                    <div className="flex items-center justify-between text-sm font-semibold text-stone-200">
-                                        <span>{quest.title}</span>
-                                        <span className="text-xs text-stone-400">{quest.status}</span>
-                                    </div>
-                                    <p className="text-xs text-stone-400 mt-1">{quest.summary || 'Objetivo desconhecido.'}</p>
-                                    <div className="text-xs text-stone-500 mt-1">Fonte: {quest.source}</div>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p className="text-sm text-stone-500">Nenhuma missão ativa registrada.</p>
-                    )}
-                </div>
-            </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                    <CollapsibleCardSection title="NPCs em Foco" icon={<Users className="h-4 w-4" />} hasContent={!!facts?.activeNPCs?.length}>
+                         {facts?.activeNPCs?.length ? (
+                            <ul className="space-y-2">
+                                {facts.activeNPCs.map(npc => (
+                                    <li key={npc.npcId ?? npc.name} className="rounded-md border border-stone-700/60 bg-stone-900/40 p-2">
+                                        <div className="flex items-center justify-between text-sm font-semibold text-stone-200">
+                                            <span>{npc.name}</span>
+                                            <span className="text-xs text-stone-400">{npc.status}</span>
+                                        </div>
+                                        <div className="text-xs text-stone-500 mt-1">Afinidade: {npc.affinity}</div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-stone-500">Nenhum aliado ou ameaça em destaque.</p>
+                        )}
+                    </CollapsibleCardSection>
 
-            <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-stone-500 mb-2 flex items-center gap-1">
-                    <CalendarClock className="h-3.5 w-3.5" /> Linha do tempo
-                </p>
-                {facts?.recentEvents?.length ? (
-                    <motion.ul
-                        className="space-y-1 text-sm text-stone-300 max-h-48 overflow-y-auto pr-1"
-                        layout
-                    >
-                        <AnimatePresence initial={false}>
-                            {facts.recentEvents.map(event => (
-                                <motion.li
-                                    key={`${event.turn}-${event.timestamp}`}
-                                    className="rounded-md border border-stone-800/70 bg-stone-900/30 p-2"
-                                    initial={{ opacity: 0, y: -8 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 8 }}
-                                    layout
-                                >
-                                    <div className="flex items-center justify-between text-xs text-stone-400 mb-1">
-                                        <span>Turno {event.turn}</span>
-                                        <span>{formatDateTime(event.timestamp)}</span>
-                                    </div>
-                                    <p className="font-semibold text-stone-100">{event.summary}</p>
-                                    {event.notes && <p className="text-xs text-stone-400 mt-1">{event.notes}</p>}
-                                </motion.li>
-                            ))}
-                        </AnimatePresence>
-                    </motion.ul>
-                ) : (
-                    <p className="text-sm text-stone-500">Aguardando novos acontecimentos.</p>
-                )}
+                    <CollapsibleCardSection title="Missões em Curso" icon={<MapPin className="h-4 w-4" />} hasContent={!!facts?.activeQuests?.length}>
+                         {facts?.activeQuests?.length ? (
+                            <ul className="space-y-2">
+                                {facts.activeQuests.map(quest => (
+                                    <li key={quest.id} className="rounded-md border border-stone-700/60 bg-stone-900/40 p-2">
+                                        <p className="text-sm font-semibold text-stone-200">{quest.title}</p>
+                                        <p className="text-xs text-stone-500 mt-1">Fonte: {quest.source}</p>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="text-sm text-stone-500">Nenhuma missão ativa registrada.</p>
+                        )}
+                    </CollapsibleCardSection>
+                </div>
             </div>
             <ActionModal
                 isOpen={isPreviewOpen}
@@ -326,7 +323,7 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                     <div className="space-y-3 max-h-[60vh] overflow-y-auto rounded-md bg-stone-950/60 border border-stone-800 p-3 text-sm text-stone-200 font-mono">
                         {replayPreview.markdown.split('\n').map((line, index) => (
                             <p key={index} className={line.startsWith('#') ? 'font-bold text-amber-200' : ''}>
-                                {line}
+                                {line || <br />}
                             </p>
                         ))}
                     </div>
@@ -337,7 +334,7 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                     </div>
                 )}
             </ActionModal>
-        </div>
+        </>
     );
 };
 

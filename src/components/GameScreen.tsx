@@ -161,7 +161,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     }, [hasSeenGuidedTips]);
 
     useEffect(() => {
-        if (isMobileSheetOpen) {
+        if (isMobileSheetOpen || isStoryDrawerOpen) {
             document.body.classList.add('overscroll-contain');
         } else {
             document.body.classList.remove('overscroll-contain');
@@ -169,13 +169,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         return () => {
             document.body.classList.remove('overscroll-contain');
         }
-    }, [isMobileSheetOpen]);
+    }, [isMobileSheetOpen, isStoryDrawerOpen]);
 
 
     useEffect(() => {
-        if (character && !hasSeenGuidedTips && !guidedDismissed) {
-            setIsGuidedTipsOpen(true);
-        }
+        if (!character) return;
+        const timeoutId = setTimeout(() => {
+            if (!hasSeenGuidedTips && !guidedDismissed) {
+                setIsGuidedTipsOpen(true);
+            }
+        }, 1500); // Delay opening the tour to let the UI settle
+        
+        return () => clearTimeout(timeoutId);
     }, [character, hasSeenGuidedTips, guidedDismissed]);
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
@@ -449,15 +454,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     </div>
                 </div>
 
-                {isStoryDrawerOpen && (
+                 {isStoryDrawerOpen && (
                     <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm animate-fadeIn">
                         <div
                             className="absolute inset-0"
                             onClick={() => setIsStoryDrawerOpen(false)}
                         />
-                        <div className="absolute bottom-16 left-0 right-0 rounded-t-2xl border-t border-stone-700 bg-stone-900/95 p-4 max-h-[70vh] overflow-y-auto shadow-2xl">
-                            <div className="flex items-center justify-between mb-2 text-stone-200">
-                                <span className="font-semibold uppercase text-xs tracking-wide">Fatos Atualizados</span>
+                        <div className="absolute bottom-16 left-4 right-4 top-16 rounded-2xl border border-stone-700 bg-stone-900/95 overflow-hidden flex flex-col">
+                             <div className="p-4 border-b border-stone-700 flex-shrink-0">
                                 <button
                                     onClick={() => setIsStoryDrawerOpen(false)}
                                     className="text-sm text-stone-400 hover:text-stone-200"
@@ -465,10 +469,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                     Fechar
                                 </button>
                             </div>
-                            <StoryHighlightsCard variant="compact" />
+                            <div className="flex-grow overflow-y-auto p-4">
+                                <StoryHighlightsCard variant="compact" />
+                            </div>
                         </div>
                     </div>
                 )}
+
 
                 <MobileToolbar 
                     activeTab={activeTab}
@@ -502,3 +509,4 @@ export default GameScreen;
     
 
     
+
