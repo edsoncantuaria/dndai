@@ -72,6 +72,27 @@ const CollapsibleCardSection: React.FC<{
     );
 };
 
+const CompactSummary: React.FC<{ summary: string }> = ({ summary }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const isLongText = summary.length > 200; // Define um limiar para mostrar o botão
+
+    return (
+        <div className="text-sm text-stone-200">
+            <p className={`${!isExpanded && isLongText ? 'line-clamp-4' : ''}`}>
+                {summary || 'Continue explorando para gerar novos fatos.'}
+            </p>
+            {isLongText && (
+                <button
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="mt-2 text-xs font-semibold text-amber-300 hover:text-amber-200"
+                >
+                    {isExpanded ? 'Mostrar menos' : 'Mostrar mais'}
+                </button>
+            )}
+        </div>
+    );
+};
+
 
 const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'default' }) => {
     const { sessionId } = useGameStateContext();
@@ -182,9 +203,7 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                 </div>
                 
                 <CollapsibleCardSection title="Resumo" icon={<Bookmark className="h-4 w-4" />} hasContent={!!facts?.storySummary} defaultOpen>
-                    <p className="text-sm text-stone-200 line-clamp-4">
-                        {facts?.storySummary || 'Continue explorando para gerar novos fatos.'}
-                    </p>
+                    <CompactSummary summary={facts?.storySummary || 'Continue explorando para gerar novos fatos.'} />
                 </CollapsibleCardSection>
 
                 <CollapsibleCardSection title="Fatos Recentes" icon={<CalendarClock className="h-4 w-4" />} hasContent={timelineLines.length > 0}>
