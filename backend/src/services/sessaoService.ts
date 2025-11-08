@@ -366,3 +366,52 @@ export const generateSessionReplayMarkdown = async (
         markdown: markdownSections.join('\n\n').trim(),
     };
 };
+
+export const renameSessao = async (sessionId: number, userId: number, nome: string) => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const sessao = await sessaoRepository.findOne({
+        where: { id: sessionId, userId, deletedAt: IsNull() },
+    });
+
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
+    }
+
+    sessao.nome = nome.trim();
+    const updated = await sessaoRepository.save(sessao);
+    const { apiKey, ...sessaoSemApi } = updated;
+    return sessaoSemApi;
+};
+
+export const cloneSessao = async (sessionId: number, userId: number) => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const sessao = await sessaoRepository.findOne({
+        where: { id: sessionId, userId, deletedAt: IsNull() },
+        relations: ['character'],
+    });
+
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
+    }
+
+    const originalCharacterName = sessao.character?.name || 'Herói';
+    const clonedCharacterName = `${originalCharacterName} (Cópia)`.slice(0, 60);
+    const clonedCharacter = await cloneCharacter(sessao.characterId, userId, clonedCharacterName);
+    if (!clonedCharacter) {
+        throw createError(500, 'Falha ao clonar o personagem da sessão.');
+    }
+
+    const cloneName = `${sessao.nome} (Clone)`.slice(0, 60);
+    const novaSessao = sessaoRepository.create({
+        nome: cloneName,
+        userId,
+        characterId: clonedCharacter.id,
+        apiKey: '',
+        homebrewContentIds: sessao.homebrewContentIds ?? [],
+    });
+
+    const sessaoClonada = await sessaoRepository.save(novaSessao);
+    const { apiKey, ...sessaoSemApi } = sessaoClonada;
+
+    return { sessao: sessaoSemApi };
+};
