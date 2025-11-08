@@ -4,7 +4,7 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock, MapPin, CloudSun } from 'lucide-react';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock, MapPin, CloudSun, MoreVertical, Edit, Copy } from 'lucide-react';
 import PremiumLoader from './ui/PremiumLoader';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
@@ -18,6 +18,7 @@ import TranslationStudio from './Homebrew/TranslationStudio';
 import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
@@ -48,6 +49,9 @@ const GameContainer = () => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
+    const [sessionToRename, setSessionToRename] = useState<SessaoIA | null>(null);
+    const [newSessionName, setNewSessionName] = useState("");
+    const [sessionToClone, setSessionToClone] = useState<SessaoIA | null>(null);
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
 
 
@@ -180,6 +184,22 @@ const GameContainer = () => {
         setSessionToDelete(null);
         fetchInitialData(); // Refresh list
     }, [sessionToDelete, deleteSession, fetchInitialData]);
+    
+    const confirmRenameSession = useCallback(async () => {
+        if (!sessionToRename || !newSessionName.trim()) return;
+        await GameService.renameGameSession(sessionToRename.id, newSessionName);
+        setSessionToRename(null);
+        setNewSessionName("");
+        fetchInitialData();
+    }, [sessionToRename, newSessionName, fetchInitialData]);
+    
+    const confirmCloneSession = useCallback(async () => {
+        if (!sessionToClone) return;
+        await GameService.cloneGameSession(sessionToClone.id);
+        setSessionToClone(null);
+        fetchInitialData();
+    }, [sessionToClone, fetchInitialData]);
+
 
     // --- Render Logic ---
 
@@ -258,7 +278,10 @@ const GameContainer = () => {
         }
 
         if (gameStage === 'session_list') {
+            const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+            
             return (
+                <TooltipProvider>
                 <div className="relative isolate min-h-full w-full overflow-y-auto bg-[#030812]">
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.12),transparent_60%)]" />
                     <div className="absolute -bottom-32 right-0 h-96 w-96 bg-emerald-500/20 blur-[160px]" />
@@ -285,14 +308,27 @@ const GameContainer = () => {
                                                     <p className="text-xs uppercase tracking-[0.35em] text-stone-500">
                                                         Atualizado em {updatedDate}
                                                     </p>
-                                                    <h2 className="text-2xl font-semibold text-white">{session.nome}</h2>
+                                                    <h2 className="text-2xl font-semibold text-white max-w-[42ch]">{session.nome}</h2>
                                                     <p className="text-sm text-stone-300">
                                                         Herói: {session.character?.name} · {session.character?.characterClass} Nível {session.character?.level}
                                                     </p>
                                                 </div>
-                                                <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
-                                                    Sessão #{session.id}
-                                                </span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
+                                                        Sessão #{session.id}
+                                                    </span>
+                                                    <div className="relative">
+                                                        <button onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}>
+                                                            <MoreVertical className="h-5 w-5 text-stone-400 hover:text-white" />
+                                                        </button>
+                                                        {dropdownOpen === session.id && (
+                                                            <div className="absolute right-0 mt-2 w-48 bg-stone-800 border border-stone-600 rounded-md shadow-lg z-10">
+                                                                <button onClick={() => { setSessionToRename(session); setNewSessionName(session.nome); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Edit className="h-4 w-4"/>Renomear</button>
+                                                                <button onClick={() => { setSessionToClone(session); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Copy className="h-4 w-4"/>Clonar</button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
                                             </div>
                                             <div className="mt-4 flex flex-wrap gap-3">
                                                 <button
@@ -340,6 +376,7 @@ const GameContainer = () => {
                         </div>
                     </div>
                 </div>
+                </TooltipProvider>
             );
         }
 
@@ -513,6 +550,7 @@ const GameContainer = () => {
                                         <h3 className="text-xl font-semibold text-white">{featuredSession.nome}</h3>
                                         <p className="text-sm text-stone-300">Herói: {featuredSession.character?.name}</p>
                                         <p className="text-[11px] uppercase tracking-wide text-stone-500">Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}</p>
+                                        
                                         {featuredSessionFacts?.storySummary && (
                                            <div className="pt-2 border-t border-white/10">
                                                 <p className={cn("text-sm text-stone-300 transition-all duration-300", !isSummaryExpanded && "line-clamp-3")}>
@@ -523,6 +561,14 @@ const GameContainer = () => {
                                                 </button>
                                             </div>
                                         )}
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
+                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].summary.split(',')[0]}</span>
+                                            )}
+                                            {featuredSessionFacts?.recentEvents?.[0]?.notes && (
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].notes.split(' | ')[0]}</span>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <button
@@ -583,11 +629,11 @@ const GameContainer = () => {
                                             Herói: {featuredSession.character?.name}
                                         </p>
                                         <div className="text-xs text-stone-400 flex flex-wrap items-center gap-x-4 gap-y-1 pt-2">
-                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].summary.split(',')[0]}</span>
+                                            {featuredSessionFacts?.recentEvents?.[0] && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts.recentEvents[0].summary || 'Local Desconhecido').split(',')[0]}</span>
                                             )}
                                             {featuredSessionFacts?.recentEvents?.[0]?.notes && (
-                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].notes.split(' | ')[0]}</span>
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes.split(' | ')[0]}</span>
                                             )}
                                         </div>
                                         {featuredSessionFacts?.storySummary && (
@@ -728,6 +774,40 @@ const GameContainer = () => {
                     ]}
                 >
                     <p className="text-stone-300">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
+                </ActionModal>
+            )}
+
+             {sessionToRename && (
+                <ActionModal
+                    isOpen={!!sessionToRename}
+                    title="Renomear Sessão"
+                    onClose={() => setSessionToRename(null)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setSessionToRename(null), variant: 'secondary' },
+                        { text: "Salvar Nome", onClick: confirmRenameSession, variant: 'primary' }
+                    ]}
+                >
+                    <input
+                        type="text"
+                        value={newSessionName}
+                        onChange={(e) => setNewSessionName(e.target.value)}
+                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                        maxLength={42}
+                    />
+                </ActionModal>
+            )}
+
+            {sessionToClone && (
+                <ActionModal
+                    isOpen={!!sessionToClone}
+                    title={`Clonar "${sessionToClone.nome}"?`}
+                    onClose={() => setSessionToClone(null)}
+                    actions={[
+                        { text: "Cancelar", onClick: () => setSessionToClone(null), variant: 'secondary' },
+                        { text: "Sim, Clonar", onClick: confirmCloneSession, variant: 'primary' }
+                    ]}
+                >
+                    <p className="text-stone-300">Isso criará uma nova sessão, independente, a partir do estado atual desta aventura. Deseja continuar?</p>
                 </ActionModal>
             )}
 

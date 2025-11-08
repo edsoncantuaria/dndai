@@ -92,6 +92,19 @@ export const updateSessionHomebrew = async (sessionId: number, homebrewId: strin
     });
 };
 
+export const renameGameSession = async (sessionId: number, newName: string) => {
+    return apiClient<{ sessao: SessaoIA, message: string }>(`/sessoes/${sessionId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: newName }),
+    });
+};
+
+export const cloneGameSession = async (sessionId: number) => {
+    return apiClient<{ sessao: SessaoIA, message: string }>(`/sessoes/${sessionId}/clone`, {
+        method: 'POST',
+    });
+};
+
 
 // --- Gameplay Actions ---
 

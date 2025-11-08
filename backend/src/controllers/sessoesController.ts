@@ -151,3 +151,39 @@ export const getSessaoReplayMarkdown = async (req: AuthRequest, res: Response, n
         next(error);
     }
 };
+
+export const renameSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const { name } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) return next(createError(401, 'Não autorizado.'));
+    if (!name || typeof name !== 'string' || name.length > 42) {
+        return next(createError(400, 'Nome inválido ou excede 42 caracteres.'));
+    }
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) return next(createError(400, 'ID de sessão inválido.'));
+
+    try {
+        const sessao = await SessaoService.renameSessao(sessionIdNum, userId, name);
+        res.status(200).json({ message: "Sessão renomeada.", sessao });
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const cloneSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    if (!userId) return next(createError(401, 'Não autorizado.'));
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) return next(createError(400, 'ID de sessão inválido.'));
+
+    try {
+        const { sessao } = await SessaoService.cloneSessao(sessionIdNum, userId);
+        res.status(201).json({ message: "Sessão clonada com sucesso.", sessao });
+    } catch (error) {
+        next(error);
+    }
+};
