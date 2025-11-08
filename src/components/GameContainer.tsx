@@ -53,6 +53,7 @@ const GameContainer = () => {
     const [newSessionName, setNewSessionName] = useState("");
     const [sessionToClone, setSessionToClone] = useState<SessaoIA | null>(null);
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
 
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -81,7 +82,7 @@ const GameContainer = () => {
                     const facts = await GameService.getSessionFacts(latestSessionId);
                     setFeaturedSessionFacts(facts);
                 } catch (factError) {
-                    console.warn(`[GameContainer] Não foi possível carregar os fatos da sessão ${latestSessionId}:`, factError);
+                    console.warn(`[GameContainer] Não foi possível carregar os fatos da sessão ${'latestSessionId'}:`, factError);
                     setFeaturedSessionFacts(null);
                 }
             } else {
@@ -278,8 +279,6 @@ const GameContainer = () => {
         }
 
         if (gameStage === 'session_list') {
-            const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-            
             return (
                 <TooltipProvider>
                 <div className="relative isolate min-h-full w-full overflow-y-auto bg-[#030812]">
@@ -563,10 +562,10 @@ const GameContainer = () => {
                                         )}
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
                                             {featuredSessionFacts?.recentEvents?.[0]?.summary && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].summary.split(',')[0]}</span>
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts?.recentEvents?.[0].summary || 'Local Desconhecido').split(',')[0]}</span>
                                             )}
                                             {featuredSessionFacts?.recentEvents?.[0]?.notes && (
-                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].notes.split(' | ')[0]}</span>
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes.split(' | ')[0]}</span>
                                             )}
                                         </div>
                                     </div>
@@ -629,8 +628,8 @@ const GameContainer = () => {
                                             Herói: {featuredSession.character?.name}
                                         </p>
                                         <div className="text-xs text-stone-400 flex flex-wrap items-center gap-x-4 gap-y-1 pt-2">
-                                            {featuredSessionFacts?.recentEvents?.[0] && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts.recentEvents[0].summary || 'Local Desconhecido').split(',')[0]}</span>
+                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts?.recentEvents?.[0].summary || 'Local Desconhecido').split(',')[0]}</span>
                                             )}
                                             {featuredSessionFacts?.recentEvents?.[0]?.notes && (
                                                 <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes.split(' | ')[0]}</span>
