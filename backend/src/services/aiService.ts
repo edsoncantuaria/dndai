@@ -1,5 +1,7 @@
 // backend/src/services/aiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import JSON5 from 'json5';
+import { Buffer } from 'buffer';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
@@ -22,6 +24,164 @@ const estimateTokenCount = (text: string) => Math.ceil(text.length / 4);
 const MIN_OUTPUT_TOKENS = 256;
 const DEFAULT_OUTPUT_TOKENS = 1024;
 const HARD_OUTPUT_CAP = 4096;
+
+const extractResponseText = (response: any): string => {
+    if (!response) return '';
+
+    try {
+        const primary = typeof response.text === 'function' ? response.text() : response.text;
+        if (typeof primary === 'string' && primary.trim()) {
+            return primary.trim();
+        }
+    } catch (err) {
+        console.warn('[aiService] Falha ao ler response.text():', err);
+    }
+
+    const collectFromParts = (parts: any[] | undefined): string[] => {
+        if (!Array.isArray(parts) || !parts.length) return [];
+        const chunks: string[] = [];
+        for (const part of parts) {
+            if (!part || typeof part !== 'object') continue;
+            if (typeof part.text === 'string' && part.text.trim()) {
+                chunks.push(part.text.trim());
+                continue;
+            }
+            if (part.functionCall) {
+                const args = part.functionCall.args;
+                if (typeof args === 'string' && args.trim()) {
+                    chunks.push(args.trim());
+                    continue;
+                }
+                if (args && typeof args === 'object') {
+                    chunks.push(JSON.stringify(args));
+                    continue;
+                }
+            }
+            if (part.inlineData?.data) {
+                try {
+                    const decoded = Buffer.from(part.inlineData.data, 'base64').toString('utf8').trim();
+                    if (decoded) {
+                        chunks.push(decoded);
+                    }
+                } catch (decodeErr) {
+                    console.warn('[aiService] Falha ao decodificar inlineData:', decodeErr);
+                }
+            }
+        }
+        return chunks;
+    };
+
+    if (Array.isArray(response?.candidates)) {
+        const buffer: string[] = [];
+        for (const candidate of response.candidates) {
+            const parts = candidate?.content?.parts;
+            buffer.push(...collectFromParts(parts));
+            if (candidate?.finishReason === 'STOP' && buffer.length) break;
+        }
+        const fallback = buffer.join('').trim();
+        if (fallback) {
+            return fallback;
+        }
+    }
+
+    const promptFeedbackText = response?.promptFeedback?.blockReason
+        ? `{"error":"${response.promptFeedback.blockReason}","details":${JSON.stringify(response.promptFeedback)}}`
+        : '';
+    if (promptFeedbackText) {
+        return promptFeedbackText;
+    }
+
+    if (response?.cachedContent) {
+        return extractResponseText(response.cachedContent);
+    }
+
+    return '';
+};
+
+const attemptJsonRepair = (input: string): string | null => {
+    if (!input || typeof input !== 'string') return null;
+    let result = input.trim();
+    if (!result) return null;
+
+    // Remove trailing NULL/EOF-like characters
+    result = result.replace(/[\u0000]+$/g, '').trimEnd();
+    result = result.replace(/,\s*([\]}])/g, '$1');
+
+    // Track braces/brackets to append missing closures
+    const stack: string[] = [];
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < result.length; i++) {
+        const char = result[i];
+        if (inString) {
+            if (escape) {
+                escape = false;
+                continue;
+            }
+            if (char === '\\') {
+                escape = true;
+                continue;
+            }
+            if (char === '"') {
+                inString = false;
+            }
+            continue;
+        }
+
+        switch (char) {
+            case '"':
+                inString = true;
+                break;
+            case '{':
+            case '[':
+                stack.push(char);
+                break;
+            case '}':
+            case ']':
+                if (stack.length === 0) {
+                    // Remove stray closing brace
+                    result = result.slice(0, i) + result.slice(i + 1);
+                    i -= 1;
+                } else {
+                    const last = stack[stack.length - 1];
+                    const isMatch = (last === '{' && char === '}') || (last === '[' && char === ']');
+                    if (isMatch) {
+                        stack.pop();
+                    } else {
+                        result = result.slice(0, i) + result.slice(i + 1);
+                        i -= 1;
+                    }
+                }
+                break;
+            case ',':
+                // Remove trailing comma fragments like ",\n}"
+                const tail = result.slice(i);
+                const trailingMatch = tail.match(/^,\s*([}\]])/);
+                if (trailingMatch) {
+                    result = result.slice(0, i) + trailingMatch[1] + result.slice(i + trailingMatch[0].length);
+                    i -= 1;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    if (inString) {
+        result += '"';
+        inString = false;
+    }
+
+    while (stack.length) {
+        const opener = stack.pop();
+        result += opener === '{' ? '}' : ']';
+    }
+    result = result.replace(/,\s*([\]}])/g, '$1');
+    result = result.replace(/,\s*$/g, '');
+
+    return result;
+};
 
 const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { input: number; output: number; temperature: number }> = {
     gameplay: { input: 16000, output: 2048, temperature: 0.9 },
@@ -59,7 +219,7 @@ const buildGenerationConfig = (
     const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
     const availableBudget = Math.max(
         MIN_OUTPUT_TOKENS,
-        Math.min(profile.output, HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
+        Math.min(HARD_OUTPUT_CAP, Math.max(totalBudget - promptTokens, MIN_OUTPUT_TOKENS))
     );
     const appliedMax = Math.max(MIN_OUTPUT_TOKENS, Math.min(requestedMax, availableBudget));
 
@@ -441,7 +601,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, blockMessage);
             }
 
-            const jsonText = response.text();
+            const jsonText = extractResponseText(response);
             
             console.log("📜 Resposta bruta da IA:", jsonText);
             
@@ -454,7 +614,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             let responseData: any;
             try {
                 let textToParse = jsonText.trim();
-                 if (!textToParse.startsWith('{')) {
+                if (!textToParse.startsWith('{') && !textToParse.startsWith('[')) {
                     const jsonMatch = textToParse.match(/\{[\s\S]*\}/);
                     if (jsonMatch) {
                         textToParse = jsonMatch[0];
@@ -463,8 +623,29 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 responseData = JSON.parse(textToParse);
             } catch(e: any) {
                 console.error(`[aiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
-                if (!isRetry) return attemptGeneration(true);
-                throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
+                let repairedData: any = null;
+                const structurallyRepairedText = attemptJsonRepair(jsonText);
+                if (structurallyRepairedText) {
+                    try {
+                        repairedData = JSON.parse(structurallyRepairedText);
+                        console.warn('[aiService] attemptJsonRepair conseguiu reconstruir a resposta inválida.');
+                    } catch (repairParseError: any) {
+                        console.error('[aiService] attemptJsonRepair falhou ao gerar JSON válido:', repairParseError);
+                    }
+                }
+
+                if (!repairedData) {
+                    try {
+                        repairedData = JSON5.parse(jsonText);
+                        console.warn('[aiService] JSON5 reparou a resposta parcialmente inválida.');
+                    } catch (json5Error: any) {
+                        console.error('[aiService] JSON5 também falhou ao interpretar a resposta:', json5Error);
+                        if (!isRetry) return attemptGeneration(true);
+                        throw createError(500, `O Mestre de Jogo forneceu uma resposta em um formato inválido: ${e.message}`);
+                    }
+                }
+
+                responseData = repairedData;
             }
 
             // 1️⃣ Mini-sanitizer (limpeza pré-validação)
