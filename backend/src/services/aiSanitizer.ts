@@ -76,6 +76,83 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
+
+  const toNumber = (value: any): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const extractHpPair = (source: any): { current?: number; max?: number } | undefined => {
+    if (!source || typeof source !== 'object') return undefined;
+    let current = undefined;
+    let max = undefined;
+
+    const objectCandidates = [
+      source.hp,
+      source.attributes?.hp,
+      source.stats?.hp,
+      source.health,
+    ];
+    for (const candidate of objectCandidates) {
+      if (typeof candidate === 'number') {
+        current = current ?? toNumber(candidate);
+      } else if (candidate && typeof candidate === 'object') {
+        if (candidate.current !== undefined) current = current ?? toNumber(candidate.current);
+        if (candidate.value !== undefined) current = current ?? toNumber(candidate.value);
+        if (candidate.remaining !== undefined) current = current ?? toNumber(candidate.remaining);
+        if (candidate.max !== undefined) max = max ?? toNumber(candidate.max);
+        if (candidate.maximum !== undefined) max = max ?? toNumber(candidate.maximum);
+        if (candidate.total !== undefined) max = max ?? toNumber(candidate.total);
+      }
+    }
+
+    const currentCandidates = [
+      source.hpCurrent,
+      source.currentHp,
+      source.remainingHp,
+      source.current_health,
+      source.healthCurrent,
+    ];
+    for (const candidate of currentCandidates) {
+      const value = toNumber(candidate);
+      if (value !== undefined) {
+        current = current ?? value;
+        break;
+      }
+    }
+
+    const maxCandidates = [
+      source.hpMax,
+      source.maxHp,
+      source.totalHp,
+      source.healthMax,
+      source.max_health,
+    ];
+    for (const candidate of maxCandidates) {
+      const value = toNumber(candidate);
+      if (value !== undefined) {
+        max = max ?? value;
+        break;
+      }
+    }
+
+    if (current === undefined && max === undefined) return undefined;
+    if (current === undefined) current = max ?? 0;
+    if (max === undefined) max = current;
+    return { current, max };
+  };
+
+  const getPlayerFallbackHp = () => {
+    const updatedAttrs = sanitized.updatedCharacter?.attributes;
+    const charAttrs = currentCharacter?.attributes;
+    const current = toNumber(updatedAttrs?.hp) ?? toNumber(charAttrs?.hp);
+    const max = toNumber(updatedAttrs?.maxHp) ?? toNumber(charAttrs?.maxHp) ?? toNumber(charAttrs?.hp);
+    return current !== undefined || max !== undefined
+      ? { current: current ?? max ?? 0, max: max ?? current ?? 0 }
+      : undefined;
+  };
+
   if (sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
     const previousItems = currentCharacter.inventory as any[];
     const mergeMap = new Map<string, any>();
@@ -213,32 +290,70 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
           sanitized.combatState = undefined;
           sanitationLogs.push(`combatState.isActive é falso, definindo combatState como undefined.`);
       } else {
-          // Garante que `combatants` seja um array e limpa cada combatente.
-          if (!Array.isArray(sanitized.combatState.combatants)) {
-              sanitized.combatState.combatants = [];
+          const normalizeNumber = (value: any, fallback: number) => {
+              const num = Number(value);
+              return Number.isFinite(num) ? num : fallback;
+          };
+
+          const rawRound = sanitized.combatState.round ?? sanitized.combatState.currentRound ?? 1;
+          const rawTurn = sanitized.combatState.turn ?? sanitized.combatState.currentTurn ?? sanitized.combatState.activeCombatantIndex ?? 0;
+          sanitized.combatState.round = normalizeNumber(rawRound, 1);
+          sanitized.combatState.turn = normalizeNumber(rawTurn, 0);
+
+          if (!Array.isArray(sanitized.combatState.initiativeOrder)) {
+              if (Array.isArray(sanitized.combatState.combatants)) {
+                  sanitized.combatState.initiativeOrder = sanitized.combatState.combatants
+                      .map((c: any) => c?.id)
+                      .filter(Boolean);
+              } else {
+                  sanitized.combatState.initiativeOrder = [];
+              }
+          } else {
+              sanitized.combatState.initiativeOrder = sanitized.combatState.initiativeOrder
+                  .map(entry => entry ? String(entry) : null)
+                  .filter(Boolean) as string[];
           }
 
-          sanitized.combatState.combatants = sanitized.combatState.combatants.map((c: any) => {
+          let combatantsSource: any = sanitized.combatState.combatants;
+          if (!Array.isArray(combatantsSource) && combatantsSource && typeof combatantsSource === 'object') {
+              combatantsSource = Object.values(combatantsSource);
+          }
+          if (!Array.isArray(combatantsSource)) {
+              combatantsSource = [];
+          }
+
+          const playerHpFallback = getPlayerFallbackHp();
+
+          sanitized.combatState.combatants = combatantsSource.map((c: any) => {
               if (!c || typeof c !== 'object') return null; // Descarta combatentes inválidos
 
-              // Se a IA incluiu o objeto completo do jogador, limpa para o formato esperado.
               if (c.id === 'player' || c.name === currentCharacter?.name || c.isPlayer) {
-                  return {
-                      id: 'player',
-                      name: currentCharacter?.name || 'Player',
-                      hp: c.hp || currentCharacter?.attributes?.hp,
-                      ac: c.ac || currentCharacter?.attributes?.ac,
-                      isPlayer: true,
-                      initiative: c.initiative === null ? undefined : c.initiative,
-                  };
+                  const playerCombatant = { ...c };
+                  playerCombatant.id = 'player';
+                  playerCombatant.name = currentCharacter?.name || c.name || 'Player';
+                  playerCombatant.isPlayer = true;
+                  const derivedHp = extractHpPair(c) || playerHpFallback || { current: 0, max: 0 };
+                  playerCombatant.hp = { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 };
+                  if (playerCombatant.ac === undefined) {
+                      playerCombatant.ac = toNumber(currentCharacter?.attributes?.ac) ?? playerCombatant.ac;
+                  }
+                  if (playerCombatant.actionPoints === undefined) {
+                      playerCombatant.actionPoints = 30;
+                  }
+                  if (playerCombatant.bonusActionPoints === undefined) {
+                      playerCombatant.bonusActionPoints = 1;
+                  }
+                  if (playerCombatant.initiative === null) {
+                      playerCombatant.initiative = undefined;
+                  }
+                  return playerCombatant;
               }
-              // Para NPCs/Monstros, garanta que `initiative` não seja nulo e que o HP seja um objeto.
-              const currentHp = typeof c.hp === 'object' ? c.hp.current : c.hp;
-              const maxHp = typeof c.hp === 'object' ? c.hp.max : c.maxHp;
-              
+
+              const derivedHp = extractHpPair(c);
+
               return {
                   ...c,
-                  hp: { current: currentHp, max: maxHp },
+                  hp: derivedHp ? { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 } : { current: 0, max: 0 },
                   initiative: c.initiative === null ? undefined : c.initiative,
               };
           }).filter(Boolean); // Remove quaisquer entradas nulas
@@ -317,6 +432,13 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
            sanitationLogs.push(`${String(field)} era nulo ou vazio, definido como undefined.`);
       }
   });
+
+  if (sanitized.playerRollRequest && typeof sanitized.playerRollRequest === 'object') {
+      if (sanitized.playerRollRequest.dc === null) {
+          delete sanitized.playerRollRequest.dc;
+          sanitationLogs.push('playerRollRequest.dc nulo removido.');
+      }
+  }
 
   if (sanitationLogs.length > 0) {
     const existingLog = sanitized.systemLog ? ` | ${sanitized.systemLog}` : '';

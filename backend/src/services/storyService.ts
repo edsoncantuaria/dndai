@@ -23,7 +23,7 @@ interface TimelineEventInput {
 const TIMELINE_KEY = (sessaoId: number) => `session:${sessaoId}:timeline`;
 const SUMMARY_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary`;
 const SUMMARY_META_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
-const STORY_MODEL = 'gemini-1.5-flash';
+const STORY_MODEL = 'models/gemini-2.5-flash-lite';
 
 const MAX_TIMELINE_ENTRIES = 200;
 const SUMMARY_MIN_BATCH = 5;
