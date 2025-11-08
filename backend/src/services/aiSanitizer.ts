@@ -349,7 +349,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
                   const derivedHp = extractHpPair(c) || playerHpFallback || { current: 0, max: 0 };
                   playerCombatant.hp = { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 };
                   if (playerCombatant.ac === undefined) {
-                      playerCombatant.ac = toNumber(currentCharacter?.attributes?.ac) ?? playerCombatant.ac;
+                      playerCombatant.ac = toNumber(currentCharacter?.attributes?.ac) ?? 10;
                   }
                   if (playerCombatant.actionPoints === undefined) {
                       playerCombatant.actionPoints = 30;
@@ -371,6 +371,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
               return {
                   ...c,
                   id: normalizedId,
+                  ac: toNumber(c.ac) ?? 10,
                   hp: derivedHp ? { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 } : { current: 0, max: 0 },
                   initiative: c.initiative === null ? undefined : c.initiative,
               };
