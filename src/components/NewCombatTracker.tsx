@@ -1,6 +1,6 @@
 // src/components/NewCombatTracker.tsx
 'use client';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '../contexts/GameStateContext';
 import CombatantCard from './CombatantCard';
@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(false); // Iniciar recolhido
 
     const getCombatantId = (combatantOrId: any): string => {
         if (!combatantOrId) return '';
@@ -37,7 +37,7 @@ const NewCombatTracker: React.FC = () => {
             hasMoved: false,
             hasActed: false,
             actionPoints: 3,
-            bonusActionPoints: 3,
+            bonusActionPoints: 1,
             conditions: character.conditions.map(c => c.name),
             rollHistory: [],
         };
@@ -100,6 +100,13 @@ const NewCombatTracker: React.FC = () => {
     const currentCombatantId = getCombatantId(initiativeOrder[currentCombatantIndex]);
     const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
     
+    // Auto-expande no turno do jogador
+    useEffect(() => {
+        if (currentCombatant?.isPlayer) {
+            setIsExpanded(true);
+        }
+    }, [currentCombatant]);
+
     const upcomingCombatants = [];
     if (allCombatants.length > 1) {
         for (let i = 1; i < allCombatants.length; i++) {
