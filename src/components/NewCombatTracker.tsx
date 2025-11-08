@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
-    const [isExpanded, setIsExpanded] = useState(false); // Iniciar recolhido por padrão
+    const [isExpanded, setIsExpanded] = useState(false);
 
     const getCombatantId = (combatantOrId: any): string => {
         if (!combatantOrId) return '';
@@ -94,6 +94,8 @@ const NewCombatTracker: React.FC = () => {
         const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
         if (currentCombatant?.isPlayer) {
             setIsExpanded(true);
+        } else {
+            setIsExpanded(false);
         }
     }, [combatState.turn, combatState.initiativeOrder, allCombatants]);
 
@@ -128,7 +130,7 @@ const NewCombatTracker: React.FC = () => {
 
     return (
         <motion.div
-            className={cn('flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border flex flex-col', containerGlow)}
+            className={cn('relative flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border flex flex-col', containerGlow)}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             layout
@@ -163,7 +165,8 @@ const NewCombatTracker: React.FC = () => {
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25 }}
                     >
-                        <div className="flex-grow overflow-y-auto pr-2 space-y-3 max-h-[60vh]">
+                         {/* Div para conter a lista rolável */}
+                        <div className="flex-grow overflow-y-auto space-y-3 pr-2 max-h-[60vh] min-h-0">
                             {currentCombatant && (
                                 <motion.div
                                     className="space-y-3"
