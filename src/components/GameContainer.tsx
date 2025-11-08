@@ -271,7 +271,7 @@ const GameContainer = () => {
                                             className="rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div className="max-w-[70%] flex-grow">
+                                                <div className="flex-grow max-w-[calc(100%-150px)]">
                                                     <p className="text-xs uppercase tracking-[0.25em] text-amber-300">Sessão</p>
                                                     <h2 className="truncate text-2xl font-semibold text-white">{session.nome}</h2>
                                                     <p className="text-sm text-stone-300">
@@ -347,9 +347,9 @@ const GameContainer = () => {
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
                 onRequestDeleteCharacter={requestDeleteCharacter}
-                onRequestDeleteSession={openSessionActionModal} // Changed to open modal
-                onRequestRenameSession={openSessionActionModal} // Changed to open modal
-                onRequestCloneSession={openSessionActionModal} // Changed to open modal
+                onRequestDeleteSession={requestDeleteSession}
+                onRequestRenameSession={requestRenameSession}
+                onRequestCloneSession={requestCloneSession}
                 onOpenSettings={openSettings}
                 onOpenSystemTests={openSystemTests}
                 onOpenArchitecture={openArchitecture}
@@ -376,7 +376,9 @@ const GameContainer = () => {
                     isOpen={isActionModalOpen}
                     title={`Ações para "${selectedSessionForAction.nome}"`}
                     onClose={handleActionModalClose}
-                    actions={[]}
+                    actions={[
+                        { text: "Cancelar", onClick: handleActionModalClose, variant: 'secondary' },
+                    ]}
                 >
                     <div className="flex flex-col gap-3">
                         <button
