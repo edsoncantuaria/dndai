@@ -1,6 +1,5 @@
 // backend/src/server.ts
 import 'reflect-metadata';
-import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'http'; // Importar o módulo http
@@ -9,6 +8,8 @@ import errorMiddleware from './middlewares/errorMiddleware.js';
 import { configureWebSocket } from './websocket/webSocketServer.js';
 import { getTranslations } from './services/translationService.js'; // Importa o novo serviço
 import { checkObjectStorageHealth } from './services/objectStorageService.js';
+import { env } from './config/env.js';
+import { ensureQdrantCollections } from './database/qdrant-client.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
@@ -54,7 +55,7 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-const PORT = process.env.PORT || 8071;
+const PORT = env.PORT;
 
 // Rotas da API
 app.use('/api/auth', authRoutes);
@@ -99,6 +100,14 @@ const startServer = async () => {
             console.log(`${storageMessagePrefix} ${storageHealth.message}`);
         } else {
             console.warn(`${storageMessagePrefix} ${storageHealth.message}`);
+        }
+
+        if (env.QDRANT_ENABLED) {
+            try {
+                await ensureQdrantCollections();
+            } catch (error) {
+                console.error('[Startup][QDRANT] Falha ao preparar coleções:', error);
+            }
         }
         
         // Configurar o servidor WebSocket, passando o servidor HTTP

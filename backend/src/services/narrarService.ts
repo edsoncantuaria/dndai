@@ -30,12 +30,15 @@ import { applyXpEvents } from './xpService.js';
 import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 import { offloadLargePayload } from './objectStorageService.js';
+import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
+import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
 const MAX_PROMPT_LOG_ENTRIES = 12;
 const MAX_PROMPT_ENTRY_CHARS = 320;
 const LOG_STORAGE_THRESHOLD = 1800;
+const MAX_MEMORY_LINES = 6;
 
 const truncateText = (value: string, limit = MAX_PROMPT_ENTRY_CHARS) => {
     if (!value) return '';
@@ -77,6 +80,17 @@ const prepareLogPayload = async (sessaoId: number, type: string, payload: unknow
     if (serialized.length < LOG_STORAGE_THRESHOLD) return serialized;
     const offloaded = await offloadLargePayload(serialized, { prefix: `sessions/${sessaoId}/${type}` });
     return offloaded ?? serialized;
+};
+
+const formatMemoriesForPrompt = (memories: MemoryPayload[]) => {
+    if (!memories.length) return '';
+    const lines = memories.slice(0, MAX_MEMORY_LINES).map(memory => {
+        const when = memory.timestamp ? new Date(memory.timestamp).toISOString() : 'recente';
+        const label = memory.name || memory.type || 'memória';
+        const summary = memory.summary || memory.text || '';
+        return `${when} | ${label}: ${summary}`;
+    });
+    return lines.join('\n');
 };
 
 const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
@@ -542,6 +556,28 @@ export const processPlayerTurn = async (
     const chronologicalLogs = recentLogs.reverse();
     const compactGameLog = buildPromptLogString(chronologicalLogs) || 'SEM_EVENTOS';
 
+    let semanticMemoryDigest = '';
+    if (!isTestRun && sessao) {
+        try {
+            const memories = await recallSimilarMemories(
+                'session_memories',
+                `${playerAction}\n${compactGameLog}`,
+                {
+                    apiKey,
+                    limit: 5,
+                    filter: { sessionId: String(sessao.id) },
+                },
+            );
+            semanticMemoryDigest = formatMemoriesForPrompt(memories);
+        } catch (error) {
+            console.error('[narrarService] Falha ao recuperar memórias semânticas:', error);
+        }
+    }
+
+    const enrichedGameLog = semanticMemoryDigest
+        ? `${compactGameLog}\nMEMORIAS=${semanticMemoryDigest}`
+        : compactGameLog;
+
     const isInternalAction = playerAction.startsWith("Recarregar estado atual")
         || playerAction.startsWith("A aventura começa.")
         || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
@@ -565,6 +601,8 @@ export const processPlayerTurn = async (
     }
 
     let timelineFactsForPrompt: string | null = null;
+    let latestNarrationSummary = '';
+
     if (!isTestRun && sessao) {
         timelineFactsForPrompt = await buildTimelineFacts(sessao.id);
     }
@@ -574,7 +612,7 @@ export const processPlayerTurn = async (
     const gameMasterFlowInput = {
         character: characterForAI,
         playerAction,
-        gameLog: compactGameLog,
+        gameLog: enrichedGameLog,
         combatState: promptCombatState ?? undefined,
         useAiHomebrew: useAiHomebrew ?? true,
         enableNarrativeRevalidation: true,
@@ -767,6 +805,7 @@ export const processPlayerTurn = async (
 
         const narrationEntries = (aiResponse.logEntries || []).filter(entry => entry?.type === 'narration');
         const mainNarration = normalize(narrationEntries[0]?.content);
+        latestNarrationSummary = mainNarration;
         const extraNarration = narrationEntries.slice(1, 3).map(entry => normalize(entry?.content, 200)).filter(Boolean).join(' ');
 
         const notesPieces: string[] = [];
@@ -1008,6 +1047,32 @@ export const processPlayerTurn = async (
         }
         
         await queryRunner.commitTransaction();
+
+        if (!isTestRun && sessao) {
+            const memoryLines = [
+                `Jogador: ${playerAction}`,
+                latestNarrationSummary ? `Mestre: ${latestNarrationSummary}` : null,
+            ].filter(Boolean) as string[];
+
+            try {
+                await storeMemory(
+                    'session_memories',
+                    memoryLines.join('\n'),
+                    {
+                        id: uuidv4(),
+                        sessionId: String(sessao.id),
+                        type: 'narration',
+                        timestamp: Date.now(),
+                        turn: aiResponse.combatState?.turn ?? combatReconciliation?.canonicalState?.turn ?? 0,
+                        summary: latestNarrationSummary || playerAction.slice(0, 160),
+                    },
+                    apiKey,
+                );
+            } catch (error) {
+                console.error('[narrarService] Falha ao armazenar memória vetorial:', error);
+            }
+        }
+
         return aiResponse;
     } catch (error) {
         await queryRunner.rollbackTransaction();
