@@ -3,8 +3,9 @@
 
 import React, { useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Shield, Heart, Zap, Star } from 'lucide-react';
+import { Shield, Heart, Zap, Star, DoorOpen, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const timeOfDayGradients: Record<string, string> = {
     'manhã': 'from-amber-300/30 via-yellow-200/10 to-transparent',
@@ -12,8 +13,13 @@ const timeOfDayGradients: Record<string, string> = {
     'noite': 'from-indigo-700/40 via-purple-700/10 to-transparent',
 };
 
-const GameHud: React.FC = () => {
+interface GameHudProps {
+    onExitToMenu?: () => void;
+}
+
+const GameHud: React.FC<GameHudProps> = ({ onExitToMenu }) => {
     const { character, combatState } = useGameStateContext();
+    const { logout } = useAuth();
 
     const playerCombatant = useMemo(() => {
         if (!combatState?.isActive) return null;
@@ -69,16 +75,35 @@ const GameHud: React.FC = () => {
 
     return (
         <div className={cn(
-            'relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-4 flex flex-wrap gap-4 shadow-lg overflow-hidden'
+            'relative rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-3 sm:p-4 flex flex-col gap-3 shadow-lg overflow-hidden'
         )}>
             <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-r opacity-70', timeGradient)} />
-            {hudItems.map((item, index) => (
-                <div key={item.label} className="relative flex-1 min-w-[160px] z-10">
+            <div className="relative z-10 flex flex-wrap gap-2 justify-end">
+                {onExitToMenu && (
+                    <button
+                        onClick={onExitToMenu}
+                        className="flex items-center gap-1 rounded-full border border-amber-500/60 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 transition-colors"
+                    >
+                        <DoorOpen className="h-3.5 w-3.5" />
+                        Menu
+                    </button>
+                )}
+                <button
+                    onClick={logout}
+                    className="flex items-center gap-1 rounded-full border border-red-500/60 bg-red-500/10 px-3 py-1 text-xs font-semibold text-red-100 hover:bg-red-500/20 transition-colors"
+                >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sair
+                </button>
+            </div>
+            <div className="relative z-10 flex flex-wrap gap-4 w-full">
+            {hudItems.map((item) => (
+                <div key={item.label} className="relative flex-1 min-w-[120px] sm:min-w-[160px] z-10">
                     <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-stone-400">
                         {item.icon}
                         {item.label}
                     </div>
-                    <div className="mt-1 text-lg font-bold text-stone-100">{item.value}</div>
+                    <div className="mt-1 text-base sm:text-lg font-bold text-stone-100 break-words">{item.value}</div>
                     <div className="mt-2 h-2.5 rounded-full bg-stone-800 overflow-hidden border border-stone-700">
                         <div
                             className={cn('h-full rounded-full transition-all duration-700 ease-out', item.barClass)}
@@ -87,6 +112,7 @@ const GameHud: React.FC = () => {
                     </div>
                 </div>
             ))}
+            </div>
         </div>
     );
 };

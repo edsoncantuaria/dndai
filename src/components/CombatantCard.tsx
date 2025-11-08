@@ -65,15 +65,32 @@ const RollHistoryDisplay: React.FC<{ rollHistory?: any[] }> = ({ rollHistory }) 
     return (
         <div className="space-y-1">
             {rollHistory.slice(-5).reverse().map((roll, index) => {
-                if (!roll || !roll.type) return null;
-                 const resultText = roll.success === true ? ' (Sucesso!)' : roll.success === false ? ' (Falha)' : '';
-                 const advantageText = roll.advantage ? ' (Vantagem)' : roll.disadvantage ? ' (Desvantagem)' : '';
-                 const rollsDisplay = roll.rolls && roll.rolls.length > 0 ? roll.rolls.join(', ') : '';
+                if (!roll) return null;
+                const label = roll.description || roll.type?.toUpperCase?.() || 'Rolagem';
+                const resultText = roll.success === true ? ' (Sucesso!)' : roll.success === false ? ' (Falha)' : '';
+                const advantageText = roll.advantage ? ' (Vantagem)' : roll.disadvantage ? ' (Desvantagem)' : '';
+                const rollsDisplay = roll.rolls && roll.rolls.length > 0 ? roll.rolls.join(', ') : '';
+                const modifierText = typeof roll.modifier === 'number' && roll.modifier !== 0
+                    ? `${roll.modifier > 0 ? '+' : ''}${roll.modifier}`
+                    : '';
+                const diceInfo = roll.dice ? roll.dice : roll.formula;
+                const totalDisplay = roll.total !== undefined ? roll.total : '';
+                
                 return (
                     <div key={index} className="text-xs text-stone-400">
-                        <span className="font-semibold">{roll.description || roll.type.toUpperCase()}:</span> {roll.total}{resultText} <span className="text-stone-500">({roll.dice}: {rollsDisplay}{roll.modifier ? `${roll.modifier >= 0 ? '+' : ''}${roll.modifier}` : ''}){advantageText}</span>
+                        <span className="font-semibold">{label}:</span>{' '}
+                        {totalDisplay || roll.result || ''}
+                        {resultText}
+                        {(diceInfo || rollsDisplay || modifierText || advantageText) && (
+                            <span className="text-stone-500">
+                                {' ('}
+                                {[diceInfo, rollsDisplay, modifierText].filter(Boolean).join(' ')}
+                                {')'}
+                                {advantageText}
+                            </span>
+                        )}
                     </div>
-                )
+                );
             })}
         </div>
     );
