@@ -6,12 +6,17 @@ import { CharacterProficiency } from '../entities/CharacterProficiency.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
 import { CharacterSpell } from '../entities/CharacterSpell.js';
 import { SessaoIA } from '../entities/SessaoIA.js'; // Importar SessaoIA
-import { IsNull } from 'typeorm';
+import { IsNull, QueryRunner } from 'typeorm';
 import createError from 'http-errors';
 import type { z } from 'zod';
 import type { NewCharacterInfoSchema } from '../schemas/validationSchemas.js';
 import { getResourceDetails } from './dndApiService.js';
 import redisClient from '../database/redis-client.js';
+import { JournalEntry } from '../entities/JournalEntry.js';
+import { Relationship } from '../entities/Relationship.js';
+import { Quest } from '../entities/Quest.js';
+import { v4 as uuidv4 } from 'uuid';
+
 
 // Função auxiliar para reconstruir o objeto completo do personagem para o frontend
 export const buildFullCharacterObject = async (character: Character) => {
@@ -181,99 +186,105 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
     }
 };
 
+const cloneJournalEntries = async (
+    queryRunner: QueryRunner,
+    originalEntries: JournalEntry[],
+    newCharacterId: number,
+    parent: JournalEntry | null = null
+): Promise<void> => {
+    for (const entry of originalEntries) {
+        const { id, character, subLocations, parentLocation, ...entryData } = entry;
+        const newEntry = queryRunner.manager.create(JournalEntry, {
+            ...entryData,
+            id: uuidv4(),
+            characterId: newCharacterId,
+            parentLocation: parent,
+        });
+        const savedEntry = await queryRunner.manager.save(newEntry);
+        if (entry.subLocations && entry.subLocations.length > 0) {
+            await cloneJournalEntries(queryRunner, entry.subLocations, newCharacterId, savedEntry);
+        }
+    }
+};
+
 export const cloneCharacter = async (
   originalCharacterId: number,
   userId: number,
-  newName?: string
+  qr?: QueryRunner,
+  newName?: string,
 ): Promise<Character> => {
-  const queryRunner = AppDataSource.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+  const queryRunner = qr || AppDataSource.createQueryRunner();
+  if (!qr) {
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+  }
 
   try {
     const characterRepo = queryRunner.manager.getRepository(Character);
-    const attrRepo = queryRunner.manager.getRepository(CharacterAttributes);
-    const profRepo = queryRunner.manager.getRepository(CharacterProficiency);
-    const itemRepo = queryRunner.manager.getRepository(CharacterItem);
-    const spellRepo = queryRunner.manager.getRepository(CharacterSpell);
 
     const original = await characterRepo.findOne({
       where: { id: originalCharacterId, userId },
-      relations: ["attributes", "items", "proficiencies", "spells"],
+      relations: ["attributes", "items", "proficiencies", "spells", "journal", "journal.subLocations", "relationships", "relationships.quests"],
     });
 
     if (!original) {
       throw createError(404, "Personagem original não encontrado para clonagem.");
     }
 
-    // 🔹 Passo 1: cria o novo personagem sem copiar objetos anexados (evita cache de relação antiga)
+    const { id, createdAt, updatedAt, deletedAt, sessoes, user, ...restOfCharacter } = original;
+    
     const clonedCharacter = characterRepo.create({
+      ...restOfCharacter,
       userId,
       name: newName || original.name, // Usa o nome fornecido ou mantém o nome original
-      race: original.race,
-      subrace: original.subrace,
-      characterClass: original.characterClass,
-      subclassFlavor: original.subclassFlavor,
-      level: original.level,
-      background: original.background,
-      alignment: original.alignment,
-      backstory: original.backstory,
-      ideal: original.ideal,
-      bond: original.bond,
-      flaw: original.flaw,
-      sex: original.sex,
-      hairStyle: original.hairStyle,
-      beardStyle: original.beardStyle,
-      skinColor: original.skinColor,
-      feats: original.feats || [],
-      homebrewContentIds: original.homebrewContentIds || [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
 
     const savedClone = await characterRepo.save(clonedCharacter);
 
-    // 🔹 Passo 2: clonar atributos (sem manter vínculo com o Character antigo)
+    // Clonar relações
     if (original.attributes) {
-        const { id, character, ...safeAttributes } = original.attributes;
-        const clonedAttributes = new CharacterAttributes();
-        Object.assign(clonedAttributes, safeAttributes);
-        clonedAttributes.characterId = savedClone.id;
-        await attrRepo.insert(clonedAttributes);
+        const { id, character, ...attrs } = original.attributes;
+        const newAttrs = queryRunner.manager.create(CharacterAttributes, { ...attrs, characterId: savedClone.id });
+        await queryRunner.manager.save(newAttrs);
     }
-
-    // 🔹 Passo 3: clonar proficiências
     if (original.proficiencies?.length) {
-      const newProfs = original.proficiencies.map(({ id, character, ...safe }) =>
-        profRepo.create({ ...safe, characterId: savedClone.id })
-      );
-      await profRepo.save(newProfs);
+        const newProfs = original.proficiencies.map(({ id, character, ...prof }) => queryRunner.manager.create(CharacterProficiency, { ...prof, characterId: savedClone.id }));
+        await queryRunner.manager.save(newProfs);
     }
-
-    // 🔹 Passo 4: clonar itens
     if (original.items?.length) {
-      const newItems = original.items.map(({ id, character, ...safe }) =>
-        itemRepo.create({ ...safe, characterId: savedClone.id })
-      );
-      await itemRepo.save(newItems);
+        const newItems = original.items.map(({ id, character, ...item }) => queryRunner.manager.create(CharacterItem, { ...item, characterId: savedClone.id }));
+        await queryRunner.manager.save(newItems);
     }
-
-    // 🔹 Passo 5: clonar magias
     if (original.spells?.length) {
-      const newSpells = original.spells.map(({ id, character, ...safe }) =>
-        spellRepo.create({ ...safe, characterId: savedClone.id })
-      );
-      await spellRepo.save(newSpells);
+        const newSpells = original.spells.map(({ id, character, ...spell }) => queryRunner.manager.create(CharacterSpell, { ...spell, characterId: savedClone.id }));
+        await queryRunner.manager.save(newSpells);
+    }
+    if (original.relationships?.length) {
+        for (const rel of original.relationships) {
+            const { id, character, quests, ...relData } = rel;
+            const newRel = queryRunner.manager.create(Relationship, { ...relData, characterId: savedClone.id });
+            const savedRel = await queryRunner.manager.save(newRel);
+            
+            if (quests?.length) {
+                const newQuests = quests.map(({ id, relationship, ...questData}) => queryRunner.manager.create(Quest, { ...questData, relationshipId: savedRel.id }));
+                await queryRunner.manager.save(newQuests);
+            }
+        }
+    }
+    if (original.journal?.length) {
+        const topLevelEntries = original.journal.filter(j => !j.parentLocation);
+        await cloneJournalEntries(queryRunner, topLevelEntries, savedClone.id);
     }
 
-    await queryRunner.commitTransaction();
+
+    if (!qr) await queryRunner.commitTransaction();
     return savedClone;
   } catch (error) {
-    await queryRunner.rollbackTransaction();
+    if (!qr) await queryRunner.rollbackTransaction();
     console.error("Erro ao clonar personagem:", error);
     throw createError(500, "Falha ao clonar o personagem para a nova sessão.");
   } finally {
-    await queryRunner.release();
+    if (!qr) await queryRunner.release();
   }
 };
 
