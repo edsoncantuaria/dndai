@@ -210,9 +210,13 @@ const GameContainer = () => {
         if (!sessionToClone) return;
         setIsActionLoading(true);
         try {
-            await GameService.cloneGameSession(sessionToClone.id);
-            toast({ title: 'Aventura Clonada!', description: 'Uma nova linha do tempo foi criada com sucesso.' });
-            fetchInitialData();
+            const response = await GameService.cloneGameSession(sessionToClone.id);
+            if (response?.sessao) {
+                toast({ title: 'Aventura Clonada!', description: 'Uma nova linha do tempo foi criada com sucesso.' });
+                fetchInitialData();
+            } else {
+                throw new Error("A resposta da clonagem não continha os dados da sessão.");
+            }
         } catch (error: any) {
             toast({ variant: 'destructive', title: 'Falha na Clonagem', description: error.message });
         } finally {
@@ -326,7 +330,7 @@ const GameContainer = () => {
                         { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary', disabled: isActionLoading, icon: isActionLoading ? <Loader2 className="animate-spin h-4 w-4" /> : undefined }
                     ]}
                 >
-                     <p className="text-stone-300">
+                    <p className="text-stone-300">
                         Isso criará uma nova linha do tempo, independente da original. Você poderá explorar caminhos diferentes a partir deste exato momento. Deseja continuar?
                     </p>
                 </ActionModal>
