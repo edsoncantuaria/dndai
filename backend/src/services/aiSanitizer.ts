@@ -447,6 +447,10 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
   }
 
   if (sanitized.updatedCharacter && typeof sanitized.updatedCharacter === 'object') {
+    if (Array.isArray((sanitized.updatedCharacter as any).xpEvents) && !(sanitized as any).xpEvents) {
+        (sanitized as any).xpEvents = (sanitized.updatedCharacter as any).xpEvents;
+        delete (sanitized.updatedCharacter as any).xpEvents;
+    }
     if (Array.isArray((sanitized.updatedCharacter as any).quests)) {
         (sanitized.updatedCharacter as any).quests = (sanitized.updatedCharacter as any).quests.filter((quest: any) => quest && quest.id);
     }
