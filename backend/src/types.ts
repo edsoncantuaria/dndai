@@ -8,6 +8,7 @@ export interface PlayerRollRequest {
     rollType: 'check' | 'save' | 'attack' | 'damage';
     advantage?: boolean;
     disadvantage?: boolean;
+    requestId?: string;
 }
 
 export type ImageLogEntryContent = {
@@ -322,6 +323,7 @@ export interface Character {
     relationships: Relationship[];
     journal: JournalEntry[];
     currentRegion: string;
+    isTemplate?: boolean;
     hitDice: {
         current: number;
         total: number;

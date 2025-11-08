@@ -11,6 +11,7 @@ export const PlayerRollRequestSchema = z.object({
   rollType: z.enum(['check', 'save', 'attack', 'damage', 'initiative']).describe("Tipo da rolagem."),
   advantage: z.boolean().optional().describe("Indica se a rolagem tem vantagem."),
   disadvantage: z.boolean().optional().describe("Indica se a rolagem tem desvantagem."),
+  requestId: z.string().optional().describe("Identificador único gerado pelo backend para correlacionar o resultado da rolagem."),
 }).refine(data => !(data.advantage && data.disadvantage), {
   message: "Uma rolagem não pode ter vantagem e desvantagem ao mesmo tempo",
 });

@@ -211,14 +211,29 @@ export const buildFrontendCharacter = async (backendChar: any): Promise<Characte
     const modifiers = calculateModifiers(attributes);
     const proficiencyBonus = getProficiencyBonus(backendChar.level);
     
-    const inventory: InventoryItem[] = Array.isArray(backendChar.items)
-        ? backendChar.items.map((item: any) => ({
-              ...item.itemData,
-              id: item.id.toString(),
-              quantity: item.quantity,
-              equipped: item.equipped,
-          }))
+    const mapBackendItem = (item: any): InventoryItem | null => {
+        if (!item) return null;
+        const source = item.itemData || item;
+        const idSource = item.id ?? source.id ?? source.index ?? source.name;
+        return {
+            ...source,
+            id: idSource ? String(idSource) : uuidv4(),
+            quantity: item.quantity ?? source.quantity ?? 1,
+            equipped: item.equipped ?? source.equipped ?? false,
+        };
+    };
+
+    const inventoryFromItems = Array.isArray(backendChar.items)
+        ? backendChar.items.map(mapBackendItem).filter(Boolean) as InventoryItem[]
         : [];
+
+    const inventoryFromPayload = Array.isArray(backendChar.inventory)
+        ? backendChar.inventory.map(mapBackendItem).filter(Boolean) as InventoryItem[]
+        : [];
+
+    const inventory: InventoryItem[] = inventoryFromItems.length > 0
+        ? inventoryFromItems
+        : inventoryFromPayload;
     
     const ac = calculateAC(inventory, modifiers);
     const maxHp = backendAttributes.maxHp || backendAttributes.hp || calculateMaxHpAtLevel1(classDetails?.hit_die || 8, modifiers.constitution);

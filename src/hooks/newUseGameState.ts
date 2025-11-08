@@ -7,7 +7,7 @@ import { useInteractionManager } from './useInteractionManager';
 import * as GameService from '../services/gameService';
 import * as characterUtils from '../utils/characterUtils';
 import * as HomebrewService from '../services/homebrewService';
-import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell, LevelUpState, LevelUpSelections, ProgressionFeedItem } from '../types';
+import type { Character, NewCharacterInfo, SessaoIA, LogEntry, GameMasterResponse, HomebrewContent, InventoryItem, ApiSpell, LevelUpState, LevelUpSelections, ProgressionFeedItem, PlayerRollRequest } from '../types';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
@@ -356,6 +356,31 @@ export const useNewGameState = () => {
         });
         
     }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew]);
+
+    const submitRollResult = useCallback((request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => {
+        if (!sessionId) {
+            setApiError('Nenhuma sessão ativa para enviar o resultado da rolagem.');
+            return;
+        }
+        if (!request.requestId) {
+            setApiError('Esta rolagem não possui um identificador válido.');
+            return;
+        }
+        const key = getApiKey();
+        if (!key) {
+            setApiError('Chave de API não encontrada. Configure-a nas Configurações.');
+            return;
+        }
+        sendMessage('submitRollResult', {
+            sessionId,
+            requestId: request.requestId,
+            rolls: result.rolls,
+            rawRoll: result.rawRoll,
+            apiKey: key,
+            combatState: interactionState.combatState,
+            useAiHomebrew,
+        });
+    }, [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, setApiError]);
     
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;
@@ -375,8 +400,27 @@ export const useNewGameState = () => {
             const missingIds = sessionRequiredIds.filter(id => !userInstalledIds.has(id));
 
             const loadSessionContent = async () => {
-                if (sessionDetails && sessionDetails.character) {
-                    const fullCharacter = await characterUtils.buildFrontendCharacter(sessionDetails.character as any);
+                if (sessionDetails) {
+                    const characterId = sessionDetails.character?.id ?? sessionDetails.characterId;
+                    let backendCharacterPayload: Character | null = null;
+
+                    if (characterId) {
+                        try {
+                            backendCharacterPayload = await GameService.getCharacterById(characterId);
+                        } catch (err) {
+                            console.warn(`[loadGameSession] Falha ao buscar personagem ${characterId} diretamente:`, err);
+                            backendCharacterPayload = sessionDetails.character as any;
+                        }
+                    } else if (sessionDetails.character) {
+                        backendCharacterPayload = sessionDetails.character as any;
+                    }
+
+                    if (!backendCharacterPayload) {
+                        setApiError('Não foi possível carregar os dados do personagem desta sessão.');
+                        return null;
+                    }
+
+                    const fullCharacter = await characterUtils.buildFrontendCharacter(backendCharacterPayload as any);
                     const displayLogs = (sessionDetails.logs || [])
                         .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
                         .map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
@@ -594,7 +638,7 @@ export const useNewGameState = () => {
         processPlayerAction,
         clearGameState,
         loadGameSession,
-        handleRollResult: interactionState.handleRollResult(processPlayerAction),
+        handleRollResult: interactionState.handleRollResult(submitRollResult),
         handleSkillCheckSubmit: interactionState.handleSkillCheckSubmit(processPlayerAction),
         submitSpellCast: interactionState.submitSpellCast(processPlayerAction),
         applyLevelUp: handleApplyLevelUp,
@@ -612,7 +656,7 @@ export const useNewGameState = () => {
         character, logState, sessionId, interactionState, reinstallModal,
         isLoading, apiError, ambientSound, progressionFeed,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
-        startGame, processPlayerAction, clearGameState, loadGameSession, handleApplyLevelUp,
+        startGame, processPlayerAction, submitRollResult, clearGameState, loadGameSession, handleApplyLevelUp,
         handleToggleEquipped, handleUseConsumable, handleSpendHitDice, setCharacter
     ]);
 

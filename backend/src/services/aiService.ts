@@ -12,6 +12,9 @@ import { generateFallbackResponse } from './gameOrchestrator.js';
 import createError from 'http-errors';
 import type { AiInteractionMode } from '../types/ai.js';
 import { recordTokenUsageSample } from './tokenMetricsService.js';
+import { env } from '../config/env.js';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 
 const getGenAI = (apiKey: string) => {
@@ -111,6 +114,19 @@ const extractResponseText = (response: any): string => {
 };
 
 const cloneInput = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const debugLogAiStage = async (stage: string, payload: unknown) => {
+    if (!env.AI_DEBUG_LOGS) return;
+    try {
+        const dir = path.join(process.cwd(), 'logs', 'ai');
+        await fs.mkdir(dir, { recursive: true });
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const filePath = path.join(dir, `${stamp}-${stage}.json`);
+        await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
+    } catch (error) {
+        console.error('[aiService][debugLog] Falha ao salvar log de debug:', error);
+    }
+};
 
 const condenseGameMasterInput = (input: GameMasterFlowInput, wasAutoCondensed: { value: boolean }): GameMasterFlowInput => {
     const clone = cloneInput(input);
@@ -705,6 +721,15 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
         try {
             let prompt = basePrompt + (RETRY_PROMPT_HINTS[attemptIndex] ?? '');
+            if (attemptIndex === 0 && env.AI_DEBUG_LOGS) {
+                void debugLogAiStage('prompt', {
+                    mode,
+                    attempt: attemptIndex + 1,
+                    playerAction: input.playerAction,
+                    characterId: input.character?.id,
+                    prompt,
+                });
+            }
 
             const mode = input.mode ?? 'gameplay';
             let measuredTokens: number | undefined;
@@ -784,6 +809,15 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             }
 
             const jsonText = extractResponseText(response);
+            if (env.AI_DEBUG_LOGS) {
+                void debugLogAiStage('raw-response', {
+                    mode,
+                    attempt: attemptIndex + 1,
+                    playerAction: input.playerAction,
+                    characterId: input.character?.id,
+                    text: jsonText,
+                });
+            }
             
             if (!jsonText) {
                  console.error(`[aiService] Resposta da IA vazia na tentativa ${attemptIndex + 1}.`);
@@ -850,6 +884,16 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 console.warn("⚠️ Falha na validação Zod:", validationResult.error.flatten());
                 if (!isRetry) return attemptGeneration(true);
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
+            }
+
+            if (env.AI_DEBUG_LOGS) {
+                void debugLogAiStage('sanitized-response', {
+                    mode,
+                    attempt: attemptIndex + 1,
+                    playerAction: input.playerAction,
+                    characterId: input.character?.id,
+                    response: validationResult.data,
+                });
             }
 
             return {

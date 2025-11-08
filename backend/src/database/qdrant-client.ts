@@ -1,5 +1,5 @@
 // backend/src/database/qdrant-client.ts
-import { QdrantClient } from '@qdrant/js-client-rest';
+import { QdrantClient, CollectionInfo } from '@qdrant/js-client-rest';
 import { env } from '../config/env.js';
 
 let qdrantClient: QdrantClient | null = null;
@@ -18,11 +18,43 @@ export const qdrant = qdrantClient;
 
 export const isQdrantReady = () => Boolean(qdrant);
 
+const DEFAULT_DISTANCE = 'Cosine';
 const collections = [
-    { name: 'session_memories', vector_size: 768 },
-    { name: 'world_memories', vector_size: 768 },
-    { name: 'npc_profiles', vector_size: 768 },
+    { name: 'session_memories', vector_size: env.QDRANT_VECTOR_SIZE },
+    { name: 'world_memories', vector_size: env.QDRANT_VECTOR_SIZE },
+    { name: 'npc_profiles', vector_size: env.QDRANT_VECTOR_SIZE },
 ];
+
+const extractVectorSize = (info: CollectionInfo | null): number | null => {
+    if (!info) return null;
+    const vectorsConfig: any = info.config?.params?.vectors;
+    if (!vectorsConfig) return null;
+
+    if (typeof vectorsConfig.size === 'number') {
+        return vectorsConfig.size;
+    }
+
+    if (typeof vectorsConfig.default?.size === 'number') {
+        return vectorsConfig.default.size;
+    }
+
+    if (typeof vectorsConfig === 'object') {
+        const firstEntry = Object.values(vectorsConfig).find(
+            (value: any) => value && typeof (value as any).size === 'number'
+        ) as { size: number } | undefined;
+        if (firstEntry?.size) return firstEntry.size;
+    }
+    return null;
+};
+
+const createCollection = async (name: string, vector_size: number) => {
+    await qdrant!.createCollection(name, {
+        vectors: {
+            size: vector_size,
+            distance: DEFAULT_DISTANCE,
+        },
+    });
+};
 
 export async function ensureQdrantCollections(): Promise<void> {
     if (!qdrant) {
@@ -34,13 +66,19 @@ export async function ensureQdrantCollections(): Promise<void> {
         try {
             const existing = await qdrant.getCollection(name).catch(() => null);
             if (!existing) {
-                await qdrant.createCollection(name, {
-                    vectors: {
-                        size: vector_size,
-                        distance: 'Cosine',
-                    },
-                });
+                await createCollection(name, vector_size);
                 console.log(`[QDRANT] Created collection: ${name}`);
+                continue;
+            }
+
+            const currentSize = extractVectorSize(existing);
+            if (currentSize && currentSize !== vector_size) {
+                console.warn(
+                    `[QDRANT] Collection "${name}" has vector size ${currentSize}, expected ${vector_size}. Recreating...`
+                );
+                await qdrant.deleteCollection(name);
+                await createCollection(name, vector_size);
+                console.log(`[QDRANT] Recreated collection with updated vector size: ${name}`);
             }
         } catch (error) {
             console.error(`[QDRANT] Failed to ensure collection "${name}":`, error);

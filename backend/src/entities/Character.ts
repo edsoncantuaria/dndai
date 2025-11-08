@@ -115,6 +115,9 @@ export class Character {
     @Column({ type: 'varchar', length: 100, nullable: true })
     currentRegion: string;
 
+    @Column({ type: 'boolean', default: true })
+    isTemplate: boolean;
+
 
     @CreateDateColumn()
     createdAt: Date;

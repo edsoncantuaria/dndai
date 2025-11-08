@@ -33,6 +33,7 @@ import { offloadLargePayload } from './objectStorageService.js';
 import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
+import { savePendingRollRequest, clearPendingRollRequest } from './rollRequestService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
 const MAX_PROMPT_LOG_ENTRIES = 12;
@@ -910,7 +911,15 @@ export const processPlayerTurn = async (
     }
 
     if (aiResponse.playerRollRequest) {
+        const requestId = uuidv4();
+        aiResponse.playerRollRequest.requestId = requestId;
+        await savePendingRollRequest(sessao.id, userId, {
+            ...aiResponse.playerRollRequest,
+            requestId,
+        });
         return aiResponse;
+    } else {
+        await clearPendingRollRequest(sessao.id);
     }
 
     const queryRunner = AppDataSource.createQueryRunner();
@@ -1004,10 +1013,18 @@ export const processPlayerTurn = async (
             }
         }
 
-        const updatesToPersist = { ...aiResponse.updatedCharacter, worldState: aiResponse.worldState };
-        if (Object.keys(updatesToPersist).length > 1 || (updatesToPersist.worldState && Object.keys(updatesToPersist.worldState).length > 0)) { 
-             await mergeCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
-             // Invalida o cache otimizado após a atualização
+        const updatesFromAi = { ...(aiResponse.updatedCharacter || {}) };
+        if (aiResponse.worldState) {
+            updatesFromAi.worldState = aiResponse.worldState;
+        }
+
+        const hasWorldStateUpdates = Boolean(
+            updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
+        );
+        const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
+
+        if (hasWorldStateUpdates || hasCharacterUpdates) {
+            await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
             if (redisClient && redisClient.isOpen) {
                 await redisClient.del(
                     `character:${sessao.character!.id}`,
@@ -1024,27 +1041,28 @@ export const processPlayerTurn = async (
             canonicalInventory
         );
 
-        aiResponse.updatedCharacter = {
-            ...(aiResponse.updatedCharacter || {}),
-            inventory: hydratedSnapshot.items as any,
-        };
-
-        aiResponse.updatedCharacter.currency = reconcileCurrency(
-            aiResponse.updatedCharacter.currency,
-            hydratedSnapshot.metrics.currency
-        );
-        aiResponse.updatedCharacter.currentWeight = hydratedSnapshot.metrics.totalWeight;
-        aiResponse.updatedCharacter.totalCoinCount = hydratedSnapshot.metrics.totalCoinCount;
-
         const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
             where: { id: sessao.character!.id },
             select: ['xp', 'level'],
             loadEagerRelations: false,
         });
-        if (persistedProgress) {
-            aiResponse.updatedCharacter.xp = persistedProgress.xp;
-            aiResponse.updatedCharacter.level = persistedProgress.level;
-        }
+
+        const canonicalPatch = {
+            inventory: hydratedSnapshot.items as any,
+            currency: reconcileCurrency(
+                aiResponse.updatedCharacter?.currency,
+                hydratedSnapshot.metrics.currency
+            ),
+            currentWeight: hydratedSnapshot.metrics.totalWeight,
+            totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
+            xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
+            level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
+        };
+
+        aiResponse.updatedCharacter = {
+            ...(aiResponse.updatedCharacter || {}),
+            ...canonicalPatch,
+        };
         
         await queryRunner.commitTransaction();
 

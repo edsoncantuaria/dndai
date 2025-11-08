@@ -11,7 +11,9 @@ type EnvShape = {
     QDRANT_URL: string;
     QDRANT_API_KEY?: string;
     QDRANT_ENABLED: boolean;
+    QDRANT_VECTOR_SIZE: number;
     GEMINI_API_KEY: string;
+    AI_DEBUG_LOGS: boolean;
 };
 
 export const env: EnvShape = {
@@ -19,7 +21,9 @@ export const env: EnvShape = {
     QDRANT_URL: process.env.QDRANT_URL || 'http://localhost:6333',
     QDRANT_API_KEY: process.env.QDRANT_API_KEY || undefined,
     QDRANT_ENABLED: toBoolean(process.env.QDRANT_ENABLED, false),
+    QDRANT_VECTOR_SIZE: Number(process.env.QDRANT_VECTOR_SIZE) || 3072,
     GEMINI_API_KEY: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '',
+    AI_DEBUG_LOGS: toBoolean(process.env.AI_DEBUG_LOGS, false),
 };
 
 export const assertEnv = <K extends keyof EnvShape>(key: K): EnvShape[K] => {

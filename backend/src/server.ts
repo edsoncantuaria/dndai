@@ -1,5 +1,6 @@
 // backend/src/server.ts
 import 'reflect-metadata';
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import http from 'http'; // Importar o módulo http

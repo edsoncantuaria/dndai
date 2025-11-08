@@ -175,6 +175,7 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
             skinColor: characterData.skinColor,
             feats: characterData.feats || [],
             homebrewContentIds: characterData.homebrewIds || [],
+            isTemplate: true,
         });
 
         const savedCharacter = await queryRunner.manager.save(newCharacter);
@@ -313,6 +314,7 @@ export const cloneCharacter = async (
       ...restOfCharacter,
       userId,
       name: original.name,
+      isTemplate: false,
     });
 
     const savedClone = await characterRepo.save(clonedCharacter);
@@ -367,6 +369,15 @@ export const cloneCharacter = async (
 
 export const getCharactersForUser = async (userId: number) => {
     const characterRepository = AppDataSource.getRepository(Character);
+    await characterRepository
+        .createQueryBuilder()
+        .update(Character)
+        .set({ isTemplate: false })
+        .where('userId = :userId', { userId })
+        .andWhere('isTemplate = true')
+        .andWhere(`EXISTS (SELECT 1 FROM sessoes_ia sessao WHERE sessao.characterId = characters.id AND sessao.deletedAt IS NULL)`)
+        .execute();
+
     // Adiciona a condição para buscar apenas personagens que NÃO estão em uma sessão.
     // Isso os torna "modelos" reutilizáveis.
     const characters = await characterRepository
@@ -374,6 +385,7 @@ export const getCharactersForUser = async (userId: number) => {
         .leftJoin('character.sessoes', 'sessao')
         .where('character.userId = :userId', { userId })
         .andWhere('character.deletedAt IS NULL')
+        .andWhere('character.isTemplate = true')
         .andWhere('sessao.id IS NULL') // A condição chave!
         .select(['character.id', 'character.name', 'character.race', 'character.characterClass', 'character.level', 'character.createdAt'])
         .getMany();

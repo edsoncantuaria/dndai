@@ -10,6 +10,7 @@ export interface PlayerRollRequest {
     rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative';
     advantage?: boolean;
     disadvantage?: boolean;
+    requestId?: string;
 }
 
 export type ImageLogEntryContent = {
@@ -334,6 +335,7 @@ export interface Character {
     languages: string[];
     subclassFlavor: string | null;
     currentRegion?: string;
+    isTemplate?: boolean;
 }
 
 export interface CharacterAttributes extends Attributes {

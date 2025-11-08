@@ -40,6 +40,10 @@ export const getCharacters = async (): Promise<Character[]> => {
     return apiClient<Character[]>('/characters', { method: 'GET' });
 };
 
+export const getCharacterById = async (characterId: number): Promise<Character> => {
+    return apiClient<Character>(`/characters/${characterId}`, { method: 'GET' });
+};
+
 export const createNewCharacter = async (characterData: NewCharacterInfo) => {
      return apiClient<{ character: Character }>('/characters', {
         method: 'POST',

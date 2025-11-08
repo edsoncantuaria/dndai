@@ -82,20 +82,16 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
 
     const menuActions = [
         {
-            title: 'Continuar aventura',
-            description: hasSessions ? 'Retome instantaneamente a crônica mais recente.' : 'Crie um herói antes de continuar.',
+            title: 'Crônicas existentes',
+            description: hasSessions
+                ? 'Reviva sessões arquivadas, organize aventuras e mergulhe em capítulos anteriores.'
+                : 'Sem sessões salvas ainda; crie sua primeira crônica para começar.',
             icon: BookOpen,
             gradient: 'from-amber-500/20 via-amber-300/5 to-transparent',
             accent: 'text-amber-300',
-            disabled: !hasSessions,
-            action: () => {
-                if (featuredSession) {
-                    onContinueGame(featuredSession.id);
-                } else {
-                    onSetStage('session_list');
-                }
-            },
-            cta: hasSessions ? 'Retomar agora' : 'Escolher crônica'
+            disabled: false,
+            action: () => onSetStage('session_list'),
+            cta: hasSessions ? 'Ver crônicas' : 'Criar crônica'
         },
         {
             title: 'Nova jornada',
