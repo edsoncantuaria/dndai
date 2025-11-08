@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { InventoryItem, Proficiency } from '../types';
 import { Shield, ChevronDown, Hand, Check, X, Loader2 } from 'lucide-react';
-import * as DndApiService from '@/services/dndApiService';
+import * as DndApiService from '../services/dndApiService';
 
 interface ItemCardProps {
   item: InventoryItem;
@@ -211,14 +211,14 @@ const ItemCard: React.FC<ItemCardProps> = ({
           {currentItem.damage && (
             <p>
               <strong className="font-semibold text-stone-400">Dano:</strong>{' '}
-              {currentItem.damage.damage_dice} {currentItem.damage.damage_type.name}
+              {currentItem.damage?.damage_dice} {currentItem.damage?.damage_type?.name}
             </p>
           )}
           {currentItem.two_handed_damage && (
             <p>
               <strong className="font-semibold text-stone-400">Dano (2 Mãos):</strong>{' '}
-              {currentItem.two_handed_damage.damage_dice}{' '}
-              {currentItem.two_handed_damage.damage_type.name}
+              {currentItem.two_handed_damage?.damage_dice}{' '}
+              {currentItem.two_handed_damage?.damage_type?.name}
             </p>
           )}
           {currentItem.properties && currentItem.properties.length > 0 && (
