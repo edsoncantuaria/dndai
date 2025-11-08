@@ -319,7 +319,7 @@ const GameContainer = () => {
                                             className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div className="max-w-[calc(100%-140px)]">
+                                                <div className="max-w-full sm:max-w-[calc(100%-200px)]">
                                                     <p className="text-xs uppercase tracking-[0.35em] text-stone-500">
                                                         Atualizado em {updatedDate}
                                                     </p>
@@ -332,9 +332,12 @@ const GameContainer = () => {
                                                     <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
                                                         Sessão #{session.id}
                                                     </span>
-                                                    <div ref={dropdownRef} className="relative">
-                                                        <button onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}>
-                                                            <MoreVertical className="h-5 w-5 text-stone-400 hover:text-white" />
+                                                     <div ref={dropdownRef} className="relative">
+                                                        <button
+                                                            onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}
+                                                            className="p-2 text-stone-400 hover:text-white rounded-full transition-colors"
+                                                        >
+                                                            <MoreVertical className="h-5 w-5" />
                                                         </button>
                                                         <AnimatePresence>
                                                         {dropdownOpen === session.id && (
@@ -371,7 +374,7 @@ const GameContainer = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => setSessionToDelete(session)}
-                                                    className="inline-flex flex-1 min-w-[140px] items-center justify-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
+                                                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-500/40 px-4 py-2 text-sm font-semibold text-red-200 hover:bg-red-500/10 transition-colors"
                                                 >
                                                     <Trash2 className="h-4 w-4" /> Excluir
                                                 </button>
@@ -594,11 +597,14 @@ const GameContainer = () => {
                                             </div>
                                         )}
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
-                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts?.recentEvents?.[0].summary || 'Local Desconhecido').split(',')[0]}</span>
+                                            {featuredSession?.character?.worldState?.currentRegion && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSession.character.worldState.currentRegion}</span>
                                             )}
-                                            {featuredSessionFacts?.recentEvents?.[0]?.notes && (
-                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes.split(' | ')[0]}</span>
+                                            {featuredSession?.character?.worldState?.timeOfDay && (
+                                                <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {featuredSession.character.worldState.timeOfDay}</span>
+                                            )}
+                                            {featuredSession?.character?.worldState?.weather && (
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSession.character.worldState.weather}</span>
                                             )}
                                         </div>
                                     </div>
@@ -661,11 +667,14 @@ const GameContainer = () => {
                                             Herói: {featuredSession.character?.name}
                                         </p>
                                         <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
-                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
-                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts?.recentEvents?.[0].summary || 'Local Desconhecido').split(',')[0]}</span>
+                                            {featuredSession?.character?.worldState?.currentRegion && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSession.character.worldState.currentRegion}</span>
                                             )}
-                                            {featuredSessionFacts?.recentEvents?.[0]?.notes && (
-                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts.recentEvents[0].notes.split(' | ')[0]}</span>
+                                            {featuredSession?.character?.worldState?.timeOfDay && (
+                                                <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> {featuredSession.character.worldState.timeOfDay}</span>
+                                            )}
+                                            {featuredSession?.character?.worldState?.weather && (
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSession.character.worldState.weather}</span>
                                             )}
                                         </div>
                                         {featuredSessionFacts?.storySummary && (
