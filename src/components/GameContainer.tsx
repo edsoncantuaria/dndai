@@ -17,6 +17,7 @@ import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 import TranslationStudio from './Homebrew/TranslationStudio';
 import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
+import { cn } from '@/lib/utils';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
@@ -47,6 +48,8 @@ const GameContainer = () => {
     const [isLoadingData, setIsLoadingData] = useState(true);
     const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
     const [sessionToDelete, setSessionToDelete] = useState<SessaoIA | null>(null);
+    const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
     
@@ -511,7 +514,14 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-300">Herói: {featuredSession.character?.name}</p>
                                         <p className="text-[11px] uppercase tracking-wide text-stone-500">Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}</p>
                                         {featuredSessionFacts?.storySummary && (
-                                            <p className="text-sm text-stone-300 pt-2 border-t border-white/10 line-clamp-3">{featuredSessionFacts.storySummary}</p>
+                                           <div className="pt-2 border-t border-white/10">
+                                                <p className={cn("text-sm text-stone-300 transition-all duration-300", !isSummaryExpanded && "line-clamp-3")}>
+                                                    {featuredSessionFacts.storySummary}
+                                                </p>
+                                                <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className="text-xs font-semibold text-amber-300 hover:text-amber-200 mt-2">
+                                                    {isSummaryExpanded ? 'Mostrar menos' : 'Mostrar mais'}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <div className="flex flex-col gap-2">
@@ -572,13 +582,24 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-300">
                                             Herói: {featuredSession.character?.name}
                                         </p>
-                                        <div className="text-xs text-stone-400 flex items-center gap-4 pt-2">
-                                            <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0]?.summary.slice(0,20) || 'Localização desconhecida'}</span>
-                                            <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0]?.notes?.split(' | ')[0] || 'Clima desconhecido'}</span>
+                                        <div className="text-xs text-stone-400 flex flex-wrap items-center gap-x-4 gap-y-1 pt-2">
+                                            {featuredSessionFacts?.recentEvents?.[0]?.summary && (
+                                                <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].summary.split(',')[0]}</span>
+                                            )}
+                                            {featuredSessionFacts?.recentEvents?.[0]?.notes && (
+                                                <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0].notes.split(' | ')[0]}</span>
+                                            )}
                                         </div>
-                                        <p className="text-sm text-stone-300 pt-3 border-t border-white/10 line-clamp-4">
-                                            {featuredSessionFacts?.storySummary || 'Carregando resumo...'}
-                                        </p>
+                                        {featuredSessionFacts?.storySummary && (
+                                            <div className="pt-3 border-t border-white/10">
+                                                <p className={cn("text-sm text-stone-300 transition-all duration-300", !isSummaryExpanded && "line-clamp-3")}>
+                                                    {featuredSessionFacts.storySummary}
+                                                </p>
+                                                <button onClick={() => setIsSummaryExpanded(!isSummaryExpanded)} className="text-xs font-semibold text-amber-300 hover:text-amber-200 mt-2">
+                                                    {isSummaryExpanded ? 'Mostrar menos' : 'Mostrar mais'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="mt-6 flex flex-wrap gap-3">
                                         <button
