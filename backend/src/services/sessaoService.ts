@@ -15,6 +15,10 @@ import { SessionLog } from '../entities/SessionLog.js';
 import { TimelineEvent } from '../entities/TimelineEvent.js';
 import { StorySummary } from '../entities/StorySummary.js';
 import { CombatEncounter } from '../entities/CombatEncounter.js';
+import { CombatantState } from '../entities/CombatantState.js';
+import { CombatLogEntry } from '../entities/CombatLogEntry.js';
+import { CombatCooldown } from '../entities/CombatCooldown.js';
+import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -399,7 +403,8 @@ export const cloneSessao = async (sessionId: number, userId: number, queryRunner
         throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
     }
 
-    const clonedCharacter = await cloneCharacter(originalSessao.characterId, userId, queryRunner);
+    const clonedCharacterName = `${originalSessao.character?.name ?? 'Herói'} (Clone)`.slice(0, 100);
+    const clonedCharacter = await cloneCharacter(originalSessao.characterId, userId, queryRunner, clonedCharacterName);
     if (!clonedCharacter) {
         throw createError(500, 'Falha ao clonar o personagem da sessão.');
     }
@@ -444,28 +449,40 @@ export const cloneSessao = async (sessionId: number, userId: number, queryRunner
     // Replicar encontros de combate
     if(originalSessao.combatEncounters?.length > 0) {
         const combatRepo = queryRunner.manager.getRepository(CombatEncounter);
+        const combatantRepo = queryRunner.manager.getRepository(CombatantState);
+        const combatLogRepo = queryRunner.manager.getRepository(CombatLogEntry);
         for(const encounter of originalSessao.combatEncounters) {
-            const { id, sessao, combatants, logs, ...encounterData } = encounter;
+            const { id, sessao, sessaoId, combatants, logs, ...encounterData } = encounter;
             const newEncounter = combatRepo.create({ ...encounterData, sessaoId: sessaoClonada.id });
             const savedEncounter = await combatRepo.save(newEncounter);
             
             // Replicar combatentes e seus estados aninhados
             if(combatants?.length) {
                  for(const combatant of combatants) {
-                    const { id: combatantId, encounter: _encounter, cooldowns, statusEffects, ...combatantData } = combatant;
-                    const newCombatant = queryRunner.manager.create(CombatEncounter, { ...combatantData, encounterId: savedEncounter.id });
-                    const savedCombatant = await queryRunner.manager.save(newCombatant);
-                    // A lógica para clonar cooldowns e status effects precisaria ser adicionada aqui se necessário
+                    const { id: combatantId, encounter: _encounter, encounterId, cooldowns, statusEffects, ...combatantData } = combatant;
+                    const newCombatant = combatantRepo.create({
+                        ...combatantData,
+                        encounterId: savedEncounter.id,
+                        cooldowns: cooldowns?.map(cooldown => {
+                            const { id: cooldownId, combatant: _combatant, ...cooldownData } = cooldown;
+                            return queryRunner.manager.create(CombatCooldown, cooldownData);
+                        }) ?? [],
+                        statusEffects: statusEffects?.map(effect => {
+                            const { id: effectId, combatant: _combatant, ...effectData } = effect;
+                            return queryRunner.manager.create(CombatStatusEffect, effectData);
+                        }) ?? [],
+                    });
+                    await combatantRepo.save(newCombatant);
                 }
             }
             
             // Replicar logs de combate
             if(logs?.length) {
                 const newCombatLogs = logs.map(log => {
-                    const {id: logId, encounter: _encounter, ...logData} = log;
-                    return queryRunner.manager.create(CombatEncounter, {...logData, encounterId: savedEncounter.id});
+                    const {id: logId, encounter: _encounter, encounterId, ...logData} = log;
+                    return combatLogRepo.create({...logData, encounterId: savedEncounter.id});
                 });
-                await queryRunner.manager.save(newCombatLogs);
+                await combatLogRepo.save(newCombatLogs);
             }
         }
     }

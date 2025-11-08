@@ -76,6 +76,34 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
+  const buildInventoryKey = (item: any): string | null => {
+    if (!item) return null;
+    const raw = item.id || item.index || item.name;
+    return raw ? String(raw).toLowerCase() : null;
+  };
+
+  const mergeInventoryItems = (incoming: any[], previous: any[] | undefined) => {
+    if (!Array.isArray(previous) || previous.length === 0) return incoming.slice();
+    const map = new Map<string, any>();
+    for (const item of previous) {
+      const key = buildInventoryKey(item);
+      if (key) map.set(key, item);
+    }
+    const seen = new Set<string>();
+    const merged: any[] = [];
+    for (const item of incoming) {
+      const key = buildInventoryKey(item);
+      if (key) {
+        seen.add(key);
+      }
+      const fallback = key ? map.get(key) : null;
+      merged.push(fallback ? { ...fallback, ...item } : item);
+    }
+    for (const [key, item] of map.entries()) {
+      if (!seen.has(key)) merged.push(item);
+    }
+    return merged;
+  };
 
   const toNumber = (value: any): number | undefined => {
     if (value === null || value === undefined) return undefined;
@@ -153,19 +181,9 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       : undefined;
   };
 
-  if (sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
-    const previousItems = currentCharacter.inventory as any[];
-    const mergeMap = new Map<string, any>();
-    for (const item of previousItems) {
-      const key = (item?.id || item?.index || item?.name || '').toString().toLowerCase();
-      if (key) mergeMap.set(key, item);
-    }
-    sanitized.updatedCharacter.inventory = sanitized.updatedCharacter.inventory.map((item: any) => {
-      if (!item) return item;
-      const key = (item.id || item.index || item.name || '').toString().toLowerCase();
-      const fallback = key ? mergeMap.get(key) : null;
-      return fallback ? { ...fallback, ...item } : item;
-    });
+  if (sanitized.updatedCharacter && Array.isArray(sanitized.updatedCharacter.inventory)) {
+    const previousItems = Array.isArray(currentCharacter?.inventory) ? currentCharacter!.inventory : [];
+    sanitized.updatedCharacter.inventory = mergeInventoryItems(sanitized.updatedCharacter.inventory, previousItems);
     const userId = currentCharacter?.userId || currentCharacter?.playerId || 0;
     hydrateInventoryItems(sanitized.updatedCharacter.inventory, userId, previousItems).then(({ items, metrics }) => {
       sanitized.updatedCharacter!.inventory = items as any;
@@ -177,6 +195,11 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }).catch(() => {
       sanitized.updatedCharacter!.currency = sanitized.updatedCharacter!.currency || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
     });
+  } else if (!sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
+    sanitized.updatedCharacter = {
+      ...(sanitized.updatedCharacter || {}),
+      inventory: currentCharacter.inventory.slice(),
+    };
   }
 
 
@@ -269,20 +292,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }
   }
 
-  if (sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
-    const previousItems = currentCharacter.inventory as any[];
-    const mergeMap = new Map<string, any>();
-    for (const item of previousItems) {
-      const key = (item?.id || item?.index || item?.name || '').toString().toLowerCase();
-      if (key) mergeMap.set(key, item);
-    }
-    sanitized.updatedCharacter.inventory = sanitized.updatedCharacter.inventory.map((item: any) => {
-      if (!item) return item;
-      const key = (item.id || item.index || item.name || '').toString().toLowerCase();
-      const fallback = key ? mergeMap.get(key) : null;
-      return fallback ? { ...fallback, ...item } : item;
-    });
-  }
+  // previous duplicate merge block removed
 
   // **NOVO**: Sanitize combatState de forma agressiva
   if (sanitized.combatState) {
