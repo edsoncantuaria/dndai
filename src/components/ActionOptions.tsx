@@ -222,19 +222,15 @@ const ActionOptions: React.FC = () => {
     const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: string | { text: string; action: string; skill?: string; }) => {
-        if (typeof action === 'object') {
-            if (action.skill) {
-                const actionCommand = action.action || action.text || `Eu tento usar ${action.skill}.`;
-                processPlayerAction(actionCommand);
-                setIsOpen(false);
-                return;
-            }
-            const actionCommand = action.action || action.text;
+        // Prioriza o texto visível para o jogador.
+        const actionCommand = (typeof action === 'object' && action.text) ? action.text :
+                              (typeof action === 'object' && action.action) ? action.action :
+                              action as string;
+
+        if (actionCommand) {
             processPlayerAction(actionCommand);
-            setIsOpen(false);
-            return;
         }
-        processPlayerAction(action);
+        
         setIsOpen(false);
     };
 
