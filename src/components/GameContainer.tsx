@@ -4,8 +4,8 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import Game from '@/components/Game';
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
-import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock } from 'lucide-react';
-import PremiumLoader from '@/components/ui/PremiumLoader';
+import { Settings, User, Plus, Play, Trash2, ArrowLeft, BookOpen, Sword, FlaskConical, Beaker, GitMerge, LogOut, Languages, Sparkles, Crown, Shield, Clock, MapPin, CloudSun } from 'lucide-react';
+import PremiumLoader from './ui/PremiumLoader';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
@@ -16,6 +16,7 @@ import HomebrewStore from './Homebrew/HomebrewStore';
 import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 import TranslationStudio from './Homebrew/TranslationStudio';
 import { loadTranslations } from '@/utils/translator';
+import type { SessionFactsResponse } from '@/services/gameService';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
@@ -39,6 +40,7 @@ const GameContainer = () => {
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
     const [characters, setCharacters] = useState<Character[]>([]);
+    const [featuredSessionFacts, setFeaturedSessionFacts] = useState<SessionFactsResponse | null>(null);
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showTestModal, setShowTestModal] = useState(false);
     const [showArchitectureModal, setShowArchitectureModal] = useState(false); 
@@ -52,7 +54,6 @@ const GameContainer = () => {
     const fetchInitialData = useCallback(async () => {
         setIsLoadingData(true);
         try {
-            // Carrega traduções na inicialização
             await loadTranslations();
 
             const [userSessions, userCharacters] = await Promise.all([
@@ -62,8 +63,24 @@ const GameContainer = () => {
             const sortedSessions = (userSessions || [])
                 .slice()
                 .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            
             setSessions(sortedSessions);
             setCharacters(userCharacters || []);
+
+            // 💡 Busca os fatos da sessão mais recente
+            if (sortedSessions.length > 0) {
+                const latestSessionId = sortedSessions[0].id;
+                try {
+                    const facts = await GameService.getSessionFacts(latestSessionId);
+                    setFeaturedSessionFacts(facts);
+                } catch (factError) {
+                    console.warn(`[GameContainer] Não foi possível carregar os fatos da sessão ${latestSessionId}:`, factError);
+                    setFeaturedSessionFacts(null);
+                }
+            } else {
+                setFeaturedSessionFacts(null);
+            }
+
         } catch (err) {
             console.error("[GameContainer] Falha ao buscar dados iniciais:", err);
         } finally {
@@ -493,6 +510,9 @@ const GameContainer = () => {
                                         <h3 className="text-xl font-semibold text-white">{featuredSession.nome}</h3>
                                         <p className="text-sm text-stone-300">Herói: {featuredSession.character?.name}</p>
                                         <p className="text-[11px] uppercase tracking-wide text-stone-500">Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}</p>
+                                        {featuredSessionFacts?.storySummary && (
+                                            <p className="text-sm text-stone-300 pt-2 border-t border-white/10 line-clamp-3">{featuredSessionFacts.storySummary}</p>
+                                        )}
                                     </div>
                                     <div className="flex flex-col gap-2">
                                         <button
@@ -552,8 +572,12 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-300">
                                             Herói: {featuredSession.character?.name}
                                         </p>
-                                        <p className="text-xs uppercase tracking-wide text-stone-500">
-                                            Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}
+                                        <div className="text-xs text-stone-400 flex items-center gap-4 pt-2">
+                                            <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0]?.summary.slice(0,20) || 'Localização desconhecida'}</span>
+                                            <span className="flex items-center gap-1.5"><CloudSun className="h-3 w-3" /> {featuredSessionFacts?.recentEvents?.[0]?.notes?.split(' | ')[0] || 'Clima desconhecido'}</span>
+                                        </div>
+                                        <p className="text-sm text-stone-300 pt-3 border-t border-white/10 line-clamp-4">
+                                            {featuredSessionFacts?.storySummary || 'Carregando resumo...'}
                                         </p>
                                     </div>
                                     <div className="mt-6 flex flex-wrap gap-3">

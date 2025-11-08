@@ -222,11 +222,11 @@ export const getSessaoFacts = async (sessionId: number, userId: number): Promise
     const sessao = await findSessaoWithCharacter(sessionId, userId);
     const characterSnapshot = await prepareCharacterSnapshot(sessao.character);
 
-    const [storySummary, timelineFacts, timeline] = await Promise.all([
-        getStorySummary(sessionId),
-        buildTimelineFacts(sessionId),
-        getTimeline(sessionId),
-    ]);
+    // 💡 A lógica de resumo agora busca o resumo e, se não encontrar, gera um na hora.
+    const storySummary = await getStorySummary(sessionId);
+    const timelineFacts = await buildTimelineFacts(sessionId);
+    const timeline = await getTimeline(sessionId);
+
 
     const recentEvents = timeline.slice(-6).map(event => ({
         turn: event.turn,
