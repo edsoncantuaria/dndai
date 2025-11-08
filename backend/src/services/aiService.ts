@@ -1,6 +1,7 @@
 // backend/src/services/aiService.ts
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import JSON5 from 'json5';
+import { Buffer } from 'buffer';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
@@ -24,6 +25,79 @@ const MIN_OUTPUT_TOKENS = 256;
 const DEFAULT_OUTPUT_TOKENS = 1024;
 const HARD_OUTPUT_CAP = 4096;
 
+const extractResponseText = (response: any): string => {
+    if (!response) return '';
+
+    try {
+        const primary = typeof response.text === 'function' ? response.text() : response.text;
+        if (typeof primary === 'string' && primary.trim()) {
+            return primary.trim();
+        }
+    } catch (err) {
+        console.warn('[aiService] Falha ao ler response.text():', err);
+    }
+
+    const collectFromParts = (parts: any[] | undefined): string[] => {
+        if (!Array.isArray(parts) || !parts.length) return [];
+        const chunks: string[] = [];
+        for (const part of parts) {
+            if (!part || typeof part !== 'object') continue;
+            if (typeof part.text === 'string' && part.text.trim()) {
+                chunks.push(part.text.trim());
+                continue;
+            }
+            if (part.functionCall) {
+                const args = part.functionCall.args;
+                if (typeof args === 'string' && args.trim()) {
+                    chunks.push(args.trim());
+                    continue;
+                }
+                if (args && typeof args === 'object') {
+                    chunks.push(JSON.stringify(args));
+                    continue;
+                }
+            }
+            if (part.inlineData?.data) {
+                try {
+                    const decoded = Buffer.from(part.inlineData.data, 'base64').toString('utf8').trim();
+                    if (decoded) {
+                        chunks.push(decoded);
+                    }
+                } catch (decodeErr) {
+                    console.warn('[aiService] Falha ao decodificar inlineData:', decodeErr);
+                }
+            }
+        }
+        return chunks;
+    };
+
+    if (Array.isArray(response?.candidates)) {
+        const buffer: string[] = [];
+        for (const candidate of response.candidates) {
+            const parts = candidate?.content?.parts;
+            buffer.push(...collectFromParts(parts));
+            if (candidate?.finishReason === 'STOP' && buffer.length) break;
+        }
+        const fallback = buffer.join('').trim();
+        if (fallback) {
+            return fallback;
+        }
+    }
+
+    const promptFeedbackText = response?.promptFeedback?.blockReason
+        ? `{"error":"${response.promptFeedback.blockReason}","details":${JSON.stringify(response.promptFeedback)}}`
+        : '';
+    if (promptFeedbackText) {
+        return promptFeedbackText;
+    }
+
+    if (response?.cachedContent) {
+        return extractResponseText(response.cachedContent);
+    }
+
+    return '';
+};
+
 const attemptJsonRepair = (input: string): string | null => {
     if (!input || typeof input !== 'string') return null;
     let result = input.trim();
@@ -31,6 +105,7 @@ const attemptJsonRepair = (input: string): string | null => {
 
     // Remove trailing NULL/EOF-like characters
     result = result.replace(/[\u0000]+$/g, '').trimEnd();
+    result = result.replace(/,\s*([\]}])/g, '$1');
 
     // Track braces/brackets to append missing closures
     const stack: string[] = [];
@@ -102,6 +177,8 @@ const attemptJsonRepair = (input: string): string | null => {
         const opener = stack.pop();
         result += opener === '{' ? '}' : ']';
     }
+    result = result.replace(/,\s*([\]}])/g, '$1');
+    result = result.replace(/,\s*$/g, '');
 
     return result;
 };
@@ -524,7 +601,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 throw createError(500, blockMessage);
             }
 
-            const jsonText = response.text();
+            const jsonText = extractResponseText(response);
             
             console.log("📜 Resposta bruta da IA:", jsonText);
             

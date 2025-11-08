@@ -323,13 +323,17 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
           }
 
           const playerHpFallback = getPlayerFallbackHp();
+          const combatantIdRemap = new Map<string, string>();
 
           sanitized.combatState.combatants = combatantsSource.map((c: any) => {
               if (!c || typeof c !== 'object') return null; // Descarta combatentes inválidos
 
+              const originalId = String(c.id ?? c.name ?? '');
+              let normalizedId = originalId;
               if (c.id === 'player' || c.name === currentCharacter?.name || c.isPlayer) {
                   const playerCombatant = { ...c };
                   playerCombatant.id = 'player';
+                  normalizedId = 'player';
                   playerCombatant.name = currentCharacter?.name || c.name || 'Player';
                   playerCombatant.isPlayer = true;
                   const derivedHp = extractHpPair(c) || playerHpFallback || { current: 0, max: 0 };
@@ -346,17 +350,49 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
                   if (playerCombatant.initiative === null) {
                       playerCombatant.initiative = undefined;
                   }
+                  combatantIdRemap.set(originalId.toLowerCase(), normalizedId);
                   return playerCombatant;
               }
 
               const derivedHp = extractHpPair(c);
+              normalizedId = originalId || `npc-${Math.random().toString(36).slice(2, 8)}`;
+              combatantIdRemap.set(originalId.toLowerCase(), normalizedId);
 
               return {
                   ...c,
+                  id: normalizedId,
                   hp: derivedHp ? { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 } : { current: 0, max: 0 },
                   initiative: c.initiative === null ? undefined : c.initiative,
               };
           }).filter(Boolean); // Remove quaisquer entradas nulas
+
+          const combatantIds = new Set(sanitized.combatState.combatants.map((c: any) => c.id));
+
+          if (Array.isArray(sanitized.combatState.initiativeOrder)) {
+              sanitized.combatState.initiativeOrder = sanitized.combatState.initiativeOrder
+                  .map(id => {
+                      if (!id) return null;
+                      const remapped = combatantIdRemap.get(String(id).toLowerCase());
+                      return remapped || String(id);
+                  })
+                  .filter(id => combatantIds.has(id!)) as string[];
+          } else {
+              sanitized.combatState.initiativeOrder = sanitized.combatState.combatants.map((c: any) => c.id);
+          }
+
+          if (sanitized.combatState.currentCombatantId) {
+              const remapped = combatantIdRemap.get(String(sanitized.combatState.currentCombatantId).toLowerCase());
+              if (remapped) {
+                  sanitized.combatState.currentCombatantId = remapped;
+              }
+          }
+
+          const currentIndex = sanitized.combatState.initiativeOrder.indexOf(
+              sanitized.combatState.currentCombatantId || 'player'
+          );
+          if (currentIndex >= 0) {
+              sanitized.combatState.turn = currentIndex;
+          }
       }
   }
 
