@@ -3,7 +3,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import Header from './Header';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
 import CharacterSheet from './CharacterSheet';
@@ -23,7 +22,7 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import ActionModal from './ui/ActionModal'; // Importar o ActionModal
-import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart } from 'lucide-react';
+import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
 import StoryHighlightsCard from './StoryHighlightsCard';
@@ -109,6 +108,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
     const { playCue } = useEventFeedback();
     const [eventBadges, setEventBadges] = useState<Array<{ id: string; text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }>>([]);
+    const [isHeroPanelCollapsed, setIsHeroPanelCollapsed] = useState(true);
     const showCombatHud = combatState?.isActive;
     const prevStatsRef = React.useRef<{
         xp?: number;
@@ -212,6 +212,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         relationships: { label: 'Relações', icon: <Users className="h-5 w-5"/> },
         progression: { label: 'Progresso', icon: <TrendingUp className="h-5 w-5"/> },
     };
+
+    const openTab = useCallback((tab: Tab) => {
+        setActiveTab(tab);
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            setIsMobileSheetOpen(true);
+        }
+    }, []);
     
     if (isLoading && !character) {
         return (
@@ -299,13 +306,67 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
 
     if (!character) {
         return (
-             <div className="flex flex-col items-center justify-center h-full text-center text-red-400">
-               <h2 className="text-2xl font-bold">Erro ao Carregar Personagem</h2>
+            <div className="flex flex-col items-center justify-center h-full text-center text-red-400">
+                <h2 className="text-2xl font-bold">Erro ao Carregar Personagem</h2>
                 <button onClick={returnToMenu} className="mt-4 px-4 py-2 bg-stone-700 rounded-md">Voltar ao Menu</button>
-           </div>
+            </div>
         );
     }
-    
+
+    const maxHp = character.hp?.max ?? 0;
+    const currentHp = character.hp?.current ?? 0;
+    const hpPercent = maxHp > 0 ? Math.min(100, Math.round((currentHp / maxHp) * 100)) : 0;
+    const xpCap = character.xpToNextLevel ?? 0;
+    const currentXp = character.xp ?? 0;
+    const xpPercentage = xpCap > 0 ? Math.min(100, (currentXp / xpCap) * 100) : 0;
+    const xpLabel = xpCap > 0 ? `${currentXp} / ${xpCap}` : `${currentXp} XP`;
+
+    const heroVitals = [
+        {
+            label: 'Vida',
+            value: `${currentHp}/${maxHp || '?'}`,
+            detail: `${hpPercent}%`,
+            accent: 'text-rose-100',
+            icon: Heart,
+        },
+        {
+            label: 'Classe de Armadura',
+            value: character.ac?.value ?? '--',
+            detail: 'Defesa',
+            accent: 'text-cyan-100',
+            icon: Shield,
+        },
+        {
+            label: 'Iniciativa',
+            value: `${character.modifiers?.dexterity ?? 0 >= 0 ? '+' : ''}${character.modifiers?.dexterity ?? 0}`,
+            detail: 'Bônus atual',
+            accent: 'text-emerald-100',
+            icon: Zap,
+        },
+        {
+            label: 'XP',
+            value: xpLabel,
+            detail: `${xpPercentage.toFixed(0)}% para o próximo nível`,
+            accent: 'text-amber-100',
+            icon: Sparkles,
+        },
+    ];
+
+    const worldPills = [
+        {
+            icon: MapPin,
+            text: character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida',
+        },
+        {
+            icon: Clock,
+            text: character.worldState?.timeOfDay || 'Tempo indefinido',
+        },
+        {
+            icon: CloudSun,
+            text: character.worldState?.weather || 'Clima indefinido',
+        },
+    ];
+
     return (
         <TooltipProvider>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
@@ -368,25 +429,94 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     />
                 )}
                 <div className="space-y-4 w-full">
-                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]">
-                        <div className="space-y-3">
-                            <div className="flex items-start gap-3">
-                                <div className="flex-1 min-w-[240px]">
-                                    <AmbientPlayer /> 
-                                </div>
-                                <button
-                                    onClick={() => setIsStoryDrawerOpen(true)}
-                                    className="md:hidden inline-flex items-center gap-1 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-200 shadow-lg"
-                                >
-                                    <MapPinned className="h-4 w-4" />
-                                    Fatos
-                                </button>
+                    <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent p-4 shadow-2xl backdrop-blur-md">
+                        <button
+                            onClick={() => setIsHeroPanelCollapsed((prev) => !prev)}
+                            className="flex w-full items-center justify-between text-left"
+                        >
+                            <div>
+                                <p className="text-[11px] uppercase tracking-[0.35em] text-amber-200">Herói ativo</p>
+                                <h2 className="text-2xl font-semibold text-white font-serif leading-tight">{character.name}</h2>
+                                <p className="text-stone-300 text-xs">
+                                    {character.race} {character.characterClass} • Nível {character.level}
+                                </p>
                             </div>
-                        </div>
-                        {!showCombatHud && <Header returnToMenu={returnToMenu} onOpenGuidedTips={handleOpenGuidedTour} />}
+                            <span className="text-xs font-semibold text-amber-200">
+                                {isHeroPanelCollapsed ? 'Expandir' : 'Recolher'}
+                            </span>
+                        </button>
+                        {!isHeroPanelCollapsed && (
+                            <div className="mt-4 space-y-4">
+                                <div className="flex flex-wrap gap-2 text-xs text-stone-200">
+                                    {worldPills.map((pill, idx) => (
+                                        <span key={`${pill.text}-${idx}`} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                                            <pill.icon className="h-3.5 w-3.5" /> {pill.text}
+                                        </span>
+                                    ))}
+                                </div>
+                                <div>
+                                    <div className="flex justify-between text-xs font-semibold text-stone-300">
+                                        <span>XP</span>
+                                        <span className="font-mono text-stone-400">{xpLabel}</span>
+                                    </div>
+                                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full border border-white/10 bg-black/30">
+                                        <div className="h-full rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 transition-all duration-500" style={{ width: `${xpPercentage}%` }} />
+                                    </div>
+                                </div>
+                                {character.storySoFar && (
+                                    <p className="text-sm text-stone-300 line-clamp-3">{character.storySoFar}</p>
+                                )}
+                                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                                    {heroVitals.map((vital) => (
+                                        <div key={vital.label} className="rounded-2xl border border-white/10 bg-black/30 p-4 shadow-inner shadow-black/60">
+                                            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-stone-400">
+                                                <vital.icon className="h-3.5 w-3.5 text-amber-200" />
+                                                {vital.label}
+                                            </div>
+                                            <p className={cn('text-xl font-semibold mt-1', vital.accent)}>{vital.value}</p>
+                                            <p className="text-[11px] text-stone-500">{vital.detail}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        {isHeroPanelCollapsed && (
+                            <div className="mt-3 flex flex-wrap gap-2 text-xs text-stone-400">
+                                {heroVitals.map((vital) => (
+                                    <span key={vital.label} className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1">
+                                        {vital.label}: {vital.value}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
                     </div>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <AmbientPlayer variant="icon" />
+                        <button
+                            onClick={() => setIsStoryDrawerOpen(true)}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-200 shadow"
+                        >
+                            <span className="sr-only">Fatos da sessão</span>
+                            <Compass className="h-5 w-5" />
+                        </button>
+                        <button
+                            onClick={handleOpenGuidedTour}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-stone-200 transition hover:border-amber-300/50 hover:text-amber-200"
+                        >
+                            <span className="sr-only">Dicas guiadas</span>
+                            <Sparkles className="h-5 w-5" />
+                        </button>
+                        <button
+                            onClick={returnToMenu}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-red-400/30 bg-red-500/10 text-red-200 transition hover:border-red-300/60 hover:bg-red-500/20"
+                        >
+                            <span className="sr-only">Retornar ao menu</span>
+                            <Download className="h-5 w-5 rotate-180" />
+                        </button>
+                    </div>
+                    {!showCombatHud && <div className="hidden" />} 
                     {showCombatHud && (
-                        <div>
+                        <div className="rounded-3xl border border-white/10 bg-black/25 p-4 shadow-inner shadow-black/60">
                             <GameHud onExitToMenu={returnToMenu} />
                         </div>
                     )}
@@ -399,37 +529,48 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         <div className="flex flex-col flex-grow min-h-0">
                             <NewCombatTracker />
                             
-                            <div className="hidden md:block xl:hidden flex-none p-4 border-b border-white/5 bg-white/5">
-                                <StoryHighlightsCard />
-                            </div>
-
-                            <div className="flex-grow p-4 min-h-0">
-                                <div className="rounded-3xl border border-white/5 bg-black/30 p-4 h-full overflow-y-auto">
-                                    <NewNarrativeLog />
+                            <div className="flex-grow p-4 min-h-[55vh]">
+                                <div className="flex h-full flex-col rounded-3xl border border-white/5 bg-black/30">
+                                    <div className="flex items-center gap-2 border-b border-white/5 px-4 py-3 text-xs font-semibold text-stone-300">
+                                        <span className="uppercase tracking-[0.35em] text-stone-500">Narração</span>
+                                    </div>
+                                    <div className="flex-1 overflow-y-auto p-4">
+                                        <NewNarrativeLog />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex-shrink-0">
-                           <ActionOptions />
+                        <div className="border-t border-white/10 bg-white/5 p-4">
+                            <ActionOptions />
                         </div>
+
                     </div>
                     
                     <aside className="hidden md:flex md:flex-col col-span-5 lg:col-span-4 xl:col-span-3 rounded-3xl border border-white/10 bg-[#080b12]/90 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.45)] overflow-hidden">
-                        <div className="flex-none border-b border-white/5 flex justify-around">
+                        <div className="flex-none border-b border-white/5 bg-black/20 flex">
                             {(Object.keys(tabConfig) as Tab[]).map((key) => {
                                 const tabKey = key as Tab;
+                                const isActive = activeTab === tabKey;
                                 return (
-                                <button 
-                                    key={key} 
-                                    onClick={() => setActiveTab(tabKey)} 
-                                    className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 px-2 text-xs font-semibold transition-colors ${activeTab === tabKey ? 'bg-stone-900/50 text-amber-400' : 'text-stone-400 hover:bg-stone-900/30'}`}
-                                    title={tabConfig[tabKey].label}
-                                >
-                                    {tabConfig[tabKey].icon}
-                                    <span className="hidden lg:inline">{tabConfig[tabKey].label}</span>
-                                </button>
-                            )})}
+                                    <button
+                                        key={key}
+                                        onClick={() => setActiveTab(tabKey)}
+                                        className={cn(
+                                            'flex-1 flex flex-col items-center justify-center gap-1 py-3 text-[11px] font-semibold transition-colors',
+                                            isActive
+                                                ? 'bg-gradient-to-b from-white/15 to-transparent text-amber-300'
+                                                : 'text-stone-400 hover:text-amber-200'
+                                        )}
+                                        title={tabConfig[tabKey].label}
+                                    >
+                                        <span className={cn('h-5 w-5', isActive ? 'text-amber-200' : 'text-stone-400')}>
+                                            {tabConfig[tabKey].icon}
+                                        </span>
+                                        <span className="hidden lg:inline">{tabConfig[tabKey].label}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                         <div className="flex-grow overflow-y-auto relative">
                             <AnimatePresence mode="wait">
@@ -441,7 +582,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                     transition={{ duration: 0.25 }}
                                     className="h-full"
                                 >
-                                    <div className="tab-shell px-3 py-4">
+                                    <div className="px-3 py-4 space-y-3">
                                         {renderSidebarContent()}
                                     </div>
                                 </motion.div>
@@ -449,19 +590,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         </div>
                     </aside>
                     <div className="hidden xl:flex xl:flex-col col-span-3 gap-4">
-                        <StoryHighlightsCard />
                         <DailyRecapPanel />
                     </div>
                 </div>
 
-                 {isStoryDrawerOpen && (
-                    <div className="md:hidden fixed inset-0 z-40 bg-black/70 backdrop-blur-sm animate-fadeIn">
-                        <div
-                            className="absolute inset-0"
-                            onClick={() => setIsStoryDrawerOpen(false)}
-                        />
-                        <div className="absolute bottom-16 left-4 right-4 top-16 rounded-2xl border border-stone-700 bg-stone-900/95 overflow-hidden flex flex-col">
-                             <div className="p-4 border-b border-stone-700 flex-shrink-0">
+                {isStoryDrawerOpen && (
+                    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm animate-fadeIn">
+                        <div className="absolute inset-0" onClick={() => setIsStoryDrawerOpen(false)} />
+                        <div className="absolute inset-4 sm:inset-20 rounded-2xl border border-stone-700 bg-stone-900/95 overflow-hidden flex flex-col shadow-2xl">
+                            <div className="p-4 border-b border-stone-700 flex items-center justify-between">
+                                <p className="text-sm font-semibold text-stone-200">Fatos da sessão</p>
                                 <button
                                     onClick={() => setIsStoryDrawerOpen(false)}
                                     className="text-sm text-stone-400 hover:text-stone-200"
@@ -489,6 +627,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     </div>
                 </MobileToolbar>
 
+                <ActionOptions mode="mobile-only" />
+
                 <GuidedTipsOverlay
                     isOpen={isGuidedTipsOpen}
                     initialStep={guidedStep}
@@ -509,4 +649,3 @@ export default GameScreen;
     
 
     
-

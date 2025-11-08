@@ -319,12 +319,9 @@ const ActionOptions: React.FC = () => {
     
     return (
         <>
-            {/* Desktop: Static Panel */}
             <div className="hidden md:block p-4 flex-shrink-0 border-t border-white/10 bg-white/5 backdrop-blur-sm rounded-b-2xl overflow-y-auto">
-                 {renderActionContent()}
+                {renderActionContent()}
             </div>
-
-            {/* Mobile: Floating Action Button and Modal */}
             <div className="md:hidden">
                 <AnimatePresence>
                     {isOpen && (
@@ -358,7 +355,7 @@ const ActionOptions: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                             transition={{ duration: 0.25 }}
-                            className="fixed bottom-28 top-8 right-4 left-4 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
+                            className="fixed inset-x-4 top-24 bottom-24 bg-[#0b0f16]/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-5 border border-white/10 z-30 overflow-y-auto"
                         >
                             <h3 className="text-sm font-semibold uppercase tracking-wide text-amber-300 mb-3">Escolha sua ação</h3>
                             {renderActionContent()}

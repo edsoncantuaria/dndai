@@ -450,8 +450,36 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                             </div>
                         )}
                     </div>
+                    <div className="space-y-3 rounded-3xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur-md">
+                        <header className="space-y-1">
+                            <p className="text-xs uppercase tracking-[0.35em] text-stone-400">Ações rápidas</p>
+                            <h2 className="text-xl font-semibold text-white">Selecione o próximo ritual</h2>
+                        </header>
+                        <div className="space-y-3">
+                            {menuActions.map((action) => (
+                                <button
+                                    key={action.title}
+                                    onClick={() => !action.disabled && action.action()}
+                                    disabled={action.disabled}
+                                    className={cn(
+                                        'w-full rounded-2xl border border-white/5 bg-white/5 p-4 text-left transition hover:border-amber-200/50 disabled:cursor-not-allowed disabled:opacity-60',
+                                        action.gradient
+                                    )}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <div className={cn('rounded-full border border-white/10 bg-black/30 p-2', action.accent)}>
+                                            <action.icon className="h-5 w-5" />
+                                        </div>
+                                        <h3 className="text-base font-semibold text-white">{action.title}</h3>
+                                    </div>
+                                    <p className="mt-2 text-sm text-stone-300">{action.description}</p>
+                                    {action.cta && <span className="mt-3 inline-flex text-sm font-semibold text-amber-200">{action.cta}</span>}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
-                <header className="hidden md:grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-stretch">
+                <section className="hidden md:grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-stretch">
                     <div className="space-y-6">
                         <div className="space-y-3">
                             <p className="text-xs uppercase tracking-[0.35em] text-amber-300">Hub Cinemático</p>
@@ -544,7 +572,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                             ))}
                         </div>
                     </aside>
-                </header>
+                </section>
 
                 <footer className="w-full rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-sm mt-auto">
                     <div className="flex flex-wrap gap-3 justify-between">

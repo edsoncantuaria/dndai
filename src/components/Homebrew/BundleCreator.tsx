@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import * as HomebrewService from '@/services/homebrewService';
 import type { HomebrewContent, HomebrewBundle } from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Search, PackagePlus, Users, Shield, Layers } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
 
 interface Props {
@@ -20,6 +20,7 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated, bund
     const [isPublic, setIsPublic] = useState(false);
     const [availableContent, setAvailableContent] = useState<HomebrewContent[]>([]);
     const [selectedContentIds, setSelectedContentIds] = useState<Set<string>>(new Set());
+    const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
 
@@ -107,54 +108,144 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated, bund
         onClose();
     };
 
+    const filteredContent = availableContent.filter((item) => item.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
     return (
         <ActionModal
             isOpen={isOpen}
-            title={bundleToEdit ? "Editar Pacote" : "Criar Novo Pacote"}
+            title={bundleToEdit ? 'Editar Pacote' : 'Criar Coleção Premium'}
             onClose={handleClose}
             actions={[
-                { text: "Cancelar", onClick: handleClose, variant: 'secondary' },
-                { text: bundleToEdit ? "Salvar Alterações" : "Salvar Pacote", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
+                { text: 'Cancelar', onClick: handleClose, variant: 'secondary' },
+                {
+                    text: bundleToEdit ? 'Salvar alterações' : 'Publicar pacote',
+                    onClick: handleSubmit,
+                    variant: 'primary',
+                    disabled: isLoading,
+                    icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />,
+                },
             ]}
         >
-            <div className="space-y-4">
-                <div>
-                    <label htmlFor="bundle-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Pacote</label>
-                    <input id="bundle-name" type="text" value={name} onChange={e => setName(e.target.value)} required className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200" placeholder="Ex: Pacote de Magias de Gelo"/>
-                </div>
-                <div>
-                    <label htmlFor="bundle-description" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                    <textarea id="bundle-description" value={description} onChange={e => setDescription(e.target.value)} required rows={2} className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200" placeholder="Descreva o que este pacote contém."/>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Selecione o Conteúdo ({selectedContentIds.size})</label>
-                    <div className="max-h-60 overflow-y-auto bg-stone-900/50 p-2 rounded-md border border-stone-700 space-y-1">
-                        {isLoading ? <Loader2 className="animate-spin mx-auto text-stone-400" /> : availableContent.length > 0 ? availableContent.map(item => {
-                            const isSelected = selectedContentIds.has(item.id);
-                            return (
-                                 <label key={item.id} className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-amber-900/40' : 'hover:bg-stone-800'}`}>
-                                    <input type="checkbox" checked={isSelected} onChange={() => handleToggleSelection(item.id)} className="form-checkbox h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 rounded focus:ring-amber-500" />
-                                    <span className="text-sm text-stone-300">{item.name}</span>
+            <div className="space-y-6">
+                <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-inner shadow-black/40">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                            <PackagePlus className="h-4 w-4" /> Informações básicas
+                        </div>
+                        <div className="mt-3 space-y-3">
+                            <div>
+                                <label htmlFor="bundle-name" className="text-sm font-semibold text-stone-200">
+                                    Nome do pacote
                                 </label>
-                            );
-                        }) : (
-                            <p className="text-center text-sm text-stone-500 italic p-4">Você não tem criações que não estejam em um pacote.</p>
-                        )}
+                                <input
+                                    id="bundle-name"
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="Ex: Arsenal Elemental"
+                                    className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
+                                />
+                            </div>
+                            <div>
+                                <label htmlFor="bundle-description" className="text-sm font-semibold text-stone-200">
+                                    Descrição
+                                </label>
+                                <textarea
+                                    id="bundle-description"
+                                    rows={3}
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    placeholder="Resuma a proposta da coleção."
+                                    className="mt-1 w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
+                                />
+                            </div>
+                            <div className="flex items-center justify-between rounded-2xl border border-stone-800 bg-stone-900/50 p-3">
+                                <div>
+                                    <p className="text-sm font-semibold text-stone-200">Compartilhar com a comunidade?</p>
+                                    <p className="text-xs text-stone-500">Pacotes públicos aparecem para todos.</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPublic((prev) => !prev)}
+                                    className={`flex h-7 w-12 items-center rounded-full p-1 transition ${isPublic ? 'bg-emerald-500/70' : 'bg-stone-600'}`}
+                                >
+                                    <span className={`h-5 w-5 rounded-full bg-white shadow ${isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-inner shadow-black/40">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                            <Users className="h-4 w-4" /> Resumo rápido
+                        </div>
+                        <ul className="mt-3 space-y-2 text-sm text-stone-300">
+                            <li className="flex items-center justify-between rounded-xl border border-white/5 bg-stone-900/50 px-3 py-2">
+                                <span>Total selecionado</span>
+                                <span className="font-semibold text-amber-200">{selectedContentIds.size}</span>
+                            </li>
+                            <li className="flex items-center justify-between rounded-xl border border-white/5 bg-stone-900/50 px-3 py-2">
+                                <span>Disponíveis</span>
+                                <span className="font-semibold text-stone-200">{availableContent.length}</span>
+                            </li>
+                            <li className="flex items-center justify-between rounded-xl border border-white/5 bg-stone-900/50 px-3 py-2">
+                                <span>Status</span>
+                                <span className={`font-semibold ${isPublic ? 'text-emerald-300' : 'text-stone-400'}`}>
+                                    {isPublic ? 'Público' : 'Privado'}
+                                </span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
-                <div className="flex items-center justify-between bg-stone-800/60 p-3 rounded-md">
-                    <label htmlFor="bundle-public" className="flex flex-col cursor-pointer">
-                        <span className="text-stone-200 font-semibold">Tornar Público?</span>
-                        <span className="text-xs text-stone-400">Permitir que outros jogadores instalem seu pacote.</span>
-                    </label>
-                    <button
-                        type="button"
-                        id="bundle-public"
-                        onClick={() => setIsPublic(p => !p)}
-                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone-800 focus:ring-amber-500 ${isPublic ? 'bg-amber-600' : 'bg-stone-600'}`}
-                    >
-                        <span className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${isPublic ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </button>
+
+                <div className="rounded-2xl border border-white/10 bg-black/20 p-4 shadow-inner shadow-black/40">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                            <Layers className="h-4 w-4" /> Selecione os itens ({selectedContentIds.size})
+                        </div>
+                        <div className="relative w-full md:w-72">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                placeholder="Buscar pelas suas criações..."
+                                className="w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-3 text-sm text-white placeholder:text-stone-500 focus:border-amber-400/60"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="mt-3 max-h-64 overflow-y-auto space-y-1 rounded-2xl border border-stone-800 bg-stone-950/60 p-2">
+                        {isLoading ? (
+                            <div className="flex items-center justify-center py-10 text-stone-400">
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            </div>
+                        ) : filteredContent.length ? (
+                            filteredContent.map((item) => {
+                                const isSelected = selectedContentIds.has(item.id);
+                                return (
+                                    <label
+                                        key={item.id}
+                                        className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2 text-sm transition ${
+                                            isSelected ? 'border-amber-400/50 bg-amber-400/10 text-amber-50' : 'border-white/5 bg-white/5 text-stone-300 hover:border-amber-200/40 hover:text-amber-100'
+                                        }`}
+                                    >
+                                        <div>
+                                            <p className="font-semibold">{item.name}</p>
+                                            <p className="text-xs text-stone-400">{item.type}</p>
+                                        </div>
+                                        <input
+                                            type="checkbox"
+                                            checked={isSelected}
+                                            onChange={() => handleToggleSelection(item.id)}
+                                            className="h-4 w-4 rounded border border-stone-500 bg-stone-800 text-amber-400 focus:ring-amber-500"
+                                        />
+                                    </label>
+                                );
+                            })
+                        ) : (
+                            <p className="py-8 text-center text-sm text-stone-500">Nenhuma criação disponível para este filtro.</p>
+                        )}
+                    </div>
                 </div>
             </div>
         </ActionModal>

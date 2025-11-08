@@ -8,7 +8,11 @@ import { Music3, ChevronDown } from 'lucide-react';
 
 const FADE_DURATION = 2000; // 2 segundos em milissegundos
 
-const AmbientPlayer: React.FC = () => {
+interface AmbientPlayerProps {
+    variant?: 'panel' | 'chip' | 'icon';
+}
+
+const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
     const { ambientSound, character } = useGameStateContext();
     const { volume, isMuted, playMenuMusic } = useSettingsContext();
     
@@ -134,6 +138,73 @@ const AmbientPlayer: React.FC = () => {
         if (timeOfDay.includes('tarde')) return 'from-orange-400/15 via-amber-300/10 to-transparent';
         return 'from-stone-900/15 via-stone-800/10 to-transparent';
     };
+
+    if (variant === 'icon') {
+        return (
+            <>
+                <button
+                    onClick={() => setIsExpanded(true)}
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-black/30 text-stone-200 transition hover:border-amber-200/40"
+                >
+                    <span className="sr-only">Trilha ambiente</span>
+                    <Music3 className="h-5 w-5" />
+                </button>
+                {isExpanded && (
+                    <div className="fixed inset-0 z-40 flex items-end sm:items-center sm:justify-center">
+                        <div className="absolute inset-0 bg-black/70" onClick={() => setIsExpanded(false)} />
+                        <div className="relative z-10 m-4 w-full max-w-sm rounded-3xl border border-white/15 bg-[#090f19] p-4 text-sm text-stone-200 shadow-2xl">
+                            <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-stone-500">
+                                <span>{currentAmbient ? 'Tocando agora' : 'Silêncio'}</span>
+                                <button onClick={() => setIsExpanded(false)} className="text-stone-500 hover:text-stone-200">Fechar</button>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                <p className="text-base font-semibold text-white">{currentAmbient?.name ?? 'Nenhuma trilha ativa'}</p>
+                                <p className="text-xs text-stone-500">
+                                    {currentAmbient ? currentAmbient.tags.slice(0, 3).join(' · ') : 'Selecione uma faixa no menu principal.'}
+                                </p>
+                                <p className="text-[11px] text-stone-500">Volume {Math.round(volume * 100)}%</p>
+                                {character?.worldState?.timeOfDay && (
+                                    <p className="text-[11px] text-stone-500">{character.worldState.timeOfDay}</p>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+                <audio ref={audioRef} loop className="hidden" />
+            </>
+        );
+    }
+
+    if (variant === 'chip') {
+        return (
+            <>
+                <button
+                    onClick={() => setIsExpanded((prev) => !prev)}
+                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-2 text-[11px] font-semibold text-stone-200 transition hover:border-amber-200/40"
+                >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400/20 text-amber-200">
+                        <Music3 className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="text-left">
+                        {currentAmbient?.name ?? 'Nenhuma trilha ativa'}
+                    </span>
+                    <ChevronDown className={`ml-auto h-3.5 w-3.5 text-stone-400 transition ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                {isExpanded && (
+                    <div className="mt-2 rounded-2xl border border-white/10 bg-black/40 p-3 text-xs text-stone-300">
+                        <div className="flex items-center justify-between">
+                            <span>{currentAmbient ? 'Tocando agora' : 'Em silêncio'}</span>
+                            <span className="text-stone-500">Vol {Math.round(volume * 100)}%</span>
+                        </div>
+                        <p className="mt-1 text-stone-400 text-xs">
+                            {currentAmbient?.tags.slice(0, 2).join(' · ') || 'Selecione uma faixa no menu principal.'}
+                        </p>
+                    </div>
+                )}
+                <audio ref={audioRef} loop className="hidden" />
+            </>
+        );
+    }
 
     return (
         <div className="space-y-3">

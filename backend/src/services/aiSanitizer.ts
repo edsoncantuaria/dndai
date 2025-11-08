@@ -1,7 +1,7 @@
 // backend/src/services/aiSanitizer.ts
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
-import { hydrateInventoryItems, reconcileCurrency } from "./inventoryService.js";
+import type { InventoryLike } from './inventoryService.js';
 
 const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
 const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);
@@ -82,27 +82,49 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     return raw ? String(raw).toLowerCase() : null;
   };
 
-  const mergeInventoryItems = (incoming: any[], previous: any[] | undefined) => {
-    if (!Array.isArray(previous) || previous.length === 0) return incoming.slice();
-    const map = new Map<string, any>();
-    for (const item of previous) {
-      const key = buildInventoryKey(item);
-      if (key) map.set(key, item);
-    }
-    const seen = new Set<string>();
-    const merged: any[] = [];
-    for (const item of incoming) {
-      const key = buildInventoryKey(item);
-      if (key) {
-        seen.add(key);
+  const mergeInventoryItems = (
+    incoming: InventoryLike[],
+    previous: InventoryLike[] | undefined
+  ): InventoryLike[] => {
+    const snapshot = new Map<string, InventoryLike>();
+
+    if (Array.isArray(previous)) {
+      for (const item of previous) {
+        const key = buildInventoryKey(item);
+        if (key) {
+          snapshot.set(key, { ...item });
+        }
       }
-      const fallback = key ? map.get(key) : null;
-      merged.push(fallback ? { ...fallback, ...item } : item);
     }
-    for (const [key, item] of map.entries()) {
-      if (!seen.has(key)) merged.push(item);
+
+    if (!Array.isArray(incoming)) {
+      return Array.from(snapshot.values());
     }
-    return merged;
+
+    for (const item of incoming) {
+      if (!item) continue;
+      const key = buildInventoryKey(item);
+
+      if (!key) {
+        const generatedKey = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        snapshot.set(generatedKey, { ...item });
+        continue;
+      }
+
+      if (item.remove === true || item._delete === true) {
+        snapshot.delete(key);
+        continue;
+      }
+
+      const previousItem = snapshot.get(key);
+      if (previousItem) {
+        snapshot.set(key, { ...previousItem, ...item });
+      } else {
+        snapshot.set(key, { ...item });
+      }
+    }
+
+    return Array.from(snapshot.values());
   };
 
   const toNumber = (value: any): number | undefined => {
@@ -183,18 +205,10 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   if (sanitized.updatedCharacter && Array.isArray(sanitized.updatedCharacter.inventory)) {
     const previousItems = Array.isArray(currentCharacter?.inventory) ? currentCharacter!.inventory : [];
-    sanitized.updatedCharacter.inventory = mergeInventoryItems(sanitized.updatedCharacter.inventory, previousItems);
-    const userId = currentCharacter?.userId || currentCharacter?.playerId || 0;
-    hydrateInventoryItems(sanitized.updatedCharacter.inventory, userId, previousItems).then(({ items, metrics }) => {
-      sanitized.updatedCharacter!.inventory = items as any;
-      sanitized.updatedCharacter!.currency = reconcileCurrency(
-        sanitized.updatedCharacter!.currency,
-        metrics.currency
-      );
-      sanitized.updatedCharacter!.currentWeight = metrics.totalWeight;
-    }).catch(() => {
-      sanitized.updatedCharacter!.currency = sanitized.updatedCharacter!.currency || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
-    });
+    sanitized.updatedCharacter.inventory = mergeInventoryItems(
+      sanitized.updatedCharacter.inventory,
+      previousItems
+    );
   } else if (!sanitized.updatedCharacter?.inventory && Array.isArray(currentCharacter?.inventory)) {
     sanitized.updatedCharacter = {
       ...(sanitized.updatedCharacter || {}),
