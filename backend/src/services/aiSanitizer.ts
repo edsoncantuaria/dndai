@@ -387,6 +387,18 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
               }
           }
 
+          const playerExists = sanitized.combatState.combatants.some((c: any) => c.id === 'player');
+          if (playerExists && !sanitized.combatState.initiativeOrder.includes('player')) {
+              sanitized.combatState.initiativeOrder.splice(
+                  Math.min(1, sanitized.combatState.initiativeOrder.length),
+                  0,
+                  'player'
+              );
+          }
+          if (playerExists && !sanitized.combatState.currentCombatantId) {
+              sanitized.combatState.currentCombatantId = 'player';
+          }
+
           const currentIndex = sanitized.combatState.initiativeOrder.indexOf(
               sanitized.combatState.currentCombatantId || 'player'
           );
