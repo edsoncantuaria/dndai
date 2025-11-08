@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 
 const NewCombatTracker: React.FC = () => {
     const { combatState, character, nextTurn, isLoading } = useGameStateContext();
-    const [isExpanded, setIsExpanded] = useState(false); // Iniciar recolhido
+    const [isExpanded, setIsExpanded] = useState(false); // Iniciar recolhido por padrão
 
     const getCombatantId = (combatantOrId: any): string => {
         if (!combatantOrId) return '';
@@ -24,7 +24,6 @@ const NewCombatTracker: React.FC = () => {
 
         const combatantMap = new Map<string, Combatant>();
 
-        // Player is always added first with a consistent ID.
         const playerCombatant: Combatant = {
             id: 'player', 
             name: character.name,
@@ -89,6 +88,15 @@ const NewCombatTracker: React.FC = () => {
 
     }, [combatState, character]);
 
+    useEffect(() => {
+        const currentTurnIndex = combatState.turn % (combatState.initiativeOrder?.length || 1);
+        const currentCombatantId = getCombatantId(combatState.initiativeOrder?.[currentTurnIndex]);
+        const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
+        if (currentCombatant?.isPlayer) {
+            setIsExpanded(true);
+        }
+    }, [combatState.turn, combatState.initiativeOrder, allCombatants]);
+
     if (!combatState.isActive || allCombatants.length === 0) {
         return null;
     }
@@ -100,13 +108,6 @@ const NewCombatTracker: React.FC = () => {
     const currentCombatantId = getCombatantId(initiativeOrder[currentCombatantIndex]);
     const currentCombatant = allCombatants.find(c => getCombatantId(c) === currentCombatantId);
     
-    // Auto-expande no turno do jogador
-    useEffect(() => {
-        if (currentCombatant?.isPlayer) {
-            setIsExpanded(true);
-        }
-    }, [currentCombatant]);
-
     const upcomingCombatants = [];
     if (allCombatants.length > 1) {
         for (let i = 1; i < allCombatants.length; i++) {
@@ -127,49 +128,49 @@ const NewCombatTracker: React.FC = () => {
 
     return (
         <motion.div
-            className={cn(
-                'flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border',
-                containerGlow
-            )}
+            className={cn('flex-shrink-0 backdrop-blur-sm p-3 rounded-2xl border flex flex-col', containerGlow)}
             initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
+            layout
         >
             <div className={cn('absolute inset-0 pointer-events-none bg-gradient-to-r opacity-40', isPlayerTurn ? 'from-amber-500/20 via-amber-300/10 to-transparent' : 'from-red-600/20 via-rose-500/10 to-transparent')} />
-            <div className="relative">
-            <button 
-                className="flex justify-between items-center w-full"
-                onClick={() => setIsExpanded(!isExpanded)}
-                aria-expanded={isExpanded}
-            >
-                <h3 className={cn('text-xl font-bold font-garamond flex items-center gap-2', headerAccent)}>
-                    <Swords /> 
-                    <span>COMBATE ATIVO</span>
-                </h3>
+            <div className="relative flex-shrink-0">
+                <button 
+                    className="flex justify-between items-center w-full"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    aria-expanded={isExpanded}
+                >
+                    <h3 className={cn('text-xl font-bold font-garamond flex items-center gap-2', headerAccent)}>
+                        <Swords /> 
+                        <span>COMBATE ATIVO</span>
+                    </h3>
 
-                <div className="flex items-center gap-4">
-                  { !isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant as Combatant} /> }
-                  <span className={cn('font-mono text-lg', headerAccent)}>Round {round}</span>
-                  <ChevronDown className={cn('h-6 w-6 transition-transform hover:text-white', headerAccent, { 'rotate-180': isExpanded })} />
-                </div>
-            </button>
+                    <div className="flex items-center gap-4">
+                        {!isExpanded && currentCombatant && <CombatantHeaderInfo combatant={currentCombatant as Combatant} />}
+                        <span className={cn('font-mono text-lg', headerAccent)}>Round {round}</span>
+                        <ChevronDown className={cn('h-6 w-6 transition-transform hover:text-white', headerAccent, { 'rotate-180': isExpanded })} />
+                    </div>
+                </button>
+            </div>
 
             <AnimatePresence initial={false}>
                 {isExpanded && (
                     <motion.div
                         key="combat-body"
-                        className="mt-4 overflow-hidden" 
+                        className="flex-grow mt-4 overflow-hidden flex flex-col min-h-0"
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25 }}
                     >
-                        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-3">
+                        <div className="flex-grow overflow-y-auto pr-2 space-y-3 max-h-[60vh]">
                             {currentCombatant && (
                                 <motion.div
                                     className="space-y-3"
                                     initial={{ opacity: 0, y: -6 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.2 }}
+                                    layout
                                 >
                                     <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
                                     <CombatantCard
@@ -193,6 +194,7 @@ const NewCombatTracker: React.FC = () => {
                                                         initial={{ opacity: 0, x: 12 }}
                                                         animate={{ opacity: 1, x: 0 }}
                                                         exit={{ opacity: 0, x: -10 }}
+                                                        layout
                                                     >
                                                         <CombatantCard
                                                             combatant={combatant as Combatant}
@@ -212,7 +214,7 @@ const NewCombatTracker: React.FC = () => {
             </AnimatePresence>
 
             {!isPlayerTurn && (
-                <div className="mt-4 text-center">
+                <div className="relative mt-4 flex-shrink-0">
                     <button
                         onClick={nextTurn}
                         disabled={isLoading}
@@ -222,7 +224,6 @@ const NewCombatTracker: React.FC = () => {
                     </button>
                 </div>
             )}
-            </div>
         </motion.div>
     );
 };
