@@ -157,54 +157,57 @@ const NewCombatTracker: React.FC = () => {
                 {isExpanded && (
                     <motion.div
                         key="combat-body"
-                        className="mt-4 max-h-[70vh] overflow-y-auto pr-2"
+                        className="mt-4" // Removido o overflow e max-h daqui
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.25 }}
                     >
-                        {currentCombatant && (
-                            <motion.div
-                                className="space-y-3"
-                                initial={{ opacity: 0, y: -6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.2 }}
-                            >
-                                <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
-                                <CombatantCard
-                                    key={currentCombatant.id}
-                                    combatant={currentCombatant as Combatant}
-                                    isCurrentTurn={true}
-                                    isPlayer={!!currentCombatant.isPlayer}
-                                />
-                            </motion.div>
-                        )}
-                        
-                        {upcomingCombatants.length > 0 && (
-                            <div className="mt-4 space-y-2">
-                                <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
-                                <div className="space-y-3 opacity-90">
-                                    <AnimatePresence>
-                                        {upcomingCombatants.map((combatant) =>
-                                            combatant ? (
-                                                <motion.div
-                                                    key={combatant.id}
-                                                    initial={{ opacity: 0, x: 12 }}
-                                                    animate={{ opacity: 1, x: 0 }}
-                                                    exit={{ opacity: 0, x: -10 }}
-                                                >
-                                                    <CombatantCard
-                                                        combatant={combatant as Combatant}
-                                                        isCurrentTurn={false}
-                                                        isPlayer={!!combatant.isPlayer}
-                                                    />
-                                                </motion.div>
-                                            ) : null
-                                        )}
-                                    </AnimatePresence>
+                        {/* NOVO: Contêiner com rolagem e altura máxima */}
+                        <div className="max-h-[70vh] overflow-y-auto pr-2 space-y-3">
+                            {currentCombatant && (
+                                <motion.div
+                                    className="space-y-3"
+                                    initial={{ opacity: 0, y: -6 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <p className="text-amber-300 font-semibold uppercase text-sm">Turno Atual: {currentCombatant.name}</p>
+                                    <CombatantCard
+                                        key={currentCombatant.id}
+                                        combatant={currentCombatant as Combatant}
+                                        isCurrentTurn={true}
+                                        isPlayer={!!currentCombatant.isPlayer}
+                                    />
+                                </motion.div>
+                            )}
+                            
+                            {upcomingCombatants.length > 0 && (
+                                <div className="mt-4 space-y-2">
+                                    <p className="text-stone-300 font-semibold uppercase text-sm">Próximos</p>
+                                    <div className="space-y-3 opacity-90">
+                                        <AnimatePresence>
+                                            {upcomingCombatants.map((combatant) =>
+                                                combatant ? (
+                                                    <motion.div
+                                                        key={combatant.id}
+                                                        initial={{ opacity: 0, x: 12 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        exit={{ opacity: 0, x: -10 }}
+                                                    >
+                                                        <CombatantCard
+                                                            combatant={combatant as Combatant}
+                                                            isCurrentTurn={false}
+                                                            isPlayer={!!combatant.isPlayer}
+                                                        />
+                                                    </motion.div>
+                                                ) : null
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
