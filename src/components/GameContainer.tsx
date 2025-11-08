@@ -49,8 +49,8 @@ const GameContainer = () => {
     const [sessionToRename, setSessionToRename] = useState<SessaoIA | null>(null);
     const [newSessionName, setNewSessionName] = useState('');
     const [sessionToClone, setSessionToClone] = useState<SessaoIA | null>(null);
-    const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [selectedSessionForAction, setSelectedSessionForAction] = useState<SessaoIA | null>(null);
+    const [isActionModalOpen, setIsActionModalOpen] = useState(false);
 
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -91,16 +91,6 @@ const GameContainer = () => {
         } finally {
             setIsLoadingData(false);
         }
-    }, []);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setDropdownOpen(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
 
@@ -241,6 +231,16 @@ const GameContainer = () => {
     const requestCloneSession = useCallback((session: SessaoIA) => {
         setSessionToClone(session);
     }, []);
+    
+    const openSessionActionModal = (session: SessaoIA) => {
+        setSelectedSessionForAction(session);
+        setIsActionModalOpen(true);
+    };
+
+    const handleActionModalClose = () => {
+        setIsActionModalOpen(false);
+        setSelectedSessionForAction(null);
+    };
 
     const openSettings = useCallback(() => setShowSettingsModal(true), []);
     const openSystemTests = useCallback(() => setShowTestModal(true), []);
@@ -262,9 +262,9 @@ const GameContainer = () => {
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}
                 onRequestDeleteCharacter={requestDeleteCharacter}
-                onRequestDeleteSession={requestDeleteSession}
-                onRequestRenameSession={requestRenameSession}
-                onRequestCloneSession={requestCloneSession}
+                onRequestDeleteSession={openSessionActionModal} // Changed to open modal
+                onRequestRenameSession={openSessionActionModal} // Changed to open modal
+                onRequestCloneSession={openSessionActionModal} // Changed to open modal
                 onOpenSettings={openSettings}
                 onOpenSystemTests={openSystemTests}
                 onOpenArchitecture={openArchitecture}
@@ -286,14 +286,44 @@ const GameContainer = () => {
                 </ActionModal>
             )}
 
+            {isActionModalOpen && selectedSessionForAction && (
+                <ActionModal
+                    isOpen={isActionModalOpen}
+                    title={`Ações para "${selectedSessionForAction.nome}"`}
+                    onClose={handleActionModalClose}
+                    actions={[]}
+                >
+                    <div className="flex flex-col gap-3">
+                        <button
+                            onClick={() => { requestRenameSession(selectedSessionForAction); handleActionModalClose(); }}
+                            className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-3"
+                        >
+                            <Edit className="h-5 w-5" /> Renomear Aventura
+                        </button>
+                        <button
+                            onClick={() => { requestCloneSession(selectedSessionForAction); handleActionModalClose(); }}
+                            className="w-full text-left px-4 py-3 text-stone-200 bg-stone-800 hover:bg-stone-700 rounded-md flex items-center gap-3"
+                        >
+                            <Copy className="h-5 w-5" /> Clonar Aventura
+                        </button>
+                        <button
+                            onClick={() => { requestDeleteSession(selectedSessionForAction); handleActionModalClose(); }}
+                            className="w-full text-left px-4 py-3 text-red-300 bg-red-900/40 hover:bg-red-900/60 rounded-md flex items-center gap-3"
+                        >
+                            <Trash2 className="h-5 w-5" /> Excluir Aventura
+                        </button>
+                    </div>
+                </ActionModal>
+            )}
+
             {sessionToDelete && (
                 <ActionModal
                     isOpen={!!sessionToDelete}
-                    title={`Deletar Sessão "${sessionToDelete.nome}"?`}
+                    title={`Excluir Sessão "${sessionToDelete.nome}"?`}
                     onClose={() => setSessionToDelete(null)}
                     actions={[
                         { text: 'Cancelar', onClick: () => setSessionToDelete(null), variant: 'secondary' },
-                        { text: 'Confirmar Deleção', onClick: confirmDeleteSession, variant: 'destructive' }
+                        { text: 'Confirmar Exclusão', onClick: confirmDeleteSession, variant: 'destructive' }
                     ]}
                 >
                     <p className="text-stone-300">Tem certeza de que deseja apagar o progresso desta aventura? Esta ação não pode ser desfeita.</p>
