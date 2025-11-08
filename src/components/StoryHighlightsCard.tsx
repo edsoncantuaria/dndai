@@ -131,7 +131,10 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
         if (!facts?.timelineFacts) return [];
         return facts.timelineFacts
             .split('\n')
-            .map(line => line.trim().replace(/\[.*?\]/g, '').replace(/\|/g, '').trim()) // Filtra logs do sistema
+            .map(line => {
+                const noteIndex = line.indexOf('(Notas:');
+                return noteIndex !== -1 ? line.substring(0, noteIndex).trim() : line.trim();
+            })
             .filter(Boolean);
     }, [facts]);
 
