@@ -63,17 +63,6 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
 }) => {
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
-    const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-                setDropdownOpen(null);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
 
     const featuredSession = sessions[0];
     const hasSessions = sessions.length > 0;
@@ -161,7 +150,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                             </p>
                         </header>
 
-                        <div className="grid gap-4" ref={dropdownRef}>
+                        <div className="grid gap-4">
                             {sessions.length > 0 ? (
                                 sessions.map(session => {
                                     const updatedDate = new Date(session.updatedAt).toLocaleDateString();
