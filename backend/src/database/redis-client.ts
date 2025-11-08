@@ -17,12 +17,29 @@ redisClient?.on('connect', () => console.log('[Cache] Conectando ao servidor Red
 redisClient?.on('ready', () => console.log('[Cache] Cliente Redis pronto para uso.'));
 
 
-// Conecta apenas se o cliente foi criado
+let connectionPromise: Promise<void> | null = null;
+
+const connectRedis = () => {
+    if (!redisClient) return null;
+    if (redisClient.isOpen) return Promise.resolve();
+    if (!connectionPromise) {
+        console.log(`[Cache] Tentando conectar a: ${redisUrl!.replace(/:[^@]+@/, ':[PASSWORD]@')}`);
+        connectionPromise = redisClient.connect().then(() => undefined).catch(err => {
+            console.error('[Cache] Falha na conexão inicial com o Redis:', err);
+            connectionPromise = null;
+        });
+    }
+    return connectionPromise;
+};
+
 if (redisClient) {
-    console.log(`[Cache] Tentando conectar a: ${redisUrl.replace(/:[^@]+@/, ':[PASSWORD]@')}`);
-    redisClient.connect().catch(err => {
-        console.error('[Cache] Falha na conexão inicial com o Redis:', err)
-    });
+    await connectRedis();
 }
+
+export const ensureRedisConnection = async () => {
+    if (!redisClient) return null;
+    await connectRedis();
+    return redisClient;
+};
 
 export default redisClient;

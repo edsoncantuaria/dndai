@@ -93,7 +93,7 @@ export async function invalidateUserCache(userId: number) {
                 const keysToDelete = scanResult.keys;
 
                 if (keysToDelete.length > 0) {
-                    await redisClient.del(keysToDelete);
+                    await redisClient.del(...keysToDelete);
                     console.log(`[Cache] Invalidadas ${keysToDelete.length} chaves de cache antigas para o usuário ${userId}.`);
                 }
             } while (cursor !== '0');

@@ -19,6 +19,7 @@ import homebrewRoutes from './routes/homebrewRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import unifiedDataRouter from './routes/unifiedDataRouter.js'; // Substitui dndApiRoutes
 import cacheRoutes from './routes/cacheRoutes.js';
+import logsRoutes from './routes/logsRoutes.js';
 
 
 const app = express();
@@ -64,6 +65,7 @@ app.use('/api/homebrew', homebrewRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/data', unifiedDataRouter); // Nova rota unificada
 app.use('/api/cache', cacheRoutes);
+app.use('/api/logs', logsRoutes);
 
 
 // Rota de Traduções

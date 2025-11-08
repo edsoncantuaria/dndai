@@ -3,22 +3,28 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as NarrarService from '../services/narrarService.js';
 import createError from 'http-errors';
+import { z } from 'zod';
+import { CombatStateSchema } from '../schemas/gameSchemas.js';
+
+const narrarRequestSchema = z.object({
+    prompt: z.string().min(1, 'A ação do jogador é obrigatória.'),
+    combatState: CombatStateSchema.nullable().optional(),
+    apiKey: z.string().min(8, 'A chave de API do usuário é obrigatória para a narração.'),
+    useAiHomebrew: z.boolean().optional(),
+});
 
 export const narrar = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const { sessionId } = req.params;
-    // Extrai a apiKey e o resto do corpo da requisição
-    const { prompt: playerAction, combatState: currentCombatState, apiKey, useAiHomebrew } = req.body;
+    const bodyValidation = narrarRequestSchema.safeParse(req.body);
+    if (!bodyValidation.success) {
+        return next(createError(400, 'Dados inválidos para narração.', { details: bodyValidation.error.flatten() }));
+    }
+    const { prompt: playerAction, combatState, apiKey, useAiHomebrew } = bodyValidation.data;
+    const currentCombatState = combatState ?? undefined;
     const userId = req.user?.userId;
 
     if (!userId) {
         return next(createError(401, 'ID do usuário não encontrado no token.'));
-    }
-    if (!playerAction) {
-        return next(createError(400, 'A ação do jogador (prompt) é obrigatória.'));
-    }
-    // Adiciona validação para a apiKey
-    if (!apiKey) {
-        return next(createError(400, 'A chave de API do usuário é obrigatória para a narração.'));
     }
     const sessionIdNum = Number(sessionId);
     if(isNaN(sessionIdNum)) {

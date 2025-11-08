@@ -390,6 +390,6 @@ export const deleteCharacter = async (characterId: number, userId: number) => {
 
     // Invalida o cache
     if (redisClient && redisClient.isOpen) {
-        await redisClient.del(`character:${characterId}`);
+        await redisClient.del(`character:${characterId}`, `character:${characterId}:optimized`);
     }
 };

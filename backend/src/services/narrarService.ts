@@ -29,8 +29,55 @@ import {
 import { applyXpEvents } from './xpService.js';
 import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
+import { offloadLargePayload } from './objectStorageService.js';
+import type { AiInteractionMode } from '../types/ai.js';
 
-type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
+const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
+const MAX_PROMPT_LOG_ENTRIES = 12;
+const MAX_PROMPT_ENTRY_CHARS = 320;
+const LOG_STORAGE_THRESHOLD = 1800;
+
+const truncateText = (value: string, limit = MAX_PROMPT_ENTRY_CHARS) => {
+    if (!value) return '';
+    return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+};
+
+const unwrapLogPayload = (raw?: string | null): string => {
+    if (!raw) return '';
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+            if (parsed.storage === 's3' && parsed.key) {
+                return `[payload armazenado em ${parsed.key}]`;
+            }
+            if (typeof parsed.content === 'string') return parsed.content;
+            if (typeof parsed.summary === 'string') return parsed.summary;
+            return JSON.stringify(parsed);
+        }
+    } catch {
+        // Mantém o texto bruto
+    }
+    return raw;
+};
+
+const buildPromptLogString = (logs: SessionLog[]) => {
+    const relevant = logs
+        .filter(log => PROMPT_LOG_TYPES.has(log.type))
+        .map(log => ({
+            role: log.type === 'action' ? 'JOGADOR' : 'MESTRE',
+            summary: truncateText(unwrapLogPayload(log.response)),
+        }));
+    return relevant.slice(-MAX_PROMPT_LOG_ENTRIES).map(entry => `${entry.role}:${entry.summary}`).join('\n');
+};
+
+const prepareLogPayload = async (sessaoId: number, type: string, payload: unknown): Promise<string> => {
+    if (payload === undefined || payload === null) return '';
+    const serialized = typeof payload === 'string' ? payload : JSON.stringify(payload);
+    if (!serialized) return '';
+    if (serialized.length < LOG_STORAGE_THRESHOLD) return serialized;
+    const offloaded = await offloadLargePayload(serialized, { prefix: `sessions/${sessaoId}/${type}` });
+    return offloaded ?? serialized;
+};
 
 const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
     if (combatState?.isActive) return 'combat';
@@ -489,13 +536,11 @@ export const processPlayerTurn = async (
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
         where: { sessaoId: sessao!.id },
         order: { timestamp: 'DESC' }, 
-        take: 10,
+        take: 20,
     });
     
-    const chronologicalLogs = recentLogs.reverse().map(log => ({
-        role: log.type === 'action' ? 'user' : 'model',
-        content: log.response
-    }));
+    const chronologicalLogs = recentLogs.reverse();
+    const compactGameLog = buildPromptLogString(chronologicalLogs) || 'SEM_EVENTOS';
 
     const isInternalAction = playerAction.startsWith("Recarregar estado atual")
         || playerAction.startsWith("A aventura começa.")
@@ -529,7 +574,7 @@ export const processPlayerTurn = async (
     const gameMasterFlowInput = {
         character: characterForAI,
         playerAction,
-        gameLog: JSON.stringify(chronologicalLogs),
+        gameLog: compactGameLog,
         combatState: promptCombatState ?? undefined,
         useAiHomebrew: useAiHomebrew ?? true,
         enableNarrativeRevalidation: true,
@@ -835,51 +880,41 @@ export const processPlayerTurn = async (
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
-        if (rawText) {
-            const rawLog = new SessionLog();
-            Object.assign(rawLog, {
+        const persistSessionLog = async (
+            logType: SessionLog['type'],
+            promptLabel: string,
+            payload: unknown,
+            rollResult?: any
+        ) => {
+            if (!sessao) return;
+            const response = await prepareLogPayload(sessao.id, logType, payload);
+            if (!response) return;
+            const log = new SessionLog();
+            Object.assign(log, {
                 sessaoId: sessao.id,
-                prompt: 'GM Raw Response',
-                response: rawText,
-                type: 'gm_raw',
+                prompt: promptLabel,
+                response,
+                type: logType,
+                rollResult,
             });
-            await logRepository.save(rawLog);
+            await logRepository.save(log);
+        };
+
+        if (rawText) {
+            await persistSessionLog('gm_raw', 'GM Raw Response', rawText);
         }
-        const validationLog = new SessionLog();
-        Object.assign(validationLog, {
-            sessaoId: sessao.id,
-            prompt: 'GM Validation',
-            response: JSON.stringify({ attempts, issues: validationIssues, fallback: usedFallback }),
-            type: 'gm_validation',
-        });
-        await logRepository.save(validationLog);
+        await persistSessionLog('gm_validation', 'GM Validation', { attempts, issues: validationIssues, fallback: usedFallback });
         
-    if(!isInternalAction) {
-            const playerLogEntry = new SessionLog();
-            Object.assign(playerLogEntry, { sessaoId: sessao.id, prompt: 'Player Action', response: playerAction, type: 'action' });
-            await logRepository.save(playerLogEntry);
+        if(!isInternalAction) {
+            await persistSessionLog('action', 'Player Action', playerAction);
         }
         
         const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
         delete stateForLog.logEntries;
-        const stateLogEntry = new SessionLog();
-        Object.assign(stateLogEntry, {
-            sessaoId: sessao.id,
-            prompt: 'GM Full State',
-            response: JSON.stringify(stateForLog),
-            type: 'state',
-        });
-        await logRepository.save(stateLogEntry);
+        await persistSessionLog('state', 'GM Full State', stateForLog);
 
         if (newStorySummaryForLog) {
-            const summaryLogEntry = new SessionLog();
-            Object.assign(summaryLogEntry, {
-                sessaoId: sessao.id,
-                prompt: 'Story Summary',
-                response: newStorySummaryForLog,
-                type: 'summary',
-            });
-            await logRepository.save(summaryLogEntry);
+            await persistSessionLog('summary', 'Story Summary', newStorySummaryForLog);
         }
 
         if (combatReconciliation?.changed) {
@@ -909,18 +944,7 @@ export const processPlayerTurn = async (
                         contentToSave = { ...entry.content, status: 'failed', text: `Falha ao gerar imagem: ${imageError.message}`};
                     }
                 }
-                const contentString = typeof contentToSave === 'object' ? JSON.stringify(contentToSave) : contentToSave;
-                if (contentString) {
-                    const newLog = new SessionLog();
-                    Object.assign(newLog, {
-                        sessaoId: sessao.id,
-                        prompt: 'GM Narration',
-                        response: contentString,
-                        type: entry.type || 'narration',
-                        rollResult: entry.rollResult,
-                    });
-                    await logRepository.save(newLog);
-                }
+                await persistSessionLog(entry.type || 'narration', 'GM Narration', contentToSave, entry.rollResult);
             }
         }
 
@@ -946,8 +970,11 @@ export const processPlayerTurn = async (
              await mergeCharacterUpdates(sessao.character!.id, updatesToPersist, queryRunner);
              // Invalida o cache otimizado após a atualização
             if (redisClient && redisClient.isOpen) {
-                await redisClient.del(`character:${sessao.character!.id}:optimized`);
-                await redisClient.del(sessionCacheKey);
+                await redisClient.del(
+                    `character:${sessao.character!.id}`,
+                    `character:${sessao.character!.id}:optimized`,
+                    sessionCacheKey
+                );
             }
         }
 

@@ -291,12 +291,17 @@ export const recordTimelineEventAndSummarize = async (
     const pendingEntries = totalEvents - entriesSummarized;
 
     if (totalEvents >= SUMMARY_MIN_BATCH && pendingEntries >= SUMMARY_MIN_BATCH) {
-        const previousSummary = await getStorySummary(sessaoId);
-        const summary = await generateStorySummary(sessaoId, timeline, previousSummary, apiKey);
-        if (summary) {
-            await setStorySummary(sessaoId, summary, totalEvents);
-            return { summary };
-        }
+        queueMicrotask(async () => {
+            try {
+                const previousSummary = await getStorySummary(sessaoId);
+                const summary = await generateStorySummary(sessaoId, timeline, previousSummary, apiKey);
+                if (summary) {
+                    await setStorySummary(sessaoId, summary, totalEvents);
+                }
+            } catch (error) {
+                console.error('[storyService] Falha ao gerar resumo em background:', error);
+            }
+        });
     }
 
     return { summary: null };

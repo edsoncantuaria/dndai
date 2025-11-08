@@ -2,7 +2,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import JSON5 from 'json5';
 import { Buffer } from 'buffer';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
 import { regrasBase } from '../game/prompts/regrasBase.js';
@@ -11,8 +10,8 @@ import { regrasInventario } from '../game/prompts/regrasInventario.js';
 import { sanitizeGameMasterResponse } from './aiSanitizer.js';
 import { generateFallbackResponse } from './gameOrchestrator.js';
 import createError from 'http-errors';
-
-type AiInteractionMode = 'gameplay' | 'combat' | 'generation' | 'audit';
+import type { AiInteractionMode } from '../types/ai.js';
+import { recordTokenUsageSample } from './tokenMetricsService.js';
 
 
 const getGenAI = (apiKey: string) => {
@@ -369,6 +368,15 @@ ${regrasCombate}
 `;
 };
 
+const instructionCache = new Map<string, string>();
+const getCachedInstruction = (useAiHomebrew: boolean, enableNarrativeRevalidation: boolean) => {
+    const cacheKey = `${useAiHomebrew ? '1' : '0'}-${enableNarrativeRevalidation ? '1' : '0'}`;
+    if (!instructionCache.has(cacheKey)) {
+        instructionCache.set(cacheKey, createSystemInstruction(useAiHomebrew, enableNarrativeRevalidation));
+    }
+    return instructionCache.get(cacheKey)!;
+};
+
 
 export interface GameUpdateResult {
     response: GameMasterResponse;
@@ -430,6 +438,8 @@ const condenseCombatStateForPrompt = (combatState: any) => {
         recentLog,
     };
 };
+
+const safeArray = <T>(value: T[] | undefined | null): T[] => Array.isArray(value) ? value : [];
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary, timelineFacts } = input;
@@ -494,60 +504,36 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         characterClass: character.characterClass,
         level: character.level,
         attributes: character.attributes,
-        proficiencies: character.proficiencies,
-        inventory: character.inventory
+        proficiencies: safeArray(character.proficiencies),
+        inventory: safeArray(character.inventory)
             .map((item: any) => simplifyInventoryItem(item))
             .filter(Boolean),
-        spells: character.spells,
+        spells: safeArray(character.spells),
         storySoFar: character.storySoFar,
         worldState: character.worldState,
-        relationships: character.relationships.map((r: any) => ({ name: r.name, status: r.status, affinity: r.affinity })),
-        journal: character.journal.map((j: any) => ({ name: j.name, region: j.region, status: j.looted ? 'looted' : 'unexplored' }))
+        relationships: safeArray(character.relationships).map((r: any) => ({ name: r.name, status: r.status, affinity: r.affinity })),
+        journal: safeArray(character.journal).map((j: any) => ({ name: j.name, region: j.region, status: j.looted ? 'looted' : 'unexplored' }))
     } : null;
 
-    const characterContext = JSON.stringify(characterForPrompt, null, 2);
-    const logContext = JSON.stringify(gameLog, null, 2); 
-    const homebrewSection = homebrewSummary ? `${homebrewSummary.trim()}\n` : '';
+    const characterContext = JSON.stringify(characterForPrompt);
+    const homebrewSection = homebrewSummary ? `HOMEBREW=${homebrewSummary.trim()}\n` : '';
     const combatContextValue = combatState && combatState.isActive
-        ? JSON.stringify(condenseCombatStateForPrompt(combatState), null, 2)
-        : "Nenhum combate ativo.";
+        ? JSON.stringify(condenseCombatStateForPrompt(combatState))
+        : '"Nenhum combate ativo."';
   
     const feedbackSection = validationFeedback
-        ? `\n### Feedback do Sistema\n${validationFeedback.trim()}\n`
+        ? `FEEDBACK=${validationFeedback.trim()}\n`
         : '';
 
-    const summarySection = storySummary
-        ? `### Resumo da Jornada
-${storySummary}
+    const summarySection = storySummary ? `RESUMO=${storySummary}\n` : '';
+    const timelineSection = timelineFacts ? `FATOS=${timelineFacts}\n` : '';
 
-`
-        : '';
+    const mainPrompt = `${summarySection}${timelineSection}${homebrewSection}${feedbackSection}PERSONAGEM=${characterContext}
+COMBATE=${combatContextValue}
+LOG=${gameLog}
+ACAO=${playerAction}
 
-    const timelineSection = timelineFacts
-        ? `### Fatos Relevantes
-${timelineFacts}
-
-`
-        : '';
-
-    const mainPrompt = `${summarySection}${timelineSection}### Estado do Personagem
-\`\`\`json
-${characterContext}
-\`\`\`
-
-### Estado de Combate
-\`\`\`json
-${combatContextValue}
-\`\`\`
-
-### Histórico Recente
-${logContext}
-${homebrewSection ? `\n${homebrewSection}` : ''}
-${feedbackSection}
-
-A ação do jogador é: "${playerAction}"
-
-Com base em tudo, continue a aventura. Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
+Responda APENAS com um único objeto JSON válido que siga o schema GameMasterResponseSchema.`;
   
     // For Gemma, the full instruction goes into the user prompt
     if (isGemma) {
@@ -622,7 +608,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     const genAI = getGenAI(apiKey);
     const isGemma = modelName.toLowerCase().includes('gemma');
 
-    const systemInstruction = createSystemInstruction(
+    const systemInstruction = getCachedInstruction(
         input.useAiHomebrew ?? true,
         input.enableNarrativeRevalidation ?? true
     );
@@ -637,6 +623,8 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         })
     });
 
+    const rawPromptPreview = createPrompt(input, isGemma);
+
     const wasCondensed = { value: false };
     const condensedInput = condenseGameMasterInput(input, wasCondensed);
     if (wasCondensed.value) {
@@ -645,12 +633,21 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             : '[Prompt] Histórico condensado automaticamente para caber no limite.';
     }
     
-    const jsonSchema = zodToJsonSchema(GameMasterResponseSchema, "GameMasterResponseSchema");
-    delete (jsonSchema as any).$ref;
-    delete (jsonSchema as any).definitions;
-    delete (jsonSchema as any).$schema;
-
     const basePrompt = createPrompt(condensedInput, isGemma);
+    const digestTelemetry: { before?: number; after?: number } = {};
+    try {
+        const baselineTokens = await model.countTokens({
+            contents: [{ role: "user", parts: [{ text: rawPromptPreview }] }],
+        });
+        digestTelemetry.before = baselineTokens?.totalTokens ?? baselineTokens?.tokenCount ?? undefined;
+        if (typeof digestTelemetry.before === 'number') {
+            console.log(
+                `[aiService (${modelName})][${input.mode ?? 'gameplay'}] countTokens (pré-digest) = ${digestTelemetry.before}`
+            );
+        }
+    } catch (baselineError) {
+        console.warn('[aiService] Falha ao medir tokens antes do digest:', baselineError);
+    }
 
     let healthCheckPerformed = false;
     let healthCheckSucceeded = false;
@@ -717,7 +714,20 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                 });
                 measuredTokens = tokenCountResult?.totalTokens ?? tokenCountResult?.tokenCount ?? undefined;
                 if (typeof measuredTokens === 'number') {
-                    console.log(`[aiService (${modelName})][${mode}] countTokens reportou ${measuredTokens} tokens para o prompt completo.`);
+                    digestTelemetry.after = measuredTokens;
+                    const baselineInfo = typeof digestTelemetry.before === 'number'
+                        ? ` | baseline=${digestTelemetry.before}`
+                        : '';
+                    console.log(
+                        `[aiService (${modelName})][${mode}] countTokens (compacto) = ${measuredTokens}${baselineInfo}`
+                    );
+                    if (attemptIndex === 0) {
+                        try {
+                            await recordTokenUsageSample(mode, digestTelemetry.before, measuredTokens);
+                        } catch (metricError) {
+                            console.error('[tokenMetrics] Falha ao registrar uso de tokens:', metricError);
+                        }
+                    }
                 }
             } catch (countError) {
                 console.warn('[aiService] Falha ao contar tokens com countTokens:', countError);
@@ -775,8 +785,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             const jsonText = extractResponseText(response);
             
-            console.log("📜 Resposta bruta da IA:", jsonText);
-            
             if (!jsonText) {
                  console.error(`[aiService] Resposta da IA vazia na tentativa ${attemptIndex + 1}.`);
                  return ensureRetryOrFallback("O Mestre de Jogo não respondeu com conteúdo.");
@@ -832,11 +840,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
             // 1️⃣ Mini-sanitizer (limpeza pré-validação)
             const cleanedData = miniSanitize(responseData);
-            console.log("🧹 Após mini-sanitizador:", JSON.stringify(cleanedData, null, 2));
 
             // 2️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character);
-            console.log("✅ Resposta final sanitizada:", JSON.stringify(finalResponse, null, 2));
             
             // 3️⃣ Validação estrutural com Zod
             const validationResult = GameMasterResponseSchema.safeParse(finalResponse);
