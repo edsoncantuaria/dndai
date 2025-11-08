@@ -387,7 +387,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     </div>
                     {showCombatHud && (
                         <div>
-                            <GameHud />
+                            <GameHud onExitToMenu={returnToMenu} />
                         </div>
                     )}
                 </div>

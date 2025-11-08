@@ -19,6 +19,37 @@ const NewCombatTracker: React.FC = () => {
         return combatantOrId.id || combatantOrId.name || '';
     };
     
+    const rollEntries = useMemo(() => {
+        return (log || []).filter(entry => entry?.type === 'roll' && typeof entry.content === 'string');
+    }, [log]);
+
+    const extractRollSummary = (content: string) => {
+        const totalMatch = content.match(/(\d+)(?!.*\d)/);
+        const diceMatch = content.match(/(\d+d\d+)/i);
+        return {
+            total: totalMatch ? Number(totalMatch[1]) : undefined,
+            dice: diceMatch ? diceMatch[1] : undefined,
+        };
+    };
+
+    const buildRollHistory = (name?: string) => {
+        if (!name) return [];
+        const key = name.toLowerCase();
+        return rollEntries
+            .filter(entry => entry.content.toLowerCase().includes(key))
+            .slice(-5)
+            .map(entry => {
+                const summary = extractRollSummary(entry.content);
+                return {
+                    type: 'log',
+                    description: entry.content,
+                    total: summary.total,
+                    dice: summary.dice,
+                    rolls: [],
+                };
+            });
+    };
+
     const allCombatants = useMemo<Combatant[]>(() => {
         if (!combatState.isActive || !character) return [];
 
@@ -38,7 +69,7 @@ const NewCombatTracker: React.FC = () => {
             actionPoints: 3,
             bonusActionPoints: 1,
             conditions: character.conditions.map(c => c.name),
-            rollHistory: [],
+            rollHistory: buildRollHistory(character.name),
         };
         combatantMap.set('player', playerCombatant);
         
@@ -68,6 +99,9 @@ const NewCombatTracker: React.FC = () => {
                 },
                 ac: apiCombatant.ac ?? existing.ac ?? 10,
                 isDead: apiCombatant.isDead ?? (currentHp <= 0),
+                rollHistory: apiCombatant.rollHistory && apiCombatant.rollHistory.length
+                    ? apiCombatant.rollHistory
+                    : buildRollHistory(apiCombatant.name ?? id),
             };
             
             combatantMap.set(id, mergedCombatant);

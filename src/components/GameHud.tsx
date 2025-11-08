@@ -3,8 +3,9 @@
 
 import React, { useMemo } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Shield, Heart, Zap, Star } from 'lucide-react';
+import { Shield, Heart, Zap, Star, DoorOpen, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const timeOfDayGradients: Record<string, string> = {
     'manhã': 'from-amber-300/30 via-yellow-200/10 to-transparent',
@@ -53,6 +54,7 @@ const CompactStat: React.FC<{
 
 const GameHud: React.FC = () => {
     const { character, combatState } = useGameStateContext();
+    const { logout } = useAuth();
 
     const playerCombatant = useMemo(() => {
         if (!combatState?.isActive) return null;
