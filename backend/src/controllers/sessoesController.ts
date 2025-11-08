@@ -4,6 +4,7 @@ import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as SessaoService from '../services/sessaoService.js';
 import { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 import createError from 'http-errors';
+import { AppDataSource } from '../database/data-source.js';
 
 // Criar uma nova sessão de jogo clonando um personagem
 export const createSessao = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -180,10 +181,21 @@ export const cloneSessao = async (req: AuthRequest, res: Response, next: NextFun
     const sessionIdNum = Number(id);
     if (isNaN(sessionIdNum)) return next(createError(400, 'ID de sessão inválido.'));
 
+    const queryRunner = AppDataSource.createQueryRunner();
+
     try {
-        const { sessao } = await SessaoService.cloneSessao(sessionIdNum, userId);
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        const { sessao } = await SessaoService.cloneSessao(sessionIdNum, userId, queryRunner);
+        
+        await queryRunner.commitTransaction();
+
         res.status(201).json({ message: "Sessão clonada com sucesso.", sessao });
     } catch (error) {
+        await queryRunner.rollbackTransaction();
         next(error);
+    } finally {
+        await queryRunner.release();
     }
 };
