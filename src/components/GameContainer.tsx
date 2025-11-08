@@ -584,7 +584,7 @@ const GameContainer = () => {
                                         <p className="text-[11px] uppercase tracking-wide text-stone-500">Atualizado em {new Date(featuredSession.updatedAt).toLocaleDateString()}</p>
                                         
                                         {featuredSessionFacts?.storySummary && (
-                                           <div className="pt-2 border-t border-white/10">
+                                            <div className="pt-3 border-t border-white/10">
                                                 <p className={cn("text-sm text-stone-300 transition-all duration-300", !isSummaryExpanded && "line-clamp-3")}>
                                                     {featuredSessionFacts.storySummary}
                                                 </p>
@@ -836,10 +836,12 @@ const GameContainer = () => {
                     onClose={() => setSessionToClone(null)}
                     actions={[
                         { text: "Cancelar", onClick: () => setSessionToClone(null), variant: 'secondary' },
-                        { text: "Sim, Clonar", onClick: confirmCloneSession, variant: 'primary' }
+                        { text: "Sim, Criar Linha do Tempo", onClick: confirmCloneSession, variant: 'primary' }
                     ]}
                 >
-                    <p className="text-stone-300">Isso criará uma nova sessão, independente, a partir do estado atual desta aventura. Deseja continuar?</p>
+                    <p className="text-stone-300">
+                        Isso criará uma nova linha do tempo, independente da original. Você poderá explorar caminhos diferentes a partir deste exato momento. Deseja continuar?
+                    </p>
                 </ActionModal>
             )}
 
