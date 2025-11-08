@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { getGameUpdate } from './aiService.js';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
-import { hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
+import { getInventorySnapshotFromDb, hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
 import {
     loadCombatEncounterState,
     reconcileCombatStateUpdate,
@@ -876,6 +876,34 @@ export const processPlayerTurn = async (
                 await redisClient.del(`character:${sessao.character!.id}:optimized`);
                 await redisClient.del(sessionCacheKey);
             }
+        }
+
+        const canonicalInventory = await getInventorySnapshotFromDb(sessao.character!.id, queryRunner.manager);
+        const hydratedSnapshot = await hydrateInventoryItems(
+            canonicalInventory,
+            userId,
+            canonicalInventory
+        );
+
+        aiResponse.updatedCharacter = {
+            ...(aiResponse.updatedCharacter || {}),
+            inventory: hydratedSnapshot.items as any,
+        };
+
+        aiResponse.updatedCharacter.currency = reconcileCurrency(
+            aiResponse.updatedCharacter.currency,
+            hydratedSnapshot.metrics.currency
+        );
+        aiResponse.updatedCharacter.currentWeight = hydratedSnapshot.metrics.totalWeight;
+        aiResponse.updatedCharacter.totalCoinCount = hydratedSnapshot.metrics.totalCoinCount;
+
+        const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
+            where: { id: sessao.character!.id },
+            select: ['xp', 'level'],
+        });
+        if (persistedProgress) {
+            aiResponse.updatedCharacter.xp = persistedProgress.xp;
+            aiResponse.updatedCharacter.level = persistedProgress.level;
         }
         
         await queryRunner.commitTransaction();

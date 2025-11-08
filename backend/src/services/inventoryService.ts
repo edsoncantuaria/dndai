@@ -1,11 +1,14 @@
 // backend/src/services/inventoryService.ts
+import { AppDataSource } from '../database/data-source.js';
+import { CharacterItem } from '../entities/CharacterItem.js';
+import type { EntityManager } from 'typeorm';
 import { getUnifiedDetails } from './unifiedDataService.js';
 
 const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
 type CoinType = typeof COIN_TYPES[number];
 const COIN_WEIGHT = 0.02; // 50 moedas = 1 lb
 
-interface InventoryLike {
+export interface InventoryLike {
     id?: string | number;
     index?: string;
     name?: string;
@@ -26,6 +29,44 @@ export interface HydratedInventoryResult {
     items: InventoryLike[];
     metrics: InventoryMetrics;
 }
+
+const getItemsRepository = (manager?: EntityManager) => {
+    if (manager) {
+        return manager.getRepository(CharacterItem);
+    }
+    return AppDataSource.getRepository(CharacterItem);
+};
+
+const normaliseDbItem = (item: CharacterItem): InventoryLike => {
+    const baseData = item.itemData && typeof item.itemData === 'object'
+        ? item.itemData
+        : {};
+
+    const indexFromUrl = typeof baseData.url === 'string'
+        ? baseData.url.split('/').filter(Boolean).pop()
+        : undefined;
+
+    return {
+        ...baseData,
+        id: item.id.toString(),
+        index: baseData.index || indexFromUrl || baseData.name || item.name,
+        name: baseData.name || item.name,
+        quantity: item.quantity ?? baseData.quantity ?? 1,
+        equipped: typeof item.equipped === 'boolean' ? item.equipped : Boolean(baseData.equipped),
+    };
+};
+
+export const getInventorySnapshotFromDb = async (
+    characterId: number,
+    manager?: EntityManager
+): Promise<InventoryLike[]> => {
+    const repo = getItemsRepository(manager);
+    const storedItems = await repo.find({
+        where: { characterId },
+        order: { id: 'ASC' },
+    });
+    return storedItems.map(normaliseDbItem);
+};
 
 const isCoinIndex = (index?: string): index is CoinType => {
     if (!index) return false;

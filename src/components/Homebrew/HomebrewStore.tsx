@@ -1,35 +1,91 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ArrowLeft, Loader2, Plus, Trash2, CheckCircle, Download, Bot, Info, Swords, ScrollText, BookOpen, Shield, Heart, Grip, Minus, Edit, Package, PackagePlus, PackageCheck, ChevronDown, Search, Users, Languages } from 'lucide-react';
+import {
+    ArrowLeft,
+    Loader2,
+    Plus,
+    Trash2,
+    CheckCircle,
+    Download,
+    Bot,
+    Info,
+    Swords,
+    ScrollText,
+    BookOpen,
+    Shield,
+    Heart,
+    Grip,
+    Minus,
+    Edit,
+    Package,
+    PackagePlus,
+    PackageCheck,
+    ChevronDown,
+    Search,
+    Users,
+    Languages,
+    Sparkles,
+    Star,
+    TrendingUp,
+} from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
-import AiCreator from './AiCreator'; // Importar o novo componente
-import TranslationStudio from './TranslationStudio'; // Importar o novo componente
+import AiCreator from './AiCreator';
+import TranslationStudio from './TranslationStudio';
 
 type View = 'list' | 'create' | 'edit';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
-    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation'
+    'race',
+    'subrace',
+    'class',
+    'subclass',
+    'spell',
+    'item',
+    'monster',
+    'background',
+    'feat',
+    'skill',
+    'translation',
 ];
 
 const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.ReactNode> = {
-    'race': <Heart className="h-4 w-4" />,
-    'subrace': <Heart className="h-4 w-4" />,
-    'class': <Swords className="h-4 w-4" />,
-    'subclass': <Swords className="h-4 w-4" />,
-    'spell': <ScrollText className="h-4 w-4" />,
-    'item': <Shield className="h-4 w-4" />,
-    'monster': <Bot className="h-4 w-4" />,
-    'background': <BookOpen className="h-4 w-4" />,
-    'feat': <BookOpen className="h-4 w-4" />,
-    'skill': <BookOpen className="h-4 w-4" />,
-    'translation': <Languages className="h-4 w-4" />
+    race: <Heart className="h-4 w-4" />,
+    subrace: <Heart className="h-4 w-4" />,
+    class: <Swords className="h-4 w-4" />,
+    subclass: <Swords className="h-4 w-4" />,
+    spell: <ScrollText className="h-4 w-4" />,
+    item: <Shield className="h-4 w-4" />,
+    monster: <Bot className="h-4 w-4" />,
+    background: <BookOpen className="h-4 w-4" />,
+    feat: <BookOpen className="h-4 w-4" />,
+    skill: <BookOpen className="h-4 w-4" />,
+    translation: <Languages className="h-4 w-4" />,
+};
+
+const TABS: { id: Tab; label: string; description: string; icon: React.ReactNode }[] = [
+    { id: 'bundles', label: 'Pacotes', description: 'Coleções completas prontas para instalar', icon: <Package className="h-4 w-4" /> },
+    { id: 'community', label: 'Comunidade', description: 'Criações abertas de outros aventureiros', icon: <Users className="h-4 w-4" /> },
+    { id: 'mine', label: 'Minha Oficina', description: 'Tudo o que você publicou', icon: <Edit className="h-4 w-4" /> },
+    { id: 'installed', label: 'Instalados', description: 'Conteúdo ativo na sua conta', icon: <CheckCircle className="h-4 w-4" /> },
+    { id: 'ai', label: 'Curadoria IA', description: 'Sugestões do Mestre Digital', icon: <Bot className="h-4 w-4" /> },
+];
+
+const getContentSummary = (item: HomebrewService.HomebrewContent): string => {
+    const payload: any = item.content || {};
+    const candidates = [payload.summary, payload.flavor, payload.flavor_text, payload.short_description];
+    if (Array.isArray(payload.desc) && payload.desc.length) candidates.push(payload.desc[0]);
+    if (Array.isArray(payload.description) && payload.description.length) candidates.push(payload.description[0]);
+    if (typeof payload.text === 'string') candidates.push(payload.text);
+    const summary = candidates.find((entry) => typeof entry === 'string' && entry.trim().length > 6);
+    return summary ? String(summary).trim().slice(0, 220) : 'Conteúdo personalizado pronto para ser usado imediatamente na sua campanha.';
 };
 
 const BundleCard: React.FC<{
@@ -42,59 +98,87 @@ const BundleCard: React.FC<{
     onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
 }> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    
-    // Um pacote é considerado "instalado" se o seu próprio ID estiver na lista de instalados.
-    const isBundleInstalled = useMemo(() => {
-        return installedIds.has(bundle.id);
-    }, [bundle.id, installedIds]);
-
+    const isBundleInstalled = useMemo(() => installedIds.has(bundle.id), [bundle.id, installedIds]);
 
     return (
-        <div className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
-            <div>
-                <div className="flex justify-between items-start">
-                    <h3 className="font-bold text-lg text-amber-200">{bundle.name}</h3>
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="text-stone-400 hover:text-amber-300">
-                        <ChevronDown className={`h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <div className="group relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/90 via-stone-900/60 to-stone-900/30 p-5 shadow-lg shadow-black/30 backdrop-blur">
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none bg-[radial-gradient(circle_at_top,_rgba(251,191,36,0.18),_transparent_60%)]" />
+            <div className="relative z-10 flex flex-col gap-4">
+                <header className="flex items-start justify-between gap-3">
+                    <div>
+                        <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">{isOwner ? 'Seu Pacote' : 'Coleção da Comunidade'}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-amber-400" />
+                            <h3 className="text-xl font-semibold text-amber-100">{bundle.name}</h3>
+                        </div>
+                        <p className="text-sm text-stone-400 mt-1">{bundle.description || 'Coleção temática criada pela comunidade.'}</p>
+                    </div>
+                    <button
+                        onClick={() => setIsExpanded((prev) => !prev)}
+                        className="rounded-full border border-white/10 bg-white/5 p-2 text-stone-300 transition hover:text-amber-200 hover:border-amber-300/60"
+                        aria-label="Exibir conteúdos do pacote"
+                    >
+                        <ChevronDown className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                </header>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-200">{bundle.contentCount} itens</span>
+                    <span className="rounded-full bg-white/10 px-3 py-1 text-stone-200">por {isOwner ? 'você' : bundle.author?.username || 'Comunidade'}</span>
+                    {isBundleInstalled && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-3 py-1 text-amber-100">
+                            <PackageCheck className="h-3.5 w-3.5" /> Instalado
+                        </span>
+                    )}
+                </div>
+
+                {isExpanded && (bundle.contents || []).length > 0 && (
+                    <div className="rounded-2xl border border-white/5 bg-black/20 p-3 shadow-inner max-h-48 overflow-y-auto">
+                        <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70 mb-2">Conteúdos</p>
+                        <ul className="space-y-1 text-sm text-stone-300">
+                            {(bundle.contents || []).map((content) => (
+                                <li key={content.id} className="flex items-center justify-between gap-2">
+                                    <span className="truncate">{content.name}</span>
+                                    <span className="text-xs capitalize text-stone-500">{content.type}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                    {isOwner && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onEdit(bundle)}
+                                className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-3 py-2 text-sm font-medium text-blue-100 transition hover:bg-blue-500/20"
+                            >
+                                <Edit className="h-4 w-4" /> Editar
+                            </button>
+                            <button
+                                onClick={() => onDelete(bundle)}
+                                className="inline-flex items-center gap-2 rounded-full border border-red-400/40 bg-red-500/5 px-3 py-2 text-sm font-medium text-red-200 transition hover:bg-red-500/10"
+                            >
+                                <Trash2 className="h-4 w-4" /> Excluir
+                            </button>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => (isBundleInstalled ? onUninstall(bundle) : onInstall(bundle))}
+                        className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                            isBundleInstalled
+                                ? 'bg-red-500/10 text-red-200 border border-red-400/30 hover:bg-red-500/20'
+                                : 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 text-stone-950 shadow-lg shadow-amber-500/30 hover:brightness-110'
+                        }`}
+                    >
+                        {isBundleInstalled ? <PackageCheck className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                        {isBundleInstalled ? 'Remover Pacote' : 'Instalar Pacote'}
                     </button>
                 </div>
-                <p className="text-xs text-stone-400 mb-2">por {isOwner ? 'Você' : bundle.author?.username || 'Comunidade'} • Contém {bundle.contentCount} itens.</p>
-                <p className="text-sm text-stone-300">{bundle.description}</p>
-            </div>
-
-            {isExpanded && (bundle.contents || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-stone-700 max-h-40 overflow-y-auto pr-2">
-                    <ul className="list-disc list-inside space-y-1 text-sm text-stone-300">
-                        {bundle.contents.map(c => <li key={c.id}>{c.name} <span className="text-xs text-stone-500">({c.type})</span></li>)}
-                    </ul>
-                </div>
-            )}
-
-            <div className="mt-4 flex gap-2">
-                {isOwner && (
-                    <>
-                        <button onClick={() => onEdit(bundle)} className="flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors bg-blue-800 hover:bg-blue-700 text-blue-200">
-                            <Edit className="h-4 w-4"/> Editar
-                        </button>
-                        <button onClick={() => onDelete(bundle)} className="p-2 bg-red-800 hover:bg-red-700 text-red-200 rounded-md transition-colors">
-                            <Trash2 className="h-5 w-5"/>
-                        </button>
-                    </>
-                )}
-                 <button
-                    onClick={() => isBundleInstalled ? onUninstall(bundle) : onInstall(bundle)}
-                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-                        isBundleInstalled ? 'bg-red-800/80 hover:bg-red-700 text-red-200' : 'bg-amber-700 hover:bg-amber-600 text-stone-900'
-                    }`}
-                >
-                    {isBundleInstalled ? <PackageCheck className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                    {isBundleInstalled ? 'Desinstalar Pacote' : 'Instalar Pacote'}
-                </button>
             </div>
         </div>
     );
 };
-
 
 const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
     const [view, setView] = useState<View>('list');
@@ -108,17 +192,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [bundles, setBundles] = useState<HomebrewService.HomebrewBundle[]>([]);
     const { toast } = useToast();
     const { user, revalidateUserSession } = useAuth();
-    
-    const [installCandidate, setInstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
-    const [uninstallCandidate, setUninstallCandidate] = useState<{item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle'} | null>(null);
-    const [dependencies, setDependencies] = useState<HomebrewService.HomebrewContent[]>([]);
 
-    const [itemToDelete, setItemToDelete] = useState<{item: HomebrewService.HomebrewBundle, type: 'bundle'} | null>(null);
+    const [installCandidate, setInstallCandidate] = useState<{ item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle; type: 'item' | 'bundle' } | null>(null);
+    const [uninstallCandidate, setUninstallCandidate] = useState<{ item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle; type: 'item' | 'bundle' } | null>(null);
+    const [dependencies, setDependencies] = useState<HomebrewService.HomebrewContent[]>([]);
+    const [itemToDelete, setItemToDelete] = useState<{ item: HomebrewService.HomebrewBundle; type: 'bundle' } | null>(null);
+    const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
+    const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false);
+    const [showTranslationStudio, setShowTranslationStudio] = useState(false);
 
     const installedIds = useMemo(() => new Set(user?.installedHomebrewIds || []), [user]);
-    const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
-    const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false); // Novo estado para o modal da IA
-
 
     const fetchContentAndBundles = useCallback(async () => {
         setIsLoading(true);
@@ -130,32 +213,27 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 user ? HomebrewService.listHomebrewContent('mine') : Promise.resolve([]),
                 HomebrewService.listHomebrewContent('public', 'ai'),
             ]);
-    
-            const allBundlesMap = new Map<string, HomebrewService.HomebrewBundle>();
-            publicBundles.forEach(b => allBundlesMap.set(b.id, b));
-            myBundles.forEach(b => allBundlesMap.set(b.id, b));
-    
-            const allContentMap = new Map<string, HomebrewService.HomebrewContent>();
-            publicContent.forEach(c => allContentMap.set(c.id, c));
-            myContent.forEach(c => allContentMap.set(c.id, c));
-            aiContent.forEach(c => allContentMap.set(c.id, c));
-    
-            setContent(Array.from(allContentMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
-            setBundles(Array.from(allBundlesMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
 
+            const bundlesMap = new Map<string, HomebrewService.HomebrewBundle>();
+            publicBundles.forEach((bundle) => bundlesMap.set(bundle.id, bundle));
+            myBundles.forEach((bundle) => bundlesMap.set(bundle.id, bundle));
+
+            const contentMap = new Map<string, HomebrewService.HomebrewContent>();
+            publicContent.forEach((item) => contentMap.set(item.id, item));
+            myContent.forEach((item) => contentMap.set(item.id, item));
+            aiContent.forEach((item) => contentMap.set(item.id, item));
+
+            setBundles(Array.from(bundlesMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
+            setContent(Array.from(contentMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
         } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Erro ao buscar conteúdo',
-                description: error.message || 'Não foi possível carregar o conteúdo homebrew.',
-            });
-            setContent([]);
+            toast({ variant: 'destructive', title: 'Erro ao buscar conteúdo', description: error.message || 'Não foi possível carregar o conteúdo homebrew.' });
             setBundles([]);
+            setContent([]);
         } finally {
             setIsLoading(false);
         }
     }, [toast, user]);
-    
+
     useEffect(() => {
         if (view === 'list') {
             fetchContentAndBundles();
@@ -165,42 +243,39 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const handleInstallClick = async (item: HomebrewService.HomebrewContent) => {
         try {
             const deps = await HomebrewService.getHomebrewDependencies(item.id);
-            const depsToInstall = deps.filter(d => !installedIds.has(d.id));
+            const depsToInstall = deps.filter((dep) => !installedIds.has(dep.id));
             setInstallCandidate({ item, type: 'item' });
             setDependencies(depsToInstall);
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Erro ao Verificar Dependências', description: error.message });
+            toast({ variant: 'destructive', title: 'Erro ao verificar dependências', description: error.message });
         }
     };
-    
-    const handleBundleInstallClick = async (bundle: HomebrewService.HomebrewBundle) => {
+
+    const handleBundleInstallClick = (bundle: HomebrewService.HomebrewBundle) => {
         setInstallCandidate({ item: bundle, type: 'bundle' });
-        setDependencies([]); // Bundle installation is now a single ID
+        setDependencies([]);
     };
 
-    const handleUninstallClick = async (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle') => {
+    const handleUninstallClick = (item: HomebrewService.HomebrewContent | HomebrewService.HomebrewBundle, type: 'item' | 'bundle') => {
         setUninstallCandidate({ item, type });
-        setDependencies([]); // Bundle uninstallation is just the bundle ID
+        setDependencies([]);
     };
-    
+
     const confirmInstallation = async () => {
         if (!installCandidate) return;
         setIsLoading(true);
         try {
             await HomebrewService.updateUserHomebrew(installCandidate.item.id, 'install');
             await revalidateUserSession();
-            toast({
-                title: 'Instalação Concluída!',
-                description: `"${installCandidate.item.name}" foi adicionado à sua conta.`,
-            });
+            toast({ title: 'Instalação concluída!', description: `"${installCandidate.item.name}" foi adicionado à sua conta.` });
         } catch (error: any) {
-             toast({ variant: 'destructive', title: `Falha na Instalação`, description: error.message });
+            toast({ variant: 'destructive', title: 'Falha na instalação', description: error.message });
         } finally {
             setInstallCandidate(null);
             setDependencies([]);
             setIsLoading(false);
         }
-    }
+    };
 
     const confirmUninstallation = async () => {
         if (!uninstallCandidate) return;
@@ -208,12 +283,9 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         try {
             await HomebrewService.updateUserHomebrew(uninstallCandidate.item.id, 'uninstall');
             await revalidateUserSession();
-            toast({
-                title: 'Desinstalação Concluída!',
-                description: `"${uninstallCandidate.item.name}" foi removido da sua conta.`,
-            });
+            toast({ title: 'Desinstalação concluída!', description: `"${uninstallCandidate.item.name}" foi removido.` });
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Falha na Desinstalação', description: error.message });
+            toast({ variant: 'destructive', title: 'Falha na desinstalação', description: error.message });
         } finally {
             setUninstallCandidate(null);
             setDependencies([]);
@@ -223,42 +295,42 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     const handleEdit = (item: HomebrewService.HomebrewContent) => {
         if (item.bundleId) {
-            toast({ variant: 'destructive', title: 'Conteúdo em Pacote', description: 'Remova este item do pacote para poder editá-lo.' });
+            toast({ variant: 'destructive', title: 'Conteúdo em pacote', description: 'Remova este item do pacote para editá-lo.' });
             return;
         }
         setContentToEdit(item);
         setView('edit');
     };
-    
+
     const handleEditBundle = (bundle: HomebrewService.HomebrewBundle) => {
         setBundleToEdit(bundle);
         setIsBundleCreatorOpen(true);
     };
 
-    const handleDeleteClick = (item: HomebrewService.HomebrewBundle) => {
-        setItemToDelete({ item, type: 'bundle' });
+    const handleDeleteClick = (bundle: HomebrewService.HomebrewBundle) => {
+        setItemToDelete({ item: bundle, type: 'bundle' });
     };
 
     const confirmDeletion = async () => {
-        if (!itemToDelete || itemToDelete.type !== 'bundle') return;
+        if (!itemToDelete) return;
         setIsLoading(true);
         try {
             await HomebrewService.deleteBundle(itemToDelete.item.id);
-            toast({ title: 'Pacote Excluído', description: `"${itemToDelete.item.name}" foi removido permanentemente.` });
+            toast({ title: 'Pacote excluído', description: `"${itemToDelete.item.name}" foi removido permanentemente.` });
             fetchContentAndBundles();
         } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Falha na Exclusão', description: error.message });
+            toast({ variant: 'destructive', title: 'Falha na exclusão', description: error.message });
         } finally {
             setIsLoading(false);
             setItemToDelete(null);
         }
     };
-    
+
     const handleAiContentCreated = (generatedContent: any, type: HomebrewService.HomebrewContentType) => {
         setContentToEdit({
             id: '',
             authorId: user?.id || 0,
-            type: type,
+            type,
             name: generatedContent.name,
             content: generatedContent,
             isPublic: false,
@@ -266,94 +338,171 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             updatedAt: new Date().toISOString(),
             createdBy: 'user',
         });
-        setView('create'); 
+        setView('create');
     };
 
-    if (view === 'create' || view === 'edit') {
-        return <HomebrewCreator onContentCreated={() => { setView('list'); fetchContentAndBundles(); }} onCancel={() => setView('list')} contentToEdit={contentToEdit} />;
-    }
+    const marketplaceStats = useMemo(() => {
+        const communityCreations = content.filter((item) => item.createdBy !== 'ai').length;
+        const aiCurations = content.filter((item) => item.createdBy === 'ai').length;
+        return {
+            totalContent: content.length,
+            bundles: bundles.length,
+            communityCreations,
+            aiCurations,
+            installed: installedIds.size,
+        };
+    }, [content, bundles, installedIds]);
+
+    const communityHighlights = useMemo(() => {
+        const creatorMap = new Map<string, { name: string; count: number }>();
+        const typeMap = new Map<string, number>();
+
+        content.forEach((item) => {
+            const creator = item.createdBy === 'ai' ? 'Mestre IA' : item.author?.username || 'Comunidade';
+            creatorMap.set(creator, { name: creator, count: (creatorMap.get(creator)?.count || 0) + 1 });
+            typeMap.set(item.type, (typeMap.get(item.type) || 0) + 1);
+        });
+
+        return {
+            featured: Array.from(creatorMap.values())
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 4),
+            trending: Array.from(typeMap.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5),
+        };
+    }, [content]);
+
+    const hasCommunityHighlights = communityHighlights.featured.length > 0 || communityHighlights.trending.length > 0;
+
+    const handleTrendingChipClick = (targetType: string) => {
+        setTypeFilter(targetType as HomebrewService.HomebrewContentType);
+        setActiveTab('community');
+    };
+
+    const handleCreatorChipClick = (creator: string) => {
+        setSearchTerm(creator === 'Mestre IA' ? '' : creator);
+        setActiveTab('community');
+    };
+
+    const filteredContent = useCallback(
+        (contentList: HomebrewService.HomebrewContent[]) =>
+            contentList.filter((item) => {
+                const matchesType = typeFilter === 'all' || item.type === typeFilter;
+                const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+                return matchesType && matchesSearch;
+            }),
+        [typeFilter, searchTerm]
+    );
 
     const renderContentGrid = (contentList: HomebrewService.HomebrewContent[]) => {
-        const filteredContent = contentList.filter(item => 
-            (typeFilter === 'all' || item.type === typeFilter) &&
-            (item.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        );
+        const filtered = filteredContent(contentList);
 
-        if (filteredContent.length === 0 && !isLoading) {
-            return <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo encontrado para os filtros selecionados.</p>;
+        if (!filtered.length && !isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-stone-400">
+                    <Info className="h-8 w-8 text-amber-400" />
+                    <p>Nenhum conteúdo encontrado com os filtros atuais.</p>
+                </div>
+            );
         }
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredContent.map(item => {
+            <div className="grid gap-4 md:grid-cols-2">
+                {filtered.map((item) => {
                     const isInstalled = installedIds.has(item.id);
                     const isOwner = item.authorId === user?.id;
                     const isFromAI = item.createdBy === 'ai';
-                    
-                    const buttonStyle: React.CSSProperties = {};
-                    if(isFromAI) {
-                        buttonStyle.backgroundColor = 'rgb(22 101 52 / 0.8)'; 
-                        buttonStyle.color = 'rgb(187 247 208)'; 
-                    } else if(isInstalled) {
-                        buttonStyle.backgroundColor = 'rgb(127 29 29 / 0.8)'; 
-                        buttonStyle.color = 'rgb(254 202 202)'; 
-                    } else {
-                        buttonStyle.backgroundColor = 'rgb(217 119 6)'; 
-                        buttonStyle.color = 'rgb(28 25 23)'; 
-                    }
-
+                    const descriptor = getContentSummary(item);
 
                     return (
-                        <div key={item.id} className="bg-stone-800/70 p-4 rounded-lg border border-stone-600 text-left flex flex-col justify-between hover:border-amber-700/50 transition-colors">
-                            <div>
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-bold text-lg text-amber-200">{item.name}</h3>
-                                    <div className="flex items-center gap-1.5 text-xs text-stone-400 capitalize bg-stone-700/50 px-2 py-1 rounded-full">
-                                         {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-4 w-4"/>}
-                                         {item.type}
+                        <article key={item.id} className="relative overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-stone-950/70 via-stone-900/50 to-stone-900/30 p-5 shadow-lg shadow-black/30">
+                            <div
+                                className="absolute inset-0 pointer-events-none opacity-40"
+                                style={{ background: 'radial-gradient(circle at top, rgba(251,191,36,0.25), transparent 55%)' }}
+                            />
+                            <div className="relative z-10 flex flex-col gap-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="text-lg font-semibold text-amber-100">{item.name}</h3>
+                                        <p className="text-xs text-stone-400">
+                                            {isFromAI ? 'Curadoria do Mestre IA' : isOwner ? 'Criado por você' : `Criado por ${item.author?.username || 'Comunidade'}`}
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 items-end">
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-stone-200">
+                                            {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-3.5 w-3.5" />} {item.type}
+                                        </span>
+                                        {item.bundle && (
+                                            <span className="inline-flex items-center gap-1 rounded-full bg-purple-500/20 px-3 py-1 text-xs font-semibold text-purple-100">
+                                                <Package className="h-3.5 w-3.5" /> {item.bundle.name}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
-                                <p className="text-xs text-stone-400 mt-1">
-                                    {isFromAI ? 'Criado por: Mestre IA' : (isOwner ? 'Criado por: Você' : `Criado por: ${item.author?.username || 'Comunidade'}`)}
-                                </p>
-                                {item.bundle && <p className="text-xs text-purple-400 mt-1">Parte do pacote: {item.bundle.name}</p>}
-                            </div>
-                            <div className="mt-4 flex gap-2">
-                                {isOwner && !isFromAI && !item.bundleId && (
-                                    <button onClick={() => handleEdit(item)} className="p-2 bg-blue-800/80 hover:bg-blue-700 rounded-md text-blue-200 transition-colors" title="Editar">
-                                        <Edit className="h-4 w-4" />
+
+                                <p className="text-sm text-stone-300 line-clamp-3">{descriptor}</p>
+
+                                <div className="flex items-center gap-2 text-xs font-semibold text-stone-400">
+                                    {isInstalled && !isFromAI && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-emerald-200">
+                                            <CheckCircle className="h-3.5 w-3.5" /> Instalado
+                                        </span>
+                                    )}
+                                    {isFromAI && (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-cyan-500/15 px-3 py-1 text-cyan-200">
+                                            <Bot className="h-3.5 w-3.5" /> Disponível automaticamente
+                                        </span>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-2">
+                                    {isOwner && !isFromAI && !item.bundleId && (
+                                        <button
+                                            onClick={() => handleEdit(item)}
+                                            className="inline-flex items-center gap-2 rounded-full border border-blue-400/40 bg-blue-500/10 px-3 py-2 text-xs font-semibold text-blue-100 transition hover:bg-blue-500/20"
+                                        >
+                                            <Edit className="h-3.5 w-3.5" /> Editar
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => (isInstalled ? handleUninstallClick(item, 'item') : handleInstallClick(item))}
+                                        disabled={isFromAI}
+                                        className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                            isFromAI
+                                                ? 'cursor-not-allowed border border-white/10 bg-white/5 text-stone-400'
+                                                : isInstalled
+                                                ? 'border border-red-400/40 bg-red-500/10 text-red-100 hover:bg-red-500/20'
+                                                : 'bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 text-stone-950 shadow-lg shadow-amber-500/30 hover:brightness-110'
+                                        }`}
+                                    >
+                                        {isFromAI ? <Info className="h-4 w-4" /> : isInstalled ? <Minus className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+                                        {isFromAI ? 'Disponível por padrão' : isInstalled ? 'Remover' : 'Instalar'}
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => isInstalled ? handleUninstallClick(item, 'item') : handleInstallClick(item)}
-                                    className={`w-full flex-grow flex items-center justify-center gap-2 py-2 px-3 rounded-md text-sm font-semibold transition-colors`}
-                                    style={buttonStyle}
-                                    disabled={isFromAI}
-                                    title={isFromAI ? "Conteúdo da IA é sempre ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
-                                >
-                                    {isFromAI ? <CheckCircle className="h-4 w-4" /> : isInstalled ? <Minus className="h-4 w-4"/> : <Download className="h-4 w-4"/>}
-                                    {isFromAI ? "Sempre Ativo" : isInstalled ? 'Desinstalar' : 'Instalar'}
-                                </button>
+                                </div>
                             </div>
-                        </div>
+                        </article>
                     );
                 })}
             </div>
         );
     };
-    
-    const renderBundlesTab = () => {
-        const filteredBundles = bundles.filter(b => 
-            b.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
 
-        if (filteredBundles.length === 0 && !isLoading) {
-            return <p className="text-stone-500 italic text-center py-10">Nenhum pacote de conteúdo encontrado para os filtros selecionados.</p>;
+    const renderBundlesTab = () => {
+        const filteredBundles = bundles.filter((bundle) => bundle.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        if (!filteredBundles.length && !isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-stone-400">
+                    <Package className="h-8 w-8 text-amber-400" />
+                    <p>Nenhum pacote encontrado com o filtro atual.</p>
+                </div>
+            );
         }
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {filteredBundles.map(bundle => (
+            <div className="grid gap-4 md:grid-cols-2">
+                {filteredBundles.map((bundle) => (
                     <BundleCard
                         key={bundle.id}
                         bundle={bundle}
@@ -368,29 +517,40 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             </div>
         );
     };
-    
-    const renderMyCreationsTab = () => {
-        const myContent = content.filter(c => c.authorId === user?.id && !c.bundleId);
-        return renderContentGrid(myContent);
-    }
-    
+
+    const renderCommunityTab = () => renderContentGrid(content.filter((item) => item.createdBy !== 'ai' && !item.bundleId));
+    const renderMyCreationsTab = () => renderContentGrid(content.filter((item) => item.authorId === user?.id && !item.bundleId));
+    const renderAiTab = () => renderContentGrid(content.filter((item) => item.createdBy === 'ai'));
+
     const renderInstalledTab = () => {
-        const installedBundles = bundles.filter(b => installedIds.has(b.id));
-        const installedSoloContent = content.filter(c => installedIds.has(c.id) && !c.bundleId);
+        const installedBundles = bundles.filter((bundle) => installedIds.has(bundle.id));
+        const installedSoloContent = content.filter((item) => installedIds.has(item.id) && !item.bundleId);
+
+        if (!installedBundles.length && !installedSoloContent.length && !isLoading) {
+            return (
+                <div className="flex flex-col items-center justify-center gap-3 py-12 text-center text-stone-400">
+                    <Info className="h-8 w-8 text-amber-400" />
+                    <p>Você ainda não instalou nenhum conteúdo extra.</p>
+                </div>
+            );
+        }
 
         return (
             <div className="space-y-8">
                 {installedBundles.length > 0 && (
-                    <div>
-                        <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Pacotes Instalados</h2>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {installedBundles.map(bundle => (
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <PackageCheck className="h-5 w-5 text-amber-300" />
+                            <h3 className="text-lg font-semibold text-amber-100">Pacotes ativos</h3>
+                        </div>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            {installedBundles.map((bundle) => (
                                 <BundleCard
                                     key={bundle.id}
                                     bundle={bundle}
                                     isOwner={bundle.authorId === user?.id}
                                     installedIds={installedIds}
-                                    onInstall={() => {}} // Já está instalado
+                                    onInstall={handleBundleInstallClick}
                                     onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                                     onEdit={handleEditBundle}
                                     onDelete={handleDeleteClick}
@@ -400,193 +560,334 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     </div>
                 )}
                 {installedSoloContent.length > 0 && (
-                    <div>
-                        <h2 className="text-2xl font-bold text-amber-200 mb-4 border-b border-stone-600 pb-2">Criações Avulsas Instaladas</h2>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-3">
+                            <CheckCircle className="h-5 w-5 text-emerald-300" />
+                            <h3 className="text-lg font-semibold text-emerald-100">Itens individuais</h3>
+                        </div>
                         {renderContentGrid(installedSoloContent)}
                     </div>
                 )}
-                {installedBundles.length === 0 && installedSoloContent.length === 0 && <p className="text-stone-500 italic text-center py-10">Nenhum conteúdo instalado.</p>}
             </div>
-        )
-    };
-
-    const renderCommunityTab = () => {
-        const communityContent = content.filter(c => c.isPublic && !c.bundleId && c.createdBy === 'user');
-        return renderContentGrid(communityContent);
-    };
-
-    const renderAiTab = () => {
-        const aiContent = content.filter(c => c.createdBy === 'ai');
-        return renderContentGrid(aiContent);
+        );
     };
 
     const renderActiveTab = () => {
         if (isLoading) {
             return (
-                <div className="flex justify-center items-center h-full text-stone-400 py-10">
-                    <Loader2 className="h-8 w-8 animate-spin mr-3" /> Carregando...
+                <div className="flex justify-center items-center gap-3 py-12 text-stone-400">
+                    <Loader2 className="h-6 w-6 animate-spin" /> Carregando marketplace...
                 </div>
             );
         }
-        
+
         switch (activeTab) {
-            case 'bundles': return renderBundlesTab();
-            case 'community': return renderCommunityTab();
-            case 'mine': return renderMyCreationsTab();
-            case 'installed': return renderInstalledTab();
-            case 'ai': return renderAiTab();
-            default: return null;
+            case 'bundles':
+                return renderBundlesTab();
+            case 'community':
+                return renderCommunityTab();
+            case 'mine':
+                return renderMyCreationsTab();
+            case 'installed':
+                return renderInstalledTab();
+            case 'ai':
+                return renderAiTab();
+            default:
+                return null;
         }
     };
 
-    const renderModal = () => {
+    const renderInstallModal = () => {
         const candidate = installCandidate || uninstallCandidate;
         if (!candidate) return null;
 
-        const isInstall = !!installCandidate;
-        const title = isInstall ? "Confirmar Instalação" : "Confirmar Desinstalação";
-        const primaryActionText = isInstall ? `Instalar "${candidate.item.name}"` : `Desinstalar "${candidate.item.name}"`;
-        const onConfirm = () => isInstall ? confirmInstallation() : confirmUninstallation();
-        
-        let message = `Você tem certeza que quer ${isInstall ? 'instalar' : 'desinstalar'} ${candidate.type === 'bundle' ? 'o pacote' : 'o item'} "${candidate.item.name}"?`;
-        
-        if (isInstall && dependencies.length > 0) {
-            message = `Para instalar "${candidate.item.name}", as seguintes dependências também serão instaladas:`
-        }
-        if (!isInstall && candidate.type === 'bundle') {
-            message = `Desinstalar o pacote "${candidate.item.name}" removerá o acesso a todos os seus conteúdos. Deseja continuar?`
-        }
+        const isInstall = Boolean(installCandidate);
+        const onDismiss = () => {
+            setInstallCandidate(null);
+            setUninstallCandidate(null);
+            setDependencies([]);
+        };
 
         return (
             <ActionModal
-                isOpen={true}
-                title={title}
-                onClose={() => { setInstallCandidate(null); setUninstallCandidate(null); setDependencies([]); }}
+                isOpen
+                title={isInstall ? 'Confirmar instalação' : 'Confirmar desinstalação'}
+                onClose={onDismiss}
                 actions={[
-                    { text: "Cancelar", onClick: () => { setInstallCandidate(null); setUninstallCandidate(null); setDependencies([]); }, variant: 'secondary' },
-                    { text: primaryActionText, onClick: onConfirm, variant: isInstall ? 'primary' : 'destructive', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : undefined }
+                    { text: 'Cancelar', onClick: onDismiss, variant: 'secondary' },
+                    {
+                        text: isInstall ? 'Instalar agora' : 'Remover acesso',
+                        onClick: isInstall ? confirmInstallation : confirmUninstallation,
+                        variant: isInstall ? 'primary' : 'destructive',
+                        disabled: isLoading,
+                        icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined,
+                    },
                 ]}
             >
-                <p className="text-stone-300 mb-4">{message}</p>
+                <p className="text-stone-300">
+                    {isInstall
+                        ? `Instalar "${candidate.item.name}" adicionará o conteúdo à sua conta.`
+                        : `Remover "${candidate.item.name}" faz com que ele deixe de aparecer nas suas sessões.`}
+                </p>
                 {isInstall && dependencies.length > 0 && (
-                    <div className="max-h-60 overflow-y-auto bg-stone-800/50 p-3 rounded-md border border-stone-700">
-                        <ul className="list-disc list-inside text-stone-300 space-y-1">
-                            {dependencies.map(dep => (
-                                <li key={dep.id}>{dep.name} <span className="text-xs text-stone-500">({dep.type})</span></li>
+                    <div className="mt-4 rounded-2xl border border-white/5 bg-stone-900/80 p-3">
+                        <p className="text-sm text-amber-200 mb-2 flex items-center gap-2">
+                            <Info className="h-4 w-4" /> Dependências adicionais
+                        </p>
+                        <ul className="space-y-1 text-sm text-stone-300 max-h-40 overflow-y-auto">
+                            {dependencies.map((dep) => (
+                                <li key={dep.id} className="flex items-center justify-between gap-2">
+                                    <span>{dep.name}</span>
+                                    <span className="text-xs capitalize text-stone-500">{dep.type}</span>
+                                </li>
                             ))}
                         </ul>
                     </div>
                 )}
             </ActionModal>
-        )
+        );
+    };
+
+    if (showTranslationStudio) {
+        return <TranslationStudio onCancel={() => setShowTranslationStudio(false)} />;
     }
 
-    const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
-        { id: 'bundles', label: 'Pacotes', icon: <Package className="h-5 w-5"/> },
-        { id: 'community', label: 'Comunidade', icon: <Users className="h-5 w-5"/> },
-        { id: 'mine', label: 'Minhas Criações', icon: <Edit className="h-5 w-5"/> },
-        { id: 'installed', label: 'Instalados', icon: <CheckCircle className="h-5 w-5"/> },
-        { id: 'ai', label: 'IA', icon: <Bot className="h-5 w-5"/> },
+    if (view === 'create' || view === 'edit') {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 px-4 py-8">
+                <div className="mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl shadow-black/60 backdrop-blur">
+                    <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
+                        <button
+                            onClick={() => setView('list')}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-200 hover:text-amber-200"
+                        >
+                            <ArrowLeft className="h-4 w-4" /> Voltar para o marketplace
+                        </button>
+                        <div className="text-right">
+                            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Edição premium</p>
+                            <h2 className="text-2xl font-semibold text-white">Oficina de Criação</h2>
+                        </div>
+                    </div>
+                    <HomebrewCreator
+                        onContentCreated={() => {
+                            setView('list');
+                            fetchContentAndBundles();
+                        }}
+                        onCancel={() => setView('list')}
+                        contentToEdit={contentToEdit}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    const statsCards = [
+        { label: 'Conteúdos Disponíveis', value: marketplaceStats.totalContent, sub: '+ comunidade & IA', icon: <Sparkles className="h-5 w-5 text-amber-400" /> },
+        { label: 'Pacotes', value: marketplaceStats.bundles, sub: 'coleções prontas', icon: <Package className="h-5 w-5 text-purple-300" /> },
+        { label: 'Instalados', value: marketplaceStats.installed, sub: 'ativos na sua conta', icon: <CheckCircle className="h-5 w-5 text-emerald-300" /> },
+        { label: 'Curadoria IA', value: marketplaceStats.aiCurations, sub: 'sem tradução necessária', icon: <Bot className="h-5 w-5 text-cyan-300" /> },
     ];
 
     return (
         <>
-            <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col text-center animate-fadeIn p-4 sm:p-6">
-                <header className="mb-8">
-                    <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
-                        Oficina Homebrew
-                    </h1>
-                    <p className="text-stone-400 mt-2">Crie, compartilhe e descubra novo conteúdo para suas aventuras.</p>
-                </header>
-                <main className="w-full">
-                    <div className="flex flex-col sm:flex-row justify-between items-center mb-4 border-b border-stone-700">
-                         <div className="flex flex-wrap">
-                             {TABS.map(tab => (
-                                 <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`px-3 py-3 sm:px-4 sm:py-2 text-sm sm:text-base font-semibold transition-colors flex items-center gap-2 ${activeTab === tab.id ? 'text-amber-300 border-b-2 border-amber-400' : 'text-stone-400 hover:text-white'}`}>
-                                    {tab.icon} {tab.label}
+            <div className="relative min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 py-6">
+                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-30" aria-hidden />
+                <div className="relative z-10 mx-auto w-full max-w-6xl px-4 space-y-6">
+                    <header className="rounded-3xl border border-white/10 bg-gradient-to-r from-stone-950/90 via-stone-900/70 to-stone-900/50 p-6 shadow-2xl shadow-black/60 backdrop-blur">
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+                            <div className="flex-1 min-w-0 text-left">
+                                <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Mercado da Comunidade</p>
+                                <h1 className="mt-2 text-4xl font-semibold text-white">Oficina Homebrew</h1>
+                                <p className="mt-3 text-stone-300">
+                                    Descubra, instale e publique conteúdo criado pela comunidade – com curadoria manual e sugestões da IA para manter sua aventura sempre fresca.
+                                </p>
+                                <div className="mt-6 flex flex-wrap gap-3">
+                                    <button
+                                        onClick={() => {
+                                            setContentToEdit(null);
+                                            setView('create');
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 px-5 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 hover:brightness-110"
+                                    >
+                                        <Plus className="h-4 w-4" /> Criar conteúdo
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setBundleToEdit(null);
+                                            setIsBundleCreatorOpen(true);
+                                        }}
+                                        className="inline-flex items-center gap-2 rounded-full border border-purple-400/40 bg-purple-500/10 px-5 py-2 text-sm font-semibold text-purple-100 transition hover:bg-purple-500/20"
+                                    >
+                                        <PackagePlus className="h-4 w-4" /> Criar pacote
+                                    </button>
+                                    <button
+                                        onClick={() => setIsAiCreatorOpen(true)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
+                                    >
+                                        <Bot className="h-4 w-4" /> Gerar com IA
+                                    </button>
+                                    <button
+                                        onClick={() => setShowTranslationStudio(true)}
+                                        className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-200 hover:text-amber-200"
+                                    >
+                                        <Languages className="h-4 w-4" /> Estúdio de tradução
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="grid w-full flex-1 min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
+                                {statsCards.map((card) => (
+                                    <div key={card.label} className="rounded-2xl border border-white/10 bg-black/20 p-4 text-left shadow-inner shadow-black/50">
+                                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em] text-stone-400">{card.icon} {card.label}</div>
+                                        <p className="mt-2 text-2xl font-semibold text-white">{card.value}</p>
+                                        <p className="text-xs text-stone-400">{card.sub}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </header>
+
+                    <section className="grid grid-cols-1 gap-3 rounded-3xl border border-white/5 bg-black/20 p-5 shadow-inner shadow-black/40 md:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/70 to-stone-900/30 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                                <TrendingUp className="h-4 w-4" /> Tendências
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {!hasCommunityHighlights && <p className="text-xs text-stone-500">Sem dados ainda. Instale ou crie algo!</p>}
+                                {communityHighlights.trending.length === 0 && content.length > 0 && (
+                                    <p className="text-xs text-stone-500">Sem tendências suficientes.</p>
+                                )}
+                                {communityHighlights.trending.map(([type, count]) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => handleTrendingChipClick(type)}
+                                        className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold capitalize transition ${
+                                            typeFilter === type ? 'border-amber-400/70 bg-amber-500/20 text-amber-100' : 'border-white/10 bg-white/5 text-stone-200 hover:border-amber-300/40 hover:text-amber-100'
+                                        }`}
+                                    >
+                                        {CONTENT_TYPE_ICONS[type as HomebrewService.HomebrewContentType] || <Sparkles className="h-3.5 w-3.5" />} {type}
+                                        <span className="text-stone-400">({count})</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/70 to-stone-900/30 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                                <Star className="h-4 w-4" /> Destaques da comunidade
+                            </div>
+                            <div className="mt-3 space-y-2 text-sm text-stone-300">
+                                {!hasCommunityHighlights && <p className="text-xs text-stone-500">Sem participações registradas.</p>}
+                                {communityHighlights.featured.map((creator) => (
+                                    <button
+                                        key={creator.name}
+                                        onClick={() => handleCreatorChipClick(creator.name)}
+                                        className="flex w-full items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/5 px-3 py-2 text-left transition hover:border-amber-300/40 hover:text-amber-100"
+                                    >
+                                        <span className="font-medium text-white">{creator.name}</span>
+                                        <span className="text-xs text-stone-400">{creator.count} criações</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/70 to-stone-900/30 p-4">
+                            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                                <Grip className="h-4 w-4" /> Seus filtros
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                <button
+                                    onClick={() => setTypeFilter('all')}
+                                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${typeFilter === 'all' ? 'bg-amber-500 text-stone-950' : 'bg-white/10 text-stone-300 hover:bg-white/20'}`}
+                                >
+                                    Todos
                                 </button>
-                             ))}
+                                {CONTENT_TYPES.map((type) => (
+                                    <button
+                                        key={type}
+                                        onClick={() => setTypeFilter(type)}
+                                        className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold capitalize transition ${
+                                            typeFilter === type ? 'bg-amber-500 text-stone-950' : 'bg-white/10 text-stone-300 hover:bg-white/20'
+                                        }`}
+                                    >
+                                        {CONTENT_TYPE_ICONS[type]} {type}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
-                        <div className="flex gap-2 mt-2 sm:mt-0">
-                             <button onClick={() => setIsAiCreatorOpen(true)} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
-                                <Bot className="h-5 w-5"/> Gerar com IA
-                            </button>
-                             <button onClick={() => { setBundleToEdit(null); setIsBundleCreatorOpen(true); }} className="menu-button btn-import flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm-py-2">
-                                <PackagePlus className="h-5 w-5"/> Criar Pacote
-                            </button>
-                            <button onClick={() => { setView('create'); setContentToEdit(null); }} className="menu-button btn-new flex items-center justify-center gap-2 text-base px-3 py-1 sm:px-4 sm:py-2">
-                                <Plus className="h-5 w-5"/> Criar Novo
-                            </button>
-                        </div>
-                    </div>
-                    {(activeTab === 'bundles' || activeTab === 'community' || activeTab === 'ai') && (
-                        <div className="flex flex-wrap items-center gap-2 mb-4 p-3 bg-stone-900/50 rounded-lg border border-stone-700">
-                            <div className="relative flex-grow">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500"/>
-                                <input 
+                    </section>
+
+                    <section className="rounded-3xl border border-white/10 bg-black/30 p-5 shadow-2xl shadow-black/40">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                            <div className="flex flex-wrap gap-2">
+                                {TABS.map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={`rounded-2xl border px-4 py-2 text-left text-sm transition ${
+                                            activeTab === tab.id
+                                                ? 'border-amber-400/60 bg-amber-400/10 text-amber-100 shadow-inner shadow-amber-500/30'
+                                                : 'border-white/10 bg-white/5 text-stone-300 hover:border-amber-200/40 hover:text-amber-100'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 text-xs uppercase tracking-[0.25em]">{tab.icon} {tab.label}</div>
+                                        <p className="text-xs text-stone-400">{tab.description}</p>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="relative w-full md:w-64">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-500" />
+                                <input
                                     type="text"
                                     placeholder="Buscar por nome..."
                                     value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                    className="w-full bg-stone-800 border-stone-700 rounded-full py-1.5 pl-9 pr-3 text-sm"
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-3 text-sm text-white placeholder:text-stone-500 focus:border-amber-400/60 focus:outline-none"
                                 />
                             </div>
-                            {(activeTab === 'community' || activeTab === 'ai') && (
-                                <>
-                                <span className="text-sm font-semibold text-stone-400 ml-4">Filtrar:</span>
-                                <button onClick={() => setTypeFilter('all')} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors ${typeFilter === 'all' ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-                                    <Grip className="h-4 w-4"/> Todos
-                                </button>
-                                {CONTENT_TYPES.map(type => (
-                                    <button key={type} onClick={() => setTypeFilter(type)} className={`px-3 py-1 text-xs font-semibold rounded-full flex items-center gap-1.5 transition-colors capitalize ${typeFilter === type ? 'bg-amber-600 text-stone-900' : 'bg-stone-700 text-stone-300 hover:bg-stone-600'}`}>
-                                    {CONTENT_TYPE_ICONS[type]} {type}
-                                    </button>
-                                ))}
-                                </>
-                            )}
                         </div>
-                    )}
-                    <div className="bg-stone-900/50 p-4 rounded-lg border border-stone-700 min-h-[40vh] max-h-[60vh] overflow-y-auto">
-                        {renderActiveTab()}
-                    </div>
-                </main>
-                <footer className="mt-8">
-                    <button onClick={returnToMenu} className="text-stone-300 hover:text-amber-300 underline flex items-center gap-2 mx-auto">
-                        <ArrowLeft className="h-4 w-4" /> Voltar ao Menu Principal
-                    </button>
-                </footer>
+                        <div className="mt-6 rounded-2xl border border-white/5 bg-black/30 p-4 min-h-[50vh]">{renderActiveTab()}</div>
+                    </section>
+
+                    <footer className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-stone-300">
+                        <button
+                            onClick={returnToMenu}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 transition hover:border-amber-200 hover:text-amber-200"
+                        >
+                            <ArrowLeft className="h-4 w-4" /> Voltar ao menu principal
+                        </button>
+                        <p className="text-xs text-stone-500">Marketplace compartilhado pela comunidade. Curadoria automática da IA mantém o conteúdo consistente.</p>
+                    </footer>
+                </div>
             </div>
-            {renderModal()}
-            
+
+            {renderInstallModal()}
+
             {itemToDelete && (
                 <ActionModal
-                    isOpen={!!itemToDelete}
+                    isOpen
                     title={`Excluir "${itemToDelete.item.name}"?`}
                     onClose={() => setItemToDelete(null)}
                     actions={[
-                        { text: "Cancelar", onClick: () => setItemToDelete(null), variant: 'secondary' },
-                        { text: "Confirmar Exclusão", onClick: confirmDeletion, variant: 'destructive', disabled: isLoading }
+                        { text: 'Cancelar', onClick: () => setItemToDelete(null), variant: 'secondary' },
+                        { text: 'Confirmar exclusão', onClick: confirmDeletion, variant: 'destructive', disabled: isLoading },
                     ]}
                 >
-                    <p className="text-stone-300 mb-2">
-                        Tem certeza que deseja excluir este pacote?
-                    </p>
+                    <p className="text-stone-300 mb-2">Tem certeza que deseja excluir este pacote?</p>
                     <p className="text-sm text-yellow-400 bg-yellow-900/40 p-3 rounded-md border border-yellow-700">
                         Os itens dentro do pacote não serão excluídos, apenas desvinculados, e poderão ser encontrados em "Minhas Criações".
                     </p>
                 </ActionModal>
             )}
-             <BundleCreator 
+
+            <BundleCreator
                 isOpen={isBundleCreatorOpen}
-                onClose={() => { setIsBundleCreatorOpen(false); setBundleToEdit(null); }}
+                onClose={() => {
+                    setIsBundleCreatorOpen(false);
+                    setBundleToEdit(null);
+                }}
                 onBundleCreated={fetchContentAndBundles}
                 bundleToEdit={bundleToEdit}
             />
-            <AiCreator
-                isOpen={isAiCreatorOpen}
-                onClose={() => setIsAiCreatorOpen(false)}
-                onContentGenerated={handleAiContentCreated}
-            />
+
+            <AiCreator isOpen={isAiCreatorOpen} onClose={() => setIsAiCreatorOpen(false)} onContentGenerated={handleAiContentCreated} />
         </>
     );
 };
