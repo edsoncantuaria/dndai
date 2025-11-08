@@ -19,6 +19,7 @@ import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 type GameStage = 'loading' | 'main_menu' | 'session_list' | 'character_vault' | 'creating_character' | 'playing' | 'homebrew_store' | 'translation_studio';
@@ -54,6 +55,7 @@ const GameContainer = () => {
     const [sessionToClone, setSessionToClone] = useState<SessaoIA | null>(null);
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState<number | null>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
 
     const menuAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -113,6 +115,20 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [isLoadingData, gameStage]);
+
+    // Efeito para fechar o dropdown ao clicar fora
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(null);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
 
     // --- Audio Management ---
@@ -303,11 +319,11 @@ const GameContainer = () => {
                                             className="relative overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-5 backdrop-blur-md shadow-xl"
                                         >
                                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                                <div>
+                                                <div className="max-w-[calc(100%-140px)]">
                                                     <p className="text-xs uppercase tracking-[0.35em] text-stone-500">
                                                         Atualizado em {updatedDate}
                                                     </p>
-                                                    <h2 className="text-2xl font-semibold text-white max-w-[42ch]">{session.nome}</h2>
+                                                    <h2 className="text-2xl font-semibold text-white truncate max-w-full">{session.nome}</h2>
                                                     <p className="text-sm text-stone-300">
                                                         Herói: {session.character?.name} · {session.character?.characterClass} Nível {session.character?.level}
                                                     </p>
@@ -316,16 +332,33 @@ const GameContainer = () => {
                                                     <span className="rounded-full border border-white/10 px-4 py-1 text-xs text-stone-400">
                                                         Sessão #{session.id}
                                                     </span>
-                                                    <div className="relative">
+                                                    <div ref={dropdownRef} className="relative">
                                                         <button onClick={() => setDropdownOpen(dropdownOpen === session.id ? null : session.id)}>
                                                             <MoreVertical className="h-5 w-5 text-stone-400 hover:text-white" />
                                                         </button>
+                                                        <AnimatePresence>
                                                         {dropdownOpen === session.id && (
-                                                            <div className="absolute right-0 mt-2 w-48 bg-stone-800 border border-stone-600 rounded-md shadow-lg z-10">
-                                                                <button onClick={() => { setSessionToRename(session); setNewSessionName(session.nome); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Edit className="h-4 w-4"/>Renomear</button>
-                                                                <button onClick={() => { setSessionToClone(session); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Copy className="h-4 w-4"/>Clonar</button>
-                                                            </div>
+                                                            <motion.div 
+                                                                initial={{ opacity: 0, y: -10 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                exit={{ opacity: 0, y: -10 }}
+                                                                className="absolute right-0 mt-2 w-48 bg-stone-800 border border-stone-600 rounded-md shadow-lg z-10"
+                                                            >
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button onClick={() => { setSessionToRename(session); setNewSessionName(session.nome); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Edit className="h-4 w-4"/>Renomear</button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>Mude o nome da sua aventura.</p></TooltipContent>
+                                                                </Tooltip>
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <button onClick={() => { setSessionToClone(session); setDropdownOpen(null); }} className="w-full text-left px-4 py-2 text-sm text-stone-200 hover:bg-stone-700 flex items-center gap-2"><Copy className="h-4 w-4"/>Clonar</button>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent><p>Cria uma nova linha do tempo a partir deste ponto.</p></TooltipContent>
+                                                                </Tooltip>
+                                                            </motion.div>
                                                         )}
+                                                        </AnimatePresence>
                                                     </div>
                                                 </div>
                                             </div>
@@ -627,7 +660,7 @@ const GameContainer = () => {
                                         <p className="text-sm text-stone-300">
                                             Herói: {featuredSession.character?.name}
                                         </p>
-                                        <div className="text-xs text-stone-400 flex flex-wrap items-center gap-x-4 gap-y-1 pt-2">
+                                        <div className="flex flex-wrap gap-x-4 gap-y-1 pt-2 text-xs text-stone-400">
                                             {featuredSessionFacts?.recentEvents?.[0]?.summary && (
                                                 <span className="flex items-center gap-1.5"><MapPin className="h-3 w-3" /> {(featuredSessionFacts?.recentEvents?.[0].summary || 'Local Desconhecido').split(',')[0]}</span>
                                             )}
