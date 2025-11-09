@@ -33,6 +33,7 @@ import { offloadLargePayload } from './objectStorageService.js';
 import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
+import { runGmValidator } from './gmValidator.js';
 import { savePendingRollRequest, clearPendingRollRequest } from './rollRequestService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
@@ -681,13 +682,21 @@ export const processPlayerTurn = async (
         };
     };
 
-    const { response: aiResponse, rawText, validationIssues, attempts, usedFallback } = await runValidatedGameUpdate();
+    const {
+        response: initialResponse,
+        rawText,
+        validationIssues,
+        attempts,
+        usedFallback,
+    } = await runValidatedGameUpdate();
+    let aiResponse = initialResponse;
 
-    combatReconciliation = reconcileCombatStateUpdate(
-        loadedCombat.state,
-        aiResponse.combatState as any
-    );
-    aiResponse.combatState = combatReconciliation.publicState as any;
+    if (!usedFallback) {
+        combatReconciliation = reconcileCombatStateUpdate(
+            loadedCombat.state,
+            aiResponse.combatState as any
+        );
+        aiResponse.combatState = combatReconciliation.publicState as any;
         if (combatReconciliation.telemetry.length) {
             const telemetryNote = combatReconciliation.telemetry
                 .map(msg => `[Combate] ${msg}`)
@@ -706,7 +715,10 @@ export const processPlayerTurn = async (
                     { type: 'system', content: autoResolution },
                     { type: 'narration', content: fallbackNarration }
                 ];
+            }
         }
+    } else {
+        combatReconciliation = { canonicalState: loadedCombat.state, publicState: loadedCombat.state ? projectPublicCombatState(loadedCombat.state) : null, changed: false, telemetry: [] };
     }
 
     const progressionFeed: Array<{
@@ -718,48 +730,58 @@ export const processPlayerTurn = async (
         detail?: string;
     }> = [];
 
-    const xpResult = applyXpEvents(
-        { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
-        (aiResponse as any).xpEvents
-    );
-    if (xpResult.totalXpAwarded > 0) {
-        const newXpTotal = (characterForAI.xp ?? 0) + xpResult.totalXpAwarded;
-        aiResponse.updatedCharacter = {
-            ...(aiResponse.updatedCharacter || {}),
-            xp: newXpTotal,
-        };
-        const xpSummary = xpResult.summaries.join(' ');
-        aiResponse.systemLog = aiResponse.systemLog
-            ? `${aiResponse.systemLog}\n[XP] ${xpSummary}`
-            : `[XP] ${xpSummary}`;
-        aiResponse.logEntries = [
-            ...(aiResponse.logEntries ?? []),
-            { type: 'system', content: `Você recebeu ${xpResult.totalXpAwarded} XP.` },
-        ];
-    }
+    let xpResult = {
+        totalXpAwarded: 0,
+        summaries: [] as string[],
+        details: [] as Array<{ type: string; xp: number; source: string; label: string; description?: string }>,
+    };
 
-    if (xpResult.details.length) {
-        for (const detail of xpResult.details) {
-            progressionFeed.push({
-                type: 'xp_gain',
-                xp: detail.xp,
-                summary: `+${detail.xp} XP – ${detail.label}`,
-                source: detail.source,
-                detail: detail.description,
-            });
+    if (!usedFallback) {
+        xpResult = applyXpEvents(
+            { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
+            (aiResponse as any).xpEvents
+        );
+        if (xpResult.totalXpAwarded > 0) {
+            const newXpTotal = (characterForAI.xp ?? 0) + xpResult.totalXpAwarded;
+            aiResponse.updatedCharacter = {
+                ...(aiResponse.updatedCharacter || {}),
+                xp: newXpTotal,
+            };
+            const xpSummary = xpResult.summaries.join(' ');
+            aiResponse.systemLog = aiResponse.systemLog
+                ? `${aiResponse.systemLog}\n[XP] ${xpSummary}`
+                : `[XP] ${xpSummary}`;
+            aiResponse.logEntries = [
+                ...(aiResponse.logEntries ?? []),
+                { type: 'system', content: `Você recebeu ${xpResult.totalXpAwarded} XP.` },
+            ];
         }
 
-        if (!isTestRun && sessao) {
+        if (xpResult.details.length) {
             for (const detail of xpResult.details) {
-                const timelineSummary = `Recebeu +${detail.xp} XP. Origem: ${detail.source}${detail.description ? ` — ${detail.description}` : ''}`;
-                await recordTimelineEvent(sessao.id, {
-                    timestamp: new Date().toISOString(),
-                    action: 'Recompensa de XP',
-                    summary: timelineSummary,
-                    notes: undefined,
+                progressionFeed.push({
+                    type: 'xp_gain',
+                    xp: detail.xp,
+                    summary: `+${detail.xp} XP – ${detail.label}`,
+                    source: detail.source,
+                    detail: detail.description,
                 });
             }
+
+            if (!isTestRun && sessao) {
+                for (const detail of xpResult.details) {
+                    const timelineSummary = `Recebeu +${detail.xp} XP. Origem: ${detail.source}${detail.description ? ` — ${detail.description}` : ''}`;
+                    await recordTimelineEvent(sessao.id, {
+                        timestamp: new Date().toISOString(),
+                        action: 'Recompensa de XP',
+                        summary: timelineSummary,
+                        notes: undefined,
+                    });
+                }
+            }
         }
+    } else {
+        (aiResponse as any).xpEvents = undefined;
     }
 
     let newStorySummaryForLog: string | null = null;
@@ -906,6 +928,25 @@ export const processPlayerTurn = async (
         }
     }
     
+    const validatorResult = runGmValidator(aiResponse, {
+        memorySummary: storySummaryForPrompt ?? newStorySummaryForLog ?? undefined,
+        memoryReferences: semanticMemoryDigest ? ['session_memories'] : undefined,
+        gameClock: {
+            day: aiResponse.gameClock?.day,
+            hour: aiResponse.gameClock?.hour,
+            weather: aiResponse.gameClock?.weather ?? aiResponse.worldState?.weather,
+        },
+    });
+    if (validatorResult.issues.length) {
+        const note = validatorResult.issues
+            .map(issue => `- ${issue.path || 'geral'}: ${issue.problem}${issue.fixed ? ' (corrigido)' : ''}`)
+            .join('\n');
+        aiResponse.systemLog = aiResponse.systemLog
+            ? `${aiResponse.systemLog}\n[GM Validator]\n${note}`
+            : `[GM Validator]\n${note}`;
+    }
+    aiResponse = validatorResult.validatedResponse;
+
     if (isTestRun || !sessao) {
         return aiResponse;
     }
@@ -1013,65 +1054,70 @@ export const processPlayerTurn = async (
             }
         }
 
-        const updatesFromAi = { ...(aiResponse.updatedCharacter || {}) };
-        if (aiResponse.worldState) {
-            updatesFromAi.worldState = aiResponse.worldState;
-        }
-
-        const hasWorldStateUpdates = Boolean(
-            updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
-        );
-        const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
-
-        if (hasWorldStateUpdates || hasCharacterUpdates) {
-            console.log('[narrarService] mergeCharacterUpdates payload', {
-                characterId: sessao.character!.id,
-                updates: updatesFromAi,
-            });
-            await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
-            if (redisClient && redisClient.isOpen) {
-                await redisClient.del(
-                    `character:${sessao.character!.id}`,
-                    `character:${sessao.character!.id}:optimized`,
-                    sessionCacheKey
-                );
+        if (!usedFallback) {
+            const updatesFromAi = { ...(aiResponse.updatedCharacter || {}) };
+            if (aiResponse.worldState) {
+                updatesFromAi.worldState = aiResponse.worldState;
             }
+
+            const hasWorldStateUpdates = Boolean(
+                updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
+            );
+            const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
+
+            if (hasWorldStateUpdates || hasCharacterUpdates) {
+                console.log('[narrarService] mergeCharacterUpdates payload', {
+                    characterId: sessao.character!.id,
+                    updates: updatesFromAi,
+                });
+                await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
+                if (redisClient && redisClient.isOpen) {
+                    await redisClient.del(
+                        `character:${sessao.character!.id}`,
+                        `character:${sessao.character!.id}:optimized`,
+                        sessionCacheKey
+                    );
+                }
+            }
+
+            const canonicalInventory = await getInventorySnapshotFromDb(sessao.character!.id, queryRunner.manager);
+            console.log('[narrarService] canonicalInventory snapshot', {
+                characterId: sessao.character!.id,
+                count: canonicalInventory.length,
+            });
+            const hydratedSnapshot = await hydrateInventoryItems(
+                canonicalInventory,
+                userId,
+                canonicalInventory
+            );
+
+            const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
+                where: { id: sessao.character!.id },
+                select: ['xp', 'level'],
+                loadEagerRelations: false,
+            });
+
+            const canonicalPatch = {
+                inventory: hydratedSnapshot.items as any,
+                currency: reconcileCurrency(
+                    aiResponse.updatedCharacter?.currency,
+                    hydratedSnapshot.metrics.currency
+                ),
+                currentWeight: hydratedSnapshot.metrics.totalWeight,
+                totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
+                xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
+                level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
+            };
+            console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
+
+            aiResponse.updatedCharacter = {
+                ...(aiResponse.updatedCharacter || {}),
+                ...canonicalPatch,
+            };
+        } else {
+            aiResponse.updatedCharacter = undefined;
+            aiResponse.worldState = undefined;
         }
-
-        const canonicalInventory = await getInventorySnapshotFromDb(sessao.character!.id, queryRunner.manager);
-        console.log('[narrarService] canonicalInventory snapshot', {
-            characterId: sessao.character!.id,
-            count: canonicalInventory.length,
-        });
-        const hydratedSnapshot = await hydrateInventoryItems(
-            canonicalInventory,
-            userId,
-            canonicalInventory
-        );
-
-        const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
-            where: { id: sessao.character!.id },
-            select: ['xp', 'level'],
-            loadEagerRelations: false,
-        });
-
-        const canonicalPatch = {
-            inventory: hydratedSnapshot.items as any,
-            currency: reconcileCurrency(
-                aiResponse.updatedCharacter?.currency,
-                hydratedSnapshot.metrics.currency
-            ),
-            currentWeight: hydratedSnapshot.metrics.totalWeight,
-            totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
-            xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
-            level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
-        };
-        console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
-
-        aiResponse.updatedCharacter = {
-            ...(aiResponse.updatedCharacter || {}),
-            ...canonicalPatch,
-        };
         
         await queryRunner.commitTransaction();
 

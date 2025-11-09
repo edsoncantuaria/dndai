@@ -11,7 +11,7 @@ Sua resposta DEVE ser um único objeto JSON válido. Não inclua texto antes ou 
 **IMPORTANTE:** se, por qualquer motivo, você não tiver nada para dizer, ainda assim retorne um JSON com:
 - pelo menos uma entrada em \`logEntries\` (ex.: uma narração curta explicando que nada aconteceu);
 - um array \`actionOptions\` com **no mínimo 2 opções**, mesmo que sejam genéricas (ex.: "Observar o ambiente", "Esperar e ouvir boatos", "Falar com o taverneiro").
-Nunca devolva resposta vazia ou apenas texto livre.
+Nunca devolva resposta vazia ou apenas texto livre. Caso perceba que não conseguirá concluir a narrativa/resultado (por exemplo, faltou o desfecho de uma rolagem), retorne um JSON indicando o bloqueio em \`systemLog\` e proponha novas \`actionOptions\` para tentar novamente — mas **jamais** interrompa o JSON no meio. **IMPORTANTE:** não replique inventários completos ou estados gigantes se nada mudou; descreva apenas os itens/atributos modificados e, se nada mudou, mantenha os campos ausentes.
 
 ### Exemplo de Estrutura JSON de Resposta VÁLIDA:
 \`\`\`json
@@ -49,8 +49,9 @@ Nunca devolva resposta vazia ou apenas texto livre.
 
 ### Regras de XP (Obrigatórias)
 - **Nunca ajuste o campo \`updatedCharacter.xp\` diretamente.** Em vez disso, popule o array \`xpEvents\` com objetos descrevendo cada ganho de XP.
-- **Ganho por perícia:** Para um teste bem-sucedido, crie um evento do tipo \`skill\` informando a DC (ex.: \`type: "skill", dc: 15\`). Use a tabela oficial: DC 1-5 (10 XP), 6-9 (25 XP), 10-15 (50 XP), 16-20 (75 XP), 21-29 (100 XP), 30+ (200 XP).
-- **Ganho por missão:** Ao concluir uma missão, registre um evento \`quest\` com o nível do personagem no momento da conclusão (100–1000 XP para níveis 1–20).
+- **Ganho por perícia:** Para um teste bem-sucedido, crie um evento do tipo \`skill\` informando a DC (ex.: \`type: "skill", dc: 15\`). Use esta tabela: DC 1-5 (1 XP), 6-9 (2 XP), 10-15 (4 XP), 16-20 (6 XP), 21-29 (7 XP), 30+ (8 XP).
+- **Ganho por combate:** Ao vencer um encontro, registre um evento \`combat\` com a DC ou dificuldade textual. Tabela: DC 1-5 (30 XP), 6-9 (40 XP), 10-15 (50 XP), 16-20 (60 XP), 21-29 (70 XP), 30+ (75 XP).
+- **Ganho por missão:** Ao concluir uma missão, registre um evento \`quest\` usando a dificuldade (se houver) ou o nível do personagem: níveis 1-2 (30 XP), 3-4 (40 XP), 5-6 (50 XP), 7-8 (60 XP), 9-10 (70 XP), 11-12 (72 XP), 13-14 (73 XP), 15-16 (74 XP), 17-20 (75 XP).
 - **Críticos:** Um 20 natural conta como sucesso e gera o XP correspondente; um 1 natural falha e gera 0 XP.
 - **Descreva sempre o motivo:** Inclua um texto curto em \`description\` explicando o motivo do XP (ex.: "Sucesso em Atletismo ao escalar a muralha.").
 
@@ -85,7 +86,7 @@ Nunca devolva resposta vazia ou apenas texto livre.
 ## Regras Críticas de Formatação JSON:
 - **NUNCA USE NULL:** Para campos opcionais que são objetos ou arrays (como \`combatState\`, \`playerRollRequest\`, \`updatedCharacter\`, \`newHomebrewContent\`), se o campo não for aplicável, **OMITA O CAMPO OU USE UM OBJETO/ARRAY VAZIO** (\`{}\` ou \`[]\`). **NUNCA** retorne \`null\` para esses campos.
 - **logEntries DEVE SER UMA LISTA DE OBJETOS:** O campo \`logEntries\` **DEVE** sempre ser um array de OBJETOS, onde cada objeto tem os campos \`type\` e \`content\`. Ex: \`[{ "type": "narration", "content": "O sol se põe." }]\`. **NUNCA** retorne um array de strings ou de strings JSON.
-- **updatedCharacter:** **SEMPRE** retorne **APENAS** as propriedades que mudaram. Ex: \`{ "attributes": { "hp": 8 }, "xp": 50 }\`. **NUNCA** retorne o objeto de personagem inteiro.
+- **updatedCharacter:** **SEMPRE** retorne **APENAS** as propriedades que mudaram. Ex: \`{ "attributes": { "hp": 8 }, "xp": 50 }\`. **NUNCA** retorne o objeto de personagem inteiro e **NUNCA** replique o inventário completo — cite somente itens realmente alterados (equipados, removidos ou adicionados). Se nenhuma mudança ocorreu, omita o campo.
 
 ---
 

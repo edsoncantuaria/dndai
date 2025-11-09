@@ -2,34 +2,34 @@
 import type { Character } from '../entities/Character.js';
 
 const SKILL_XP_TABLE = [
-    { min: 1, max: 5, xp: 10, label: 'Very Easy' },
-    { min: 6, max: 9, xp: 25, label: 'Easy' },
-    { min: 10, max: 15, xp: 50, label: 'Medium' },
-    { min: 16, max: 20, xp: 75, label: 'Hard' },
-    { min: 21, max: 29, xp: 100, label: 'Very Hard' },
-    { min: 30, max: Infinity, xp: 200, label: 'Extreme' },
+    { min: 1, max: 5, xp: 1, label: 'Very Easy' },
+    { min: 6, max: 9, xp: 2, label: 'Easy' },
+    { min: 10, max: 15, xp: 4, label: 'Medium' },
+    { min: 16, max: 20, xp: 6, label: 'Hard' },
+    { min: 21, max: 29, xp: 7, label: 'Very Hard' },
+    { min: 30, max: Infinity, xp: 8, label: 'Extreme' },
 ] as const;
 
-const QUEST_XP_TABLE: Record<number, number> = {
-    1: 100, 2: 100,
-    3: 150,
-    4: 200,
-    5: 250,
-    6: 300,
-    7: 350,
-    8: 400,
-    9: 450,
-    10: 500,
-    11: 550,
-    12: 600,
-    13: 650,
-    14: 700,
-    15: 750,
-    16: 800,
-    17: 850,
-    18: 900,
-    19: 950,
-    20: 1000,
+const COMBAT_XP_TABLE = [
+    { min: 1, max: 5, xp: 30, label: 'Very Easy' },
+    { min: 6, max: 9, xp: 40, label: 'Easy' },
+    { min: 10, max: 15, xp: 50, label: 'Medium' },
+    { min: 16, max: 20, xp: 60, label: 'Hard' },
+    { min: 21, max: 29, xp: 70, label: 'Very Hard' },
+    { min: 30, max: Infinity, xp: 75, label: 'Extreme' },
+] as const;
+
+const QUEST_LEVEL_FALLBACK_TABLE: Record<number, number> = {
+    1: 30, 2: 30,
+    3: 40, 4: 40,
+    5: 50, 6: 50,
+    7: 60, 8: 60,
+    9: 70, 10: 70,
+    11: 72, 12: 72,
+    13: 73, 14: 73,
+    15: 74, 16: 74,
+    17: 75, 18: 75,
+    19: 75, 20: 75,
 };
 
 const clampLevel = (level: number): number => {
@@ -37,7 +37,7 @@ const clampLevel = (level: number): number => {
     return Math.max(1, Math.min(20, Math.round(level)));
 };
 
-export type XpEventType = 'skill' | 'quest';
+export type XpEventType = 'skill' | 'quest' | 'combat';
 
 export interface XpEventPayload {
     type: XpEventType;
@@ -61,24 +61,27 @@ export interface AppliedXpDetail {
     description?: string;
 }
 
-const normaliseDifficultyLabel = (value?: string): (typeof SKILL_XP_TABLE)[number] | null => {
+const findTableEntryByDifficulty = <T extends { label: string }>(
+    value: string | undefined,
+    table: readonly T[]
+): T | null => {
     if (!value) return null;
     const normalized = value.toLowerCase();
     switch (normalized) {
         case 'very easy':
         case 'very_easy':
-            return SKILL_XP_TABLE[0];
+            return table[0];
         case 'easy':
-            return SKILL_XP_TABLE[1];
+            return table[1];
         case 'medium':
-            return SKILL_XP_TABLE[2];
+            return table[2];
         case 'hard':
-            return SKILL_XP_TABLE[3];
+            return table[3];
         case 'very hard':
         case 'very_hard':
-            return SKILL_XP_TABLE[4];
+            return table[4];
         case 'extreme':
-            return SKILL_XP_TABLE[5];
+            return table[5];
         default:
             return null;
     }
@@ -90,15 +93,24 @@ export const calculateSkillCheckXp = (dc?: number, difficulty?: string): number 
         if (tableEntry) return tableEntry.xp;
     }
 
-    const difficultyEntry = normaliseDifficultyLabel(difficulty);
+    const difficultyEntry = findTableEntryByDifficulty(difficulty, SKILL_XP_TABLE);
     if (difficultyEntry) return difficultyEntry.xp;
 
     return 0;
 };
 
+export const calculateCombatXp = (dc?: number, difficulty?: string): number => {
+    if (typeof dc === 'number' && Number.isFinite(dc)) {
+        const tableEntry = COMBAT_XP_TABLE.find(entry => dc >= entry.min && dc <= entry.max);
+        if (tableEntry) return tableEntry.xp;
+    }
+    const difficultyEntry = findTableEntryByDifficulty(difficulty, COMBAT_XP_TABLE);
+    return difficultyEntry ? difficultyEntry.xp : 0;
+};
+
 export const calculateQuestCompletionXp = (level: number): number => {
     const clamped = clampLevel(level);
-    return QUEST_XP_TABLE[clamped] ?? 0;
+    return QUEST_LEVEL_FALLBACK_TABLE[clamped] ?? 0;
 };
 
 export const applyXpEvents = (
@@ -138,17 +150,46 @@ export const applyXpEvents = (
                     description: description || undefined,
                 });
             }
+        } else if (event.type === 'combat') {
+            const xp = calculateCombatXp(event.dc, event.difficulty);
+            if (xp > 0) {
+                total += xp;
+                const dcInfo = event.dc ? `DC ${event.dc}` : event.difficulty ? `dificuldade ${event.difficulty}` : 'dificuldade estimada';
+                const description = event.description ? event.description.trim() : '';
+                summaries.push(`+${xp} XP por vitória em combate (${dcInfo})${description ? `: ${description}` : ''}.`);
+
+                const difficultyLabel = (() => {
+                    if (event.dc) return `Combate (DC ${event.dc})`;
+                    const tableEntry = findTableEntryByDifficulty(event.difficulty, COMBAT_XP_TABLE);
+                    return tableEntry ? `Combate (${tableEntry.label})` : 'Combate';
+                })();
+
+                details.push({
+                    type: 'combat',
+                    xp,
+                    source: difficultyLabel,
+                    label: description || 'Vitória em combate',
+                    description: description || undefined,
+                });
+            }
         } else if (event.type === 'quest') {
             const questLevel = event.questLevel ?? character.level;
-            const xp = calculateQuestCompletionXp(questLevel);
+            const difficultyXp = calculateCombatXp(event.dc, event.difficulty);
+            const xp = difficultyXp || calculateQuestCompletionXp(questLevel);
             if (xp > 0) {
                 total += xp;
                 const description = event.description ? event.description.trim() : '';
-                summaries.push(`+${xp} XP por concluir missão de nível ${questLevel}${description ? `: ${description}` : ''}.`);
+                const detailInfo = difficultyXp
+                    ? (event.dc ? `DC ${event.dc}` : event.difficulty ? `dificuldade ${event.difficulty}` : `nível ${questLevel}`)
+                    : `nível ${questLevel}`;
+                summaries.push(`+${xp} XP por concluir missão (${detailInfo})${description ? `: ${description}` : ''}.`);
+                const source = difficultyXp
+                    ? `Missão (${detailInfo})`
+                    : `Missão nível ${questLevel}`;
                 details.push({
                     type: 'quest',
                     xp,
-                    source: `Missão nível ${questLevel}`,
+                    source,
                     label: description || 'Objetivo cumprido',
                     description: description || undefined,
                 });

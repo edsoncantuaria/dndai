@@ -152,3 +152,7 @@ export const translateEquipment = (equipment: InventoryItem): InventoryItem => {
     
     return newEquipment;
 };
+
+export const translateLabels = <T>(data: T): T => {
+    return data;
+};

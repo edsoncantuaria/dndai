@@ -297,18 +297,20 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitationLogs.push('actionOptions estava vazio, adicionadas opções padrão.');
   }
 
-  if (Array.isArray((sanitized as any).xpEvents)) {
+    if (Array.isArray((sanitized as any).xpEvents)) {
     (sanitized as any).xpEvents = (sanitized as any).xpEvents
       .map((event: any) => {
         if (!event || typeof event !== 'object') return null;
         const { type } = event;
-        if (type !== 'skill' && type !== 'quest') return null;
+        if (type !== 'skill' && type !== 'quest' && type !== 'combat') return null;
         const xpEvent: Record<string, any> = { type };
-        if (type === 'skill') {
+        if (type === 'skill' || type === 'combat') {
             if (typeof event.dc === 'number' && Number.isFinite(event.dc)) xpEvent.dc = event.dc;
             if (typeof event.difficulty === 'string') xpEvent.difficulty = event.difficulty;
         }
         if (type === 'quest') {
+            if (typeof event.dc === 'number' && Number.isFinite(event.dc)) xpEvent.dc = event.dc;
+            if (typeof event.difficulty === 'string') xpEvent.difficulty = event.difficulty;
             if (typeof event.questLevel === 'number' && Number.isFinite(event.questLevel)) xpEvent.questLevel = event.questLevel;
         }
         if (event.description && typeof event.description === 'string') xpEvent.description = event.description.slice(0, 140);

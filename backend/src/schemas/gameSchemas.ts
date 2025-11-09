@@ -27,7 +27,7 @@ const LogEntriesSchema = z.array(LogEntrySchema).min(1, "logEntries deve conter 
 
 /* -------------------------------- XP EVENTS -------------------------------- */
 export const XpEventSchema = z.object({
-  type: z.enum(['skill', 'quest']).describe("Origem do XP: sucesso em perícia ou conclusão de missão."),
+  type: z.enum(['skill', 'quest', 'combat']).describe("Origem do XP: sucesso em perícia, combate ou conclusão de missão."),
   dc: z.number().optional().describe("Classe de Dificuldade (DC) do teste, se aplicável."),
   difficulty: z.enum(['very_easy', 'easy', 'medium', 'hard', 'very_hard', 'extreme']).optional().describe("Dificuldade textual do teste, se DC não estiver disponível."),
   questLevel: z.number().optional().describe("Nível do personagem ou missão ao concluir uma quest."),
@@ -183,6 +183,28 @@ const ActionOptionsSchema = z.array(z.union([
   z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
 ])).min(2, "actionOptions deve conter pelo menos duas opções.");
 
+const GameClockSchema = z.object({
+  day: z.number().int().nonnegative().default(0),
+  hour: z.number().int().min(0).max(23).default(12),
+  weather: z.string().default('clear'),
+});
+
+const MemoryContextSchema = z.object({
+  summary: z.string().optional(),
+  references: z.array(z.string()).optional(),
+});
+
+const ResponseMetaSchema = z.object({
+  version: z.number().int().nonnegative().optional(),
+  schemaVersion: z.number().int().nonnegative().optional(),
+  hash: z.string().optional(),
+  migratedFrom: z.string().nullable().optional(),
+  createdAt: z.number().int().nonnegative().optional(),
+  recoveryStrategies: z.array(z.string()).optional(),
+  reconstructionScore: z.number().min(0).max(1).optional(),
+  integrityNotes: z.array(z.string()).optional(),
+}).partial();
+
 export const GameMasterResponseSchema = z.object({
   logEntries: LogEntriesSchema.describe("Novas entradas do log de aventura."),
   actionOptions: ActionOptionsSchema.describe("Ações sugeridas para o jogador."),
@@ -199,6 +221,9 @@ export const GameMasterResponseSchema = z.object({
   newHomebrewContent: z.array(CreateHomebrewSchema).optional().default([]).describe("Conteúdos homebrew criados pelo GM."),
   xpEvents: z.array(XpEventSchema).optional().describe("Lista de eventos de XP para o sistema validar e aplicar."),
   progressionFeed: z.array(ProgressionEventSchema).optional().describe("Feed resumido com ganhos de XP e marcos de progressão para o jogador."),
+  gameClock: GameClockSchema.optional(),
+  memoryContext: MemoryContextSchema.optional(),
+  _meta: ResponseMetaSchema.optional(),
 }).describe("Resposta completa do Game Master a uma ação do jogador.");
 
 

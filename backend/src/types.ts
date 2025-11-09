@@ -41,6 +41,15 @@ export interface GameMasterResponse {
         xp?: number;
         level?: number;
     }[];
+    gameClock?: {
+        day: number;
+        hour: number;
+        weather: string;
+    };
+    memoryContext?: {
+        summary?: string;
+        references?: string[];
+    };
 }
 
 
@@ -325,6 +334,15 @@ export interface Character {
     currentRegion: string;
     isTemplate?: boolean;
     sessionId?: number | null;
+    gameClock?: {
+        day: number;
+        hour: number;
+        weather: string;
+    };
+    memoryContext?: {
+        summary?: string;
+        references?: string[];
+    };
     hitDice: {
         current: number;
         total: number;

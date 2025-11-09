@@ -36,10 +36,19 @@ export interface GameMasterResponse {
     worldState?: { [key: string]: any };
     xpEvents?: XpEvent[];
     progressionFeed?: ProgressionEvent[];
+    gameClock?: {
+        day: number;
+        hour: number;
+        weather: string;
+    };
+    memoryContext?: {
+        summary?: string;
+        references?: string[];
+    };
 }
 
 export interface XpEvent {
-    type: 'skill' | 'quest';
+    type: 'skill' | 'quest' | 'combat';
     dc?: number;
     difficulty?: 'very_easy' | 'easy' | 'medium' | 'hard' | 'very_hard' | 'extreme';
     questLevel?: number;
@@ -337,6 +346,15 @@ export interface Character {
     currentRegion?: string;
     isTemplate?: boolean;
     sessionId?: number | null;
+    gameClock?: {
+        day: number;
+        hour: number;
+        weather: string;
+    };
+    memoryContext?: {
+        summary?: string;
+        references?: string[];
+    };
 }
 
 export interface CharacterAttributes extends Attributes {

@@ -4,7 +4,8 @@
 # Production
 /dist
 /build
-
+/qdrant_data
+qdrant_data
 # Logs
 logs
 *.log

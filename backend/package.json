@@ -9,7 +9,9 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "dev:log": "tsx watch src/server.ts 2>&1 | tee logs/server_$(date +'%Y-%m-%d_%H-%M-%S').log",
-    "seed:data": "tsx src/scripts/migrate-data.ts"
+    "seed:data": "tsx src/scripts/migrate-data.ts",
+    "test": "tsx test src/__tests__/**/*.spec.ts",
+    "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts"
   },
   "keywords": [
     "rpg",
