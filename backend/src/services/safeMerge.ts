@@ -8,9 +8,44 @@ import { Relationship } from '../entities/Relationship.js';
 import { Quest } from '../entities/Quest.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { v4 as uuidv4 } from 'uuid';
+import { clampCharacterLevel } from './xpService.js';
 
 // Função auxiliar para limpar arrays de null/undefined
 const sanitizeArray = <T>(arr?: T[]): T[] => Array.isArray(arr) ? arr.filter(Boolean) : [];
+
+const canonicalSlug = (value?: string | null) => {
+  if (!value) return null;
+  return value
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || null;
+};
+
+const normalizeGameClockPayload = (
+  incoming?: any,
+  existing?: { day?: number; hour?: number; weather?: string } | null
+) => {
+  const fallbackDay = existing?.day ?? 0;
+  const fallbackHour = existing?.hour ?? 0;
+  const normalizedDay = Number.isFinite(Number(incoming?.day))
+    ? Math.max(0, Number(incoming.day))
+    : fallbackDay;
+  const normalizedHour = Number.isFinite(Number(incoming?.hour))
+    ? Math.max(0, Number(incoming.hour))
+    : fallbackHour;
+  const normalizedWeather =
+    typeof incoming?.weather === 'string' && incoming.weather.trim().length
+      ? incoming.weather.trim()
+      : existing?.weather;
+  return {
+    day: normalizedDay,
+    hour: normalizedHour,
+    weather: normalizedWeather,
+  };
+};
 
 // Função recursiva para inserir ou atualizar entradas de diário e suas sub-localizações
 const upsertJournalEntries = async (
@@ -98,12 +133,19 @@ export const mergeCharacterUpdates = async (
     }
   });
 
+  if (directPayload.level !== undefined) {
+    directPayload.level = clampCharacterLevel(Number(directPayload.level));
+  }
+
   if (updates.factionReputation && typeof updates.factionReputation === 'object') {
     directPayload.factionReputation = { ...(character.factionReputation || {}), ...updates.factionReputation };
   }
   if (updates.worldState && typeof updates.worldState === 'object') {
     directPayload.worldState = { ...(character.worldState || {}), ...updates.worldState };
     if (updates.worldState.currentRegion) directPayload.currentRegion = updates.worldState.currentRegion;
+  }
+  if (updates.gameClock && typeof updates.gameClock === 'object') {
+    directPayload.gameClock = normalizeGameClockPayload(updates.gameClock, character.gameClock);
   }
   if (Object.keys(directPayload).length > 0) {
     await characterRepo.update({ id: characterId }, directPayload);
@@ -261,12 +303,36 @@ export const mergeCharacterUpdates = async (
                 rel = relationshipRepo.create({ characterId, npcId });
             }
 
+            const locationData = relData.location || relData.lastKnownLocation || {};
+            const regionSlug =
+                canonicalSlug(relData.regionSlug) ||
+                canonicalSlug(locationData.regionSlug || locationData.region);
+            const poiSlug =
+                canonicalSlug(relData.poiSlug) ||
+                canonicalSlug(locationData.poiSlug || locationData.poi);
+            const affinityValue = Number(relData.affinity);
+            const resolvedAffinity = Number.isFinite(affinityValue) ? affinityValue : (rel.affinity ?? 0);
             Object.assign(rel, { 
-                name: relData.name, 
-                description: relData.description, 
-                status: relData.status, 
-                affinity: relData.affinity 
+                name: relData.name ?? rel.name, 
+                description: relData.description ?? rel.description, 
+                status: relData.status ?? rel.status ?? 'neutral', 
+                affinity: resolvedAffinity 
             });
+            if (relData.regionSlug === null || locationData?.regionSlug === null || locationData?.region === null) {
+                rel.regionSlug = null;
+            } else if (regionSlug) {
+                rel.regionSlug = regionSlug;
+            }
+            if (relData.poiSlug === null || locationData?.poiSlug === null || locationData?.poi === null) {
+                rel.poiSlug = null;
+            } else if (poiSlug) {
+                rel.poiSlug = poiSlug;
+            }
+            if (relData.locationNotes !== undefined) {
+                rel.locationNotes = relData.locationNotes;
+            } else if (locationData?.notes !== undefined) {
+                rel.locationNotes = locationData.notes;
+            }
             const savedRel = await relationshipRepo.save(rel);
 
             const aiQuestIds = new Set((relData.quests || []).map((q: any) => q.id).filter(Boolean));

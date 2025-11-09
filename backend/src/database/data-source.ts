@@ -24,6 +24,10 @@ import { CombatantState } from '../entities/CombatantState.js';
 import { CombatCooldown } from '../entities/CombatCooldown.js';
 import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 import { CombatLogEntry } from '../entities/CombatLogEntry.js';
+import { CampaignArtifact } from '../entities/CampaignArtifact.js';
+import { Region } from '../entities/Region.js';
+import { RegionLink } from '../entities/RegionLink.js';
+import { RegionPointOfInterest } from '../entities/RegionPointOfInterest.js';
 
 
 /**
@@ -69,6 +73,10 @@ export const AppDataSource = new DataSource({
         CombatCooldown,
         CombatStatusEffect,
         CombatLogEntry,
+        CampaignArtifact,
+        Region,
+        RegionLink,
+        RegionPointOfInterest,
     ], 
     
     migrations: [],

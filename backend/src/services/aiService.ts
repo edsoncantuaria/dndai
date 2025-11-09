@@ -941,7 +941,18 @@ const expandInventoryForPrompt = (items: any[]): any[] => {
 };
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
-    const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary, timelineFacts } = input;
+    const {
+        character,
+        playerAction,
+        gameLog,
+        combatState,
+        homebrewSummary,
+        validationFeedback,
+        storySummary,
+        timelineFacts,
+        regionSlug,
+        regionGraphSummary,
+    } = input;
 
     const simplifyInventoryItem = (item: any) => {
         if (!item) return null;
@@ -1012,7 +1023,14 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         spells: safeArray(character.spells),
         storySoFar: character.storySoFar,
         worldState: character.worldState,
-        relationships: safeArray(character.relationships).map((r: any) => ({ name: r.name, status: r.status, affinity: r.affinity })),
+        relationships: safeArray(character.relationships).map((r: any) => ({
+            name: r.name,
+            status: r.status,
+            affinity: r.affinity,
+            regionSlug: r.regionSlug,
+            poiSlug: r.poiSlug,
+            description: r.description,
+        })),
         journal: safeArray(character.journal).map((j: any) => ({ name: j.name, region: j.region, status: j.looted ? 'looted' : 'unexplored' }))
     } : null;
 
@@ -1038,8 +1056,13 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
 
     const summarySection = storySummary ? `RESUMO=${storySummary}\n` : '';
     const timelineSection = timelineFacts ? `FATOS=${timelineFacts}\n` : '';
+    const regionSection = regionGraphSummary
+        ? `MAPA_REGIAO=${regionSlug ?? 'desconhecida'}\n${regionGraphSummary.trim()}\n`
+        : regionSlug
+            ? `MAPA_REGIAO=${regionSlug}\n`
+            : '';
     const worldStateDigest = JSON.stringify(characterForPrompt?.worldState ?? { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' });
-    const metadataSection = `${inventoryCondensedNote}${summarySection}${timelineSection}${homebrewSection}${feedbackSection}`;
+    const metadataSection = `${inventoryCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
     const safeGameLog = typeof gameLog === 'string' && gameLog.trim().length ? gameLog : 'SEM_EVENTOS';
 
     const mainPrompt = `Responda estritamente com JSON válido. Nenhuma explicação fora do objeto.

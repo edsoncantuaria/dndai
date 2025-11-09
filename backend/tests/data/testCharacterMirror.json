@@ -1,0 +1,552 @@
+{
+  "character": {
+    "id": "sample-character",
+    "name": "Guardião de Integridade",
+    "level": 13,
+    "xp": 7200,
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana (nexus em colapso)"
+    },
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true,
+        "index": null
+      },
+      {
+        "id": "dagger-b",
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true,
+        "index": null
+      },
+      {
+        "id": "kit-explorer",
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "index": null,
+        "equipped": false
+      },
+      {
+        "id": "amulet-protection",
+        "name": "Amuleto Antigo da Proteção",
+        "quantity": 1,
+        "equipped": false,
+        "index": null
+      },
+      {
+        "id": "chalice-arcane",
+        "name": "Cálice Gravado com Símbolos Arcanos",
+        "quantity": 1,
+        "equipped": false,
+        "index": null
+      },
+      {
+        "id": "ancient-tome",
+        "index": null,
+        "name": "Tomo Antigo",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amulet-of-protection",
+        "index": null,
+        "name": "Amuleto de Proteção",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "potion-of-healing",
+        "index": null,
+        "name": "Poção de Cura",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "ancient-amulet",
+        "index": null,
+        "name": "Amuleto Antigo",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "enigmatic-scroll",
+        "index": null,
+        "name": "Pergaminho Enigmático",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762719162029-y35enzvo0e",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false,
+        "index": null
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false,
+        "index": null
+      },
+      {
+        "id": "rel-quia-do-obelisco-1762719172901-iwsc8ixfim",
+        "name": "Relíquia do Obelisco",
+        "quantity": 1,
+        "description": "Fragmento cristalino coletado do baú ritualístico.",
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-1762719172901-wdlfpc948q",
+        "name": "Colar Rúnico",
+        "quantity": 1,
+        "description": "Colar de prata gravado com runas da Biblioteca.",
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "ring-true-sight",
+        "name": "Anel de Visão Verdadeira",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "arcane-star-dust",
+        "name": "Pó de Estrela Arcana",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "thieves-tools",
+        "name": "Ferramentas de Ladrão",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-proibido-eldoria",
+        "name": "Tomo Proibido de Eldoria",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "ritualistic-dagger",
+        "name": "Adaga Ritualística",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "scroll-ancient-rites",
+        "name": "Pergaminho de Ritos Antigos",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "sacred-incense-burner",
+        "name": "Queimador de Incenso Sagrado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "gemstone-divination",
+        "name": "Gema de Adivinhação",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tome-forbidden-knowledge",
+        "name": "Tomo do Conhecimento Proibido",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "chalice-purification",
+        "name": "Cálice de Purificação",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "dust-restoration",
+        "name": "Pó de Restauração",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "fragment-celestial-map",
+        "name": "Fragmento de Mapa Celestial",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762721559913-rif5l5bhop",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762721559914-mzptrv060sa",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "punhal-ritualistico",
+        "index": null,
+        "name": "Punhal Ritualístico",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-invocacao-menor",
+        "index": null,
+        "name": "Pergaminho de Invocação Menor",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "idolo-obsidiana",
+        "index": null,
+        "name": "Ídolo de Obsidiana",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762722107767-qhd6bosecx",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "runic-key",
+        "name": "Chave Rúnica Antiga",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "crystal-orb",
+        "name": "Esfera de Cristal Sussurrante",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "arcane-journal",
+        "name": "Diário de Pesquisador Arcano",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "divine-medallion",
+        "name": "Medalhão de Proteção Divina",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762722852343-upsi349g3rb",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "ancient-crystal-orb",
+        "name": "Orbe de Cristal Antigo",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "cultist-journal",
+        "name": "Diário de um Cultista Esquecido",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762724614952-8160f4wn45o",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "ebony-staff",
+        "name": "Cajado de Ébano Entalhado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762724887614-gesct92s4f",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "orbe-cristal-resplandecente",
+        "name": "Orbe de Cristal Resplandecente",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "cajado-quebrado",
+        "name": "Cajado Quebrado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "diario-arquimago-esquecido",
+        "name": "Diário de um Arquimago Esquecido",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762725164345-t6j4t501kk",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762725164345-rbou2osa3om",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "relic-medallion-1",
+        "index": null,
+        "name": "Medalhão do Conhecimento Esquecido",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "relic-orb-1",
+        "index": null,
+        "name": "Orbe de Cristal Resplandecente",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "relic-diary-1",
+        "index": null,
+        "name": "Diário Cifrado de um Arquimago",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762725477580-j43ledu1nl",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "cajado-ebano-entalhado",
+        "name": "Cajado de Ébano Entalhado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "anel-visao-verdadeira",
+        "name": "Anel de Visão Verdadeira",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "frasco-essencia-arcana",
+        "name": "Frasco de Essência Arcana",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762725882267-oiqbxid8ru",
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762725882267-dzv2q893reh",
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "description": "Amuleto usado para controlar cultistas.",
+        "equipped": false
+      },
+      {
+        "id": "ritual-dagger-001",
+        "name": "Adaga Ritualística Antiga",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "scroll-arcane-001",
+        "name": "Pergaminho de Conhecimento Arcano",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "gem-attunement-001",
+        "name": "Gema de Sintonização",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "currency": {
+      "pp": 0,
+      "gp": 900,
+      "ep": 0,
+      "sp": 0,
+      "cp": 0
+    },
+    "relationships": [
+      {
+        "npcId": "golem-vigia",
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4
+      },
+      {
+        "npcId": "borin",
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "npcId": "golem_vigia"
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "npcId": "borin_stonehand"
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ],
+    "hpCurrent": 96,
+    "hpMax": 100,
+    "proficiencies": [
+      "Arcana",
+      "History",
+      "Investigation",
+      "Religion",
+      "Perception",
+      "Insight",
+      "Stealth",
+      "Survival",
+      "Medicine",
+      "Athletics",
+      "Persuasion",
+      "Acrobatics",
+      "Intimidation",
+      "Deception",
+      "Sleight of Hand",
+      "Performance",
+      "Ferramentas de Caligrafia",
+      "Linguagem Antiga",
+      "Ferramentas de Navegação",
+      "Linguagem Celestial"
+    ],
+    "spells": [
+      "Raio Prismático",
+      "Muralha Arcana"
+    ],
+    "hitDiceCurrent": 8,
+    "hitDiceMax": 11,
+    "hitDice": 9,
+    "hitDiceRemaining": 1,
+    "hitDiceSpent": 2,
+    "hitDiceTotal": 3,
+    "hitDiceType": "d8",
+    "spellSlots": {
+      "1st": 4,
+      "2nd": 3,
+      "3rd": 1
+    }
+  }
+}

@@ -11,6 +11,7 @@ import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
 import { mergeCharacterUpdates } from './safeMerge.js';
+import { recordArtifactsForSession } from './artifactService.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -26,7 +27,7 @@ import {
     type CombatReconciliationResult,
     type LoadedCombatEncounter,
 } from './combatStateService.js';
-import { applyXpEvents } from './xpService.js';
+import { applyXpEvents, clampCharacterLevel } from './xpService.js';
 import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 import { offloadLargePayload } from './objectStorageService.js';
@@ -35,6 +36,7 @@ import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { runGmValidator } from './gmValidator.js';
 import { savePendingRollRequest, clearPendingRollRequest } from './rollRequestService.js';
+import * as RegionService from './regionService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
 const MAX_PROMPT_LOG_ENTRIES = 12;
@@ -95,6 +97,233 @@ const formatMemoriesForPrompt = (memories: MemoryPayload[]) => {
     return lines.join('\n');
 };
 
+const canonicalSlug = (value?: string | null) => {
+    if (!value) return '';
+    return value
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+};
+
+type VisitedPoiEntry = { regionSlug: string; poiSlug: string; name?: string };
+
+const mergeVisitedRegions = (
+    existing?: any,
+    incoming?: any,
+    mandatorySlug?: string | null
+) => {
+    const normalized = new Set<string>();
+    const collect = (source?: any) => {
+        if (!Array.isArray(source)) return;
+        for (const value of source) {
+            if (typeof value === 'string' && value.trim().length) {
+                normalized.add(canonicalSlug(value));
+            }
+        }
+    };
+    collect(existing);
+    collect(incoming);
+    if (mandatorySlug) normalized.add(canonicalSlug(mandatorySlug));
+    return Array.from(normalized).filter(Boolean);
+};
+
+const mergeVisitedPois = (
+    existing?: any,
+    incoming?: any,
+    current?: VisitedPoiEntry | null
+): VisitedPoiEntry[] => {
+    const map = new Map<string, VisitedPoiEntry>();
+    const collect = (source?: any) => {
+        if (!Array.isArray(source)) return;
+        for (const entry of source) {
+            if (!entry || typeof entry !== 'object') continue;
+            const regionSlug = canonicalSlug(entry.regionSlug);
+            const poiSlug = canonicalSlug(entry.poiSlug);
+            if (!regionSlug || !poiSlug) continue;
+            const key = `${regionSlug}:${poiSlug}`;
+            map.set(key, {
+                regionSlug,
+                poiSlug,
+                name: entry.name,
+            });
+        }
+    };
+    collect(existing);
+    collect(incoming);
+    if (current?.regionSlug && current?.poiSlug) {
+        const key = `${canonicalSlug(current.regionSlug)}:${canonicalSlug(current.poiSlug)}`;
+        map.set(key, {
+            regionSlug: canonicalSlug(current.regionSlug),
+            poiSlug: canonicalSlug(current.poiSlug),
+            name: current.name,
+        });
+    }
+    return Array.from(map.values());
+};
+
+const mergeNpcLocations = (
+    current?: any,
+    updates?: Array<{ npcId?: string; name?: string; regionSlug?: string; poiSlug?: string }>
+) => {
+    const map = new Map<string, any>();
+    const collect = (source?: any) => {
+        if (!Array.isArray(source)) return;
+        for (const entry of source) {
+            if (!entry || typeof entry !== 'object' || !entry.npcId) continue;
+            map.set(entry.npcId, { ...entry });
+        }
+    };
+    collect(current);
+    collect(updates);
+    return Array.from(map.values());
+};
+
+
+type RegionPromptContext = {
+    slug: string;
+    name: string;
+    type: string;
+    summary?: string | null;
+    breadcrumbs?: Array<{ slug: string; name: string }>;
+    neighbors?: Array<{
+        slug?: string;
+        name?: string;
+        travelMode: string;
+        travelTimeMinutes: number;
+        difficulty?: string | null;
+        isLocked: boolean;
+    }>;
+    pointsOfInterest?: Array<{
+        slug: string;
+        name: string;
+        type: string;
+        summary?: string | null;
+        isLocked: boolean;
+    }>;
+    activePoi?: {
+        slug: string;
+        name: string;
+        type: string;
+        summary?: string | null;
+    } | null;
+};
+
+const resolveRegionContextForPrompt = async (
+    character: Character | null,
+    optimizedCharacter: any
+): Promise<RegionPromptContext | null> => {
+    const labels: Array<string | null | undefined> = [
+        optimizedCharacter?.worldState?.regionSlug,
+        optimizedCharacter?.worldState?.currentRegion,
+        (character?.worldState as any)?.regionSlug,
+        character?.worldState?.currentRegion,
+    ];
+    const tried = new Set<string>();
+    for (const label of labels) {
+        if (!label) continue;
+        const normalized = label.toString().trim();
+        if (!normalized) continue;
+        const key = normalized.toLowerCase();
+        if (tried.has(key)) continue;
+        tried.add(key);
+        const resolved = await RegionService.resolveRegionByLabelOrSlug(normalized).catch(() => null);
+        if (!resolved) continue;
+        const payload = await RegionService.getRegionBySlug(resolved.slug).catch(() => null);
+        if (!payload) continue;
+        const breadcrumbs = await RegionService.getRegionBreadcrumbs(payload.slug).catch(() => []);
+        const poiCandidates: Array<string | null | undefined> = [
+            optimizedCharacter?.worldState?.poiSlug,
+            (character?.worldState as any)?.poiSlug,
+        ];
+        let activePoi: RegionPromptContext['activePoi'] = null;
+        for (const candidate of poiCandidates) {
+            const normalizedPoi = canonicalSlug(candidate);
+            if (!normalizedPoi) continue;
+            const match = payload.pointsOfInterest?.find(
+                poi => canonicalSlug(poi.slug) === normalizedPoi
+            );
+            if (match) {
+                activePoi = {
+                    slug: match.slug,
+                    name: match.name,
+                    type: match.type,
+                    summary: match.summary ?? null,
+                };
+                break;
+            }
+        }
+        return {
+            slug: payload.slug,
+            name: payload.name,
+            type: payload.type,
+            summary: payload.summary ?? payload.description ?? null,
+            breadcrumbs,
+            neighbors: payload.neighbors?.map(neighbor => ({
+                slug: neighbor.targetRegionSlug,
+                name: neighbor.targetRegionName,
+                travelMode: neighbor.travelMode,
+                travelTimeMinutes: neighbor.travelTimeMinutes,
+                difficulty: neighbor.difficulty ?? null,
+                isLocked: neighbor.isLocked,
+            })),
+            pointsOfInterest: payload.pointsOfInterest?.map(poi => ({
+                slug: poi.slug,
+                name: poi.name,
+                type: poi.type,
+                summary: poi.summary ?? null,
+                isLocked: poi.isLocked,
+            })),
+            activePoi,
+        };
+    }
+    return null;
+};
+
+const formatRegionGraphSummary = (context: RegionPromptContext): string => {
+    const lines: string[] = [];
+    const baseSummary = context.summary?.trim() || 'Sem resumo disponível.';
+    const breadcrumbLabel = context.breadcrumbs?.length
+        ? context.breadcrumbs.map(entry => entry.name).join(' > ')
+        : context.name;
+    lines.push(`Localização: ${breadcrumbLabel} [${context.slug}] (${context.type}) - ${baseSummary}`);
+
+    if (context.activePoi) {
+        const poiSummary = context.activePoi.summary ? ` - ${context.activePoi.summary}` : '';
+        lines.push(`Sublocal atual: ${context.activePoi.name} [${context.activePoi.slug}] (${context.activePoi.type})${poiSummary}`);
+    }
+
+    if (context.neighbors && context.neighbors.length) {
+        const routes = context.neighbors.map(neighbor => {
+            const label = neighbor.name || neighbor.slug || 'Destino desconhecido';
+            const travelMode = neighbor.travelMode || 'deslocamento';
+            const travelTime = Number.isFinite(neighbor.travelTimeMinutes)
+                ? `${neighbor.travelTimeMinutes}min`
+                : 'tempo desconhecido';
+            const difficulty = neighbor.difficulty ? `, dificuldade ${neighbor.difficulty}` : '';
+            const locked = neighbor.isLocked ? ' [BLOQUEADA]' : '';
+            return `${label} (${travelMode}, ${travelTime}${difficulty})${locked}`;
+        });
+        lines.push(`Rotas conhecidas: ${routes.join('; ')}`);
+    } else {
+        lines.push('Rotas conhecidas: nenhuma.');
+    }
+
+    if (context.pointsOfInterest && context.pointsOfInterest.length) {
+        const pois = context.pointsOfInterest.map(poi => {
+            const locked = poi.isLocked ? ' (bloqueado)' : '';
+            return `${poi.name} [${poi.slug}]${locked}`;
+        });
+        lines.push(`Pontos de interesse: ${pois.join('; ')}`);
+    } else {
+        lines.push('Pontos de interesse: nenhum registrado.');
+    }
+
+    return lines.join('\n');
+};
+
 const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
     if (combatState?.isActive) return 'combat';
 
@@ -124,6 +353,23 @@ const detectAiMode = (playerAction: string, combatState: SchemaCombatState | nul
 const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
 
 const ensureArray = <T>(value: T[] | undefined | null): T[] => Array.isArray(value) ? value : [];
+
+const buildWorldStateSnapshot = (character: Character) => {
+    const base = { ...(character.worldState || {}) };
+    const relationships = ensureArray(character.relationships);
+    const npcLocations = relationships
+        .filter(rel => rel?.npcId && (rel.regionSlug || rel.poiSlug))
+        .map(rel => ({
+            npcId: rel.npcId,
+            name: rel.name,
+            regionSlug: rel.regionSlug ?? undefined,
+            poiSlug: rel.poiSlug ?? undefined,
+        }));
+    if (npcLocations.length) {
+        base.npcLocations = mergeNpcLocations(base.npcLocations, npcLocations);
+    }
+    return base;
+};
 
 const buildDefaultAttributes = (): Pick<CharacterAttributes, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | 'hp' | 'maxHp' | 'ac' | 'conditions'> => ({
     strength: 10,
@@ -163,6 +409,7 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
     const spells = ensureArray(fullCharacter.spells)
         .map(s => (s as any)?.spellName ?? (s as any)?.name ?? null)
         .filter(Boolean) as string[];
+    const worldStateSnapshot = buildWorldStateSnapshot(fullCharacter);
 
     return {
         id: fullCharacter.id,
@@ -190,7 +437,7 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
         inventory,
         spells: spells as unknown as ApiSpell[],
         storySoFar: fullCharacter.storySoFar ?? '',
-        worldState: fullCharacter.worldState ?? {},
+        worldState: worldStateSnapshot,
         factionReputation: fullCharacter.factionReputation ?? {},
         relationships: ensureArray(fullCharacter.relationships),
         journal: ensureArray(fullCharacter.journal),
@@ -497,7 +744,8 @@ export const processPlayerTurn = async (
         characterForAI = {
             id: 1, name: 'Herói de Teste', race: 'Humano', characterClass: 'Guerreiro', level: 1,
             attributes: { strength: 10, dexterity: 10, constitution: 10, intelligence: 10, wisdom: 10, charisma: 10, hp: 10, ac: 10, conditions: [] },
-            proficiencies: [], inventory: [], spells: [], storySoFar: '', worldState: { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Plano de Testes' },
+            proficiencies: [], inventory: [], spells: [], storySoFar: '',
+            worldState: { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Plano de Testes', regionSlug: 'plano-de-testes', visitedRegions: ['plano-de-testes'] },
             relationships: [], journal: [], factionReputation: {}, currentRegion: 'Plano de Testes',
             passivePerception: 10, passiveInsight: 10, passiveInvestigation: 10,
             xp: 0,
@@ -609,6 +857,11 @@ export const processPlayerTurn = async (
         timelineFactsForPrompt = await buildTimelineFacts(sessao.id);
     }
 
+    const regionPromptContext = !isTestRun
+        ? await resolveRegionContextForPrompt(sessao?.character ?? null, characterForAI)
+        : null;
+    const regionGraphSummary = regionPromptContext ? formatRegionGraphSummary(regionPromptContext) : undefined;
+
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
 
     const gameMasterFlowInput = {
@@ -621,6 +874,8 @@ export const processPlayerTurn = async (
         homebrewSummary: homebrewSummaryForAI || undefined,
         storySummary: storySummaryForPrompt || undefined,
         timelineFacts: timelineFactsForPrompt || undefined,
+        regionSlug: regionPromptContext?.slug ?? undefined,
+        regionGraphSummary: regionGraphSummary ?? undefined,
         mode: aiMode,
     };
 
@@ -784,6 +1039,18 @@ export const processPlayerTurn = async (
         (aiResponse as any).xpEvents = undefined;
     }
 
+    if (aiResponse.updatedCharacter?.level !== undefined) {
+        const rawLevel = Number(aiResponse.updatedCharacter.level);
+        const cappedLevel = clampCharacterLevel(rawLevel);
+        if (Number.isFinite(rawLevel) && cappedLevel !== rawLevel) {
+            aiResponse.updatedCharacter.level = cappedLevel;
+            aiResponse.systemLog = appendSystemLogEntry(
+                aiResponse.systemLog,
+                `[Progresso] O nível foi limitado a ${cappedLevel}.`
+            );
+        }
+    }
+
     let newStorySummaryForLog: string | null = null;
     let levelUpRecap: string | null = null;
 
@@ -926,6 +1193,26 @@ export const processPlayerTurn = async (
         if (!aiResponse.lootOffer.items.length && (!aiResponse.lootOffer.currency || Object.values(aiResponse.lootOffer.currency).every(val => (val as number) <= 0))) {
             aiResponse.lootOffer = null;
         }
+        if (!isTestRun && sessao?.character && aiResponse.lootOffer?.items?.length) {
+            const currentRegionSlug =
+                (aiResponse.worldState as any)?.regionSlug ??
+                (sessao.character.worldState as any)?.regionSlug ??
+                sessao.character.worldState?.currentRegion ??
+                null;
+            const poiSlug = (aiResponse.worldState as any)?.poiSlug ?? null;
+            const artifactInputs = aiResponse.lootOffer.items.map(item => ({
+                name: item.name,
+                description: item.description,
+                rarity: item.rarity,
+                metadata: item.properties ?? undefined,
+                keywords: Array.isArray(item.properties?.tags) ? item.properties.tags : undefined,
+                originLabel: gameMasterFlowInput.scenarioLabel ?? aiResponse.memoryContext?.summary ?? '',
+                sourceType: 'loot' as const,
+                regionSlug: currentRegionSlug,
+                pointOfInterestSlug: poiSlug,
+            }));
+            await recordArtifactsForSession(sessao.character.id, sessao.id, artifactInputs);
+        }
     }
     
     const validatorResult = runGmValidator(aiResponse, {
@@ -1037,6 +1324,8 @@ export const processPlayerTurn = async (
             }
         }
 
+        await enforceWorldStateLocation(sessao, aiResponse);
+
         if (aiResponse.newHomebrewContent && Array.isArray(aiResponse.newHomebrewContent)) {
             for (const newContent of aiResponse.newHomebrewContent) {
                 try {
@@ -1058,6 +1347,12 @@ export const processPlayerTurn = async (
             const updatesFromAi = { ...(aiResponse.updatedCharacter || {}) };
             if (aiResponse.worldState) {
                 updatesFromAi.worldState = aiResponse.worldState;
+            }
+            if (aiResponse.gameClock) {
+                updatesFromAi.gameClock = {
+                    ...(updatesFromAi.gameClock || {}),
+                    ...aiResponse.gameClock,
+                };
             }
 
             const hasWorldStateUpdates = Boolean(
@@ -1107,6 +1402,7 @@ export const processPlayerTurn = async (
                 totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
                 xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
                 level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
+                gameClock: updatesFromAi.gameClock,
             };
             console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
 
@@ -1156,4 +1452,137 @@ export const processPlayerTurn = async (
     }
 };
 
-    
+const appendSystemLogEntry = (existing: string | null | undefined, message: string) =>
+    existing && existing.length ? `${existing}\n${message}` : message;
+
+const enforceWorldStateLocation = async (sessao: SessaoIA, response: GameMasterResponse) => {
+    if (!response.worldState || !sessao?.character) return;
+    const worldState = response.worldState as Record<string, any>;
+    const previousState = (sessao.character.worldState as any) ?? {};
+    const previousRegionSlug =
+        previousState.regionSlug ??
+        sessao.character.worldState?.currentRegion ??
+        null;
+    const previousRegionName = sessao.character.worldState?.currentRegion ?? null;
+    const previousPoiSlug = previousState.poiSlug ?? null;
+    const hasPoiField = Object.prototype.hasOwnProperty.call(worldState, 'poiSlug');
+    const requestedRegionName = worldState.currentRegion;
+
+    if (!worldState.regionSlug && previousRegionSlug) {
+        worldState.regionSlug = previousRegionSlug;
+    }
+
+    const revertToPreviousRegion = () => {
+        if (previousRegionSlug) {
+            worldState.currentRegion = previousRegionName ?? previousRegionSlug;
+            worldState.regionSlug = previousRegionSlug;
+        } else {
+            delete worldState.currentRegion;
+            delete worldState.regionSlug;
+        }
+    };
+
+    if (requestedRegionName) {
+        const isLeavingPoiWithoutExit =
+            previousPoiSlug &&
+            (!hasPoiField || canonicalSlug(worldState.poiSlug) === canonicalSlug(previousPoiSlug)) &&
+            canonicalSlug(requestedRegionName) !== canonicalSlug(previousRegionSlug);
+        if (isLeavingPoiWithoutExit) {
+            response.systemLog = appendSystemLogEntry(
+                response.systemLog,
+                '[Mapa] Saia do sublocal atual antes de viajar para outra região.'
+            );
+            revertToPreviousRegion();
+        } else {
+            try {
+                const resolved = await RegionService.validateRegionTransition(
+                    previousRegionSlug,
+                    requestedRegionName
+                );
+                worldState.currentRegion = resolved.name;
+                worldState.regionSlug = resolved.slug;
+                worldState.visitedRegions = mergeVisitedRegions(
+                    previousState.visitedRegions,
+                    worldState.visitedRegions,
+                    resolved.slug
+                );
+                if (!hasPoiField || !worldState.poiSlug) {
+                    delete worldState.poiSlug;
+                    delete worldState.poiName;
+                }
+            } catch (error: any) {
+                console.warn('[narrarService] Movimento de região rejeitado:', error?.message ?? error);
+                response.systemLog = appendSystemLogEntry(
+                    response.systemLog,
+                    `[Mapa] ${error?.message ?? 'Transição inválida de região.'}`
+                );
+                revertToPreviousRegion();
+            }
+        }
+    } else if (worldState.regionSlug) {
+        worldState.visitedRegions = mergeVisitedRegions(
+            previousState.visitedRegions,
+            worldState.visitedRegions,
+            worldState.regionSlug
+        );
+        if (!worldState.currentRegion && previousRegionName) {
+            worldState.currentRegion = previousRegionName;
+        }
+    }
+
+    const effectiveRegionSlug = worldState.regionSlug ?? previousRegionSlug ?? null;
+    if (hasPoiField) {
+        if (!worldState.poiSlug) {
+            delete worldState.poiSlug;
+            delete worldState.poiName;
+        } else if (effectiveRegionSlug) {
+            try {
+                const poi = await RegionService.validatePoiEntry(
+                    effectiveRegionSlug,
+                    worldState.poiSlug
+                );
+                worldState.poiSlug = poi.slug;
+                worldState.poiName = poi.name;
+                worldState.visitedPois = mergeVisitedPois(
+                    previousState.visitedPois,
+                    worldState.visitedPois,
+                    { regionSlug: poi.regionSlug ?? effectiveRegionSlug, poiSlug: poi.slug, name: poi.name }
+                );
+            } catch (error: any) {
+                console.warn('[narrarService] Entrada em POI rejeitada:', error?.message ?? error);
+                response.systemLog = appendSystemLogEntry(
+                    response.systemLog,
+                    `[Mapa] ${error?.message ?? 'Ponto de interesse inválido.'}`
+                );
+                if (previousPoiSlug) {
+                    worldState.poiSlug = previousPoiSlug;
+                    if (previousState.poiName) {
+                        worldState.poiName = previousState.poiName;
+                    }
+                } else {
+                    delete worldState.poiSlug;
+                    delete worldState.poiName;
+                }
+            }
+        } else {
+            response.systemLog = appendSystemLogEntry(
+                response.systemLog,
+                '[Mapa] Não é possível acessar um sublocal sem definir a região atual.'
+            );
+            delete worldState.poiSlug;
+            delete worldState.poiName;
+        }
+    } else if (previousPoiSlug && !worldState.poiSlug) {
+        worldState.poiSlug = previousPoiSlug;
+        if (previousState.poiName && !worldState.poiName) {
+            worldState.poiName = previousState.poiName;
+        }
+    }
+
+    if (!Array.isArray(worldState.visitedPois) && Array.isArray(previousState.visitedPois)) {
+        worldState.visitedPois = previousState.visitedPois;
+    }
+    if (!Array.isArray(worldState.visitedRegions) && Array.isArray(previousState.visitedRegions)) {
+        worldState.visitedRegions = previousState.visitedRegions;
+    }
+};

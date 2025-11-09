@@ -1,0 +1,87 @@
+[
+  {
+    "label": "Capítulo 1 - Biblioteca em Colapso",
+    "memory": {
+      "summaryKeywords": ["biblioteca", "obelisco", "colapso"],
+      "referenceKeywords": ["Obelisco", "Galeria Subterrânea"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 2 - Barganha com o Guardião",
+    "memory": {
+      "summaryKeywords": ["barganha", "borin", "tomo"],
+      "referenceKeywords": ["Borin Stonehand", "Empório Arcanum"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false,
+      "requireShop": true
+    }
+  },
+  {
+    "label": "Capítulo 3 - Cerco à Galeria",
+    "memory": {
+      "summaryKeywords": ["cerco", "golem", "cultistas"],
+      "referenceKeywords": ["Golem Vigia", "Globo Elemental"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": true,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 4 - Batalha Final e Rendição",
+    "memory": {
+      "summaryKeywords": ["rendição", "líder", "biblioteca"],
+      "referenceKeywords": ["Kaldrax", "Rendição"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": true,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 5 - Saque e Restauro",
+    "memory": {
+      "summaryKeywords": ["saque", "baú", "restauro"],
+      "referenceKeywords": ["Baú Ritualístico", "Relíquias"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": false,
+      "requireCombatActive": false,
+      "requireLoot": true,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 6 - Descanso Estratégico",
+    "memory": {
+      "summaryKeywords": ["descanso", "planejamento", "relíquias"],
+      "referenceKeywords": ["Descanso Curto", "Golem Vigia"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": true
+    }
+  }
+]

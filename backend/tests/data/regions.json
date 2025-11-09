@@ -1,0 +1,43 @@
+[
+  {
+    "slug": "midgard",
+    "name": "Midgard",
+    "type": "world",
+    "metadata": { "climate": "variado" }
+  },
+  {
+    "slug": "prontera",
+    "name": "Prontera",
+    "type": "city",
+    "parentSlug": "midgard",
+    "metadata": { "climate": "temperado" }
+  },
+  {
+    "slug": "biblioteca-arcana",
+    "name": "Biblioteca Arcana",
+    "type": "dungeon",
+    "parentSlug": "prontera",
+    "metadata": { "climate": "interno" }
+  },
+  {
+    "slug": "jardim-suspenso",
+    "name": "Jardins Suspensos",
+    "type": "wild",
+    "parentSlug": "prontera",
+    "metadata": { "climate": "tropical" }
+  },
+  {
+    "slug": "geffen",
+    "name": "Geffen",
+    "type": "city",
+    "parentSlug": "midgard",
+    "metadata": { "climate": "nebuloso" }
+  },
+  {
+    "slug": "geffen-torre",
+    "name": "Torre de Geffen",
+    "type": "dungeon",
+    "parentSlug": "geffen",
+    "metadata": { "climate": "arcano" }
+  }
+]

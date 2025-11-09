@@ -23,6 +23,7 @@ import aiRoutes from './routes/aiRoutes.js';
 import unifiedDataRouter from './routes/unifiedDataRouter.js'; // Substitui dndApiRoutes
 import cacheRoutes from './routes/cacheRoutes.js';
 import logsRoutes from './routes/logsRoutes.js';
+import regionRoutes from './routes/regionRoutes.js';
 
 
 const app = express();
@@ -69,6 +70,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/data', unifiedDataRouter); // Nova rota unificada
 app.use('/api/cache', cacheRoutes);
 app.use('/api/logs', logsRoutes);
+app.use('/api/regions', regionRoutes);
 
 
 // Rota de Traduções

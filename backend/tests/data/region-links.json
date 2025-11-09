@@ -1,0 +1,8 @@
+[
+  { "from": "midgard", "to": "prontera", "travelMode": "airship", "travelTime": 30 },
+  { "from": "midgard", "to": "geffen", "travelMode": "airship", "travelTime": 45 },
+  { "from": "prontera", "to": "biblioteca-arcana", "travelMode": "walk", "travelTime": 5 },
+  { "from": "prontera", "to": "jardim-suspenso", "travelMode": "walk", "travelTime": 12 },
+  { "from": "geffen", "to": "geffen-torre", "travelMode": "walk", "travelTime": 15 },
+  { "from": "biblioteca-arcana", "to": "geffen-torre", "travelMode": "portal", "travelTime": 4 }
+]

@@ -64,6 +64,121 @@ const PROGRESSION_TYPE_ALIASES: Record<string, 'xp_gain' | 'level_up'> = {
     levelup: 'level_up',
     subir: 'level_up',
 };
+const CURRENCY_ITEM_KEYS = new Set([
+    'pp',
+    'gp',
+    'ep',
+    'sp',
+    'cp',
+    'moedas',
+    'moedas de ouro',
+    'moedas de prata',
+    'moedas de cobre',
+    'moeda de ouro',
+    'moeda de prata',
+    'moeda de cobre',
+    'peças de ouro',
+    'peças de prata',
+    'peças de cobre',
+    'peça de ouro',
+    'peça de prata',
+    'peça de cobre',
+    'gold pieces',
+    'silver pieces',
+    'copper pieces',
+    'gold coin',
+    'silver coin',
+    'copper coin',
+    'coin pouch',
+    'coin purse',
+    'bag of coins',
+    'pouch of coins',
+    'saco de moedas',
+    'bolsa de moedas'
+]);
+const CURRENCY_TO_GP: Record<string, number> = { pp: 10, gp: 1, ep: 0.5, sp: 0.1, cp: 0.01 };
+const WEAPON_KEYWORDS = ['espada', 'arma', 'adaga', 'foice', 'lança', 'machado', 'arco', 'flecha', 'florete'];
+const ARMOR_KEYWORDS = ['armadura', 'escudo', 'capacete', 'grevas', 'peitoral'];
+const CONSUMABLE_KEYWORDS = ['poção', 'poçao', 'pocao', 'elixir', 'tonico', 'tônico'];
+const TRINKET_KEYWORDS = ['amuleto', 'colar', 'anel', 'runa', 'talisman', 'talismã'];
+const SKILL_KEYWORDS = new Set(
+  [
+    'acrobatics',
+    'acrobacia',
+    'animal handling',
+    'lidar com animais',
+    'arcana',
+    'atlhetics',
+    'athletics',
+    'atletismo',
+    'deception',
+    'enganacao',
+    'enganação',
+    'history',
+    'historia',
+    'história',
+    'insight',
+    'intimidation',
+    'intimidação',
+    'investigation',
+    'investigação',
+    'medicine',
+    'medicina',
+    'nature',
+    'natureza',
+    'perception',
+    'percepção',
+    'performance',
+    'persuasion',
+    'persuasão',
+    'religion',
+    'religião',
+    'sleight of hand',
+    'prestidigitação',
+    'stealth',
+    'furtividade',
+    'survival',
+    'sobrevivência',
+  ].map(keyword => keyword.toLowerCase())
+);
+const ABILITY_KEYWORDS = new Set(
+  [
+    'strength',
+    'força',
+    'str',
+    'dexterity',
+    'destreza',
+    'dex',
+    'constitution',
+    'constituição',
+    'con',
+    'intelligence',
+    'inteligência',
+    'int',
+    'wisdom',
+    'sabedoria',
+    'wis',
+    'charisma',
+    'carisma',
+    'cha',
+  ].map(keyword => keyword.toLowerCase())
+);
+
+type CurrencyKey = 'pp' | 'gp' | 'ep' | 'sp' | 'cp';
+
+const detectCurrencyKeyFromText = (raw?: string): CurrencyKey | undefined => {
+    if (!raw) return undefined;
+    const normalized = raw.toLowerCase();
+    if (/\bpp\b/.test(normalized) || normalized.includes('platina') || normalized.includes('platinum')) return 'pp';
+    if (/\bep\b/.test(normalized) || normalized.includes('electrum')) return 'ep';
+    if (/\bsp\b/.test(normalized) || normalized.includes('prata') || normalized.includes('silver')) return 'sp';
+    if (/\bcp\b/.test(normalized) || normalized.includes('cobre') || normalized.includes('copper')) return 'cp';
+    if (/\bgp\b/.test(normalized) || normalized.includes('ouro') || normalized.includes('gold')) return 'gp';
+    if (normalized.includes('coin') || normalized.includes('coins') || normalized.includes('moeda') || normalized.includes('moedas') || normalized.includes('peça') || normalized.includes('peças')) {
+        return 'gp';
+    }
+    return undefined;
+};
 
 /**
  * Normaliza a string 'timeOfDay' para um valor de enumeração conhecido.
@@ -140,9 +255,41 @@ const normalizeCombatZone = (zone: any): string | undefined => {
 
 const normalizeRollType = (value: any): string | undefined => {
     if (!value || typeof value !== 'string') return undefined;
-    const key = value.trim().toLowerCase();
-    if (ROLL_TYPE_ALLOWED.has(key)) return key;
-    return ROLL_TYPE_ALIASES[key];
+    const trimmed = value.trim().toLowerCase();
+    if (!trimmed) return undefined;
+    if (ROLL_TYPE_ALLOWED.has(trimmed)) return trimmed;
+    if (ROLL_TYPE_ALIASES[trimmed]) return ROLL_TYPE_ALIASES[trimmed];
+
+    const simplified = trimmed
+        .replace(/\([^)]*\)/g, ' ')
+        .replace(/[^a-z\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (simplified) {
+        if (ROLL_TYPE_ALLOWED.has(simplified)) return simplified;
+        if (ROLL_TYPE_ALIASES[simplified]) return ROLL_TYPE_ALIASES[simplified];
+    }
+
+    if (simplified && (SKILL_KEYWORDS.has(simplified) || ABILITY_KEYWORDS.has(simplified))) {
+        return 'check';
+    }
+    if (SKILL_KEYWORDS.has(trimmed) || ABILITY_KEYWORDS.has(trimmed)) {
+        return 'check';
+    }
+
+    const healingKeywords = ['healing', 'hp', 'hit_dice', 'hit dice', 'hp_recovery', 'hp recovery', 'cura'];
+    if (healingKeywords.some(keyword => simplified.includes(keyword) || trimmed.includes(keyword))) {
+        return 'check';
+    }
+
+    const containsSkill = Array.from(SKILL_KEYWORDS).some(keyword => simplified.includes(keyword) || trimmed.includes(keyword));
+    const containsAbility = Array.from(ABILITY_KEYWORDS).some(keyword => simplified.includes(keyword) || trimmed.includes(keyword));
+    if (containsSkill || containsAbility) {
+        return 'check';
+    }
+
+    return undefined;
 };
 const normalizeProgressionType = (value: any): 'xp_gain' | 'level_up' | undefined => {
     if (!value || typeof value !== 'string') return undefined;
@@ -181,6 +328,88 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
   const sanitized: Partial<GameMasterResponse> = { ...responseData };
   const sanitationLogs: string[] = [];
+  const inventoryCurrency: Record<CurrencyKey, number> = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
+
+  const toNumber = (value: any): number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const addCurrencyAmount = (key: CurrencyKey | undefined, amount: number) => {
+    if (!key) return;
+    if (!Number.isFinite(amount) || amount <= 0) return;
+    inventoryCurrency[key] = (inventoryCurrency[key] ?? 0) + amount;
+  };
+
+  const accumulateCurrency = (item?: InventoryLike): boolean => {
+    if (!item) return false;
+    const descriptor = `${item.index ?? ''} ${item.name ?? ''} ${item.id ?? ''}`;
+    const currencyKey = detectCurrencyKeyFromText(descriptor);
+    if (!currencyKey) return false;
+    const quantity = Math.max(0, toNumber(item.quantity) ?? 1);
+    if (quantity === 0) return true;
+    addCurrencyAmount(currencyKey, quantity);
+    return true;
+  };
+
+  const mergeCurrencyObject = (source?: any) => {
+    if (!source || typeof source !== 'object') return;
+    for (const [key, value] of Object.entries(source)) {
+      const currencyKey = detectCurrencyKeyFromText(key);
+      if (!currencyKey) continue;
+      const amount = Math.max(0, toNumber(value) ?? 0);
+      addCurrencyAmount(currencyKey, amount);
+    }
+  };
+
+  const drainLooseCurrencyFields = (target?: any) => {
+    if (!target || typeof target !== 'object') return;
+    const looseFields: Array<[string, CurrencyKey]> = [
+      ['gold', 'gp'],
+      ['gp', 'gp'],
+      ['silver', 'sp'],
+      ['sp', 'sp'],
+      ['copper', 'cp'],
+      ['cp', 'cp'],
+      ['platinum', 'pp'],
+      ['pp', 'pp'],
+      ['electrum', 'ep'],
+      ['ep', 'ep'],
+      ['coins', 'gp'],
+    ];
+    looseFields.forEach(([field, key]) => {
+      if (target[field] === undefined) return;
+      const amount = Math.max(0, toNumber(target[field]) ?? 0);
+      addCurrencyAmount(key, amount);
+      delete target[field];
+    });
+  };
+
+  const expandInventoryStacks = (items: InventoryLike[] | undefined): InventoryLike[] => {
+    if (!Array.isArray(items)) return [];
+    const expanded: InventoryLike[] = [];
+    items.forEach((item, index) => {
+      if (!item) return;
+      const quantity = Math.max(1, Math.floor(toNumber(item.quantity) ?? 1));
+      if (accumulateCurrency(item)) {
+        return;
+      }
+      if (quantity === 1) {
+        expanded.push({ ...item, quantity });
+        return;
+      }
+      const baseId = buildInventoryKey(item) || `stack-${index}`;
+      for (let i = 0; i < quantity; i++) {
+        expanded.push({
+          ...item,
+          quantity: 1,
+          id: `${baseId}-copy-${i}`,
+        });
+      }
+    });
+    return expanded;
+  };
   const buildInventoryKey = (item: any): string | null => {
     if (!item) return null;
     const raw = item.id || item.index || item.name;
@@ -195,6 +424,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
     if (Array.isArray(previous)) {
       for (const item of previous) {
+        if (accumulateCurrency(item)) continue;
         const key = buildInventoryKey(item);
         if (key) {
           snapshot.set(key, { ...item });
@@ -208,6 +438,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
     for (const item of incoming) {
       if (!item) continue;
+      if (accumulateCurrency(item)) continue;
       const key = buildInventoryKey(item);
 
       if (!key) {
@@ -232,12 +463,6 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     return Array.from(snapshot.values());
   };
 
-  const toNumber = (value: any): number | undefined => {
-    if (value === null || value === undefined) return undefined;
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  };
-
   const parseHitDieKey = (value: any): number | undefined => {
     if (value === null || value === undefined) return undefined;
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -259,7 +484,7 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     return undefined;
   };
 
-  const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number } | undefined => {
+const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number } | undefined => {
     if (!value || typeof value !== 'object') return undefined;
 
     const clampPositiveInt = (input: any): number | undefined => {
@@ -297,15 +522,57 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       }
     }
 
-    if (value.hitDice && typeof value.hitDice === 'object') {
+  if (value.hitDice && typeof value.hitDice === 'object') {
       const dieValue = parseHitDieKey(value.hitDice.die ?? value.hitDice.type);
       const maxDice = clampPositiveInt(value.hitDice.available ?? value.hitDice.remaining);
       if (dieValue && maxDice) {
         return { maxDice, hitDieValue: dieValue };
       }
-    }
+  }
 
-    return undefined;
+  return undefined;
+};
+
+  const guessItemCategory = (name: string, rawType?: string): string => {
+    const lower = `${rawType ?? ''} ${name}`.toLowerCase();
+    if (WEAPON_KEYWORDS.some(keyword => lower.includes(keyword))) return 'weapon';
+    if (ARMOR_KEYWORDS.some(keyword => lower.includes(keyword))) return 'armor';
+    if (CONSUMABLE_KEYWORDS.some(keyword => lower.includes(keyword))) return 'consumable';
+    if (TRINKET_KEYWORDS.some(keyword => lower.includes(keyword))) return 'trinket';
+    return rawType?.toLowerCase() || 'artifact';
+  };
+
+  const buildItemTags = (name: string, existing?: string[]): string[] => {
+    const tags = new Set<string>();
+    (existing ?? []).forEach(tag => typeof tag === 'string' && tags.add(tag));
+    const lower = name.toLowerCase();
+    if (lower.includes('ritual')) tags.add('ritual');
+    if (lower.includes('arcano') || lower.includes('mágic') || lower.includes('magia')) tags.add('magical');
+    if (lower.includes('cur')) tags.add('healing');
+    return Array.from(tags).slice(0, 8);
+  };
+
+  const normalizeLootItem = (item: any) => {
+    const name = String(item?.name ?? item?.title ?? 'Item sem nome').trim().slice(0, 120) || 'Item sem nome';
+    const description = String(item?.description ?? item?.details ?? 'Descrição indisponível.').trim().slice(0, 600);
+    const quantity = Math.max(1, Math.floor(toNumber(item?.quantity ?? item?.count) ?? 1));
+    const rarity = String(item?.rarity ?? 'common').toLowerCase();
+    const weight = toNumber(item?.weight) ?? 0;
+    const category = guessItemCategory(name, item?.type);
+    const value = toNumber(item?.value);
+    return {
+      name,
+      description,
+      quantity,
+      rarity,
+      category,
+      properties: {
+        weight,
+        value,
+        tags: buildItemTags(name, item?.tags),
+        source: item?.source ?? 'loot',
+      },
+    };
   };
 
   const extractHpPair = (source: any): { current?: number; max?: number } | undefined => {
@@ -388,6 +655,25 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     sanitized.updatedCharacter = {
       ...(sanitized.updatedCharacter || {}),
       inventory: currentCharacter.inventory.slice(),
+    };
+  }
+
+  if (sanitized.updatedCharacter && Array.isArray(sanitized.updatedCharacter.inventory)) {
+    sanitized.updatedCharacter.inventory = expandInventoryStacks(sanitized.updatedCharacter.inventory);
+  }
+
+  if (sanitized.updatedCharacter) {
+    drainLooseCurrencyFields(sanitized.updatedCharacter);
+    if (sanitized.updatedCharacter.currency) {
+      mergeCurrencyObject(sanitized.updatedCharacter.currency);
+    }
+  }
+
+  const totalCurrencyUnits = Object.values(inventoryCurrency).reduce((sum, value) => sum + value, 0);
+  if (totalCurrencyUnits > 0) {
+    sanitized.updatedCharacter = {
+      ...(sanitized.updatedCharacter || {}),
+      currency: { ...inventoryCurrency },
     };
   }
 
@@ -498,6 +784,23 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }
   }
 
+  const fallbackMemorySummary =
+    sanitized.logEntries?.[0]?.content ??
+    sanitized.logEntries?.[sanitized.logEntries.length - 1]?.content ??
+    'Eventos recentes registrados na aventura.';
+  if (!sanitized.memoryContext.summary?.trim()) {
+    sanitized.memoryContext.summary = fallbackMemorySummary.slice(0, 500);
+  }
+  if (!Array.isArray(sanitized.memoryContext.references) || sanitized.memoryContext.references.length === 0) {
+    const referenceSet = new Set<string>();
+    if (sanitized.worldState?.currentRegion) referenceSet.add(sanitized.worldState.currentRegion);
+    if (currentCharacter?.worldState?.currentRegion) referenceSet.add(currentCharacter.worldState.currentRegion);
+    if (Array.isArray(currentCharacter?.relationships)) {
+      currentCharacter.relationships.forEach((rel: any) => rel?.name && referenceSet.add(rel.name));
+    }
+    sanitized.memoryContext.references = Array.from(referenceSet).slice(0, 5);
+  }
+
   if (sanitized.shopState && typeof sanitized.shopState === 'object') {
     sanitized.shopState.isOpen = Boolean(sanitized.shopState.isOpen ?? true);
     sanitized.shopState.isHaggling = Boolean(sanitized.shopState.isHaggling ?? false);
@@ -516,36 +819,104 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       });
     }
   }
+  if (!sanitized.shopState && currentCharacter?.shopState) {
+    sanitized.shopState = { ...currentCharacter.shopState };
+  }
 
   const normalizeCurrency = (source: any): { gp: number } => {
-    const gpValue = Math.max(0, toNumber(source?.gp ?? source?.gold ?? source?.amount ?? source) ?? 0);
+    let gpValue = 0;
+    if (source && typeof source === 'object') {
+      for (const key of Object.keys(source)) {
+        const lower = key.toLowerCase();
+        const value = Math.max(0, toNumber(source[key]) ?? 0);
+        const rate = CURRENCY_TO_GP[lower] ?? (lower.includes('ouro') ? 1 : lower.includes('prata') ? 0.1 : lower.includes('cobre') ? 0.01 : undefined);
+        if (rate !== undefined) gpValue += value * rate;
+      }
+    } else {
+      gpValue = Math.max(0, toNumber(source) ?? 0);
+    }
     return { gp: gpValue };
   };
 
+  const existingHomebrewNames = new Set(
+    Array.isArray(sanitized.newHomebrewContent)
+      ? sanitized.newHomebrewContent
+          .map((entry: any) => entry?.name?.toLowerCase?.())
+          .filter(Boolean)
+      : []
+  );
+  const pendingHomebrewEntries: any[] = [];
+
   if (sanitized.lootOffer && typeof sanitized.lootOffer === 'object') {
     const normalizedLoot: { items: any[]; currency: { gp: number } } = {
-        items: [],
-        currency: { gp: 0 },
+      items: [],
+      currency: { gp: 0 },
     };
 
     if (Array.isArray((sanitized.lootOffer as any).items)) {
-        normalizedLoot.items = (sanitized.lootOffer as any).items;
+      normalizedLoot.items = (sanitized.lootOffer as any).items;
     } else if ((sanitized.lootOffer as any).item) {
-        normalizedLoot.items = [(sanitized.lootOffer as any).item];
+      normalizedLoot.items = [(sanitized.lootOffer as any).item];
     }
 
     if ((sanitized.lootOffer as any).currency) {
-        normalizedLoot.currency = normalizeCurrency((sanitized.lootOffer as any).currency);
+      normalizedLoot.currency = normalizeCurrency((sanitized.lootOffer as any).currency);
     } else if ((sanitized.lootOffer as any).gold !== undefined || (sanitized.lootOffer as any).gp !== undefined) {
-        normalizedLoot.currency = normalizeCurrency({
-            gp: (sanitized.lootOffer as any).gp,
-            gold: (sanitized.lootOffer as any).gold,
-        });
+      normalizedLoot.currency = normalizeCurrency({
+        gp: (sanitized.lootOffer as any).gp,
+        gold: (sanitized.lootOffer as any).gold,
+      });
     } else {
-        normalizedLoot.currency = { gp: 0 };
+      normalizedLoot.currency = { gp: 0 };
     }
 
+    const normalizedItems: any[] = [];
+    for (const rawItem of normalizedLoot.items) {
+      if (!rawItem || typeof rawItem !== 'object') continue;
+      const descriptor = `${rawItem.name ?? rawItem.type ?? ''}`.toLowerCase();
+      const currencyKey = detectCurrencyKeyFromText(descriptor);
+      if (CURRENCY_ITEM_KEYS.has(descriptor) || currencyKey) {
+        const resolvedKey =
+          currencyKey ??
+          (descriptor.includes('ouro')
+            ? 'gp'
+            : descriptor.includes('prata')
+              ? 'sp'
+              : descriptor.includes('cobre')
+                ? 'cp'
+                : undefined);
+        const rate =
+          (resolvedKey && CURRENCY_TO_GP[resolvedKey]) ??
+          (descriptor.includes('ouro') ? 1 : descriptor.includes('prata') ? 0.1 : descriptor.includes('cobre') ? 0.01 : 1);
+        const amount = Math.max(0, toNumber(rawItem.quantity ?? rawItem.amount) ?? 0);
+        normalizedLoot.currency.gp += amount * rate;
+        continue;
+      }
+      const normalizedItem = normalizeLootItem(rawItem);
+      normalizedItems.push(normalizedItem);
+      const lowerName = normalizedItem.name.toLowerCase();
+      if (!existingHomebrewNames.has(lowerName)) {
+        pendingHomebrewEntries.push({
+          type: 'item',
+          name: normalizedItem.name,
+          content: normalizedItem,
+          createdBy: 'ai',
+        });
+        existingHomebrewNames.add(lowerName);
+      }
+    }
+    normalizedLoot.items = normalizedItems;
+
     sanitized.lootOffer = normalizedLoot as any;
+  } else {
+    sanitized.lootOffer = { currency: { gp: 0 }, items: [] } as any;
+  }
+
+  if (pendingHomebrewEntries.length) {
+    sanitized.newHomebrewContent = [
+      ...(Array.isArray(sanitized.newHomebrewContent) ? sanitized.newHomebrewContent : []),
+      ...pendingHomebrewEntries,
+    ];
   }
 
   if (Array.isArray((sanitized as any).xpEvents)) {
@@ -888,10 +1259,59 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
           if (normalizedRoll) {
               sanitized.playerRollRequest.rollType = normalizedRoll as any;
           } else {
-              delete sanitized.playerRollRequest.rollType;
-              sanitationLogs.push('playerRollRequest.rollType inválido removido.');
+              sanitized.playerRollRequest.rollType = 'check';
+              sanitationLogs.push('playerRollRequest.rollType inválido substituído por "check".');
           }
+      } else {
+          sanitized.playerRollRequest.rollType = 'check';
+          sanitationLogs.push('playerRollRequest.rollType ausente, definido como "check".');
       }
+  }
+
+  const combinedLogText = sanitized.logEntries
+    ?.map(entry => (typeof entry?.content === 'string' ? entry.content.toLowerCase() : ''))
+    .join(' ') ?? '';
+  const looksLikeRest = /descanso curto|descansar|dados de vida|hit dice|hp/.test(combinedLogText);
+  const rollMissing = !sanitized.playerRollRequest && (
+    looksLikeRest ||
+    Boolean(sanitized.combatState?.isActive) ||
+    sanitized.actionOptions?.some(option => typeof option === 'object' && option?.skill)
+  );
+
+  if (rollMissing) {
+      if (looksLikeRest) {
+          const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
+          const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
+          sanitized.playerRollRequest = {
+              reason: 'Recuperar pontos de vida durante o descanso curto.',
+              dice: `${Math.max(1, Number(dieCount) || 1)}${dieKey}`,
+              modifier: 0,
+              rollType: 'check',
+              advantage: false,
+              disadvantage: false,
+          };
+      } else {
+          sanitized.playerRollRequest = {
+              reason: 'Resolver a próxima ação arriscada.',
+              dice: '1d20',
+              modifier: 0,
+              rollType: 'check',
+              advantage: false,
+              disadvantage: false,
+          };
+      }
+      sanitationLogs.push('playerRollRequest ausente, criado fallback padrão.');
+  }
+
+  if (!sanitized.useHitDiceRequest && looksLikeRest) {
+      const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
+      const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
+      const parsedDie = parseHitDieKey(typeof dieKey === 'string' && dieKey.includes('d') ? dieKey : `d${dieKey}`);
+      sanitized.useHitDiceRequest = {
+          maxDice: Math.max(1, Number(dieCount) || 1),
+          hitDieValue: parsedDie ?? 8,
+      } as any;
+      sanitationLogs.push('useHitDiceRequest ausente durante descanso, gerado automaticamente.');
   }
 
   if (sanitized.useHitDiceRequest && typeof sanitized.useHitDiceRequest === 'object') {

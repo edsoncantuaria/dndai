@@ -32,7 +32,7 @@ const QUEST_LEVEL_FALLBACK_TABLE: Record<number, number> = {
     19: 75, 20: 75,
 };
 
-const clampLevel = (level: number): number => {
+export const clampCharacterLevel = (level: number): number => {
     if (!Number.isFinite(level)) return 1;
     return Math.max(1, Math.min(20, Math.round(level)));
 };
@@ -109,7 +109,7 @@ export const calculateCombatXp = (dc?: number, difficulty?: string): number => {
 };
 
 export const calculateQuestCompletionXp = (level: number): number => {
-    const clamped = clampLevel(level);
+    const clamped = clampCharacterLevel(level);
     return QUEST_LEVEL_FALLBACK_TABLE[clamped] ?? 0;
 };
 

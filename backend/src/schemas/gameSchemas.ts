@@ -171,10 +171,30 @@ const RelationshipSchema = z.object({
 });
 
 /* -------------------------------- WORLD STATE -------------------------------- */
+const VisitedPoiSchema = z.object({
+  regionSlug: z.string(),
+  poiSlug: z.string(),
+  name: z.string().optional(),
+});
+
+const NpcLocationSchema = z.object({
+  npcId: z.string(),
+  name: z.string().optional(),
+  regionSlug: z.string().optional(),
+  poiSlug: z.string().optional(),
+  notes: z.string().optional(),
+});
+
 const WorldStateSchema = z.object({
   timeOfDay: z.string().describe("Período do dia (ex: Manhã, Final da Tarde, Noite)."),
   weather: z.string().describe("Condições climáticas (ex: Ensolarado, Nublado, Chuva)."),
   currentRegion: z.string().optional().describe("Região atual do jogador."),
+  regionSlug: z.string().optional().describe("Slug canônico da região atual."),
+  poiSlug: z.string().optional().describe("Slug do ponto de interesse ativo dentro da região."),
+  poiName: z.string().optional().describe("Nome amigável do ponto de interesse ativo."),
+  visitedRegions: z.array(z.string()).optional().describe("Lista de slugs de regiões já exploradas."),
+  visitedPois: z.array(VisitedPoiSchema).optional().describe("POIs já visitados (por região/slug)."),
+  npcLocations: z.array(NpcLocationSchema).optional().describe("Posições conhecidas dos NPCs importantes."),
 }).describe("Estado global do mundo.");
 
 /* -------------------------------- GAME MASTER RESPONSE -------------------------------- */
@@ -240,6 +260,8 @@ export const GameMasterFlowInputSchema = z.object({
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
   timelineFacts: z.string().optional().describe("Linha do tempo resumida com eventos relevantes da sessão."),
+  regionSlug: z.string().optional().describe("Slug da região atual reconhecida no grafo de viagem."),
+  regionGraphSummary: z.string().optional().describe("Resumo textual das rotas e pontos de interesse acessíveis a partir da região atual."),
   scenarioLabel: z.string().optional().describe("Identificador textual usado em testes automatizados para rastrear o cenário."),
   mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
 });

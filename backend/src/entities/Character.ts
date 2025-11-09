@@ -111,6 +111,13 @@ export class Character {
 
     @Column({ type: 'json', nullable: true })
     worldState: Record<string, any>; 
+
+    @Column({ type: 'json', nullable: true })
+    gameClock: {
+        day?: number;
+        hour?: number;
+        weather?: string;
+    } | null;
     
     @Column({ type: 'varchar', length: 100, nullable: true })
     currentRegion: string;

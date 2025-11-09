@@ -19,6 +19,7 @@ import { CombatantState } from '../entities/CombatantState.js';
 import { CombatLogEntry } from '../entities/CombatLogEntry.js';
 import { CombatCooldown } from '../entities/CombatCooldown.js';
 import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
+import * as RegionService from './regionService.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -80,12 +81,31 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
         throw createError(500, 'Falha ao clonar o personagem para a nova sessão.');
     }
 
-    // 2. Buscar todas as dependências do conteúdo instalado no usuário
+    // 2. Definir ponto de spawn inicial baseado no pool de cidades
+    const spawnRegion = await RegionService.pickRandomSpawnRegion();
+    const baseWorldState = (newCharacterForSession.worldState && typeof newCharacterForSession.worldState === 'object')
+        ? { ...newCharacterForSession.worldState }
+        : {};
+    const spawnWorldState: Record<string, any> = {
+        ...baseWorldState,
+        timeOfDay: baseWorldState.timeOfDay ?? 'Manhã',
+        weather: baseWorldState.weather ?? 'Ensolarado',
+        currentRegion: spawnRegion.name,
+        regionSlug: spawnRegion.slug,
+        visitedRegions: [spawnRegion.slug],
+        visitedPois: [],
+    };
+    delete spawnWorldState.poiSlug;
+    delete spawnWorldState.poiName;
+    newCharacterForSession.worldState = spawnWorldState as any;
+    newCharacterForSession.currentRegion = spawnRegion.name;
+
+    // 3. Buscar todas as dependências do conteúdo instalado no usuário
     const dependencyPromises = (user.installedHomebrewIds || []).map(id => HomebrewService.getHomebrewDependencies(id));
     const dependencyArrays = await Promise.all(dependencyPromises);
     const allDependentIds = new Set(dependencyArrays.flat().map(dep => dep.id));
     
-    // 3. Criar a nova sessão
+    // 4. Criar a nova sessão
     const novaSessao = new SessaoIA();
     novaSessao.nome = nome;
     novaSessao.characterId = newCharacterForSession.id; // Vincula ao NOVO personagem
@@ -94,7 +114,15 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     novaSessao.homebrewContentIds = Array.from(allDependentIds);
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
-    await characterRepository.update({ id: newCharacterForSession.id }, { sessionId: sessaoSalva.id, isTemplate: false });
+    await characterRepository.update(
+        { id: newCharacterForSession.id },
+        {
+            sessionId: sessaoSalva.id,
+            isTemplate: false,
+            worldState: spawnWorldState,
+            currentRegion: spawnRegion.name,
+        }
+    );
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...sessaoParaRetorno } = sessaoSalva;
     

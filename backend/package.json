@@ -14,7 +14,10 @@
     "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts",
     "ai:test-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructuredOutput.ts",
     "ai:compare-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/compareStructuredScenario.ts",
-    "ai:test-structured2": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured2.ts | tee logs/TESTE-STRUTRADO_$(date +'%Y-%m-%d_%H-%M-%S').log"
+    "ai:test-structured2": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured2.ts | tee logs/TESTE-STRUTRADO_$(date +'%Y-%m-%d_%H-%M-%S').log",
+    "ai:test-structured3": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured3.ts | tee logs/TESTE-STRUTRADO3_$(date +'%Y-%m-%d_%H-%M-%S').log",
+    "ai:test-structured4": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured4.ts | tee logs/TESTE-STRUTRADO4_$(date +'%Y-%m-%d_%H-%M-%S').log",
+    "seed:regions": "tsx src/scripts/seedRegions.ts"
   },
   "keywords": [
     "rpg",

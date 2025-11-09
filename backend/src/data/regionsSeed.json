@@ -1,0 +1,203 @@
+{
+  "regions": [
+    {
+      "slug": "aurathis",
+      "name": "Aurathis",
+      "type": "world",
+      "summary": "Continente forjado após a Queda dos Titãs, coberto por veios arcanos expostos.",
+      "metadata": {
+        "climate": "variado",
+        "pantheon": ["Ixolar", "Seraphenne", "Odrun"],
+        "levelRange": "1-20"
+      }
+    },
+    {
+      "slug": "cidadela-do-aco-luz",
+      "name": "Cidadela do Aço-Luz",
+      "type": "city",
+      "parentSlug": "aurathis",
+      "summary": "Capital humana erguida sobre placas que canalizam feitiços solares.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "temperado",
+        "factions": ["Guardiões Prismáticos", "Liga Mercante Heliana"],
+        "role": "hub",
+        "levelRange": "1-8"
+      }
+    },
+    {
+      "slug": "valdarin-violeta",
+      "name": "Valdarin Violeta",
+      "type": "city",
+      "parentSlug": "aurathis",
+      "summary": "Metrópole elfa envolta por névoa lilás e arranha-estrelas vivos.",
+      "isSpawnPool": true,
+      "metadata": {
+        "climate": "nebuloso",
+        "specialty": "magia antiga",
+        "levelRange": "7-14"
+      }
+    },
+    {
+      "slug": "covil-obsidiano",
+      "name": "Covil Obsidiano",
+      "type": "dungeon",
+      "parentSlug": "cidadela-do-aco-luz",
+      "summary": "Complexo subterrâneo onde um dragão petrificado serve de coração místico.",
+      "metadata": {
+        "levelRange": "12-18",
+        "danger": "alta",
+        "notableLoot": ["Escamas Infusas"]
+      }
+    },
+    {
+      "slug": "selvas-de-myr",
+      "name": "Selvas de Myr",
+      "type": "wild",
+      "parentSlug": "cidadela-do-aco-luz",
+      "summary": "Floresta suspensa por raízes translúcidas, guardada por driadas errantes.",
+      "metadata": {
+        "climate": "úmido",
+        "levelRange": "4-10",
+        "effects": ["magia selvagem leve"]
+      }
+    },
+    {
+      "slug": "torre-de-aetheryn",
+      "name": "Torre de Aetheryn",
+      "type": "dungeon",
+      "parentSlug": "valdarin-violeta",
+      "summary": "Pináculo espiral onde conjuradores estudam fragmentos do firmamento.",
+      "metadata": {
+        "levelRange": "12-18",
+        "danger": "alta",
+        "planeAnchors": true
+      }
+    }
+  ],
+  "links": [
+    {
+      "fromSlug": "aurathis",
+      "toSlug": "cidadela-do-aco-luz",
+      "travelMode": "airship",
+      "travelTimeMinutes": 35,
+      "notes": "Linha solar Heliana"
+    },
+    {
+      "fromSlug": "aurathis",
+      "toSlug": "valdarin-violeta",
+      "travelMode": "airship",
+      "travelTimeMinutes": 50,
+      "difficulty": "média",
+      "notes": "Passagem pela Névoa Violeta"
+    },
+    {
+      "fromSlug": "cidadela-do-aco-luz",
+      "toSlug": "covil-obsidiano",
+      "travelMode": "walk",
+      "travelTimeMinutes": 15,
+      "difficulty": "baixa",
+      "notes": "Rampas reforçadas com runas"
+    },
+    {
+      "fromSlug": "cidadela-do-aco-luz",
+      "toSlug": "selvas-de-myr",
+      "travelMode": "walk",
+      "travelTimeMinutes": 18,
+      "difficulty": "média",
+      "notes": "Ponte viva sobre o Vale Prateado"
+    },
+    {
+      "fromSlug": "valdarin-violeta",
+      "toSlug": "torre-de-aetheryn",
+      "travelMode": "walk",
+      "travelTimeMinutes": 20,
+      "difficulty": "alta",
+      "notes": "Escadaria espiral protegida por vigias espectrais"
+    },
+    {
+      "fromSlug": "covil-obsidiano",
+      "toSlug": "torre-de-aetheryn",
+      "travelMode": "portal",
+      "travelTimeMinutes": 5,
+      "difficulty": "alta",
+      "notes": "Portal instável vinculado ao Núcleo do Dragão"
+    }
+  ],
+  "pois": [
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "foro-prismatico",
+      "name": "Fórum Prismático",
+      "type": "landmark",
+      "summary": "Praça hexagonal onde mediadores resolvem disputas com magia de verdade."
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "guilda-dos-auroras",
+      "name": "Guilda dos Auroras",
+      "type": "shop",
+      "summary": "Quartel-general dos Guardiões Prismáticos, com contratos épicos."
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "taverna-dragao-azul",
+      "name": "Taverna Dragão Azul",
+      "type": "shop",
+      "summary": "Taberna multissala conectada ao mercado inferior, ponto comum de ganchos e rumores.",
+      "metadata": { "category": "inn", "services": ["refeições", "boatos"], "allowRest": true }
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "estalagem-vigilia-serena",
+      "name": "Estalagem Vigília Serena",
+      "type": "misc",
+      "summary": "Refúgio seguro mantido pelos Guardiões Prismáticos para missões delicadas.",
+      "metadata": { "requiresPermit": true }
+    },
+    {
+      "regionSlug": "cidadela-do-aco-luz",
+      "slug": "oficina-sol-forjado",
+      "name": "Armaría Sol-Forjado",
+      "type": "shop",
+      "summary": "Ferreira especializada em armaduras canalizadoras de luz.",
+      "metadata": { "tags": ["armas", "armaduras"], "crafter": "Mestre Harn" }
+    },
+    {
+      "regionSlug": "covil-obsidiano",
+      "slug": "camaras-do-nucleo",
+      "name": "Câmaras do Núcleo",
+      "type": "dungeon",
+      "summary": "Sala onde o coração cristalizado do dragão pulsa energia bruta.",
+      "metadata": { "danger": "altíssima" }
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "jardim-das-constelacoes",
+      "name": "Jardim das Constelações",
+      "type": "landmark",
+      "summary": "Esplanada onde astromantes plantam estrelas cadentes."
+    },
+    {
+      "regionSlug": "valdarin-violeta",
+      "slug": "salas-do-conclave-lunar",
+      "name": "Salas do Conclave Lunar",
+      "type": "story",
+      "summary": "Câmara onde emissários lunares negociam tréguas e missões secretas."
+    },
+    {
+      "regionSlug": "selvas-de-myr",
+      "slug": "santuario-harmonia",
+      "name": "Santuário Harmonia",
+      "type": "story",
+      "summary": "Templo natural que concede audições com Seraphenne."
+    },
+    {
+      "regionSlug": "torre-de-aetheryn",
+      "slug": "observatorio-primordial",
+      "name": "Observatório Primordial",
+      "type": "landmark",
+      "summary": "Câmara superior aberta para o vazio estrelado, usada em rituais de viagem planar."
+    }
+  ]
+}

@@ -34,6 +34,15 @@ export class Relationship {
     @Column({ type: 'int', default: 0 })
     affinity: number;
 
+    @Column({ type: 'varchar', length: 120, nullable: true })
+    regionSlug: string | null;
+
+    @Column({ type: 'varchar', length: 120, nullable: true })
+    poiSlug: string | null;
+
+    @Column({ type: 'json', nullable: true })
+    locationNotes: Record<string, any> | null;
+
     @OneToMany(() => Quest, quest => quest.relationship, { cascade: true })
     quests: Quest[];
 }
