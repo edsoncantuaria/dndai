@@ -1,5 +1,5 @@
 // backend/src/services/storyService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { AppDataSource } from '../database/data-source.js';
 import redisClient from '../database/redis-client.js';
 import { TimelineEvent as TimelineEventEntity } from '../entities/TimelineEvent.js';
@@ -230,9 +230,7 @@ const generateStorySummary = async (
     if (!apiKey || timeline.length === 0) return null;
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: STORY_MODEL });
-
+        const genAI = new GoogleGenAI({ apiKey });
         const recentEvents = timeline.slice(-SUMMARY_WINDOW);
         const eventsText = recentEvents
             .map(event => `- Turno ${event.turn}: ${event.summary}${event.notes ? ` (${event.notes})` : ''}`)
@@ -253,9 +251,10 @@ Regras:
 - Não inclua texto fora do resumo.
 `;
 
-        const result = await model.generateContent({
+        const result = await genAI.models.generateContent({
+            model: STORY_MODEL,
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
+            config: {
                 temperature: 0.4,
                 topP: 0.9,
                 topK: 40,
@@ -263,8 +262,7 @@ Regras:
             },
         });
 
-        const response = result.response;
-        const text = response?.text()?.trim();
+        const text = result.text?.trim();
         if (text) {
             return text.replace(/\n{3,}/g, '\n\n').trim();
         }
@@ -324,9 +322,7 @@ export const generateLevelUpRecap = async (
     if (!eventsText.trim()) return null;
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: STORY_MODEL });
-
+        const genAI = new GoogleGenAI({ apiKey });
         const prompt = `
 Você é o cronista épico da sessão ${sessaoId}. Responda em português do Brasil a pergunta "Como chegamos aqui?" em 2 a 3 frases, destacando os principais eventos que levaram o herói ao novo nível.
 
@@ -339,9 +335,10 @@ Regras:
 - Evite listas e menções ao próprio pedido.
 `;
 
-        const result = await model.generateContent({
+        const result = await genAI.models.generateContent({
+            model: STORY_MODEL,
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: {
+            config: {
                 temperature: 0.45,
                 topP: 0.9,
                 topK: 40,
@@ -349,7 +346,7 @@ Regras:
             },
         });
 
-        const recap = result.response?.text()?.trim();
+        const recap = result.text?.trim();
         if (recap) {
             return recap.replace(/\n{3,}/g, '\n\n').trim();
         }

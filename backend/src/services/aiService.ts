@@ -1,5 +1,5 @@
 // backend/src/services/aiService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI, type Content } from "@google/genai";
 import JSON5 from 'json5';
 import { Buffer } from 'buffer';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
@@ -23,28 +23,44 @@ import { attemptJsonRepair, buildContinuationSnippet, softTailRepair, stripCodeF
 import { buildFailSoftResponse } from './failSoftService.js';
 import { loadSessionSnapshot, normalizeSessionId, registerFailure, resetFailures, saveSessionSnapshot } from './sessionRecoveryCache.js';
 
+type GeminiMessage = Content;
 
-const getGenAI = (apiKey: string) => {
-    return new GoogleGenerativeAI(apiKey);
-}
+const buildUserContent = (text: string): GeminiMessage => ({
+    role: 'user',
+    parts: [{ text: (text ?? '').toString() }],
+});
 
-const allowResponseSchemaForModel = (modelName: string): boolean => {
+const buildSystemInstructionPayload = (instruction: string): GeminiMessage => ({
+    role: 'system',
+    parts: [{ text: (instruction ?? '').toString() }],
+});
+
+type ModelAdapter = {
+    isGemma: boolean;
+    supportsStructuredOutput: boolean;
+    generateContent: (
+        body: Record<string, any>,
+        systemInstructionPayload?: GeminiMessage
+    ) => ReturnType<GoogleGenAI['models']['generateContent']>;
+    countTokens: (
+        body: Record<string, any>,
+        systemInstructionPayload?: GeminiMessage
+    ) => ReturnType<GoogleGenAI['models']['countTokens']>;
+};
+
+
+const allowStructuredOutputForModel = (modelName: string): boolean => {
     if (!RESPONSE_SCHEMA_GLOBAL_ENABLED) return false;
     const lower = modelName.toLowerCase();
-    if (!lower.includes('gemini')) return false;
-    if (RESPONSE_SCHEMA_MODEL_BLOCKLIST.some(token => token && lower.includes(token))) {
-        return false;
-    }
-    if (RESPONSE_SCHEMA_MODEL_ALLOWLIST.length === 0) {
-        return true;
-    }
-    return RESPONSE_SCHEMA_MODEL_ALLOWLIST.some(token => token && lower.includes(token));
+    if (!lower.includes('gemini-2.5')) return false;
+    if (lower.includes('vision') || lower.includes('flash-thinking')) return false;
+    return true;
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const estimateTokenCount = (text: string) => Math.ceil(text.length / 4);
 
-const MIN_OUTPUT_TOKENS = 8192;
+const MIN_OUTPUT_TOKENS = 1024;
 const DEFAULT_OUTPUT_TOKENS = 8192;
 const HARD_OUTPUT_CAP = 8192;
 const MAX_MODEL_ATTEMPTS = 3;
@@ -68,20 +84,13 @@ const GM_VALIDATOR_FALLBACK_SNIPPET = 1200;
 const GM_FALLBACK_META_NOTE = 'Reinício do turno detectado; resposta restaurada após erro do modelo.';
 const MAX_PROMPT_INVENTORY_ITEMS = 12;
 const INCOMPLETE_END_FLAG = '[INCOMPLETE_END_FLAG]';
-const RESPONSE_SCHEMA_GLOBAL_ENABLED = ['1', 'true', 'yes', 'on'].includes(
-    (process.env.AI_ENABLE_RESPONSE_SCHEMA ?? 'false').toString().trim().toLowerCase()
-);
-const RESPONSE_SCHEMA_MODEL_BLOCKLIST = (process.env.AI_RESPONSE_SCHEMA_BLOCKLIST ?? '')
-    .split(',')
-    .map(token => token.trim().toLowerCase())
-    .filter(Boolean);
-const RESPONSE_SCHEMA_MODEL_ALLOWLIST = (process.env.AI_RESPONSE_SCHEMA_MODELS ?? '')
-    .split(',')
-    .map(token => token.trim().toLowerCase())
-    .filter(Boolean);
+const RESPONSE_SCHEMA_GLOBAL_ENABLED = true;
+const RESPONSE_SCHEMA_MODEL_BLOCKLIST: string[] = [];
+const RESPONSE_SCHEMA_MODEL_ALLOWLIST: string[] = [];
 const FORCE_JSON_MIME = ['1', 'true', 'yes', 'on'].includes(
     (process.env.AI_FORCE_JSON_MIME ?? 'true').toString().trim().toLowerCase()
 );
+const VALIDATION_FAILURE_LOG_DIR = path.join(process.cwd(), 'logs', 'validation-failures');
 
 const extractResponseText = (response: any): string => {
     if (!response) return '';
@@ -99,6 +108,11 @@ const extractResponseText = (response: any): string => {
         if (!Array.isArray(parts) || !parts.length) return [];
         const chunks: string[] = [];
         for (const part of parts) {
+            if (typeof part === 'string') {
+                const trimmed = part.trim();
+                if (trimmed) chunks.push(trimmed);
+                continue;
+            }
             if (!part || typeof part !== 'object') continue;
             if (typeof part.text === 'string' && part.text.trim()) {
                 chunks.push(part.text.trim());
@@ -157,6 +171,42 @@ const extractResponseText = (response: any): string => {
 };
 
 const cloneInput = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+type ValidationFailureLogPayload = {
+    attempt: number;
+    model: string;
+    sessionId?: string;
+    scenarioLabel?: string;
+    inputSnapshot: GameMasterFlowInput;
+    rawText: string;
+    zodError: unknown;
+};
+
+const slugifyForLog = (value?: string) => {
+    if (!value) return 'sem-rotulo';
+    return value
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 60) || 'sem-rotulo';
+};
+
+const logZodValidationFailure = async (payload: ValidationFailureLogPayload) => {
+    try {
+        await fs.mkdir(VALIDATION_FAILURE_LOG_DIR, { recursive: true });
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const slug = slugifyForLog(payload.scenarioLabel ?? payload.sessionId);
+        const filePath = path.join(VALIDATION_FAILURE_LOG_DIR, `${stamp}-${slug}.json`);
+        const serialized = {
+            ...payload,
+            createdAt: new Date().toISOString(),
+        };
+        await fs.writeFile(filePath, JSON.stringify(serialized, null, 2), 'utf8');
+        console.warn(`[aiService] Registro detalhado da falha Zod salvo em ${filePath}`);
+    } catch (error) {
+        console.error('[aiService] Falha ao salvar log de validação Zod:', error);
+    }
+};
 
 const debugLogAiStage = async (stage: string, payload: unknown, context?: { mode?: string, systemInstruction?: string }) => {
     if (!env.AI_DEBUG_LOGS) return;
@@ -226,22 +276,23 @@ const resolveFailoverModel = (current: string): string | null => {
 
 const attemptSemanticMirrorRecovery = async (
     partialJson: string,
-    model: any
+    model: ModelAdapter,
+    systemInstructionContent?: GeminiMessage
 ): Promise<any | null> => {
     if (!partialJson) return null;
     const snippet = buildContinuationSnippet(partialJson);
     const mirrorPrompt = `Você gerou um JSON truncado. Reescreva o mesmo conteúdo em um único objeto GameMasterResponse COMPLETO e válido. Não explique nada, apenas retorne o JSON final. Se faltarem campos, use objetos ou arrays vazios.\nTRECHO=${snippet}`;
     try {
         const mirrorResult = await model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: mirrorPrompt }] }],
-            generationConfig: {
+            contents: [buildUserContent(mirrorPrompt)],
+            config: {
                 maxOutputTokens: 512,
                 temperature: 0,
                 topP: 0.8,
                 responseMimeType: 'application/json',
             },
-        });
-        const mirrorText = extractResponseText(mirrorResult.response);
+        }, systemInstructionContent);
+        const mirrorText = extractResponseText(mirrorResult);
         if (!mirrorText) return null;
         const repaired = softTailRepair(mirrorText) ?? mirrorText;
         return JSON.parse(repaired);
@@ -672,12 +723,14 @@ const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { temperature: number; def
     audit: { temperature: 0.7, defaultMaxOutput: 3000 },
 };
 
+const DEFAULT_STOP_SEQUENCES = ["```", "[FIM_JSON]"];
+
 const buildGenerationConfig = (
     promptText: string,
     requestedConfig: GenerationConfig | undefined,
     mode: AiInteractionMode,
     measuredPromptTokens?: number,
-    attachResponseSchema: boolean = false,
+    attachStructuredOutput: boolean = false,
     forceJsonMimeType: boolean = true
 ) => {
     const profile = TOKEN_LIMIT_PROFILES[mode] ?? TOKEN_LIMIT_PROFILES.gameplay;
@@ -693,22 +746,24 @@ const buildGenerationConfig = (
         temperature: clamp(base.temperature, 0, 1),
         topP: clamp(base.topP, 0, 1),
         topK: Math.max(1, Math.min(base.topK, 128)),
-        stopSequences: ["```", "[FIM_JSON]"],
     };
+    if (!attachStructuredOutput) {
+        sanitized.stopSequences = DEFAULT_STOP_SEQUENCES;
+    }
 
     const promptTokens = typeof measuredPromptTokens === 'number' && Number.isFinite(measuredPromptTokens)
         ? measuredPromptTokens
         : estimateTokenCount(promptText);
 
-    const remainingBudget = Math.max(0, HARD_OUTPUT_CAP - promptTokens);
-    const safeBudget = Math.max(MIN_OUTPUT_TOKENS, Math.floor(0.85 * remainingBudget));
     const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
-    const safeMax = clamp(safeBudget || requestedMax, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
     sanitized.temperature = clamp(base.temperature ?? profile.temperature, 0, 1);
-    sanitized.maxOutputTokens = Math.min(requestedMax, safeMax);
-    if (attachResponseSchema) {
+    sanitized.maxOutputTokens = requestedMax;
+    if (attachStructuredOutput) {
         sanitized.responseMimeType = "application/json";
-        sanitized.responseSchema = GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA;
+        sanitized.responseJsonSchema = GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA;
+        sanitized.responseModalities = ['TEXT'];
+        sanitized.temperature = clamp(base.temperature, 0, 1);
+        sanitized.maxOutputTokens = requestedMax;
     } else if (forceJsonMimeType) {
         sanitized.responseMimeType = "application/json";
     }
@@ -1052,12 +1107,13 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         input.character?.name ??
         'session'
     );
-    const genAI = getGenAI(apiKey);
+    const genAI = new GoogleGenAI({ apiKey });
 
     const systemInstruction = getCachedInstruction(
         input.useAiHomebrew ?? true,
         input.enableNarrativeRevalidation ?? true
     );
+    const systemInstructionContent = buildSystemInstructionPayload(systemInstruction);
 
     const recoveryStrategies = new Set<string>();
     const failoverTrail: string[] = [];
@@ -1065,22 +1121,34 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         if (strategy) recoveryStrategies.add(strategy);
     };
 
-    const instantiateModel = (targetModel: string) => {
+    const instantiateModel = (targetModel: string): ModelAdapter => {
         const lower = targetModel.toLowerCase();
         const gemmaMode = lower.includes('gemma');
-        const modelInstance = genAI.getGenerativeModel({
-            model: targetModel,
-            ...(!gemmaMode && {
-                systemInstruction: {
-                    role: "model",
-                    parts: [{ text: systemInstruction }],
-                },
-            })
-        });
+        const supportsStructuredOutput = allowStructuredOutputForModel(targetModel);
+
+        const withSystemInstructionTopLevel = (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) => {
+            if (!systemInstructionPayload || gemmaMode) {
+                return body;
+            }
+            return {
+                ...body,
+                systemInstruction: systemInstructionPayload,
+            };
+        };
+
         return {
-            instance: modelInstance,
             isGemma: gemmaMode,
-            supportsSchema: allowResponseSchemaForModel(targetModel),
+            supportsStructuredOutput,
+            generateContent: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
+                genAI.models.generateContent({
+                    model: targetModel,
+                    ...withSystemInstructionTopLevel(body, systemInstructionPayload),
+                }),
+            countTokens: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
+                genAI.models.countTokens({
+                    model: targetModel,
+                    ...withSystemInstructionTopLevel(body, systemInstructionPayload),
+                }),
         };
     };
 
@@ -1098,44 +1166,46 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     });
 
     let activeModelName = modelName;
-    let { instance: model, isGemma: isGemmaActive, supportsSchema: supportsResponseSchema } = instantiateModel(activeModelName);
-    if (RESPONSE_SCHEMA_GLOBAL_ENABLED && !supportsResponseSchema) {
-        console.warn(`[aiService] responseSchema não permitido para o modelo ${activeModelName}; continuando sem schema.`);
+    let modelAdapter = instantiateModel(activeModelName);
+    let isGemmaActive = modelAdapter.isGemma;
+    let structuredOutputEnabled = modelAdapter.supportsStructuredOutput;
+    if (RESPONSE_SCHEMA_GLOBAL_ENABLED && !structuredOutputEnabled) {
+        console.warn(`[aiService] Structured output não permitido para o modelo ${activeModelName}; continuando sem schema.`);
     }
     let { preview: rawPromptPreview, condensed: basePrompt } = buildPrompts(isGemmaActive);
     let lastPromptSent = '';
     let forceJsonMimeTypeForSession = FORCE_JSON_MIME;
-    let responseSchemaDisabledReason: string | null = supportsResponseSchema ? null : 'not-enabled';
-    const disableResponseSchemaForSession = (reason: string) => {
-        if (!supportsResponseSchema) return;
-        supportsResponseSchema = false;
-        responseSchemaDisabledReason = reason;
-        if (reason === 'empty-response' || reason === 'schema-rejected') {
+    let structuredOutputDisabledReason: string | null = structuredOutputEnabled ? null : 'not-enabled';
+    const disableStructuredOutputForSession = (reason: string) => {
+        if (!structuredOutputEnabled) return;
+        structuredOutputEnabled = false;
+        structuredOutputDisabledReason = reason;
+        if (reason === 'schema-rejected') {
             forceJsonMimeTypeForSession = false;
         }
-        registerRecoveryStrategy('response-schema-disabled');
-        console.warn(`[aiService] responseSchema desativado para o modelo ${activeModelName} (${reason}).`);
+        registerRecoveryStrategy('structured-output-disabled');
+        console.warn(`[aiService] Structured output desativado para o modelo ${activeModelName} (${reason}).`);
     };
     const rebuildModel = (targetModel: string) => {
-        const instantiated = instantiateModel(targetModel);
-        model = instantiated.instance;
-        isGemmaActive = instantiated.isGemma;
-        supportsResponseSchema = instantiated.supportsSchema;
-        if (RESPONSE_SCHEMA_GLOBAL_ENABLED && !supportsResponseSchema) {
-            console.warn(`[aiService] responseSchema não permitido para o modelo ${targetModel}; continuando sem schema.`);
+        const nextAdapter = instantiateModel(targetModel);
+        modelAdapter = nextAdapter;
+        isGemmaActive = nextAdapter.isGemma;
+        structuredOutputEnabled = nextAdapter.supportsStructuredOutput;
+        if (RESPONSE_SCHEMA_GLOBAL_ENABLED && !structuredOutputEnabled) {
+            console.warn(`[aiService] Structured output não permitido para o modelo ${targetModel}; continuando sem schema.`);
         }
         const prompts = buildPrompts(isGemmaActive);
         rawPromptPreview = prompts.preview;
         basePrompt = prompts.condensed;
         activeModelName = targetModel;
-        responseSchemaDisabledReason = supportsResponseSchema ? null : 'not-enabled';
+        structuredOutputDisabledReason = structuredOutputEnabled ? null : 'not-enabled';
     };
 
     const digestTelemetry: { before?: number; after?: number } = {};
     try {
-        const baselineTokens = await model.countTokens({
-            contents: [{ role: "user", parts: [{ text: rawPromptPreview }] }],
-        });
+        const baselineTokens = await modelAdapter.countTokens({
+            contents: [buildUserContent(rawPromptPreview)],
+        }, systemInstructionContent);
         digestTelemetry.before = baselineTokens?.totalTokens ?? baselineTokens?.tokenCount ?? undefined;
         if (typeof digestTelemetry.before === 'number') {
             console.log(
@@ -1158,11 +1228,11 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         }
         healthCheckPerformed = true;
         try {
-            const pingResult = await model.generateContent({
-                contents: [{ role: 'user', parts: [{ text: 'Responda apenas com "OK".' }] }],
-                generationConfig: { maxOutputTokens: 4, temperature: 0.1 },
-            });
-            const pingText = extractResponseText(pingResult.response);
+            const pingResult = await modelAdapter.generateContent({
+                contents: [buildUserContent('Responda apenas com "OK".')],
+                config: { maxOutputTokens: 4, temperature: 0.1 },
+            }, systemInstructionContent);
+            const pingText = extractResponseText(pingResult);
             if (!pingText || !/^ok\b/i.test(pingText)) {
                 throw new Error(`Ping retornou "${pingText ?? '<vazio>'}"`);
             }
@@ -1238,19 +1308,21 @@ ATENÇÃO: A resposta JSON anterior foi truncada. Reescreva o objeto completo, s
 TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
             prompt += (RETRY_PROMPT_HINTS[attemptIndex] ?? '');
+            const contents = [buildUserContent(prompt)];
             if (attemptIndex === 0 && env.AI_DEBUG_LOGS) {
                 void debugLogAiStage('prompt', {
                     attempt: attemptIndex + 1,
                     playerAction: input.playerAction,
                     characterId: input.character?.id,
                     prompt,
+                    structuredOutput: structuredOutputEnabled,
                 }, { mode, systemInstruction: isGemmaActive ? undefined : systemInstruction });
             }
             let measuredTokens: number | undefined;
             try {
-                const tokenCountResult = await model.countTokens({
-                    contents: [{ role: "user", parts: [{ text: prompt }] }],
-                });
+                const tokenCountResult = await modelAdapter.countTokens({
+                    contents,
+                }, systemInstructionContent);
                 measuredTokens = tokenCountResult?.totalTokens ?? tokenCountResult?.tokenCount ?? undefined;
                 if (typeof measuredTokens === 'number') {
                     digestTelemetry.after = measuredTokens;
@@ -1273,9 +1345,9 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
 
             const isFlashModel = activeModelName.toLowerCase().includes('flash');
-            const shouldForceJsonMimeType = forceJsonMimeTypeForSession && !isFlashModel;
+            const shouldForceJsonMimeType = forceJsonMimeTypeForSession;
             const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
-                buildGenerationConfig(prompt, generationConfig, mode, measuredTokens, supportsResponseSchema, shouldForceJsonMimeType);
+                buildGenerationConfig(prompt, generationConfig, mode, measuredTokens, structuredOutputEnabled, shouldForceJsonMimeType);
 
             const retryCap = RETRY_OUTPUT_LIMITS[attemptIndex];
             if (retryCap !== undefined) {
@@ -1314,15 +1386,20 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     characterId: input.character?.id,
                     prompt,
                     generationConfig: sanitizedGenerationConfig,
+                    structuredOutput: structuredOutputEnabled,
                 }, { mode, systemInstruction: isGemmaActive ? undefined : systemInstruction });
             }
             lastPromptSent = prompt;
-            const result = await model.generateContent({
-                contents: [{ role: "user", parts: [{ text: prompt }] }],
-                generationConfig: sanitizedGenerationConfig,
-            });
+            const result = await modelAdapter.generateContent({
+                contents,
+                config: sanitizedGenerationConfig,
+            }, systemInstructionContent);
 
-            const response = result.response;
+            const response = result;
+
+            if (env.AI_DEBUG_LOGS) {
+                void debugLogAiStage('raw-response-full', response, { mode });
+            }
 
             if (!response || response.promptFeedback?.blockReason) {
                 const reason = response.promptFeedback?.blockReason;
@@ -1358,11 +1435,30 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
             
             if (!jsonText) {
-                console.error(`[aiService] Resposta da IA vazia na tentativa ${attemptIndex + 1}.`);
-                if (supportsResponseSchema && RESPONSE_SCHEMA_GLOBAL_ENABLED) {
-                    disableResponseSchemaForSession('empty-response');
-                    return attemptGeneration(attemptIndex, retryOptions);
+                if (env.AI_DEBUG_LOGS) {
+                    const candidateSummary = {
+                        promptFeedback: response?.promptFeedback ?? null,
+                        modelVersion: response?.modelVersion ?? null,
+                        candidates: (response?.candidates ?? []).map((candidate: any, candidateIndex: number) => ({
+                            index: candidateIndex,
+                            finishReason: candidate?.finishReason ?? null,
+                            hasParts: Array.isArray(candidate?.content?.parts) && candidate.content.parts.length > 0,
+                            partKinds: Array.isArray(candidate?.content?.parts)
+                                ? candidate.content.parts.map((part: any) => {
+                                    if (typeof part === 'string') return 'string';
+                                    if (!part || typeof part !== 'object') return typeof part;
+                                    if (typeof part.text === 'string') return 'text';
+                                    if (part.functionCall) return 'functionCall';
+                                    if (part.inlineData) return 'inlineData';
+                                    if (part.fileData) return 'fileData';
+                                    return Object.keys(part)[0] ?? 'unknown';
+                                })
+                                : [],
+                        })),
+                    };
+                    console.warn('[aiService] Resposta vazia recebida. Resumo do objeto bruto:', JSON.stringify(candidateSummary, null, 2));
                 }
+                console.error(`[aiService] Resposta da IA vazia na tentativa ${attemptIndex + 1}.`);
                 return ensureRetryOrFallback("O Mestre de Jogo não respondeu com conteúdo.");
             }
             
@@ -1432,7 +1528,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     } catch (json5Error: any) {
                         console.error('[aiService] JSON5 também falhou ao interpretar a resposta:', json5Error);
                         console.warn('[aiService] Aplicando recuperação reflexiva antes do fallback.');
-                        const mirrored = await attemptSemanticMirrorRecovery(jsonText, model);
+                        const mirrored = await attemptSemanticMirrorRecovery(jsonText, modelAdapter, systemInstructionContent);
                         if (mirrored) {
                             responseData = mirrored;
                             recoveryStrategyUsed = 'semantic-mirror';
@@ -1463,6 +1559,11 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     }
                 }
                 if (!responseData) {
+                    if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
+                        console.warn('[aiService] Resposta sem JSON válido; solicitando nova tentativa antes do fallback.');
+                        registerRecoveryStrategy('non-json-retry');
+                        return attemptGeneration(attemptIndex + 1, retryOptions);
+                    }
                     console.warn('[aiService] GM Validator fallback acionado após falha generalizada de parsing.');
                     responseData = gmValidatorFallbackFromRawResponse(
                         jsonText,
@@ -1503,7 +1604,17 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             // 3️⃣ Validação estrutural com Zod
             const validationResult = GameMasterResponseSchema.safeParse(finalResponse);
             if (!validationResult.success) {
-                console.warn("⚠️ Falha na validação Zod:", validationResult.error.flatten());
+                const flattenedError = validationResult.error.flatten();
+                void logZodValidationFailure({
+                    attempt: attemptIndex + 1,
+                    model: activeModelName,
+                    sessionId,
+                    scenarioLabel: input.scenarioLabel,
+                    inputSnapshot: cloneInput(input),
+                    rawText: jsonText,
+                    zodError: flattenedError,
+                });
+                console.warn("⚠️ Falha na validação Zod:", flattenedError);
                 if (!isRetry) return attemptGeneration(1);
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
             }
@@ -1512,8 +1623,8 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 recoveryStrategies: Array.from(recoveryStrategies),
                 integrityNotes: [
                     ...(failoverTrail.length ? [`Failover aplicado: ${failoverTrail.join(' -> ')}`] : []),
-                    ...(responseSchemaDisabledReason && responseSchemaDisabledReason !== 'not-enabled'
-                        ? [`responseSchema desativado (${responseSchemaDisabledReason}).`]
+                    ...(structuredOutputDisabledReason && structuredOutputDisabledReason !== 'not-enabled'
+                        ? [`structured output desativado (${structuredOutputDisabledReason}).`]
                         : []),
                 ],
             });
@@ -1571,8 +1682,8 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             if (/não respondeu/i.test(message)) {
                 return ensureRetryOrFallback('O Mestre de Jogo não respondeu.');
             }
-            if (/response_schema/i.test(message) && supportsResponseSchema) {
-                disableResponseSchemaForSession('schema-rejected');
+            if (/(response_schema|response_json_schema)/i.test(message) && structuredOutputEnabled) {
+                disableStructuredOutputForSession('schema-rejected');
                 return attemptGeneration(attemptIndex, retryOptions);
             }
             if (shouldBackoff) {

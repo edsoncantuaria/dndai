@@ -240,6 +240,7 @@ export const GameMasterFlowInputSchema = z.object({
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
   timelineFacts: z.string().optional().describe("Linha do tempo resumida com eventos relevantes da sessão."),
+  scenarioLabel: z.string().optional().describe("Identificador textual usado em testes automatizados para rastrear o cenário."),
   mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

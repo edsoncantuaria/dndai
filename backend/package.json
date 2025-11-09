@@ -11,7 +11,10 @@
     "dev:log": "tsx watch src/server.ts 2>&1 | tee logs/server_$(date +'%Y-%m-%d_%H-%M-%S').log",
     "seed:data": "tsx src/scripts/migrate-data.ts",
     "test": "tsx test src/__tests__/**/*.spec.ts",
-    "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts"
+    "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts",
+    "ai:test-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructuredOutput.ts",
+    "ai:compare-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/compareStructuredScenario.ts",
+    "ai:test-structured2": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured2.ts | tee logs/TESTE-STRUTRADO_$(date +'%Y-%m-%d_%H-%M-%S').log"
   },
   "keywords": [
     "rpg",
@@ -26,7 +29,7 @@
     "@genkit-ai/express": "^1.21.0",
     "@genkit-ai/google-genai": "^1.21.0",
     "@genkit-ai/googleai": "^1.21.0",
-    "@google/generative-ai": "^0.15.0",
+    "@google/genai": "^1.29.0",
     "@qdrant/js-client-rest": "^1.15.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

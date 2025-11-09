@@ -1,5 +1,5 @@
 // backend/src/services/aiCreationService.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import createError from 'http-errors';
 import { EXAMPLES } from '../../data/examples.js';
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
@@ -62,22 +62,23 @@ export const generateHomebrewContent = async ({ prompt, type, apiKey }: Generate
     `;
 
     try {
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
+        const genAI = new GoogleGenAI({ apiKey });
+        const result = await genAI.models.generateContent({
             model: MODEL_ID,
-            systemInstruction: systemPrompt,
-        });
-
-        const result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"` }] }],
-            generationConfig: {
+            contents: [
+                { role: "user", parts: [{ text: `Gere o conteúdo para o seguinte pedido:\n\nTipo: ${type}\nPrompt: "${prompt}"` }] },
+            ],
+            config: {
                 responseMimeType: "application/json",
                 temperature: 0.5,
+                systemInstruction: {
+                    role: 'system',
+                    parts: [{ text: systemPrompt }],
+                },
             },
         });
 
-        const response = result.response;
-        const jsonText = response.text();
+        const jsonText = result.text ?? '';
 
         if (!jsonText) {
             throw createError(500, "A IA retornou uma resposta vazia.");

@@ -7,7 +7,7 @@ export async function embedText(text: string, apiKey: string): Promise<number[]>
 
     const embedModel = getModel('models/gemini-embedding-001', apiKey);
     const result = await embedModel.embedContent({
-        content: { parts: [{ text: content }] },
+        content: { role: 'user', parts: [{ text: content }] },
     });
 
     return result?.embedding?.values ?? [];

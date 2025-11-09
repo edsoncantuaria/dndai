@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { getGameUpdate } from '../services/aiService.js';
 import { env } from '../config/env.js';
 import type { GameMasterFlowInput } from '../schemas/gameSchemas.js';
@@ -26,18 +28,34 @@ const defaultGeneration: GenerationConfig = {
     temperature: 0.7,
     topP: 0.9,
     topK: 32,
-    maxOutputTokens: 1024,
+    maxOutputTokens: 8192,
+};
+
+const loadInputFromArg = (arg?: string): GameMasterFlowInput => {
+    if (!arg) return defaultInput;
+    const filePath = resolve(process.cwd(), arg);
+    const content = readFileSync(filePath, 'utf8');
+    return JSON.parse(content) as GameMasterFlowInput;
 };
 
 const run = async () => {
-    const model = process.argv[2] ?? 'gemini-2.5-pro';
+    const args = process.argv.slice(2);
+    const modelArg = args.find(entry => !entry.startsWith('--')) ?? 'gemini-2.5-pro';
+    const payloadFlag = args.find(entry => entry.startsWith('--payload='));
+    const payloadPath = payloadFlag ? payloadFlag.split('=')[1] : undefined;
+    const input = loadInputFromArg(payloadPath);
+
     const apiKey = env.GEMINI_API_KEY;
     if (!apiKey) {
         throw new Error('GEMINI_API_KEY não configurada. Defina a variável antes de rodar o check.');
     }
 
-    console.log(`[ai:integrity-check] Iniciando verificação rápida com o modelo ${model}.`);
-    const result = await getGameUpdate(defaultInput, model, defaultGeneration, apiKey);
+    if (payloadPath) {
+        console.log(`[ai:integrity-check] Usando payload customizado: ${payloadPath}`);
+    }
+    console.log(`[ai:integrity-check] Iniciando verificação rápida com o modelo ${modelArg}.`);
+
+    const result = await getGameUpdate(input, modelArg, defaultGeneration, apiKey);
     console.log('[ai:integrity-check] Resposta obtida com sucesso.');
     console.log(JSON.stringify({
         logEntries: result.response.logEntries?.length ?? 0,

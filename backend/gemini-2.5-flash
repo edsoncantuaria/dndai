@@ -1,0 +1,524 @@
+[Cache] Tentando conectar a: redis:[PASSWORD]@localhost:6379
+[Cache] Conectando ao servidor Redis...
+[Cache] Cliente Redis pronto para uso.
+[structured-output:test2] Modelo alvo: gemini-2.5-flash
+
+[structured-output:test2] Executando cenário: 4A - Direto (sem stopSequences)
+
+[structured-output:test2] Executando cenário: 4C - aiService (sem stopSequences)
+[structured-output:test2] (aiService) 4C - aiService (sem stopSequences)
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 195
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 195 | baseline=195
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 195 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Você desperta em uma vasta biblioteca arcana, o ar pesado com o cheiro de pergaminhos antigos e poeira."
+    },
+    {
+      "type": "player",
+      "content": "Observo o salão e procuro pistas do próximo desafio."
+    },
+    {
+      "type": "narration",
+      "content": "Seus olhos percorrem o vasto salão. Estantes imponentes repletas de incontáveis tomos se estendem até um teto abobadado, iluminado por feixes de luz solar que filtram por janelas arqueadas. No centro, um grande e ornamentado pedestal sustenta um único pergaminho solto, que brilha fracamente com uma luz interior. Em uma mesa próxima, uma refeição pela metade e uma pena descartada sugerem atividade recente."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Aproximar-se do pedestal e examinar o pergaminho brilhante.",
+      "action": "examine",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Investigar a mesa próxima, a refeição e a pena.",
+      "action": "investigate",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Começar a procurar por livros específicos ou passagens secretas nas estantes.",
+      "action": "search",
+      "skill": "Perception"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [],
+    "spells": [],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana"
+    },
+    "relationships": [],
+    "journal": [
+      "Despertei em uma vasta biblioteca arcana. No centro, um pedestal com um pergaminho brilhante. Há sinais de atividade recente em uma mesa próxima."
+    ]
+  },
+  "combatState": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana"
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [],
+  spells: [],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana'
+  },
+  relationships: [],
+  journal: [
+    'Despertei em uma vasta biblioteca arcana. No centro, um pedestal com um pergaminho brilhante. Há sinais de atividade recente em uma mesa próxima.'
+  ]
+}
+[structured-output:test2][aiService] rawText: {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Você desperta em uma vasta biblioteca arcana, o ar pesado com o cheiro de pergaminhos antigos e poeira."
+    },
+    {
+      "type": "player",
+      "content": "Observo o salão e procuro pistas do próximo desafio."
+    },
+    {
+      "type": "narration",
+      "content": "Seus olhos percorrem o vasto salão. Estantes imponentes repletas de incontáveis tomos se estendem até um teto abobadado, iluminado por feixes de luz solar que filtram por janelas arqueadas. No centro, um grande e ornamentado pedestal sustenta um único pergaminho solto, que brilha fracamente com uma luz interior. Em uma mesa próxima, uma refeição pela metade e uma pena descartada sugerem atividade recente."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Aproximar-se do pedestal e examinar o pergaminho brilhante.",
+      "action": "examine",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Investigar a mesa próxima, a refeição e a pena.",
+      "action": "investigate",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Começar a procurar por livros específicos ou passagens secretas nas estantes.",
+      "action": "search",
+      "skill": "Perception"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [],
+    "spells": [],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana"
+    },
+    "relationships": [],
+    "journal": [
+      "Despertei em uma vasta biblioteca arcana. No centro, um pedestal com um pergaminho brilhante. Há sinais de atividade recente em uma mesa próxima."
+    ]
+  },
+  "combatState": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana"
+  }
+}
+[structured-output:test2][aiService] logEntries count: 3
+
+[structured-output:test2][aiService] Executando simulação: Combate Ativo - Investida
+[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 318
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 318 | baseline=318
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 318 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 382 | baseline=318
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 382 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][combat][attempt 2] {
+  "logEntries": [
+    {
+      "type": "player",
+      "content": "Avanço contra o cultista líder e o ataco com minha espada longa."
+    },
+    {
+      "type": "system",
+      "content": "O Guardião de Integridade avança rapidamente, fechando a distância com o Cultista Sombrio. Prepare-se para desferir um golpe com sua espada longa!"
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Aguardar resultado do ataque",
+      "action": "wait"
+    },
+    {
+      "text": "Usar uma habilidade",
+      "action": "ability"
+    },
+    {
+      "text": "Fazer uma ação bônus",
+      "action": "bonus_action"
+    }
+  ],
+  "updatedCharacter": {},
+  "combatState": {
+    "isActive": true,
+    "round": 1,
+    "turn": 0,
+    "summary": "O Guardião de Integridade avança para atacar o Cultista Sombrio.",
+    "combatants": [
+      {
+        "id": "player",
+        "name": "Guardião",
+        "attitude": "ally",
+        "isPlayer": true,
+        "isDead": false,
+        "hpCurrent": 24,
+        "hpMax": 24,
+        "ac": 16,
+        "distance": 5,
+        "zone": "melee"
+      },
+      {
+        "id": "cultist-1",
+        "name": "Cultista Sombrio",
+        "attitude": "hostile",
+        "isPlayer": false,
+        "isDead": false,
+        "hpCurrent": 12,
+        "hpMax": 12,
+        "ac": 13,
+        "distance": 5,
+        "zone": "melee"
+      }
+    ]
+  },
+  "playerRollRequest": {
+    "reason": "Ataque com Espada Longa",
+    "dice": "1d20",
+    "modifier": 5,
+    "rollType": "attack",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana"
+  },
+  "ambientSound": "combat"
+}
+[aiSanitizer] updatedCharacter após merge { inventory: [] }
+  ↳ combatState.isActive: true
+  ↳ combatants: 2
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: Ataque com Espada Longa
+
+[structured-output:test2][aiService] Executando simulação: Combate Encerrado - Rendição
+[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 316
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 316 | baseline=316
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 316 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 380 | baseline=316
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 380 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][combat][attempt 2] {
+  "logEntries": [
+    {
+      "type": "playerAction",
+      "content": "Guardião de Integridade ordena que o último Cultista Sombrio se renda."
+    },
+    {
+      "type": "narration",
+      "content": "O Cultista Sombrio, já assustado e ferido, joga sua arma no chão e levanta as mãos em sinal de rendição."
+    },
+    {
+      "type": "system",
+      "content": "O combate foi encerrado."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Interrogar o Cultista Sombrio.",
+      "action": "interrogate",
+      "skill": "persuasion"
+    },
+    {
+      "text": "Amarrar o Cultista Sombrio.",
+      "action": "restrain"
+    },
+    {
+      "text": "Procurar por itens na biblioteca.",
+      "action": "search",
+      "skill": "investigation"
+    },
+    {
+      "text": "Deixar a Biblioteca Arcana.",
+      "action": "travel"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [],
+    "spells": [],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana"
+    },
+    "relationships": [],
+    "journal": []
+  },
+  "combatState": {
+    "isActive": false,
+    "round": 1,
+    "turn": 0,
+    "summary": "O Cultista Sombrio se rendeu. O combate terminou.",
+    "combatants": [
+      {
+        "id": "player",
+        "name": "Guardião",
+        "attitude": "ally",
+        "isPlayer": true,
+        "isDead": false,
+        "hpCurrent": 24,
+        "hpMax": 24,
+        "ac": 16
+      },
+      {
+        "id": "cultist-1",
+        "name": "Cultista Sombrio",
+        "attitude": "neutral",
+        "isPlayer": false,
+        "isDead": false,
+        "hpCurrent": 12,
+        "hpMax": 12,
+        "ac": 13,
+        "notes": "Rendido"
+      }
+    ]
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana"
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [],
+  spells: [],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana'
+  },
+  relationships: [],
+  journal: []
+}
+  ↳ combatState.isActive: <none>
+  ↳ combatants: 0
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: não
+
+[structured-output:test2][aiService] Executando simulação: Loot Pós-Batalha
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 185
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 185 | baseline=185
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 185 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Você se aproxima do baú ornamentado, que parece ter sido deixado às pressas pelos cultistas. Ao abri-lo, seus olhos encontram um pequeno tesouro."
+    },
+    {
+      "type": "event",
+      "content": "Dentro do baú, você encontra 50 peças de ouro, um pergaminho com um feitiço de 'Detectar Magia' e uma adaga de prata ricamente decorada."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Adicionar os itens ao seu inventário",
+      "action": "add_loot",
+      "skill": "none"
+    },
+    {
+      "text": "Examinar a adaga de prata mais de perto",
+      "action": "examine_item",
+      "skill": "investigation"
+    },
+    {
+      "text": "Procurar por mais pistas na área",
+      "action": "search_area",
+      "skill": "investigation"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "name": "Ouro",
+        "quantity": 50,
+        "type": "currency"
+      },
+      {
+        "name": "Pergaminho de Detectar Magia",
+        "quantity": 1,
+        "type": "scroll",
+        "description": "Um pergaminho que permite conjurar o feitiço Detectar Magia."
+      },
+      {
+        "name": "Adaga de Prata Ornamentada",
+        "quantity": 1,
+        "type": "weapon",
+        "description": "Uma adaga de prata com um cabo ricamente decorado. Parece mais valiosa do que perigosa."
+      }
+    ],
+    "spells": [],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana"
+    },
+    "relationships": [],
+    "journal": []
+  },
+  "combatState": {
+    "isActive": false
+  },
+  "lootOffer": {
+    "gold": 50,
+    "items": [
+      {
+        "name": "Pergaminho de Detectar Magia",
+        "quantity": 1,
+        "type": "scroll",
+        "description": "Um pergaminho que permite conjurar o feitiço Detectar Magia."
+      },
+      {
+        "name": "Adaga de Prata Ornamentada",
+        "quantity": 1,
+        "type": "weapon",
+        "description": "Uma adaga de prata com um cabo ricamente decorado. Parece mais valiosa do que perigosa."
+      }
+    ]
+  },
+  "ambientSound": "peaceful_library"
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [
+    { name: 'Ouro', quantity: 50, type: 'currency' },
+    {
+      name: 'Pergaminho de Detectar Magia',
+      quantity: 1,
+      type: 'scroll',
+      description: 'Um pergaminho que permite conjurar o feitiço Detectar Magia.'
+    },
+    {
+      name: 'Adaga de Prata Ornamentada',
+      quantity: 1,
+      type: 'weapon',
+      description: 'Uma adaga de prata com um cabo ricamente decorado. Parece mais valiosa do que perigosa.'
+    }
+  ],
+  spells: [],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana'
+  },
+  relationships: [],
+  journal: []
+}
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 249 | baseline=185
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 249 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 251 | baseline=185
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 251 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+  ↳ combatState.isActive: <none>
+  ↳ combatants: 0
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: não
+
+[structured-output:test2][aiService] Executando simulação: Shopping - Negociação
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 186
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 186 | baseline=186
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 186 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 250 | baseline=186
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 250 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 252 | baseline=186
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 252 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+  ↳ combatState.isActive: <none>
+  ↳ combatants: 0
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: não
+
+[structured-output:test2][aiService] Executando simulação: Roll Request - Desarmar armadilha
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 193
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 193 | baseline=193
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 193 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 257 | baseline=193
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 257 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 259 | baseline=193
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 259 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+  ↳ combatState.isActive: <none>
+  ↳ combatants: 0
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: não
+
+[structured-output:test2][aiService] Executando simulação: Narrativa de Falha/Acerto
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 199
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 199 | baseline=199
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 199 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 263 | baseline=199
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 263 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 265 | baseline=199
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 265 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+  ↳ combatState.isActive: <none>
+  ↳ combatants: 0
+  ↳ lootOffer: não
+  ↳ shopState: não
+  ↳ playerRollRequest: não
+
+[structured-output:test2][aiService] Executando simulação: Descanso Curto - Uso de Dados de Vida
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 188
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 188 | baseline=188
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 188 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
