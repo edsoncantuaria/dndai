@@ -8,6 +8,49 @@ import { Backpack, Hand, Loader2, Gem, ShieldCheck, Sword, Coins, Layers, Packag
 import { translateEquipment } from '../utils/translator'; // Importar a função de tradução
 
 const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]';
+const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
+const COIN_INDEX_SET = new Set<string>(COIN_TYPES);
+type DisplayInventoryItem = InventoryItem & {
+    _instanceKey: string;
+    _stackSize?: number;
+    _stackPosition?: number;
+};
+const toPositiveInteger = (value: unknown): number => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 1;
+    return Math.max(1, Math.floor(parsed));
+};
+const expandInventoryForDisplay = (items: InventoryItem[] | undefined | null): DisplayInventoryItem[] => {
+    if (!Array.isArray(items)) return [];
+    const expanded: DisplayInventoryItem[] = [];
+    for (const original of items) {
+        if (!original) continue;
+        const normalizedIndex = typeof original.index === 'string' ? original.index.toLowerCase() : '';
+        const isCurrency = normalizedIndex ? COIN_INDEX_SET.has(normalizedIndex) : false;
+        const quantity = toPositiveInteger(original.quantity ?? 1);
+        if (quantity <= 1 || isCurrency) {
+            expanded.push({
+                ...original,
+                _instanceKey: `${original.id || original.index || original.name || 'item'}-0`,
+            });
+            continue;
+        }
+        for (let i = 0; i < quantity; i++) {
+            expanded.push({
+                ...original,
+                quantity: 1,
+                _instanceKey: `${original.id || original.index || original.name || 'item'}-${i}`,
+                _stackSize: quantity,
+                _stackPosition: i + 1,
+            });
+        }
+    }
+    return expanded;
+};
+const isCoinIndex = (value?: string | null) => {
+    if (!value) return false;
+    return COIN_INDEX_SET.has(value.toLowerCase());
+};
 
 const LootDisplay: React.FC = () => {
     const { pendingLootOffer, takeLoot, isLoading } = useGameStateContext();
@@ -46,8 +89,6 @@ const LootDisplay: React.FC = () => {
 
 const Inventory: React.FC = () => {
     const { character, toggleEquipped, useConsumable, isLoading, combatState, playerRollRequest } = useGameStateContext();
-    const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'];
-
 
     if (!character) return null;
 
@@ -72,7 +113,16 @@ const Inventory: React.FC = () => {
         cp: character.currency?.cp ?? 0,
     };
 
-    const inventoryItems = (character.inventory || []).map(item => translateEquipment(item));
+    const expandedInventory = expandInventoryForDisplay(character.inventory);
+    const inventoryItems: DisplayInventoryItem[] = expandedInventory.map(item => {
+        const translated = translateEquipment(item);
+        return {
+            ...translated,
+            _instanceKey: item._instanceKey,
+            _stackSize: item._stackSize,
+            _stackPosition: item._stackPosition,
+        };
+    });
 
     const weapons = inventoryItems.filter(i => i.weapon_category);
     const armors = inventoryItems.filter(i => i.armor_category || i.equipment_category?.index === 'shields');
@@ -82,10 +132,10 @@ const Inventory: React.FC = () => {
         !i.armor_category &&
         i.equipment_category?.index !== 'shields' &&
         !i.name.includes('(Mágico)') &&
-        !COIN_TYPES.includes(i.index)
+        !isCoinIndex(i.index)
     );
 
-    const renderCategory = (title: string, items: InventoryItem[], icon: React.ReactNode) => (
+    const renderCategory = (title: string, items: DisplayInventoryItem[], icon: React.ReactNode) => (
         <div className={`${PANEL} p-4 space-y-3`}>
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-semibold text-amber-200 uppercase tracking-widest">
@@ -100,7 +150,7 @@ const Inventory: React.FC = () => {
                 <div className="space-y-3">
                     {items.map(item => (
                         <ItemCard 
-                            key={item.id} 
+                            key={item._instanceKey || item.id} 
                             item={item} 
                             onToggleEquip={toggleEquipped}
                             onUseConsumable={useConsumable}

@@ -908,6 +908,37 @@ const condenseCombatStateForPrompt = (combatState: any) => {
 };
 
 const safeArray = <T>(value: T[] | undefined | null): T[] => Array.isArray(value) ? value : [];
+const COIN_INDICES = new Set(['pp', 'gp', 'ep', 'sp', 'cp']);
+const toPositiveInteger = (value: any, fallback = 1): number => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(1, Math.floor(parsed));
+};
+const isCurrencyItem = (item: any): boolean => {
+    if (!item || typeof item !== 'object') return false;
+    const index = typeof item.index === 'string' ? item.index.toLowerCase() : '';
+    return COIN_INDICES.has(index);
+};
+const expandInventoryForPrompt = (items: any[]): any[] => {
+    const expanded: any[] = [];
+    for (const entry of items) {
+        if (!entry || typeof entry !== 'object') continue;
+        const safeQuantity = toPositiveInteger(entry.quantity ?? 1);
+        if (safeQuantity <= 1 || isCurrencyItem(entry)) {
+            expanded.push(entry);
+            continue;
+        }
+        for (let i = 0; i < safeQuantity; i++) {
+            expanded.push({
+                ...entry,
+                quantity: 1,
+                stackSize: safeQuantity,
+                stackInstance: i + 1,
+            });
+        }
+    }
+    return expanded;
+};
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const { character, playerAction, gameLog, combatState, homebrewSummary, validationFeedback, storySummary, timelineFacts } = input;
@@ -967,6 +998,7 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     
     // Create a leaner character object for the prompt
     let inventoryCondensedNote = '';
+    const expandedInventory = expandInventoryForPrompt(safeArray(character?.inventory));
     const characterForPrompt = character ? {
         name: character.name,
         race: character.race,
@@ -974,7 +1006,7 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         level: character.level,
         attributes: character.attributes,
         proficiencies: safeArray(character.proficiencies),
-        inventory: safeArray(character.inventory)
+        inventory: expandedInventory
             .map((item: any) => simplifyInventoryItem(item))
             .filter(Boolean),
         spells: safeArray(character.spells),

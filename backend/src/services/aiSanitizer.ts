@@ -123,6 +123,13 @@ const DEFAULT_WORLD_STATE = {
     weather: 'Ensolarado',
     currentRegion: 'Desconhecida',
 };
+const clampText = (value: any, limit = 320): string | undefined => {
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    if (trimmed.length <= limit) return trimmed;
+    return `${trimmed.slice(0, limit - 3)}...`;
+};
 
 const normalizeCombatZone = (zone: any): string | undefined => {
     if (!zone || typeof zone !== 'string') return undefined;
@@ -510,6 +517,37 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     }
   }
 
+  const normalizeCurrency = (source: any): { gp: number } => {
+    const gpValue = Math.max(0, toNumber(source?.gp ?? source?.gold ?? source?.amount ?? source) ?? 0);
+    return { gp: gpValue };
+  };
+
+  if (sanitized.lootOffer && typeof sanitized.lootOffer === 'object') {
+    const normalizedLoot: { items: any[]; currency: { gp: number } } = {
+        items: [],
+        currency: { gp: 0 },
+    };
+
+    if (Array.isArray((sanitized.lootOffer as any).items)) {
+        normalizedLoot.items = (sanitized.lootOffer as any).items;
+    } else if ((sanitized.lootOffer as any).item) {
+        normalizedLoot.items = [(sanitized.lootOffer as any).item];
+    }
+
+    if ((sanitized.lootOffer as any).currency) {
+        normalizedLoot.currency = normalizeCurrency((sanitized.lootOffer as any).currency);
+    } else if ((sanitized.lootOffer as any).gold !== undefined || (sanitized.lootOffer as any).gp !== undefined) {
+        normalizedLoot.currency = normalizeCurrency({
+            gp: (sanitized.lootOffer as any).gp,
+            gold: (sanitized.lootOffer as any).gold,
+        });
+    } else {
+        normalizedLoot.currency = { gp: 0 };
+    }
+
+    sanitized.lootOffer = normalizedLoot as any;
+  }
+
   if (Array.isArray((sanitized as any).xpEvents)) {
     (sanitized as any).xpEvents = (sanitized as any).xpEvents
       .map((event: any) => {
@@ -675,6 +713,14 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
                   if (playerCombatant.initiative === null) {
                       playerCombatant.initiative = undefined;
                   }
+                  if (typeof playerCombatant.notes === 'string') {
+                      const truncated = clampText(playerCombatant.notes, 360);
+                      if (truncated) {
+                          playerCombatant.notes = truncated;
+                      } else {
+                          delete playerCombatant.notes;
+                      }
+                  }
                   const zone = normalizeCombatZone(c.zone ?? c.position ?? c.distanceCategory);
                   if (zone) {
                       playerCombatant.zone = zone;
@@ -697,6 +743,14 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
                   hp: derivedHp ? { current: derivedHp.current ?? 0, max: derivedHp.max ?? derivedHp.current ?? 0 } : { current: 0, max: 0 },
                   initiative: c.initiative === null ? undefined : c.initiative,
               };
+              if (typeof (npcCombatant as any).notes === 'string') {
+                  const truncated = clampText((npcCombatant as any).notes, 360);
+                  if (truncated) {
+                      (npcCombatant as any).notes = truncated;
+                  } else {
+                      delete (npcCombatant as any).notes;
+                  }
+              }
               if (normalizedZone) {
                   (npcCombatant as any).zone = normalizedZone;
               } else {
