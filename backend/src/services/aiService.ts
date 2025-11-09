@@ -44,9 +44,9 @@ const allowResponseSchemaForModel = (modelName: string): boolean => {
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
 const estimateTokenCount = (text: string) => Math.ceil(text.length / 4);
 
-const MIN_OUTPUT_TOKENS = 256;
-const DEFAULT_OUTPUT_TOKENS = 1024;
-const HARD_OUTPUT_CAP = 4096;
+const MIN_OUTPUT_TOKENS = 8192;
+const DEFAULT_OUTPUT_TOKENS = 8192;
+const HARD_OUTPUT_CAP = 8192;
 const MAX_MODEL_ATTEMPTS = 3;
 const RETRY_OUTPUT_LIMITS = [undefined, undefined, undefined] as const;
 const RETRY_PROMPT_HINTS = [
@@ -54,7 +54,9 @@ const RETRY_PROMPT_HINTS = [
     "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.",
     "\n\nATENÇÃO FINAL: Reescreva o GameMasterResponse COMPLETO, obedecendo o schema integralmente e sem repetir texto fora do JSON. Priorize fechar todas as chaves e inclua, no mínimo, logEntries, actionOptions, updatedCharacter, worldState e combatState (mesmo vazios).",
 ] as const;
-const MODEL_FAILOVER_CHAIN = ['gemini-2.5-pro', 'gemini-1.5-pro', 'gemini-1.5-flash'];
+const MODEL_FAILOVER_CHAIN = (
+    process.env.AI_FAILOVER_CHAIN ?? 'gemini-2.5-flash'
+).split(',').map(entry => entry.trim()).filter(Boolean);
 const TRANSIENT_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const TRANSIENT_ERROR_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EHOSTUNREACH', 'ENOTFOUND']);
 const MAX_PROMPT_TOKENS_BEFORE_SUMMARY = 9500;
@@ -156,7 +158,7 @@ const extractResponseText = (response: any): string => {
 
 const cloneInput = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
-const debugLogAiStage = async (stage: string, payload: unknown, context?: { mode?: string }) => {
+const debugLogAiStage = async (stage: string, payload: unknown, context?: { mode?: string, systemInstruction?: string }) => {
     if (!env.AI_DEBUG_LOGS) return;
     try {
         const dir = path.join(process.cwd(), 'logs', 'ai');
@@ -168,6 +170,7 @@ const debugLogAiStage = async (stage: string, payload: unknown, context?: { mode
             mode: context?.mode ?? 'unknown',
             schemaHash: GAME_MASTER_SCHEMA_HASH,
             payload,
+            systemInstruction: context?.systemInstruction,
         };
         await fs.writeFile(filePath, JSON.stringify(entry, null, 2), 'utf8');
     } catch (error) {
@@ -1241,7 +1244,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     playerAction: input.playerAction,
                     characterId: input.character?.id,
                     prompt,
-                }, { mode });
+                }, { mode, systemInstruction: isGemmaActive ? undefined : systemInstruction });
             }
             let measuredTokens: number | undefined;
             try {
@@ -1311,7 +1314,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     characterId: input.character?.id,
                     prompt,
                     generationConfig: sanitizedGenerationConfig,
-                }, { mode });
+                }, { mode, systemInstruction: isGemmaActive ? undefined : systemInstruction });
             }
             lastPromptSent = prompt;
             const result = await model.generateContent({
