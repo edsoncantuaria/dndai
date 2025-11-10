@@ -199,3 +199,23 @@ export const cloneSessao = async (req: AuthRequest, res: Response, next: NextFun
         await queryRunner.release();
     }
 };
+
+export const getWorldMapSnapshot = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'ID do usuário não encontrado no token.'));
+    }
+
+    const sessionIdNum = Number(id);
+    if (isNaN(sessionIdNum)) {
+        return next(createError(400, 'ID de sessão inválido.'));
+    }
+
+    try {
+        const snapshot = await SessaoService.getWorldMapSnapshot(sessionIdNum, userId);
+        res.status(200).json(snapshot);
+    } catch (error) {
+        next(error);
+    }
+};

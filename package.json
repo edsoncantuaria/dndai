@@ -11,7 +11,9 @@
     "copy-dice-assets": "node ./copy-dice-assets.js",
     "postinstall": "npm run copy-dice-assets",
     "dev:backend": "cd backend && npm run dev",
-    "install:backend": "cd backend && npm install"
+    "install:backend": "cd backend && npm install",
+    "seedRegion": "npm run seed:regions --prefix backend",
+    "seed:regions": "npm run seed:regions --prefix backend"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",

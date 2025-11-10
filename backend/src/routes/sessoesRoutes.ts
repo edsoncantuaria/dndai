@@ -9,7 +9,8 @@ import {
     getSessaoFacts, 
     getSessaoReplayMarkdown, 
     renameSessao, 
-    cloneSessao 
+    cloneSessao,
+    getWorldMapSnapshot,
 } from '../controllers/sessoesController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
@@ -20,9 +21,10 @@ router.use(authMiddleware);
 
 router.post('/', createSessao);
 router.get('/', getSessoes);
-router.get('/:id', getSessaoById);
+router.get('/:id/world-map', getWorldMapSnapshot);
 router.get('/:id/facts', getSessaoFacts);
 router.get('/:id/replay', getSessaoReplayMarkdown);
+router.get('/:id', getSessaoById);
 router.delete('/:id', deleteSessao);
 router.patch('/:id/homebrew', updateHomebrewInstallation); 
 router.patch('/:id', renameSessao); // Rota para renomear

@@ -20,6 +20,7 @@ import { CombatLogEntry } from '../entities/CombatLogEntry.js';
 import { CombatCooldown } from '../entities/CombatCooldown.js';
 import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 import * as RegionService from './regionService.js';
+import type { RegionLink } from '../entities/RegionLink.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -51,6 +52,63 @@ interface SessionFactsPayload {
 interface SessionReplayPayload {
     fileName: string;
     markdown: string;
+}
+
+type RegionPayload = Awaited<ReturnType<typeof RegionService.listRegionsWithDetails>> extends Array<infer T>
+  ? T
+  : never;
+
+type RegionPoiPayload = RegionPayload extends { pointsOfInterest?: Array<infer P> } ? (P extends object ? P : never) : never;
+
+type WorldMapLink = {
+  fromSlug: string;
+  toSlug: string;
+  travelMode: RegionLink['travelMode'];
+  travelTimeMinutes?: number;
+  difficulty?: string | null;
+  isLocked: boolean;
+  metadata?: Record<string, any>;
+  discovered: boolean;
+};
+
+type VisitedPoiRecord = {
+  regionSlug: string;
+  poiSlug: string;
+  name?: string | null;
+};
+
+type WorldMapMarker = {
+  id: string;
+  type: 'player' | 'npc' | 'quest';
+  label: string;
+  regionSlug: string;
+  poiSlug?: string | null;
+  status?: string | null;
+  description?: string | null;
+  relatedNpcId?: string | null;
+  questId?: string | null;
+  isDiscovered: boolean;
+};
+
+export interface WorldMapSnapshot {
+  currentRegionSlug: string | null;
+  currentPoiSlug: string | null;
+  visitedRegions: string[];
+  visitedPois: VisitedPoiRecord[];
+  regions: Array<
+    RegionPayload & {
+      isDiscovered: boolean;
+      isCurrent: boolean;
+      pointsOfInterest?: Array<
+        RegionPoiPayload & {
+          isDiscovered: boolean;
+        }
+      >;
+    }
+  >;
+  links: WorldMapLink[];
+  markers: WorldMapMarker[];
+  updatedAt: string;
 }
 
 export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
@@ -524,4 +582,198 @@ export const cloneSessao = async (sessionId: number, userId: number, queryRunner
 
     const { apiKey, ...sessaoSemApi } = sessaoClonada;
     return { sessao: sessaoSemApi };
+};
+
+const normalizeSlug = (value?: string | null) => RegionService.slugify(value) || '';
+
+const normalizeVisitedRegions = (values: unknown): string[] => {
+    if (!Array.isArray(values)) return [];
+    return values
+        .map(item => (typeof item === 'string' ? normalizeSlug(item) : ''))
+        .filter((slug): slug is string => Boolean(slug));
+};
+
+const normalizeVisitedPois = (values: unknown): VisitedPoiRecord[] => {
+    if (!Array.isArray(values)) return [];
+    return values
+        .map(item => {
+            if (!item || typeof item !== 'object') return null;
+            const record = item as Record<string, any>;
+            const regionSlug = normalizeSlug(record.regionSlug ?? record.region ?? record.city);
+            const poiSlug = normalizeSlug(record.poiSlug ?? record.slug ?? record.poi ?? record.name);
+            if (!regionSlug || !poiSlug) return null;
+            return {
+                regionSlug,
+                poiSlug,
+                name: record.name ?? record.poiName ?? null,
+            };
+        })
+        .filter((poi): poi is VisitedPoiRecord => Boolean(poi));
+};
+
+export const getWorldMapSnapshot = async (sessionId: number, userId: number): Promise<WorldMapSnapshot> => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    const characterRepository = AppDataSource.getRepository(Character);
+    const sessao = await sessaoRepository.findOne({
+        where: { id: sessionId, userId, deletedAt: IsNull() },
+        relations: ['character'],
+    });
+
+    if (!sessao) {
+        throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
+    }
+    if (!sessao.character) {
+        throw createError(400, 'Sessão sem personagem associado.');
+    }
+    const characterWithRelations = await characterRepository.findOne({
+        where: { id: sessao.character.id },
+        relations: ['relationships', 'relationships.quests'],
+    });
+    const relationships = characterWithRelations?.relationships ?? [];
+    const relationshipByNpcId = new Map<string, (typeof relationships)[number]>();
+    relationships.forEach(rel => {
+        if (rel?.npcId) relationshipByNpcId.set(rel.npcId, rel);
+    });
+
+    const worldState = (sessao.character.worldState ?? {}) as Record<string, any>;
+    const visitedRegions = normalizeVisitedRegions(worldState.visitedRegions);
+    const visitedRegionSet = new Set(visitedRegions);
+    const visitedPois = normalizeVisitedPois(worldState.visitedPois);
+    const visitedPoiSet = new Set(visitedPois.map(poi => `${poi.regionSlug}::${poi.poiSlug}`));
+    const currentRegionSlug =
+        normalizeSlug(worldState.regionSlug ?? worldState.currentRegionSlug ?? worldState.currentRegion) ||
+        normalizeSlug(sessao.character.currentRegion);
+    const currentPoiSlug = normalizeSlug(worldState.poiSlug ?? worldState.poiName);
+
+    if (!visitedRegionSet.size && currentRegionSlug) {
+        visitedRegionSet.add(currentRegionSlug);
+    }
+
+    const regions = await RegionService.listRegionsWithDetails();
+    const enrichedRegions = regions.map(region => ({
+        ...region,
+        isDiscovered: visitedRegionSet.has(region.slug),
+        isCurrent: region.slug === currentRegionSlug,
+        pointsOfInterest: (region.pointsOfInterest ?? []).map(poi => ({
+            ...poi,
+            isDiscovered: visitedPoiSet.has(`${region.slug}::${poi.slug}`),
+        })),
+    }));
+
+    const edgeMap = new Map<string, WorldMapLink>();
+    regions.forEach(region => {
+        region.neighbors
+            ?.filter(neighbor => neighbor.direction === 'outgoing' && neighbor.targetRegionSlug)
+            ?.forEach(neighbor => {
+                const fromSlug = region.slug;
+                const toSlug = neighbor.targetRegionSlug!;
+                const key = [fromSlug, toSlug].sort().join('::');
+                if (edgeMap.has(key)) return;
+                edgeMap.set(key, {
+                    fromSlug,
+                    toSlug,
+                    travelMode: neighbor.travelMode,
+                    travelTimeMinutes: neighbor.travelTimeMinutes,
+                    difficulty: neighbor.difficulty,
+                    isLocked: neighbor.isLocked,
+                    metadata: neighbor.metadata,
+                    discovered: visitedRegionSet.has(fromSlug) && visitedRegionSet.has(toSlug),
+                });
+            });
+    });
+
+    const markers: WorldMapMarker[] = [];
+    const pushMarker = (marker: Omit<WorldMapMarker, 'isDiscovered'>) => {
+        const regionSlug = normalizeSlug(marker.regionSlug);
+        if (!regionSlug) return;
+        markers.push({
+            ...marker,
+            regionSlug,
+            poiSlug: marker.poiSlug ? normalizeSlug(marker.poiSlug) || null : marker.poiSlug ?? null,
+            isDiscovered: visitedRegionSet.has(regionSlug),
+        });
+    };
+
+    if (currentRegionSlug) {
+        pushMarker({
+            id: `player:${sessao.character.id}`,
+            type: 'player',
+            label: sessao.character.name,
+            regionSlug: currentRegionSlug,
+            poiSlug: currentPoiSlug || null,
+            description: 'Posição atual do grupo',
+            status: null,
+        });
+    }
+
+    const normalizedNpcLocations = Array.isArray(worldState.npcLocations) ? worldState.npcLocations : [];
+    const seenNpcIds = new Set<string>();
+    normalizedNpcLocations.forEach(entry => {
+        if (!entry || typeof entry !== 'object') return;
+        const npcId = typeof entry.npcId === 'string' ? entry.npcId : undefined;
+        const rel = npcId ? relationshipByNpcId.get(npcId) : undefined;
+        const regionSlug = normalizeSlug(entry.regionSlug ?? rel?.regionSlug);
+        if (!regionSlug) return;
+        const poiSlug = normalizeSlug(entry.poiSlug ?? rel?.poiSlug) || null;
+        const label = entry.name ?? rel?.name ?? npcId ?? 'NPC';
+        pushMarker({
+            id: npcId ? `npc:${npcId}` : `npc:${label}:${regionSlug}`,
+            type: 'npc',
+            label,
+            regionSlug,
+            poiSlug,
+            status: rel?.status ?? null,
+            description: entry.notes ?? rel?.description ?? null,
+            relatedNpcId: npcId ?? null,
+        });
+        if (npcId) seenNpcIds.add(npcId);
+    });
+
+    relationships.forEach(rel => {
+        if (!rel?.npcId || seenNpcIds.has(rel.npcId)) return;
+        const regionSlug = normalizeSlug(rel.regionSlug);
+        if (!regionSlug) return;
+        pushMarker({
+            id: `npc:${rel.npcId}`,
+            type: 'npc',
+            label: rel.name,
+            regionSlug,
+            poiSlug: normalizeSlug(rel.poiSlug) || null,
+            status: rel.status,
+            description: rel.description ?? null,
+            relatedNpcId: rel.npcId,
+        });
+        seenNpcIds.add(rel.npcId);
+    });
+
+    relationships.forEach(rel => {
+        if (!rel?.quests?.length) return;
+        const regionSlug = normalizeSlug(rel.regionSlug);
+        if (!regionSlug) return;
+        rel.quests.forEach(quest => {
+            if (!quest || quest.status !== 'active') return;
+            pushMarker({
+                id: `quest:${quest.id}`,
+                type: 'quest',
+                label: quest.title,
+                regionSlug,
+                poiSlug: normalizeSlug(rel.poiSlug) || null,
+                status: quest.status,
+                description: quest.objectives?.[0] ?? null,
+                relatedNpcId: rel.npcId ?? null,
+                questId: quest.id,
+            });
+        });
+    });
+
+    return {
+        currentRegionSlug: currentRegionSlug || null,
+        currentPoiSlug: currentPoiSlug || null,
+        visitedRegions: Array.from(visitedRegionSet),
+        visitedPois,
+        regions: enrichedRegions,
+        links: Array.from(edgeMap.values()),
+        markers,
+        updatedAt: new Date().toISOString(),
+    };
 };

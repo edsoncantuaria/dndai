@@ -22,7 +22,8 @@
         "climate": "temperado",
         "factions": ["Guardiões Prismáticos", "Liga Mercante Heliana"],
         "role": "hub",
-        "levelRange": "1-8"
+        "levelRange": "1-8",
+        "allowAiPois": true
       }
     },
     {
@@ -35,7 +36,20 @@
       "metadata": {
         "climate": "nebuloso",
         "specialty": "magia antiga",
-        "levelRange": "7-14"
+        "levelRange": "7-14",
+        "allowAiPois": true
+      }
+    },
+    {
+      "slug": "selva-de-ashari",
+      "name": "Selva de Ashari",
+      "type": "wild",
+      "parentSlug": "aurathis",
+      "summary": "Tapete de copas luminescentes onde druidas tecem rotas secretas.",
+      "metadata": {
+        "climate": "subtropical",
+        "levelRange": "5-12",
+        "allowAiPois": true
       }
     },
     {
@@ -92,12 +106,47 @@
       "notes": "Passagem pela Névoa Violeta"
     },
     {
+      "fromSlug": "aurathis",
+      "toSlug": "selva-de-ashari",
+      "travelMode": "mount",
+      "travelTimeMinutes": 25,
+      "difficulty": "média",
+      "notes": "Trilha das constelações terrestres"
+    },
+    {
+      "fromSlug": "selva-de-ashari",
+      "toSlug": "selvas-de-myr",
+      "travelMode": "walk",
+      "travelTimeMinutes": 30,
+      "difficulty": "alta",
+      "notes": "Passagem sussurrante entre raízes vivas"
+    },
+    {
+      "fromSlug": "selva-de-ashari",
+      "toSlug": "covil-obsidiano",
+      "travelMode": "portal",
+      "travelTimeMinutes": 8,
+      "difficulty": "alta",
+      "notes": "Fenda guardada por shamans Ashari"
+    },
+    {
       "fromSlug": "cidadela-do-aco-luz",
       "toSlug": "covil-obsidiano",
       "travelMode": "walk",
       "travelTimeMinutes": 15,
       "difficulty": "baixa",
       "notes": "Rampas reforçadas com runas"
+    },
+    {
+      "regionSlug": "selva-de-ashari",
+      "slug": "altar-de-lichen",
+      "name": "Altar de Líquen",
+      "type": "story",
+      "summary": "Ruína circular onde os Ashari negociam com espíritos de fauna.",
+      "metadata": {
+        "danger": "média",
+        "allowAiPois": true
+      }
     },
     {
       "fromSlug": "cidadela-do-aco-luz",

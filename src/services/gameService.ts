@@ -1,6 +1,7 @@
 // src/services/gameService.ts
 import { apiClient } from './apiClient';
-import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from "@/types";
+import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from '@/types';
+import type { RegionDTO, RegionPoiDTO, RegionTravelMode } from './regionClient';
 
 export interface SessionFactsResponse {
     storySummary: string | null;
@@ -32,6 +33,47 @@ export interface SessionFactsResponse {
 export interface SessionReplayResponse {
     fileName: string;
     markdown: string;
+}
+
+export interface WorldMapRegion extends RegionDTO {
+    isDiscovered?: boolean;
+    isCurrent?: boolean;
+    pointsOfInterest?: Array<RegionPoiDTO & { isDiscovered?: boolean }>;
+}
+
+export interface WorldMapMarker {
+    id: string;
+    type: 'player' | 'npc' | 'quest';
+    label: string;
+    regionSlug: string;
+    poiSlug?: string | null;
+    status?: string | null;
+    description?: string | null;
+    relatedNpcId?: string | null;
+    questId?: string | null;
+    isDiscovered: boolean;
+}
+
+export interface WorldMapLink {
+    fromSlug: string;
+    toSlug: string;
+    travelMode: RegionTravelMode;
+    travelTimeMinutes?: number;
+    difficulty?: string | null;
+    isLocked: boolean;
+    metadata?: Record<string, any>;
+    discovered: boolean;
+}
+
+export interface WorldMapSnapshot {
+    currentRegionSlug: string | null;
+    currentPoiSlug: string | null;
+    visitedRegions: string[];
+    visitedPois: Array<{ regionSlug: string; poiSlug: string; name?: string | null }>;
+    regions: WorldMapRegion[];
+    links: WorldMapLink[];
+    markers: WorldMapMarker[];
+    updatedAt: string;
 }
 
 // --- Character Management ---
@@ -81,6 +123,10 @@ export const getSessionFacts = async (sessionId: number): Promise<SessionFactsRe
 
 export const getSessionReplay = async (sessionId: number): Promise<SessionReplayResponse> => {
     return apiClient<SessionReplayResponse>(`/sessoes/${sessionId}/replay`, { method: 'GET' });
+};
+
+export const getWorldMapSnapshot = async (sessionId: number): Promise<WorldMapSnapshot> => {
+    return apiClient<WorldMapSnapshot>(`/sessoes/${sessionId}/world-map`, { method: 'GET' });
 };
 
 export const deleteSessionById = async (sessionId: number) => {

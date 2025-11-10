@@ -11,7 +11,9 @@ import {
   createPoiSchema,
   updatePoiSchema,
   aiRegionPromptSchema,
+  createSnapshotSchema,
   importRegionGraphSchema,
+  regionBackgroundUploadSchema,
 } from '../schemas/regionSchemas.js';
 import createError from 'http-errors';
 
@@ -178,6 +180,128 @@ export const importRegionGraph = async (
   try {
     const payload = importRegionGraphSchema.parse(req.body);
     await RegionService.importRegionGraph(payload, { clearExisting: payload.clearExisting });
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listSnapshots = async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const snapshots = await RegionService.listSnapshots();
+    res.json({ snapshots });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createSnapshot = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { label } = createSnapshotSchema.parse(req.body);
+    const snapshot = await RegionService.createSnapshot(label ?? '', req.user?.userId ?? null);
+    res.status(201).json(snapshot);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const restoreSnapshot = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    await RegionService.restoreSnapshot(Number(id));
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteSnapshot = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    await RegionService.deleteSnapshot(Number(id));
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const listPendingAutoPois = async (_req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const pois = await RegionService.listPendingAutoPois();
+    const serialized = pois.map(poi => ({
+      id: poi.id,
+      slug: poi.slug,
+      name: poi.name,
+      type: poi.type,
+      summary: poi.summary,
+      description: poi.description,
+      metadata: poi.metadata,
+      isLocked: poi.isLocked,
+      allowAiExpansion: poi.allowAiExpansion,
+      regionSlug: poi.region?.slug ?? '',
+      regionName: poi.region?.name ?? '',
+    }));
+    res.json({ pois: serialized });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const approvePendingPoi = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    const poi = await RegionService.approveAutoPoi(Number(id));
+    res.json(poi);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const rejectPendingPoi = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { id } = req.params;
+    await RegionService.deletePointOfInterest(Number(id));
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const uploadRegionBackground = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { slug } = req.params;
+    const payload = regionBackgroundUploadSchema.parse(req.body);
+    const match = /^data:([^;]+);base64,(.+)$/i.exec(payload.dataUrl.trim());
+    if (!match) {
+      throw createError(400, 'Formato de imagem inválido.');
+    }
+    const buffer = Buffer.from(match[2], 'base64');
+    if (!buffer.length) {
+      throw createError(400, 'Imagem vazia.');
+    }
+    const result = await RegionService.saveRegionBackground(slug, {
+      buffer,
+      contentType: match[1],
+      originalName: payload.fileName,
+    });
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteRegionBackground = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { slug } = req.params;
+    await RegionService.clearRegionBackground(slug);
     res.status(204).send();
   } catch (error) {
     next(error);

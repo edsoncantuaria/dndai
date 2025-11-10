@@ -9,18 +9,21 @@ const {
   MINIO_SECRET_KEY,
   MINIO_USE_SSL,
   MINIO_BUCKET_NAME,
+  MINIO_ENABLED,
 } = process.env;
 
 const bucketName = MINIO_BUCKET_NAME || 'chronicles';
+const isMinioEnabled = (MINIO_ENABLED ?? 'true').toLowerCase() !== 'false';
+const hasCredentials = Boolean(MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY);
 
 const minioClient =
-  MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY
+  isMinioEnabled && hasCredentials
     ? new Client({
-        endPoint: MINIO_ENDPOINT,
+        endPoint: MINIO_ENDPOINT!,
         port: MINIO_PORT ? Number(MINIO_PORT) : 443,
         useSSL: MINIO_USE_SSL !== 'false',
-        accessKey: MINIO_ACCESS_KEY,
-        secretKey: MINIO_SECRET_KEY,
+        accessKey: MINIO_ACCESS_KEY!,
+        secretKey: MINIO_SECRET_KEY!,
       })
     : null;
 
@@ -45,6 +48,12 @@ const ensureBucket = async () => {
 export const isObjectStorageEnabled = !!minioClient;
 
 export const checkObjectStorageHealth = async (): Promise<{ ok: boolean; message: string }> => {
+  if (!isMinioEnabled) {
+    const message = 'Armazenamento de objetos desabilitado via MINIO_ENABLED=false.';
+    console.warn(`[objectStorage] ${message}`);
+    return { ok: true, message };
+  }
+
   if (!minioClient) {
     const message = 'Cliente MinIO não configurado. Variáveis de ambiente ausentes.';
     console.warn(`[objectStorage] ${message}`);
@@ -106,4 +115,51 @@ export const offloadLargePayload = async (
 export const getObjectUrl = (key: string) => {
   if (!minioClient) return null;
   return `${MINIO_USE_SSL === 'false' ? 'http' : 'https'}://${MINIO_ENDPOINT}/${bucketName}/${key}`;
+};
+
+interface UploadBinaryOptions {
+  prefix?: string;
+  contentType?: string;
+  filename?: string;
+  extension?: string;
+}
+
+export const uploadBinaryObject = async (
+  buffer: Buffer,
+  { prefix = 'assets', contentType = 'application/octet-stream', extension, filename }: UploadBinaryOptions = {}
+): Promise<{ key: string; url: string | null; size: number; contentType: string }> => {
+  if (!buffer?.length || !minioClient) {
+    throw new Error('Armazenamento de objetos não configurado.');
+  }
+  const ready = await ensureBucket();
+  if (!ready) {
+    throw new Error('Não foi possível preparar o bucket MinIO.');
+  }
+
+  const safeExt =
+    extension ??
+    (filename && filename.includes('.') ? filename.substring(filename.lastIndexOf('.') + 1) : undefined);
+  const key = `${prefix}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}${safeExt ? `.${safeExt}` : ''}`;
+
+  await minioClient.putObject(bucketName, key, buffer, {
+    'Content-Type': contentType,
+  });
+
+  return {
+    key,
+    url: getObjectUrl(key),
+    size: buffer.length,
+    contentType,
+  };
+};
+
+export const deleteObject = async (key?: string | null) => {
+  if (!key || !minioClient) return;
+  const ready = await ensureBucket();
+  if (!ready) return;
+  try {
+    await minioClient.removeObject(bucketName, key);
+  } catch (error) {
+    console.warn('[objectStorage] Falha ao remover objeto do MinIO:', error);
+  }
 };

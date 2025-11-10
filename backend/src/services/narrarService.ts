@@ -195,6 +195,7 @@ type RegionPromptContext = {
         travelTimeMinutes: number;
         difficulty?: string | null;
         isLocked: boolean;
+        isDiscovered?: boolean;
     }>;
     pointsOfInterest?: Array<{
         slug: string;
@@ -209,12 +210,26 @@ type RegionPromptContext = {
         type: string;
         summary?: string | null;
     } | null;
+    discoveredRoutes?: RegionPromptContext['neighbors'];
+    visitedRegions?: string[];
 };
 
 const resolveRegionContextForPrompt = async (
     character: Character | null,
     optimizedCharacter: any
 ): Promise<RegionPromptContext | null> => {
+    const visitedRegionSet = new Set<string>();
+    const collectVisited = (source?: any) => {
+        if (!Array.isArray(source)) return;
+        for (const value of source) {
+            if (typeof value === 'string' && value.trim()) {
+                visitedRegionSet.add(canonicalSlug(value));
+            }
+        }
+    };
+    collectVisited(optimizedCharacter?.worldState?.visitedRegions);
+    collectVisited((character?.worldState as any)?.visitedRegions);
+
     const labels: Array<string | null | undefined> = [
         optimizedCharacter?.worldState?.regionSlug,
         optimizedCharacter?.worldState?.currentRegion,
@@ -234,6 +249,7 @@ const resolveRegionContextForPrompt = async (
         const payload = await RegionService.getRegionBySlug(resolved.slug).catch(() => null);
         if (!payload) continue;
         const breadcrumbs = await RegionService.getRegionBreadcrumbs(payload.slug).catch(() => []);
+        visitedRegionSet.add(canonicalSlug(payload.slug));
         const poiCandidates: Array<string | null | undefined> = [
             optimizedCharacter?.worldState?.poiSlug,
             (character?.worldState as any)?.poiSlug,
@@ -255,20 +271,28 @@ const resolveRegionContextForPrompt = async (
                 break;
             }
         }
+        const neighbors =
+            payload.neighbors?.map(neighbor => {
+                const slug = canonicalSlug(neighbor.targetRegionSlug);
+                return {
+                    slug: neighbor.targetRegionSlug,
+                    name: neighbor.targetRegionName,
+                    travelMode: neighbor.travelMode,
+                    travelTimeMinutes: neighbor.travelTimeMinutes,
+                    difficulty: neighbor.difficulty ?? null,
+                    isLocked: neighbor.isLocked,
+                    isDiscovered: slug ? visitedRegionSet.has(slug) : false,
+                };
+            }) ?? [];
+        const discoveredRoutes = neighbors.filter(neighbor => neighbor.isDiscovered);
+
         return {
             slug: payload.slug,
             name: payload.name,
             type: payload.type,
             summary: payload.summary ?? payload.description ?? null,
             breadcrumbs,
-            neighbors: payload.neighbors?.map(neighbor => ({
-                slug: neighbor.targetRegionSlug,
-                name: neighbor.targetRegionName,
-                travelMode: neighbor.travelMode,
-                travelTimeMinutes: neighbor.travelTimeMinutes,
-                difficulty: neighbor.difficulty ?? null,
-                isLocked: neighbor.isLocked,
-            })),
+            neighbors,
             pointsOfInterest: payload.pointsOfInterest?.map(poi => ({
                 slug: poi.slug,
                 name: poi.name,
@@ -277,6 +301,8 @@ const resolveRegionContextForPrompt = async (
                 isLocked: poi.isLocked,
             })),
             activePoi,
+            discoveredRoutes,
+            visitedRegions: Array.from(visitedRegionSet),
         };
     }
     return null;
@@ -295,8 +321,11 @@ const formatRegionGraphSummary = (context: RegionPromptContext): string => {
         lines.push(`Sublocal atual: ${context.activePoi.name} [${context.activePoi.slug}] (${context.activePoi.type})${poiSummary}`);
     }
 
-    if (context.neighbors && context.neighbors.length) {
-        const routes = context.neighbors.map(neighbor => {
+    const discoveredRoutes = context.discoveredRoutes && context.discoveredRoutes.length
+        ? context.discoveredRoutes
+        : context.neighbors?.filter(neighbor => neighbor.isDiscovered);
+    if (discoveredRoutes && discoveredRoutes.length) {
+        const routes = discoveredRoutes.map(neighbor => {
             const label = neighbor.name || neighbor.slug || 'Destino desconhecido';
             const travelMode = neighbor.travelMode || 'deslocamento';
             const travelTime = Number.isFinite(neighbor.travelTimeMinutes)
@@ -306,9 +335,19 @@ const formatRegionGraphSummary = (context: RegionPromptContext): string => {
             const locked = neighbor.isLocked ? ' [BLOQUEADA]' : '';
             return `${label} (${travelMode}, ${travelTime}${difficulty})${locked}`;
         });
-        lines.push(`Rotas conhecidas: ${routes.join('; ')}`);
+        lines.push(`Rotas descobertas: ${routes.join('; ')}`);
     } else {
-        lines.push('Rotas conhecidas: nenhuma.');
+        lines.push('Rotas descobertas: nenhuma. Desbrave novos caminhos para liberar deslocamentos seguros.');
+    }
+
+    const hiddenRoutes = context.neighbors?.filter(neighbor => !neighbor.isDiscovered);
+    if (hiddenRoutes && hiddenRoutes.length) {
+        const hidden = hiddenRoutes.map(neighbor => {
+            const label = neighbor.name || neighbor.slug || 'Destino desconhecido';
+            const locked = neighbor.isLocked ? ' (bloqueada)' : '';
+            return `${label}${locked}`;
+        });
+        lines.push(`Rotas ainda não exploradas: ${hidden.join('; ')}.`);
     }
 
     if (context.pointsOfInterest && context.pointsOfInterest.length) {
@@ -876,6 +915,8 @@ export const processPlayerTurn = async (
         timelineFacts: timelineFactsForPrompt || undefined,
         regionSlug: regionPromptContext?.slug ?? undefined,
         regionGraphSummary: regionGraphSummary ?? undefined,
+        discoveredRoutes: regionPromptContext?.discoveredRoutes,
+        visitedRegions: regionPromptContext?.visitedRegions,
         mode: aiMode,
     };
 
@@ -1497,7 +1538,8 @@ const enforceWorldStateLocation = async (sessao: SessaoIA, response: GameMasterR
             try {
                 const resolved = await RegionService.validateRegionTransition(
                     previousRegionSlug,
-                    requestedRegionName
+                    requestedRegionName,
+                    { worldState: sessao.character.worldState }
                 );
                 worldState.currentRegion = resolved.name;
                 worldState.regionSlug = resolved.slug;

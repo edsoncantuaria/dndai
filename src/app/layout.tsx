@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cinzel_Decorative, IM_Fell_English } from 'next/font/google';
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import AppProviders from "@/components/AppProviders";
 
 const cinzel = Cinzel_Decorative({
   subsets: ['latin'],
@@ -28,7 +29,9 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${cinzel.variable} ${imFell.variable} h-full`}>
       <body className="h-full">
-          {children}
+          <AppProviders>
+            {children}
+          </AppProviders>
           <Toaster />
       </body>
     </html>

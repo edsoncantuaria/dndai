@@ -17,6 +17,15 @@ import {
   generateRegionDraft,
   exportRegionGraph,
   importRegionGraph,
+  listSnapshots,
+  createSnapshot,
+  restoreSnapshot,
+  deleteSnapshot,
+  listPendingAutoPois,
+  approvePendingPoi,
+  rejectPendingPoi,
+  uploadRegionBackground,
+  deleteRegionBackground,
 } from '../controllers/regionController.js';
 
 const router = Router();
@@ -24,6 +33,18 @@ const router = Router();
 // Público (visualização do mapa)
 router.get('/', listRegions);
 router.get('/export', authMiddleware, adminOnly, exportRegionGraph);
+
+// Admin: snapshots e auditoria precisam vir antes do slug para não serem capturados
+router.get('/snapshots', authMiddleware, adminOnly, listSnapshots);
+router.post('/snapshots', authMiddleware, adminOnly, createSnapshot);
+router.post('/snapshots/:id/restore', authMiddleware, adminOnly, restoreSnapshot);
+router.delete('/snapshots/:id', authMiddleware, adminOnly, deleteSnapshot);
+router.get('/pois/pending', authMiddleware, adminOnly, listPendingAutoPois);
+router.post('/pois/:id/approve', authMiddleware, adminOnly, approvePendingPoi);
+router.post('/pois/:id/reject', authMiddleware, adminOnly, rejectPendingPoi);
+router.post('/:slug/background', authMiddleware, adminOnly, uploadRegionBackground);
+router.delete('/:slug/background', authMiddleware, adminOnly, deleteRegionBackground);
+
 router.get('/:slug', getRegion);
 
 // Admin: Regiões
@@ -44,5 +65,4 @@ router.delete('/pois/:id', authMiddleware, adminOnly, deletePointOfInterest);
 // Admin: IA helper
 router.post('/ai/generate', authMiddleware, adminOnly, generateRegionDraft);
 router.post('/import', authMiddleware, adminOnly, importRegionGraph);
-
 export default router;

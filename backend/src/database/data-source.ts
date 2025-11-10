@@ -28,6 +28,7 @@ import { CampaignArtifact } from '../entities/CampaignArtifact.js';
 import { Region } from '../entities/Region.js';
 import { RegionLink } from '../entities/RegionLink.js';
 import { RegionPointOfInterest } from '../entities/RegionPointOfInterest.js';
+import { RegionSnapshot } from '../entities/RegionSnapshot.js';
 
 
 /**
@@ -77,6 +78,7 @@ export const AppDataSource = new DataSource({
         Region,
         RegionLink,
         RegionPointOfInterest,
+        RegionSnapshot,
     ], 
     
     migrations: [],

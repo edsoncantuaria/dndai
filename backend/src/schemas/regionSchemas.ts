@@ -60,6 +60,18 @@ export const aiRegionPromptSchema = z.object({
   apiKey: z.string().optional(),
 });
 
+export const createSnapshotSchema = z.object({
+  label: z.string().min(3).max(160).optional(),
+});
+
+export const regionBackgroundUploadSchema = z.object({
+  dataUrl: z
+    .string()
+    .min(10)
+    .regex(/^data:[^;]+;base64,/i, 'Formato data URL inválido.'),
+  fileName: z.string().min(3).max(240).optional(),
+});
+
 const regionEntrySchema = z.object({
   name: z.string().min(3),
   slug: z.string().min(3),

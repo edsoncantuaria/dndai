@@ -4,11 +4,19 @@ import { AppDataSource } from '../database/data-source.js';
 import { Region } from '../entities/Region.js';
 import { RegionLink } from '../entities/RegionLink.js';
 import { RegionPointOfInterest } from '../entities/RegionPointOfInterest.js';
+import { RegionSnapshot } from '../entities/RegionSnapshot.js';
 import { RegionGraphPayload } from '../schemas/regionSchemas.js';
+import {
+  uploadBinaryObject,
+  deleteObject,
+  isObjectStorageEnabled,
+} from './objectStorageService.js';
 
 const regionRepo = AppDataSource.getRepository(Region);
 const linkRepo = AppDataSource.getRepository(RegionLink);
 const poiRepo = AppDataSource.getRepository(RegionPointOfInterest);
+const snapshotRepo = AppDataSource.getRepository(RegionSnapshot);
+
 
 const ensureSpawnEligibility = (type: Region['type'], flag?: boolean) => {
   if (flag && type !== 'city') {
@@ -16,18 +24,21 @@ const ensureSpawnEligibility = (type: Region['type'], flag?: boolean) => {
   }
 };
 
-const slugify = (value: string) =>
-  value
+export const slugify = (value?: string | null) => {
+  if (!value) return '';
+  const normalized = value.toString();
+  return normalized
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
+};
 
 export const listRegionsWithDetails = async () => {
   const regions = await regionRepo.find({ relations: ['parent', 'pointsOfInterest'] });
   const links = await linkRepo.find({ relations: ['fromRegion', 'toRegion'] });
-  return regions.map(region => buildRegionPayload(region, links));
+  return regions.map(region => buildRegionPayload(region, links, true));
 };
 
 export const getRegionBySlug = async (slug: string) => {
@@ -90,9 +101,9 @@ export const importRegionGraph = async (
     const poiRepository = manager.getRepository(RegionPointOfInterest);
 
     if (options?.clearExisting) {
-      await linkRepository.delete({});
-      await poiRepository.delete({});
-      await regionRepository.delete({});
+      await linkRepository.createQueryBuilder().delete().where('1=1').execute();
+      await poiRepository.createQueryBuilder().delete().where('1=1').execute();
+      await regionRepository.createQueryBuilder().delete().where('1=1').execute();
     }
 
     const existingRegions = await regionRepository.find();
@@ -102,6 +113,7 @@ export const importRegionGraph = async (
     // Upsert regions
     for (const regionData of graph.regions) {
       const slug = slugify(regionData.slug || regionData.name);
+      if (!slug) continue;
       let region = regionMap.get(slug);
       if (!region) {
         region = regionRepository.create({ slug });
@@ -134,15 +146,18 @@ export const importRegionGraph = async (
 
     // Clear links/pois if not clearing earlier to avoid duplicates
     if (!options?.clearExisting) {
-      await linkRepository.delete({});
-      await poiRepository.delete({});
+      await linkRepository.createQueryBuilder().delete().where('1=1').execute();
+      await poiRepository.createQueryBuilder().delete().where('1=1').execute();
     }
 
     // Insert links
     const linkEntities: RegionLink[] = [];
     for (const linkData of graph.links ?? []) {
-      const from = regionMap.get(slugify(linkData.fromSlug));
-      const to = regionMap.get(slugify(linkData.toSlug));
+      const fromSlug = slugify(linkData.fromSlug);
+      const toSlug = slugify(linkData.toSlug);
+      if (!fromSlug || !toSlug) continue;
+      const from = regionMap.get(fromSlug);
+      const to = regionMap.get(toSlug);
       if (!from || !to) continue;
       const entity = linkRepository.create({
         fromRegionId: from.id,
@@ -161,11 +176,15 @@ export const importRegionGraph = async (
     // Insert POIs
     const poiEntities: RegionPointOfInterest[] = [];
     for (const poiData of graph.pois ?? []) {
-      const region = regionMap.get(slugify(poiData.regionSlug));
+      const regionSlug = slugify(poiData.regionSlug);
+      if (!regionSlug) continue;
+      const region = regionMap.get(regionSlug);
       if (!region) continue;
+      const poiSlug = slugify(poiData.slug || poiData.name);
+      if (!poiSlug) continue;
       const entity = poiRepository.create({
         regionId: region.id,
-        slug: slugify(poiData.slug || poiData.name),
+        slug: poiSlug,
         name: poiData.name,
         type: poiData.type ?? 'landmark',
         summary: poiData.summary ?? null,
@@ -191,6 +210,7 @@ export const createRegion = async (input: {
   isSpawnPool?: boolean;
 }) => {
   const slug = slugify(input.slug || input.name);
+  if (!slug) throw createError(400, 'Slug ou nome inválido para a região.');
   const existing = await regionRepo.findOne({ where: { slug } });
   if (existing) throw createError(409, 'Já existe uma região com esse slug.');
   let parent: Region | null = null;
@@ -230,6 +250,7 @@ export const updateRegion = async (
   if (!region) throw createError(404, 'Região não encontrada.');
   if (input.slug) {
     const slug = slugify(input.slug);
+    if (!slug) throw createError(400, 'Slug inválido.');
     if (slug !== region.slug) {
       const conflict = await regionRepo.findOne({ where: { slug } });
       if (conflict) throw createError(409, 'Outro registro usa este slug.');
@@ -277,8 +298,11 @@ export const createRegionLink = async (input: {
   notes?: string;
   metadata?: Record<string, any>;
 }) => {
-  const fromRegion = await regionRepo.findOne({ where: { slug: slugify(input.fromRegionSlug) } });
-  const toRegion = await regionRepo.findOne({ where: { slug: slugify(input.toRegionSlug) } });
+  const fromSlug = slugify(input.fromRegionSlug);
+  const toSlug = slugify(input.toRegionSlug);
+  if (!fromSlug || !toSlug) throw createError(400, 'Slug de região inválido.');
+  const fromRegion = await regionRepo.findOne({ where: { slug: fromSlug } });
+  const toRegion = await regionRepo.findOne({ where: { slug: toSlug } });
   if (!fromRegion || !toRegion) throw createError(404, 'Região origem/destino não encontrada.');
   if (fromRegion.id === toRegion.id) throw createError(400, 'Uma região não pode linkar para ela mesma.');
   const existing = await linkRepo.findOne({
@@ -314,12 +338,16 @@ export const updateRegionLink = async (
   const link = await linkRepo.findOne({ where: { id } });
   if (!link) throw createError(404, 'Link não encontrado.');
   if (input.fromRegionSlug) {
-    const from = await regionRepo.findOne({ where: { slug: slugify(input.fromRegionSlug) } });
+    const fromSlug = slugify(input.fromRegionSlug);
+    if (!fromSlug) throw createError(400, 'Slug de região origem inválido.');
+    const from = await regionRepo.findOne({ where: { slug: fromSlug } });
     if (!from) throw createError(404, 'Região origem não encontrada.');
     link.fromRegionId = from.id;
   }
   if (input.toRegionSlug) {
-    const to = await regionRepo.findOne({ where: { slug: slugify(input.toRegionSlug) } });
+    const toSlug = slugify(input.toRegionSlug);
+    if (!toSlug) throw createError(400, 'Slug de região destino inválido.');
+    const to = await regionRepo.findOne({ where: { slug: toSlug } });
     if (!to) throw createError(404, 'Região destino não encontrada.');
     link.toRegionId = to.id;
   }
@@ -338,6 +366,68 @@ export const deleteRegionLink = async (id: number) => {
   await linkRepo.remove(link);
 };
 
+export const saveRegionBackground = async (
+  slug: string,
+  input: { buffer: Buffer; contentType: string; originalName?: string | null }
+) => {
+  if (!isObjectStorageEnabled) {
+    throw createError(503, 'Armazenamento de objetos não está configurado.');
+  }
+
+  const normalized = slugify(slug);
+  if (!normalized) throw createError(400, 'Slug de região inválido.');
+
+  const region = await regionRepo.findOne({ where: { slug: normalized } });
+  if (!region) throw createError(404, 'Região não encontrada.');
+
+  const currentMetadata = (region.metadata ?? {}) as Record<string, any>;
+  const previousKey = currentMetadata?.mapBackground?.key as string | undefined;
+
+  const upload = await uploadBinaryObject(input.buffer, {
+    prefix: `map-backgrounds/${normalized}`,
+    contentType: input.contentType,
+    filename: input.originalName ?? undefined,
+  });
+
+  const record = {
+    key: upload.key,
+    url: upload.url,
+    contentType: upload.contentType,
+    originalName: input.originalName ?? null,
+    size: upload.size,
+    updatedAt: new Date().toISOString(),
+  };
+
+  region.metadata = {
+    ...currentMetadata,
+    mapBackground: record,
+  };
+
+  await regionRepo.save(region);
+
+  if (previousKey && previousKey !== record.key) {
+    await deleteObject(previousKey);
+  }
+
+  return record;
+};
+
+export const clearRegionBackground = async (slug: string) => {
+  const normalized = slugify(slug);
+  if (!normalized) throw createError(400, 'Slug de região inválido.');
+  const region = await regionRepo.findOne({ where: { slug: normalized } });
+  if (!region) throw createError(404, 'Região não encontrada.');
+
+  const currentMetadata = { ...(region.metadata ?? {}) } as Record<string, any>;
+  const previousKey = currentMetadata?.mapBackground?.key as string | undefined;
+  if (!currentMetadata.mapBackground) return;
+
+  delete currentMetadata.mapBackground;
+  region.metadata = Object.keys(currentMetadata).length ? currentMetadata : null;
+  await regionRepo.save(region);
+  await deleteObject(previousKey);
+};
+
 export const createPointOfInterest = async (input: {
   regionSlug: string;
   name: string;
@@ -349,9 +439,12 @@ export const createPointOfInterest = async (input: {
   isLocked?: boolean;
   allowAiExpansion?: boolean;
 }) => {
-  const region = await regionRepo.findOne({ where: { slug: slugify(input.regionSlug) } });
+  const regionSlug = slugify(input.regionSlug);
+  if (!regionSlug) throw createError(400, 'Slug de região inválido.');
+  const region = await regionRepo.findOne({ where: { slug: regionSlug } });
   if (!region) throw createError(404, 'Região não encontrada.');
   const slug = slugify(input.slug || input.name);
+  if (!slug) throw createError(400, 'Slug ou nome inválido para o POI.');
   const existing = await poiRepo.findOne({ where: { regionId: region.id, slug } });
   if (existing) throw createError(409, 'POI já existe nesta região.');
   const poi = poiRepo.create({
@@ -385,12 +478,15 @@ export const updatePointOfInterest = async (
   const poi = await poiRepo.findOne({ where: { id } });
   if (!poi) throw createError(404, 'Ponto de interesse não encontrado.');
   if (input.regionSlug) {
-    const region = await regionRepo.findOne({ where: { slug: slugify(input.regionSlug) } });
+    const regionSlug = slugify(input.regionSlug);
+    if (!regionSlug) throw createError(400, 'Slug de região inválido.');
+    const region = await regionRepo.findOne({ where: { slug: regionSlug } });
     if (!region) throw createError(404, 'Região destino não encontrada.');
     poi.regionId = region.id;
   }
   if (input.slug) {
     const slug = slugify(input.slug);
+    if (!slug) throw createError(400, 'Slug inválido para o POI.');
     const conflict = await poiRepo.findOne({ where: { regionId: poi.regionId, slug } });
     if (conflict && conflict.id !== poi.id) throw createError(409, 'Slug já usado para outro POI.');
     poi.slug = slug;
@@ -409,6 +505,46 @@ export const deletePointOfInterest = async (id: number) => {
   const poi = await poiRepo.findOne({ where: { id } });
   if (!poi) throw createError(404, 'Ponto de interesse não encontrado.');
   await poiRepo.remove(poi);
+};
+
+export const createSnapshot = async (label: string, authorId?: number | null) => {
+  const payload = await exportRegionGraph();
+  const snapshot = snapshotRepo.create({
+    label: label?.trim() || `Snapshot ${new Date().toISOString()}`,
+    authorId: authorId ?? null,
+    payload,
+  });
+  return snapshotRepo.save(snapshot);
+};
+
+export const listSnapshots = async () => {
+  return snapshotRepo.find({ order: { createdAt: 'DESC' } });
+};
+
+export const deleteSnapshot = async (id: number) => {
+  const result = await snapshotRepo.delete(id);
+  if (!result.affected) throw createError(404, 'Snapshot não encontrado.');
+};
+
+export const restoreSnapshot = async (id: number) => {
+  const snapshot = await snapshotRepo.findOne({ where: { id } });
+  if (!snapshot) throw createError(404, 'Snapshot não encontrado.');
+  await importRegionGraph(snapshot.payload as RegionGraphPayload, { clearExisting: true });
+};
+
+export const listPendingAutoPois = async () => {
+  const pois = await poiRepo.find({ relations: ['region'] });
+  return pois.filter(poi => poi.metadata?.autoCreated);
+};
+
+export const approveAutoPoi = async (poiId: number) => {
+  const poi = await poiRepo.findOne({ where: { id: poiId } });
+  if (!poi) throw createError(404, 'POI não encontrado.');
+  poi.metadata = {
+    ...(poi.metadata || {}),
+    autoCreated: false,
+  };
+  return poiRepo.save(poi);
 };
 
 const buildRegionPayload = (
@@ -489,7 +625,8 @@ export const resolveRegionByLabelOrSlug = async (label?: string | null) => {
 
 export const validateRegionTransition = async (
   previousLabelOrSlug?: string | null,
-  nextLabelOrSlug?: string
+  nextLabelOrSlug?: string,
+  options?: { worldState?: any }
 ): Promise<{ slug: string; name: string }> => {
   if (!nextLabelOrSlug) throw createError(400, 'Região alvo não informada.');
   const nextRegion = await resolveRegionByLabelOrSlug(nextLabelOrSlug);
@@ -506,6 +643,30 @@ export const validateRegionTransition = async (
       400,
       `Não há rota conhecida entre ${previousRegion.name} e ${nextRegion.name}.`
     );
+  }
+
+  const directLink = await findDirectLinkBetween(previousRegion.slug, nextRegion.slug);
+  if (directLink?.metadata) {
+    const requirements = directLink.metadata as Record<string, any>;
+    const worldState = options?.worldState ?? {};
+    const completedQuests = Array.isArray(worldState.completedQuests)
+      ? worldState.completedQuests
+      : [];
+    const unlockedFlags = Array.isArray(worldState.unlockedFlags)
+      ? worldState.unlockedFlags
+      : [];
+    if (requirements.requiredQuest && !completedQuests.includes(requirements.requiredQuest)) {
+      throw createError(
+        400,
+        `Você precisa concluir "${requirements.requiredQuest}" para acessar ${nextRegion.name}.`
+      );
+    }
+    if (requirements.requiredFlag && !unlockedFlags.includes(requirements.requiredFlag)) {
+      throw createError(
+        400,
+        `Você precisa desbloquear "${requirements.requiredFlag}" para acessar ${nextRegion.name}.`
+      );
+    }
   }
 
   return { slug: nextRegion.slug, name: nextRegion.name };
@@ -550,6 +711,18 @@ const buildAdjacencyMap = async () => {
   return adjacency;
 };
 
+const findDirectLinkBetween = async (fromSlug: string, toSlug: string) => {
+  return linkRepo
+    .createQueryBuilder('link')
+    .leftJoinAndSelect('link.fromRegion', 'fromRegion')
+    .leftJoinAndSelect('link.toRegion', 'toRegion')
+    .where('(fromRegion.slug = :from AND toRegion.slug = :to) OR (fromRegion.slug = :to AND toRegion.slug = :from)', {
+      from: fromSlug,
+      to: toSlug,
+    })
+    .getOne();
+};
+
 export const getPointOfInterestBySlug = async (regionSlug: string, poiSlug: string) => {
   if (!regionSlug || !poiSlug) return null;
   const region = await regionRepo.findOne({ where: { slug: slugify(regionSlug) } });
@@ -561,13 +734,61 @@ export const getPointOfInterestBySlug = async (regionSlug: string, poiSlug: stri
   return poi ?? null;
 };
 
+const AUTO_POI_LIMIT = 6;
+const AUTO_POI_MESSAGES = [
+  'Descoberto dinamicamente pela IA.',
+  'Local registrado durante a sessão.',
+  'POI criado automaticamente para continuidade narrativa.',
+];
+
+const autoCreatePoiIfAllowed = async (regionSlug: string, poiLabel: string | null | undefined) => {
+  if (!poiLabel || poiLabel.trim().length < 3) return null;
+  const normalizedRegionSlug = slugify(regionSlug);
+  const region = await regionRepo.findOne({
+    where: { slug: normalizedRegionSlug },
+    relations: ['pointsOfInterest'],
+  });
+  if (!region) return null;
+  const allowAi = region.metadata?.allowAiPois;
+  if (allowAi === false) return null;
+  const autoCreatedCount = (region.pointsOfInterest ?? []).filter(poi => poi.metadata?.autoCreated).length;
+  if (autoCreatedCount >= AUTO_POI_LIMIT) return null;
+  if (Math.random() > 0.35) return null;
+
+  const baseSlug = slugify(poiLabel);
+  let slugCandidate = baseSlug || `poi-${Date.now()}`;
+  let counter = 1;
+  while (await poiRepo.findOne({ where: { regionId: region.id, slug: slugCandidate } })) {
+    slugCandidate = `${baseSlug}-${counter++}`;
+  }
+
+  const summary =
+    AUTO_POI_MESSAGES[Math.floor(Math.random() * AUTO_POI_MESSAGES.length)] ||
+    'Local registrado dinamicamente pela IA.';
+
+  const entity = poiRepo.create({
+    regionId: region.id,
+    slug: slugCandidate,
+    name: poiLabel.trim(),
+    type: 'story',
+    summary,
+    metadata: { autoCreated: true, createdAt: new Date().toISOString() },
+    isLocked: false,
+    allowAiExpansion: true,
+  });
+  return poiRepo.save(entity);
+};
+
 export const validatePoiEntry = async (
   regionSlug: string | null | undefined,
   poiSlug: string | null | undefined
 ) => {
   if (!regionSlug) throw createError(400, 'Região atual desconhecida. Saia do local atual antes de viajar.');
   if (!poiSlug) throw createError(400, 'Ponto de interesse alvo não informado.');
-  const poi = await getPointOfInterestBySlug(regionSlug, poiSlug);
+  let poi = await getPointOfInterestBySlug(regionSlug, poiSlug);
+  if (!poi) {
+    poi = await autoCreatePoiIfAllowed(regionSlug, poiSlug);
+  }
   if (!poi) {
     throw createError(400, 'Esse ponto de interesse não pertence à região atual.');
   }
