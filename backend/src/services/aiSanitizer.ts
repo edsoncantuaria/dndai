@@ -64,6 +64,19 @@ const PROGRESSION_TYPE_ALIASES: Record<string, 'xp_gain' | 'level_up'> = {
     levelup: 'level_up',
     subir: 'level_up',
 };
+
+const canonicalSlug = (value?: string | null) => {
+    if (!value) return null;
+    return value
+        .toString()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80) || null;
+};
+
 const CURRENCY_ITEM_KEYS = new Set([
     'pp',
     'gp',
@@ -163,6 +176,103 @@ const ABILITY_KEYWORDS = new Set(
     'cha',
   ].map(keyword => keyword.toLowerCase())
 );
+
+const mergeTextField = (current?: string | null, addition?: string | null) => {
+    const next = (addition ?? '').trim();
+    if (!next) return current ?? null;
+    if (!current || !current.trim()) return next;
+    if (current.includes(next)) return current;
+    return `${current}\n${next}`.trim();
+};
+
+const sanitizeVisitedPoiEntry = (
+    entry: any,
+    fallbackRegionSlug?: string | null
+): { regionSlug: string; poiSlug: string; name?: string } | null => {
+    if (!entry) return null;
+    if (typeof entry === 'string') {
+        const poiSlug = canonicalSlug(entry);
+        if (!poiSlug) return null;
+        const regionSlug = canonicalSlug(fallbackRegionSlug) ?? null;
+        if (!regionSlug) return null;
+        return { regionSlug, poiSlug, name: entry };
+    }
+    const regionSlug = canonicalSlug(entry.regionSlug ?? fallbackRegionSlug ?? null);
+    const poiSlug = canonicalSlug(entry.poiSlug ?? entry.slug ?? entry.name ?? null);
+    if (!regionSlug || !poiSlug) return null;
+    return {
+        regionSlug,
+        poiSlug,
+        name: entry.name ?? entry.poiName ?? undefined,
+    };
+};
+
+const sanitizeWorldStatePayload = (worldState: any, fallbackRegionSlug?: string | null) => {
+    if (!worldState || typeof worldState !== 'object') return undefined;
+    const sanitized: any = {};
+
+    const assignString = (key: string, value: any, transform?: (value: string) => string | null) => {
+        if (typeof value !== 'string') return;
+        const trimmed = value.trim();
+        if (!trimmed) return;
+        const normalized = transform ? transform(trimmed) : trimmed;
+        if (!normalized) return;
+        sanitized[key] = normalized;
+    };
+
+    assignString('timeOfDay', worldState.timeOfDay);
+    assignString('weather', worldState.weather);
+    assignString('currentRegion', worldState.currentRegion);
+    const regionSlug =
+        canonicalSlug(worldState.regionSlug) || canonicalSlug(worldState.currentRegion) || canonicalSlug(fallbackRegionSlug) || null;
+    if (regionSlug) sanitized.regionSlug = regionSlug;
+    assignString('poiName', worldState.poiName);
+    const poiSlug = canonicalSlug(worldState.poiSlug ?? worldState.poiName ?? null);
+    if (poiSlug) sanitized.poiSlug = poiSlug;
+
+    if (Array.isArray(worldState.visitedRegions)) {
+        const regions = Array.from(
+            new Set(
+                worldState.visitedRegions
+                    .map((value: any) => (typeof value === 'string' ? canonicalSlug(value) : null))
+                    .filter(Boolean)
+            )
+        ) as string[];
+        if (regions.length) sanitized.visitedRegions = regions;
+    }
+
+    if (Array.isArray(worldState.visitedPois)) {
+        const pois = worldState.visitedPois
+            .map(entry => sanitizeVisitedPoiEntry(entry, regionSlug))
+            .filter(Boolean) as Array<{ regionSlug: string; poiSlug: string; name?: string }>;
+        if (poiSlug && regionSlug && !pois.some(poi => poi.regionSlug === regionSlug && poi.poiSlug === poiSlug)) {
+            pois.push({ regionSlug, poiSlug, name: sanitized.poiName });
+        }
+        if (pois.length) sanitized.visitedPois = pois;
+    } else if (poiSlug && regionSlug) {
+        sanitized.visitedPois = [{ regionSlug, poiSlug, name: sanitized.poiName }];
+    }
+
+    if (Array.isArray(worldState.npcLocations)) {
+        const locations = worldState.npcLocations
+            .map((entry: any) => {
+                if (!entry || typeof entry !== 'object') return null;
+                const npcId = canonicalSlug(entry.npcId ?? entry.name);
+                if (!npcId) return null;
+                return {
+                    npcId,
+                    name: entry.name ?? undefined,
+                    regionSlug: canonicalSlug(entry.regionSlug) ?? undefined,
+                    poiSlug: canonicalSlug(entry.poiSlug) ?? undefined,
+                    notes: typeof entry.notes === 'string' ? entry.notes : undefined,
+                };
+            })
+            .filter(Boolean);
+        if (locations.length) sanitized.npcLocations = locations;
+    }
+
+    return Object.keys(sanitized).length ? sanitized : undefined;
+};
 
 type CurrencyKey = 'pp' | 'gp' | 'ep' | 'sp' | 'cp';
 
@@ -1209,31 +1319,81 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
     }
 
     if (Array.isArray((sanitized.updatedCharacter as any).relationships)) {
-        (sanitized.updatedCharacter as any).relationships = (sanitized.updatedCharacter as any).relationships.map((rel: any) => {
-            if (!rel || typeof rel !== 'object') return null;
-            const normalized: any = { ...rel };
-            if (!normalized.npcId && normalized.name) {
-                normalized.npcId = normalized.name.toLowerCase().replace(/\s+/g, '_');
-            }
-            if (typeof normalized.status === 'string') {
-                const statusValue = normalized.status.toLowerCase().trim();
-                if (!VALID_RELATIONSHIP_STATUSES.has(statusValue)) {
-                    const note = normalized.status;
-                    normalized.status = 'neutral';
-                    if (note) {
-                        normalized.description = normalized.description
-                            ? `${normalized.description}\n${note}`.trim()
-                            : note;
+        const dedupMap = new Map<string, any>();
+        (sanitized.updatedCharacter as any).relationships
+            .map((rel: any) => {
+                if (!rel || typeof rel !== 'object') return null;
+                const normalized: any = { ...rel };
+                const slug =
+                    canonicalSlug(normalized.npcId) ||
+                    canonicalSlug(normalized.name) ||
+                    null;
+                if (!slug) return null;
+                normalized.npcId = slug;
+                normalized.regionSlug = canonicalSlug(normalized.regionSlug);
+                normalized.poiSlug = canonicalSlug(normalized.poiSlug);
+                if (typeof normalized.status === 'string') {
+                    const statusValue = normalized.status.toLowerCase().trim();
+                    if (!VALID_RELATIONSHIP_STATUSES.has(statusValue)) {
+                        const note = normalized.status;
+                        normalized.status = 'neutral';
+                        normalized.description = mergeTextField(normalized.description, note);
+                        sanitationLogs.push(
+                            `Relacionamento "${normalized.name || normalized.npcId}" teve status inválido e foi normalizado para 'neutral'.`
+                        );
+                    } else {
+                        normalized.status = statusValue;
                     }
-                    sanitationLogs.push(`Relacionamento "${normalized.name || normalized.npcId}" teve status inválido e foi normalizado para 'neutral'.`);
-                } else {
-                    normalized.status = statusValue;
+                } else if (!normalized.status) {
+                    normalized.status = 'neutral';
                 }
-            } else if (!normalized.status) {
-                normalized.status = 'neutral';
-            }
-            return normalized;
-        }).filter(Boolean);
+                if (normalized.locationNotes && typeof normalized.locationNotes !== 'object') {
+                    normalized.locationNotes = { note: String(normalized.locationNotes) };
+                }
+                return normalized;
+            })
+            .filter(Boolean)
+            .forEach((rel: any) => {
+                const key = rel.npcId;
+                if (!key) return;
+                const existing = dedupMap.get(key);
+                if (!existing) {
+                    dedupMap.set(key, rel);
+                    return;
+                }
+                existing.name = existing.name || rel.name;
+                existing.description = mergeTextField(existing.description, rel.description);
+                existing.status = rel.status || existing.status;
+                if (typeof rel.affinity === 'number') existing.affinity = rel.affinity;
+                existing.regionSlug = rel.regionSlug ?? existing.regionSlug;
+                existing.poiSlug = rel.poiSlug ?? existing.poiSlug;
+                if (rel.locationNotes) {
+                    existing.locationNotes = { ...(existing.locationNotes ?? {}), ...rel.locationNotes };
+                }
+            });
+
+        (sanitized.updatedCharacter as any).relationships = Array.from(dedupMap.values());
+    }
+
+    if ((sanitized.updatedCharacter as any).worldState) {
+        const sanitizedWorldState = sanitizeWorldStatePayload(
+            (sanitized.updatedCharacter as any).worldState,
+            canonicalSlug((sanitized.updatedCharacter as any).worldState?.regionSlug ?? (sanitized.updatedCharacter as any).worldState?.currentRegion)
+        );
+        if (sanitizedWorldState) {
+            (sanitized.updatedCharacter as any).worldState = sanitizedWorldState;
+        } else {
+            delete (sanitized.updatedCharacter as any).worldState;
+        }
+    }
+  }
+
+  if ((sanitized as any).worldState) {
+    const sanitizedWorldState = sanitizeWorldStatePayload((sanitized as any).worldState);
+    if (sanitizedWorldState) {
+        (sanitized as any).worldState = sanitizedWorldState;
+    } else {
+        delete (sanitized as any).worldState;
     }
   }
 

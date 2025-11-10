@@ -38,10 +38,22 @@ type ScenarioValidationRules = {
   enforceRegionContinuity?: boolean;
   enforceTimeContinuity?: boolean;
   enforceNpcContinuity?: boolean;
+  requireMapPrompt?: boolean;
+  expectedVisitedRegions?: string[];
+  expectedPoiSlug?: string;
+  expectRouteTravel?: { from: string; to: string };
+  requireEncounterRoll?: boolean;
+  requireSpawnPersistence?: boolean;
+  questKeywords?: string[];
+  expectedWeather?: string;
+  expectedRegionStrict?: boolean;
+  forbiddenVisitedRegions?: string[];
+  expectRouteBlocked?: { from: string; to: string; requirement?: string };
 };
 
 type ScenarioDefinition = {
   label: string;
+  prepare?: (state: CampaignRuntimeState) => void;
   setupInput: (state: CampaignRuntimeState) => GameMasterFlowInput;
   expectations: ScenarioValidationRules;
   generationConfig?: GenerationConfig;
@@ -76,7 +88,15 @@ type CampaignSnapshot = {
   xp: number;
   level: number;
   spellbook: string[];
-  worldState: { currentRegion?: string; timeOfDay?: string; weather?: string };
+  worldState: {
+    currentRegion?: string;
+    regionSlug?: string;
+    timeOfDay?: string;
+    weather?: string;
+    poiSlug?: string;
+    visitedRegions?: string[];
+    visitedPois?: Array<{ regionSlug: string; poiSlug: string; name?: string }>;
+  };
   gameDay?: number;
   gameHour?: number;
   relationships: string[];
@@ -134,6 +154,11 @@ const slugify = (text: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 32);
+
+const canonicalSlugValue = (text?: string | null) => {
+  if (!text) return '';
+  return slugify(text.toString());
+};
 
 const toNumber = (value: any): number => {
   const parsed = Number(value);
@@ -205,6 +230,102 @@ const hasTravelPath = (graph: RegionGraph, fromSlug?: string, toSlug?: string) =
   return false;
 };
 
+const ensureRegionState = (
+  state: CampaignRuntimeState,
+  regionSlug: string,
+  options?: { currentRegionName?: string; poiSlug?: string | null }
+) => {
+  const worldState = state.character?.worldState ?? {};
+  const visited = new Set<string>(
+    Array.isArray(worldState.visitedRegions) ? worldState.visitedRegions.map(String) : []
+  );
+  if (regionSlug) visited.add(regionSlug);
+  state.character.worldState = {
+    ...worldState,
+    currentRegion: options?.currentRegionName ?? worldState.currentRegion ?? regionSlug,
+    regionSlug,
+    poiSlug: options?.poiSlug ?? null,
+    visitedRegions: Array.from(visited),
+    visitedPois: Array.isArray(worldState.visitedPois) ? worldState.visitedPois : [],
+  };
+};
+
+const normalizeVisitedPoiEntry = (
+  entry: any,
+  fallbackRegionSlug?: string
+): { regionSlug: string; poiSlug: string; name?: string } | null => {
+  if (!entry) return null;
+  if (typeof entry === 'string') {
+    const poiSlug = canonicalSlugValue(entry);
+    if (!poiSlug || !fallbackRegionSlug) return null;
+    return { regionSlug: fallbackRegionSlug, poiSlug, name: entry };
+  }
+  const regionSlug = canonicalSlugValue(entry.regionSlug ?? fallbackRegionSlug ?? null);
+  const poiSlug = canonicalSlugValue(entry.poiSlug ?? entry.slug ?? entry.name ?? null);
+  if (!regionSlug || !poiSlug) return null;
+  return {
+    regionSlug,
+    poiSlug,
+    name: entry.name ?? entry.poiName ?? entry.displayName ?? undefined,
+  };
+};
+
+const normalizeWorldStateForGraph = (state: CampaignRuntimeState, regionGraph: RegionGraph) => {
+  if (!state.character) return;
+  const worldState = (state.character.worldState ?? {}) as Record<string, any>;
+  const resolvedSlug =
+    canonicalSlugValue(worldState.regionSlug) ||
+    resolveRegionSlug(regionGraph, worldState.currentRegion);
+  if (resolvedSlug) {
+    worldState.regionSlug = resolvedSlug;
+    if (!worldState.currentRegion) {
+      const node = regionGraph.get(resolvedSlug);
+      if (node) worldState.currentRegion = node.name;
+    }
+  }
+
+  const visitedRegions = new Set<string>();
+  if (Array.isArray(worldState.visitedRegions)) {
+    worldState.visitedRegions.forEach((entry: any) => {
+      const slug = canonicalSlugValue(entry);
+      if (slug) visitedRegions.add(slug);
+    });
+  }
+  if (resolvedSlug) visitedRegions.add(resolvedSlug);
+  worldState.visitedRegions = Array.from(visitedRegions);
+
+  const activePoiSlug =
+    canonicalSlugValue(worldState.poiSlug) || canonicalSlugValue(worldState.poiName);
+  if (activePoiSlug) {
+    worldState.poiSlug = activePoiSlug;
+  }
+
+  const normalizedPois: Array<{ regionSlug: string; poiSlug: string; name?: string }> = [];
+  if (Array.isArray(worldState.visitedPois)) {
+    worldState.visitedPois.forEach(entry => {
+      const normalized = normalizeVisitedPoiEntry(entry, resolvedSlug);
+      if (!normalized) return;
+      const key = `${normalized.regionSlug}:${normalized.poiSlug}`;
+      if (!normalizedPois.some(poi => `${poi.regionSlug}:${poi.poiSlug}` === key)) {
+        normalizedPois.push(normalized);
+      }
+    });
+  }
+  if (activePoiSlug && resolvedSlug) {
+    const key = `${resolvedSlug}:${activePoiSlug}`;
+    if (!normalizedPois.some(poi => `${poi.regionSlug}:${poi.poiSlug}` === key)) {
+      normalizedPois.push({
+        regionSlug: resolvedSlug,
+        poiSlug: activePoiSlug,
+        name: worldState.poiName ?? undefined,
+      });
+    }
+  }
+  worldState.visitedPois = normalizedPois;
+
+  state.character.worldState = worldState;
+};
+
 const buildRegionGraphSummaryForPrompt = (
   regionSlug: string,
   state: CampaignRuntimeState,
@@ -247,15 +368,17 @@ const buildRegionGraphSummaryForPrompt = (
         .join(', ')
     : null;
 
-  return [
+  const lines = [
     header,
     activePoiLine,
     `Rotas conhecidas: ${neighborLine}`,
     visitedRegions ? `Regiões visitadas: ${visitedRegions}` : null,
     visitedPois ? `POIs descobertos: ${visitedPois}` : null,
-  ]
-    .filter(Boolean)
-    .join('\n');
+  ].filter(Boolean) as string[];
+
+  const uniqueOrderedLines = lines.filter((line, index) => lines.indexOf(line) === index);
+
+  return uniqueOrderedLines.join('\n');
 };
 
 const injectRegionContextIntoInput = (
@@ -356,20 +479,42 @@ const run = async () => {
   const memoryBank = await loadMemoryBank();
   const regionGraph = await loadRegionGraph();
   const scenarios = buildScenarioDefinitions();
-  const persistedCharacter = await loadCharacterMirror();
-  const campaignState = buildInitialCampaignState(persistedCharacter ?? createBaseCharacter());
-  let combatMirror = await loadCombatMirror();
-  campaignState.combatState = combatMirror ? clone(combatMirror) : null;
+  const campaignState = buildInitialCampaignState(createBaseCharacter());
+  let combatMirror: any | null = null;
+  campaignState.combatState = null;
+
+  const baseWorldState = {
+    ...(campaignState.character.worldState ?? {}),
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+  };
+  campaignState.character.worldState = baseWorldState;
+  campaignState.character.worldState.visitedRegions = ['biblioteca-arcana'];
+  campaignState.character.worldState.visitedPois = [];
+  ensureRegionState(campaignState, 'biblioteca-arcana', {
+    currentRegionName: 'Biblioteca Arcana',
+    poiSlug: null,
+  });
+
   await saveCharacterMirror(campaignState.character);
   await saveCombatMirror(combatMirror);
   const issues: TestIssue[] = [];
 
   for (const scenario of scenarios) {
+    scenario.prepare?.(campaignState);
     console.log(`\n[structured-output:test4] Executando cenário completo: ${scenario.label}`);
     const prevSnapshot = snapshotState(campaignState);
     const memoryMeta = memoryBank.get(scenario.label);
     const rawInput = scenario.setupInput(campaignState);
     const input = injectRegionContextIntoInput(rawInput, campaignState, regionGraph);
+    const scenarioPreIssues: TestIssue[] = [];
+    if (scenario.expectations.requireMapPrompt && !input.regionGraphSummary) {
+      scenarioPreIssues.push({
+        label: scenario.label,
+        issue: 'map_prompt_ausente',
+        details: 'regionGraphSummary não foi incluído no prompt.',
+      });
+    }
 
     try {
       const result = await getGameUpdate(
@@ -398,11 +543,13 @@ const run = async () => {
       siphonCoinItemsIntoCurrency(enrichedResponse);
 
       updateCampaignState(campaignState, enrichedResponse);
+      normalizeWorldStateForGraph(campaignState, regionGraph);
       const updatedSnapshot = snapshotState(campaignState);
+      const mergedExpectations = { ...DEFAULT_EXPECTATIONS, ...scenario.expectations };
       const scenarioIssues = validateResponse(
         scenario.label,
         enrichedResponse,
-        { ...DEFAULT_EXPECTATIONS, ...scenario.expectations },
+        mergedExpectations,
         memoryMeta,
         prevSnapshot,
         updatedSnapshot,
@@ -410,8 +557,9 @@ const run = async () => {
         regionGraph
       );
 
-      summarizeScenario(enrichedResponse, scenario.label, scenarioIssues);
-      issues.push(...scenarioIssues);
+      const combinedIssues = scenarioPreIssues.concat(scenarioIssues);
+      summarizeScenario(enrichedResponse, scenario.label, combinedIssues);
+      issues.push(...combinedIssues);
 
       combatMirror = mergedCombatState ? clone(mergedCombatState) : null;
       await Promise.all([
@@ -430,7 +578,7 @@ const run = async () => {
         issue: 'execucao_falhou',
         details: String(error),
       };
-      issues.push(issue);
+      issues.push(issue, ...scenarioPreIssues);
       console.error(`[structured-output:test4] Erro no cenário "${scenario.label}":`, error);
     }
   }
@@ -455,16 +603,6 @@ async function loadMemoryBank() {
   }
 }
 
-async function loadCharacterMirror() {
-  try {
-    const raw = await fs.readFile(CHARACTER_MIRROR_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    return parsed.character;
-  } catch {
-    return null;
-  }
-}
-
 async function saveCharacterMirror(character: any) {
   await fs.mkdir(path.dirname(CHARACTER_MIRROR_PATH), { recursive: true });
   await fs.writeFile(
@@ -472,16 +610,6 @@ async function saveCharacterMirror(character: any) {
     JSON.stringify({ character }, null, 2),
     'utf8'
   );
-}
-
-async function loadCombatMirror() {
-  try {
-    const raw = await fs.readFile(COMBAT_MIRROR_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    return parsed.combatState ?? null;
-  } catch {
-    return null;
-  }
 }
 
 async function saveCombatMirror(combatState: any) {
@@ -626,7 +754,7 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
       expectations: {
         requireLoot: true,
         inventoryMustChange: true,
-        inventoryAddKeywords: ['pergaminho', 'colar', 'relíquia'],
+        inventoryAddKeywords: ['pergaminho', 'colar', 'relíquia', 'orbe', 'diário', 'chave'],
         expectedCurrencyGain: 10,
         storyKeywords: ['baú', 'relíquias', 'ritual'],
         expectedRegion: 'biblioteca-arcana',
@@ -720,6 +848,160 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
         requiredNpcs: ['Golem Vigia', 'Borin Stonehand'],
       },
     },
+    {
+      label: 'Capítulo 9 - Cartografia em Aço-Luz',
+      prepare: state => {
+        ensureRegionState(state, 'cidadela-do-aco-luz', { currentRegionName: 'Cidadela do Aço-Luz', poiSlug: null });
+      },
+      setupInput: state => ({
+        character: clone(state.character),
+        playerAction:
+          'No Fórum Prismático da Cidadela do Aço-Luz, atualizo o mapa compartilhado registrando spawn, rotas e o interior da Taverna Dragão Azul. ' +
+          'Descreva o POI como se estivéssemos lá dentro, com salas, funcionários e ganchos de missão, marcando-o como visitado.',
+        gameLog:
+          'SISTEMA: Os mediadores prismáticos pedem um relatório da incursão na biblioteca.\n' +
+          'JOGADOR: Apresento o mapa atualizado e entro na Taverna Dragão Azul para colher novos rumores.',
+        mode: 'gameplay',
+        useAiHomebrew: false,
+        enableNarrativeRevalidation: true,
+        scenarioLabel: 'Capítulo 9 - Cartografia em Aço-Luz',
+      }),
+      expectations: {
+        storyKeywords: ['mapa', 'taverna', 'cartografia'],
+        requireMapPrompt: true,
+        expectedRegion: 'cidadela-do-aco-luz',
+        expectedPoiSlug: 'taverna-dragao-azul',
+        expectedVisitedRegions: ['cidadela-do-aco-luz'],
+        requireSpawnPersistence: true,
+        requiredNpcs: ['Borin Stonehand'],
+        questKeywords: ['rumor'],
+      },
+    },
+    {
+      label: 'Capítulo 10 - Travessia Constelada',
+      prepare: state => {
+        ensureRegionState(state, 'cidadela-do-aco-luz', { currentRegionName: 'Cidadela do Aço-Luz', poiSlug: null });
+      },
+      setupInput: state => ({
+        character: clone(state.character),
+        playerAction:
+          'Deixo a Cidadela do Aço-Luz rumo à Selva de Ashari pela Trilha das Constelações. ' +
+          'A cada marco, role 1d20 para encontros aleatórios (tabela: 1-3 patrulha inimiga, 4-5 fenômeno arcano, demais seguro) e registre o resultado. ' +
+          'Ao chegar, detalhe o acampamento e as rotas recém-descobertas.',
+        gameLog:
+          'SISTEMA: A trilha se estende por vales prateados até a selva luminescente.\n' +
+          'JOGADOR: Avanço marcando a rota no mapa e verificando encontros a cada dois marcos.',
+        mode: 'gameplay',
+        useAiHomebrew: false,
+        enableNarrativeRevalidation: true,
+        scenarioLabel: 'Capítulo 10 - Travessia Constelada',
+      }),
+      expectations: {
+        requireRoll: false,
+        requireEncounterRoll: true,
+        requireMapPrompt: true,
+        expectedRegion: 'selva-de-ashari',
+        expectedVisitedRegions: ['selva-de-ashari'],
+        expectRouteTravel: { from: 'cidadela-do-aco-luz', to: 'selva-de-ashari' },
+        storyKeywords: ['trilha', 'selva', 'encontro'],
+        questKeywords: ['rota'],
+      },
+    },
+    {
+      label: 'Capítulo 11 - Vigília Obsidiana',
+      prepare: state => {
+        ensureRegionState(state, 'cidadela-do-aco-luz', { currentRegionName: 'Cidadela do Aço-Luz', poiSlug: null });
+        const worldState = state.character.worldState ?? {};
+        worldState.completedQuests = Array.isArray(worldState.completedQuests)
+          ? worldState.completedQuests.filter((quest: string) => quest !== 'vigilia-obsidiana')
+          : [];
+        state.character.worldState = worldState;
+      },
+      setupInput: state => ({
+        character: clone(state.character),
+        playerAction:
+          'Tento sair da Cidadela do Aço-Luz rumo ao Covil Obsidiano, mas sei que os portões exigem a conclusão da Vigília Obsidiana. ' +
+          'Descreva a barreira, explique o requisito e registre no mapa que a rota permanece bloqueada até completar essa quest.',
+        gameLog:
+          'SISTEMA: Os guardas prismáticos cruzam as lanças ao ouvir seu pedido para acessar o Covil Obsidiano.\n' +
+          'JOGADOR: Pergunto sobre o requisito da Vigília Obsidiana e anoto a restrição.',
+        mode: 'gameplay',
+        useAiHomebrew: false,
+        enableNarrativeRevalidation: true,
+        scenarioLabel: 'Capítulo 11 - Vigília Obsidiana',
+      }),
+      expectations: {
+        requireMapPrompt: true,
+        expectedRegion: 'cidadela-do-aco-luz',
+        expectedRegionStrict: true,
+        expectedVisitedRegions: ['cidadela-do-aco-luz'],
+        forbiddenVisitedRegions: ['covil-obsidiano'],
+        expectRouteBlocked: {
+          from: 'cidadela-do-aco-luz',
+          to: 'covil-obsidiano',
+          requirement: 'vigilia-obsidiana',
+        },
+        storyKeywords: ['vigília', 'covil'],
+        questKeywords: ['vigília obsidiana'],
+      },
+    },
+    {
+      label: 'Capítulo 12 - Santuário Luarino',
+      prepare: state => {
+        ensureRegionState(state, 'selva-de-ashari', { currentRegionName: 'Selva de Ashari', poiSlug: null });
+      },
+      setupInput: state => ({
+        character: clone(state.character),
+        playerAction:
+          'Dentro da Selva de Ashari, descubro um novo santuário escondido chamado "Santuário da Lua Esmeralda". ' +
+          'Registre-o como um novo POI oficial, marque como auto criado pela IA e vincule como sublocal visitado.',
+        gameLog:
+          'SISTEMA: As lianas bioluminescentes formam um arco estreito, revelando um recinto lunar silencioso.\n' +
+          'JOGADOR: Catalogo o Santuário da Lua Esmeralda no mapa compartilhado.',
+        mode: 'gameplay',
+        useAiHomebrew: false,
+        enableNarrativeRevalidation: true,
+        scenarioLabel: 'Capítulo 12 - Santuário Luarino',
+      }),
+      expectations: {
+        requireMapPrompt: true,
+        expectedRegion: 'selva-de-ashari',
+        expectedVisitedRegions: ['selva-de-ashari'],
+        expectedPoiSlug: 'santuario-da-lua-esmeralda',
+        storyKeywords: ['santuário', 'lua'],
+      },
+    },
+    {
+      label: 'Capítulo 13 - Vigília das Monções',
+      prepare: state => {
+        ensureRegionState(state, 'selva-de-ashari', { currentRegionName: 'Selva de Ashari', poiSlug: null });
+      },
+      setupInput: state => ({
+        character: clone(state.character),
+        playerAction:
+          'Viajo da Selva de Ashari até as Selvas de Myr durante uma noite chuvosa. ' +
+          'Descreva o clima tempestuoso, avance o horário para a noite e solicite uma rolagem de encontro a cada trecho.',
+        gameLog:
+          'SISTEMA: Nuvens carregadas se acumulam sobre a Trilha das Constelações.\n' +
+          'JOGADOR: Registro a monção noturna e verifico encontros ao longo do caminho.',
+        mode: 'gameplay',
+        useAiHomebrew: false,
+        enableNarrativeRevalidation: true,
+        scenarioLabel: 'Capítulo 13 - Vigília das Monções',
+      }),
+      expectations: {
+        requireRoll: true,
+        requireEncounterRoll: true,
+        requireMapPrompt: true,
+        expectedRegion: 'selvas-de-myr',
+        expectedRegionStrict: true,
+        expectedVisitedRegions: ['selvas-de-myr'],
+        expectRouteTravel: { from: 'selva-de-ashari', to: 'selvas-de-myr' },
+        expectedTimeOfDay: 'Noite',
+        expectedWeather: 'Chuva',
+        storyKeywords: ['chuva', 'noite'],
+      },
+    },
   ];
 }
 
@@ -745,6 +1027,18 @@ function snapshotState(state: CampaignRuntimeState): CampaignSnapshot {
         .map((rel: any) => rel?.name)
         .filter((name: any): name is string => Boolean(name))
     : [];
+  const visitedRegions = Array.isArray(worldState.visitedRegions)
+    ? [...worldState.visitedRegions]
+    : [];
+  const visitedPois = Array.isArray(worldState.visitedPois)
+    ? worldState.visitedPois
+        .map((poi: any) => ({
+          regionSlug: poi?.regionSlug ?? poi?.region ?? undefined,
+          poiSlug: poi?.poiSlug ?? poi?.slug ?? undefined,
+          name: poi?.name ?? undefined,
+        }))
+        .filter(poi => poi.regionSlug && poi.poiSlug)
+    : [];
   return {
     inventorySnapshot: { ...state.inventorySnapshot },
     currencyGp: state.currencyGp,
@@ -752,9 +1046,13 @@ function snapshotState(state: CampaignRuntimeState): CampaignSnapshot {
     level: state.level,
     spellbook: Array.from(new Set((state.character?.spells ?? []).map(String))),
     worldState: {
-      currentRegion: worldState.currentRegion,
+      currentRegion: worldState.currentRegion ?? worldState.regionSlug,
+      regionSlug: worldState.regionSlug,
       timeOfDay: worldState.timeOfDay,
       weather: worldState.weather,
+      poiSlug: worldState.poiSlug,
+      visitedRegions,
+      visitedPois,
     },
     gameDay: state.gameClock.day,
     gameHour: state.gameClock.hour,
@@ -765,10 +1063,22 @@ function snapshotState(state: CampaignRuntimeState): CampaignSnapshot {
 
 function updateCampaignState(state: CampaignRuntimeState, response: any) {
   if (response?.updatedCharacter) {
+    const previousCurrency =
+      state.character?.currency && typeof state.character.currency === 'object'
+        ? { ...state.character.currency }
+        : null;
     const nextCharacter = {
       ...state.character,
       ...response.updatedCharacter,
     };
+    const currencyDelta = toNumber(response?.__currencyDelta);
+    if (currencyDelta) {
+      const mergedCurrency = previousCurrency ? { ...previousCurrency } : {};
+      mergedCurrency.gp = toNumber(mergedCurrency.gp) + currencyDelta;
+      nextCharacter.currency = mergedCurrency;
+      response.__currencyDeltaHint = currencyDelta;
+      delete response.__currencyDelta;
+    }
     const resolvedWorldState =
       response.updatedCharacter?.worldState ?? response.worldState;
     if (resolvedWorldState) {
@@ -830,13 +1140,35 @@ function validateResponse(
 ): TestIssue[] {
   const detected: TestIssue[] = [];
   const addIssue = (issue: string, details?: string) => detected.push({ label, issue, details });
-  const combinedNarrative = [
+  const narrativeChunks = [
     response?.memoryContext?.summary ?? '',
     ...(response?.logEntries?.map((entry: any) => entry?.content ?? '') ?? []),
     response?.playerRollRequest?.reason ?? '',
-  ]
-    .join(' ')
-    .toLowerCase();
+  ];
+  if (Array.isArray(response?.actionOptions)) {
+    response.actionOptions.forEach((option: any) => {
+      const text =
+        typeof option === 'string'
+          ? option
+          : typeof option === 'object' && option !== null
+          ? option.text ?? option.description ?? ''
+          : '';
+      if (text) narrativeChunks.push(text);
+    });
+  }
+  const rawNarrative = narrativeChunks.join(' ');
+  const combinedNarrative = rawNarrative.toLowerCase();
+  const normalizedNarrative = normalizePlainText(rawNarrative);
+  const canonical = (value?: string | null) => {
+    const normalized = canonicalSlugValue(value ?? undefined);
+    return normalized || undefined;
+  };
+  const currentVisitedSet = new Set(
+    (current.worldState?.visitedRegions ?? []).map(value => canonical(value)).filter(Boolean) as string[]
+  );
+  const previousVisitedSet = new Set(
+    (prev.worldState?.visitedRegions ?? []).map(value => canonical(value)).filter(Boolean) as string[]
+  );
 
   if (expectations.requireMemory) {
     const summary = response?.memoryContext?.summary ?? '';
@@ -883,10 +1215,28 @@ function validateResponse(
   }
 
   if (expectations.requireRest) {
-    const hasRest = Boolean(response?.useHitDiceRequest) ||
-      /descanso curto|dados de vida/.test(
-        response?.playerRollRequest?.reason?.toLowerCase?.() ?? ''
-      );
+    const restReason = response?.playerRollRequest?.reason?.toLowerCase?.() ?? '';
+    const logIndicatesRest =
+      Array.isArray(response?.logEntries) &&
+      response.logEntries.some((entry: any) => {
+        const type = String(entry?.type ?? '').toLowerCase();
+        const content = String(entry?.content ?? '').toLowerCase();
+        const rollReason = entry?.rollResult?.reason?.toLowerCase?.() ?? '';
+        const diceExpr = entry?.rollResult?.dice?.toLowerCase?.() ?? '';
+        if (type === 'roll' || type === 'rollresult' || type === 'system' || type === 'narration') {
+          return (
+            content.includes('descanso curto') ||
+            content.includes('dados de vida') ||
+            rollReason.includes('dado de vida') ||
+            diceExpr.includes('d8') && content.includes('resto')
+          );
+        }
+        return false;
+      });
+    const hasRest =
+      Boolean(response?.useHitDiceRequest) ||
+      /descanso curto|dados de vida|hit dice/.test(restReason) ||
+      logIndicatesRest;
     if (!hasRest) addIssue('descanso_sem_hitdice');
   }
 
@@ -960,7 +1310,14 @@ function validateResponse(
   );
 
   if (expectations.expectedCurrencyGain !== undefined) {
-    if (current.currencyGp - prev.currencyGp < expectations.expectedCurrencyGain) {
+    const currencyDeltaHint = toNumber(response?.__currencyDeltaHint);
+    const responseCurrency = convertCurrencyToGp(response?.updatedCharacter?.currency);
+    const effectiveCurrencyGain = Math.max(
+      current.currencyGp - prev.currencyGp,
+      currencyDeltaHint,
+      responseCurrency
+    );
+    if (effectiveCurrencyGain < expectations.expectedCurrencyGain) {
       addIssue('moeda_insuficiente', `Esperado ganho >= ${expectations.expectedCurrencyGain}`);
     }
   }
@@ -987,26 +1344,59 @@ function validateResponse(
     );
     if (!matchedStory) addIssue('historia_incoerente', 'Palavras-chave não apareceram na narrativa');
   }
+  if (expectations.questKeywords?.length) {
+    expectations.questKeywords.forEach(keyword => {
+      if (!keyword) return;
+      const normalizedKeyword = normalizePlainText(keyword);
+      if (!normalizedKeyword) return;
+      if (!normalizedNarrative.includes(normalizedKeyword)) {
+        addIssue('quest_keyword_ausente', `Narrativa não mencionou "${keyword}".`);
+      }
+    });
+  }
 
-  const currentRegionSlug = resolveRegionSlug(regionGraph, current.worldState?.currentRegion);
-  const previousRegionSlug = resolveRegionSlug(regionGraph, prev.worldState?.currentRegion);
-  const expectedRegion = expectations.expectedRegion;
+  const currentRegionSlug =
+    canonical(current.worldState?.regionSlug) ??
+    canonical(resolveRegionSlug(regionGraph, current.worldState?.currentRegion));
+  const previousRegionSlug =
+    canonical(prev.worldState?.regionSlug) ??
+    canonical(resolveRegionSlug(regionGraph, prev.worldState?.currentRegion));
+  const effectiveVisitedRegions = new Set(currentVisitedSet);
+  if (currentRegionSlug) effectiveVisitedRegions.add(currentRegionSlug);
+  const expectedRegion = canonical(expectations.expectedRegion);
   if (!currentRegionSlug) {
     addIssue('regiao_indefinida', 'Região atual não foi informada ou não existe no mapa.');
-  } else if (
-    expectedRegion &&
-    !isDescendantOrSame(regionGraph, currentRegionSlug, expectedRegion)
-  ) {
-    addIssue('regiao_incoerente', `Esperado permanecer próximo de "${expectations.expectedRegion}".`);
-  } else if (
-    !expectedRegion &&
-    expectations.enforceRegionContinuity !== false &&
-    previousRegionSlug &&
-    currentRegionSlug !== previousRegionSlug &&
-    !hasTravelPath(regionGraph, previousRegionSlug, currentRegionSlug)
-  ) {
-    addIssue('regiao_incoerente', 'Mudança de região sem rota conhecida.');
+  } else {
+    if (
+      expectedRegion &&
+      !isDescendantOrSame(regionGraph, currentRegionSlug, expectedRegion)
+    ) {
+      addIssue('regiao_incoerente', `Esperado permanecer próximo de "${expectations.expectedRegion}".`);
+    }
+    if (
+      expectedRegion &&
+      expectations.expectedRegionStrict &&
+      currentRegionSlug !== expectedRegion
+    ) {
+      addIssue('regiao_destino_incorreta', `Permaneça exatamente em "${expectations.expectedRegion}".`);
+    }
+    if (
+      !expectedRegion &&
+      expectations.enforceRegionContinuity !== false &&
+      previousRegionSlug &&
+      currentRegionSlug !== previousRegionSlug &&
+      !hasTravelPath(regionGraph, previousRegionSlug, currentRegionSlug)
+    ) {
+      addIssue('regiao_incoerente', 'Mudança de região sem rota conhecida.');
+    }
   }
+
+  const currentDay = current.gameDay ?? prev.gameDay ?? 0;
+  const previousDay = prev.gameDay ?? currentDay;
+  const currentHour = current.gameHour ?? prev.gameHour ?? 0;
+  const previousHour = prev.gameHour ?? currentHour;
+  const clockAdvanced =
+    currentDay > previousDay || (currentDay === previousDay && currentHour > previousHour);
 
   const currentTimeBucket = normalizeTimeBucket(current.worldState?.timeOfDay);
   const previousTimeBucket = normalizeTimeBucket(prev.worldState?.timeOfDay);
@@ -1015,14 +1405,26 @@ function validateResponse(
     addIssue('tempo_indefinido', 'Período do dia não foi informado.');
   } else if (expectedTimeBucket && currentTimeBucket !== expectedTimeBucket) {
     addIssue('tempo_incoerente', `Esperado período "${expectations.expectedTimeOfDay}".`);
-  } else if (!expectedTimeBucket && expectations.enforceTimeContinuity !== false && previousTimeBucket && currentTimeBucket !== previousTimeBucket) {
+  } else if (
+    !expectedTimeBucket &&
+    expectations.enforceTimeContinuity !== false &&
+    previousTimeBucket &&
+    currentTimeBucket !== previousTimeBucket &&
+    !clockAdvanced
+  ) {
     addIssue('tempo_incoerente', 'Período do dia mudou sem registro.');
   }
 
-  const currentDay = current.gameDay ?? prev.gameDay ?? 0;
-  const previousDay = prev.gameDay ?? currentDay;
-  const currentHour = current.gameHour ?? prev.gameHour ?? 0;
-  const previousHour = prev.gameHour ?? currentHour;
+  const currentWeather = normalizePlainText(current.worldState?.weather);
+  const expectedWeather = normalizePlainText(expectations.expectedWeather);
+  if (expectedWeather) {
+    if (!currentWeather) {
+      addIssue('clima_indefinido', 'Clima não informado.');
+    } else if (currentWeather !== expectedWeather) {
+      addIssue('clima_incoerente', `Esperado clima "${expectations.expectedWeather}".`);
+    }
+  }
+
   if (expectations.expectedDay !== undefined && currentDay !== expectations.expectedDay) {
     addIssue('cronologia_incoerente', `Esperado dia ${expectations.expectedDay}.`);
   }
@@ -1069,6 +1471,117 @@ function validateResponse(
         addIssue('npc_desapareceu', `NPC "${npcName}" desapareceu da ficha.`);
       }
     });
+  }
+
+  if (expectations.expectedVisitedRegions?.length) {
+    expectations.expectedVisitedRegions.forEach(slug => {
+      if (!slug) return;
+      const target = canonical(slug);
+      if (target && !effectiveVisitedRegions.has(target)) {
+        addIssue('regiao_nao_visitada', `Região "${slug}" não foi registrada como visitada.`);
+      }
+    });
+  }
+
+  if (expectations.forbiddenVisitedRegions?.length) {
+    expectations.forbiddenVisitedRegions.forEach(slug => {
+      if (!slug) return;
+      const target = canonical(slug);
+      if (target && effectiveVisitedRegions.has(target)) {
+        addIssue('regiao_visitada_indevida', `Região "${slug}" deveria permanecer bloqueada.`);
+      }
+    });
+  }
+
+  if (expectations.requireSpawnPersistence) {
+    const spawnSlug = canonical(prev.worldState?.visitedRegions?.[0]);
+    if (spawnSlug && !effectiveVisitedRegions.has(spawnSlug)) {
+      addIssue('spawn_perdido', 'A região inicial deixou de constar como visitada.');
+    }
+  }
+
+  const visitedPoiSet = new Set(
+    (current.worldState?.visitedPois ?? [])
+      .map((entry: any) => {
+        if (!entry) return undefined;
+        if (typeof entry === 'string') return canonical(entry);
+        return canonical(entry.poiSlug ?? entry.slug ?? entry.name);
+      })
+      .filter(Boolean) as string[]
+  );
+
+  if (expectations.expectedPoiSlug) {
+    const currentPoiSlug = canonical(current.worldState?.poiSlug);
+    const expectedPoi = canonical(expectations.expectedPoiSlug);
+    const poiMatch =
+      (currentPoiSlug && expectedPoi && currentPoiSlug === expectedPoi) ||
+      (expectedPoi ? visitedPoiSet.has(expectedPoi) : false);
+    if (!poiMatch) {
+      addIssue('poi_incorreto', `Esperado registrar o POI "${expectations.expectedPoiSlug}".`);
+    }
+  }
+
+  if (expectations.expectRouteTravel) {
+    const expectedFrom = canonical(expectations.expectRouteTravel.from);
+    const expectedTo = canonical(expectations.expectRouteTravel.to);
+    if (expectedFrom && previousRegionSlug && previousRegionSlug !== expectedFrom) {
+      addIssue('rota_origem_incorreta', `Esperado partir de "${expectations.expectRouteTravel.from}".`);
+    }
+    if (expectedTo && currentRegionSlug && currentRegionSlug !== expectedTo) {
+      addIssue('rota_destino_incorreta', `Esperado alcançar "${expectations.expectRouteTravel.to}".`);
+    }
+    if (expectedFrom && expectedTo && !hasTravelPath(regionGraph, expectedFrom, expectedTo)) {
+      addIssue('rota_inexistente', 'Rota declarada não existe no grafo de regiões.');
+    }
+  }
+
+  if (expectations.expectRouteBlocked) {
+    const blockedFrom = canonical(expectations.expectRouteBlocked.from);
+    const blockedTo = canonical(expectations.expectRouteBlocked.to);
+    if (blockedFrom && previousRegionSlug && previousRegionSlug !== blockedFrom) {
+      addIssue('rota_bloqueio_origem', `Tentativa veio de "${previousRegionSlug}", não de "${expectations.expectRouteBlocked.from}".`);
+    }
+    if (blockedTo) {
+      if (currentRegionSlug && currentRegionSlug === blockedTo) {
+        addIssue('rota_bloqueio_violada', `Rota bloqueada para "${expectations.expectRouteBlocked.to}" foi percorrida.`);
+      }
+      if (effectiveVisitedRegions.has(blockedTo) || currentVisitedSet.has(blockedTo)) {
+        addIssue('rota_bloqueio_visitada', `"${expectations.expectRouteBlocked.to}" não deveria constar como visitada.`);
+      }
+    }
+    const requirementKeyword = normalizePlainText(expectations.expectRouteBlocked.requirement);
+    if (requirementKeyword && !normalizedNarrative.includes(requirementKeyword)) {
+      addIssue(
+        'requisito_bloqueio_ausente',
+        `Narrativa não citou o requisito "${expectations.expectRouteBlocked.requirement}".`
+      );
+    }
+  }
+
+  if (expectations.requireEncounterRoll) {
+    const rollReason = response?.playerRollRequest?.reason?.toLowerCase?.() ?? '';
+    const diceExpr =
+      response?.playerRollRequest?.diceExpression?.toLowerCase?.() ??
+      response?.playerRollRequest?.dice?.toLowerCase?.() ??
+      '';
+    const hasPlayerRoll = Boolean(response?.playerRollRequest);
+    const hasEncounterCue =
+      rollReason.includes('encontro') ||
+      rollReason.includes('patrulha') ||
+      rollReason.includes('evento aleatório') ||
+      rollReason.includes('evento aleatorio') ||
+      diceExpr.includes('1d20');
+    const logIndicatesEncounter =
+      normalizedNarrative.includes('resultado do dado') ||
+      normalizedNarrative.includes('encontro aleatorio') ||
+      normalizedNarrative.includes('encontro aleatório') ||
+      normalizedNarrative.includes('patrulha inimiga') ||
+      normalizedNarrative.includes('fenomeno arcano') ||
+      normalizedNarrative.includes('fenômeno arcano') ||
+      normalizedNarrative.includes('1d20');
+    if (!hasPlayerRoll && !hasEncounterCue && !logIndicatesEncounter) {
+      addIssue('encontro_sem_rolagem', 'Cenário solicitou rolada de encontro e nenhuma foi encontrada.');
+    }
   }
 
   return detected;
@@ -1421,6 +1934,8 @@ function grantCurrencyToCharacter(response: any, amount: number) {
       : {};
   currencyBucket.gp = toNumber(currencyBucket.gp) + amount;
   response.updatedCharacter.currency = currencyBucket;
+  const currentDelta = toNumber((response as any).__currencyDelta);
+  (response as any).__currencyDelta = currentDelta + amount;
 }
 
 function applyFallbackLoot(
@@ -1557,6 +2072,8 @@ function siphonCoinItemsIntoCurrency(response: any) {
       ...(response.updatedCharacter.currency || {}),
       gp: toNumber(response.updatedCharacter.currency?.gp) + accumulatedGp,
     };
+    const currentDelta = toNumber((response as any).__currencyDelta);
+    (response as any).__currencyDelta = currentDelta + accumulatedGp;
   }
   response.updatedCharacter.inventory = kept;
 }
@@ -1573,6 +2090,9 @@ function createBaseCharacter(overrides: CharacterOverrides = {}) {
       timeOfDay: 'Manhã',
       weather: 'Ensolarado',
       currentRegion: 'Biblioteca Arcana',
+      regionSlug: 'biblioteca-arcana',
+      visitedRegions: ['biblioteca-arcana'],
+      visitedPois: [],
     },
     inventory: [
       { id: 'dagger-a', name: 'Adaga do Assassino', quantity: 1, equipped: true },

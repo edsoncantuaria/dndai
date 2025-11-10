@@ -159,6 +159,7 @@ const QuestSchema = z.object({
   title: z.string(),
   status: z.enum(['active', 'completed', 'failed']),
   objectives: z.array(z.string()),
+  keywords: z.array(z.string()).optional(),
 });
 
 const RelationshipSchema = z.object({

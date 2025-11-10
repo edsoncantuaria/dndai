@@ -98,6 +98,41 @@ export const GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA = {
         timeOfDay: { type: "string" },
         weather: { type: "string" },
         currentRegion: { type: "string" },
+        regionSlug: { type: "string" },
+        poiSlug: { type: "string" },
+        poiName: { type: "string" },
+        visitedRegions: {
+          type: "array",
+          items: { type: "string" },
+        },
+        visitedPois: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              regionSlug: { type: "string" },
+              poiSlug: { type: "string" },
+              name: { type: "string" },
+            },
+            required: ["regionSlug", "poiSlug"],
+          },
+        },
+        npcLocations: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              npcId: { type: "string" },
+              name: { type: "string" },
+              regionSlug: { type: "string" },
+              poiSlug: { type: "string" },
+              notes: { type: "string" },
+            },
+            required: ["npcId"],
+          },
+        },
       },
       required: ["timeOfDay", "weather"],
     },

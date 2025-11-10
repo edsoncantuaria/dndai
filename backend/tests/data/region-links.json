@@ -4,5 +4,20 @@
   { "from": "prontera", "to": "biblioteca-arcana", "travelMode": "walk", "travelTime": 5 },
   { "from": "prontera", "to": "jardim-suspenso", "travelMode": "walk", "travelTime": 12 },
   { "from": "geffen", "to": "geffen-torre", "travelMode": "walk", "travelTime": 15 },
-  { "from": "biblioteca-arcana", "to": "geffen-torre", "travelMode": "portal", "travelTime": 4 }
+  { "from": "biblioteca-arcana", "to": "geffen-torre", "travelMode": "portal", "travelTime": 4 },
+  { "from": "aurathis", "to": "cidadela-do-aco-luz", "travelMode": "airship", "travelTime": 35 },
+  { "from": "aurathis", "to": "valdarin-violeta", "travelMode": "airship", "travelTime": 50 },
+  { "from": "aurathis", "to": "selva-de-ashari", "travelMode": "mount", "travelTime": 25 },
+  { "from": "cidadela-do-aco-luz", "to": "selva-de-ashari", "travelMode": "walk", "travelTime": 22 },
+  { "from": "cidadela-do-aco-luz", "to": "selvas-de-myr", "travelMode": "walk", "travelTime": 18 },
+  { "from": "selva-de-ashari", "to": "selvas-de-myr", "travelMode": "walk", "travelTime": 30 },
+  {
+    "from": "cidadela-do-aco-luz",
+    "to": "covil-obsidiano",
+    "travelMode": "walk",
+    "travelTime": 15,
+    "metadata": { "requiredQuest": "vigilia-obsidiana" }
+  },
+  { "from": "selva-de-ashari", "to": "covil-obsidiano", "travelMode": "portal", "travelTime": 8 },
+  { "from": "valdarin-violeta", "to": "torre-de-aetheryn", "travelMode": "walk", "travelTime": 20 }
 ]

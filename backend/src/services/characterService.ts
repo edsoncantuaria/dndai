@@ -16,6 +16,7 @@ import { env } from '../config/env.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { Relationship } from '../entities/Relationship.js';
 import { Quest } from '../entities/Quest.js';
+import { syncQuestKeywords, extractQuestKeywordStrings } from './questKeywordService.js';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -84,6 +85,7 @@ export const buildFullCharacterObject = async (character: Character, options: Bu
         .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
         .leftJoinAndSelect('character.relationships', 'relationships')
         .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+        .leftJoinAndSelect('relationshipQuests.keywords', 'questKeywords')
         .where('character.id = :id', { id: character.id })
         .getOne();
     if (!fullCharacter) return character;
@@ -300,6 +302,7 @@ export const cloneCharacter = async (
       .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
       .leftJoinAndSelect('character.relationships', 'relationships')
       .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+      .leftJoinAndSelect('relationshipQuests.keywords', 'questKeywords')
       .where('character.id = :originalCharacterId', { originalCharacterId })
       .andWhere('character.userId = :userId', { userId })
       .getOne();
@@ -382,8 +385,17 @@ export const cloneCharacter = async (
             const savedRel = await queryRunner.manager.save(newRel);
             
             if (quests?.length) {
-                const newQuests = quests.map(({ id, relationship, ...questData}) => queryRunner.manager.create(Quest, { ...questData, relationshipId: savedRel.id }));
-                await queryRunner.manager.save(newQuests);
+                for (const questEntry of quests) {
+                    const { id: _oldQuestId, relationship: _oldRelationship, keywords, ...questData } = questEntry as Quest & {
+                        keywords?: any[];
+                    };
+                    const newQuest = queryRunner.manager.create(Quest, { ...questData, relationshipId: savedRel.id });
+                    const savedQuest = await queryRunner.manager.save(newQuest);
+                    const keywordStrings = extractQuestKeywordStrings(keywords);
+                    if (keywordStrings.length) {
+                        await syncQuestKeywords(queryRunner.manager, savedQuest, keywordStrings);
+                    }
+                }
             }
         }
     }

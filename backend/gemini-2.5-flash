@@ -4,543 +4,41 @@
 [structured-output:test4] Modelo alvo: gemini-2.5-flash
 
 [structured-output:test4] Executando cenário completo: Capítulo 1 - Biblioteca em Colapso
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 793
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 793 | baseline=793
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 793 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 457
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 457 | baseline=457
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 457 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
       "type": "narration",
-      "content": "Correndo entre as estantes desmoronando, você se move em direção ao obelisco pulsante, buscando o selo de emergência e as runas que mantêm o ritual."
+      "content": "Você se lança em meio às estantes que desmoronam, o chão tremendo sob seus pés enquanto fragmentos de pedra e pergaminhos caem ao seu redor. O obelisco pulsa com uma energia caótica, e você foca nas runas complexas que o mantêm ativo."
     },
     {
       "type": "narration",
-      "content": "A energia arcana distorce o ar ao seu redor, e fragmentos de pedra caem do teto. O obelisco emana uma aura caótica, e as runas brilham com uma luz antinatural, parecendo resistir à sua vontade."
+      "content": "Para desativar o obelisco e interromper o ritual, você precisará decifrar e romper o selo de emergência arcano."
     }
   ],
   "actionOptions": [
     {
-      "text": "Tentar desativar o obelisco usando seu conhecimento arcano.",
-      "action": "skillCheck",
+      "text": "Tentar romper as runas do obelisco",
+      "action": "roll",
       "skill": "Arcana"
     },
     {
-      "text": "Procurar por um ponto fraco ou uma falha no ritual para explorar.",
-      "action": "skillCheck",
+      "text": "Procurar por uma alternativa para desativar o obelisco",
+      "action": "explore",
       "skill": "Investigation"
     },
     {
-      "text": "Focar em se proteger dos escombros e da energia instável.",
-      "action": "skillCheck",
-      "skill": "Acrobatics"
-    }
-  ],
-  "updatedCharacter": {},
-  "combatState": null,
-  "playerRollRequest": {
-    "reason": "Para tentar romper as runas e desativar o obelisco arcano.",
-    "dice": "d20",
-    "modifier": 8,
-    "dc": 18,
-    "rollType": "skillCheck",
-    "advantage": false,
-    "disadvantage": false
-  },
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
-  },
-  "memoryContext": {
-    "summary": "O Guardião de Integridade está tentando desativar um obelisco arcano em uma Biblioteca Arcana em colapso, que está no centro de uma intensa perturbação mágica. O objetivo é romper as runas que mantêm um ritual ativo.",
-    "references": ["obelisco arcano", "ritual", "Biblioteca Arcana", "perturbação mágica"]
-  },
-  "ambientSound": "Rumbling and magical distortion"
-}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    }
-  ]
-}
-  ↳ Capítulo 1 - Biblioteca em Colapso: logEntries=2, actionOptions=3, memória="O Guardião de Integridade está tentando desativar um obelisc", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 2 - Barganha com o Guardião
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 783
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 783 | baseline=783
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 783 tokens, default perfil 2048).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 1] {
-  "logEntries": [
-    {
-      "type": "narration",
-      "content": "Borin Stonehand ouve sua proposta, ponderando suas palavras e o histórico compartilhado. Seus olhos, no entanto, voltam-se para o Tomo Antigo, e ele repete com uma seriedade inabalável: \"Esse tomo é perigoso. Sua oferta é generosa, Guardião, mas o risco que ele representa para você e para o próprio nexus é imenso.\""
-    },
-    {
-      "type": "system",
-      "content": "Para convencer Borin a ceder o tomo, você precisará de uma rolagem de Persuasão bem-sucedida."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Tentar persuadir Borin a reconsiderar sua posição.",
-      "action": "roll",
-      "skill": "Persuasion"
-    },
-    {
-      "text": "Perguntar a Borin sobre a natureza exata do perigo do tomo.",
-      "action": "inquire",
-      "skill": "Insight"
-    },
-    {
-      "text": "Oferecer algo mais valioso ou uma garantia de segurança para o tomo.",
-      "action": "negotiate"
-    },
-    {
-      "text": "Desistir da negociação pelo tomo por enquanto.",
-      "action": "continue"
+      "text": "Recuar da área que desmorona",
+      "action": "flee"
     }
   ],
   "updatedCharacter": {
     "name": "Guardião de Integridade",
-    "level": 12,
-    "proficiencies": [
-      "Arcana",
-      "History",
-      "Investigation",
-      "Religion",
-      "Perception",
-      "Insight",
-      "Stealth",
-      "Survival",
-      "Medicine",
-      "Athletics",
-      "Persuasion",
-      "Acrobatics",
-      "Intimidation",
-      "Deception",
-      "Sleight of Hand",
-      "Performance",
-      "Ferramentas de Caligrafia",
-      "Linguagem Antiga"
-    ],
+    "level": 3,
+    "proficiencies": [],
     "inventory": [
       {
         "id": "dagger-a",
@@ -562,79 +60,22 @@
         "name": "Kit do Explorador",
         "quantity": 1,
         "equipped": false
-      },
-      {
-        "id": "amulet-protection",
-        "index": null,
-        "name": "Amuleto Antigo da Proteção",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "chalice-arcane",
-        "index": null,
-        "name": "Cálice Gravado com Símbolos Arcanos",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "ancient-tome",
-        "index": null,
-        "name": "Tomo Antigo",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "amulet-of-protection",
-        "index": null,
-        "name": "Amuleto de Proteção",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "potion-of-healing",
-        "index": null,
-        "name": "Poção de Cura",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "ancient-amulet",
-        "index": null,
-        "name": "Amuleto Antigo",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "enigmatic-scroll",
-        "index": null,
-        "name": "Pergaminho Enigmático",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "tomo-do-vigia-sombrio-1762719162029-y35enzvo0e",
-        "index": null,
-        "name": "Tomo do Vigia Sombrio",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs",
-        "index": null,
-        "name": "Amuleto de Obediência",
-        "quantity": 1,
-        "equipped": false
       }
     ],
     "spells": [
-      "Raio Prismático",
-      "Muralha Arcana"
+      "Raio Arcano",
+      "Escudo Místico"
     ],
     "worldState": {
       "timeOfDay": "Manhã",
       "weather": "Ensolarado",
-      "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
     },
     "relationships": [
       {
@@ -654,20 +95,14 @@
       },
       {
         "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
       }
     ]
   },
   "combatState": null,
   "playerRollRequest": {
-    "reason": "Persuadir Borin a ceder o Tomo Antigo, apesar de seu perigo.",
+    "reason": "Desativar o obelisco arcano",
     "dice": "1d20",
-    "modifier": 7,
+    "modifier": 3,
     "dc": 16,
     "rollType": "Skill Check",
     "advantage": false,
@@ -676,47 +111,27 @@
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
-  },
-  "memoryContext": {
-    "summary": "O Guardião de Integridade tentou negociar com Borin Stonehand para obter o Tomo Antigo, oferecendo um medalhão e 150 gp. Borin reconheceu a oferta, mas reiterou o perigo do tomo, exigindo uma rolagem de Persuasão para ser convencido.",
-    "references": [
-      "Borin Stonehand",
-      "Tomo Antigo",
-      "negociação",
-      "perigo",
-      "Biblioteca Arcana"
-    ]
-  },
-  "_meta": {
-    "hash": "a_unique_hash_for_this_state",
-    "schemaVersion": 1,
-    "integrityNotes": "Generated a Persuasion roll request for the player's negotiation with Borin."
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
+    "npcLocations": []
   }
 }
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
-  level: 12,
-  proficiencies: [
-    'Arcana',
-    'History',
-    'Investigation',
-    'Religion',
-    'Perception',
-    'Insight',
-    'Stealth',
-    'Survival',
-    'Medicine',
-    'Athletics',
-    'Persuasion',
-    'Acrobatics',
-    'Intimidation',
-    'Deception',
-    'Sleight of Hand',
-    'Performance',
-    'Ferramentas de Caligrafia',
-    'Linguagem Antiga'
-  ],
+  level: 3,
+  proficiencies: [],
   inventory: [
     {
       id: 'dagger-a',
@@ -738,2077 +153,159 @@
       quantity: 1,
       index: null,
       equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
     }
   ],
-  spells: [ 'Raio Prismático', 'Muralha Arcana' ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
   worldState: {
     timeOfDay: 'Manhã',
     weather: 'Ensolarado',
-    currentRegion: 'Biblioteca Arcana (nexus sob intensa perturbação mágica)'
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
   },
   relationships: [
     { name: 'Golem Vigia', status: 'ally', affinity: 4 },
     { name: 'Borin Stonehand', status: 'friendly', affinity: 4 }
   ],
-  journal: [
-    { status: 'unexplored' },
-    { status: 'unexplored' },
-    { status: 'unexplored' },
-    { status: 'unexplored' }
-  ]
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 2 - Barganha com o Guardião: logEntries=2, actionOptions=4, memória="O Guardião de Integridade tentou negociar com Borin Stonehan", status=OK
+  ↳ Capítulo 1 - Biblioteca em Colapso: logEntries=2, actionOptions=3, memória="Você se lança em meio às estantes que desmoronam, o chão tre", status=OK
 
-[structured-output:test4] Executando cenário completo: Capítulo 3 - Cerco à Galeria
-[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 1078
-[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 1078 | baseline=1078
-[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 1078 tokens, default perfil 1200).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][combat][attempt 1] {
-  "logEntries": [
-    {
-      "type": "narration",
-      "content": "O círculo de runas ativa dois portais secundários, que começam a crepitar com energia arcana instável. O nexus da biblioteca geme sob a tensão mágica, e a promessa de reforços inimigos paira no ar."
-    },
-    {
-      "type": "ally",
-      "content": "O Golem Vigia ruge, 'Protegerei o flanco esquerdo!', movendo-se para bloquear uma das aberturas."
-    },
-    {
-      "type": "player",
-      "content": "Você tenta coordenar seus aliados e focar na interrupção dos portais secundários, estendendo a mão para sentir as flutuações mágicas."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Atacar o Cultista Sombrio.",
-      "action": "attack",
-      "skill": "weaponAttack"
-    },
-    {
-      "text": "Atacar o Cultista Arqueiro.",
-      "action": "attack",
-      "skill": "weaponAttack"
-    },
-    {
-      "text": "Atacar o Globo Elemental.",
-      "action": "attack",
-      "skill": "weaponAttack"
-    },
-    {
-      "text": "Lançar uma magia de área de efeito.",
-      "action": "castSpell",
-      "skill": "spellcasting"
-    },
-    {
-      "text": "Usar uma habilidade de classe.",
-      "action": "useClassAbility"
-    }
-  ],
-  "updatedCharacter": {},
-  "combatState": {
-    "isActive": true,
-    "round": 2,
-    "turn": 1,
-    "summary": "Dois novos portais secundários se abriram, ameaçando trazer reforços. O Guardião tenta interrompê-los enquanto o Golem protege um flanco.",
-    "combatants": [
-      {
-        "id": "player",
-        "name": "Guardião",
-        "attitude": "ally",
-        "isPlayer": true,
-        "hpCurrent": 22,
-        "hpMax": 27,
-        "ac": 16,
-        "notes": "Conditions: Concentrando"
-      },
-      {
-        "id": "golem",
-        "name": "Golem Vigia",
-        "attitude": "ally",
-        "isPlayer": false,
-        "hpCurrent": 28,
-        "hpMax": 30,
-        "ac": 18
-      },
-      {
-        "id": "cultist-1",
-        "name": "Cultista Sombrio",
-        "attitude": "hostile",
-        "isPlayer": false,
-        "hpCurrent": 8,
-        "hpMax": 12,
-        "ac": 13
-      },
-      {
-        "id": "cultist-2",
-        "name": "Cultista Arqueiro",
-        "attitude": "hostile",
-        "isPlayer": false,
-        "hpCurrent": 12,
-        "hpMax": 12,
-        "ac": 14,
-        "notes": "Conditions: Inspirado"
-      },
-      {
-        "id": "elemental",
-        "name": "Globo Elemental",
-        "attitude": "hostile",
-        "isPlayer": false,
-        "hpCurrent": 20,
-        "hpMax": 20,
-        "ac": 15
-      }
-    ]
-  },
-  "playerRollRequest": {
-    "reason": "Você tenta canalizar a energia arcana instável para fechar os portais secundários e impedir a chegada de reforços.",
-    "dice": "1d20",
-    "modifier": 7,
-    "dc": 20,
-    "rollType": "skillCheck",
-    "advantage": false,
-    "disadvantage": false
-  },
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    }
-  ]
-}
-  ↳ Capítulo 3 - Cerco à Galeria: logEntries=3, actionOptions=5, memória="O círculo de runas ativa dois portais secundários, que começ", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 4 - Batalha Final e Rendição
-[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 980
-[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 980 | baseline=980
-[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 980 tokens, default perfil 1200).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][combat][attempt 1] {
-  "logEntries": [
-    {
-      "type": "player",
-      "content": "Você exige que o Suma-Vigia Kaldrax solte o tomo e encerre o ritual, sua voz ecoando com autoridade após o golpe devastador."
-    },
-    {
-      "type": "gm",
-      "content": "Kaldrax cambaleia, o rosto contorcido de dor e fúria, mas seus olhos ainda brilham com uma determinação fanática. Ele aperta o tomo com mais força, o ritual ainda em andamento. 'Nunca! O poder de Yth-K'th será meu!' ele rosna, sua voz fraca."
-    },
-    {
-      "type": "gm",
-      "content": "Para ver se sua intimidação surte efeito, faça um teste de Carisma (Intimidação)."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Atacar o Suma-Vigia Kaldrax",
-      "action": "attack",
-      "skill": "weapon"
-    },
-    {
-      "text": "Tentar desarmar o Suma-Vigia Kaldrax",
-      "action": "skillCheck",
-      "skill": "Athletics"
-    },
-    {
-      "text": "Usar uma magia para interromper o ritual",
-      "action": "castSpell",
-      "skill": "Arcana"
-    },
-    {
-      "text": "Defender-se/Esquivar-se",
-      "action": "defend"
-    }
-  ],
-  "updatedCharacter": {},
-  "combatState": {
-    "isActive": true,
-    "round": 4,
-    "turn": 2,
-    "summary": "O Suma-Vigia Kaldrax está gravemente ferido e cambaleando, mas ainda se recusa a ceder e continua o ritual. O Guardião de Integridade tentou intimidá-lo.",
-    "combatants": [
-      {
-        "id": "player",
-        "name": "Guardião",
-        "attitude": "ally",
-        "isPlayer": true,
-        "hpCurrent": 18,
-        "hpMax": 27,
-        "ac": 16
-      },
-      {
-        "id": "cultist-lider",
-        "name": "Suma-Vigia Kaldrax",
-        "attitude": "hostile",
-        "isPlayer": false,
-        "hpCurrent": 4,
-        "hpMax": 40,
-        "ac": 17,
-        "notes": "Sangrando"
-      },
-      {
-        "id": "golem",
-        "name": "Golem Vigia",
-        "attitude": "ally",
-        "isPlayer": false,
-        "hpCurrent": 18,
-        "hpMax": 30,
-        "ac": 18
-      }
-    ]
-  },
-  "playerRollRequest": {
-    "reason": "Intimidar o Suma-Vigia Kaldrax a soltar o tomo e encerrar o ritual.",
-    "dice": "1d20",
-    "modifier": 0,
-    "dc": 15,
-    "rollType": "abilityCheck",
-    "advantage": false,
-    "disadvantage": false
-  },
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
-  },
-  "memoryContext": {
-    "summary": "O Guardião de Integridade tentou intimidar o Suma-Vigia Kaldrax, que está gravemente ferido, para que ele soltasse o tomo e encerrasse o ritual. Kaldrax, apesar de ferido, resiste fanaticamente e se recusa a ceder. Um teste de Intimidação foi solicitado para determinar o resultado da tentativa do Guardião."
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    }
-  ]
-}
-  ↳ Capítulo 4 - Batalha Final e Rendição: logEntries=3, actionOptions=4, memória="O Guardião de Integridade tentou intimidar o Suma-Vigia Kald", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 5 - Saque e Restauro
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 811
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 811 | baseline=811
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 811 tokens, default perfil 2048).
+[structured-output:test4] Executando cenário completo: Capítulo 2 - Barganha com o Guardião
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 482
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 482 | baseline=482
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 482 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
-    {
-      "type": "narration",
-      "content": "O baú ritualístico se abre, revelando um brilho místico e uma coleção de artefatos antigos, ecoando a perturbação mágica da biblioteca."
-    },
-    {
-      "type": "player",
-      "content": "Você cataloga os itens, convertendo moedas dispersas em um montante considerável e identificando relíquias de poder arcano."
-    },
     {
       "type": "event",
-      "content": "Você encontrou 500 peças de ouro, uma Adaga Ritualística Antiga, um Pergaminho de Conhecimento Arcano e uma Gema de Sintonização."
+      "content": "Você propõe a Borin que, em troca do tomo, você oferece um medalhão e 150 peças de ouro, lembrando-o das missões perigosas que enfrentaram juntos."
+    },
+    {
+      "type": "narration",
+      "content": "Borin coça a barba, seus olhos azuis fixos no tomo. 'É uma oferta generosa, Guardião, e eu valorizo nossa história. Mas este tomo... ele carrega um grande poder e um perigo ainda maior. Não posso simplesmente entregá-lo. Você deve me convencer de que entende o risco e que é digno de tal conhecimento.'"
     }
   ],
   "actionOptions": [
     {
-      "text": "Estudar a Adaga Ritualística Antiga",
-      "action": "examine",
-      "skill": "Arcana"
+      "text": "Fazer a rolagem de Persuasão",
+      "action": "roll",
+      "skill": "Persuasion"
     },
     {
-      "text": "Ler o Pergaminho de Conhecimento Arcano",
-      "action": "use",
-      "skill": "Arcana"
+      "text": "Tentar outra abordagem",
+      "action": "input"
     },
     {
-      "text": "Continuar explorando a Biblioteca Arcana",
-      "action": "explore",
-      "skill": "Investigation"
+      "text": "Desistir da negociação",
+      "action": "desist"
     }
   ],
   "updatedCharacter": {
-    "gold": 500,
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
     "inventory": [
       {
-        "id": "ritual-dagger-001",
-        "name": "Adaga Ritualística Antiga",
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
         "quantity": 1,
-        "equipped": false
+        "equipped": true
       },
       {
-        "id": "scroll-arcane-001",
-        "name": "Pergaminho de Conhecimento Arcano",
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
         "quantity": 1,
-        "equipped": false
+        "equipped": true
       },
       {
-        "id": "gem-attunement-001",
-        "name": "Gema de Sintonização",
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
         "quantity": 1,
         "equipped": false
       }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
     ]
   },
-  "combatState": {
-    "isActive": false
+  "combatState": null,
+  "playerRollRequest": {
+    "reason": "Convencer Borin a ceder o tomo proibido.",
+    "dice": "1d20",
+    "modifier": 5,
+    "dc": 15,
+    "rollType": "SkillCheck",
+    "advantage": false,
+    "disadvantage": false
   },
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
-  },
-  "_meta": {
-    "hash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0",
-    "schemaVersion": 1
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725882267-oiqbxid8ru',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725882267-dzv2q893reh',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritual-dagger-001',
-      name: 'Adaga Ritualística Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-arcane-001',
-      name: 'Pergaminho de Conhecimento Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gem-attunement-001',
-      name: 'Gema de Sintonização',
-      quantity: 1,
-      equipped: false
-    }
-  ],
-  currency: { pp: 0, gp: 500, ep: 0, sp: 0, cp: 0 }
-}
-  ↳ Capítulo 5 - Saque e Restauro: logEntries=3, actionOptions=3, memória="O baú ritualístico se abre, revelando um brilho místico e um", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 6 - Descanso Estratégico
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 812
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 812 | baseline=812
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 812 tokens, default perfil 2048).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 1] {
-  "logEntries": [
-    {
-      "type": "narration",
-      "content": "O Guardião de Integridade encontra um momento de trégua no salão ecoante, aproveitando a quietude para um breve descanso."
-    },
-    {
-      "type": "characterAction",
-      "content": "Você gasta dois Dados de Vida para atenuar seus ferimentos, recuperando 16 pontos de vida."
-    },
-    {
-      "type": "narration",
-      "content": "Com as energias parcialmente restauradas, você dedica um tempo para inspecionar e preparar suas relíquias, ponderando sobre a próxima incursão nas profundezas da Biblioteca Arcana."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Investigar as ruínas do salão",
-      "action": "investigate",
-      "skill": "Investigation"
-    },
-    {
-      "text": "Procurar por passagens secretas",
-      "action": "search",
-      "skill": "Perception"
-    },
-    {
-      "text": "Analisar a magia residual no ar",
-      "action": "analyze",
-      "skill": "Arcana"
-    },
-    {
-      "text": "Avançar para a próxima seção da biblioteca",
-      "action": "move",
-      "skill": "None"
-    }
-  ],
-  "updatedCharacter": {
-    "hpCurrent": 96,
-    "hitDiceCurrent": 8
-  },
-  "combatState": {
-    "isActive": false
-  },
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus sob intensa perturbação mágica)"
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [],
+    "npcLocations": []
   },
   "gameClock": {
     "day": 1,
-    "hour": 10,
+    "hour": 8,
     "weather": "Ensolarado"
   },
   "memoryContext": {
-    "summary": "O Guardião de Integridade realizou um descanso curto, recuperando vida e preparando relíquias enquanto planejava os próximos passos na Biblioteca Arcana.",
-    "references": ["descanso curto", "recuperação de vida", "preparação de relíquias", "planejamento de incursão"]
+    "summary": "O jogador está negociando com Borin Stonehand para obter um tomo proibido, oferecendo um medalhão e 150 peças de ouro. Borin está hesitante devido ao perigo do tomo e exige que o jogador o convença de sua dignidade.",
+    "references": [
+      "Borin Stonehand",
+      "tomo proibido",
+      "medalhão",
+      "150 gp"
+    ]
   },
   "xpEvents": [],
   "progressionFeed": [],
@@ -2817,16 +314,18 @@
   "shopState": null,
   "lootOffer": null,
   "useHitDiceRequest": null,
-  "ambientSound": "quiet_library_ambience",
+  "ambientSound": "library",
   "systemLog": null,
   "_meta": {
     "hash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
-    "schemaVersion": 1
+    "schemaVersion": 1,
+    "integrityNotes": "Generated based on player negotiation with Borin for the forbidden tome, requesting a persuasion roll."
   }
 }
 [aiSanitizer] updatedCharacter após merge {
-  hpCurrent: 96,
-  hitDiceCurrent: 8,
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
   inventory: [
     {
       id: 'dagger-a',
@@ -2848,964 +347,566 @@
       quantity: 1,
       index: null,
       equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725882267-oiqbxid8ru',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725882267-dzv2q893reh',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritual-dagger-001',
-      name: 'Adaga Ritualística Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-arcane-001',
-      name: 'Pergaminho de Conhecimento Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gem-attunement-001',
-      name: 'Gema de Sintonização',
-      quantity: 1,
-      equipped: false
     }
-  ]
-}
-  ↳ Capítulo 6 - Descanso Estratégico: logEntries=3, actionOptions=4, memória="O Guardião de Integridade realizou um descanso curto, recupe", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 7 - Duelo Arcano
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 805
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 805 | baseline=805
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 805 tokens, default perfil 2048).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 1] {"logEntries":[{"type":"action","content":"O Guardião de Integridade canaliza energia arcana e lança um Raio Prismático em direção ao nexus mágico."},{"type":"event","content":"O Raio Prismático atinge o nexus com uma explosão de cores e energia, causando uma instabilidade sísmica na Biblioteca Arcana. O nexus estremece violentamente, e os fluxos arcanos se contorcem em um vórtice caótico. A estrutura do salão range sob a pressão mágica."}],"actionOptions":[{"text":"Observar a reação do nexus e os arredores.","action":"observe","skill":"Perception"},{"text":"Preparar uma defesa mágica contra possíveis repercussões.","action":"prepare_defense","skill":"Arcana"},{"text":"Tentar estabilizar os fluxos arcanos.","action":"stabilize_flows","skill":"Arcana"}],"updatedCharacter":{},"worldState":{"timeOfDay":"Manhã","weather":"Ensolarado","currentRegion":"Biblioteca Arcana (nexus em colapso)"},"ambientSound":"Explosão Mágica e Rachaduras"}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725882267-oiqbxid8ru',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725882267-dzv2q893reh',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritual-dagger-001',
-      name: 'Adaga Ritualística Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-arcane-001',
-      name: 'Pergaminho de Conhecimento Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gem-attunement-001',
-      name: 'Gema de Sintonização',
-      quantity: 1,
-      equipped: false
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
     }
-  ]
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 7 - Duelo Arcano: logEntries=2, actionOptions=3, memória="O Guardião de Integridade canaliza energia arcana e lança um", status=OK
+  ↳ Capítulo 2 - Barganha com o Guardião: logEntries=2, actionOptions=3, memória="O jogador está negociando com Borin Stonehand para obter um ", status=OK
 
-[structured-output:test4] Executando cenário completo: Capítulo 8 - Ascensão de Nível
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 802
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 802 | baseline=802
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 802 tokens, default perfil 2048).
+[structured-output:test4] Executando cenário completo: Capítulo 3 - Cerco à Galeria
+[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 748
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 748 | baseline=748
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 748 tokens, default perfil 1200).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 1] {
+[aiService][raw-response][combat][attempt 1] {
   "logEntries": [
     {
-      "type": "event",
-      "content": "Um clarão de energia arcana envolve o Guardião de Integridade enquanto o ritual na Biblioteca Arcana chega ao seu ápice. Uma nova fonte de poder flui através de você."
+      "type": "narration",
+      "content": "Você se concentra, tentando coordenar seus aliados enquanto os novos portais se abrem, brilhando com uma energia sinistra. O Golem Vigia se posiciona para proteger o flanco esquerdo, pronto para enfrentar qualquer ameaça que surja de lá."
+    },
+    {
+      "type": "dialogue",
+      "content": "Protegerei o flanco esquerdo!",
+      "rollResult": null
     },
     {
       "type": "narration",
-      "content": "Você aceita o poder recém-adquirido, sentindo uma profunda conexão com o nexus em colapso. Suas habilidades se ajustam e se expandem, canalizando a experiência acumulada para uma nova compreensão."
-    },
-    {
-      "type": "characterUpdate",
-      "content": "Você aprimora suas capacidades, ganhando proficiência em Ferramentas de Navegação e na Linguagem Celestial, aprofundando seu conhecimento do cosmos e das antigas escrituras."
+      "content": "Para impedir que os portais invoquem reforços, você precisará de um teste de Inteligência (Arcana) para desestabilizar as runas."
     }
   ],
   "actionOptions": [
     {
-      "text": "Explorar mais a Biblioteca Arcana, buscando segredos adicionais.",
-      "action": "explore",
-      "skill": "Investigation"
+      "text": "Atacar o Cultista Sombrio",
+      "action": "attack",
+      "skill": "weapon"
     },
     {
-      "text": "Testar os limites do seu novo poder e proficiências.",
-      "action": "test_power",
-      "skill": "Arcana"
+      "text": "Atacar o Cultista Arqueiro",
+      "action": "attack",
+      "skill": "weapon"
     },
     {
-      "text": "Meditar sobre a natureza do ritual e suas implicações.",
-      "action": "meditate",
-      "skill": "Religion"
+      "text": "Atacar o Globo Elemental",
+      "action": "attack",
+      "skill": "weapon"
+    },
+    {
+      "text": "Lançar Raio Arcano",
+      "action": "castSpell",
+      "skill": "Raio Arcano"
+    },
+    {
+      "text": "Lançar Escudo Místico",
+      "action": "castSpell",
+      "skill": "Escudo Místico"
     }
   ],
   "updatedCharacter": {
     "name": "Guardião de Integridade",
-    "level": 12,
-    "proficiencies": [
-      "Arcana",
-      "History",
-      "Investigation",
-      "Religion",
-      "Perception",
-      "Insight",
-      "Stealth",
-      "Survival",
-      "Medicine",
-      "Athletics",
-      "Persuasion",
-      "Acrobatics",
-      "Intimidation",
-      "Deception",
-      "Sleight of Hand",
-      "Performance",
-      "Ferramentas de Caligrafia",
-      "Linguagem Antiga",
-      "Ferramentas de Navegação",
-      "Linguagem Celestial"
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      }
     ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": {
+    "isActive": true,
+    "round": 2,
+    "turn": 1,
+    "summary": "O círculo de runas ativou dois portais secundários. O Golem Vigia protege o flanco esquerdo. Você tenta impedir reforços.",
+    "combatants": [
+      {
+        "id": "player",
+        "name": "Guardião",
+        "attitude": "ally",
+        "hpCurrent": 22,
+        "hpMax": 27,
+        "ac": 16,
+        "distance": 0,
+        "zone": "",
+        "notes": "Condições: Concentrando"
+      },
+      {
+        "id": "golem",
+        "name": "Golem Vigia",
+        "attitude": "ally",
+        "hpCurrent": 28,
+        "hpMax": 30,
+        "ac": 18,
+        "distance": 0,
+        "zone": "",
+        "notes": ""
+      },
+      {
+        "id": "cultist-1",
+        "name": "Cultista Sombrio",
+        "attitude": "hostile",
+        "hpCurrent": 8,
+        "hpMax": 12,
+        "ac": 13,
+        "distance": 0,
+        "zone": "",
+        "notes": ""
+      },
+      {
+        "id": "cultist-2",
+        "name": "Cultista Arqueiro",
+        "attitude": "hostile",
+        "hpCurrent": 12,
+        "hpMax": 12,
+        "ac": 14,
+        "distance": 0,
+        "zone": "",
+        "notes": "Condições: Inspirado"
+      },
+      {
+        "id": "elemental",
+        "name": "Globo Elemental",
+        "attitude": "hostile",
+        "hpCurrent": 20,
+        "hpMax": 20,
+        "ac": 15,
+        "distance": 0,
+        "zone": "",
+        "notes": ""
+      }
+    ]
+  },
+  "playerRollRequest": {
+    "reason": "Para impedir que os portais invoquem reforços",
+    "dice": "1d20",
+    "modifier": 4,
+    "dc": 14,
+    "rollType": "skillCheck",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [],
+    "npcLocations": []
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 3 - Cerco à Galeria: logEntries=3, actionOptions=5, memória="Você se concentra, tentando coordenar seus aliados enquanto ", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 4 - Batalha Final e Rendição
+[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 654
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 654 | baseline=654
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 654 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][combat][attempt 1] {
+  "logEntries": [
+    {
+      "type": "player",
+      "content": "Exijo a rendição do líder cultista após um golpe devastador."
+    },
+    {
+      "type": "gm",
+      "content": "O Suma-Vigia Kaldrax, cambaleando e sangrando, olha para você com fúria e desespero. Ele aperta o tomo contra o peito, hesitando. Sua demanda por rendição ecoa na câmara. Para ver se suas palavras o quebram, faça um teste de Intimidação."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Fazer teste de Intimidação",
+      "action": "roll",
+      "skill": "Intimidation"
+    },
+    {
+      "text": "Atacar o Suma-Vigia",
+      "action": "attack",
+      "skill": "Melee Attack"
+    },
+    {
+      "text": "Ordenar ao Golem para agir",
+      "action": "command",
+      "skill": "Tactics"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": {
+    "isActive": true,
+    "round": 4,
+    "turn": 3,
+    "summary": "O Suma-Vigia Kaldrax está gravemente ferido e cambaleando, enquanto o Guardião tenta intimidá-lo a se render.",
+    "combatants": [
+      {
+        "id": "player",
+        "name": "Guardião",
+        "attitude": "ally",
+        "hpCurrent": 18,
+        "hpMax": 27,
+        "ac": 16,
+        "notes": "player character (Guardião de Integridade) is currently engaged in combat, attempting to intimidate the cultist leader to surrender. Has 18/27 HP and an AC of 16. No active status effects or cooldowns."
+      },
+      {
+        "id": "cultist-lider",
+        "name": "Suma-Vigia Kaldrax",
+        "attitude": "hostile",
+        "hpCurrent": 4,
+        "hpMax": 40,
+        "ac": 17,
+        "notes": "Suma-Vigia Kaldrax is the cultist leader, hostile, with only 4/40 HP remaining and is currently bleeding. He is holding a tome and hesitating under the Guardião's demand for surrender. No active status effects or cooldowns."
+      },
+      {
+        "id": "golem",
+        "name": "Golem Vigia",
+        "attitude": "ally",
+        "hpCurrent": 18,
+        "hpMax": 30,
+        "ac": 18,
+        "notes": "Golem Vigia is an ally, with 18/30 HP and an AC of 18. No active status effects or cooldowns."
+      }
+    ]
+  },
+  "playerRollRequest": {
+    "reason": "Para intimidar o Suma-Vigia Kaldrax a soltar o tomo e encerrar o ritual.",
+    "dice": "1d20",
+    "modifier": 3,
+    "dc": 14,
+    "rollType": "skillCheck",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [],
+    "npcLocations": []
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 4 - Batalha Final e Rendição: logEntries=2, actionOptions=3, memória="Exijo a rendição do líder cultista após um golpe devastador.", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 5 - Saque e Restauro
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 601
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 601 | baseline=601
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 601 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "system",
+      "content": "O baú se abre após o combate."
+    },
+    {
+      "type": "player",
+      "content": "Distribuo moedas e documento cada relíquia encontrada."
+    },
+    {
+      "type": "narration",
+      "content": "Você encontra um pequeno saco de moedas de ouro dentro do baú, totalizando 50 peças. As relíquias, um Tomo do Vigia Sombrio e um Amuleto de Obediência, são cuidadosamente examinadas e catalogadas, revelando sua natureza arcana e potencial."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Continuar explorando a Biblioteca Arcana",
+      "action": "explore",
+      "skill": "investigation"
+    },
+    {
+      "text": "Examinar as relíquias mais de perto",
+      "action": "examine",
+      "skill": "arcana"
+    },
+    {
+      "text": "Retornar para Prontera",
+      "action": "travel",
+      "skill": "none"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
     "inventory": [
       {
         "id": "dagger-a",
@@ -3829,83 +930,48 @@
         "equipped": false
       },
       {
-        "id": "amulet-protection",
-        "index": null,
-        "name": "Amuleto Antigo da Proteção",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "chalice-arcane",
-        "index": null,
-        "name": "Cálice Gravado com Símbolos Arcanos",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "ancient-tome",
-        "index": null,
-        "name": "Tomo Antigo",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "amulet-of-protection",
-        "index": null,
-        "name": "Amuleto de Proteção",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "potion-of-healing",
-        "index": null,
-        "name": "Poção de Cura",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "ancient-amulet",
-        "index": null,
-        "name": "Amuleto Antigo",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "enigmatic-scroll",
-        "index": null,
-        "name": "Pergaminho Enigmático",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "tomo-do-vigia-sombrio-1762719162029-y35enzvo0e",
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
         "index": null,
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs",
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
         "index": null,
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "equipped": false
+      },
+      {
+        "id": "gold-pieces",
+        "name": "Peças de Ouro",
+        "quantity": 50,
+        "equipped": false
       }
     ],
     "spells": [
-      "Raio Prismático",
-      "Muralha Arcana"
+      "Raio Arcano",
+      "Escudo Místico"
     ],
     "worldState": {
       "timeOfDay": "Manhã",
       "weather": "Ensolarado",
-      "currentRegion": "Biblioteca Arcana (nexus em colapso)"
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
     },
     "relationships": [
       {
         "name": "Golem Vigia",
         "status": "ally",
-        "affinity": 4
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
       },
       {
         "name": "Borin Stonehand",
@@ -3913,23 +979,15 @@
         "affinity": 4
       },
       {
-        "name": "Golem Vigia",
-        "status": "ally",
-        "affinity": 4
-      },
-      {
         "name": "Borin Stonehand",
         "status": "friendly",
-        "affinity": 4
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
       }
     ],
     "journal": [
-      {
-        "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
-      },
       {
         "status": "unexplored"
       },
@@ -3942,42 +1000,31 @@
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana (nexus em colapso)"
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [],
+    "npcLocations": []
   },
-  "progressionFeed": [
-    {
-      "type": "levelUp",
-      "summary": "O Guardião de Integridade absorve um novo poder e aprimora suas habilidades.",
-      "detail": "Você canaliza a experiência acumulada, aprimorando suas capacidades e ganhando novas proficiências. Embora já seja um mestre, este ritual desbloqueia um novo patamar de compreensão e controle.",
-      "level": 12
-    }
-  ]
+  "gameClock": {
+    "day": 1,
+    "hour": 8,
+    "weather": "Ensolarado"
+  },
+  "_meta": {
+    "hash": "someHashValue",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated based on player action and context."
+  }
 }
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
-  level: 12,
-  proficiencies: [
-    'Arcana',
-    'History',
-    'Investigation',
-    'Religion',
-    'Perception',
-    'Insight',
-    'Stealth',
-    'Survival',
-    'Medicine',
-    'Athletics',
-    'Persuasion',
-    'Acrobatics',
-    'Intimidation',
-    'Deception',
-    'Sleight of Hand',
-    'Performance',
-    'Ferramentas de Caligrafia',
-    'Linguagem Antiga',
-    'Ferramentas de Navegação',
-    'Linguagem Celestial'
-  ],
+  level: 3,
+  proficiencies: [],
   inventory: [
     {
       id: 'dagger-a',
@@ -4001,56 +1048,7 @@
       equipped: false
     },
     {
-      id: 'amulet-protection',
-      name: 'Amuleto Antigo da Proteção',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'chalice-arcane',
-      name: 'Cálice Gravado com Símbolos Arcanos',
-      quantity: 1,
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'ancient-tome',
-      index: null,
-      name: 'Tomo Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'amulet-of-protection',
-      index: null,
-      name: 'Amuleto de Proteção',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'potion-of-healing',
-      index: null,
-      name: 'Poção de Cura',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'ancient-amulet',
-      index: null,
-      name: 'Amuleto Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'enigmatic-scroll',
-      index: null,
-      name: 'Pergaminho Enigmático',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719162029-y35enzvo0e',
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -4058,396 +1056,1857 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762719162029-z4i2v1r5sjs',
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
       equipped: false,
       index: null
-    },
-    {
-      id: 'rel-quia-do-obelisco-1762719172901-iwsc8ixfim',
-      name: 'Relíquia do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino coletado do baú ritualístico.',
-      equipped: false
-    },
-    {
-      id: 'colar-r-nico-1762719172901-wdlfpc948q',
-      name: 'Colar Rúnico',
-      quantity: 1,
-      description: 'Colar de prata gravado com runas da Biblioteca.',
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719575033-v1qm7thnmaf',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719575033-gwmnq6anvsc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ring-true-sight',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-star-dust',
-      name: 'Pó de Estrela Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'thieves-tools',
-      name: 'Ferramentas de Ladrão',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-proibido-eldoria',
-      name: 'Tomo Proibido de Eldoria',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762719900597-dzsxmgp7zzv',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762719900597-pdmwgzcstrc',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritualistic-dagger',
-      name: 'Adaga Ritualística',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-ancient-rites',
-      name: 'Pergaminho de Ritos Antigos',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'sacred-incense-burner',
-      name: 'Queimador de Incenso Sagrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gemstone-divination',
-      name: 'Gema de Adivinhação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tome-forbidden-knowledge',
-      name: 'Tomo do Conhecimento Proibido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'chalice-purification',
-      name: 'Cálice de Purificação',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'dust-restoration',
-      name: 'Pó de Restauração',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'fragment-celestial-map',
-      name: 'Fragmento de Mapa Celestial',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762721559913-rif5l5bhop',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762721559914-mzptrv060sa',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'punhal-ritualistico',
-      index: null,
-      name: 'Punhal Ritualístico',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'pergaminho-invocacao-menor',
-      index: null,
-      name: 'Pergaminho de Invocação Menor',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'idolo-obsidiana',
-      index: null,
-      name: 'Ídolo de Obsidiana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722107767-bs0wkoi15p4',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722107767-qhd6bosecx',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'runic-key',
-      name: 'Chave Rúnica Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'crystal-orb',
-      name: 'Esfera de Cristal Sussurrante',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'arcane-journal',
-      name: 'Diário de Pesquisador Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'divine-medallion',
-      name: 'Medalhão de Proteção Divina',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762722852343-upsi349g3rb',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762722852343-wuf2vvv7o2',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ancient-crystal-orb',
-      name: 'Orbe de Cristal Antigo',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cultist-journal',
-      name: 'Diário de um Cultista Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724614952-yu79zqeoce8',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724614952-8160f4wn45o',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ebony-staff',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762724887614-gesct92s4f',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762724887615-hw1i0a0u399',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'orbe-cristal-resplandecente',
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'cajado-quebrado',
-      name: 'Cajado Quebrado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'diario-arquimago-esquecido',
-      name: 'Diário de um Arquimago Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725164345-t6j4t501kk',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725164345-rbou2osa3om',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'relic-medallion-1',
-      index: null,
-      name: 'Medalhão do Conhecimento Esquecido',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-orb-1',
-      index: null,
-      name: 'Orbe de Cristal Resplandecente',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'relic-diary-1',
-      index: null,
-      name: 'Diário Cifrado de um Arquimago',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725477580-l0m7zkgpmre',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725477580-j43ledu1nl',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'cajado-ebano-entalhado',
-      name: 'Cajado de Ébano Entalhado',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'anel-visao-verdadeira',
-      name: 'Anel de Visão Verdadeira',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'frasco-essencia-arcana',
-      name: 'Frasco de Essência Arcana',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762725882267-oiqbxid8ru',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762725882267-dzv2q893reh',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false
-    },
-    {
-      id: 'ritual-dagger-001',
-      name: 'Adaga Ritualística Antiga',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'scroll-arcane-001',
-      name: 'Pergaminho de Conhecimento Arcano',
-      quantity: 1,
-      equipped: false
-    },
-    {
-      id: 'gem-attunement-001',
-      name: 'Gema de Sintonização',
-      quantity: 1,
-      equipped: false
     }
   ],
-  spells: [ 'Raio Prismático', 'Muralha Arcana' ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
   worldState: {
     timeOfDay: 'Manhã',
     weather: 'Ensolarado',
-    currentRegion: 'Biblioteca Arcana (nexus em colapso)'
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
   },
   relationships: [
-    { name: 'Golem Vigia', status: 'ally', affinity: 4 },
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
     { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
-    { name: 'Golem Vigia', status: 'ally', affinity: 4 },
-    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 }
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
   ],
-  journal: [
-    { status: 'unexplored' },
-    { status: 'unexplored' },
-    { status: 'unexplored' },
-    { status: 'unexplored' }
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ],
+  currency: { pp: 0, gp: 50, ep: 0, sp: 0, cp: 0 }
+}
+  ↳ Capítulo 5 - Saque e Restauro: logEntries=3, actionOptions=3, memória="O baú se abre após o combate. (relíquias, ritual)", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 6 - Descanso Estratégico
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 787
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 787 | baseline=787
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 787 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "event",
+      "content": "Você decide fazer um descanso curto, aproveitando a segurança temporária do salão. As ruínas da Biblioteca Arcana ecoam com uma magia residual, mas por enquanto, o silêncio é bem-vindo."
+    },
+    {
+      "type": "event",
+      "content": "Durante o descanso, você se concentra em atenuar seus ferimentos e preparar suas relíquias para a próxima incursão. Você gasta dois de seus Dados de Vida para recuperar pontos de vida."
+    },
+    {
+      "type": "event",
+      "content": "Com o corpo um pouco mais recuperado e as relíquias prontas, você começa a planejar seus próximos passos na biblioteca."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Investigar a magia residual nas ruínas.",
+      "action": "investigate",
+      "skill": "Arcana"
+    },
+    {
+      "text": "Procurar por passagens secretas ou áreas inexploradas.",
+      "action": "explore",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Revisitar a entrada da biblioteca para considerar outras rotas.",
+      "action": "travel",
+      "skill": "Perception"
+    },
+    {
+      "text": "Estudar o Tomo do Vigia Sombrio ou o Amuleto de Obediência.",
+      "action": "study_item"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": ["Raio Arcano", "Escudo Místico"],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": ["biblioteca-arcana"],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ],
+    "hpCurrent": 10,
+    "hpMax": 24,
+    "hitDice": {
+      "d8": 1
+    }
+  },
+  "combatState": {
+    "isActive": false
+  },
+  "playerRollRequest": {
+    "reason": "Você gastou 2 Dados de Vida para recuperar pontos de vida durante o descanso curto.",
+    "dice": "2d8",
+    "modifier": 0,
+    "dc": 0,
+    "rollType": "healing",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "visitedRegions": ["biblioteca-arcana"],
+    "visitedPois": [
+      {
+        "regionSlug": "prontera",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 9,
+    "weather": "Ensolarado"
+  },
+  "ambientSound": "dungeon_ambience"
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ],
+  hpCurrent: 10,
+  hpMax: 24,
+  hitDice: { d8: 1 }
+}
+  ↳ Capítulo 6 - Descanso Estratégico: logEntries=3, actionOptions=4, memória="Você decide fazer um descanso curto, aproveitando a seguranç", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 7 - Duelo Arcano
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 791
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 791 | baseline=791
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 791 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "playerAction",
+      "content": "Você canaliza energia arcana e lança Raio Prismático, visando o nexus mágico que causava a colisão de fluxos."
+    },
+    {
+      "type": "narration",
+      "content": "Com um brilho ofuscante, o Raio Prismático atinge o epicentro das energias conflitantes. O nexus se estilhaça em fragmentos de luz, e os fluxos arcanos no salão se acalmam, protegendo seus aliados da instabilidade. A Biblioteca Arcana respira um suspiro de alívio momentâneo."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Investigar os restos do nexus estilhaçado.",
+      "action": "investigate",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Procurar por outros perigos ou anomalias no salão.",
+      "action": "search",
+      "skill": "Perception"
+    },
+    {
+      "text": "Comunicar-se com os aliados para verificar seu estado e planejar o próximo passo.",
+      "action": "talk",
+      "skill": "Persuasion"
+    }
+  ],
+  "updatedCharacter": {},
+  "combatState": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
+    "npcLocations": []
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
   ]
 }
-  ↳ Capítulo 8 - Ascensão de Nível: logEntries=3, actionOptions=3, memória="Um clarão de energia arcana envolve o Guardião de Integridad", status=OK
-[structured-output:test4] Relatório salvo em /home/edson/dndai/backend/logs/TESTE-STRUTRADO4_REPORT_2025-11-09T22-05-51-177Z.json
+  ↳ Capítulo 7 - Duelo Arcano: logEntries=2, actionOptions=3, memória="Você canaliza energia arcana e lança Raio Prismático, visand", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 8 - Ascensão de Nível
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 785
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 785 | baseline=785
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 785 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "event",
+      "content": "Um clarão de energia arcana envolve o Guardião, marcando a conclusão do ritual. Uma nova e poderosa energia pulsa em seu ser."
+    },
+    {
+      "type": "narration",
+      "content": "Você aceita o fluxo de poder, sentindo suas habilidades se aprimorarem e sua compreensão do arcano se aprofundar. A experiência acumulada se cristaliza, impulsionando-o para um novo patamar."
+    },
+    {
+      "type": "levelUp",
+      "content": "Você alcança o Nível 4!"
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Explorar mais a Biblioteca Arcana",
+      "action": "explore",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Revisar seus novos poderes e habilidades",
+      "action": "examine",
+      "skill": "Arcana"
+    },
+    {
+      "text": "Procurar por saídas da biblioteca",
+      "action": "travel",
+      "skill": "Perception"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": ["Arcana", "History"],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": ["Raio Arcano", "Escudo Místico"],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": ["biblioteca-arcana"],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": null,
+  "playerRollRequest": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": ["biblioteca-arcana"],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 8,
+    "weather": "Ensolarado"
+  },
+  "memoryContext": {
+    "summary": "O Guardião de Integridade completou um ritual na Biblioteca Arcana, ganhando um novo poder e subindo para o Nível 4. Ele escolheu as perícias Arcana e História.",
+    "references": ["ritual", "Biblioteca Arcana", "Guardião de Integridade", "Nível 4", "perícias Arcana e História"]
+  },
+  "xpEvents": [
+    {
+      "type": "ritualCompletion",
+      "description": "Conclusão do ritual na Biblioteca Arcana, concedendo novo poder e experiência.",
+      "xp": 500
+    }
+  ],
+  "progressionFeed": [
+    {
+      "type": "levelUp",
+      "summary": "Você alcançou o Nível 4!",
+      "detail": "Seu poder e compreensão do arcano aumentaram. Você escolheu as perícias Arcana e História.",
+      "xp": 500,
+      "level": 4
+    }
+  ],
+  "newHomebrewContent": [],
+  "levelUpState": {
+    "levelReached": 4,
+    "chosenProficiencies": ["Arcana", "History"]
+  },
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "library_ambience",
+  "systemLog": null,
+  "_meta": {
+    "hash": "a_unique_hash_for_this_state",
+    "schemaVersion": 1
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [ 'Arcana', 'History' ],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 849 | baseline=785
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 849 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 2] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Um clarão envolve o Guardião conforme o ritual termina."
+    },
+    {
+      "type": "player",
+      "content": "Aceito o novo poder e ajusto minhas habilidades."
+    },
+    {
+      "type": "narration",
+      "content": "Você sente uma nova onda de poder percorrer seu ser, alcançando o Nível 4!"
+    },
+    {
+      "type": "system",
+      "content": "Você subiu para o Nível 4! Agora você pode escolher um Aumento de Habilidade ou uma Proeza, e aprender uma nova magia."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Escolher Aumento de Habilidade",
+      "action": "choose_ability_score_increase",
+      "skill": "level_up"
+    },
+    {
+      "text": "Escolher uma Proeza (Feat)",
+      "action": "choose_feat",
+      "skill": "level_up"
+    },
+    {
+      "text": "Aprender uma nova magia",
+      "action": "choose_new_spell",
+      "skill": "level_up"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {"id": "dagger-a", "index": null, "name": "Adaga do Assassino", "quantity": 1, "equipped": true},
+      {"id": "dagger-b", "index": null, "name": "Adaga do Assassino", "quantity": 1, "equipped": true},
+      {"id": "kit-explorer", "index": null, "name": "Kit do Explorador", "quantity": 1, "equipped": false},
+      {"id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc", "index": null, "name": "Tomo do Vigia Sombrio", "quantity": 1, "equipped": false},
+      {"id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q", "index": null, "name": "Amuleto de Obediência", "quantity": 1, "equipped": false},
+      {"id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9", "index": null, "name": "Relíquia Restaurada do Obelisco", "quantity": 1, "equipped": false},
+      {"id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2", "index": null, "name": "Colar Rúnico Purificado", "quantity": 1, "equipped": false},
+      {"id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219", "index": null, "name": "Pergaminho de Restauro Arcano", "quantity": 1, "equipped": false}
+    ],
+    "spells": ["Raio Arcano", "Escudo Místico"],
+    "relationships": [
+      {"name": "Golem Vigia", "status": "ally", "affinity": 4, "regionSlug": null, "poiSlug": null},
+      {"name": "Borin Stonehand", "status": "friendly", "affinity": 4},
+      {"name": "Borin Stonehand", "status": "friendly", "affinity": 4, "regionSlug": null, "poiSlug": null, "description": null}
+    ],
+    "journal": [
+      {"status": "unexplored"},
+      {"status": "unexplored"}
+    ]
+  },
+  "combatState": {
+    "isActive": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "visitedRegions": ["biblioteca-arcana"],
+    "visitedPois": []
+  },
+  "xpEvents": [
+    {
+      "type": "level_up",
+      "description": "Alcançou o Nível 4",
+      "xp": 0
+    }
+  ],
+  "progressionFeed": [
+    {
+      "type": "level_up",
+      "summary": "Você subiu para o Nível 4!",
+      "detail": "Ganhou um Aumento de Habilidade ou uma Proeza, e a capacidade de aprender uma nova magia.",
+      "level": 4
+    }
+  ],
+  "levelUpState": {
+    "level": 4,
+    "choices": [
+      {
+        "type": "abilityScoreImprovementOrFeat",
+        "description": "Escolha entre aumentar 2 pontos em uma habilidade, 1 ponto em duas habilidades diferentes, ou selecionar uma nova Proeza (Feat).",
+        "options": [
+          "Ability Score Increase",
+          "Feat"
+        ],
+        "count": 1
+      },
+      {
+        "type": "newSpell",
+        "description": "Aprenda uma nova magia de 2º nível ou inferior.",
+        "options": [
+          "Spell Level 2 or lower"
+        ],
+        "count": 1
+      }
+    ]
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 851 | baseline=785
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 851 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 3] {
+  "logEntries": [
+    {
+      "type": "event",
+      "content": "Um clarão envolve o Guardião conforme o ritual termina. Você sente uma nova energia pulsando em suas veias, um sinal de poder crescente."
+    },
+    {
+      "type": "narration",
+      "content": "Você canaliza a experiência acumulada, sentindo sua compreensão do mundo e de suas próprias habilidades se aprofundar e expandir."
+    },
+    {
+      "type": "system",
+      "content": "Parabéns! Você alcançou o Nível 4!"
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Escolher Aumento de Atributo (ASI)",
+      "action": "chooseAbilityScoreImprovement"
+    },
+    {
+      "text": "Escolher um Talento (Feat)",
+      "action": "chooseFeat"
+    },
+    {
+      "text": "Revisar minha ficha de personagem",
+      "action": "reviewCharacter"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+      "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": ["Raio Arcano", "Escudo Místico"],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": ["biblioteca-arcana"],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": {
+    "isActive": false
+  },
+  "playerRollRequest": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "biblioteca-arcana",
+    "poiName": "Biblioteca Arcana",
+    "visitedRegions": ["biblioteca-arcana"],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 8,
+    "weather": "Ensolarado"
+  },
+  "memoryContext": {
+    "summary": "O Guardião de Integridade completou um ritual e alcançou o Nível 4 na Biblioteca Arcana.",
+    "references": ["Guardião de Integridade", "ritual", "Nível 4", "Biblioteca Arcana"]
+  },
+  "xpEvents": [],
+  "progressionFeed": [
+    {
+      "type": "levelUp",
+      "summary": "Você alcançou o Nível 4!",
+      "detail": "Seu poder e compreensão do mundo aumentaram. Você agora pode escolher um Aumento de Atributo ou um Talento.",
+      "level": 4
+    }
+  ],
+  "newHomebrewContent": [],
+  "levelUpState": {
+    "pendingChoices": ["AbilityScoreImprovement", "Feat"]
+  },
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "library_ambience",
+  "systemLog": null,
+  "_meta": {
+    "hash": "someGeneratedHashValue",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated based on player level up action."
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 8 - Ascensão de Nível: logEntries=1, actionOptions=2, memória="Resumo automático: ascensão, nível, poder.", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 9 - Cartografia em Aço-Luz
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 933
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 933 | baseline=933
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 933 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "event",
+      "content": "Você apresenta seu relatório aos mediadores prismáticos no Fórum Prismático da Cidadela do Aço-Luz, atualizando o mapa compartilhado com as informações da incursão na Biblioteca Arcana, incluindo novos pontos de interesse e rotas. Após cumprir seu dever, você se dirige à Taverna Dragão Azul."
+    },
+    {
+      "type": "narration",
+      "content": "Ao empurrar a porta de carvalho da Taverna Dragão Azul, você é saudado por uma sinfonia de vozes animadas, o tilintar de canecas e o aroma reconfortante de cerveja e ensopado. O salão principal é espaçoso, com mesas de madeira robustas e bancos que convidam à confraternização. Um palco pequeno no canto sugere apresentações musicais noturnas. Atrás do balcão, um anão corpulento com uma barba trançada, que você presume ser o proprietário, limpa um copo com um pano. Várias cabines mais reservadas oferecem um pouco de privacidade para conversas mais discretas. Cartazes de 'Procurado' e avisos de eventos locais adornam uma parede próxima à lareira crepitante. A taverna parece ser um centro vibrante de atividade e, sem dúvida, um bom lugar para colher informações."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Falar com o anão no balcão (Bartender)",
+      "action": "talk",
+      "skill": "Persuasion"
+    },
+    {
+      "text": "Ouvir as conversas nas mesas próximas",
+      "action": "listen",
+      "skill": "Perception"
+    },
+    {
+      "text": "Examinar os cartazes de 'Procurado' e avisos",
+      "action": "examine"
+    },
+    {
+      "text": "Pedir uma bebida e um ensopado",
+      "action": "order"
+    },
+    {
+      "text": "Procurar por uma mesa vazia para observar",
+      "action": "observe"
+    },
+    {
+      "text": "Subir as escadas para ver os quartos ou outras áreas",
+      "action": "explore"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Cidadela do Aço-Luz",
+      "regionSlug": "cidadela-do-aco-luz",
+      "visitedRegions": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz"
+      ],
+      "visitedPois": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "taverna-dragao-azul"
+      ],
+      "poiSlug": "taverna-dragao-azul",
+      "poiName": "Taverna Dragão Azul"
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": null,
+  "playerRollRequest": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Cidadela do Aço-Luz",
+    "regionSlug": "cidadela-do-aco-luz",
+    "poiSlug": "taverna-dragao-azul",
+    "poiName": "Taverna Dragão Azul",
+    "visitedRegions": [
+      "biblioteca-arcana",
+      "cidadela-do-aco-luz"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "taverna-dragao-azul",
+        "name": "Taverna Dragão Azul"
+      }
+    ],
+    "npcLocations": []
+  },
+  "memoryContext": {
+    "summary": "O Guardião de Integridade reportou-se aos mediadores prismáticos e atualizou o mapa. Em seguida, entrou na Taverna Dragão Azul para buscar rumores e informações.",
+    "references": [
+      "mediadores prismáticos",
+      "Taverna Dragão Azul",
+      "mapa",
+      "rumores",
+      "Cidadela do Aço-Luz"
+    ]
+  },
+  "xpEvents": [
+    {
+      "type": "exploration",
+      "description": "Descobriu e explorou a Taverna Dragão Azul.",
+      "xp": 25
+    }
+  ],
+  "ambientSound": "tavern"
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Cidadela do Aço-Luz',
+    regionSlug: 'cidadela-do-aco-luz',
+    visitedRegions: [ 'biblioteca-arcana', 'cidadela-do-aco-luz' ],
+    visitedPois: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'taverna-dragao-azul'
+    ],
+    poiSlug: 'taverna-dragao-azul',
+    poiName: 'Taverna Dragão Azul'
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 9 - Cartografia em Aço-Luz: logEntries=2, actionOptions=6, memória="O Guardião de Integridade reportou-se aos mediadores prismát", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 10 - Travessia Constelada
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1224
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1224 | baseline=1224
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1224 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Você deixa a Cidadela do Aço-Luz e segue pela Trilha das Constelações em direção à Selva de Ashari."
+    },
+    {
+      "type": "narration",
+      "content": "No primeiro marco da trilha, a jornada é tranquila e sem intercorrências. O caminho é seguro."
+    },
+    {
+      "type": "narration",
+      "content": "Ao se aproximar do segundo marco, uma aura mística envolve a trilha. Você detecta um fenômeno arcano sutil, mas presente, emanando de uma formação rochosa peculiar."
+    },
+    {
+      "type": "narration",
+      "content": "Após a trilha, você chega à orla da Selva de Ashari. Um acampamento rudimentar, mas funcional, foi montado por exploradores anteriores, oferecendo um refúgio temporário. De lá, você percebe que a selva se estende em várias direções, revelando novas rotas potenciais para o Coração da Selva e as Montanhas Sombrias."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Investigar o fenômeno arcano na trilha",
+      "action": "investigate",
+      "skill": "Arcana"
+    },
+    {
+      "text": "Descansar no acampamento",
+      "action": "rest"
+    },
+    {
+      "text": "Explorar a Selva de Ashari (geral)",
+      "action": "explore",
+      "skill": "Survival"
+    },
+    {
+      "text": "Seguir para o Coração da Selva",
+      "action": "travel",
+      "skill": "Survival"
+    },
+    {
+      "text": "Seguir para as Montanhas Sombrias",
+      "action": "travel",
+      "skill": "Survival"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Selva de Ashari",
+      "regionSlug": "selva-de-ashari",
+      "visitedRegions": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "selva-de-ashari"
+      ],
+      "visitedPois": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "taverna-dragao-azul",
+        "acampamento-explorador"
+      ],
+      "poiSlug": "acampamento-explorador",
+      "poiName": "Acampamento do Explorador"
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": null,
+  "playerRollRequest": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Selva de Ashari",
+    "regionSlug": "selva-de-ashari",
+    "poiSlug": "acampamento-explorador",
+    "poiName": "Acampamento do Explorador",
+    "visitedRegions": [
+      "biblioteca-arcana",
+      "cidadela-do-aco-luz",
+      "selva-de-ashari"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "biblioteca-arcana",
+        "name": "biblioteca-arcana"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "cidadela-do-aco-luz",
+        "name": "cidadela-do-aco-luz"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "taverna-dragao-azul",
+        "name": "taverna-dragao-azul"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "acampamento-explorador",
+        "name": "Acampamento do Explorador"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 10,
+    "weather": "Ensolarado"
+  },
+  "systemLog": null
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Selva de Ashari',
+    regionSlug: 'selva-de-ashari',
+    visitedRegions: [ 'biblioteca-arcana', 'cidadela-do-aco-luz', 'selva-de-ashari' ],
+    visitedPois: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'taverna-dragao-azul',
+      'acampamento-explorador'
+    ],
+    poiSlug: 'acampamento-explorador',
+    poiName: 'Acampamento do Explorador'
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 10 - Travessia Constelada: logEntries=4, actionOptions=5, memória="Você deixa a Cidadela do Aço-Luz e segue pela Trilha das Con", status=OK
+[structured-output:test4] Relatório salvo em /home/edson/dndai/backend/logs/TESTE-STRUTRADO4_REPORT_2025-11-10T10-01-54-957Z.json

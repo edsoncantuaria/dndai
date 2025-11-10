@@ -360,7 +360,8 @@ const formatRegionGraphSummary = (context: RegionPromptContext): string => {
         lines.push('Pontos de interesse: nenhum registrado.');
     }
 
-    return lines.join('\n');
+    const uniqueLines = lines.filter((line, index) => lines.indexOf(line) === index);
+    return uniqueLines.slice(0, 12).join('\n');
 };
 
 const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
@@ -707,6 +708,7 @@ const buildOptimizedCharacterForAI = async (characterId: number, useCache: boole
         .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
         .leftJoinAndSelect('character.relationships', 'relationships')
         .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+        .leftJoinAndSelect('relationshipQuests.keywords', 'questKeywords')
         .where('character.id = :id', { id: characterId })
         .getOne();
 

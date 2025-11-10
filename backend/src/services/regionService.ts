@@ -753,7 +753,6 @@ const autoCreatePoiIfAllowed = async (regionSlug: string, poiLabel: string | nul
   if (allowAi === false) return null;
   const autoCreatedCount = (region.pointsOfInterest ?? []).filter(poi => poi.metadata?.autoCreated).length;
   if (autoCreatedCount >= AUTO_POI_LIMIT) return null;
-  if (Math.random() > 0.35) return null;
 
   const baseSlug = slugify(poiLabel);
   let slugCandidate = baseSlug || `poi-${Date.now()}`;

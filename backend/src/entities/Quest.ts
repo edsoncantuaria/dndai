@@ -1,6 +1,7 @@
 // backend/src/entities/Quest.ts
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { Relationship } from './Relationship.js';
+import { QuestKeyword } from './QuestKeyword.js';
 
 @Entity('quests')
 export class Quest {
@@ -26,4 +27,12 @@ export class Quest {
 
     @Column({ type: 'json' }) // Armazena os objetivos como um array de strings
     objectives: string[];
+
+    @ManyToMany(() => QuestKeyword, keyword => keyword.quests, { cascade: false })
+    @JoinTable({
+        name: 'quest_keyword_links',
+        joinColumn: { name: 'questId', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'keywordId', referencedColumnName: 'id' },
+    })
+    keywords: QuestKeyword[];
 }

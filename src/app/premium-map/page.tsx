@@ -86,6 +86,14 @@ const slugifyLabel = (value: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
 
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = event => reject(event);
+    reader.readAsDataURL(file);
+  });
+
 const buildRegionHierarchy = (regions: RegionDTO[]): RegionTreeNode[] => {
   const nodeMap = new Map<string, RegionTreeNode>();
   regions.forEach(region =>
@@ -142,6 +150,7 @@ const PremiumMapPage = () => {
   const [isWorldMapLoading, setIsWorldMapLoading] = useState(false);
   const [worldMapSessionId, setWorldMapSessionId] = useState<number | null>(null);
   const [worldMapSnapshots, setWorldMapSnapshots] = useState<Map<number, WorldMapSnapshot>>(new Map());
+  const [backgroundBusySlug, setBackgroundBusySlug] = useState<string | null>(null);
 
   const currentWorldMapSnapshot = useMemo(
     () => (worldMapSessionId != null ? worldMapSnapshots.get(worldMapSessionId) ?? null : null),
@@ -412,6 +421,45 @@ const PremiumMapPage = () => {
     }
   };
 
+  const handleRegionBackgroundUpload = async (region: RegionDTO, file: File) => {
+    setBackgroundBusySlug(region.slug);
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      await uploadRegionBackground(region.slug, {
+        dataUrl,
+        fileName: file.name,
+      });
+      toast({ description: `Plano de fundo atualizado para ${region.name}.` });
+      await loadRegions();
+    } catch (error) {
+      console.error('[premium-map] Falha ao enviar background', error);
+      toast({
+        variant: 'destructive',
+        description: 'Não foi possível enviar o plano de fundo.',
+      });
+    } finally {
+      setBackgroundBusySlug(null);
+    }
+  };
+
+  const handleRegionBackgroundDelete = async (region: RegionDTO) => {
+    if (!region?.slug) return;
+    setBackgroundBusySlug(region.slug);
+    try {
+      await deleteRegionBackground(region.slug);
+      toast({ description: `Plano de fundo removido de ${region.name}.` });
+      await loadRegions();
+    } catch (error) {
+      console.error('[premium-map] Falha ao remover background', error);
+      toast({
+        variant: 'destructive',
+        description: 'Não foi possível remover o plano de fundo.',
+      });
+    } finally {
+      setBackgroundBusySlug(null);
+    }
+  };
+
   const handlePersistMapLayout = async (
     region: RegionDTO,
     payload: LayoutSnapshot
@@ -623,6 +671,9 @@ const PremiumMapPage = () => {
               onCreateRoute={handleCreateRoute}
               onPersistLayout={handlePersistMapLayout}
               onRefreshRegions={loadRegions}
+              onUploadBackground={handleRegionBackgroundUpload}
+              onDeleteBackground={handleRegionBackgroundDelete}
+              backgroundBusySlug={backgroundBusySlug}
             />
 
             {isAdmin && (
@@ -714,6 +765,9 @@ type AdminMapPanelProps = {
   onCreateRoute: (payload: CreateRegionLinkInput) => void;
   onPersistLayout: (region: RegionDTO, snapshot: LayoutSnapshot) => void;
   onRefreshRegions: () => Promise<void>;
+  onUploadBackground: (region: RegionDTO, file: File) => void;
+  onDeleteBackground: (region: RegionDTO) => void;
+  backgroundBusySlug: string | null;
 };
 
 const AdminMapPanel = ({
@@ -731,6 +785,9 @@ const AdminMapPanel = ({
   onCreateRoute,
   onPersistLayout,
   onRefreshRegions,
+  onUploadBackground,
+  onDeleteBackground,
+  backgroundBusySlug,
 }: AdminMapPanelProps) => {
   const [miniMapFocus, setMiniMapFocus] = useState(() => regionHierarchy[0]?.region.slug ?? '');
 
@@ -793,6 +850,9 @@ const AdminMapPanel = ({
               onUpsertPoi={onUpsertPoi}
               onDeletePoi={onDeletePoi}
               onCreateRoute={onCreateRoute}
+              onUploadBackground={onUploadBackground}
+              onDeleteBackground={onDeleteBackground}
+              backgroundBusySlug={backgroundBusySlug}
             />
           )}
         </>
@@ -1526,15 +1586,18 @@ const RegionGraphMiniMap = ({
             >
               Remover imagem
             </Button>
-            {isUploadingBackground && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                sincronizando overlay...
-              </span>
-            )}
-          </div>
-        </div>
-      )}
+        {isUploadingBackground && (
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            sincronizando overlay...
+          </span>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Exportou o layout? Publique o SVG/PNG e, em seguida, reenvie este overlay para manter o Premium Map alinhado com o mundo compartilhado.
+      </p>
+    </div>
+  )}
 
       <div className="flex flex-wrap gap-2 mt-3">
         <Button variant="outline" size="sm" onClick={persistLayoutLocally}>
@@ -1698,6 +1761,9 @@ type RegionDetailsProps = {
   }) => void;
   onDeletePoi: (poiId: number) => void;
   onCreateRoute: (payload: CreateRegionLinkInput) => void;
+  onUploadBackground: (region: RegionDTO, file: File) => void;
+  onDeleteBackground: (region: RegionDTO) => void;
+  backgroundBusySlug: string | null;
 };
 
 const RegionDetailsCard = ({
@@ -1710,6 +1776,9 @@ const RegionDetailsCard = ({
   onUpsertPoi,
   onDeletePoi,
   onCreateRoute,
+  onUploadBackground,
+  onDeleteBackground,
+  backgroundBusySlug,
 }: RegionDetailsProps) => (
   <div className="rounded-lg border p-4 space-y-5">
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1731,6 +1800,15 @@ const RegionDetailsCard = ({
     </div>
 
     <RegionMetadataForm region={region} onUpdateMetadata={onUpdateMetadata} isEditable={isAdmin} />
+
+    {isAdmin && region.type === 'world' && (
+      <RegionBackgroundControls
+        region={region}
+        onUpload={onUploadBackground}
+        onDelete={onDeleteBackground}
+        isBusy={backgroundBusySlug === region.slug}
+      />
+    )}
 
     <RouteCreationForm
       region={region}
@@ -1824,6 +1902,85 @@ const RegionMetadataForm = ({ region, onUpdateMetadata, isEditable }: RegionMeta
         </label>
       </div>
     </form>
+  );
+};
+
+type RegionBackgroundControlsProps = {
+  region: RegionDTO;
+  onUpload: (region: RegionDTO, file: File) => void;
+  onDelete: (region: RegionDTO) => void;
+  isBusy: boolean;
+};
+
+const RegionBackgroundControls = ({
+  region,
+  onUpload,
+  onDelete,
+  isBusy,
+}: RegionBackgroundControlsProps) => {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [lastUploadedName, setLastUploadedName] = useState('');
+  const backgroundMeta = region.metadata?.mapBackground;
+
+  const handlePickFile = () => fileInputRef.current?.click();
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setLastUploadedName(file.name);
+    onUpload(region, file);
+    event.target.value = '';
+  };
+
+  return (
+    <div className="space-y-2 rounded-md border border-dashed border-muted/70 bg-muted/10 p-3 text-sm">
+      <div className="flex items-center justify-between">
+        <p className="font-semibold text-sm">Plano de fundo compartilhado</p>
+        {isBusy && <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {backgroundMeta
+          ? `Atual: ${backgroundMeta.originalName ?? backgroundMeta.url}`
+          : 'Nenhuma imagem aplicada a este continente.'}
+      </p>
+      {lastUploadedName && (
+        <p className="text-[11px] text-muted-foreground">
+          Upload recente: <span className="font-medium">{lastUploadedName}</span>
+        </p>
+      )}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <Button size="sm" variant="outline" onClick={handlePickFile} disabled={isBusy}>
+          Enviar imagem
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => onDelete(region)}
+          disabled={isBusy || !backgroundMeta}
+        >
+          Remover overlay
+        </Button>
+        {backgroundMeta?.url && (
+          <a
+            href={backgroundMeta.url}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            abrir atual
+          </a>
+        )}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Após exportar o layout em SVG/PNG, reenvie ou atualize o overlay aqui para manter o mapa premium alinhado.
+      </p>
+    </div>
   );
 };
 
@@ -2827,6 +2984,40 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
     (slug: string) => nodePositions.get(slug) ?? fallbackPositions.get(slug),
     [nodePositions, fallbackPositions]
   );
+  const canonicalSlug = useCallback((value?: string | null) => {
+    if (!value) return '';
+    return slugifyLabel(value);
+  }, []);
+  const visitedRegionSet = useMemo(() => {
+    const set = new Set<string>();
+    (snapshot.visitedRegions ?? []).forEach(slug => {
+      const normalized = canonicalSlug(slug);
+      if (normalized) set.add(normalized);
+    });
+    const current = canonicalSlug(snapshot.currentRegionSlug);
+    if (current) set.add(current);
+    return set;
+  }, [snapshot.visitedRegions, snapshot.currentRegionSlug, canonicalSlug]);
+  const visitedPoiSet = useMemo(() => {
+    const set = new Set<string>();
+    (snapshot.visitedPois ?? []).forEach(poi => {
+      const regionSlug = canonicalSlug(poi.regionSlug);
+      const poiSlug = canonicalSlug(poi.poiSlug);
+      if (regionSlug && poiSlug) {
+        set.add(`${regionSlug}::${poiSlug}`);
+      }
+    });
+    return set;
+  }, [snapshot.visitedPois, canonicalSlug]);
+  const backgroundBySlug = useMemo(() => {
+    const map = new Map<string, string>();
+    hierarchy.forEach(node => {
+      if (node.region.type !== 'world') return;
+      const url = node.region.metadata?.mapBackground?.url;
+      if (url) map.set(node.region.slug, url);
+    });
+    return map;
+  }, [hierarchy]);
   const currentPos = snapshot.currentRegionSlug ? getPosition(snapshot.currentRegionSlug) : null;
   const fogGradientId = useMemo(() => `fog-gradient-${Math.random().toString(36).slice(2)}`, []);
   const fogMaskId = useMemo(() => `fog-mask-${Math.random().toString(36).slice(2)}`, []);
@@ -2864,6 +3055,23 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
               )}
             </mask>
           </defs>
+          <rect width={width} height={height} fill="#020617" />
+          {continentBounds.map(bound => {
+            const backgroundUrl = backgroundBySlug.get(bound.slug);
+            if (!backgroundUrl) return null;
+            return (
+              <image
+                key={`bg-${bound.slug}`}
+                href={backgroundUrl}
+                x={bound.x}
+                y={bound.y}
+                width={bound.width}
+                height={bound.height}
+                preserveAspectRatio="xMidYMid slice"
+                opacity={0.35}
+              />
+            );
+          })}
           <rect width={width} height={height} fill="url(#worldGrid)" />
           <rect width={width} height={height} fill="url(#worldGridPattern)" />
           <rect width={width} height={height} fill="rgba(2,6,23,0.82)" mask={`url(#${fogMaskId})`} />
@@ -2917,7 +3125,11 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
           {renderableRegions.map(region => {
             const pos = getPosition(region.slug);
             if (!pos) return null;
-            const isDiscovered = Boolean(region.isDiscovered);
+            const canonicalRegionSlug =
+              canonicalSlug(region.slug) || canonicalSlug(region.name ?? '');
+            const isDiscovered =
+              region.isDiscovered ??
+              (canonicalRegionSlug ? visitedRegionSet.has(canonicalRegionSlug) : false);
             const radius = region.type === 'city' ? 14 : 10;
             const fill = !isDiscovered
               ? '#1f2937'
@@ -2963,7 +3175,16 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
           {visibleMarkers.map(marker => {
             const pos = getPosition(marker.regionSlug);
             if (!pos) return null;
-            const opacity = marker.isDiscovered ? 1 : 0.3;
+            const canonicalMarkerRegion = canonicalSlug(marker.regionSlug);
+            const canonicalMarkerPoi = canonicalSlug(marker.poiSlug);
+            const markerKey =
+              canonicalMarkerRegion && canonicalMarkerPoi
+                ? `${canonicalMarkerRegion}::${canonicalMarkerPoi}`
+                : null;
+            const markerIsDiscovered =
+              marker.isDiscovered ??
+              (markerKey ? visitedPoiSet.has(markerKey) : visitedRegionSet.has(canonicalMarkerRegion));
+            const opacity = markerIsDiscovered ? 1 : 0.3;
             const label = marker.label;
             const description = marker.description
               ? ` • ${marker.description}`

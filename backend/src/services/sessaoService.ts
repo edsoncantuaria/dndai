@@ -20,6 +20,7 @@ import { CombatLogEntry } from '../entities/CombatLogEntry.js';
 import { CombatCooldown } from '../entities/CombatCooldown.js';
 import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 import * as RegionService from './regionService.js';
+import { extractQuestKeywordStrings } from './questKeywordService.js';
 import type { RegionLink } from '../entities/RegionLink.js';
 
 interface SessionFactsPayload {
@@ -38,7 +39,7 @@ interface SessionFactsPayload {
         status: string;
         affinity: number;
         description?: string;
-        quests: Array<{ id: string; title: string; status: string }>;
+        quests: Array<{ id: string; title: string; status: string; keywords?: string[] }>;
     }>;
     activeQuests: Array<{
         id: string;
@@ -354,6 +355,7 @@ export const getSessaoFacts = async (sessionId: number, userId: number): Promise
                 id: quest.id,
                 title: quest.title,
                 status: quest.status,
+                keywords: extractQuestKeywordStrings(quest?.keywords as any[]),
             })),
         }));
 
@@ -363,6 +365,7 @@ export const getSessaoFacts = async (sessionId: number, userId: number): Promise
         status: string;
         source: string;
         summary?: string;
+        keywords?: string[];
     }> = [];
 
     for (const rel of relationships) {
@@ -374,6 +377,7 @@ export const getSessaoFacts = async (sessionId: number, userId: number): Promise
                 status: quest.status,
                 source: rel.name,
                 summary: quest.objectives?.[0],
+                keywords: extractQuestKeywordStrings(quest?.keywords as any[]),
             });
         }
     }
@@ -627,7 +631,7 @@ export const getWorldMapSnapshot = async (sessionId: number, userId: number): Pr
     }
     const characterWithRelations = await characterRepository.findOne({
         where: { id: sessao.character.id },
-        relations: ['relationships', 'relationships.quests'],
+        relations: ['relationships', 'relationships.quests', 'relationships.quests.keywords'],
     });
     const relationships = characterWithRelations?.relationships ?? [];
     const relationshipByNpcId = new Map<string, (typeof relationships)[number]>();
@@ -638,8 +642,14 @@ export const getWorldMapSnapshot = async (sessionId: number, userId: number): Pr
     const worldState = (sessao.character.worldState ?? {}) as Record<string, any>;
     const visitedRegions = normalizeVisitedRegions(worldState.visitedRegions);
     const visitedRegionSet = new Set(visitedRegions);
-    const visitedPois = normalizeVisitedPois(worldState.visitedPois);
-    const visitedPoiSet = new Set(visitedPois.map(poi => `${poi.regionSlug}::${poi.poiSlug}`));
+    const visitedPoisRaw = normalizeVisitedPois(worldState.visitedPois);
+    const visitedPoiMap = new Map<string, VisitedPoiRecord>();
+    visitedPoisRaw.forEach(poi => {
+        const key = `${poi.regionSlug}::${poi.poiSlug}`;
+        if (!visitedPoiMap.has(key)) visitedPoiMap.set(key, poi);
+    });
+    const visitedPois = Array.from(visitedPoiMap.values());
+    const visitedPoiSet = new Set(visitedPoiMap.keys());
     const currentRegionSlug =
         normalizeSlug(worldState.regionSlug ?? worldState.currentRegionSlug ?? worldState.currentRegion) ||
         normalizeSlug(sessao.character.currentRegion);

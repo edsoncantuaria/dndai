@@ -83,5 +83,75 @@
       "requireLoot": false,
       "requireRest": true
     }
+  },
+  {
+    "label": "Capítulo 9 - Cartografia em Aço-Luz",
+    "memory": {
+      "summaryKeywords": ["mapa", "taverna", "aço-luz"],
+      "referenceKeywords": ["Fórum Prismático", "Taverna Dragão Azul"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": false,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 10 - Travessia Constelada",
+    "memory": {
+      "summaryKeywords": ["viagem", "selva", "encontro"],
+      "referenceKeywords": ["Trilha das Constelações", "Selva de Ashari"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 11 - Vigília Obsidiana",
+    "memory": {
+      "summaryKeywords": ["vigília", "covil", "restrição"],
+      "referenceKeywords": ["Covil Obsidiano", "Vigília Obsidiana"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": false,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 12 - Santuário Luarino",
+    "memory": {
+      "summaryKeywords": ["santuário", "lua", "descoberta"],
+      "referenceKeywords": ["Selva de Ashari", "Santuário da Lua Esmeralda"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": false,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
+  },
+  {
+    "label": "Capítulo 13 - Vigília das Monções",
+    "memory": {
+      "summaryKeywords": ["chuva", "noite", "travessia"],
+      "referenceKeywords": ["Selvas de Myr", "Trilha das Constelações"]
+    },
+    "expectations": {
+      "requireMemory": true,
+      "requireRoll": true,
+      "requireCombatActive": false,
+      "requireLoot": false,
+      "requireRest": false
+    }
   }
 ]

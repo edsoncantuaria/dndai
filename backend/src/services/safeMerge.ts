@@ -9,6 +9,7 @@ import { Quest } from '../entities/Quest.js';
 import { JournalEntry } from '../entities/JournalEntry.js';
 import { v4 as uuidv4 } from 'uuid';
 import { clampCharacterLevel } from './xpService.js';
+import { syncQuestKeywords } from './questKeywordService.js';
 
 // Função auxiliar para limpar arrays de null/undefined
 const sanitizeArray = <T>(arr?: T[]): T[] => Array.isArray(arr) ? arr.filter(Boolean) : [];
@@ -119,6 +120,7 @@ export const mergeCharacterUpdates = async (
     .leftJoinAndSelect('journal.subLocations', 'journalSubLocations')
     .leftJoinAndSelect('character.relationships', 'relationships')
     .leftJoinAndSelect('relationships.quests', 'relationshipQuests')
+    .leftJoinAndSelect('relationshipQuests.keywords', 'questKeywords')
     .where('character.id = :id', { id: characterId })
     .getOne();
 
@@ -356,6 +358,8 @@ export const mergeCharacterUpdates = async (
                     objectives: questData.objectives 
                 });
                 await questRepo.save(quest);
+                const syncedKeywords = await syncQuestKeywords(queryRunner.manager, quest, questData.keywords);
+                quest.keywords = syncedKeywords;
             }
         }
     }

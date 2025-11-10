@@ -600,6 +600,7 @@ export interface Quest {
     status: 'active' | 'completed' | 'failed';
     objectives: string[];
     relationshipId?: number;
+    keywords?: string[];
 }
 
 export interface Relationship {

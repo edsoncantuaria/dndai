@@ -580,6 +580,7 @@ export interface Quest {
     title: string;
     status: 'active' | 'completed';
     objectives: string[];
+    keywords?: string[];
 }
 
 export interface Relationship {

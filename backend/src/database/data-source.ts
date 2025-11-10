@@ -29,6 +29,7 @@ import { Region } from '../entities/Region.js';
 import { RegionLink } from '../entities/RegionLink.js';
 import { RegionPointOfInterest } from '../entities/RegionPointOfInterest.js';
 import { RegionSnapshot } from '../entities/RegionSnapshot.js';
+import { QuestKeyword } from '../entities/QuestKeyword.js';
 
 
 /**
@@ -79,6 +80,7 @@ export const AppDataSource = new DataSource({
         RegionLink,
         RegionPointOfInterest,
         RegionSnapshot,
+        QuestKeyword,
     ], 
     
     migrations: [],
