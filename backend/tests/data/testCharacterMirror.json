@@ -3,41 +3,53 @@
     "id": "sample-character",
     "name": "Guardião de Integridade",
     "level": 4,
-    "xp": 1800,
+    "xp": 0,
     "worldState": {
-      "timeOfDay": "Manhã",
-      "weather": "Ensolarado",
-      "currentRegion": "Selva de Ashari",
-      "regionSlug": "selva-de-ashari",
+      "timeOfDay": "Noite",
+      "weather": "Chuvoso",
+      "currentRegion": "Selvas de Myr",
+      "regionSlug": "selvas-de-myr",
       "visitedRegions": [
         "biblioteca-arcana",
         "cidadela-do-aco-luz",
-        "selva-de-ashari"
+        "selva-de-ashari",
+        "selvas-de-myr"
       ],
       "visitedPois": [
         {
-          "regionSlug": "selva-de-ashari",
+          "regionSlug": "selvas-de-myr",
           "poiSlug": "biblioteca-arcana",
           "name": "biblioteca-arcana"
         },
         {
-          "regionSlug": "selva-de-ashari",
+          "regionSlug": "selvas-de-myr",
           "poiSlug": "cidadela-do-aco-luz",
           "name": "cidadela-do-aco-luz"
         },
         {
-          "regionSlug": "selva-de-ashari",
+          "regionSlug": "selvas-de-myr",
           "poiSlug": "taverna-dragao-azul",
           "name": "taverna-dragao-azul"
         },
         {
-          "regionSlug": "selva-de-ashari",
-          "poiSlug": "acampamento-explorador",
-          "name": "acampamento-explorador"
+          "regionSlug": "selvas-de-myr",
+          "poiSlug": "portao-do-covil-obsidiano",
+          "name": "portao-do-covil-obsidiano"
+        },
+        {
+          "regionSlug": "selvas-de-myr",
+          "poiSlug": "santuario-da-lua-esmeralda",
+          "name": "santuario-da-lua-esmeralda"
+        },
+        {
+          "regionSlug": "selvas-de-myr",
+          "poiSlug": "santu-rio-da-lua-esmeralda",
+          "name": "Santuário da Lua Esmeralda"
         }
       ],
-      "poiSlug": "acampamento-explorador",
-      "poiName": "Acampamento do Explorador"
+      "poiSlug": "santu-rio-da-lua-esmeralda",
+      "poiName": "Santuário da Lua Esmeralda",
+      "completedQuests": []
     },
     "inventory": [
       {
@@ -62,7 +74,7 @@
         "equipped": false
       },
       {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
@@ -70,7 +82,7 @@
         "index": null
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "description": "Amuleto usado para controlar cultistas.",
@@ -78,7 +90,7 @@
         "index": null
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
         "name": "Relíquia Restaurada do Obelisco",
         "quantity": 1,
         "description": "Fragmento cristalino purificado após o ritual.",
@@ -86,7 +98,7 @@
         "index": null
       },
       {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
         "name": "Colar Rúnico Purificado",
         "quantity": 1,
         "description": "Colar de prata gravado com novas runas brilhantes.",
@@ -94,7 +106,7 @@
         "index": null
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
         "name": "Pergaminho de Restauro Arcano",
         "quantity": 1,
         "description": "Pergaminho utilizado para reverter corrupção em relíquias.",
@@ -111,7 +123,8 @@
     },
     "spells": [
       "Raio Arcano",
-      "Escudo Místico"
+      "Escudo Místico",
+      "Muralha Arcana"
     ],
     "relationships": [
       {
@@ -144,13 +157,18 @@
       },
       {
         "status": "unexplored"
+      },
+      {
+        "name": "A Vigília Obsidiana",
+        "status": "unexplored"
       }
     ],
     "proficiencies": [],
-    "hpCurrent": 10,
-    "hpMax": 24,
+    "hpCurrent": 22,
+    "hpMax": 25,
     "hitDice": {
       "d8": 1
-    }
+    },
+    "notes": "Raio Prismático foi lançado para tentar romper o nexus mágico."
   }
 }

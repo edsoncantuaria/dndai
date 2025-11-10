@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowLeft, BookOpen, Beaker, Clock, CloudSun, Copy, Crown, Edit, FlaskConical, GitMerge, Languages, LogOut, MapPin, MoreVertical, Play, Plus, Settings, Shield, Sparkles, Sword, Trash2, User } from 'lucide-react';
 import PremiumLoader from '@/components/ui/PremiumLoader';
@@ -71,6 +72,8 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
     openSessionActionModal,
 }) => {
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+    const router = useRouter();
+    const isAdmin = user?.id === 1;
 
     const featuredSession = sessions[0];
     const hasSessions = sessions.length > 0;
@@ -111,6 +114,19 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
             action: () => onSetStage('homebrew_store'),
             cta: 'Entrar'
         },
+        ...(isAdmin
+            ? [
+                  {
+                      title: 'Mapa premium',
+                      description: 'Administre regiões, rotas e progresso global em tempo real.',
+                      icon: MapPin,
+                      gradient: 'from-cyan-500/20 via-cyan-300/5 to-transparent',
+                      accent: 'text-cyan-200',
+                      action: () => router.push('/premium-map'),
+                      cta: 'Abrir mapa',
+                  },
+              ]
+            : []),
     ];
 
     if (gameStage === 'playing' && !character) {

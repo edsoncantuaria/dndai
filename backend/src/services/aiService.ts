@@ -846,9 +846,15 @@ const getCachedInstruction = (useAiHomebrew: boolean, enableNarrativeRevalidatio
 };
 
 
+export interface GameUpdateWarning {
+    type: string;
+    details?: Record<string, any> | string | null;
+}
+
 export interface GameUpdateResult {
     response: GameMasterResponse;
     rawText: string;
+    warnings?: GameUpdateWarning[];
 }
 
 const condenseCombatStateForPrompt = (combatState: any) => {
@@ -1172,6 +1178,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
     const recoveryStrategies = new Set<string>();
     const failoverTrail: string[] = [];
+    const aggregatedWarnings: GameUpdateWarning[] = [];
+    const emitWarning = (type: string, details?: Record<string, any> | string | null) => {
+        aggregatedWarnings.push({ type, details });
+    };
     const registerRecoveryStrategy = (strategy?: string | null) => {
         if (strategy) recoveryStrategies.add(strategy);
     };
@@ -1317,6 +1327,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             return {
                 response: fallback,
                 rawText: '',
+                warnings: aggregatedWarnings.slice(),
             };
         };
 
@@ -1346,7 +1357,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
                     console.warn('[aiService] Falhas consecutivas detectadas; aplicando fail-soft com snapshot persistido.');
                     const failSoftResponse = buildFailSoftResponse(input, snapshot, issue);
                     registerRecoveryStrategy('fail-soft');
-                    return { response: failSoftResponse, rawText: snapshot.lastPrompt };
+                    return { response: failSoftResponse, rawText: snapshot.lastPrompt, warnings: aggregatedWarnings.slice() };
                 }
             }
             console.error(`[aiService] ${issue} | Acionando fallback resiliente.`);
@@ -1660,6 +1671,12 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             const validationResult = GameMasterResponseSchema.safeParse(finalResponse);
             if (!validationResult.success) {
                 const flattenedError = validationResult.error.flatten();
+                emitWarning('zod_validation_failure', {
+                    attempt: attemptIndex + 1,
+                    scenarioLabel: input.scenarioLabel,
+                    fieldErrors: flattenedError.fieldErrors,
+                    formErrors: flattenedError.formErrors,
+                });
                 void logZodValidationFailure({
                     attempt: attemptIndex + 1,
                     model: activeModelName,
@@ -1721,6 +1738,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             return {
                 response: validatedResponse,
                 rawText: jsonText,
+                warnings: aggregatedWarnings.slice(),
             };
 
         } catch (error: any) {

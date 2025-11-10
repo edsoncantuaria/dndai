@@ -113,11 +113,38 @@ export type FullCombatant = z.infer<typeof FullCombatantSchema>;
 export type CombatState = z.infer<typeof CombatStateSchema>;
 
 /* -------------------------------- GAME STATES -------------------------------- */
-export const LevelUpStateSchema = z.object({
+const LegacyLevelUpStateSchema = z.object({
   isPending: z.boolean(),
   newLevel: z.number(),
   choices: z.any(),
 });
+
+const ModernLevelUpStateSchema = z
+  .object({
+    level: z.number().optional(),
+    levelReached: z.number().optional(),
+    status: z.string().optional(),
+    pendingChoices: z.union([z.string(), z.object({}).passthrough()]).optional(),
+    choices: z.any().optional(),
+    availableProficiencies: z.array(z.string()).optional(),
+    availableFeats: z.array(z.string()).optional(),
+    abilityScoreOptions: z.any().optional(),
+  })
+  .passthrough()
+  .refine(
+    data =>
+      data.level !== undefined ||
+      data.levelReached !== undefined ||
+      data.status !== undefined ||
+      data.pendingChoices !== undefined ||
+      data.choices !== undefined ||
+      data.availableProficiencies !== undefined ||
+      data.availableFeats !== undefined ||
+      data.abilityScoreOptions !== undefined,
+    { message: 'LevelUpState incompleto.' }
+  );
+
+export const LevelUpStateSchema = z.union([LegacyLevelUpStateSchema, ModernLevelUpStateSchema]);
 
 export const ShopStateSchema = z.object({
   isOpen: z.boolean(),

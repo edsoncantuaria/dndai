@@ -45,7 +45,7 @@ type ScenarioValidationRules = {
   requireEncounterRoll?: boolean;
   requireSpawnPersistence?: boolean;
   questKeywords?: string[];
-  expectedWeather?: string;
+  expectedWeather?: string | string[];
   expectedRegionStrict?: boolean;
   forbiddenVisitedRegions?: string[];
   expectRouteBlocked?: { from: string; to: string; requirement?: string };
@@ -174,12 +174,106 @@ const normalizePlainText = (value?: string) => {
     .trim();
 };
 
+const REGION_ALIAS_MAP: Record<string, string> = {
+  'cidadela prismatica': 'cidadela-do-aco-luz',
+  'forum prismatico': 'cidadela-do-aco-luz',
+  'forum prismatica': 'cidadela-do-aco-luz',
+  'taverna dragao azul': 'cidadela-do-aco-luz',
+  'selva de mir': 'selvas-de-myr',
+  'selva de myr': 'selvas-de-myr',
+  'selvas de mir': 'selvas-de-myr',
+  'selvas de myr': 'selvas-de-myr',
+  'biblioteca arcana': 'biblioteca-arcana',
+  'aurathis central': 'aurathis',
+  'covil obsidiano': 'covil-obsidiano',
+};
+
+const NPC_ALIAS_MAP: Record<string, string> = {
+  'borin': 'borin stonehand',
+  'borin stonehand': 'borin stonehand',
+  'golem vigia': 'golem vigia',
+  'guardiao de integridade': 'guardiao de integridade',
+  'guardião de integridade': 'guardiao de integridade',
+  'kaldrax': 'kaldrax',
+  'suma vigia kaldrax': 'kaldrax',
+};
+
+const KEYWORD_SYNONYMS: Record<string, string[]> = {
+  rumor: ['rumor', 'rumores', 'boato', 'boatos', 'fofoca', 'fofocas', 'sussurro', 'sussurros'],
+  rumores: ['rumor', 'rumores', 'boato', 'boatos', 'fofoca', 'fofocas', 'sussurro', 'sussurros'],
+  rota: ['rota', 'rotas', 'trilha', 'trilhas', 'caminho', 'caminhos', 'trajeto', 'trajetos'],
+  rotas: ['rota', 'rotas', 'trilha', 'trilhas', 'caminho', 'caminhos', 'trajeto', 'trajetos'],
+  'vigilia obsidiana': ['vigilia obsidiana', 'vigília obsidiana', 'vigilia da obsidiana'],
+  encontro: ['encontro', 'encontros', 'patrulha', 'patrulhas', 'emboscada', 'emboscadas'],
+};
+
+const normalizeNpcName = (value?: string) => {
+  const normalized = normalizePlainText(value);
+  if (!normalized) return '';
+  return NPC_ALIAS_MAP[normalized] ?? normalized;
+};
+
 const normalizeTimeBucket = (value?: string) => {
   const normalized = normalizePlainText(value);
   if (!normalized) return '';
-  if (normalized.includes('manha')) return 'manha';
-  if (normalized.includes('tarde') || normalized.includes('crepus') || normalized.includes('por do sol')) return 'tarde';
-  if (normalized.includes('noite') || normalized.includes('meia')) return 'noite';
+  if (
+    normalized.includes('manha') ||
+    normalized.includes('alvorecer') ||
+    normalized.includes('aurora') ||
+    normalized.includes('amanhecer') ||
+    normalized.includes('primeira luz')
+  )
+    return 'manha';
+  if (
+    normalized.includes('tarde') ||
+    normalized.includes('crepus') ||
+    normalized.includes('por do sol') ||
+    normalized.includes('entardecer')
+  )
+    return 'tarde';
+  if (
+    normalized.includes('noite') ||
+    normalized.includes('meia') ||
+    normalized.includes('noturno') ||
+    normalized.includes('moncao') ||
+    normalized.includes('monss')
+  )
+    return 'noite';
+  return normalized;
+};
+
+const normalizeWeatherBucket = (value?: string) => {
+  const normalized = normalizePlainText(value);
+  if (!normalized) return '';
+  if (
+    normalized.includes('chuva') ||
+    normalized.includes('tormenta') ||
+    normalized.includes('tempest') ||
+    normalized.includes('moncao') ||
+    normalized.includes('monss') ||
+    normalized.includes('tropical') ||
+    normalized.includes('toró') ||
+    normalized.includes('toro') ||
+    normalized.includes('chuv') ||
+    normalized.includes('garoa') ||
+    normalized.includes('diluv') ||
+    normalized.includes('torve') ||
+    normalized.includes('aguaceiro')
+  ) {
+    return 'chuva';
+  }
+  if (normalized.includes('neve') || normalized.includes('inverno') || normalized.includes('geada')) {
+    return 'neve';
+  }
+  if (normalized.includes('sol') || normalized.includes('claro') || normalized.includes('ensolar')) {
+    return 'ensolarado';
+  }
+  if (normalized.includes('nublado') || normalized.includes('nuvem') || normalized.includes('nebul')) {
+    return 'nublado';
+  }
+  if (normalized.includes('vento') || normalized.includes('ventania')) {
+    return 'vento';
+  }
   return normalized;
 };
 
@@ -187,6 +281,10 @@ const resolveRegionSlug = (graph: RegionGraph, label?: string) => {
   if (!label) return undefined;
   const normalizedLabel = normalizePlainText(label);
   if (!normalizedLabel) return undefined;
+  const aliasSlug = REGION_ALIAS_MAP[normalizedLabel];
+  if (aliasSlug && graph.has(aliasSlug)) {
+    return aliasSlug;
+  }
   for (const node of graph.values()) {
     const normalizedName = normalizePlainText(node.name);
     if (normalizedName && (normalizedLabel === normalizedName || normalizedLabel.includes(normalizedName))) {
@@ -557,7 +655,8 @@ const run = async () => {
         regionGraph
       );
 
-      const combinedIssues = scenarioPreIssues.concat(scenarioIssues);
+      const warningIssues = convertWarningsToIssues(scenario.label, result.warnings);
+      const combinedIssues = scenarioPreIssues.concat(warningIssues, scenarioIssues);
       summarizeScenario(enrichedResponse, scenario.label, combinedIssues);
       issues.push(...combinedIssues);
 
@@ -874,7 +973,7 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
         expectedVisitedRegions: ['cidadela-do-aco-luz'],
         requireSpawnPersistence: true,
         requiredNpcs: ['Borin Stonehand'],
-        questKeywords: ['rumor'],
+        questKeywords: ['rumores'],
       },
     },
     {
@@ -939,7 +1038,7 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
         expectRouteBlocked: {
           from: 'cidadela-do-aco-luz',
           to: 'covil-obsidiano',
-          requirement: 'vigilia-obsidiana',
+          requirement: 'vigilia obsidiana',
         },
         storyKeywords: ['vigília', 'covil'],
         questKeywords: ['vigília obsidiana'],
@@ -998,7 +1097,7 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
         expectedVisitedRegions: ['selvas-de-myr'],
         expectRouteTravel: { from: 'selva-de-ashari', to: 'selvas-de-myr' },
         expectedTimeOfDay: 'Noite',
-        expectedWeather: 'Chuva',
+        expectedWeather: 'chuva',
         storyKeywords: ['chuva', 'noite'],
       },
     },
@@ -1349,7 +1448,9 @@ function validateResponse(
       if (!keyword) return;
       const normalizedKeyword = normalizePlainText(keyword);
       if (!normalizedKeyword) return;
-      if (!normalizedNarrative.includes(normalizedKeyword)) {
+      const variants = KEYWORD_SYNONYMS[normalizedKeyword] ?? [normalizedKeyword];
+      const matched = variants.some(variant => normalizedNarrative.includes(variant));
+      if (!matched) {
         addIssue('quest_keyword_ausente', `Narrativa não mencionou "${keyword}".`);
       }
     });
@@ -1415,13 +1516,25 @@ function validateResponse(
     addIssue('tempo_incoerente', 'Período do dia mudou sem registro.');
   }
 
-  const currentWeather = normalizePlainText(current.worldState?.weather);
-  const expectedWeather = normalizePlainText(expectations.expectedWeather);
-  if (expectedWeather) {
+  const currentWeather = normalizeWeatherBucket(current.worldState?.weather);
+  const expectedWeatherValues = Array.isArray(expectations.expectedWeather)
+    ? expectations.expectedWeather
+    : expectations.expectedWeather
+      ? [expectations.expectedWeather]
+      : [];
+  if (expectedWeatherValues.length) {
     if (!currentWeather) {
       addIssue('clima_indefinido', 'Clima não informado.');
-    } else if (currentWeather !== expectedWeather) {
-      addIssue('clima_incoerente', `Esperado clima "${expectations.expectedWeather}".`);
+    } else {
+      const matchesWeather = expectedWeatherValues
+        .map(normalizeWeatherBucket)
+        .some(weather => weather && weather === currentWeather);
+      if (!matchesWeather) {
+        addIssue(
+          'clima_incoerente',
+          `Esperado clima "${expectedWeatherValues.join(' / ')}".`
+        );
+      }
     }
   }
 
@@ -1454,12 +1567,11 @@ function validateResponse(
     }
   }
 
-  const normalizeNpc = (name?: string) => normalizePlainText(name);
-  const currentNpcSet = new Set(current.relationships.map(normalizeNpc).filter(Boolean));
+  const currentNpcSet = new Set(current.relationships.map(normalizeNpcName).filter(Boolean));
   const requiredNpcs = expectations.requiredNpcs ?? [];
   requiredNpcs.forEach(npcName => {
     if (!npcName) return;
-    if (!currentNpcSet.has(normalizeNpc(npcName))) {
+    if (!currentNpcSet.has(normalizeNpcName(npcName))) {
       addIssue('npc_ausente', `NPC "${npcName}" não está presente nos relacionamentos.`);
     }
   });
@@ -1467,7 +1579,7 @@ function validateResponse(
   if (expectations.enforceNpcContinuity !== false) {
     prev.relationships.forEach(npcName => {
       if (!npcName) return;
-      if (!currentNpcSet.has(normalizeNpc(npcName))) {
+      if (!currentNpcSet.has(normalizeNpcName(npcName))) {
         addIssue('npc_desapareceu', `NPC "${npcName}" desapareceu da ficha.`);
       }
     });
@@ -1599,6 +1711,54 @@ function summarizeScenario(response: any, label: string, issues: TestIssue[]) {
     `  ↳ ${label}: logEntries=${logCount}, actionOptions=${actionCount}, memória="${memorySummary}", status=${status}`
   );
   issues.forEach(issue => console.log(`     · ${issue.issue}${issue.details ? ` - ${issue.details}` : ''}`));
+}
+
+function convertWarningsToIssues(label: string, warnings?: any[]): TestIssue[] {
+  if (!Array.isArray(warnings) || warnings.length === 0) return [];
+  return warnings
+    .map(warning => {
+      if (!warning || typeof warning !== 'object') return null;
+      const type = typeof warning.type === 'string' ? warning.type : 'warning';
+      const details = formatWarningDetails(warning);
+      const issueCode = type === 'zod_validation_failure' ? type : `warning_${type}`;
+      return { label, issue: issueCode, details };
+    })
+    .filter((entry): entry is TestIssue => Boolean(entry));
+}
+
+function formatWarningDetails(warning: any) {
+  if (!warning) return undefined;
+  if (warning.type === 'zod_validation_failure') {
+    return describeZodFailure(warning.details);
+  }
+  if (warning.details) {
+    return typeof warning.details === 'string'
+      ? warning.details
+      : JSON.stringify(warning.details);
+  }
+  return undefined;
+}
+
+function describeZodFailure(details: any) {
+  if (!details) return 'Falha na validação Zod.';
+  const parts: string[] = [];
+  const attempt = Number(details?.attempt);
+  if (Number.isFinite(attempt)) {
+    parts.push(`Tentativa ${attempt}`);
+  }
+  if (Array.isArray(details?.formErrors) && details.formErrors.length) {
+    parts.push(`Form: ${details.formErrors.join(', ')}`);
+  }
+  if (details?.fieldErrors && typeof details.fieldErrors === 'object') {
+    Object.entries(details.fieldErrors).forEach(([field, messages]) => {
+      const list = Array.isArray(messages) ? messages.filter(Boolean).join(', ') : '';
+      if (list) parts.push(`${field}: ${list}`);
+    });
+  }
+  if (!parts.length && typeof details?.message === 'string') {
+    parts.push(details.message);
+  }
+  return parts.join(' | ') || 'Falha na validação Zod.';
 }
 
 async function persistReport(

@@ -12,27 +12,28 @@
   "logEntries": [
     {
       "type": "narration",
-      "content": "Você se lança em meio às estantes que desmoronam, o chão tremendo sob seus pés enquanto fragmentos de pedra e pergaminhos caem ao seu redor. O obelisco pulsa com uma energia caótica, e você foca nas runas complexas que o mantêm ativo."
+      "content": "O obelisco arcano pulsa com energia instável, e fragmentos da estrutura da biblioteca começam a desabar ao seu redor. Você corre agilmente entre as estantes que desmoronam, com o objetivo de alcançar o obelisco e encontrar o selo de emergência."
     },
     {
       "type": "narration",
-      "content": "Para desativar o obelisco e interromper o ritual, você precisará decifrar e romper o selo de emergência arcano."
+      "content": "Para tentar romper as runas e desativar o ritual antes que a biblioteca seja completamente destruída, você precisará de um foco intenso e conhecimento arcano."
     }
   ],
   "actionOptions": [
     {
-      "text": "Tentar romper as runas do obelisco",
+      "text": "Focar em desativar as runas do obelisco",
       "action": "roll",
       "skill": "Arcana"
     },
     {
-      "text": "Procurar por uma alternativa para desativar o obelisco",
-      "action": "explore",
-      "skill": "Investigation"
+      "text": "Tentar estabilizar as estantes para ganhar tempo",
+      "action": "roll",
+      "skill": "Athletics"
     },
     {
-      "text": "Recuar da área que desmorona",
-      "action": "flee"
+      "text": "Procurar por uma rota de fuga segura",
+      "action": "explore",
+      "skill": "Perception"
     }
   ],
   "updatedCharacter": {
@@ -98,12 +99,14 @@
       }
     ]
   },
-  "combatState": null,
+  "combatState": {
+    "isActive": false
+  },
   "playerRollRequest": {
-    "reason": "Desativar o obelisco arcano",
+    "reason": "Para tentar desativar o obelisco arcano e romper as runas antes que a biblioteca desabe.",
     "dice": "1d20",
-    "modifier": 3,
-    "dc": 16,
+    "modifier": 0,
+    "dc": 15,
     "rollType": "Skill Check",
     "advantage": false,
     "disadvantage": false
@@ -114,18 +117,10 @@
     "currentRegion": "Biblioteca Arcana",
     "regionSlug": "biblioteca-arcana",
     "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
     "visitedRegions": [
       "biblioteca-arcana"
     ],
-    "visitedPois": [
-      {
-        "regionSlug": "biblioteca-arcana",
-        "poiSlug": "biblioteca-arcana",
-        "name": "Biblioteca Arcana"
-      }
-    ],
-    "npcLocations": []
+    "visitedPois": []
   }
 }
 [aiSanitizer] updatedCharacter após merge {
@@ -171,7 +166,7 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 1 - Biblioteca em Colapso: logEntries=2, actionOptions=3, memória="Você se lança em meio às estantes que desmoronam, o chão tre", status=OK
+  ↳ Capítulo 1 - Biblioteca em Colapso: logEntries=2, actionOptions=3, memória="O obelisco arcano pulsa com energia instável, e fragmentos d", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 2 - Barganha com o Guardião
 [aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 482
@@ -181,27 +176,27 @@
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
-      "type": "event",
-      "content": "Você propõe a Borin que, em troca do tomo, você oferece um medalhão e 150 peças de ouro, lembrando-o das missões perigosas que enfrentaram juntos."
+      "type": "player",
+      "content": "Você propõe a Borin que ele lhe entregue o tomo proibido, lembrando-o de suas missões anteriores juntos e oferecendo um medalhão e 150 peças de ouro em troca."
     },
     {
-      "type": "narration",
-      "content": "Borin coça a barba, seus olhos azuis fixos no tomo. 'É uma oferta generosa, Guardião, e eu valorizo nossa história. Mas este tomo... ele carrega um grande poder e um perigo ainda maior. Não posso simplesmente entregá-lo. Você deve me convencer de que entende o risco e que é digno de tal conhecimento.'"
+      "type": "narrative",
+      "content": "Borin Stonehand pondera sua oferta, sua expressão séria. Ele olha para o tomo e depois para você. 'Sua lealdade e bravura são inegáveis, Guardião, e valorizo nossa história. Mas este tomo... ele contém segredos que podem corromper até mesmo os mais puros. Não é uma questão de preço, mas de segurança. No entanto, sua proposta me faz pensar. Talvez haja uma maneira...'"
     }
   ],
   "actionOptions": [
     {
-      "text": "Fazer a rolagem de Persuasão",
+      "text": "Tentar persuadir Borin a ceder o tomo",
       "action": "roll",
       "skill": "Persuasion"
     },
     {
-      "text": "Tentar outra abordagem",
-      "action": "input"
+      "text": "Perguntar mais sobre os perigos do tomo",
+      "action": "dialogue"
     },
     {
-      "text": "Desistir da negociação",
-      "action": "desist"
+      "text": "Desistir da negociação e procurar outra coisa",
+      "action": "explore"
     }
   ],
   "updatedCharacter": {
@@ -231,241 +226,13 @@
         "equipped": false
       }
     ],
-    "spells": [
-      "Raio Arcano",
-      "Escudo Místico"
-    ],
+    "spells": ["Raio Arcano", "Escudo Místico"],
     "worldState": {
       "timeOfDay": "Manhã",
       "weather": "Ensolarado",
       "currentRegion": "Biblioteca Arcana",
       "regionSlug": "biblioteca-arcana",
-      "visitedRegions": [
-        "biblioteca-arcana"
-      ],
-      "visitedPois": [],
-      "poiSlug": null
-    },
-    "relationships": [
-      {
-        "name": "Golem Vigia",
-        "status": "ally",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null
-      },
-      {
-        "name": "Borin Stonehand",
-        "status": "friendly",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null
-      }
-    ],
-    "journal": [
-      {
-        "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
-      }
-    ]
-  },
-  "combatState": null,
-  "playerRollRequest": {
-    "reason": "Convencer Borin a ceder o tomo proibido.",
-    "dice": "1d20",
-    "modifier": 5,
-    "dc": 15,
-    "rollType": "SkillCheck",
-    "advantage": false,
-    "disadvantage": false
-  },
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana",
-    "regionSlug": "biblioteca-arcana",
-    "poiSlug": "biblioteca-arcana",
-    "visitedRegions": [
-      "biblioteca-arcana"
-    ],
-    "visitedPois": [],
-    "npcLocations": []
-  },
-  "gameClock": {
-    "day": 1,
-    "hour": 8,
-    "weather": "Ensolarado"
-  },
-  "memoryContext": {
-    "summary": "O jogador está negociando com Borin Stonehand para obter um tomo proibido, oferecendo um medalhão e 150 peças de ouro. Borin está hesitante devido ao perigo do tomo e exige que o jogador o convença de sua dignidade.",
-    "references": [
-      "Borin Stonehand",
-      "tomo proibido",
-      "medalhão",
-      "150 gp"
-    ]
-  },
-  "xpEvents": [],
-  "progressionFeed": [],
-  "newHomebrewContent": [],
-  "levelUpState": null,
-  "shopState": null,
-  "lootOffer": null,
-  "useHitDiceRequest": null,
-  "ambientSound": "library",
-  "systemLog": null,
-  "_meta": {
-    "hash": "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6",
-    "schemaVersion": 1,
-    "integrityNotes": "Generated based on player negotiation with Borin for the forbidden tome, requesting a persuasion roll."
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  name: 'Guardião de Integridade',
-  level: 3,
-  proficiencies: [],
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    }
-  ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
-  worldState: {
-    timeOfDay: 'Manhã',
-    weather: 'Ensolarado',
-    currentRegion: 'Biblioteca Arcana',
-    regionSlug: 'biblioteca-arcana',
-    visitedRegions: [ 'biblioteca-arcana' ],
-    visitedPois: [],
-    poiSlug: null
-  },
-  relationships: [
-    {
-      name: 'Golem Vigia',
-      status: 'ally',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null
-    },
-    {
-      name: 'Borin Stonehand',
-      status: 'friendly',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null
-    }
-  ],
-  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
-}
-  ↳ Capítulo 2 - Barganha com o Guardião: logEntries=2, actionOptions=3, memória="O jogador está negociando com Borin Stonehand para obter um ", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 3 - Cerco à Galeria
-[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 748
-[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 748 | baseline=748
-[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 748 tokens, default perfil 1200).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][combat][attempt 1] {
-  "logEntries": [
-    {
-      "type": "narration",
-      "content": "Você se concentra, tentando coordenar seus aliados enquanto os novos portais se abrem, brilhando com uma energia sinistra. O Golem Vigia se posiciona para proteger o flanco esquerdo, pronto para enfrentar qualquer ameaça que surja de lá."
-    },
-    {
-      "type": "dialogue",
-      "content": "Protegerei o flanco esquerdo!",
-      "rollResult": null
-    },
-    {
-      "type": "narration",
-      "content": "Para impedir que os portais invoquem reforços, você precisará de um teste de Inteligência (Arcana) para desestabilizar as runas."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Atacar o Cultista Sombrio",
-      "action": "attack",
-      "skill": "weapon"
-    },
-    {
-      "text": "Atacar o Cultista Arqueiro",
-      "action": "attack",
-      "skill": "weapon"
-    },
-    {
-      "text": "Atacar o Globo Elemental",
-      "action": "attack",
-      "skill": "weapon"
-    },
-    {
-      "text": "Lançar Raio Arcano",
-      "action": "castSpell",
-      "skill": "Raio Arcano"
-    },
-    {
-      "text": "Lançar Escudo Místico",
-      "action": "castSpell",
-      "skill": "Escudo Místico"
-    }
-  ],
-  "updatedCharacter": {
-    "name": "Guardião de Integridade",
-    "level": 3,
-    "proficiencies": [],
-    "inventory": [
-      {
-        "id": "dagger-a",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "dagger-b",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "kit-explorer",
-        "index": null,
-        "name": "Kit do Explorador",
-        "quantity": 1,
-        "equipped": false
-      }
-    ],
-    "spells": [
-      "Raio Arcano",
-      "Escudo Místico"
-    ],
-    "worldState": {
-      "timeOfDay": "Manhã",
-      "weather": "Ensolarado",
-      "currentRegion": "Biblioteca Arcana",
-      "regionSlug": "biblioteca-arcana",
-      "visitedRegions": [
-        "biblioteca-arcana"
-      ],
+      "visitedRegions": ["biblioteca-arcana"],
       "visitedPois": [],
       "poiSlug": null
     },
@@ -500,73 +267,13 @@
     ]
   },
   "combatState": {
-    "isActive": true,
-    "round": 2,
-    "turn": 1,
-    "summary": "O círculo de runas ativou dois portais secundários. O Golem Vigia protege o flanco esquerdo. Você tenta impedir reforços.",
-    "combatants": [
-      {
-        "id": "player",
-        "name": "Guardião",
-        "attitude": "ally",
-        "hpCurrent": 22,
-        "hpMax": 27,
-        "ac": 16,
-        "distance": 0,
-        "zone": "",
-        "notes": "Condições: Concentrando"
-      },
-      {
-        "id": "golem",
-        "name": "Golem Vigia",
-        "attitude": "ally",
-        "hpCurrent": 28,
-        "hpMax": 30,
-        "ac": 18,
-        "distance": 0,
-        "zone": "",
-        "notes": ""
-      },
-      {
-        "id": "cultist-1",
-        "name": "Cultista Sombrio",
-        "attitude": "hostile",
-        "hpCurrent": 8,
-        "hpMax": 12,
-        "ac": 13,
-        "distance": 0,
-        "zone": "",
-        "notes": ""
-      },
-      {
-        "id": "cultist-2",
-        "name": "Cultista Arqueiro",
-        "attitude": "hostile",
-        "hpCurrent": 12,
-        "hpMax": 12,
-        "ac": 14,
-        "distance": 0,
-        "zone": "",
-        "notes": "Condições: Inspirado"
-      },
-      {
-        "id": "elemental",
-        "name": "Globo Elemental",
-        "attitude": "hostile",
-        "hpCurrent": 20,
-        "hpMax": 20,
-        "ac": 15,
-        "distance": 0,
-        "zone": "",
-        "notes": ""
-      }
-    ]
+    "isActive": false
   },
   "playerRollRequest": {
-    "reason": "Para impedir que os portais invoquem reforços",
+    "reason": "Persuadir Borin a ceder o tomo proibido",
     "dice": "1d20",
-    "modifier": 4,
-    "dc": 14,
+    "modifier": 3,
+    "dc": 16,
     "rollType": "skillCheck",
     "advantage": false,
     "disadvantage": false
@@ -577,12 +284,31 @@
     "currentRegion": "Biblioteca Arcana",
     "regionSlug": "biblioteca-arcana",
     "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
-    "visitedRegions": [
-      "biblioteca-arcana"
-    ],
-    "visitedPois": [],
-    "npcLocations": []
+    "visitedRegions": ["biblioteca-arcana"],
+    "visitedPois": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 9,
+    "weather": "Ensolarado"
+  },
+  "memoryContext": {
+    "summary": "O Guardião está negociando com Borin Stonehand na Biblioteca Arcana para obter um tomo proibido. O Guardião ofereceu um medalhão e 150 gp, e relembrou missões passadas para persuadir Borin. Borin reconhece a lealdade do Guardião, mas está preocupado com os perigos do tomo.",
+    "references": ["NPC BORIN", "Biblioteca Arcana", "tomo proibido"]
+  },
+  "xpEvents": [],
+  "progressionFeed": [],
+  "newHomebrewContent": [],
+  "levelUpState": null,
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "library_ambience",
+  "systemLog": null,
+  "_meta": {
+    "hash": "placeholder_hash",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated based on player negotiation for forbidden tome."
   }
 }
 [aiSanitizer] updatedCharacter após merge {
@@ -641,7 +367,275 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 3 - Cerco à Galeria: logEntries=3, actionOptions=5, memória="Você se concentra, tentando coordenar seus aliados enquanto ", status=OK
+  ↳ Capítulo 2 - Barganha com o Guardião: logEntries=2, actionOptions=3, memória="O Guardião está negociando com Borin Stonehand na Biblioteca", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 3 - Cerco à Galeria
+[aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 752
+[aiService (gemini-2.5-flash)][combat] countTokens (compacto) = 752 | baseline=752
+[aiService (gemini-2.5-flash)][combat] maxOutputTokens=8192 (prompt real 752 tokens, default perfil 1200).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][combat][attempt 1] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "O círculo de runas ativa dois portais secundários, que começam a brilhar com uma luz sinistra."
+    },
+    {
+      "type": "narration",
+      "content": "O Golem Vigia declara: \"Protegerei o flanco esquerdo!\" Ele se move para bloquear um dos portais."
+    },
+    {
+      "type": "player",
+      "content": "Coordeno meus aliados e impeço que os portais invoquem reforços."
+    },
+    {
+      "type": "narration",
+      "content": "Você se concentra nos portais, tentando entender e desestabilizar sua magia antes que possam invocar mais inimigos."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Atacar o Cultista Arqueiro",
+      "action": "attack",
+      "skill": "ranged"
+    },
+    {
+      "text": "Atacar o Cultista Sombrio",
+      "action": "attack",
+      "skill": "melee"
+    },
+    {
+      "text": "Atacar o Globo Elemental",
+      "action": "attack",
+      "skill": "spell"
+    },
+    {
+      "text": "Defender-se",
+      "action": "defend"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 3,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
+      "visitedPois": [],
+      "poiSlug": null
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": {
+    "isActive": true,
+    "round": 2,
+    "turn": 1,
+    "summary": "O Guardião tenta desativar os portais secundários enquanto o Golem protege o flanco esquerdo. O Cultista Arqueiro já agiu.",
+    "combatants": [
+      {
+        "id": "player",
+        "name": "Guardião",
+        "attitude": "ally",
+        "hpCurrent": 22,
+        "hpMax": 27,
+        "ac": 16,
+        "distance": 0,
+        "zone": "",
+        "notes": "null"
+      },
+      {
+        "id": "golem",
+        "name": "Golem Vigia",
+        "attitude": "ally",
+        "hpCurrent": 28,
+        "hpMax": 30,
+        "ac": 18,
+        "distance": 0,
+        "zone": "",
+        "notes": "null"
+      },
+      {
+        "id": "cultist-1",
+        "name": "Cultista Sombrio",
+        "attitude": "hostile",
+        "hpCurrent": 8,
+        "hpMax": 12,
+        "ac": 13,
+        "distance": 0,
+        "zone": "",
+        "notes": "null"
+      },
+      {
+        "id": "cultist-2",
+        "name": "Cultista Arqueiro",
+        "attitude": "hostile",
+        "hpCurrent": 12,
+        "hpMax": 12,
+        "ac": 14,
+        "distance": 0,
+        "zone": "",
+        "notes": "null"
+      },
+      {
+        "id": "elemental",
+        "name": "Globo Elemental",
+        "attitude": "hostile",
+        "hpCurrent": 20,
+        "hpMax": 20,
+        "ac": 15,
+        "distance": 0,
+        "zone": "",
+        "notes": "null"
+      }
+    ]
+  },
+  "playerRollRequest": {
+    "reason": "Para desestabilizar os portais secundários e impedir a invocação de reforços.",
+    "dice": "1d20",
+    "modifier": 5,
+    "dc": 14,
+    "rollType": "Skill Check",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Biblioteca Arcana",
+    "regionSlug": "biblioteca-arcana",
+    "poiSlug": "null",
+    "poiName": "null",
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
+    "visitedPois": [],
+    "npcLocations": []
+  },
+  "_meta": {
+    "hash": "generatedHash",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated based on player action and combat state."
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 3,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Biblioteca Arcana',
+    regionSlug: 'biblioteca-arcana',
+    visitedRegions: [ 'biblioteca-arcana' ],
+    visitedPois: [],
+    poiSlug: null
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+}
+  ↳ Capítulo 3 - Cerco à Galeria: logEntries=4, actionOptions=4, memória="O círculo de runas ativa dois portais secundários, que começ", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 4 - Batalha Final e Rendição
 [aiService (gemini-2.5-flash)][combat] countTokens (pré-digest) = 654
@@ -651,29 +645,33 @@
 [aiService][raw-response][combat][attempt 1] {
   "logEntries": [
     {
-      "type": "player",
-      "content": "Exijo a rendição do líder cultista após um golpe devastador."
+      "type": "event",
+      "content": "Aproveitando-se do estado debilitado do Suma-Vigia Kaldrax, você exige que ele solte o tomo e encerre o ritual imediatamente."
     },
     {
-      "type": "gm",
-      "content": "O Suma-Vigia Kaldrax, cambaleando e sangrando, olha para você com fúria e desespero. Ele aperta o tomo contra o peito, hesitando. Sua demanda por rendição ecoa na câmara. Para ver se suas palavras o quebram, faça um teste de Intimidação."
+      "type": "narration",
+      "content": "Kaldrax cambaleia, a voz do Guardião ecoando em sua mente perturbada. Ele hesita, o tomo em suas mãos tremendo levemente, mas a determinação ainda brilha em seus olhos febris. 'Nunca! O ritual deve ser concluído!' ele grita, sua voz fraca mas cheia de fanatismo."
     }
   ],
   "actionOptions": [
     {
-      "text": "Fazer teste de Intimidação",
-      "action": "roll",
+      "text": "Atacar o Suma-Vigia Kaldrax novamente.",
+      "action": "attack"
+    },
+    {
+      "text": "Tentar desarmar o Suma-Vigia Kaldrax.",
+      "action": "skill_check",
+      "skill": "Athletics"
+    },
+    {
+      "text": "Focar em interromper o ritual diretamente.",
+      "action": "interact",
+      "skill": "Arcana"
+    },
+    {
+      "text": "Reforçar a demanda de rendição com uma ameaça.",
+      "action": "skill_check",
       "skill": "Intimidation"
-    },
-    {
-      "text": "Atacar o Suma-Vigia",
-      "action": "attack",
-      "skill": "Melee Attack"
-    },
-    {
-      "text": "Ordenar ao Golem para agir",
-      "action": "command",
-      "skill": "Tactics"
     }
   ],
   "updatedCharacter": {
@@ -752,8 +750,8 @@
   "combatState": {
     "isActive": true,
     "round": 4,
-    "turn": 3,
-    "summary": "O Suma-Vigia Kaldrax está gravemente ferido e cambaleando, enquanto o Guardião tenta intimidá-lo a se render.",
+    "turn": 2,
+    "summary": "O Suma-Vigia Kaldrax, gravemente ferido, recusa-se a render-se e insiste em continuar o ritual.",
     "combatants": [
       {
         "id": "player",
@@ -762,7 +760,7 @@
         "hpCurrent": 18,
         "hpMax": 27,
         "ac": 16,
-        "notes": "player character (Guardião de Integridade) is currently engaged in combat, attempting to intimidate the cultist leader to surrender. Has 18/27 HP and an AC of 16. No active status effects or cooldowns."
+        "notes": ""
       },
       {
         "id": "cultist-lider",
@@ -771,7 +769,7 @@
         "hpCurrent": 4,
         "hpMax": 40,
         "ac": 17,
-        "notes": "Suma-Vigia Kaldrax is the cultist leader, hostile, with only 4/40 HP remaining and is currently bleeding. He is holding a tome and hesitating under the Guardião's demand for surrender. No active status effects or cooldowns."
+        "notes": "Condições: Sangrando"
       },
       {
         "id": "golem",
@@ -780,18 +778,9 @@
         "hpCurrent": 18,
         "hpMax": 30,
         "ac": 18,
-        "notes": "Golem Vigia is an ally, with 18/30 HP and an AC of 18. No active status effects or cooldowns."
+        "notes": ""
       }
     ]
-  },
-  "playerRollRequest": {
-    "reason": "Para intimidar o Suma-Vigia Kaldrax a soltar o tomo e encerrar o ritual.",
-    "dice": "1d20",
-    "modifier": 3,
-    "dc": 14,
-    "rollType": "skillCheck",
-    "advantage": false,
-    "disadvantage": false
   },
   "worldState": {
     "timeOfDay": "Manhã",
@@ -864,43 +853,39 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 4 - Batalha Final e Rendição: logEntries=2, actionOptions=3, memória="Exijo a rendição do líder cultista após um golpe devastador.", status=OK
+  ↳ Capítulo 4 - Batalha Final e Rendição: logEntries=2, actionOptions=4, memória="Aproveitando-se do estado debilitado do Suma-Vigia Kaldrax, ", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 5 - Saque e Restauro
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 601
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 601 | baseline=601
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 601 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 603
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 603 | baseline=603
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 603 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
-      "type": "system",
-      "content": "O baú se abre após o combate."
-    },
-    {
-      "type": "player",
-      "content": "Distribuo moedas e documento cada relíquia encontrada."
+      "type": "event",
+      "content": "O baú ritualístico se abre, revelando um pequeno tesouro: um punhado de moedas de ouro e as relíquias que você já havia notado, o Tomo do Vigia Sombrio e o Amuleto de Obediência."
     },
     {
       "type": "narration",
-      "content": "Você encontra um pequeno saco de moedas de ouro dentro do baú, totalizando 50 peças. As relíquias, um Tomo do Vigia Sombrio e um Amuleto de Obediência, são cuidadosamente examinadas e catalogadas, revelando sua natureza arcana e potencial."
+      "content": "Você cuidadosamente cataloga as 50 moedas de ouro recém-encontradas e dedica um tempo para examinar e restaurar o Tomo do Vigia Sombrio e o Amuleto de Obediência. Ao fazê-lo, você sente uma conexão mais profunda com os artefatos, como se seu verdadeiro potencial estivesse começando a se revelar."
     }
   ],
   "actionOptions": [
     {
-      "text": "Continuar explorando a Biblioteca Arcana",
+      "text": "Explorar mais a Biblioteca Arcana",
       "action": "explore",
       "skill": "investigation"
     },
     {
-      "text": "Examinar as relíquias mais de perto",
-      "action": "examine",
-      "skill": "arcana"
+      "text": "Voltar para Prontera",
+      "action": "travel",
+      "skill": "survival"
     },
     {
-      "text": "Retornar para Prontera",
-      "action": "travel",
-      "skill": "none"
+      "text": "Descansar e estudar os tomos",
+      "action": "rest",
+      "skill": "arcana"
     }
   ],
   "updatedCharacter": {
@@ -930,22 +915,23 @@
         "equipped": false
       },
       {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
         "index": null,
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
         "index": null,
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "gold-pieces",
-        "name": "Peças de Ouro",
+        "id": "gold-coins",
+        "index": null,
+        "name": "Moedas de Ouro",
         "quantity": 50,
         "equipped": false
       }
@@ -996,29 +982,26 @@
       }
     ]
   },
-  "combatState": null,
+  "combatState": {
+    "isActive": false
+  },
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
     "currentRegion": "Biblioteca Arcana",
     "regionSlug": "biblioteca-arcana",
     "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
     "visitedRegions": [
       "biblioteca-arcana"
     ],
-    "visitedPois": [],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      }
+    ],
     "npcLocations": []
-  },
-  "gameClock": {
-    "day": 1,
-    "hour": 8,
-    "weather": "Ensolarado"
-  },
-  "_meta": {
-    "hash": "someHashValue",
-    "schemaVersion": 1,
-    "integrityNotes": "Generated based on player action and context."
   }
 }
 [aiSanitizer] updatedCharacter após merge {
@@ -1048,7 +1031,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -1056,7 +1039,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -1095,47 +1078,53 @@
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ],
   currency: { pp: 0, gp: 50, ep: 0, sp: 0, cp: 0 }
 }
-  ↳ Capítulo 5 - Saque e Restauro: logEntries=3, actionOptions=3, memória="O baú se abre após o combate. (relíquias, ritual)", status=OK
+  ↳ Capítulo 5 - Saque e Restauro: logEntries=2, actionOptions=3, memória="O baú ritualístico se abre, revelando um pequeno tesouro: um", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 6 - Descanso Estratégico
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 787
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 787 | baseline=787
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 787 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 784
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 784 | baseline=784
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 784 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
-      "type": "event",
-      "content": "Você decide fazer um descanso curto, aproveitando a segurança temporária do salão. As ruínas da Biblioteca Arcana ecoam com uma magia residual, mas por enquanto, o silêncio é bem-vindo."
+      "type": "narration",
+      "content": "Você encontra um canto relativamente seguro entre as ruínas ecoantes da Biblioteca Arcana para um breve descanso. As energias residuais da magia parecem acalmar-se ao seu redor, proporcionando um momento de tranquilidade."
     },
     {
-      "type": "event",
-      "content": "Durante o descanso, você se concentra em atenuar seus ferimentos e preparar suas relíquias para a próxima incursão. Você gasta dois de seus Dados de Vida para recuperar pontos de vida."
+      "type": "narration",
+      "content": "Concentrando-se em seus ferimentos, você gasta dois Dados de Vida para recuperar sua vitalidade. Com um suspiro de alívio, você sente suas forças retornarem."
     },
     {
-      "type": "event",
-      "content": "Com o corpo um pouco mais recuperado e as relíquias prontas, você começa a planejar seus próximos passos na biblioteca."
+      "type": "rollResult",
+      "content": "Você gastou 2 Dados de Vida (2d8) e recuperou 12 pontos de vida. Sua saúde agora é 22/25.",
+      "rollResult": {
+        "dice": "2d8",
+        "modifier": 0,
+        "total": 12,
+        "rolls": [7, 5]
+      }
+    },
+    {
+      "type": "narration",
+      "content": "Com os ferimentos atenuados, você aproveita o tempo para inspecionar as relíquias que coletou e planejar os próximos passos na biblioteca, sentindo que ainda há muito a descobrir neste lugar antigo e misterioso."
     }
   ],
   "actionOptions": [
     {
-      "text": "Investigar a magia residual nas ruínas.",
-      "action": "investigate",
-      "skill": "Arcana"
-    },
-    {
-      "text": "Procurar por passagens secretas ou áreas inexploradas.",
+      "text": "Explorar mais profundamente a Biblioteca Arcana",
       "action": "explore",
-      "skill": "Investigation"
+      "skill": "investigation"
     },
     {
-      "text": "Revisitar a entrada da biblioteca para considerar outras rotas.",
+      "text": "Examinar as ruínas mágicas em busca de pistas",
+      "action": "examine",
+      "skill": "arcana"
+    },
+    {
+      "text": "Retornar a Prontera",
       "action": "travel",
-      "skill": "Perception"
-    },
-    {
-      "text": "Estudar o Tomo do Vigia Sombrio ou o Amuleto de Obediência.",
-      "action": "study_item"
+      "skill": "survival"
     }
   ],
   "updatedCharacter": {
@@ -1165,48 +1154,53 @@
         "equipped": false
       },
       {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
         "index": null,
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
         "index": null,
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
         "index": null,
         "name": "Relíquia Restaurada do Obelisco",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
         "index": null,
         "name": "Colar Rúnico Purificado",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
         "index": null,
         "name": "Pergaminho de Restauro Arcano",
         "quantity": 1,
         "equipped": false
       }
     ],
-    "spells": ["Raio Arcano", "Escudo Místico"],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico"
+    ],
     "worldState": {
       "timeOfDay": "Manhã",
       "weather": "Ensolarado",
       "currentRegion": "Biblioteca Arcana",
       "regionSlug": "biblioteca-arcana",
-      "visitedRegions": ["biblioteca-arcana"],
+      "visitedRegions": [
+        "biblioteca-arcana"
+      ],
       "visitedPois": [],
       "poiSlug": null
     },
@@ -1240,8 +1234,8 @@
         "status": "unexplored"
       }
     ],
-    "hpCurrent": 10,
-    "hpMax": 24,
+    "hpCurrent": 22,
+    "hpMax": 25,
     "hitDice": {
       "d8": 1
     }
@@ -1249,25 +1243,18 @@
   "combatState": {
     "isActive": false
   },
-  "playerRollRequest": {
-    "reason": "Você gastou 2 Dados de Vida para recuperar pontos de vida durante o descanso curto.",
-    "dice": "2d8",
-    "modifier": 0,
-    "dc": 0,
-    "rollType": "healing",
-    "advantage": false,
-    "disadvantage": false
-  },
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
     "currentRegion": "Biblioteca Arcana",
     "regionSlug": "biblioteca-arcana",
     "poiSlug": "biblioteca-arcana",
-    "visitedRegions": ["biblioteca-arcana"],
+    "visitedRegions": [
+      "biblioteca-arcana"
+    ],
     "visitedPois": [
       {
-        "regionSlug": "prontera",
+        "regionSlug": "biblioteca-arcana",
         "poiSlug": "biblioteca-arcana",
         "name": "Biblioteca Arcana"
       }
@@ -1279,7 +1266,10 @@
     "hour": 9,
     "weather": "Ensolarado"
   },
-  "ambientSound": "dungeon_ambience"
+  "useHitDiceRequest": {
+    "used": 2,
+    "recoveredHP": 12
+  }
 }
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
@@ -1308,7 +1298,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -1316,7 +1306,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -1324,7 +1314,7 @@
       index: null
     },
     {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
       name: 'Relíquia Restaurada do Obelisco',
       quantity: 1,
       description: 'Fragmento cristalino purificado após o ritual.',
@@ -1332,7 +1322,7 @@
       index: null
     },
     {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
       name: 'Colar Rúnico Purificado',
       quantity: 1,
       description: 'Colar de prata gravado com novas runas brilhantes.',
@@ -1340,7 +1330,7 @@
       index: null
     },
     {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
       name: 'Pergaminho de Restauro Arcano',
       quantity: 1,
       description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
@@ -1377,496 +1367,58 @@
     }
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ],
-  hpCurrent: 10,
-  hpMax: 24,
+  hpCurrent: 22,
+  hpMax: 25,
   hitDice: { d8: 1 }
 }
-  ↳ Capítulo 6 - Descanso Estratégico: logEntries=3, actionOptions=4, memória="Você decide fazer um descanso curto, aproveitando a seguranç", status=OK
+  ↳ Capítulo 6 - Descanso Estratégico: logEntries=4, actionOptions=3, memória="Você encontra um canto relativamente seguro entre as ruínas ", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 7 - Duelo Arcano
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 791
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 791 | baseline=791
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 791 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 788
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 788 | baseline=788
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 788 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
-      "type": "playerAction",
-      "content": "Você canaliza energia arcana e lança Raio Prismático, visando o nexus mágico que causava a colisão de fluxos."
-    },
-    {
       "type": "narration",
-      "content": "Com um brilho ofuscante, o Raio Prismático atinge o epicentro das energias conflitantes. O nexus se estilhaça em fragmentos de luz, e os fluxos arcanos no salão se acalmam, protegendo seus aliados da instabilidade. A Biblioteca Arcana respira um suspiro de alívio momentâneo."
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Investigar os restos do nexus estilhaçado.",
-      "action": "investigate",
-      "skill": "Investigation"
-    },
-    {
-      "text": "Procurar por outros perigos ou anomalias no salão.",
-      "action": "search",
-      "skill": "Perception"
-    },
-    {
-      "text": "Comunicar-se com os aliados para verificar seu estado e planejar o próximo passo.",
-      "action": "talk",
-      "skill": "Persuasion"
-    }
-  ],
-  "updatedCharacter": {},
-  "combatState": null,
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana",
-    "regionSlug": "biblioteca-arcana",
-    "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
-    "visitedRegions": [
-      "biblioteca-arcana"
-    ],
-    "visitedPois": [
-      {
-        "regionSlug": "biblioteca-arcana",
-        "poiSlug": "biblioteca-arcana",
-        "name": "Biblioteca Arcana"
-      }
-    ],
-    "npcLocations": []
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
-      name: 'Relíquia Restaurada do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino purificado após o ritual.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
-      name: 'Colar Rúnico Purificado',
-      quantity: 1,
-      description: 'Colar de prata gravado com novas runas brilhantes.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
-      name: 'Pergaminho de Restauro Arcano',
-      quantity: 1,
-      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
-      equipped: false,
-      index: null
-    }
-  ]
-}
-  ↳ Capítulo 7 - Duelo Arcano: logEntries=2, actionOptions=3, memória="Você canaliza energia arcana e lança Raio Prismático, visand", status=OK
-
-[structured-output:test4] Executando cenário completo: Capítulo 8 - Ascensão de Nível
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 785
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 785 | baseline=785
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 785 tokens, default perfil 2048).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 1] {
-  "logEntries": [
-    {
-      "type": "event",
-      "content": "Um clarão de energia arcana envolve o Guardião, marcando a conclusão do ritual. Uma nova e poderosa energia pulsa em seu ser."
-    },
-    {
-      "type": "narration",
-      "content": "Você aceita o fluxo de poder, sentindo suas habilidades se aprimorarem e sua compreensão do arcano se aprofundar. A experiência acumulada se cristaliza, impulsionando-o para um novo patamar."
-    },
-    {
-      "type": "levelUp",
-      "content": "Você alcança o Nível 4!"
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Explorar mais a Biblioteca Arcana",
-      "action": "explore",
-      "skill": "Investigation"
-    },
-    {
-      "text": "Revisar seus novos poderes e habilidades",
-      "action": "examine",
-      "skill": "Arcana"
-    },
-    {
-      "text": "Procurar por saídas da biblioteca",
-      "action": "travel",
-      "skill": "Perception"
-    }
-  ],
-  "updatedCharacter": {
-    "name": "Guardião de Integridade",
-    "level": 4,
-    "proficiencies": ["Arcana", "History"],
-    "inventory": [
-      {
-        "id": "dagger-a",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "dagger-b",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "kit-explorer",
-        "index": null,
-        "name": "Kit do Explorador",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
-        "index": null,
-        "name": "Tomo do Vigia Sombrio",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
-        "index": null,
-        "name": "Amuleto de Obediência",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
-        "index": null,
-        "name": "Relíquia Restaurada do Obelisco",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
-        "index": null,
-        "name": "Colar Rúnico Purificado",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
-        "index": null,
-        "name": "Pergaminho de Restauro Arcano",
-        "quantity": 1,
-        "equipped": false
-      }
-    ],
-    "spells": ["Raio Arcano", "Escudo Místico"],
-    "worldState": {
-      "timeOfDay": "Manhã",
-      "weather": "Ensolarado",
-      "currentRegion": "Biblioteca Arcana",
-      "regionSlug": "biblioteca-arcana",
-      "visitedRegions": ["biblioteca-arcana"],
-      "visitedPois": [],
-      "poiSlug": null
-    },
-    "relationships": [
-      {
-        "name": "Golem Vigia",
-        "status": "ally",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null
-      },
-      {
-        "name": "Borin Stonehand",
-        "status": "friendly",
-        "affinity": 4
-      },
-      {
-        "name": "Borin Stonehand",
-        "status": "friendly",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null,
-        "description": null
-      }
-    ],
-    "journal": [
-      {
-        "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
-      }
-    ]
-  },
-  "combatState": null,
-  "playerRollRequest": null,
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana",
-    "regionSlug": "biblioteca-arcana",
-    "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
-    "visitedRegions": ["biblioteca-arcana"],
-    "visitedPois": [
-      {
-        "regionSlug": "biblioteca-arcana",
-        "poiSlug": "biblioteca-arcana",
-        "name": "Biblioteca Arcana"
-      }
-    ],
-    "npcLocations": []
-  },
-  "gameClock": {
-    "day": 1,
-    "hour": 8,
-    "weather": "Ensolarado"
-  },
-  "memoryContext": {
-    "summary": "O Guardião de Integridade completou um ritual na Biblioteca Arcana, ganhando um novo poder e subindo para o Nível 4. Ele escolheu as perícias Arcana e História.",
-    "references": ["ritual", "Biblioteca Arcana", "Guardião de Integridade", "Nível 4", "perícias Arcana e História"]
-  },
-  "xpEvents": [
-    {
-      "type": "ritualCompletion",
-      "description": "Conclusão do ritual na Biblioteca Arcana, concedendo novo poder e experiência.",
-      "xp": 500
-    }
-  ],
-  "progressionFeed": [
-    {
-      "type": "levelUp",
-      "summary": "Você alcançou o Nível 4!",
-      "detail": "Seu poder e compreensão do arcano aumentaram. Você escolheu as perícias Arcana e História.",
-      "xp": 500,
-      "level": 4
-    }
-  ],
-  "newHomebrewContent": [],
-  "levelUpState": {
-    "levelReached": 4,
-    "chosenProficiencies": ["Arcana", "History"]
-  },
-  "shopState": null,
-  "lootOffer": null,
-  "useHitDiceRequest": null,
-  "ambientSound": "library_ambience",
-  "systemLog": null,
-  "_meta": {
-    "hash": "a_unique_hash_for_this_state",
-    "schemaVersion": 1
-  }
-}
-[aiSanitizer] updatedCharacter após merge {
-  name: 'Guardião de Integridade',
-  level: 4,
-  proficiencies: [ 'Arcana', 'History' ],
-  inventory: [
-    {
-      id: 'dagger-a',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'dagger-b',
-      name: 'Adaga do Assassino',
-      quantity: 1,
-      equipped: true,
-      index: null
-    },
-    {
-      id: 'kit-explorer',
-      name: 'Kit do Explorador',
-      quantity: 1,
-      index: null,
-      equipped: false
-    },
-    {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
-      name: 'Tomo do Vigia Sombrio',
-      quantity: 1,
-      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
-      name: 'Amuleto de Obediência',
-      quantity: 1,
-      description: 'Amuleto usado para controlar cultistas.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
-      name: 'Relíquia Restaurada do Obelisco',
-      quantity: 1,
-      description: 'Fragmento cristalino purificado após o ritual.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
-      name: 'Colar Rúnico Purificado',
-      quantity: 1,
-      description: 'Colar de prata gravado com novas runas brilhantes.',
-      equipped: false,
-      index: null
-    },
-    {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
-      name: 'Pergaminho de Restauro Arcano',
-      quantity: 1,
-      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
-      equipped: false,
-      index: null
-    }
-  ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
-  worldState: {
-    timeOfDay: 'Manhã',
-    weather: 'Ensolarado',
-    currentRegion: 'Biblioteca Arcana',
-    regionSlug: 'biblioteca-arcana',
-    visitedRegions: [ 'biblioteca-arcana' ],
-    visitedPois: [],
-    poiSlug: null
-  },
-  relationships: [
-    {
-      name: 'Golem Vigia',
-      status: 'ally',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null
-    },
-    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
-    {
-      name: 'Borin Stonehand',
-      status: 'friendly',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null,
-      description: null
-    }
-  ],
-  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
-}
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 849 | baseline=785
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 849 tokens, default perfil 2048).
-[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 2] {
-  "logEntries": [
-    {
-      "type": "narration",
-      "content": "Um clarão envolve o Guardião conforme o ritual termina."
-    },
-    {
-      "type": "player",
-      "content": "Aceito o novo poder e ajusto minhas habilidades."
-    },
-    {
-      "type": "narration",
-      "content": "Você sente uma nova onda de poder percorrer seu ser, alcançando o Nível 4!"
+      "content": "Você canaliza a energia bruta do Raio Prismático, sentindo o poder arcano vibrar em suas mãos enquanto a magia se prepara para ser liberada contra o nexus instável. Um feixe de luz multicolorido irrompe de seus dedos, mirando o coração da colisão arcana."
     },
     {
       "type": "system",
-      "content": "Você subiu para o Nível 4! Agora você pode escolher um Aumento de Habilidade ou uma Proeza, e aprender uma nova magia."
+      "content": "Para determinar se você consegue romper o nexus mágico e proteger seus aliados, um teste de Habilidade (Arcana) é necessário."
     }
   ],
   "actionOptions": [
     {
-      "text": "Escolher Aumento de Habilidade",
-      "action": "choose_ability_score_increase",
-      "skill": "level_up"
+      "text": "Aguardar o resultado do teste",
+      "action": "wait",
+      "skill": "none"
     },
     {
-      "text": "Escolher uma Proeza (Feat)",
-      "action": "choose_feat",
-      "skill": "level_up"
+      "text": "Preparar outra magia defensiva",
+      "action": "cast_spell",
+      "skill": "Arcana"
     },
     {
-      "text": "Aprender uma nova magia",
-      "action": "choose_new_spell",
-      "skill": "level_up"
+      "text": "Procurar por uma rota de fuga",
+      "action": "explore",
+      "skill": "Perception"
     }
   ],
   "updatedCharacter": {
-    "name": "Guardião de Integridade",
-    "level": 4,
-    "proficiencies": [],
-    "inventory": [
-      {"id": "dagger-a", "index": null, "name": "Adaga do Assassino", "quantity": 1, "equipped": true},
-      {"id": "dagger-b", "index": null, "name": "Adaga do Assassino", "quantity": 1, "equipped": true},
-      {"id": "kit-explorer", "index": null, "name": "Kit do Explorador", "quantity": 1, "equipped": false},
-      {"id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc", "index": null, "name": "Tomo do Vigia Sombrio", "quantity": 1, "equipped": false},
-      {"id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q", "index": null, "name": "Amuleto de Obediência", "quantity": 1, "equipped": false},
-      {"id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9", "index": null, "name": "Relíquia Restaurada do Obelisco", "quantity": 1, "equipped": false},
-      {"id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2", "index": null, "name": "Colar Rúnico Purificado", "quantity": 1, "equipped": false},
-      {"id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219", "index": null, "name": "Pergaminho de Restauro Arcano", "quantity": 1, "equipped": false}
-    ],
-    "spells": ["Raio Arcano", "Escudo Místico"],
-    "relationships": [
-      {"name": "Golem Vigia", "status": "ally", "affinity": 4, "regionSlug": null, "poiSlug": null},
-      {"name": "Borin Stonehand", "status": "friendly", "affinity": 4},
-      {"name": "Borin Stonehand", "status": "friendly", "affinity": 4, "regionSlug": null, "poiSlug": null, "description": null}
-    ],
-    "journal": [
-      {"status": "unexplored"},
-      {"status": "unexplored"}
-    ]
+    "spells": ["Raio Arcano", "Escudo Místico", "Muralha Arcana"],
+    "notes": "Raio Prismático foi lançado para tentar romper o nexus mágico."
   },
-  "combatState": {
-    "isActive": false
+  "combatState": null,
+  "playerRollRequest": {
+    "reason": "Disruptir o nexus mágico e proteger aliados com Raio Prismático",
+    "dice": "1d20",
+    "modifier": 5,
+    "dc": 15,
+    "rollType": "abilityCheck",
+    "advantage": false,
+    "disadvantage": false
   },
   "worldState": {
     "timeOfDay": "Manhã",
@@ -1877,48 +1429,11 @@
     "visitedRegions": ["biblioteca-arcana"],
     "visitedPois": []
   },
-  "xpEvents": [
-    {
-      "type": "level_up",
-      "description": "Alcançou o Nível 4",
-      "xp": 0
-    }
-  ],
-  "progressionFeed": [
-    {
-      "type": "level_up",
-      "summary": "Você subiu para o Nível 4!",
-      "detail": "Ganhou um Aumento de Habilidade ou uma Proeza, e a capacidade de aprender uma nova magia.",
-      "level": 4
-    }
-  ],
-  "levelUpState": {
-    "level": 4,
-    "choices": [
-      {
-        "type": "abilityScoreImprovementOrFeat",
-        "description": "Escolha entre aumentar 2 pontos em uma habilidade, 1 ponto em duas habilidades diferentes, ou selecionar uma nova Proeza (Feat).",
-        "options": [
-          "Ability Score Increase",
-          "Feat"
-        ],
-        "count": 1
-      },
-      {
-        "type": "newSpell",
-        "description": "Aprenda uma nova magia de 2º nível ou inferior.",
-        "options": [
-          "Spell Level 2 or lower"
-        ],
-        "count": 1
-      }
-    ]
-  }
+  "ambientSound": "magical_chaos"
 }
 [aiSanitizer] updatedCharacter após merge {
-  name: 'Guardião de Integridade',
-  level: 4,
-  proficiencies: [],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
+  notes: 'Raio Prismático foi lançado para tentar romper o nexus mágico.',
   inventory: [
     {
       id: 'dagger-a',
@@ -1942,7 +1457,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -1950,7 +1465,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -1958,7 +1473,7 @@
       index: null
     },
     {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
       name: 'Relíquia Restaurada do Obelisco',
       quantity: 1,
       description: 'Fragmento cristalino purificado após o ritual.',
@@ -1966,7 +1481,7 @@
       index: null
     },
     {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
       name: 'Colar Rúnico Purificado',
       quantity: 1,
       description: 'Colar de prata gravado com novas runas brilhantes.',
@@ -1974,224 +1489,23 @@
       index: null
     },
     {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
       name: 'Pergaminho de Restauro Arcano',
       quantity: 1,
       description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
       equipped: false,
       index: null
     }
-  ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
-  relationships: [
-    {
-      name: 'Golem Vigia',
-      status: 'ally',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null
-    },
-    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
-    {
-      name: 'Borin Stonehand',
-      status: 'friendly',
-      affinity: 4,
-      regionSlug: null,
-      poiSlug: null,
-      description: null
-    }
-  ],
-  journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
+  ]
 }
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 851 | baseline=785
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 851 tokens, default perfil 2048).
+  ↳ Capítulo 7 - Duelo Arcano: logEntries=2, actionOptions=3, memória="Você canaliza a energia bruta do Raio Prismático, sentindo o", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 8 - Ascensão de Nível
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 788
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 788 | baseline=788
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 788 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
-[aiService][raw-response][gameplay][attempt 3] {
-  "logEntries": [
-    {
-      "type": "event",
-      "content": "Um clarão envolve o Guardião conforme o ritual termina. Você sente uma nova energia pulsando em suas veias, um sinal de poder crescente."
-    },
-    {
-      "type": "narration",
-      "content": "Você canaliza a experiência acumulada, sentindo sua compreensão do mundo e de suas próprias habilidades se aprofundar e expandir."
-    },
-    {
-      "type": "system",
-      "content": "Parabéns! Você alcançou o Nível 4!"
-    }
-  ],
-  "actionOptions": [
-    {
-      "text": "Escolher Aumento de Atributo (ASI)",
-      "action": "chooseAbilityScoreImprovement"
-    },
-    {
-      "text": "Escolher um Talento (Feat)",
-      "action": "chooseFeat"
-    },
-    {
-      "text": "Revisar minha ficha de personagem",
-      "action": "reviewCharacter"
-    }
-  ],
-  "updatedCharacter": {
-    "name": "Guardião de Integridade",
-    "level": 4,
-    "proficiencies": [],
-    "inventory": [
-      {
-        "id": "dagger-a",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "dagger-b",
-        "index": null,
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true
-      },
-      {
-        "id": "kit-explorer",
-        "index": null,
-        "name": "Kit do Explorador",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
-        "index": null,
-        "name": "Tomo do Vigia Sombrio",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
-        "index": null,
-        "name": "Amuleto de Obediência",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
-        "index": null,
-        "name": "Relíquia Restaurada do Obelisco",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
-      "index": null,
-        "name": "Colar Rúnico Purificado",
-        "quantity": 1,
-        "equipped": false
-      },
-      {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
-        "index": null,
-        "name": "Pergaminho de Restauro Arcano",
-        "quantity": 1,
-        "equipped": false
-      }
-    ],
-    "spells": ["Raio Arcano", "Escudo Místico"],
-    "worldState": {
-      "timeOfDay": "Manhã",
-      "weather": "Ensolarado",
-      "currentRegion": "Biblioteca Arcana",
-      "regionSlug": "biblioteca-arcana",
-      "visitedRegions": ["biblioteca-arcana"],
-      "visitedPois": [],
-      "poiSlug": null
-    },
-    "relationships": [
-      {
-        "name": "Golem Vigia",
-        "status": "ally",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null
-      },
-      {
-        "name": "Borin Stonehand",
-        "status": "friendly",
-        "affinity": 4
-      },
-      {
-        "name": "Borin Stonehand",
-        "status": "friendly",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null,
-        "description": null
-      }
-    ],
-    "journal": [
-      {
-        "status": "unexplored"
-      },
-      {
-        "status": "unexplored"
-      }
-    ]
-  },
-  "combatState": {
-    "isActive": false
-  },
-  "playerRollRequest": null,
-  "worldState": {
-    "timeOfDay": "Manhã",
-    "weather": "Ensolarado",
-    "currentRegion": "Biblioteca Arcana",
-    "regionSlug": "biblioteca-arcana",
-    "poiSlug": "biblioteca-arcana",
-    "poiName": "Biblioteca Arcana",
-    "visitedRegions": ["biblioteca-arcana"],
-    "visitedPois": [
-      {
-        "regionSlug": "biblioteca-arcana",
-        "poiSlug": "biblioteca-arcana",
-        "name": "Biblioteca Arcana"
-      }
-    ],
-    "npcLocations": []
-  },
-  "gameClock": {
-    "day": 1,
-    "hour": 8,
-    "weather": "Ensolarado"
-  },
-  "memoryContext": {
-    "summary": "O Guardião de Integridade completou um ritual e alcançou o Nível 4 na Biblioteca Arcana.",
-    "references": ["Guardião de Integridade", "ritual", "Nível 4", "Biblioteca Arcana"]
-  },
-  "xpEvents": [],
-  "progressionFeed": [
-    {
-      "type": "levelUp",
-      "summary": "Você alcançou o Nível 4!",
-      "detail": "Seu poder e compreensão do mundo aumentaram. Você agora pode escolher um Aumento de Atributo ou um Talento.",
-      "level": 4
-    }
-  ],
-  "newHomebrewContent": [],
-  "levelUpState": {
-    "pendingChoices": ["AbilityScoreImprovement", "Feat"]
-  },
-  "shopState": null,
-  "lootOffer": null,
-  "useHitDiceRequest": null,
-  "ambientSound": "library_ambience",
-  "systemLog": null,
-  "_meta": {
-    "hash": "someGeneratedHashValue",
-    "schemaVersion": 1,
-    "integrityNotes": "Generated based on player level up action."
-  }
-}
+[aiService][raw-response][gameplay][attempt 1] {"logEntries":[{"type":"GM","content":"Um clarão envolve o Guardião conforme o ritual termina, infundindo-o com um novo poder arcano."},{"type":"Player","content":"Aceito o novo poder e canalizo a experiência acumulada para subir ao nível 4."}],"actionOptions":[{"text":"Escolher novas perícias e habilidades","action":"levelUp","skill":"character"},{"text":"Explorar a Biblioteca Arcana","action":"explore","skill":"investigation"},{"text":"Revisar o diário de bordo","action":"journal","skill":"lore"}],"updatedCharacter":{"name":"Guardião de Integridade","level":4,"proficiencies":[],"inventory":[{"id":"dagger-a","index":null,"name":"Adaga do Assassino","quantity":1,"equipped":true},{"id":"dagger-b","index":null,"name":"Adaga do Assassino","quantity":1,"equipped":true},{"id":"kit-explorer","index":null,"name":"Kit do Explorador","quantity":1,"equipped":false},{"id":"tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3","index":null,"name":"Tomo do Vigia Sombrio","quantity":1,"equipped":false},{"id":"amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh","index":null,"name":"Amuleto de Obediência","quantity":1,"equipped":false},{"id":"rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf","index":null,"name":"Relíquia Restaurada do Obelisco","quantity":1,"equipped":false},{"id":"colar-r-nico-purificado-1762774021920-jsjbb6jf2zk","index":null,"name":"Colar Rúnico Purificado","quantity":1,"equipped":false},{"id":"pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h","index":null,"name":"Pergaminho de Restauro Arcano","quantity":1,"equipped":false}],"spells":["Raio Arcano","Escudo Místico","Muralha Arcana"],"worldState":{"timeOfDay":"Manhã","weather":"Ensolarado","currentRegion":"Biblioteca Arcana","regionSlug":"biblioteca-arcana","visitedRegions":["biblioteca-arcana"],"visitedPois":[],"poiSlug":null},"relationships":[{"name":"Golem Vigia","status":"ally","affinity":4,"regionSlug":null,"poiSlug":null},{"name":"Borin Stonehand","status":"friendly","affinity":4},{"name":"Borin Stonehand","status":"friendly","affinity":4,"regionSlug":null,"poiSlug":null,"description":null}],"journal":[{"status":"unexplored"},{"status":"unexplored"}]},"combatState":{"isActive":false},"worldState":{"timeOfDay":"Manhã","weather":"Ensolarado","currentRegion":"Biblioteca Arcana","regionSlug":"biblioteca-arcana","poiSlug":""},"progressionFeed":[{"type":"levelUp","summary":"Você alcançou o Nível 4!","detail":"Seu poder arcano se aprofunda, e você sente um novo domínio sobre as energias místicas. Escolha novas perícias ou habilidades para refletir seu crescimento.","level":4}],"levelUpState":{"isLevelingUp":true,"level":4}}
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
   level: 4,
@@ -2219,7 +1533,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -2227,7 +1541,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -2235,7 +1549,7 @@
       index: null
     },
     {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
       name: 'Relíquia Restaurada do Obelisco',
       quantity: 1,
       description: 'Fragmento cristalino purificado após o ritual.',
@@ -2243,7 +1557,7 @@
       index: null
     },
     {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
       name: 'Colar Rúnico Purificado',
       quantity: 1,
       description: 'Colar de prata gravado com novas runas brilhantes.',
@@ -2251,7 +1565,7 @@
       index: null
     },
     {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
       name: 'Pergaminho de Restauro Arcano',
       quantity: 1,
       description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
@@ -2259,7 +1573,7 @@
       index: null
     }
   ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
   worldState: {
     timeOfDay: 'Manhã',
     weather: 'Ensolarado',
@@ -2289,50 +1603,50 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 8 - Ascensão de Nível: logEntries=1, actionOptions=2, memória="Resumo automático: ascensão, nível, poder.", status=OK
+  ↳ Capítulo 8 - Ascensão de Nível: logEntries=2, actionOptions=3, memória="Um clarão envolve o Guardião conforme o ritual termina, infu", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 9 - Cartografia em Aço-Luz
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 933
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 933 | baseline=933
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 933 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 936
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 936 | baseline=936
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 936 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
-      "type": "event",
-      "content": "Você apresenta seu relatório aos mediadores prismáticos no Fórum Prismático da Cidadela do Aço-Luz, atualizando o mapa compartilhado com as informações da incursão na Biblioteca Arcana, incluindo novos pontos de interesse e rotas. Após cumprir seu dever, você se dirige à Taverna Dragão Azul."
+      "type": "narration",
+      "content": "Você apresenta seu relatório detalhado da incursão na Biblioteca Arcana aos Mediadores Prismáticos no Fórum da Cidadela do Aço-Luz. O mapa que você compartilha é atualizado com os pontos de interesse, rotas e a localização da Taverna Dragão Azul, que agora você se dirige para investigar."
     },
     {
       "type": "narration",
-      "content": "Ao empurrar a porta de carvalho da Taverna Dragão Azul, você é saudado por uma sinfonia de vozes animadas, o tilintar de canecas e o aroma reconfortante de cerveja e ensopado. O salão principal é espaçoso, com mesas de madeira robustas e bancos que convidam à confraternização. Um palco pequeno no canto sugere apresentações musicais noturnas. Atrás do balcão, um anão corpulento com uma barba trançada, que você presume ser o proprietário, limpa um copo com um pano. Várias cabines mais reservadas oferecem um pouco de privacidade para conversas mais discretas. Cartazes de 'Procurado' e avisos de eventos locais adornam uma parede próxima à lareira crepitante. A taverna parece ser um centro vibrante de atividade e, sem dúvida, um bom lugar para colher informações."
+      "content": "A Taverna Dragão Azul é um refúgio acolhedor e movimentado. O ar é espesso com o cheiro de cerveja, ensopado e fumaça de cachimbo. O salão principal é dominado por um grande balcão de madeira escura, onde o robusto anão Grom Stonebeard, o taverneiro, enche canecas com destreza. Mesas e bancos rústicos se espalham pelo ambiente, alguns ocupados por mercadores ruidosos, outros por aventureiros de olhar cansado e alguns por figuras sombrias em cantos mais escuros. Uma escada rangente leva ao andar de cima, onde se presume que haja quartos para alugar. No palco improvisado, uma barda elfa de cabelos prateados dedilha um alaúde, cantando baladas antigas. Há uma atmosfera de camaradagem e segredos sussurrados, um terreno fértil para rumores. Um cartaz de 'Procura-se' está afixado perto da porta, oferecendo uma recompensa por informações sobre 'desaparecimentos recentes na Floresta de Ashari'."
     }
   ],
   "actionOptions": [
     {
-      "text": "Falar com o anão no balcão (Bartender)",
+      "text": "Falar com Grom Stonebeard, o taverneiro.",
       "action": "talk",
-      "skill": "Persuasion"
+      "skill": "persuasion"
     },
     {
-      "text": "Ouvir as conversas nas mesas próximas",
+      "text": "Ouvir os rumores nas mesas próximas.",
       "action": "listen",
-      "skill": "Perception"
+      "skill": "perception"
     },
     {
-      "text": "Examinar os cartazes de 'Procurado' e avisos",
-      "action": "examine"
+      "text": "Investigar o cartaz de 'Procura-se'.",
+      "action": "investigate"
     },
     {
-      "text": "Pedir uma bebida e um ensopado",
-      "action": "order"
-    },
-    {
-      "text": "Procurar por uma mesa vazia para observar",
+      "text": "Pedir uma bebida e observar o ambiente.",
       "action": "observe"
     },
     {
-      "text": "Subir as escadas para ver os quartos ou outras áreas",
+      "text": "Subir para os quartos.",
       "action": "explore"
+    },
+    {
+      "text": "Sair da Taverna Dragão Azul.",
+      "action": "travel"
     }
   ],
   "updatedCharacter": {
@@ -2362,54 +1676,48 @@
         "equipped": false
       },
       {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
         "index": null,
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
         "index": null,
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
         "index": null,
         "name": "Relíquia Restaurada do Obelisco",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
         "index": null,
         "name": "Colar Rúnico Purificado",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
         "index": null,
         "name": "Pergaminho de Restauro Arcano",
         "quantity": 1,
         "equipped": false
       }
     ],
-    "spells": [
-      "Raio Arcano",
-      "Escudo Místico"
-    ],
+    "spells": ["Raio Arcano", "Escudo Místico", "Muralha Arcana"],
     "worldState": {
       "timeOfDay": "Manhã",
       "weather": "Ensolarado",
       "currentRegion": "Cidadela do Aço-Luz",
       "regionSlug": "cidadela-do-aco-luz",
-      "visitedRegions": [
-        "biblioteca-arcana",
-        "cidadela-do-aco-luz"
-      ],
+      "visitedRegions": ["biblioteca-arcana", "cidadela-do-aco-luz"],
       "visitedPois": [
         "biblioteca-arcana",
         "cidadela-do-aco-luz",
@@ -2458,10 +1766,7 @@
     "regionSlug": "cidadela-do-aco-luz",
     "poiSlug": "taverna-dragao-azul",
     "poiName": "Taverna Dragão Azul",
-    "visitedRegions": [
-      "biblioteca-arcana",
-      "cidadela-do-aco-luz"
-    ],
+    "visitedRegions": ["biblioteca-arcana", "cidadela-do-aco-luz"],
     "visitedPois": [
       {
         "regionSlug": "cidadela-do-aco-luz",
@@ -2471,24 +1776,36 @@
     ],
     "npcLocations": []
   },
+  "gameClock": {
+    "day": 1,
+    "hour": 8,
+    "weather": "Ensolarado"
+  },
   "memoryContext": {
-    "summary": "O Guardião de Integridade reportou-se aos mediadores prismáticos e atualizou o mapa. Em seguida, entrou na Taverna Dragão Azul para buscar rumores e informações.",
+    "summary": "O Guardião de Integridade reportou aos Mediadores Prismáticos sobre a incursão na Biblioteca Arcana e atualizou o mapa. Ele agora está na Taverna Dragão Azul, um local movimentado na Cidadela do Aço-Luz, procurando por rumores e informações, com o taverneiro anão Grom Stonebeard e uma barda elfa presentes. Há um cartaz de 'Procura-se' sobre desaparecimentos na Floresta de Ashari.",
     "references": [
-      "mediadores prismáticos",
+      "Mediadores Prismáticos",
+      "Biblioteca Arcana",
+      "Cidadela do Aço-Luz",
       "Taverna Dragão Azul",
-      "mapa",
-      "rumores",
-      "Cidadela do Aço-Luz"
+      "Grom Stonebeard",
+      "Floresta de Ashari"
     ]
   },
-  "xpEvents": [
-    {
-      "type": "exploration",
-      "description": "Descobriu e explorou a Taverna Dragão Azul.",
-      "xp": 25
-    }
-  ],
-  "ambientSound": "tavern"
+  "xpEvents": [],
+  "progressionFeed": [],
+  "newHomebrewContent": [],
+  "levelUpState": null,
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "tavern_chatter",
+  "systemLog": null,
+  "_meta": {
+    "hash": "a_unique_hash_value",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated response based on player action and world state update."
+  }
 }
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
@@ -2517,7 +1834,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -2525,7 +1842,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -2533,7 +1850,7 @@
       index: null
     },
     {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
       name: 'Relíquia Restaurada do Obelisco',
       quantity: 1,
       description: 'Fragmento cristalino purificado após o ritual.',
@@ -2541,7 +1858,7 @@
       index: null
     },
     {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
       name: 'Colar Rúnico Purificado',
       quantity: 1,
       description: 'Colar de prata gravado com novas runas brilhantes.',
@@ -2549,7 +1866,7 @@
       index: null
     },
     {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
       name: 'Pergaminho de Restauro Arcano',
       quantity: 1,
       description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
@@ -2557,7 +1874,7 @@
       index: null
     }
   ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
   worldState: {
     timeOfDay: 'Manhã',
     weather: 'Ensolarado',
@@ -2592,54 +1909,78 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 9 - Cartografia em Aço-Luz: logEntries=2, actionOptions=6, memória="O Guardião de Integridade reportou-se aos mediadores prismát", status=OK
+  ↳ Capítulo 9 - Cartografia em Aço-Luz: logEntries=2, actionOptions=6, memória="O Guardião de Integridade reportou aos Mediadores Prismático", status=OK
 
 [structured-output:test4] Executando cenário completo: Capítulo 10 - Travessia Constelada
-[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1224
-[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1224 | baseline=1224
-[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1224 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1227
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1227 | baseline=1227
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1227 tokens, default perfil 2048).
 [aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
 [aiService][raw-response][gameplay][attempt 1] {
   "logEntries": [
     {
       "type": "narration",
-      "content": "Você deixa a Cidadela do Aço-Luz e segue pela Trilha das Constelações em direção à Selva de Ashari."
+      "content": "Você deixa a Cidadela do Aço-Luz, seguindo a Trilha das Constelações. A paisagem muda gradualmente de vales prateados para uma vegetação mais densa e vibrante, anunciando a proximidade da Selva de Ashari."
     },
     {
       "type": "narration",
-      "content": "No primeiro marco da trilha, a jornada é tranquila e sem intercorrências. O caminho é seguro."
+      "content": "Após o primeiro marco da trilha, sua jornada prossegue sem intercorrências. O caminho é seguro, permitindo que você observe a flora exótica que começa a surgir."
+    },
+    {
+      "type": "rollResult",
+      "content": "Você rolou 1d20 para encontros aleatórios no primeiro marco e obteve 12. O caminho está seguro.",
+      "rollResult": {
+        "dice": "1d20",
+        "result": 12,
+        "type": "random_encounter"
+      }
     },
     {
       "type": "narration",
-      "content": "Ao se aproximar do segundo marco, uma aura mística envolve a trilha. Você detecta um fenômeno arcano sutil, mas presente, emanando de uma formação rochosa peculiar."
+      "content": "No segundo marco, uma estranha névoa esverdeada cintila entre as árvores, pulsando com uma energia arcana sutil. O ar fica pesado e um zumbido baixo ecoa, indicando a presença de um fenômeno mágico."
+    },
+    {
+      "type": "rollResult",
+      "content": "Você rolou 1d20 para encontros aleatórios no segundo marco e obteve 4. Um fenômeno arcano se manifesta.",
+      "rollResult": {
+        "dice": "1d20",
+        "result": 4,
+        "type": "random_encounter"
+      }
     },
     {
       "type": "narration",
-      "content": "Após a trilha, você chega à orla da Selva de Ashari. Um acampamento rudimentar, mas funcional, foi montado por exploradores anteriores, oferecendo um refúgio temporário. De lá, você percebe que a selva se estende em várias direções, revelando novas rotas potenciais para o Coração da Selva e as Montanhas Sombrias."
+      "content": "Finalmente, a trilha se abre para uma clareira onde um acampamento rudimentar, mas bem cuidado, foi estabelecido. Tendas simples de lona e fogueiras crepitantes indicam a presença de outros viajantes ou exploradores. A Selva de Ashari se estende ao seu redor, um labirinto de folhagem exuberante e sons da vida selvagem. Do acampamento, você percebe que novas rotas se abrem para as misteriosas Selvas de Myr e o temido Covil Obsidiano."
     }
   ],
   "actionOptions": [
     {
-      "text": "Investigar o fenômeno arcano na trilha",
+      "text": "Investigar o fenômeno arcano",
       "action": "investigate",
       "skill": "Arcana"
     },
     {
-      "text": "Descansar no acampamento",
-      "action": "rest"
+      "text": "Explorar o acampamento",
+      "action": "explore",
+      "skill": "Perception"
     },
     {
-      "text": "Explorar a Selva de Ashari (geral)",
-      "action": "explore",
+      "text": "Scout the surrounding jungle",
+      "action": "scout",
       "skill": "Survival"
     },
     {
-      "text": "Seguir para o Coração da Selva",
+      "text": "Seguir para as Selvas de Myr",
       "action": "travel",
       "skill": "Survival"
     },
     {
-      "text": "Seguir para as Montanhas Sombrias",
+      "text": "Seguir para o Covil Obsidiano",
+      "action": "travel",
+      "skill": "Survival"
+    },
+    {
+      "text": "Retornar à Cidadela do Aço-Luz",
       "action": "travel",
       "skill": "Survival"
     }
@@ -2671,35 +2012,35 @@
         "equipped": false
       },
       {
-        "id": "tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc",
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
         "index": null,
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q",
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
         "index": null,
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9",
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
         "index": null,
         "name": "Relíquia Restaurada do Obelisco",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "colar-r-nico-purificado-1762768767741-5l7i432fyw2",
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
         "index": null,
         "name": "Colar Rúnico Purificado",
         "quantity": 1,
         "equipped": false
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219",
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
         "index": null,
         "name": "Pergaminho de Restauro Arcano",
         "quantity": 1,
@@ -2708,7 +2049,8 @@
     ],
     "spells": [
       "Raio Arcano",
-      "Escudo Místico"
+      "Escudo Místico",
+      "Muralha Arcana"
     ],
     "worldState": {
       "timeOfDay": "Manhã",
@@ -2723,11 +2065,10 @@
       "visitedPois": [
         "biblioteca-arcana",
         "cidadela-do-aco-luz",
-        "taverna-dragao-azul",
-        "acampamento-explorador"
+        "taverna-dragao-azul"
       ],
-      "poiSlug": "acampamento-explorador",
-      "poiName": "Acampamento do Explorador"
+      "poiSlug": null,
+      "poiName": null
     },
     "relationships": [
       {
@@ -2760,15 +2101,17 @@
       }
     ]
   },
-  "combatState": null,
+  "combatState": {
+    "isActive": false
+  },
   "playerRollRequest": null,
   "worldState": {
     "timeOfDay": "Manhã",
     "weather": "Ensolarado",
     "currentRegion": "Selva de Ashari",
     "regionSlug": "selva-de-ashari",
-    "poiSlug": "acampamento-explorador",
-    "poiName": "Acampamento do Explorador",
+    "poiSlug": "acampamento-ashari",
+    "poiName": "Acampamento de Ashari",
     "visitedRegions": [
       "biblioteca-arcana",
       "cidadela-do-aco-luz",
@@ -2792,18 +2135,43 @@
       },
       {
         "regionSlug": "selva-de-ashari",
-        "poiSlug": "acampamento-explorador",
-        "name": "Acampamento do Explorador"
+        "poiSlug": "acampamento-ashari",
+        "name": "Acampamento de Ashari"
       }
     ],
     "npcLocations": []
   },
   "gameClock": {
     "day": 1,
-    "hour": 10,
+    "hour": 9,
     "weather": "Ensolarado"
   },
-  "systemLog": null
+  "memoryContext": {
+    "summary": "O Guardião de Integridade viajou da Cidadela do Aço-Luz para a Selva de Ashari pela Trilha das Constelações. Durante a viagem, encontrou um fenômeno arcano. Chegou a um acampamento rudimentar na Selva de Ashari, descobrindo novas rotas para as Selvas de Myr e o Covil Obsidiano.",
+    "references": [
+      "Cidadela do Aço-Luz",
+      "Selva de Ashari",
+      "Trilha das Constelações",
+      "Fenômeno Arcano",
+      "Acampamento de Ashari",
+      "Selvas de Myr",
+      "Covil Obsidiano"
+    ]
+  },
+  "xpEvents": [],
+  "progressionFeed": [],
+  "newHomebrewContent": [],
+  "levelUpState": null,
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "jungle_day",
+  "systemLog": null,
+  "_meta": {
+    "hash": "a_new_hash_value",
+    "schemaVersion": 1,
+    "integrityNotes": "Generated travel, encounter rolls, updated world state, character world state, and action options."
+  }
 }
 [aiSanitizer] updatedCharacter após merge {
   name: 'Guardião de Integridade',
@@ -2832,7 +2200,7 @@
       equipped: false
     },
     {
-      id: 'tomo-do-vigia-sombrio-1762768757657-kg3ava9nrc',
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
       name: 'Tomo do Vigia Sombrio',
       quantity: 1,
       description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
@@ -2840,7 +2208,7 @@
       index: null
     },
     {
-      id: 'amuleto-de-obedi-ncia-1762768757657-snnpqbp0p4q',
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
       name: 'Amuleto de Obediência',
       quantity: 1,
       description: 'Amuleto usado para controlar cultistas.',
@@ -2848,7 +2216,7 @@
       index: null
     },
     {
-      id: 'rel-quia-restaurada-do-obelisco-1762768767741-l8vltx4vdb9',
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
       name: 'Relíquia Restaurada do Obelisco',
       quantity: 1,
       description: 'Fragmento cristalino purificado após o ritual.',
@@ -2856,7 +2224,7 @@
       index: null
     },
     {
-      id: 'colar-r-nico-purificado-1762768767741-5l7i432fyw2',
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
       name: 'Colar Rúnico Purificado',
       quantity: 1,
       description: 'Colar de prata gravado com novas runas brilhantes.',
@@ -2864,7 +2232,7 @@
       index: null
     },
     {
-      id: 'pergaminho-de-restauro-arcano-1762768767741-hccgl0n1219',
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
       name: 'Pergaminho de Restauro Arcano',
       quantity: 1,
       description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
@@ -2872,7 +2240,7 @@
       index: null
     }
   ],
-  spells: [ 'Raio Arcano', 'Escudo Místico' ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
   worldState: {
     timeOfDay: 'Manhã',
     weather: 'Ensolarado',
@@ -2882,11 +2250,10 @@
     visitedPois: [
       'biblioteca-arcana',
       'cidadela-do-aco-luz',
-      'taverna-dragao-azul',
-      'acampamento-explorador'
+      'taverna-dragao-azul'
     ],
-    poiSlug: 'acampamento-explorador',
-    poiName: 'Acampamento do Explorador'
+    poiSlug: null,
+    poiName: null
   },
   relationships: [
     {
@@ -2908,5 +2275,1005 @@
   ],
   journal: [ { status: 'unexplored' }, { status: 'unexplored' } ]
 }
-  ↳ Capítulo 10 - Travessia Constelada: logEntries=4, actionOptions=5, memória="Você deixa a Cidadela do Aço-Luz e segue pela Trilha das Con", status=OK
-[structured-output:test4] Relatório salvo em /home/edson/dndai/backend/logs/TESTE-STRUTRADO4_REPORT_2025-11-10T10-01-54-957Z.json
+  ↳ Capítulo 10 - Travessia Constelada: logEntries=6, actionOptions=6, memória="O Guardião de Integridade viajou da Cidadela do Aço-Luz para", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 11 - Vigília Obsidiana
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1286
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1286 | baseline=1286
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1286 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "system",
+      "content": "Os guardas prismáticos cruzam as lanças, bloqueando seu caminho para o Covil Obsidiano."
+    },
+    {
+      "type": "narrative",
+      "content": "Você pergunta sobre o requisito da Vigília Obsidiana. Os guardas, com expressões sérias, explicam que apenas aqueles que completaram o rito de passagem conhecido como a Vigília Obsidiana são permitidos. Uma barreira de energia bruxuleante, quase invisível, cintila entre as lanças cruzadas, impedindo qualquer avanço para o Covil Obsidiano."
+    },
+    {
+      "type": "info",
+      "content": "A rota para o Covil Obsidiano permanece bloqueada até que você complete a Vigília Obsidiana."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Perguntar mais sobre a Vigília Obsidiana",
+      "action": "inquire",
+      "skill": "Persuasion"
+    },
+    {
+      "text": "Procurar uma rota alternativa para o Covil Obsidiano",
+      "action": "explore",
+      "skill": "Investigation"
+    },
+    {
+      "text": "Voltar para o centro da Cidadela do Aço-Luz",
+      "action": "travel"
+    },
+    {
+      "text": "Viajar para Aurathis",
+      "action": "travel"
+    },
+    {
+      "text": "Viajar para a Selva de Ashari",
+      "action": "travel"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico",
+      "Muralha Arcana"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Cidadela do Aço-Luz",
+      "regionSlug": "cidadela-do-aco-luz",
+      "poiSlug": "portao-do-covil-obsidiano",
+      "poiName": "Portão para o Covil Obsidiano",
+      "visitedRegions": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "selva-de-ashari"
+      ],
+      "visitedPois": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "taverna-dragao-azul"
+      ],
+      "completedQuests": []
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      },
+      {
+        "type": "quest",
+        "name": "A Vigília Obsidiana",
+        "status": "blocked",
+        "description": "O acesso ao Covil Obsidiano é restrito. Apenas aqueles que completaram a Vigília Obsidiana podem passar pelos portões guardados."
+      }
+    ]
+  },
+  "combatState": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Cidadela do Aço-Luz",
+    "regionSlug": "cidadela-do-aco-luz",
+    "poiSlug": "portao-do-covil-obsidiano",
+    "poiName": "Portão para o Covil Obsidiano",
+    "visitedRegions": [
+      "biblioteca-arcana",
+      "cidadela-do-aco-luz",
+      "selva-de-ashari"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "biblioteca-arcana",
+        "name": "Biblioteca Arcana"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "cidadela-do-aco-luz",
+        "name": "Cidadela do Aço-Luz"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "taverna-dragao-azul",
+        "name": "Taverna Dragão Azul"
+      }
+    ],
+    "npcLocations": []
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Cidadela do Aço-Luz',
+    regionSlug: 'cidadela-do-aco-luz',
+    poiSlug: 'portao-do-covil-obsidiano',
+    poiName: 'Portão para o Covil Obsidiano',
+    visitedRegions: [ 'biblioteca-arcana', 'cidadela-do-aco-luz', 'selva-de-ashari' ],
+    visitedPois: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'taverna-dragao-azul'
+    ],
+    completedQuests: []
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [
+    { status: 'unexplored' },
+    { status: 'unexplored' },
+    {
+      type: 'quest',
+      name: 'A Vigília Obsidiana',
+      status: 'blocked',
+      description: 'O acesso ao Covil Obsidiano é restrito. Apenas aqueles que completaram a Vigília Obsidiana podem passar pelos portões guardados.'
+    }
+  ]
+}
+  ↳ Capítulo 11 - Vigília Obsidiana: logEntries=3, actionOptions=5, memória="Os guardas prismáticos cruzam as lanças, bloqueando seu cami", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 12 - Santuário Luarino
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1310
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1310 | baseline=1310
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1310 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "event",
+      "content": "As lianas bioluminescentes formam um arco estreito, revelando um recinto lunar silencioso."
+    },
+    {
+      "type": "player",
+      "content": "Catalogo o Santuário da Lua Esmeralda no mapa compartilhado."
+    },
+    {
+      "type": "narration",
+      "content": "Você registra o Santuário da Lua Esmeralda, um novo Ponto de Interesse escondido na Selva de Ashari, em seu mapa. O local emana uma aura de tranquilidade e mistério."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Explorar o Santuário",
+      "action": "explore",
+      "skill": "investigation"
+    },
+    {
+      "text": "Procurar por pistas ou itens",
+      "action": "search",
+      "skill": "perception"
+    },
+    {
+      "text": "Meditar no santuário",
+      "action": "meditate",
+      "skill": "wisdom"
+    },
+    {
+      "text": "Voltar para a Selva de Ashari",
+      "action": "travel",
+      "skill": "survival"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico",
+      "Muralha Arcana"
+    ],
+    "worldState": {
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Selva de Ashari",
+      "regionSlug": "selva-de-ashari",
+      "visitedRegions": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "selva-de-ashari"
+      ],
+      "visitedPois": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "taverna-dragao-azul",
+        "portao-do-covil-obsidiano",
+        "santuario-da-lua-esmeralda"
+      ],
+      "poiSlug": "santuario-da-lua-esmeralda",
+      "poiName": "Santuário da Lua Esmeralda",
+      "completedQuests": []
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      },
+      {
+        "name": "A Vigília Obsidiana",
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": null,
+  "playerRollRequest": null,
+  "worldState": {
+    "timeOfDay": "Manhã",
+    "weather": "Ensolarado",
+    "currentRegion": "Selva de Ashari",
+    "regionSlug": "selva-de-ashari",
+    "poiSlug": "santuario-da-lua-esmeralda",
+    "poiName": "Santuário da Lua Esmeralda",
+    "visitedRegions": [
+      "biblioteca-arcana",
+      "cidadela-do-aco-luz",
+      "selva-de-ashari"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "biblioteca-arcana",
+        "name": "biblioteca-arcana"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "cidadela-do-aco-luz",
+        "name": "cidadela-do-aco-luz"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "taverna-dragao-azul",
+        "name": "taverna-dragao-azul"
+      },
+      {
+        "regionSlug": "cidadela-do-aco-luz",
+        "poiSlug": "portao-do-covil-obsidiano",
+        "name": "Portão para o Covil Obsidiano"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "santuario-da-lua-esmeralda",
+        "name": "Santuário da Lua Esmeralda"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 8,
+    "weather": "Ensolarado"
+  },
+  "memoryContext": {
+    "summary": "O Guardião de Integridade descobriu o Santuário da Lua Esmeralda na Selva de Ashari e o registrou no mapa.",
+    "references": [
+      "Santuário da Lua Esmeralda",
+      "Selva de Ashari"
+    ]
+  },
+  "xpEvents": [],
+  "progressionFeed": [],
+  "newHomebrewContent": [],
+  "levelUpState": null,
+  "shopState": null,
+  "lootOffer": null,
+  "useHitDiceRequest": null,
+  "ambientSound": "jungle_day",
+  "systemLog": null,
+  "_meta": {
+    "hash": "some_hash_value",
+    "schemaVersion": 1,
+    "integrityNotes": "New POI 'Santuário da Lua Esmeralda' added to visitedPois in worldState and updatedCharacter.worldState."
+  }
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
+  worldState: {
+    timeOfDay: 'Manhã',
+    weather: 'Ensolarado',
+    currentRegion: 'Selva de Ashari',
+    regionSlug: 'selva-de-ashari',
+    visitedRegions: [ 'biblioteca-arcana', 'cidadela-do-aco-luz', 'selva-de-ashari' ],
+    visitedPois: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'taverna-dragao-azul',
+      'portao-do-covil-obsidiano',
+      'santuario-da-lua-esmeralda'
+    ],
+    poiSlug: 'santuario-da-lua-esmeralda',
+    poiName: 'Santuário da Lua Esmeralda',
+    completedQuests: []
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [
+    { status: 'unexplored' },
+    { status: 'unexplored' },
+    { name: 'A Vigília Obsidiana', status: 'unexplored' }
+  ]
+}
+  ↳ Capítulo 12 - Santuário Luarino: logEntries=3, actionOptions=4, memória="O Guardião de Integridade descobriu o Santuário da Lua Esmer", status=OK
+
+[structured-output:test4] Executando cenário completo: Capítulo 13 - Vigília das Monções
+[aiService (gemini-2.5-flash)][gameplay] countTokens (pré-digest) = 1369
+[aiService (gemini-2.5-flash)][gameplay] countTokens (compacto) = 1369 | baseline=1369
+[aiService (gemini-2.5-flash)][gameplay] maxOutputTokens=8192 (prompt real 1369 tokens, default perfil 2048).
+[aiService (gemini-2.5-flash)] Gerando conteúdo com prompt...
+[aiService][raw-response][gameplay][attempt 1] {
+  "logEntries": [
+    {
+      "type": "narration",
+      "content": "Você parte do Santuário da Lua Esmeralda, deixando a Selva de Ashari para trás. A jornada para as Selvas de Myr é marcada por uma mudança drástica no clima. Nuvens escuras se acumulam rapidamente, e a tarde ensolarada dá lugar a uma noite tempestuosa. A chuva cai em torrentes, transformando a trilha em um lamaçal escorregadio, enquanto o vento uiva através da folhagem densa, fazendo as árvores balançarem ameaçadoramente. Relâmpagos rasgam o céu, iluminando brevemente a paisagem selvagem e encharcada. A cada passo, a sensação de isolamento e perigo se intensifica."
+    },
+    {
+      "type": "narration",
+      "content": "Apesar do clima adverso, você continua a avançar. No entanto, a tempestade e a escuridão podem ter atraído a atenção de criaturas da selva ou outros perigos. Você precisa fazer uma rolagem para determinar se encontra algo ao longo do caminho."
+    }
+  ],
+  "actionOptions": [
+    {
+      "text": "Fazer rolagem de encontro",
+      "action": "roll",
+      "skill": "perception"
+    },
+    {
+      "text": "Tentar se esconder e evitar encontros",
+      "action": "skill_check",
+      "skill": "stealth"
+    },
+    {
+      "text": "Procurar abrigo para a noite",
+      "action": "explore"
+    }
+  ],
+  "updatedCharacter": {
+    "name": "Guardião de Integridade",
+    "level": 4,
+    "proficiencies": [],
+    "inventory": [
+      {
+        "id": "dagger-a",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "dagger-b",
+        "index": null,
+        "name": "Adaga do Assassino",
+        "quantity": 1,
+        "equipped": true
+      },
+      {
+        "id": "kit-explorer",
+        "index": null,
+        "name": "Kit do Explorador",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
+        "index": null,
+        "name": "Tomo do Vigia Sombrio",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
+        "index": null,
+        "name": "Amuleto de Obediência",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
+        "index": null,
+        "name": "Relíquia Restaurada do Obelisco",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
+        "index": null,
+        "name": "Colar Rúnico Purificado",
+        "quantity": 1,
+        "equipped": false
+      },
+      {
+        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
+        "index": null,
+        "name": "Pergaminho de Restauro Arcano",
+        "quantity": 1,
+        "equipped": false
+      }
+    ],
+    "spells": [
+      "Raio Arcano",
+      "Escudo Místico",
+      "Muralha Arcana"
+    ],
+    "worldState": {
+      "timeOfDay": "Noite",
+      "weather": "Chuvoso",
+      "currentRegion": "Selvas de Myr",
+      "regionSlug": "selvas-de-myr",
+      "visitedRegions": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "selva-de-ashari",
+        "selvas-de-myr"
+      ],
+      "visitedPois": [
+        "biblioteca-arcana",
+        "cidadela-do-aco-luz",
+        "taverna-dragao-azul",
+        "portao-do-covil-obsidiano",
+        "santuario-da-lua-esmeralda"
+      ],
+      "poiSlug": null,
+      "poiName": null,
+      "completedQuests": []
+    },
+    "relationships": [
+      {
+        "name": "Golem Vigia",
+        "status": "ally",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4
+      },
+      {
+        "name": "Borin Stonehand",
+        "status": "friendly",
+        "affinity": 4,
+        "regionSlug": null,
+        "poiSlug": null,
+        "description": null
+      }
+    ],
+    "journal": [
+      {
+        "status": "unexplored"
+      },
+      {
+        "status": "unexplored"
+      },
+      {
+        "name": "A Vigília Obsidiana",
+        "status": "unexplored"
+      }
+    ]
+  },
+  "combatState": null,
+  "playerRollRequest": {
+    "reason": "Encontro durante a viagem noturna e tempestuosa",
+    "dice": "1d20",
+    "modifier": 0,
+    "dc": 12,
+    "rollType": "encounter",
+    "advantage": false,
+    "disadvantage": false
+  },
+  "worldState": {
+    "timeOfDay": "Noite",
+    "weather": "Chuvoso",
+    "currentRegion": "Selvas de Myr",
+    "regionSlug": "selvas-de-myr",
+    "poiSlug": "wild",
+    "poiName": "Selvas de Myr",
+    "visitedRegions": [
+      "biblioteca-arcana",
+      "cidadela-do-aco-luz",
+      "selva-de-ashari",
+      "selvas-de-myr"
+    ],
+    "visitedPois": [
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "biblioteca-arcana",
+        "name": "biblioteca-arcana"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "cidadela-do-aco-luz",
+        "name": "cidadela-do-aco-luz"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "taverna-dragao-azul",
+        "name": "taverna-dragao-azul"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "portao-do-covil-obsidiano",
+        "name": "portao-do-covil-obsidiano"
+      },
+      {
+        "regionSlug": "selva-de-ashari",
+        "poiSlug": "santuario-da-lua-esmeralda",
+        "name": "santuario-da-lua-esmeralda"
+      }
+    ],
+    "npcLocations": []
+  },
+  "gameClock": {
+    "day": 1,
+    "hour": 21,
+    "weather": "Chuvoso"
+  },
+  "memoryContext": {
+    "summary": "O Guardião de Integridade viajou da Selva de Ashari para as Selvas de Myr durante uma noite tempestuosa. O clima adverso e a escuridão aumentam a chance de encontros perigosos.",
+    "references": [
+      "Selva de Ashari",
+      "Selvas de Myr",
+      "tempestade",
+      "encontro aleatório"
+    ]
+  },
+  "ambientSound": "stormy_jungle"
+}
+[aiSanitizer] updatedCharacter após merge {
+  name: 'Guardião de Integridade',
+  level: 4,
+  proficiencies: [],
+  inventory: [
+    {
+      id: 'dagger-a',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'dagger-b',
+      name: 'Adaga do Assassino',
+      quantity: 1,
+      equipped: true,
+      index: null
+    },
+    {
+      id: 'kit-explorer',
+      name: 'Kit do Explorador',
+      quantity: 1,
+      index: null,
+      equipped: false
+    },
+    {
+      id: 'tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3',
+      name: 'Tomo do Vigia Sombrio',
+      quantity: 1,
+      description: 'Um tomo pesado tomado do Suma-Vigia Kaldrax.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh',
+      name: 'Amuleto de Obediência',
+      quantity: 1,
+      description: 'Amuleto usado para controlar cultistas.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf',
+      name: 'Relíquia Restaurada do Obelisco',
+      quantity: 1,
+      description: 'Fragmento cristalino purificado após o ritual.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'colar-r-nico-purificado-1762774021920-jsjbb6jf2zk',
+      name: 'Colar Rúnico Purificado',
+      quantity: 1,
+      description: 'Colar de prata gravado com novas runas brilhantes.',
+      equipped: false,
+      index: null
+    },
+    {
+      id: 'pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h',
+      name: 'Pergaminho de Restauro Arcano',
+      quantity: 1,
+      description: 'Pergaminho utilizado para reverter corrupção em relíquias.',
+      equipped: false,
+      index: null
+    }
+  ],
+  spells: [ 'Raio Arcano', 'Escudo Místico', 'Muralha Arcana' ],
+  worldState: {
+    timeOfDay: 'Noite',
+    weather: 'Chuvoso',
+    currentRegion: 'Selvas de Myr',
+    regionSlug: 'selvas-de-myr',
+    visitedRegions: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'selva-de-ashari',
+      'selvas-de-myr'
+    ],
+    visitedPois: [
+      'biblioteca-arcana',
+      'cidadela-do-aco-luz',
+      'taverna-dragao-azul',
+      'portao-do-covil-obsidiano',
+      'santuario-da-lua-esmeralda'
+    ],
+    poiSlug: null,
+    poiName: null,
+    completedQuests: []
+  },
+  relationships: [
+    {
+      name: 'Golem Vigia',
+      status: 'ally',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null
+    },
+    { name: 'Borin Stonehand', status: 'friendly', affinity: 4 },
+    {
+      name: 'Borin Stonehand',
+      status: 'friendly',
+      affinity: 4,
+      regionSlug: null,
+      poiSlug: null,
+      description: null
+    }
+  ],
+  journal: [
+    { status: 'unexplored' },
+    { status: 'unexplored' },
+    { name: 'A Vigília Obsidiana', status: 'unexplored' }
+  ]
+}
+  ↳ Capítulo 13 - Vigília das Monções: logEntries=2, actionOptions=3, memória="O Guardião de Integridade viajou da Selva de Ashari para as ", status=OK
+[structured-output:test4] Relatório salvo em /home/edson/dndai/backend/logs/TESTE-STRUTRADO4_REPORT_2025-11-10T11-29-18-140Z.json
