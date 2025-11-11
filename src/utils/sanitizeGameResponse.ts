@@ -48,7 +48,6 @@ export const sanitizeGameMasterResponse = (response: any): GameMasterResponse =>
         shopState: typeof response.shopState === 'object' && response.shopState !== null ? response.shopState : undefined,
         lootOffer: typeof response.lootOffer === 'object' && response.lootOffer !== null ? response.lootOffer : undefined,
         useHitDiceRequest: typeof response.useHitDiceRequest === 'object' && response.useHitDiceRequest !== null ? response.useHitDiceRequest : undefined,
-        ambientSound: response.ambientSound ?? 'none',
         systemLog: response.systemLog ?? undefined,
         imagePrompt: response.imagePrompt ?? undefined,
         xpEvents: Array.isArray(response.xpEvents) ? response.xpEvents : undefined,

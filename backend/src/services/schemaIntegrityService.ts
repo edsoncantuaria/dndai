@@ -328,7 +328,6 @@ export const migrateLegacyResponse = (
         updatedCharacter,
         combatState: ensureCombatStateSnapshot(safeSource, context?.input),
         playerRollRequest: safeSource.playerRollRequest ?? null,
-        ambientSound: typeof safeSource.ambientSound === 'string' ? safeSource.ambientSound : undefined,
         systemLog: typeof safeSource.systemLog === 'string' ? safeSource.systemLog : undefined,
         levelUpState: safeSource.levelUpState ?? null,
         shopState: safeSource.shopState ?? null,

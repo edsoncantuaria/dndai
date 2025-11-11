@@ -567,11 +567,10 @@ function enforceGameClockContinuity(
   response.gameClock.hour = nextHour;
 }
 
-const run = async () => {
+const runSuiteForModel = async (modelName: string) => {
   const apiKey = env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY não configurada.');
 
-  const modelName = process.argv[2] ?? 'gemini-2.5-flash';
   console.log(`[structured-output:test4] Modelo alvo: ${modelName}`);
 
   const memoryBank = await loadMemoryBank();
@@ -683,11 +682,54 @@ const run = async () => {
   }
 
   await persistReport(modelName, scenarios.length, issues, campaignState.memories);
-  process.exit(issues.length ? 1 : 0);
+  if (issues.length) {
+    throw new Error(`[structured-output:test4] Cenários concluídos com ${issues.length} issue(s). Consulte o relatório para detalhes.`);
+  }
 };
 
-run().catch(error => {
-  console.error('[structured-output:test4] Falha geral:', error);
+const parseModelList = (): string[] => {
+  const cliArgs = process.argv.slice(2).filter(arg => !!arg && !arg.startsWith('--'));
+  if (cliArgs.length) return cliArgs;
+
+  const envList =
+    process.env.TEST_STRUCTURED4_MODELS ||
+    process.env.TEST_STRUCTURED_MODELS ||
+    process.env.STRUCTURED4_MODELS ||
+    process.env.AI_TEST_MODELS ||
+    process.env.TEST_STRUCTURED4_MODEL ||
+    '';
+
+  if (envList.trim()) {
+    return envList
+      .split(',')
+      .map(entry => entry.trim())
+      .filter(Boolean);
+  }
+
+  return ['gemini-2.5-flash'];
+};
+
+const runAll = async () => {
+  const models = parseModelList();
+
+  let encounteredError = false;
+  for (const model of models) {
+    try {
+      console.log(`\n[structured-output:test4] Iniciando suíte para ${model}`);
+      await runSuiteForModel(model);
+    } catch (error) {
+      encounteredError = true;
+      console.error(`[structured-output:test4] Falha ao executar com o modelo ${model}:`, error);
+    }
+  }
+
+  if (encounteredError) {
+    process.exitCode = 1;
+  }
+};
+
+runAll().catch(error => {
+  console.error('[structured-output:test4] Falha geral inesperada:', error);
   process.exit(1);
 });
 
@@ -853,7 +895,7 @@ function buildScenarioDefinitions(): ScenarioDefinition[] {
       expectations: {
         requireLoot: true,
         inventoryMustChange: true,
-        inventoryAddKeywords: ['pergaminho', 'colar', 'relíquia', 'orbe', 'diário', 'chave'],
+        inventoryAddKeywords: ['pergaminho', 'colar', 'relíquia', 'orbe', 'diário', 'chave', 'cajado', 'anel'],
         expectedCurrencyGain: 10,
         storyKeywords: ['baú', 'relíquias', 'ritual'],
         expectedRegion: 'biblioteca-arcana',

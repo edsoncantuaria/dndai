@@ -209,7 +209,6 @@ export const GameMasterResponseSchema = z.object({
     shopState: ShopStateSchema.optional().describe("The state of a shop, if the player is currently in one."),
     lootOffer: LootOfferSchema.optional().describe("An offer of loot for the player to accept."),
     useHitDiceRequest: UseHitDiceRequestSchema.optional().describe("A request for the player to spend hit dice during a short rest."),
-    ambientSound: z.string().optional().describe("The ID of the ambient sound to play (e.g., 'forest_night', 'dungeon_i', 'none' for silence). This should be chosen from the available `ambient-sounds.json` file to match the current scene's atmosphere."),
     systemLog: z.string().optional().describe("Optional log where the GM explains decisions, e.g., DC choice, damage calculation, NPC rolls."),
     worldState: z.object({
         weather: z.string().optional(),

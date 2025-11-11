@@ -2,7 +2,7 @@
 import { GoogleGenAI, type Content } from "@google/genai";
 import JSON5 from 'json5';
 import { Buffer } from 'buffer';
-import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema } from "../schemas/gameSchemas.js";
+import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema, NarrativePhaseResponseSchema, StatePhaseResponseSchema } from "../schemas/gameSchemas.js";
 import { GenerationConfig } from '../schemas/validationSchemas.js';
 import { regrasBase } from '../game/prompts/regrasBase.js';
 import { regrasCombate } from '../game/prompts/regrasCombate.js';
@@ -17,7 +17,7 @@ import { env } from '../config/env.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { GAME_MASTER_RESPONSE_JSON_SCHEMA, GAME_MASTER_SCHEMA_HASH, markSchemaDrift, migrateLegacyResponse, normalizeResponseSchema, responseMatchesCurrentSchema } from './schemaIntegrityService.js';
-import { GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA } from '../schemas/gameMasterResponseGenerativeSchema.js';
+import { GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA, NARRATIVE_PHASE_GENERATIVE_SCHEMA, STATE_PHASE_GENERATIVE_SCHEMA } from '../schemas/gameMasterResponseGenerativeSchema.js';
 import { reconstructSemanticIntent } from './semanticRecoveryService.js';
 import { attemptJsonRepair, buildContinuationSnippet, softTailRepair, stripCodeFences, stripSuffix, trimAfterLastClosingBracket } from './aiRepairUtils.js';
 import { buildFailSoftResponse } from './failSoftService.js';
@@ -70,9 +70,29 @@ const RETRY_PROMPT_HINTS = [
     "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.",
     "\n\nATENÇÃO FINAL: Reescreva o GameMasterResponse COMPLETO, obedecendo o schema integralmente e sem repetir texto fora do JSON. Priorize fechar todas as chaves e inclua, no mínimo, logEntries, actionOptions, updatedCharacter, worldState e combatState (mesmo vazios).",
 ] as const;
+const DEFAULT_FAILOVER_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
 const MODEL_FAILOVER_CHAIN = (
-    process.env.AI_FAILOVER_CHAIN ?? 'gemini-2.5-flash'
-).split(',').map(entry => entry.trim()).filter(Boolean);
+    process.env.AI_FAILOVER_CHAIN ?? DEFAULT_FAILOVER_CHAIN.join(',')
+)
+    .split(',')
+    .map(entry => entry.trim())
+    .filter(Boolean);
+const FAILOVER_ENABLED = !['1', 'true', 'yes', 'on'].includes(
+    (process.env.AI_DISABLE_AUTO_FAILOVER ?? 'false').toString().trim().toLowerCase()
+);
+const normalizeModelKey = (model?: string | null) => {
+    if (!model) return '';
+    return model.replace(/^models\//i, '').trim().toLowerCase();
+};
+
+const toProviderModelName = (model: string) => {
+    if (!model) return model;
+    const trimmed = model.trim();
+    if (!trimmed || trimmed.startsWith('models/')) return trimmed;
+    if (trimmed.includes('/')) return trimmed;
+    return `models/${trimmed}`;
+};
+
 const TRANSIENT_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 const TRANSIENT_ERROR_CODES = new Set(['ETIMEDOUT', 'ECONNRESET', 'EHOSTUNREACH', 'ENOTFOUND']);
 const MAX_PROMPT_TOKENS_BEFORE_SUMMARY = 9500;
@@ -83,6 +103,9 @@ const HEALTHCHECK_PROMPT_TOKENS = 9000;
 const GM_VALIDATOR_FALLBACK_SNIPPET = 1200;
 const GM_FALLBACK_META_NOTE = 'Reinício do turno detectado; resposta restaurada após erro do modelo.';
 const MAX_PROMPT_INVENTORY_ITEMS = 12;
+const MAX_PROMPT_PROFICIENCIES = 8;
+const MAX_PROMPT_RELATIONSHIPS = 6;
+const STORY_SO_FAR_CHAR_LIMIT = 800;
 const INCOMPLETE_END_FLAG = '[INCOMPLETE_END_FLAG]';
 const RESPONSE_SCHEMA_GLOBAL_ENABLED = true;
 const RESPONSE_SCHEMA_MODEL_BLOCKLIST: string[] = [];
@@ -91,6 +114,14 @@ const FORCE_JSON_MIME = ['1', 'true', 'yes', 'on'].includes(
     (process.env.AI_FORCE_JSON_MIME ?? 'true').toString().trim().toLowerCase()
 );
 const VALIDATION_FAILURE_LOG_DIR = path.join(process.cwd(), 'logs', 'validation-failures');
+const parsePositiveIntEnv = (name: string, fallback: number): number => {
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return Math.floor(parsed);
+};
+const GAMEPLAY_DEFAULT_MAX_OUTPUT = parsePositiveIntEnv('AI_GAMEPLAY_MAX_OUTPUT', 4096);
 
 const extractResponseText = (response: any): string => {
     if (!response) return '';
@@ -261,10 +292,15 @@ const condenseGameMasterInput = (input: GameMasterFlowInput, wasAutoCondensed: {
 };
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const computeBackoffDelay = (attempt: number) => 250 * Math.pow(2, attempt) + Math.floor(Math.random() * 150);
+const computeBackoffDelay = (attempt: number) => {
+    if (attempt === 0) return 10000;
+    if (attempt === 1) return 30000;
+    if (attempt === 2) return 60000;
+    return 250 * Math.pow(2, attempt) + Math.floor(Math.random() * 150);
+};
 const resolveFailoverModel = (current: string): string | null => {
-    const normalized = current.toLowerCase();
-    const index = MODEL_FAILOVER_CHAIN.findIndex(entry => entry === normalized || entry === current);
+    const normalized = normalizeModelKey(current);
+    const index = MODEL_FAILOVER_CHAIN.findIndex(entry => normalizeModelKey(entry) === normalized);
     if (index !== -1 && index + 1 < MODEL_FAILOVER_CHAIN.length) {
         return MODEL_FAILOVER_CHAIN[index + 1];
     }
@@ -351,6 +387,16 @@ const buildValidatorContextFromInput = (input: GameMasterFlowInput): ValidatorCo
             hour: typeof gameClock.hour === 'number' ? gameClock.hour : undefined,
             weather: typeof gameClock.weather === 'string' ? gameClock.weather : undefined,
         };
+    }
+    const lastWorld = extractWorldStateSnapshot(character);
+    if (lastWorld) {
+        context.lastWorldState = lastWorld;
+    }
+    if (input.mode) {
+        context.mode = input.mode;
+    }
+    if (typeof input.useAiHomebrew === 'boolean') {
+        context.useAiHomebrew = input.useAiHomebrew;
     }
 
     return context;
@@ -557,10 +603,15 @@ const gmValidatorFallbackFromRawResponse = (
         fallbackTelemetry.recoveredSections.push('worldState');
     }
 
-    const recoveredPlayerRoll = extractObjectFieldFromRawJson(rawText, 'playerRollRequest');
-    if (recoveredPlayerRoll) {
+    const allowPlayerRoll = input.responseFocus !== 'narrative';
+    const recoveredPlayerRoll = allowPlayerRoll
+        ? extractObjectFieldFromRawJson(rawText, 'playerRollRequest')
+        : undefined;
+    if (allowPlayerRoll && recoveredPlayerRoll) {
         baseResponse.playerRollRequest = recoveredPlayerRoll as any;
         fallbackTelemetry.recoveredSections.push('playerRollRequest');
+    } else if (!allowPlayerRoll) {
+        baseResponse.playerRollRequest = undefined;
     }
 
     const recoveredCombatState = extractObjectFieldFromRawJson(rawText, 'combatState');
@@ -717,10 +768,13 @@ const gmValidatorFallbackFromRawResponse = (
 };
 
 const TOKEN_LIMIT_PROFILES: Record<AiInteractionMode, { temperature: number; defaultMaxOutput: number }> = {
-    gameplay: { temperature: 0.9, defaultMaxOutput: 2048 },
+    gameplay: { temperature: 0.9, defaultMaxOutput: GAMEPLAY_DEFAULT_MAX_OUTPUT },
     combat: { temperature: 0.6, defaultMaxOutput: 1200 },
     generation: { temperature: 1.0, defaultMaxOutput: 8192 },
     audit: { temperature: 0.7, defaultMaxOutput: 3000 },
+};
+const MODE_MIN_OUTPUT_TOKENS: Partial<Record<AiInteractionMode, number>> = {
+    gameplay: 2048,
 };
 
 const DEFAULT_STOP_SEQUENCES = ["```", "[FIM_JSON]"];
@@ -731,7 +785,8 @@ const buildGenerationConfig = (
     mode: AiInteractionMode,
     measuredPromptTokens?: number,
     attachStructuredOutput: boolean = false,
-    forceJsonMimeType: boolean = true
+    forceJsonMimeType: boolean = true,
+    overrideResponseSchema?: Record<string, any>
 ) => {
     const profile = TOKEN_LIMIT_PROFILES[mode] ?? TOKEN_LIMIT_PROFILES.gameplay;
 
@@ -755,12 +810,17 @@ const buildGenerationConfig = (
         ? measuredPromptTokens
         : estimateTokenCount(promptText);
 
-    const requestedMax = clamp(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, MIN_OUTPUT_TOKENS, HARD_OUTPUT_CAP);
+    const minOutputForMode = MODE_MIN_OUTPUT_TOKENS[mode] ?? MIN_OUTPUT_TOKENS;
+    const requestedMax = clamp(
+        Math.max(base.maxOutputTokens ?? DEFAULT_OUTPUT_TOKENS, profile.defaultMaxOutput, minOutputForMode),
+        minOutputForMode,
+        HARD_OUTPUT_CAP
+    );
     sanitized.temperature = clamp(base.temperature ?? profile.temperature, 0, 1);
     sanitized.maxOutputTokens = requestedMax;
     if (attachStructuredOutput) {
         sanitized.responseMimeType = "application/json";
-        sanitized.responseJsonSchema = GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA;
+        sanitized.responseJsonSchema = overrideResponseSchema ?? GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA;
         sanitized.responseModalities = ['TEXT'];
         sanitized.temperature = clamp(base.temperature, 0, 1);
         sanitized.maxOutputTokens = requestedMax;
@@ -926,25 +986,106 @@ const isCurrencyItem = (item: any): boolean => {
     return COIN_INDICES.has(index);
 };
 const expandInventoryForPrompt = (items: any[]): any[] => {
-    const expanded: any[] = [];
+    const collapsed: any[] = [];
     for (const entry of items) {
         if (!entry || typeof entry !== 'object') continue;
         const safeQuantity = toPositiveInteger(entry.quantity ?? 1);
-        if (safeQuantity <= 1 || isCurrencyItem(entry)) {
-            expanded.push(entry);
-            continue;
+        const normalized = { ...entry, quantity: safeQuantity };
+        if ('stackInstance' in normalized) {
+            delete normalized.stackInstance;
         }
-        for (let i = 0; i < safeQuantity; i++) {
-            expanded.push({
-                ...entry,
-                quantity: 1,
-                stackSize: safeQuantity,
-                stackInstance: i + 1,
-            });
+        if (safeQuantity > 1 && !isCurrencyItem(entry)) {
+            normalized.stackSize = safeQuantity;
+        } else if ('stackSize' in normalized) {
+            delete normalized.stackSize;
+        }
+        collapsed.push(normalized);
+    }
+    return collapsed;
+};
+
+const isPlainObject = (value: unknown): value is Record<string, any> =>
+    Boolean(value && typeof value === 'object' && !Array.isArray(value));
+
+const deepEqual = (a: any, b: any): boolean => {
+    if (a === b) return true;
+    if (typeof a !== typeof b) return false;
+    if (Array.isArray(a) && Array.isArray(b)) {
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i += 1) {
+            if (!deepEqual(a[i], b[i])) return false;
+        }
+        return true;
+    }
+    if (isPlainObject(a) && isPlainObject(b)) {
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+        for (const key of keysA) {
+            if (!deepEqual(a[key], (b as Record<string, any>)[key])) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return false;
+};
+
+const pruneUnchangedFields = (
+    partial: Record<string, any> | undefined,
+    baseline: Record<string, any> | undefined
+): Record<string, any> | undefined => {
+    if (!partial || !isPlainObject(partial)) return partial;
+    if (!baseline || !isPlainObject(baseline)) return partial;
+    const delta: Record<string, any> = {};
+    for (const [key, value] of Object.entries(partial)) {
+        if (!deepEqual(value, baseline[key])) {
+            delta[key] = value;
         }
     }
-    return expanded;
+    return Object.keys(delta).length ? delta : undefined;
 };
+
+const buildNarrativeDecisionTags = (character: any, playerAction?: string): string[] => {
+    const tags = new Set<string>();
+    const normalize = (value?: string | null) =>
+        typeof value === 'string' ? value.toLowerCase().replace(/\s+/g, '-') : null;
+
+    const world = character?.worldState;
+    const normalizedRegion = normalize(world?.currentRegion);
+    if (normalizedRegion) tags.add(`reg:${normalizedRegion}`);
+    const normalizedPoi = normalize(world?.poiSlug);
+    if (normalizedPoi) tags.add(`poi:${normalizedPoi}`);
+    if (Array.isArray(world?.visitedRegions) && world.visitedRegions.length) {
+        tags.add(`visited:${world.visitedRegions.length}`);
+    }
+
+    if (Array.isArray(character?.journal) && character.journal.length) {
+        const activeQuest = character.journal.find((entry: any) => entry?.status && entry.status !== 'completed') ?? character.journal[0];
+        const questName = normalize(activeQuest?.name);
+        if (questName) tags.add(`quest:${questName}`);
+        const questStatus = normalize(activeQuest?.status);
+        if (questStatus) tags.add(`quest-status:${questStatus}`);
+    }
+
+    if (Array.isArray(character?.relationships) && character.relationships.length) {
+        const ally = character.relationships.find((rel: any) => rel?.status === 'ally') ?? character.relationships[0];
+        const allyName = normalize(ally?.name);
+        if (allyName) tags.add(`npc:${allyName}`);
+    }
+
+    const actionText = (playerAction ?? '').toLowerCase();
+    if (/investig|procur/.test(actionText)) tags.add('intent:investigate');
+    if (/combate|atac|defes|luta/.test(actionText)) tags.add('intent:combat');
+    if (/loot|saque|recompensa/.test(actionText)) tags.add('intent:loot');
+    if (/convers|dialog|social/.test(actionText)) tags.add('intent:social');
+    if (/recuper|descans|curar/.test(actionText)) tags.add('intent:recover');
+
+    return Array.from(tags).slice(0, 6);
+};
+
+const narrativeExampleSnippet = `{"logEntries":[{"type":"narration","content":"Visão breve do cenário."},{"type":"system","content":"Observação objetiva."}],"actionOptions":[{"text":"Explorar o arco violeta","action":"explore","skill":"perception"},{"text":"Investigar o beco estreito","action":"investigate","skill":"stealth"},{"text":"Recuperar fôlego e observar","action":"wait"}],"systemLog":"Notas concisas sobre verificações e ganchos."}`;
+const stateExampleSnippet = `{"logEntries":[],"actionOptions":[],"updatedCharacter":{"worldState":{"currentRegion":"biblioteca-arcana","timeOfDay":"Manhã"}},"worldState":{"currentRegion":"biblioteca-arcana","poiSlug":"arco-violeta"},"playerRollRequest":{"reason":"Purificar a relíquia","dice":"1d20","dc":15,"rollType":"Arcana"},"systemLog":"Estado consolidado após a ação."}`;
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const {
@@ -958,7 +1099,40 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         timelineFacts,
         regionSlug,
         regionGraphSummary,
+        responseFocus: providedFocus,
     } = input;
+    const focus = providedFocus ?? 'full';
+    const includeNarrativeBrief = focus !== 'state';
+    const includeStateBrief = focus !== 'narrative';
+    const phaseLabel = focus === 'narrative'
+        ? 'FASE_ATUAL=NARRATIVA'
+        : focus === 'state'
+            ? 'FASE_ATUAL=ESTADO'
+            : 'FASE_ATUAL=COMPLETA';
+    const focusInstruction = (() => {
+        if (focus === 'narrative') {
+            return `### FASE NARRATIVA (APENAS STORY + OPÇÕES)
+Estrutura obrigatória (JSON completo, sem campos extras):
+${narrativeExampleSnippet}
+- Gere pelo menos 2 logEntries e 3 actionOptions coerentes com o turno.
+- Não replique inventário, proficiências ou listas extensas; a fase narrativa só precisa de contexto textual.
+- NÃO inclua updatedCharacter, worldState, combatState, xpEvents, memoryContext, playerRollRequest ou qualquer outro campo de estado; mantenha-os omitidos.
+- Não solicite rolagens aqui. Se perceber que uma rolagem será necessária, registre essa intenção em systemLog (texto curto) para a fase seguinte.
+- Mantenha systemLog sucinto (ex.: “Verificação de Percepção necessária se o jogador seguir pelo beco”).`;
+        }
+        if (focus === 'state') {
+            return `### FASE DE ESTADO (APENAS DELTAS)
+Estrutura obrigatória (JSON completo, sem campos extras):
+${stateExampleSnippet}
+- logEntries e actionOptions DEVEM ser arrays vazios ( [] ).
+- Atualize updatedCharacter e worldState somente com os campos que MUDARAM. Se nada mudou, devolva {}.
+- Não aninhe worldState dentro de updatedCharacter se já estiver preenchendo o campo dedicado.
+- Atualize combatState, xpEvents, progressionFeed, lootOffer etc. apenas se houver mudanças reais.
+- Só gere playerRollRequest se ela for realmente necessária para o próximo turno (e tiver sido citada na fase narrativa). Caso contrário, omita esse campo.
+- Mantenha systemLog como um resumo objetivo das atualizações aplicadas.`;
+        }
+        return '';
+    })();
 
     const simplifyInventoryItem = (item: any) => {
         if (!item) return null;
@@ -1015,6 +1189,9 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     
     // Create a leaner character object for the prompt
     let inventoryCondensedNote = '';
+    let proficiencyCondensedNote = '';
+    let relationshipCondensedNote = '';
+    let storyCondensedNote = '';
     const expandedInventory = expandInventoryForPrompt(safeArray(character?.inventory));
     const characterForPrompt = character ? {
         name: character.name,
@@ -1040,17 +1217,58 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         journal: safeArray(character.journal).map((j: any) => ({ name: j.name, region: j.region, status: j.looted ? 'looted' : 'unexplored' }))
     } : null;
 
-    if (characterForPrompt && Array.isArray(characterForPrompt.inventory)) {
-        const totalItems = characterForPrompt.inventory.length;
-        if (totalItems > MAX_PROMPT_INVENTORY_ITEMS) {
-            characterForPrompt.inventory = characterForPrompt.inventory.slice(0, MAX_PROMPT_INVENTORY_ITEMS);
-            const hiddenCount = totalItems - MAX_PROMPT_INVENTORY_ITEMS;
-            inventoryCondensedNote = `INVENTARIO=Inventário condensado (${totalItems} itens; ${hiddenCount} estáveis e não alterados). Não replique itens inalterados em suas respostas.\n`;
-            console.warn(`[aiService] Inventário do personagem condensado de ${totalItems} para ${MAX_PROMPT_INVENTORY_ITEMS} itens no prompt.`);
+    if (characterForPrompt) {
+        if (Array.isArray(characterForPrompt.inventory)) {
+            const totalItems = characterForPrompt.inventory.length;
+            if (totalItems > MAX_PROMPT_INVENTORY_ITEMS) {
+                characterForPrompt.inventory = characterForPrompt.inventory.slice(0, MAX_PROMPT_INVENTORY_ITEMS);
+                const hiddenCount = totalItems - MAX_PROMPT_INVENTORY_ITEMS;
+                inventoryCondensedNote = `INVENTARIO=Inventário condensado (${totalItems} itens; ${hiddenCount} estáveis e não alterados). Não replique itens inalterados em suas respostas.\n`;
+                console.warn(`[aiService] Inventário do personagem condensado de ${totalItems} para ${MAX_PROMPT_INVENTORY_ITEMS} itens no prompt.`);
+            }
+        }
+        if (Array.isArray(characterForPrompt.proficiencies)) {
+            const totalProfs = characterForPrompt.proficiencies.length;
+            if (totalProfs > MAX_PROMPT_PROFICIENCIES) {
+                characterForPrompt.proficiencies = characterForPrompt.proficiencies.slice(0, MAX_PROMPT_PROFICIENCIES);
+                proficiencyCondensedNote = `PROFICIENCIAS=Lista condensada (${totalProfs} itens; mantenha consistência apenas com as ${MAX_PROMPT_PROFICIENCIES} exibidas).\n`;
+                console.warn(`[aiService] Proficiencias condensadas de ${totalProfs} para ${MAX_PROMPT_PROFICIENCIES} itens no prompt.`);
+            }
+        }
+        if (Array.isArray(characterForPrompt.relationships)) {
+            const totalRelationships = characterForPrompt.relationships.length;
+            if (totalRelationships > MAX_PROMPT_RELATIONSHIPS) {
+                const hiddenCount = totalRelationships - (MAX_PROMPT_RELATIONSHIPS - 1);
+                characterForPrompt.relationships = [
+                    ...characterForPrompt.relationships.slice(0, MAX_PROMPT_RELATIONSHIPS - 1),
+                    { name: `+${hiddenCount} aliados/npcs`, status: 'summarized', affinity: null },
+                ];
+                relationshipCondensedNote = `RELACIONAMENTOS=Lista resumida (${totalRelationships} registros; consulte banco interno para demais NPCs).\n`;
+                console.warn(`[aiService] Relacionamentos condensados de ${totalRelationships} para ${MAX_PROMPT_RELATIONSHIPS} entradas no prompt.`);
+            }
+        }
+        if (typeof characterForPrompt.storySoFar === 'string' && characterForPrompt.storySoFar.length > STORY_SO_FAR_CHAR_LIMIT) {
+            characterForPrompt.storySoFar = `${characterForPrompt.storySoFar.slice(0, STORY_SO_FAR_CHAR_LIMIT)}...`;
+            storyCondensedNote = `HISTORICO=Resumo truncado (texto completo com ${character.storySoFar.length} caracteres mantido no backend).\n`;
         }
     }
 
-    const characterContext = JSON.stringify(characterForPrompt ?? {});
+    let characterPayload = characterForPrompt ? { ...characterForPrompt } : null;
+    const narrativeDecisionTags = buildNarrativeDecisionTags(character ?? {}, playerAction);
+    if (characterPayload && focus === 'narrative') {
+        characterPayload = {
+            name: characterPayload.name,
+            race: characterPayload.race,
+            characterClass: characterPayload.characterClass,
+            level: characterPayload.level,
+            attributes: characterPayload.attributes,
+            storySoFar: characterPayload.storySoFar,
+            worldState: characterPayload.worldState,
+            relationships: characterPayload.relationships?.slice(0, 2),
+            ...(narrativeDecisionTags.length ? { decisionTags: narrativeDecisionTags } : {}),
+        };
+    }
+    const characterContext = JSON.stringify(characterPayload ?? {});
     const homebrewSection = homebrewSummary ? `HOMEBREW=${homebrewSummary.trim()}\n` : '';
     const combatContextValue = combatState && combatState.isActive
         ? JSON.stringify(condenseCombatStateForPrompt(combatState))
@@ -1060,15 +1278,26 @@ const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
         ? `FEEDBACK=${validationFeedback.trim()}\n`
         : '';
 
-    const summarySection = storySummary ? `RESUMO=${storySummary}\n` : '';
-    const timelineSection = timelineFacts ? `FATOS=${timelineFacts}\n` : '';
-    const regionSection = regionGraphSummary
-        ? `MAPA_REGIAO=${regionSlug ?? 'desconhecida'}\n${regionGraphSummary.trim()}\n`
-        : regionSlug
-            ? `MAPA_REGIAO=${regionSlug}\n`
-            : '';
+    const summarySection = includeNarrativeBrief && storySummary ? `RESUMO=${storySummary}\n` : '';
+    const timelineSection = includeNarrativeBrief && timelineFacts ? `FATOS=${timelineFacts}\n` : '';
+    const regionSection = includeStateBrief
+        ? (regionGraphSummary
+            ? `MAPA_REGIAO=${regionSlug ?? 'desconhecida'}\n${regionGraphSummary.trim()}\n`
+            : regionSlug
+                ? `MAPA_REGIAO=${regionSlug}\n`
+                : '')
+        : '';
     const worldStateDigest = JSON.stringify(characterForPrompt?.worldState ?? { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' });
-    const metadataSection = `${inventoryCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
+    const climateKeyword = includeStateBrief && characterForPrompt?.worldState?.weather
+        ? `CLIMA=${characterForPrompt.worldState.weather}\n`
+        : '';
+    const timeKeyword = includeStateBrief && characterForPrompt?.worldState?.timeOfDay
+        ? `PERIODO=${characterForPrompt.worldState.timeOfDay}\n`
+        : '';
+    const stateDiffHint = focus === 'state'
+        ? 'ESTADO_PARCIAL=Informe apenas campos que mudaram desde o último turno; valores omitidos serão interpretados como "sem alteração".\n'
+        : '';
+    const metadataSection = `${phaseLabel}\n${stateDiffHint}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
     const safeGameLog = typeof gameLog === 'string' && gameLog.trim().length ? gameLog : 'SEM_EVENTOS';
 
     const mainPrompt = `Responda estritamente com JSON válido. Nenhuma explicação fora do objeto.
@@ -1090,6 +1319,9 @@ O jogador fez a seguinte ação:
 "${playerAction}"
 
 Gere o próximo estado seguindo o formato definido e todas as regras.`;
+    const promptWithFocus = focusInstruction
+        ? `${focusInstruction}\n\n${mainPrompt}`
+        : mainPrompt;
   
     // For Gemma, the full instruction goes into the user prompt
     if (isGemma) {
@@ -1097,10 +1329,10 @@ Gere o próximo estado seguindo o formato definido e todas as regras.`;
             input.useAiHomebrew ?? true,
             input.enableNarrativeRevalidation ?? true
         );
-        return `${systemInstruction}\n\n${mainPrompt}`;
+        return `${systemInstruction}\n\n${promptWithFocus}`;
     }
 
-    return mainPrompt;
+    return promptWithFocus;
 }
 
 /**
@@ -1143,10 +1375,150 @@ const miniSanitize = (raw: any): any => {
         }
       }
     }
-  
+
     return clean;
   };
   
+const enforcePhaseCompliance = (
+    response: GameMasterResponse,
+    input: GameMasterFlowInput
+): string[] => {
+    const focus = input.responseFocus;
+    const notes: string[] = [];
+    if (focus === 'narrative') {
+        const candidate = {
+            logEntries: response.logEntries ?? [],
+            actionOptions: response.actionOptions ?? [],
+            systemLog: response.systemLog,
+        };
+        const phaseCheck = NarrativePhaseResponseSchema.safeParse(candidate);
+        if (!phaseCheck.success) {
+            throw createError(422, `Narrative phase schema violado: ${JSON.stringify(phaseCheck.error.flatten())}`);
+        }
+        const extraneousKeys = [
+            'updatedCharacter',
+            'worldState',
+            'combatState',
+            'playerRollRequest',
+            'xpEvents',
+            'progressionFeed',
+            'newHomebrewContent',
+            'levelUpState',
+            'shopState',
+            'lootOffer',
+            'useHitDiceRequest',
+            'gameClock',
+            'memoryContext',
+        ].filter(key => response[key as keyof GameMasterResponse] !== undefined);
+        if (extraneousKeys.length) {
+            notes.push(`Fase narrativa não deve enviar campos de estado (removidos: ${extraneousKeys.join(', ')}).`);
+        }
+        response.logEntries = phaseCheck.data.logEntries;
+        response.actionOptions = phaseCheck.data.actionOptions;
+        response.systemLog = phaseCheck.data.systemLog;
+        delete response.updatedCharacter;
+        delete response.worldState;
+        delete response.combatState;
+        delete response.playerRollRequest;
+        delete response.xpEvents;
+        delete response.progressionFeed;
+        delete response.newHomebrewContent;
+        delete response.levelUpState;
+        delete response.shopState;
+        delete response.lootOffer;
+        delete response.useHitDiceRequest;
+        delete response.gameClock;
+        delete response.memoryContext;
+        delete (response as any)._meta;
+    } else if (focus === 'state') {
+        if (Array.isArray(response.logEntries) && response.logEntries.length) {
+            notes.push('logEntries descartados na fase de estado.');
+        }
+        if (Array.isArray(response.actionOptions) && response.actionOptions.length) {
+            notes.push('actionOptions descartados na fase de estado.');
+        }
+        const suppressRoll = Boolean(input.suppressRollRequest);
+        const playerRoll = suppressRoll ? null : (response.playerRollRequest ?? null);
+        if (suppressRoll && response.playerRollRequest) {
+            notes.push('playerRollRequest removida (turno não espera rolagem).');
+        }
+        const candidate: any = {
+            updatedCharacter: response.updatedCharacter,
+            worldState: response.worldState,
+            combatState: response.combatState,
+            xpEvents: response.xpEvents,
+            progressionFeed: response.progressionFeed,
+            newHomebrewContent: response.newHomebrewContent,
+            levelUpState: response.levelUpState,
+            shopState: response.shopState,
+            lootOffer: response.lootOffer,
+            useHitDiceRequest: response.useHitDiceRequest,
+            gameClock: response.gameClock,
+            memoryContext: response.memoryContext,
+            systemLog: response.systemLog,
+            logEntries: [],
+            actionOptions: [],
+            _meta: response._meta,
+        };
+        candidate.playerRollRequest = playerRoll;
+        const phaseCheck = StatePhaseResponseSchema.safeParse(candidate);
+        if (!phaseCheck.success) {
+            throw createError(422, `State phase schema violado: ${JSON.stringify(phaseCheck.error.flatten())}`);
+        }
+        const baselineCharacter = isPlainObject(input.character) ? input.character : undefined;
+        const prunedUpdatedCharacter = pruneUnchangedFields(
+            phaseCheck.data.updatedCharacter as Record<string, any> | undefined,
+            baselineCharacter
+        );
+        if (!prunedUpdatedCharacter && phaseCheck.data.updatedCharacter && Object.keys(phaseCheck.data.updatedCharacter).length) {
+            notes.push('updatedCharacter sem alterações foi omitido.');
+        }
+        const baselineWorld = baselineCharacter?.worldState;
+        const worldStateDelta = phaseCheck.data.worldState && baselineWorld
+            ? (deepEqual(phaseCheck.data.worldState, baselineWorld) ? undefined : phaseCheck.data.worldState)
+            : phaseCheck.data.worldState;
+        if (!worldStateDelta && phaseCheck.data.worldState) {
+            notes.push('worldState idêntico ao anterior removido.');
+        }
+        const baselineCombat = input.combatState ?? baselineCharacter?.combatState;
+        let combatStateDelta = phaseCheck.data.combatState;
+        if (combatStateDelta && baselineCombat && deepEqual(combatStateDelta, baselineCombat)) {
+            notes.push('combatState inalterado ignorado.');
+            combatStateDelta = null;
+        }
+
+        response.logEntries = [];
+        response.actionOptions = [];
+        response.updatedCharacter = prunedUpdatedCharacter;
+        response.worldState = worldStateDelta;
+        response.combatState = combatStateDelta;
+        response.playerRollRequest = suppressRoll ? undefined : phaseCheck.data.playerRollRequest ?? undefined;
+        response.xpEvents = phaseCheck.data.xpEvents;
+        response.progressionFeed = phaseCheck.data.progressionFeed;
+        response.newHomebrewContent = phaseCheck.data.newHomebrewContent;
+        response.levelUpState = phaseCheck.data.levelUpState;
+        response.shopState = phaseCheck.data.shopState;
+        response.lootOffer = phaseCheck.data.lootOffer;
+        response.useHitDiceRequest = phaseCheck.data.useHitDiceRequest;
+        response.gameClock = phaseCheck.data.gameClock;
+        response.memoryContext = phaseCheck.data.memoryContext;
+        response.systemLog = phaseCheck.data.systemLog;
+
+        if (notes.length) {
+            const existingMeta = isPlainObject(response._meta) ? response._meta : {};
+            const currentNotes = Array.isArray(existingMeta.integrityNotes)
+                ? existingMeta.integrityNotes
+                : existingMeta.integrityNotes
+                    ? [existingMeta.integrityNotes]
+                    : [];
+            response._meta = {
+                ...existingMeta,
+                integrityNotes: [...currentNotes, ...notes],
+            };
+        }
+    }
+    return notes;
+};
 
 /**
  * 🔸 AI Service: Main entry point for getting a game update from the AI.
@@ -1190,6 +1562,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         const lower = targetModel.toLowerCase();
         const gemmaMode = lower.includes('gemma');
         const supportsStructuredOutput = allowStructuredOutputForModel(targetModel);
+        const providerModelName = toProviderModelName(targetModel);
 
         const withSystemInstructionTopLevel = (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) => {
             if (!systemInstructionPayload || gemmaMode) {
@@ -1206,12 +1579,12 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             supportsStructuredOutput,
             generateContent: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
                 genAI.models.generateContent({
-                    model: targetModel,
+                    model: providerModelName,
                     ...withSystemInstructionTopLevel(body, systemInstructionPayload),
                 }),
             countTokens: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
                 genAI.models.countTokens({
-                    model: targetModel,
+                    model: providerModelName,
                     ...withSystemInstructionTopLevel(body, systemInstructionPayload),
                 }),
         };
@@ -1241,16 +1614,6 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     let lastPromptSent = '';
     let forceJsonMimeTypeForSession = FORCE_JSON_MIME;
     let structuredOutputDisabledReason: string | null = structuredOutputEnabled ? null : 'not-enabled';
-    const disableStructuredOutputForSession = (reason: string) => {
-        if (!structuredOutputEnabled) return;
-        structuredOutputEnabled = false;
-        structuredOutputDisabledReason = reason;
-        if (reason === 'schema-rejected') {
-            forceJsonMimeTypeForSession = false;
-        }
-        registerRecoveryStrategy('structured-output-disabled');
-        console.warn(`[aiService] Structured output desativado para o modelo ${activeModelName} (${reason}).`);
-    };
     const rebuildModel = (targetModel: string) => {
         const nextAdapter = instantiateModel(targetModel);
         modelAdapter = nextAdapter;
@@ -1310,7 +1673,7 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
     const attemptGeneration = async (
         attemptIndex: number = 0,
-        retryOptions: { continuationRaw?: string } = {}
+        retryOptions: { continuationRaw?: string; schemaRetryCount?: number } = {}
     ): Promise<GameUpdateResult> => {
         const isRetry = attemptIndex > 0;
         const createResilienceFallback = (issue: string): GameUpdateResult => {
@@ -1332,6 +1695,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         };
 
         const attemptFailover = (): boolean => {
+            if (!FAILOVER_ENABLED) {
+                return false;
+            }
             const nextModel = resolveFailoverModel(activeModelName);
             if (!nextModel || nextModel === activeModelName) {
                 return false;
@@ -1412,15 +1778,29 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
 
             const isFlashModel = activeModelName.toLowerCase().includes('flash');
             const shouldForceJsonMimeType = forceJsonMimeTypeForSession;
+            const phaseSchema =
+                structuredOutputEnabled && input.responseFocus === 'narrative'
+                    ? NARRATIVE_PHASE_GENERATIVE_SCHEMA
+                    : structuredOutputEnabled && input.responseFocus === 'state'
+                        ? STATE_PHASE_GENERATIVE_SCHEMA
+                        : undefined;
             const { config: sanitizedGenerationConfig, requestedMax, appliedMax, promptTokens, profile } =
-                buildGenerationConfig(prompt, generationConfig, mode, measuredTokens, structuredOutputEnabled, shouldForceJsonMimeType);
+                buildGenerationConfig(
+                    prompt,
+                    generationConfig,
+                    mode,
+                    measuredTokens,
+                    structuredOutputEnabled,
+                    shouldForceJsonMimeType,
+                    phaseSchema
+                );
 
             const retryCap = RETRY_OUTPUT_LIMITS[attemptIndex];
             if (retryCap !== undefined) {
                 const currentMax = sanitizedGenerationConfig.maxOutputTokens ?? appliedMax ?? DEFAULT_OUTPUT_TOKENS;
                 sanitizedGenerationConfig.maxOutputTokens = clamp(
                     Math.min(currentMax, retryCap),
-                    MIN_OUTPUT_TOKENS,
+                    MODE_MIN_OUTPUT_TOKENS[mode] ?? MIN_OUTPUT_TOKENS,
                     HARD_OUTPUT_CAP
                 );
             }
@@ -1648,7 +2028,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                     const continuationRaw = shouldUseContinuation
                         ? buildContinuationSnippet(softTailRepair(jsonText) ?? jsonText)
                         : undefined;
-                    return attemptGeneration(attemptIndex + 1, { continuationRaw });
+                    return attemptGeneration(attemptIndex + 1, { ...retryOptions, continuationRaw });
                 }
                 console.warn('[aiService] Resposta reparada porém limite de tentativas atingido; acionando fallback resiliente.');
                 return ensureRetryOrFallback('A IA enviou JSON inválido após múltiplas tentativas.');
@@ -1658,6 +2038,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 console.warn('[aiService] Hash de schema divergente detectado; aplicando migração defensiva.');
                 responseData = migrateLegacyResponse(responseData, { input, rawText: jsonText });
                 markSchemaDrift(responseData);
+                emitWarning('schema_migration', { focus: input.responseFocus ?? 'full' });
                 registerRecoveryStrategy('schema-migration');
             }
 
@@ -1666,9 +2047,22 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
 
             // 2️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character);
+            const enforcementNotes = enforcePhaseCompliance(finalResponse, input);
+            if (enforcementNotes.length) {
+                emitWarning('phase_sanitization', {
+                    focus: input.responseFocus ?? 'full',
+                    notes: enforcementNotes,
+                });
+            }
             
             // 3️⃣ Validação estrutural com Zod
-            const validationResult = GameMasterResponseSchema.safeParse(finalResponse);
+            const validationSchema =
+                input.responseFocus === 'narrative'
+                    ? NarrativePhaseResponseSchema
+                    : input.responseFocus === 'state'
+                        ? StatePhaseResponseSchema
+                        : GameMasterResponseSchema;
+            const validationResult = validationSchema.safeParse(finalResponse);
             if (!validationResult.success) {
                 const flattenedError = validationResult.error.flatten();
                 emitWarning('zod_validation_failure', {
@@ -1688,18 +2082,20 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 });
                 console.warn("⚠️ Falha na validação Zod:", flattenedError);
                 if (!isRetry) return attemptGeneration(1);
-                throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(validationResult.error.flatten())}`);
+                throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(flattenedError)}`);
             }
 
-            const validatedResponse = normalizeResponseSchema(validationResult.data, {
-                recoveryStrategies: Array.from(recoveryStrategies),
-                integrityNotes: [
-                    ...(failoverTrail.length ? [`Failover aplicado: ${failoverTrail.join(' -> ')}`] : []),
-                    ...(structuredOutputDisabledReason && structuredOutputDisabledReason !== 'not-enabled'
-                        ? [`structured output desativado (${structuredOutputDisabledReason}).`]
-                        : []),
-                ],
-            });
+            const validatedResponse = input.responseFocus
+                ? (validationResult.data as GameMasterResponse)
+                : normalizeResponseSchema(validationResult.data, {
+                    recoveryStrategies: Array.from(recoveryStrategies),
+                    integrityNotes: [
+                        ...(failoverTrail.length ? [`Failover aplicado: ${failoverTrail.join(' -> ')}`] : []),
+                        ...(structuredOutputDisabledReason && structuredOutputDisabledReason !== 'not-enabled'
+                            ? [`structured output desativado (${structuredOutputDisabledReason}).`]
+                            : []),
+                    ],
+                });
             if (failoverTrail.length) {
                 const failoverNote = `[Failover] Modelo alternado: ${failoverTrail.join(' -> ')}`;
                 validatedResponse.systemLog = validatedResponse.systemLog
@@ -1756,10 +2152,20 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 return ensureRetryOrFallback('O Mestre de Jogo não respondeu.');
             }
             if (/(response_schema|response_json_schema)/i.test(message) && structuredOutputEnabled) {
-                disableStructuredOutputForSession('schema-rejected');
-                return attemptGeneration(attemptIndex, retryOptions);
+                const schemaRetryCount = retryOptions.schemaRetryCount ?? 0;
+                if (schemaRetryCount >= 1) {
+                    console.error('[aiService] Schema estruturado rejeitado repetidamente; acionando fallback.');
+                    return ensureRetryOrFallback('O modelo rejeitou o schema de resposta estruturado.');
+                }
+                console.warn('[aiService] Schema rejection detectado; repetindo tentativa com structured output.');
+                return attemptGeneration(attemptIndex, { ...retryOptions, schemaRetryCount: schemaRetryCount + 1 });
             }
             if (shouldBackoff) {
+                if (input.responseFocus === 'state' && attemptFailover()) {
+                    console.warn('[aiService] Estado encontrou erro transitório; alternando para modelo de contingência.');
+                    await sleep(200);
+                    return attemptGeneration(0, retryOptions);
+                }
                 if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
                     const waitMs = computeBackoffDelay(attemptIndex);
                     console.warn(`[aiService] Erro transitório (${status ?? code ?? 'desconhecido'}). Aguardando ${waitMs}ms antes de tentar novamente.`);

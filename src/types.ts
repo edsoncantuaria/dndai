@@ -30,7 +30,6 @@ export interface GameMasterResponse {
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
     playerRollRequest?: PlayerRollRequest;
-    ambientSound?: string;
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };

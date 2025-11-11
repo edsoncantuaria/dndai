@@ -204,7 +204,6 @@ export const GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA = {
       type: ["object", "null"],
       additionalProperties: true,
     },
-    ambientSound: { type: "string" },
     systemLog: { type: ["string", "null"] },
     _meta: {
       type: "object",
@@ -212,9 +211,60 @@ export const GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA = {
       properties: {
         hash: { type: "string" },
         schemaVersion: { type: "number" },
-        integrityNotes: { type: "string" },
+        integrityNotes: {
+          anyOf: [
+            { type: "string" },
+            {
+              type: "array",
+              items: { type: "string" },
+            },
+          ],
+        },
       },
     },
   },
   required: ["logEntries", "actionOptions", "updatedCharacter"],
+};
+
+export const NARRATIVE_PHASE_GENERATIVE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    logEntries: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.logEntries,
+    actionOptions: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.actionOptions,
+    systemLog: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.systemLog,
+  },
+  required: ["logEntries", "actionOptions"],
+};
+
+const zeroArraySchema = {
+  type: "array",
+  minItems: 0,
+  maxItems: 0,
+  items: false,
+};
+
+export const STATE_PHASE_GENERATIVE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    logEntries: zeroArraySchema,
+    actionOptions: zeroArraySchema,
+    updatedCharacter: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.updatedCharacter,
+    worldState: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.worldState,
+    combatState: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.combatState,
+    playerRollRequest: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.playerRollRequest,
+    xpEvents: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.xpEvents,
+    progressionFeed: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.progressionFeed,
+    newHomebrewContent: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.newHomebrewContent,
+    levelUpState: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.levelUpState,
+    shopState: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.shopState,
+    lootOffer: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.lootOffer,
+    useHitDiceRequest: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.useHitDiceRequest,
+    gameClock: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.gameClock,
+    memoryContext: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.memoryContext,
+    systemLog: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties.systemLog,
+    _meta: GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA.properties._meta,
+  },
+  required: ["logEntries", "actionOptions"],
 };

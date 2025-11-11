@@ -290,7 +290,6 @@ export const reconstructSemanticIntent = (
         updatedCharacter: {},
         combatState,
         playerRollRequest: null,
-        ambientSound: undefined,
         systemLog: `[SemanticRecovery] GameMasterResponse reconstruído após falha de parse do modelo.`,
         levelUpState: null,
         shopState: (input.character as any)?.shopState ?? null,

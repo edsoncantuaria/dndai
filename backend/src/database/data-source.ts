@@ -30,6 +30,8 @@ import { RegionLink } from '../entities/RegionLink.js';
 import { RegionPointOfInterest } from '../entities/RegionPointOfInterest.js';
 import { RegionSnapshot } from '../entities/RegionSnapshot.js';
 import { QuestKeyword } from '../entities/QuestKeyword.js';
+import { VectorMemoryBacklog } from '../entities/VectorMemoryBacklog.js';
+import { SanitizationPattern } from '../entities/SanitizationPattern.js';
 
 
 /**
@@ -81,6 +83,8 @@ export const AppDataSource = new DataSource({
         RegionPointOfInterest,
         RegionSnapshot,
         QuestKeyword,
+        VectorMemoryBacklog,
+        SanitizationPattern,
     ], 
     
     migrations: [],

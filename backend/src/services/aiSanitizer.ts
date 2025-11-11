@@ -2,11 +2,12 @@
 import { GameMasterResponse } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
 import type { InventoryLike } from './inventoryService.js';
+import { trackNormalization } from './normalizationRegistry.js';
 
 const VALID_HOMEBREW_TYPES: HomebrewContentType[] = ['race', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat'];
-const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);
+export const VALID_RELATIONSHIP_STATUSES = new Set(['hostile', 'unfriendly', 'neutral', 'friendly', 'ally']);
 const LOG_ENTRY_ALLOWED_TYPES = new Set(['narration', 'action', 'system', 'combat', 'insight', 'roll']);
-const LOG_ENTRY_TYPE_ALIASES: Record<string, string> = {
+export const LOG_ENTRY_TYPE_ALIASES: Record<string, string> = {
     gm: 'narration',
     game: 'narration',
     narrator: 'narration',
@@ -17,7 +18,7 @@ const LOG_ENTRY_TYPE_ALIASES: Record<string, string> = {
     npc: 'action',
 };
 const COMBAT_ZONE_ALLOWED = new Set(['perto', 'medio', 'longe', 'coberto']);
-const COMBAT_ZONE_ALIASES: Record<string, string> = {
+export const COMBAT_ZONE_ALIASES: Record<string, string> = {
     melee: 'perto',
     close: 'perto',
     near: 'perto',
@@ -33,8 +34,35 @@ const COMBAT_ZONE_ALIASES: Record<string, string> = {
     cover: 'coberto',
     covered: 'coberto',
 };
+export const COMBAT_ATTITUDE_ALLOWED = new Set(['ally', 'neutral', 'hostile']);
+export const COMBAT_ATTITUDE_ALIASES: Record<string, 'ally' | 'neutral' | 'hostile'> = {
+    amigo: 'ally',
+    amiga: 'ally',
+    aliado: 'ally',
+    aliada: 'ally',
+    friendly: 'ally',
+    friend: 'ally',
+    supporter: 'ally',
+    supportive: 'ally',
+    guard: 'ally',
+    guardian: 'ally',
+    player: 'ally',
+    companion: 'ally',
+    companionfriendly: 'ally',
+    furious: 'hostile',
+    enemy: 'hostile',
+    foe: 'hostile',
+    hostile: 'hostile',
+    aggressor: 'hostile',
+    aggressive: 'hostile',
+    cultist: 'hostile',
+    rival: 'hostile',
+    neutralidade: 'neutral',
+    indiferente: 'neutral',
+    neutral: 'neutral',
+};
 const ROLL_TYPE_ALLOWED = new Set(['check', 'save', 'attack', 'damage', 'initiative']);
-const ROLL_TYPE_ALIASES: Record<string, string> = {
+export const ROLL_TYPE_ALIASES: Record<string, string> = {
     skillcheck: 'check',
     'skill check': 'check',
     abilitycheck: 'check',
@@ -47,8 +75,8 @@ const ROLL_TYPE_ALIASES: Record<string, string> = {
     damageroll: 'damage',
     'damage roll': 'damage',
 };
-const PROGRESSION_TYPE_ALLOWED = new Set(['xp_gain', 'level_up']);
-const PROGRESSION_TYPE_ALIASES: Record<string, 'xp_gain' | 'level_up'> = {
+export const PROGRESSION_TYPE_ALLOWED = new Set(['xp_gain', 'level_up']);
+export const PROGRESSION_TYPE_ALIASES: Record<string, 'xp_gain' | 'level_up'> = {
     xp: 'xp_gain',
     'xp_gain': 'xp_gain',
     'xp gain': 'xp_gain',
@@ -185,6 +213,48 @@ const mergeTextField = (current?: string | null, addition?: string | null) => {
     return `${current}\n${next}`.trim();
 };
 
+export const TIME_OF_DAY_KEYWORDS: Array<{ keyword: string; normalized: string }> = [
+    { keyword: 'manhã', normalized: 'Manhã' },
+    { keyword: 'alvorecer', normalized: 'Manhã' },
+    { keyword: 'tarde', normalized: 'Tarde' },
+    { keyword: 'crepúsculo', normalized: 'Tarde' },
+    { keyword: 'pôr do sol', normalized: 'Tarde' },
+    { keyword: 'noite', normalized: 'Noite' },
+    { keyword: 'meia-noite', normalized: 'Noite' },
+];
+
+export const WEATHER_KEYWORDS: Record<string, string> = {
+    chuvoso: 'Chuva',
+    chovendo: 'Chuva',
+    nevando: 'Neve',
+    tempestuoso: 'Tempestade',
+    ensolarado: 'Ensolarado',
+    ensonarado: 'Ensolarado',
+    nublado: 'Nublado',
+    nevoeiro: 'Nevoeiro',
+};
+
+const normalizeCombatAttitude = (
+    value: any,
+    fallback: 'ally' | 'neutral' | 'hostile' = 'neutral'
+): 'ally' | 'neutral' | 'hostile' => {
+    if (typeof value === 'string') {
+        const normalized = value.trim().toLowerCase();
+        if (COMBAT_ATTITUDE_ALLOWED.has(normalized)) {
+            return normalized as 'ally' | 'neutral' | 'hostile';
+        }
+        const alias = COMBAT_ATTITUDE_ALIASES[normalized];
+        if (alias) {
+            trackNormalization('combat.attitude', value, alias);
+            return alias;
+        }
+    }
+    if (typeof value === 'boolean') {
+        return value ? 'ally' : fallback;
+    }
+    return fallback;
+};
+
 const sanitizeVisitedPoiEntry = (
     entry: any,
     fallbackRegionSlug?: string | null
@@ -298,18 +368,13 @@ const detectCurrencyKeyFromText = (raw?: string): CurrencyKey | undefined => {
 const normalizeTimeOfDay = (timeOfDayString: string): string => {
     if (!timeOfDayString) return 'Manhã';
     const lowerCaseTime = timeOfDayString.toLowerCase();
-
-    if (lowerCaseTime.includes('manhã') || lowerCaseTime.includes('alvorecer')) {
-        return 'Manhã';
+    for (const entry of TIME_OF_DAY_KEYWORDS) {
+        if (lowerCaseTime.includes(entry.keyword)) {
+            trackNormalization('world.timeOfDay', timeOfDayString, entry.normalized);
+            return entry.normalized;
+        }
     }
-    if (lowerCaseTime.includes('tarde') || lowerCaseTime.includes('crepúsculo') || lowerCaseTime.includes('pôr do sol')) {
-        return 'Tarde';
-    }
-    if (lowerCaseTime.includes('noite') || lowerCaseTime.includes('meia-noite')) {
-        return 'Noite';
-    }
-    
-    return timeOfDayString; 
+    return timeOfDayString;
 };
 
 /**
@@ -320,27 +385,19 @@ const normalizeTimeOfDay = (timeOfDayString: string): string => {
 const normalizeWeather = (weatherString: string): string => {
     if (!weatherString) return 'Ensolarado';
     const lowerCaseWeather = weatherString.toLowerCase();
-    
-    const weatherMap: Record<string, string> = {
-        'chuvoso': 'Chuva',
-        'chovendo': 'Chuva',
-        'nevando': 'Neve',
-        'tempestuoso': 'Tempestade',
-        'ensolarado': 'Ensolarado',
-        'ensonarado': 'Ensolarado', // Corrigindo erro de digitação comum da IA
-        'nublado': 'Nublado',
-        'nevoeiro': 'Nevoeiro',
-    };
-
-    for (const key in weatherMap) {
-        if (lowerCaseWeather.includes(key)) {
-            return weatherMap[key];
+    for (const [keyword, normalized] of Object.entries(WEATHER_KEYWORDS)) {
+        if (lowerCaseWeather.includes(keyword)) {
+            trackNormalization('world.weather', weatherString, normalized);
+            return normalized;
         }
     }
-    
     const knownWeathers = ['Ensolarado', 'Nublado', 'Chuva', 'Tempestade', 'Neve', 'Nevoeiro'];
     const found = knownWeathers.find(w => lowerCaseWeather.includes(w.toLowerCase()));
-    return found || 'Ensolarado';
+    if (found) {
+        trackNormalization('world.weather', weatherString, found);
+        return found;
+    }
+    return 'Ensolarado';
 };
 
 const DEFAULT_WORLD_STATE = {
@@ -360,7 +417,11 @@ const normalizeCombatZone = (zone: any): string | undefined => {
     if (!zone || typeof zone !== 'string') return undefined;
     const key = zone.trim().toLowerCase();
     if (COMBAT_ZONE_ALLOWED.has(key)) return key;
-    return COMBAT_ZONE_ALIASES[key];
+    const alias = COMBAT_ZONE_ALIASES[key];
+    if (alias) {
+        trackNormalization('combat.zone', zone, alias);
+    }
+    return alias;
 };
 
 const normalizeRollType = (value: any): string | undefined => {
@@ -368,7 +429,11 @@ const normalizeRollType = (value: any): string | undefined => {
     const trimmed = value.trim().toLowerCase();
     if (!trimmed) return undefined;
     if (ROLL_TYPE_ALLOWED.has(trimmed)) return trimmed;
-    if (ROLL_TYPE_ALIASES[trimmed]) return ROLL_TYPE_ALIASES[trimmed];
+    if (ROLL_TYPE_ALIASES[trimmed]) {
+        const alias = ROLL_TYPE_ALIASES[trimmed];
+        trackNormalization('roll.type', value, alias);
+        return alias;
+    }
 
     const simplified = trimmed
         .replace(/\([^)]*\)/g, ' ')
@@ -378,24 +443,32 @@ const normalizeRollType = (value: any): string | undefined => {
 
     if (simplified) {
         if (ROLL_TYPE_ALLOWED.has(simplified)) return simplified;
-        if (ROLL_TYPE_ALIASES[simplified]) return ROLL_TYPE_ALIASES[simplified];
+        if (ROLL_TYPE_ALIASES[simplified]) {
+            const alias = ROLL_TYPE_ALIASES[simplified];
+            trackNormalization('roll.type', value, alias);
+            return alias;
+        }
     }
 
     if (simplified && (SKILL_KEYWORDS.has(simplified) || ABILITY_KEYWORDS.has(simplified))) {
+        trackNormalization('roll.type', value, 'check', { heuristic: 'skill-match' });
         return 'check';
     }
     if (SKILL_KEYWORDS.has(trimmed) || ABILITY_KEYWORDS.has(trimmed)) {
+        trackNormalization('roll.type', value, 'check', { heuristic: 'skill-match' });
         return 'check';
     }
 
     const healingKeywords = ['healing', 'hp', 'hit_dice', 'hit dice', 'hp_recovery', 'hp recovery', 'cura'];
     if (healingKeywords.some(keyword => simplified.includes(keyword) || trimmed.includes(keyword))) {
+        trackNormalization('roll.type', value, 'check', { heuristic: 'healing' });
         return 'check';
     }
 
     const containsSkill = Array.from(SKILL_KEYWORDS).some(keyword => simplified.includes(keyword) || trimmed.includes(keyword));
     const containsAbility = Array.from(ABILITY_KEYWORDS).some(keyword => simplified.includes(keyword) || trimmed.includes(keyword));
     if (containsSkill || containsAbility) {
+        trackNormalization('roll.type', value, 'check', { heuristic: 'keyword' });
         return 'check';
     }
 
@@ -405,7 +478,11 @@ const normalizeProgressionType = (value: any): 'xp_gain' | 'level_up' | undefine
     if (!value || typeof value !== 'string') return undefined;
     const key = value.trim().toLowerCase();
     if (PROGRESSION_TYPE_ALLOWED.has(key)) return key as 'xp_gain' | 'level_up';
-    return PROGRESSION_TYPE_ALIASES[key];
+    const alias = PROGRESSION_TYPE_ALIASES[key];
+    if (alias) {
+        trackNormalization('progression.type', value, alias);
+    }
+    return alias;
 };
 
 const buildSafeWorldState = (source?: any, fallbackRegion?: string) => {
@@ -496,34 +573,34 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
     });
   };
 
-  const expandInventoryStacks = (items: InventoryLike[] | undefined): InventoryLike[] => {
+  const normalizeInventoryItems = (items: InventoryLike[] | undefined): InventoryLike[] => {
     if (!Array.isArray(items)) return [];
-    const expanded: InventoryLike[] = [];
-    items.forEach((item, index) => {
+    const normalized: InventoryLike[] = [];
+    items.forEach(item => {
       if (!item) return;
+      if (accumulateCurrency(item)) return;
       const quantity = Math.max(1, Math.floor(toNumber(item.quantity) ?? 1));
-      if (accumulateCurrency(item)) {
-        return;
-      }
-      if (quantity === 1) {
-        expanded.push({ ...item, quantity });
-        return;
-      }
-      const baseId = buildInventoryKey(item) || `stack-${index}`;
-      for (let i = 0; i < quantity; i++) {
-        expanded.push({
-          ...item,
-          quantity: 1,
-          id: `${baseId}-copy-${i}`,
-        });
-      }
+      const cleanItem: InventoryLike = { ...item, quantity };
+      if ('stackSize' in cleanItem) delete cleanItem.stackSize;
+      if ('stackInstance' in cleanItem) delete cleanItem.stackInstance;
+      normalized.push(cleanItem);
     });
-    return expanded;
+    return normalized;
+  };
+  const canonicalizeInventoryId = (value: any): string | null => {
+    if (value === null || value === undefined) return null;
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return null;
+    return normalized.replace(/-copy-\d+$/i, '');
   };
   const buildInventoryKey = (item: any): string | null => {
     if (!item) return null;
-    const raw = item.id || item.index || item.name;
-    return raw ? String(raw).toLowerCase() : null;
+    const candidates = [item.index, item.id, item.name];
+    for (const candidate of candidates) {
+      const key = canonicalizeInventoryId(candidate);
+      if (key) return key;
+    }
+    return null;
   };
 
   const mergeInventoryItems = (
@@ -536,8 +613,21 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
       for (const item of previous) {
         if (accumulateCurrency(item)) continue;
         const key = buildInventoryKey(item);
-        if (key) {
-          snapshot.set(key, { ...item });
+        if (!key) continue;
+        const base = snapshot.get(key);
+        const clampQuantity = (value: any) => Math.max(1, Math.floor(toNumber(value) ?? 1));
+        if (base) {
+          const combinedQuantity = clampQuantity(base.quantity) + clampQuantity(item.quantity);
+          const merged = { ...base, ...item, quantity: combinedQuantity };
+          delete merged.stackSize;
+          delete merged.stackInstance;
+          snapshot.set(key, merged);
+        } else {
+          const clean = { ...item };
+          delete clean.stackSize;
+          delete clean.stackInstance;
+          clean.quantity = clampQuantity(clean.quantity);
+          snapshot.set(key, clean);
         }
       }
     }
@@ -564,9 +654,15 @@ export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?:
 
       const previousItem = snapshot.get(key);
       if (previousItem) {
-        snapshot.set(key, { ...previousItem, ...item });
+        const merged = { ...previousItem, ...item };
+        delete merged.stackSize;
+        delete merged.stackInstance;
+        snapshot.set(key, merged);
       } else {
-        snapshot.set(key, { ...item });
+        const clean = { ...item };
+        delete clean.stackSize;
+        delete clean.stackInstance;
+        snapshot.set(key, clean);
       }
     }
 
@@ -769,7 +865,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
   }
 
   if (sanitized.updatedCharacter && Array.isArray(sanitized.updatedCharacter.inventory)) {
-    sanitized.updatedCharacter.inventory = expandInventoryStacks(sanitized.updatedCharacter.inventory);
+    sanitized.updatedCharacter.inventory = normalizeInventoryItems(sanitized.updatedCharacter.inventory);
   }
 
   if (sanitized.updatedCharacter) {
@@ -811,7 +907,14 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
 
         let type = typeof entry.type === 'string' ? entry.type.toLowerCase().trim() : 'narration';
         if (!LOG_ENTRY_ALLOWED_TYPES.has(type)) {
-          type = LOG_ENTRY_TYPE_ALIASES[type] ?? 'narration';
+          const alias = LOG_ENTRY_TYPE_ALIASES[type];
+          if (alias) {
+            trackNormalization('logEntry.type', entry.type ?? type, alias, { scope: 'logEntries' });
+            type = alias;
+          } else {
+            trackNormalization('logEntry.type', entry.type ?? type, 'narration', { scope: 'logEntries', reason: 'fallback' });
+            type = 'narration';
+          }
         }
 
         return { type, content, rollResult: entry.rollResult };
@@ -856,15 +959,6 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       'Conversar com o NPC mais próximo.',
     ];
     sanitationLogs.push('actionOptions estava vazio, adicionadas opções padrão.');
-  }
-
-  if (sanitized.ambientSound !== undefined) {
-    if (typeof sanitized.ambientSound !== 'string' || !sanitized.ambientSound.trim()) {
-      delete sanitized.ambientSound;
-      sanitationLogs.push('ambientSound inválido removido.');
-    } else {
-      sanitized.ambientSound = sanitized.ambientSound.trim().slice(0, 80);
-    }
   }
 
   if (!sanitized.gameClock || typeof sanitized.gameClock !== 'object') {
@@ -1208,6 +1302,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
                   } else {
                       delete playerCombatant.zone;
                   }
+                  playerCombatant.attitude = 'ally';
                   combatantIdRemap.set(originalId.toLowerCase(), normalizedId);
                   return playerCombatant;
               }
@@ -1237,6 +1332,8 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
               } else {
                   delete (npcCombatant as any).zone;
               }
+              const fallbackAttitude = c.isPlayer ? 'ally' : 'hostile';
+              (npcCombatant as any).attitude = normalizeCombatAttitude(c.attitude, fallbackAttitude);
               return npcCombatant;
           }).filter(Boolean); // Remove quaisquer entradas nulas
 
@@ -1337,6 +1434,10 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
                     if (!VALID_RELATIONSHIP_STATUSES.has(statusValue)) {
                         const note = normalized.status;
                         normalized.status = 'neutral';
+                        trackNormalization('relationship.status', statusValue, 'neutral', {
+                            source: 'relationships',
+                            npc: normalized.name || normalized.npcId,
+                        });
                         normalized.description = mergeTextField(normalized.description, note);
                         sanitationLogs.push(
                             `Relacionamento "${normalized.name || normalized.npcId}" teve status inválido e foi normalizado para 'neutral'.`
@@ -1397,6 +1498,11 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
     }
   }
 
+  if ('ambientSound' in sanitized) {
+    delete (sanitized as any).ambientSound;
+    sanitationLogs.push('ambientSound removido (controlado pelo motor do jogo).');
+  }
+
   // Sanitize campos opcionais para serem undefined em vez de null/vazios.
   const fieldsToMakeUndefinedIfEmpty: (keyof GameMasterResponse)[] = [
     'playerRollRequest', 'levelUpState', 'shopState', 'lootOffer', 'useHitDiceRequest'
@@ -1414,6 +1520,21 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
           delete sanitized.playerRollRequest.dc;
           sanitationLogs.push('playerRollRequest.dc nulo removido.');
       }
+      const modifierValue = Number(sanitized.playerRollRequest.modifier);
+      if (!Number.isFinite(modifierValue)) {
+          sanitized.playerRollRequest.modifier = 0;
+          sanitationLogs.push('playerRollRequest.modifier ausente ou inválido, definido como 0.');
+      } else {
+          sanitized.playerRollRequest.modifier = modifierValue;
+      }
+      if (typeof sanitized.playerRollRequest.reason !== 'string' || !sanitized.playerRollRequest.reason.trim()) {
+          sanitized.playerRollRequest.reason = 'Resolver a próxima ação arriscada.';
+          sanitationLogs.push('playerRollRequest.reason ausente, gerado motivo padrão.');
+      }
+      if (typeof sanitized.playerRollRequest.dice !== 'string' || !sanitized.playerRollRequest.dice.trim()) {
+          sanitized.playerRollRequest.dice = '1d20';
+          sanitationLogs.push('playerRollRequest.dice ausente, definido como "1d20".');
+      }
       if (sanitized.playerRollRequest.rollType) {
           const normalizedRoll = normalizeRollType(sanitized.playerRollRequest.rollType);
           if (normalizedRoll) {
@@ -1426,6 +1547,8 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
           sanitized.playerRollRequest.rollType = 'check';
           sanitationLogs.push('playerRollRequest.rollType ausente, definido como "check".');
       }
+      sanitized.playerRollRequest.advantage = Boolean(sanitized.playerRollRequest.advantage);
+      sanitized.playerRollRequest.disadvantage = Boolean(sanitized.playerRollRequest.disadvantage);
   }
 
   const combinedLogText = sanitized.logEntries

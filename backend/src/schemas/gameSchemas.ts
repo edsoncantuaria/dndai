@@ -259,7 +259,6 @@ export const GameMasterResponseSchema = z.object({
   updatedCharacter: z.object({}).catchall(z.any()).optional().describe("Campos do personagem modificados pela última ação."),
   combatState: CombatStateSchema.nullable().optional().describe("Estado completo do combate, se ativo."),
   playerRollRequest: PlayerRollRequestSchema.nullable().optional().describe("Solicitação de rolagem para o jogador, se necessária."),
-  ambientSound: z.string().optional().describe("ID do som ambiente (ex.: 'forest_night')."),
   systemLog: z.string().optional().nullable().describe("Log opcional para explicar decisões do GM."),
   levelUpState: LevelUpStateSchema.nullable().optional(),
   shopState: ShopStateSchema.nullable().optional(),
@@ -277,6 +276,38 @@ export const GameMasterResponseSchema = z.object({
 
 export type GameMasterResponse = z.infer<typeof GameMasterResponseSchema>;
 
+const EmptyLogEntriesSchema = z.array(LogEntrySchema).max(0);
+const EmptyActionOptionsSchema = z.array(z.union([
+  z.string(),
+  z.object({ text: z.string(), action: z.string(), skill: z.string().optional() }),
+])).max(0);
+
+export const NarrativePhaseResponseSchema = z.object({
+  logEntries: LogEntriesSchema,
+  actionOptions: ActionOptionsSchema,
+  systemLog: z.string().optional().nullable(),
+}).describe("Subconjunto obrigatório para a fase narrativa.").strict();
+
+export const StatePhaseResponseSchema = z.object({
+  updatedCharacter: z.object({}).catchall(z.any()).optional(),
+  worldState: WorldStateSchema.optional(),
+  combatState: CombatStateSchema.nullable().optional(),
+  playerRollRequest: PlayerRollRequestSchema.nullable().optional(),
+  _meta: ResponseMetaSchema.optional(),
+  xpEvents: z.array(XpEventSchema).optional(),
+  progressionFeed: z.array(ProgressionEventSchema).optional(),
+  newHomebrewContent: z.array(CreateHomebrewSchema).optional(),
+  levelUpState: LevelUpStateSchema.nullable().optional(),
+  shopState: ShopStateSchema.nullable().optional(),
+  lootOffer: LootOfferSchema.nullable().optional(),
+  useHitDiceRequest: UseHitDiceRequestSchema.nullable().optional(),
+  gameClock: GameClockSchema.optional(),
+  memoryContext: MemoryContextSchema.optional(),
+  systemLog: z.string().optional().nullable(),
+  logEntries: EmptyLogEntriesSchema.optional().default([]),
+  actionOptions: EmptyActionOptionsSchema.optional().default([]),
+}).describe("Subconjunto obrigatório para a fase de estado.").strict();
+
 /* -------------------------------- GAME MASTER FLOW INPUT -------------------------------- */
 export const GameMasterFlowInputSchema = z.object({
   character: z.any().describe("Resumo do estado atual do personagem."),
@@ -292,5 +323,7 @@ export const GameMasterFlowInputSchema = z.object({
   regionGraphSummary: z.string().optional().describe("Resumo textual das rotas e pontos de interesse acessíveis a partir da região atual."),
   scenarioLabel: z.string().optional().describe("Identificador textual usado em testes automatizados para rastrear o cenário."),
   mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
+  responseFocus: z.enum(['full', 'narrative', 'state']).optional().describe("Quando definido, orienta módulos de saída (ex.: fase narrativa ou fase de estado)."),
+  suppressRollRequest: z.boolean().optional().describe("Se true, quaisquer playerRollRequest retornadas serão descartadas."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

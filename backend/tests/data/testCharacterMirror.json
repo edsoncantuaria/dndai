@@ -2,79 +2,22 @@
   "character": {
     "id": "sample-character",
     "name": "Guardião de Integridade",
-    "level": 4,
+    "level": 3,
     "xp": 0,
     "worldState": {
-      "timeOfDay": "Noite",
-      "weather": "Chuvoso",
-      "currentRegion": "Selvas de Myr",
-      "regionSlug": "selvas-de-myr",
+      "timeOfDay": "Manhã",
+      "weather": "Ensolarado",
+      "currentRegion": "Biblioteca Arcana",
+      "regionSlug": "biblioteca-arcana",
       "visitedRegions": [
-        "biblioteca-arcana",
-        "cidadela-do-aco-luz",
-        "selva-de-ashari",
-        "selvas-de-myr"
+        "biblioteca-arcana"
       ],
-      "visitedPois": [
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "biblioteca-arcana",
-          "name": "biblioteca-arcana"
-        },
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "cidadela-do-aco-luz",
-          "name": "cidadela-do-aco-luz"
-        },
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "taverna-dragao-azul",
-          "name": "taverna-dragao-azul"
-        },
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "portao-do-covil-obsidiano",
-          "name": "portao-do-covil-obsidiano"
-        },
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "santuario-da-lua-esmeralda",
-          "name": "santuario-da-lua-esmeralda"
-        },
-        {
-          "regionSlug": "selvas-de-myr",
-          "poiSlug": "santu-rio-da-lua-esmeralda",
-          "name": "Santuário da Lua Esmeralda"
-        }
-      ],
-      "poiSlug": "santu-rio-da-lua-esmeralda",
-      "poiName": "Santuário da Lua Esmeralda",
-      "completedQuests": []
+      "visitedPois": [],
+      "poiSlug": null
     },
     "inventory": [
       {
-        "id": "dagger-a",
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true,
-        "index": null
-      },
-      {
-        "id": "dagger-b",
-        "name": "Adaga do Assassino",
-        "quantity": 1,
-        "equipped": true,
-        "index": null
-      },
-      {
-        "id": "kit-explorer",
-        "name": "Kit do Explorador",
-        "quantity": 1,
-        "index": null,
-        "equipped": false
-      },
-      {
-        "id": "tomo-do-vigia-sombrio-1762774005074-6vfqpu38ck3",
+        "id": "tomo-do-vigia-sombrio-1762786152030-bp2pyionwg5",
         "name": "Tomo do Vigia Sombrio",
         "quantity": 1,
         "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
@@ -82,7 +25,7 @@
         "index": null
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762774005074-7xrm75vi6bh",
+        "id": "amuleto-de-obedi-ncia-1762786152030-k75eyjx02nd",
         "name": "Amuleto de Obediência",
         "quantity": 1,
         "description": "Amuleto usado para controlar cultistas.",
@@ -90,28 +33,25 @@
         "index": null
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762774021920-uvxiap494pf",
+        "id": "rel-quia-restaurada-do-obelisco-1762786166937-6est5n3y1vf",
         "name": "Relíquia Restaurada do Obelisco",
         "quantity": 1,
         "description": "Fragmento cristalino purificado após o ritual.",
-        "equipped": false,
-        "index": null
+        "equipped": false
       },
       {
-        "id": "colar-r-nico-purificado-1762774021920-jsjbb6jf2zk",
+        "id": "colar-r-nico-purificado-1762786166937-91y5u7k49hk",
         "name": "Colar Rúnico Purificado",
         "quantity": 1,
         "description": "Colar de prata gravado com novas runas brilhantes.",
-        "equipped": false,
-        "index": null
+        "equipped": false
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762774021920-dx7ev8g488h",
+        "id": "pergaminho-de-restauro-arcano-1762786166937-luxtvum4zg",
         "name": "Pergaminho de Restauro Arcano",
         "quantity": 1,
         "description": "Pergaminho utilizado para reverter corrupção em relíquias.",
-        "equipped": false,
-        "index": null
+        "equipped": false
       }
     ],
     "currency": {
@@ -123,8 +63,7 @@
     },
     "spells": [
       "Raio Arcano",
-      "Escudo Místico",
-      "Muralha Arcana"
+      "Escudo Místico"
     ],
     "relationships": [
       {
@@ -145,10 +84,9 @@
         "name": "Borin Stonehand",
         "status": "friendly",
         "affinity": 4,
-        "npcId": "borin-stonehand",
         "regionSlug": null,
         "poiSlug": null,
-        "description": null
+        "npcId": "borin-stonehand"
       }
     ],
     "journal": [
@@ -157,18 +95,8 @@
       },
       {
         "status": "unexplored"
-      },
-      {
-        "name": "A Vigília Obsidiana",
-        "status": "unexplored"
       }
     ],
-    "proficiencies": [],
-    "hpCurrent": 22,
-    "hpMax": 25,
-    "hitDice": {
-      "d8": 1
-    },
-    "notes": "Raio Prismático foi lançado para tentar romper o nexus mágico."
+    "proficiencies": []
   }
 }

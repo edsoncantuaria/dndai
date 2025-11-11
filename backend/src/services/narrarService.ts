@@ -1,12 +1,14 @@
 // backend/src/services/narrarService.ts
 import { AppDataSource } from '../database/data-source.js';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
 import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import createError from 'http-errors';
-import type { GameMasterResponse, CombatState, ApiSpell } from '../schemas/gameSchemas.js';
+import type { GameMasterResponse, CombatState, ApiSpell, GameMasterFlowInput } from '../schemas/gameSchemas.js';
 import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
@@ -15,7 +17,7 @@ import { recordArtifactsForSession } from './artifactService.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
-import { getGameUpdate } from './aiService.js';
+import { getGameUpdate, type GameUpdateWarning } from './aiService.js';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
 import { getInventorySnapshotFromDb, hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
@@ -47,6 +49,23 @@ const MAX_MEMORY_LINES = 6;
 const truncateText = (value: string, limit = MAX_PROMPT_ENTRY_CHARS) => {
     if (!value) return '';
     return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+};
+
+const persistPhaseSnapshot = async (
+    sessaoId: number | undefined,
+    phase: 'narrative' | 'state',
+    payload: any
+) => {
+    try {
+        const dir = path.join(process.cwd(), 'logs', 'phase-debug');
+        await fs.mkdir(dir, { recursive: true });
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const sessionLabel = sessaoId ? `session-${sessaoId}` : 'session-unknown';
+        const filePath = path.join(dir, `${timestamp}-${sessionLabel}-${phase}.json`);
+        await fs.writeFile(filePath, JSON.stringify(payload, null, 2), 'utf8');
+    } catch (error) {
+        console.warn('[phaseDebug] Falha ao gravar snapshot da fase:', error);
+    }
 };
 
 const unwrapLogPayload = (raw?: string | null): string => {
@@ -668,7 +687,7 @@ const buildHomebrewSummaryBlock = (installedContent: HomebrewContent[]): string 
 
 
 // Constrói um objeto de personagem otimizado para a IA.
-const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = true) => {
+export const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = true) => {
     const cacheKey = `character:${characterId}:optimized`;
 
     // 1. Tenta buscar do cache
@@ -927,24 +946,60 @@ export const processPlayerTurn = async (
         response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
     };
 
-    const runValidatedGameUpdate = async () => {
+    type ResponseFocusMode = 'full' | 'narrative' | 'state';
+    interface PhaseResult {
+        response: GameMasterResponse;
+        rawText: string | null;
+        validationIssues: string[];
+        attempts: number;
+        retryCount: number;
+        usedFallback: boolean;
+        focus: ResponseFocusMode;
+        warnings: GameUpdateWarning[];
+    }
+
+    const requestPhaseResponse = async (
+        focus: ResponseFocusMode,
+        extraInput: Partial<GameMasterFlowInput> = {}
+    ): Promise<PhaseResult> => {
         const MAX_VALIDATION_ATTEMPTS = 3;
-        let attempts = 0;
+        let retryCount = 0;
         let calls = 0;
-        let validationFeedback: string | undefined;
+        let validationFeedback: string | undefined = extraInput.validationFeedback;
         let latestIssues: string[] = [];
         let rawText: string | null = null;
         let finalFromModel: GameMasterResponse | null = null;
         let usedFallback = false;
 
-        while (attempts < MAX_VALIDATION_ATTEMPTS) {
+        let lastWarnings: GameUpdateWarning[] = [];
+        while (retryCount < MAX_VALIDATION_ATTEMPTS) {
             calls += 1;
-            const { response: candidate, rawText: currentRaw } = await getGameUpdate(
-                { ...gameMasterFlowInput, validationFeedback },
+            const { response: candidate, rawText: currentRaw, warnings: callWarnings = [] } = await getGameUpdate(
+                { ...gameMasterFlowInput, ...extraInput, responseFocus: focus, validationFeedback },
                 modelToUse,
                 generationConfig,
                 apiKey
             );
+            lastWarnings = callWarnings;
+            if (!validationFeedback) {
+                const sanitizationWarning = callWarnings.find(w => w.type === 'phase_sanitization');
+                if (sanitizationWarning) {
+                    const details = sanitizationWarning.details as any;
+                    const notes = Array.isArray(details?.notes)
+                        ? details.notes.join(' ')
+                        : typeof details === 'string'
+                            ? details
+                            : '';
+                    validationFeedback = focus === 'narrative'
+                        ? `Sua fase narrativa anterior foi ajustada automaticamente (${notes || 'remova campos de estado'}). Gere apenas logEntries/actionOptions.`
+                        : `Sua fase de estado anterior incluiu blocos inalterados (${notes || 'evite repetir dados sem delta'}). Informe somente mudanças reais e deixe logEntries/actionOptions vazios.`;
+                }
+            }
+            if (!validationFeedback && callWarnings.some(w => w.type === 'schema_migration')) {
+                validationFeedback = focus === 'narrative'
+                    ? 'Sua fase narrativa anterior incluiu campos de estado. Gere apenas logEntries/actionOptions e mantenha outros campos vazios.'
+                    : 'Sua fase de estado anterior precisou ser migrada. Inclua apenas os campos que mudaram (updatedCharacter/worldState/etc.) e mantenha logEntries/actionOptions vazios.';
+            }
             rawText = currentRaw;
             const validation = validateGameMasterResponse(candidate, { character: characterForAI });
             if (validation.valid) {
@@ -954,7 +1009,7 @@ export const processPlayerTurn = async (
             }
             latestIssues = validation.issues;
             validationFeedback = `Foram detectadas inconsistências: ${validation.issues.join('; ')}. Corrija-as e responda novamente seguindo estritamente o schema JSON.`;
-            attempts += 1;
+            retryCount += 1;
         }
 
         if (!finalFromModel) {
@@ -962,34 +1017,85 @@ export const processPlayerTurn = async (
             usedFallback = true;
         }
 
-        const { response: orchestratedResponse } = orchestrateGameMasterResponse(finalFromModel, { character: characterForAI });
-
-        if (!usedFallback && attempts > 1) {
-            appendSystemNote(orchestratedResponse, `[Validador] Resposta reajustada após ${attempts} tentativa(s).`);
-        }
-        if (usedFallback && latestIssues.length > 0) {
-            appendSystemNote(orchestratedResponse, `[Validador] Fallback acionado. Problemas detectados: ${latestIssues.join('; ')}`);
-        }
-
         return {
-            response: orchestratedResponse,
+            response: finalFromModel,
             rawText,
             validationIssues: latestIssues,
             attempts: calls,
+            retryCount,
             usedFallback,
+            focus,
+            warnings: lastWarnings,
         };
     };
 
-    const {
-        response: initialResponse,
-        rawText,
-        validationIssues,
-        attempts,
-        usedFallback,
-    } = await runValidatedGameUpdate();
-    let aiResponse = initialResponse;
+    const narrativePhase = await requestPhaseResponse('narrative');
+    const statePhase = await requestPhaseResponse('state');
 
-    if (!usedFallback) {
+    const narrativeIssues = narrativePhase.usedFallback || narrativePhase.validationIssues.length || narrativePhase.warnings.length;
+    if (narrativeIssues) {
+        await persistPhaseSnapshot(sessao?.id, 'narrative', {
+            warnings: narrativePhase.warnings,
+            validationIssues: narrativePhase.validationIssues,
+            response: narrativePhase.response,
+            rawText: narrativePhase.rawText,
+            attempts: narrativePhase.attempts,
+        });
+    }
+    const stateIssues = statePhase.usedFallback || statePhase.validationIssues.length || statePhase.warnings.length;
+    if (stateIssues) {
+        await persistPhaseSnapshot(sessao?.id, 'state', {
+            warnings: statePhase.warnings,
+            validationIssues: statePhase.validationIssues,
+            response: statePhase.response,
+            rawText: statePhase.rawText,
+            attempts: statePhase.attempts,
+        });
+    }
+
+    const mergedResponse: GameMasterResponse = {
+        ...statePhase.response,
+        logEntries: narrativePhase.response.logEntries ?? [],
+        actionOptions: narrativePhase.response.actionOptions ?? [],
+    };
+
+    const combinedValidation = validateGameMasterResponse(mergedResponse, { character: characterForAI });
+    const combinedFallbackNeeded = !combinedValidation.valid;
+
+    let finalIssues = combinedValidation.valid
+        ? (statePhase.validationIssues.length ? statePhase.validationIssues : narrativePhase.validationIssues)
+        : combinedValidation.issues;
+    let finalUsedFallback = combinedFallbackNeeded || narrativePhase.usedFallback || statePhase.usedFallback;
+    let finalRawText = statePhase.rawText ?? narrativePhase.rawText;
+    const totalAttempts = narrativePhase.attempts + statePhase.attempts;
+
+    let finalFromModel: GameMasterResponse;
+    if (combinedFallbackNeeded) {
+        const fallbackResponse = generateFallbackResponse({ character: characterForAI }, playerAction, combinedValidation.issues);
+        const { response: orchestratedFallback } = orchestrateGameMasterResponse(fallbackResponse, { character: characterForAI });
+        finalFromModel = orchestratedFallback;
+    } else {
+        const { response: orchestratedResponse } = orchestrateGameMasterResponse(mergedResponse, { character: characterForAI });
+        finalFromModel = orchestratedResponse;
+    }
+
+    if (!combinedFallbackNeeded && !narrativePhase.usedFallback && narrativePhase.retryCount > 0) {
+        appendSystemNote(finalFromModel, `[Validador] Fase narrativa ajustada após ${narrativePhase.retryCount + 1} tentativa(s).`);
+    }
+    if (!combinedFallbackNeeded && !statePhase.usedFallback && statePhase.retryCount > 0) {
+        appendSystemNote(finalFromModel, `[Validador] Fase de estado ajustada após ${statePhase.retryCount + 1} tentativa(s).`);
+    }
+    if (finalUsedFallback && finalIssues.length) {
+        appendSystemNote(finalFromModel, `[Validador] Fallback acionado. Problemas detectados: ${finalIssues.join('; ')}`);
+    }
+
+    let aiResponse = finalFromModel;
+    const rawText = finalRawText;
+    const validationIssues = finalIssues;
+    const usedFallback = finalUsedFallback;
+    const attempts = totalAttempts;
+
+    if (!finalUsedFallback) {
         combatReconciliation = reconcileCombatStateUpdate(
             loadedCombat.state,
             aiResponse.combatState as any
@@ -1034,7 +1140,7 @@ export const processPlayerTurn = async (
         details: [] as Array<{ type: string; xp: number; source: string; label: string; description?: string }>,
     };
 
-    if (!usedFallback) {
+    if (!finalUsedFallback) {
         xpResult = applyXpEvents(
             { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
             (aiResponse as any).xpEvents
@@ -1266,6 +1372,9 @@ export const processPlayerTurn = async (
             hour: aiResponse.gameClock?.hour,
             weather: aiResponse.gameClock?.weather ?? aiResponse.worldState?.weather,
         },
+        lastWorldState: characterForAI.worldState,
+        mode: aiMode,
+        useAiHomebrew: useAiHomebrew ?? true,
     });
     if (validatorResult.issues.length) {
         const note = validatorResult.issues

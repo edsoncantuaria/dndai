@@ -27,7 +27,6 @@ export interface GameMasterResponse {
     shopState?: ShopState;
     lootOffer?: LootOffer;
     useHitDiceRequest?: UseHitDiceRequest;
-    ambientSound?: string;
     imagePrompt?: string;
     systemLog?: string;
     worldState?: { [key: string]: any };

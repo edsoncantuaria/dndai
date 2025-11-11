@@ -37,6 +37,24 @@ const mergeInventoryItems = (previous: InventoryItem[] | undefined, incoming: In
     });
 };
 
+const deriveAmbientSoundFromWorld = (worldState?: { [key: string]: any } | null): string => {
+    if (!worldState) return 'none';
+    const label = (
+        worldState.poiSlug ||
+        worldState.poiName ||
+        worldState.regionSlug ||
+        worldState.currentRegion ||
+        ''
+    ).toString().toLowerCase();
+    if (!label) return 'none';
+    if (label.includes('biblioteca')) return 'library_ambience';
+    if (label.includes('floresta')) return 'forest_night';
+    if (label.includes('beco') || label.includes('cidade')) return 'city_alley';
+    if (label.includes('deserto')) return 'desert_wind';
+    if (label.includes('caverna')) return 'cave_drip';
+    return 'none';
+};
+
 export const useNewGameState = () => {
     const { user, revalidateUserSession } = useAuth();
     const { apiKey, model, useAiHomebrew } = useSettingsContext();
@@ -255,7 +273,10 @@ export const useNewGameState = () => {
         if (response.lootOffer) interactionState.setRequest({ type: 'loot', request: response.lootOffer });
         if (response.useHitDiceRequest) interactionState.setRequest({ type: 'hitDice', request: response.useHitDiceRequest });
         
-        if (response.ambientSound) setAmbientSound(response.ambientSound);
+        const derivedAmbient = deriveAmbientSoundFromWorld(response.worldState ?? character?.worldState ?? null);
+        if (derivedAmbient !== ambientSound) {
+            setAmbientSound(derivedAmbient);
+        }
 
         if (Array.isArray(response.progressionFeed) && response.progressionFeed.length) {
             const enrichedEvents: ProgressionFeedItem[] = response.progressionFeed.map(event => ({
@@ -287,7 +308,7 @@ export const useNewGameState = () => {
             }
         }
 
-    }, [logState, updateCharacter, interactionState, toast, setProgressionFeed]);
+    }, [logState, updateCharacter, interactionState, toast, setProgressionFeed, character, ambientSound]);
 
     // WebSocket event handlers
     useEffect(() => {
