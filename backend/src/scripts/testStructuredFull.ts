@@ -9,6 +9,23 @@ import { getGameUpdate, type GameUpdateResult } from '../services/aiService.js';
 import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { processPlayerTurn, buildOptimizedCharacterForAI } from '../services/narrarService.js';
+import {
+    validateActionEconomy,
+    validateAttackFeasibility,
+    validateRollRequestBinding,
+    validateCombatClosure,
+    validateLogEntriesClarity,
+    validateNoShopDuringCombat,
+    validateRollCorrelation,
+} from '../services/validators/logic.js';
+import {
+    validateSchemaHash,
+    validateUpdatedCharacterDelta,
+    validateActionOptionsQuality,
+    validateRangesAndCaps,
+    enforceHomebrewPolicy,
+    enforceResponseFocus,
+} from '../services/validators/structural.js';
 
 const CHARACTER_FIXTURE = path.join(process.cwd(), 'tests', 'data', 'testCharacterMirror.json');
 
@@ -22,6 +39,10 @@ const DEFAULT_GENERATION_CONFIG: GenerationConfig = {
 type SessionState = {
     character: any;
     gameLog: string;
+    lastCombatState: GameMasterResponse['combatState'] | null;
+    rollRequestHistory: Set<string>;
+    homebrewAllowed: boolean;
+    lastWorldState: Record<string, any> | null;
 };
 
 type LiveContext = {
@@ -29,6 +50,13 @@ type LiveContext = {
     userId: number;
     characterId: number;
     apiKey: string;
+};
+
+type LiveAssertionState = {
+    prevCombatState: GameMasterResponse['combatState'] | null;
+    rollRequestHistory: Set<string>;
+    homebrewAllowed: boolean;
+    lastWorldState: Record<string, any> | null;
 };
 
 type TurnPlan = {
@@ -96,6 +124,25 @@ const TURN_SEQUENCE: TurnPlan[] = [
     },
 ];
 
+const DEFAULT_WORLD_STATE = {
+    timeOfDay: 'Manhã',
+    weather: 'Estável',
+    currentRegion: 'Posto de Vigia',
+    regionSlug: 'posto-de-vigia',
+    poiSlug: 'patio-central',
+    poiName: 'Pátio Central',
+    visitedRegions: ['posto-de-vigia'],
+    visitedPois: [{ regionSlug: 'posto-de-vigia', poiSlug: 'patio-central', name: 'Pátio Central' }],
+};
+
+const ACTION_OPTION_FALLBACKS: Array<string | { text: string; action: string; skill?: string }> = [
+    { text: 'Observar o entorno em busca de pistas', action: 'observe_surroundings', skill: 'Percepção' },
+    { text: 'Conversar com figuras próximas para obter contexto', action: 'talk_to_npc', skill: 'Persuasão' },
+    { text: 'Investigar um ponto suspeito com cautela', action: 'investigate_poi', skill: 'Investigação' },
+    { text: 'Preparar defesa ou tática de resposta', action: 'prepare_defense' },
+    { text: 'Vasculhar o local por recursos ou loot', action: 'search_for_loot' },
+];
+
 const PHASE_DEBUG_DIR = path.join(process.cwd(), 'logs', 'phase-debug');
 const slugifyLabel = (value: string) =>
     value
@@ -158,16 +205,186 @@ const cloneState = <T>(value: T): T =>
         ? globalThis.structuredClone(value)
         : JSON.parse(JSON.stringify(value));
 
+const mergeWorldState = (current: any, incoming: any) => {
+    if (!incoming) return current;
+    if (!current) return { ...incoming };
+    return { ...current, ...incoming };
+};
+
+const mergeGameClock = (current: any, incoming: any) => {
+    if (!incoming) return current;
+    return { ...(current || {}), ...incoming };
+};
+
+const ensureWorldStateContinuity = (state: SessionState, fallback?: Record<string, any> | null) => {
+    if (!state.character) return;
+    const previous = fallback ?? state.lastWorldState ?? null;
+    const next = state.character.worldState ?? {};
+    if (!previous) {
+        state.character.worldState = next;
+        applyWorldStateDefaults(state.character.worldState);
+        state.lastWorldState = next;
+        return;
+    }
+    const merged: Record<string, any> = { ...(previous || {}) };
+    if (next && typeof next === 'object') {
+        Object.entries(next).forEach(([key, value]) => {
+            if (value === undefined || value === null || value === '') return;
+            merged[key] = value;
+        });
+    }
+    const keysToPreserve = ['timeOfDay', 'weather', 'currentRegion', 'regionSlug', 'poiSlug', 'poiName'];
+    keysToPreserve.forEach(key => {
+        if ((merged[key] === undefined || merged[key] === null || merged[key] === '') && previous && previous[key] !== undefined) {
+            merged[key] = previous[key];
+        }
+    });
+    if (!Array.isArray(merged.visitedRegions) && Array.isArray(previous.visitedRegions)) {
+        merged.visitedRegions = previous.visitedRegions.slice();
+    }
+    if (!Array.isArray(merged.visitedPois) && Array.isArray(previous.visitedPois)) {
+        merged.visitedPois = previous.visitedPois.map((poi: any) => ({ ...poi }));
+    }
+    if (!Array.isArray(merged.npcLocations) && Array.isArray(previous.npcLocations)) {
+        merged.npcLocations = previous.npcLocations.map((npc: any) => ({ ...npc }));
+    }
+    applyWorldStateDefaults(merged);
+    state.character.worldState = merged;
+    state.lastWorldState = merged;
+};
+
+const normalizeWorldStatePlacement = (response: GameMasterResponse, fallback?: Record<string, any> | null) => {
+    if (!response) return;
+    if (response.updatedCharacter?.worldState) {
+        response.worldState = mergeWorldState(response.worldState ?? fallback ?? null, response.updatedCharacter.worldState);
+        delete response.updatedCharacter.worldState;
+    } else if (!response.worldState && fallback) {
+        response.worldState = fallback;
+    }
+    applyWorldStateDefaults(response.worldState);
+};
+
+const applyWorldStateDefaults = (world?: Record<string, any> | null) => {
+    if (!world) return;
+    Object.entries(DEFAULT_WORLD_STATE).forEach(([key, value]) => {
+        if (world[key] === undefined || world[key] === null || world[key] === '') {
+            world[key] = Array.isArray(value) ? JSON.parse(JSON.stringify(value)) : value;
+        }
+    });
+    if (!Array.isArray(world.visitedRegions)) {
+        world.visitedRegions = DEFAULT_WORLD_STATE.visitedRegions.slice();
+    }
+    if (!Array.isArray(world.visitedPois)) {
+        world.visitedPois = DEFAULT_WORLD_STATE.visitedPois.map(poi => ({ ...poi }));
+    }
+};
+
+const ensureActionOptionsVariety = (
+    options?: GameMasterResponse['actionOptions']
+): GameMasterResponse['actionOptions'] => {
+    const sanitized: GameMasterResponse['actionOptions'] = [];
+    const seen = new Set<string>();
+    const pushOption = (option: string | { text: string; action: string; skill?: string }) => {
+        if (!option) return;
+        const label = typeof option === 'string' ? option : option.text;
+        if (!label) return;
+        const normalized = label.trim().toLowerCase();
+        if (seen.has(normalized)) return;
+        seen.add(normalized);
+        sanitized.push(option);
+    };
+    (options ?? []).forEach(pushOption);
+    for (const fallback of ACTION_OPTION_FALLBACKS) {
+        if (sanitized.length >= 3) break;
+        pushOption(fallback);
+    }
+    while (sanitized.length < 3) {
+        const id = sanitized.length + 1;
+        pushOption({ text: `Explorar alternativa ${id}`, action: `fallback_${id}` });
+    }
+    return sanitized;
+};
+
+const enforceResponseGuards = (
+    response: GameMasterResponse,
+    options: { allowRollRequest: boolean }
+): { rollRequestSanitized: boolean } => {
+    response.actionOptions = ensureActionOptionsVariety(response.actionOptions);
+    if (!options.allowRollRequest && response.playerRollRequest) {
+        delete response.playerRollRequest;
+        return { rollRequestSanitized: true };
+    }
+    return { rollRequestSanitized: false };
+};
+
+const dropEmptyCollections = (response: GameMasterResponse, keys: (keyof GameMasterResponse)[]) => {
+    keys.forEach(key => {
+        const value = (response as any)[key];
+        if (Array.isArray(value) && value.length === 0) {
+            delete (response as any)[key];
+        }
+    });
+};
+
+const pruneNarrativePhaseResponse = (
+    response: GameMasterResponse | undefined,
+    options: { allowRollRequest: boolean }
+) => {
+    if (!response) return;
+    const stateOnlyFields: (keyof GameMasterResponse)[] = [
+        'updatedCharacter',
+        'worldState',
+        'combatState',
+        'levelUpState',
+        'shopState',
+        'lootOffer',
+        'useHitDiceRequest',
+        'xpEvents',
+        'progressionFeed',
+        'newHomebrewContent',
+        'gameClock',
+        'memoryContext',
+    ];
+    stateOnlyFields.forEach(field => {
+        if (field in response) {
+            delete (response as any)[field];
+        }
+    });
+    if (!options.allowRollRequest && response.playerRollRequest) {
+        delete response.playerRollRequest;
+    }
+};
+
+const pruneStatePhaseResponse = (response: GameMasterResponse | undefined) => {
+    if (!response) return;
+    if (response.updatedCharacter && Object.keys(response.updatedCharacter).length === 0) {
+        delete response.updatedCharacter;
+    }
+    dropEmptyCollections(response, ['xpEvents', 'progressionFeed', 'newHomebrewContent']);
+    if (response.logEntries && response.logEntries.length > 0) {
+        response.logEntries = [];
+    }
+    if (response.actionOptions && response.actionOptions.length > 0) {
+        response.actionOptions = [];
+    }
+};
+
+const hydrateSnapshotWorldState = (snapshot: any, fallback?: Record<string, any> | null) => {
+    if (!snapshot) return snapshot;
+    const source = snapshot.worldState;
+    if (!source && fallback) {
+        snapshot.worldState = JSON.parse(JSON.stringify(fallback));
+        applyWorldStateDefaults(snapshot.worldState);
+        return snapshot;
+    }
+    if (!fallback) return snapshot;
+    snapshot.worldState = mergeWorldState(fallback, source);
+    applyWorldStateDefaults(snapshot.worldState);
+    return snapshot;
+};
+
 const applyCharacterUpdate = (state: SessionState, response: GameMasterResponse) => {
-    const mergeWorldState = (current: any, incoming: any) => {
-        if (!incoming) return current;
-        if (!current) return { ...incoming };
-        return { ...current, ...incoming };
-    };
-    const mergeGameClock = (current: any, incoming: any) => {
-        if (!incoming) return current;
-        return { ...(current || {}), ...incoming };
-    };
+    const previousWorldState = state.character?.worldState ?? state.lastWorldState ?? null;
 
     if (response.updatedCharacter && Object.keys(response.updatedCharacter).length) {
         const nextWorldState = mergeWorldState(
@@ -189,9 +406,33 @@ const applyCharacterUpdate = (state: SessionState, response: GameMasterResponse)
     if (response.gameClock) {
         state.character.gameClock = mergeGameClock(state.character.gameClock, response.gameClock);
     }
+    ensureWorldStateContinuity(state, previousWorldState);
+};
+
+const mergePhaseResponses = (
+    narrative: GameMasterResponse | undefined,
+    state: GameMasterResponse
+): GameMasterResponse => {
+    const logEntries = narrative?.logEntries ?? state.logEntries ?? [];
+    const actionOptions = ensureActionOptionsVariety(narrative?.actionOptions ?? state.actionOptions ?? []);
+    const mergedSystemLog = [state.systemLog, narrative?.systemLog]
+        .filter((value): value is string => Boolean(value && value.trim()))
+        .join('\n');
+    return {
+        ...state,
+        logEntries,
+        actionOptions,
+        systemLog: mergedSystemLog || state.systemLog,
+    };
 };
 
 const CRITICAL_WARNINGS = new Set(['zod_validation_failure', 'structured_output_disabled', 'fail-soft', 'fallback']);
+const SANITIZER_NOTE_PATTERNS = [
+    /logentries descartados/i,
+    /actionoptions descartados/i,
+    /worldstate idêntico ao anterior removido/i,
+    /updatedcharacter sem alterações foi omitido/i,
+];
 const classifyWarnings = (warnings: string[]) => {
     const critical: string[] = [];
     const info: string[] = [];
@@ -276,9 +517,19 @@ const validateStateAssertions = (
     response: GameMasterResponse,
     prevCharacter: any,
     currentCharacter: any,
-    options: { enforceScenario?: boolean } = {}
+    options: {
+        enforceScenario?: boolean;
+        prevCombatState?: GameMasterResponse['combatState'] | null;
+        rollRequestHistory?: Set<string>;
+        homebrewAllowed?: boolean;
+    } = {}
 ): string[] => {
-    const { enforceScenario = true } = options;
+    const {
+        enforceScenario = true,
+        prevCombatState = null,
+        rollRequestHistory,
+        homebrewAllowed = true,
+    } = options;
     const issues: string[] = [];
     const world = currentCharacter?.worldState ?? response.worldState ?? prevCharacter?.worldState;
     if (!world?.currentRegion) {
@@ -289,7 +540,6 @@ const validateStateAssertions = (
     }
     const relationships = currentCharacter?.relationships;
     if (!Array.isArray(relationships) || relationships.some((rel: any) => !rel || (!rel.name && !rel.npcId))) {
-        // Apenas cobra em modo sintético; sessões live podem não ter NPCs carregados.
         if (enforceScenario) {
             issues.push('npc_registry_invalid');
         }
@@ -311,8 +561,452 @@ const validateStateAssertions = (
             issues.push(...scenarioValidator(response, prevCharacter, currentCharacter));
         }
     }
+    const context: AssertionContext = {
+        plan,
+        response,
+        prevCharacter,
+        currentCharacter,
+        enforceScenario,
+        prevCombatState,
+        rollRequestHistory,
+        homebrewAllowed,
+    };
+    contextualValidators.forEach(validator => {
+        issues.push(...validator(context));
+    });
+    issues.push(...collectValidatorIssues(response, { homebrewAllowed }));
+    return Array.from(new Set(issues.filter(Boolean)));
+};
+
+type AssertionContext = {
+    plan: TurnPlan;
+    response: GameMasterResponse;
+    prevCharacter: any;
+    currentCharacter: any;
+    enforceScenario: boolean;
+    prevCombatState?: GameMasterResponse['combatState'] | null;
+    rollRequestHistory?: Set<string>;
+    homebrewAllowed: boolean;
+};
+
+const LOGIC_VALIDATORS = [
+    validateActionEconomy,
+    validateAttackFeasibility,
+    validateRollRequestBinding,
+    validateCombatClosure,
+    validateLogEntriesClarity,
+    validateNoShopDuringCombat,
+    validateRollCorrelation,
+];
+
+const STRUCTURAL_VALIDATORS = [
+    validateSchemaHash,
+    validateUpdatedCharacterDelta,
+    validateActionOptionsQuality,
+    validateRangesAndCaps,
+    enforceResponseFocus,
+];
+
+const sanitizeIssueLabel = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+
+const collectValidatorIssues = (response: GameMasterResponse, options: { homebrewAllowed: boolean }): string[] => {
+    const issues: string[] = [];
+    const adapters = [...LOGIC_VALIDATORS, ...STRUCTURAL_VALIDATORS];
+    const run = (validator: (payload: any) => any[]) => {
+        try {
+            const result = validator(response as any) ?? [];
+            result.forEach(issue => {
+                if (!issue || issue.severity === 'info') return;
+                const label = `validator_${sanitizeIssueLabel(validator.name || 'anon')}_${sanitizeIssueLabel(issue.path ?? 'path')}`;
+                issues.push(label);
+            });
+        } catch (error) {
+            issues.push(`validator_failure_${sanitizeIssueLabel(validator.name || 'anon')}`);
+        }
+    };
+    adapters.forEach(run);
+    if (options.homebrewAllowed === false) {
+        const homebrewIssues = enforceHomebrewPolicy(response as any);
+        homebrewIssues.forEach(issue => {
+            if (!issue || issue.severity === 'info') return;
+            issues.push(`validator_enforce_homebrew_${sanitizeIssueLabel(issue.path ?? 'path')}`);
+        });
+    }
     return issues;
 };
+
+const validateGameClock = (prevClock: any, nextClock: any): string[] => {
+    if (!prevClock || !nextClock) return [];
+    const issues: string[] = [];
+    const prevDay = typeof prevClock.day === 'number' ? prevClock.day : 0;
+    const prevHour = typeof prevClock.hour === 'number' ? prevClock.hour : 0;
+    const nextDay = typeof nextClock.day === 'number' ? nextClock.day : prevDay;
+    const nextHour = typeof nextClock.hour === 'number' ? nextClock.hour : prevHour;
+    if (nextDay < prevDay) {
+        issues.push('game_clock_day_regression');
+    }
+    if (nextDay === prevDay && nextHour < prevHour) {
+        issues.push('game_clock_hour_regression');
+    }
+    if (nextHour < 0 || nextHour > 23) {
+        issues.push('game_clock_hour_invalid');
+    }
+    if (nextHour < prevHour && nextDay <= prevDay) {
+        issues.push('game_clock_hour_rollover_without_day_increment');
+    }
+    return issues;
+};
+
+const validateNpcLocationMemory = (ctx: AssertionContext): string[] => {
+    const locations = ctx.currentCharacter?.worldState?.npcLocations;
+    if (!Array.isArray(locations) || locations.length === 0) return [];
+    const relationships = Array.isArray(ctx.currentCharacter?.relationships) ? ctx.currentCharacter.relationships : [];
+    const knownNpcIds = new Set<string>(
+        relationships.map((item: any) => item?.npcId).filter((value: string | undefined): value is string => Boolean(value))
+    );
+    const invalid = locations
+        .filter(location => location?.npcId)
+        .some(location => !knownNpcIds.has(location!.npcId));
+    return invalid ? ['npc_location_without_relationship'] : [];
+};
+
+const validateWorldContinuity = (ctx: AssertionContext): string[] => {
+    const world = ctx.currentCharacter?.worldState ?? ctx.response.worldState ?? ctx.prevCharacter?.worldState;
+    if (!world) return [];
+    const issues: string[] = [];
+    if (world.regionSlug && Array.isArray(world.visitedRegions) && !world.visitedRegions.includes(world.regionSlug)) {
+        issues.push('world_visited_regions_missing_current');
+    }
+    if (world.poiSlug) {
+        const visited = Array.isArray(world.visitedPois) ? world.visitedPois : [];
+        if (!visited.some(poi => poi?.poiSlug === world.poiSlug)) {
+            issues.push('poi_not_tracked_in_history');
+        }
+    }
+    const regionChanged =
+        ctx.prevCharacter?.worldState?.regionSlug &&
+        ctx.response.worldState?.regionSlug &&
+        ctx.prevCharacter.worldState.regionSlug !== ctx.response.worldState.regionSlug;
+    if (regionChanged) {
+        const logEntries = Array.isArray(ctx.response.logEntries) ? ctx.response.logEntries : [];
+        const hasNarration = logEntries.some(entry => entry?.type === 'narration');
+        const hasSystem = logEntries.some(entry => entry?.type === 'system');
+        if (!hasNarration || !hasSystem) {
+            issues.push('region_change_missing_log_entries');
+        }
+    }
+    const poiChanged =
+        ctx.prevCharacter?.worldState?.poiSlug &&
+        ctx.response.worldState?.poiSlug &&
+        ctx.prevCharacter.worldState.poiSlug !== ctx.response.worldState.poiSlug;
+    if (poiChanged) {
+        const logEntries = Array.isArray(ctx.response.logEntries) ? ctx.response.logEntries : [];
+        const hasNarration = logEntries.some(entry => entry?.type === 'narration');
+        const hasSystem = logEntries.some(entry => entry?.type === 'system');
+        if (!hasNarration || !hasSystem) {
+            issues.push('poi_change_missing_log_entries');
+        }
+    }
+    issues.push(...validateGameClock(ctx.prevCharacter?.gameClock, ctx.currentCharacter?.gameClock ?? ctx.response.gameClock));
+    return issues;
+};
+
+const validateCombatIntegrity = (ctx: AssertionContext): string[] => {
+    const issues: string[] = [];
+    const combat = ctx.response.combatState;
+    if (!combat) {
+        if (ctx.prevCombatState?.isActive) {
+            const hostilesAlivePreviously = ctx.prevCombatState.combatants?.some(
+                combatant => combatant?.attitude === 'hostile' && !combatant.isDead && (combatant.hp?.current ?? 1) > 0
+            );
+            if (hostilesAlivePreviously) {
+                issues.push('combat_state_missing_during_active_encounter');
+            } else if (!ctx.response.lootOffer) {
+                issues.push('combat_end_missing_loot');
+            }
+        }
+        return issues;
+    }
+    const combatants = Array.isArray(combat.combatants) ? combat.combatants : [];
+    if (combatants.length === 0) {
+        issues.push('combatants_missing');
+        return issues;
+    }
+    if (typeof combat.turn !== 'number' || combat.turn < 0 || combat.turn >= combatants.length) {
+        issues.push('combat_turn_invalid');
+    } else {
+        const acting = combatants[combat.turn];
+        if (!acting) {
+            issues.push('combat_turn_missing_combatant');
+        } else if (acting.isDead) {
+            issues.push('combat_turn_points_to_dead');
+        }
+    }
+    if (Array.isArray(combat.initiativeOrder)) {
+        const combatantIds = combatants.map(item => item?.id).filter((id): id is string => Boolean(id));
+        const idSet = new Set(combatantIds);
+        const unknown = combat.initiativeOrder.filter(id => id && !idSet.has(id));
+        if (unknown.length) {
+            issues.push('initiative_unknown_ids');
+        }
+        const orderSet = new Set<string>();
+        let hasDuplicates = false;
+        combat.initiativeOrder.forEach(id => {
+            if (!id) return;
+            if (orderSet.has(id)) {
+                hasDuplicates = true;
+            } else {
+                orderSet.add(id);
+            }
+        });
+        if (hasDuplicates) {
+            issues.push('initiative_duplicates');
+        }
+        if (orderSet.size !== idSet.size) {
+            issues.push('initiative_mismatch');
+        }
+    }
+    let hostilesAlive = false;
+    combatants.forEach((combatant, index) => {
+        if (!combatant) return;
+        const actionPoints = typeof combatant.actionPoints === 'number' ? combatant.actionPoints : 1;
+        const bonusPoints = typeof combatant.bonusActionPoints === 'number' ? combatant.bonusActionPoints : 1;
+        if (actionPoints > 1) {
+            issues.push(`action_points_exceeded_${index}`);
+        }
+        if (bonusPoints > 1) {
+            issues.push(`bonus_action_points_exceeded_${index}`);
+        }
+        if (combatant.hasActed && actionPoints > 0) {
+            issues.push(`action_economy_inconsistent_${index}`);
+        }
+        if (combatant.attitude === 'hostile' && !combatant.isDead && (combatant.hp?.current ?? 1) > 0) {
+            hostilesAlive = true;
+        }
+        if (combatant.isDead && typeof combatant.hp?.current === 'number' && combatant.hp.current > 0) {
+            issues.push(`dead_combatant_positive_hp_${index}`);
+        }
+        if (!combatant.isDead && typeof combatant.hp?.current === 'number' && combatant.hp.current <= 0) {
+            const hasUnconscious =
+                Array.isArray(combatant.conditions) &&
+                combatant.conditions.some(condition => typeof condition === 'string' && condition.toLowerCase().includes('inconsc'));
+            if (!hasUnconscious) {
+                issues.push(`downed_combatant_missing_condition_${index}`);
+            }
+        }
+    });
+    if (combat.isActive && !hostilesAlive) {
+        issues.push('combat_marked_active_without_hostiles');
+    }
+    if (!combat.isActive) {
+        if (hostilesAlive) {
+            issues.push('combat_flagged_inactive_with_hostiles');
+        }
+        if (!ctx.response.lootOffer) {
+            issues.push('combat_finished_without_loot');
+        }
+    }
+    return issues;
+};
+
+const validateCombatDurations = (ctx: AssertionContext): string[] => {
+    const prev = ctx.prevCombatState;
+    const current = ctx.response.combatState;
+    if (!prev || !current) return [];
+    if (!Array.isArray(prev.combatants) || !Array.isArray(current.combatants)) return [];
+    const turnAdvanced = current.round !== prev.round || current.turn !== prev.turn;
+    if (!turnAdvanced) return [];
+    const actor = prev.combatants[prev.turn];
+    if (!actor) return [];
+    const updatedActor = current.combatants.find(combatant => combatant?.id && combatant.id === actor.id);
+    if (!updatedActor) return [];
+    const issues: string[] = [];
+    const compareDurations = (
+        prevList: Array<{ id?: string; name?: string; remainingRounds?: number }> | undefined,
+        nextList: Array<{ id?: string; name?: string; remainingRounds?: number }> | undefined,
+        label: string
+    ) => {
+        if (!Array.isArray(prevList) || prevList.length === 0) return;
+        prevList.forEach(entry => {
+            if (!entry || typeof entry.remainingRounds !== 'number' || entry.remainingRounds <= 0) return;
+            const matcher = (candidate: any) => {
+                if (!candidate) return false;
+                if (entry.id && candidate.id) return candidate.id === entry.id;
+                if (entry.name && candidate.name) return candidate.name === entry.name;
+                return false;
+            };
+            const nextEntry = Array.isArray(nextList) ? nextList.find(matcher) : undefined;
+            if (!nextEntry || typeof nextEntry.remainingRounds !== 'number') return;
+            if (nextEntry.remainingRounds >= entry.remainingRounds) {
+                issues.push(`${label}_duration_not_reduced`);
+            }
+        });
+    };
+    compareDurations(actor.statusEffects, updatedActor.statusEffects, 'status_effect');
+    compareDurations(actor.cooldowns, updatedActor.cooldowns, 'cooldown');
+    return issues;
+};
+
+const validateInventoryConsistency = (ctx: AssertionContext): string[] => {
+    const inventory = Array.isArray(ctx.currentCharacter?.inventory) ? ctx.currentCharacter.inventory : [];
+    if (inventory.length === 0) return [];
+    const issues: string[] = [];
+    let hasEquippedFlag = false;
+    let hasEquipped = false;
+    inventory.forEach((item: any, index: number) => {
+        if (!item) return;
+        if (typeof item.quantity === 'number' && item.quantity <= 0) {
+            issues.push(`inventory_non_positive_quantity_${index}`);
+        }
+        if (Object.prototype.hasOwnProperty.call(item, 'equipped')) {
+            hasEquippedFlag = true;
+        }
+        if (item.equipped) {
+            hasEquipped = true;
+        }
+        if (item.equipped && (typeof item.quantity !== 'number' || item.quantity <= 0)) {
+            issues.push(`equipped_item_without_quantity_${index}`);
+        }
+    });
+    if (ctx.response.combatState?.isActive && hasEquippedFlag && !hasEquipped) {
+        issues.push('combat_without_equipped_weapon');
+    }
+    return issues;
+};
+
+const validateLootEconomyIntegrity = (ctx: AssertionContext): string[] => {
+    const issues: string[] = [];
+    if (ctx.response.lootOffer?.currency?.gp !== undefined && ctx.response.lootOffer.currency.gp < 0) {
+        issues.push('loot_currency_negative');
+    }
+    if (ctx.response.combatState?.isActive && ctx.response.lootOffer) {
+        issues.push('loot_offered_during_combat');
+    }
+    if (ctx.response.shopState?.isOpen && ctx.response.combatState?.isActive) {
+        issues.push('shop_open_during_combat');
+    }
+    const sellPrices = ctx.response.shopState?.sellPrices;
+    if (sellPrices && typeof sellPrices === 'object') {
+        const invalidPrice = Object.values(sellPrices).some(value => typeof value !== 'number' || !Number.isFinite(value));
+        if (invalidPrice) {
+            issues.push('shop_invalid_price');
+        }
+    }
+    const prevGp = Number(ctx.prevCharacter?.currency?.gp ?? 0);
+    const nextGp = Number(ctx.currentCharacter?.currency?.gp ?? prevGp);
+    if (nextGp < 0) {
+        issues.push('character_currency_negative');
+    }
+    if (ctx.response.lootOffer && nextGp < prevGp) {
+        issues.push('loot_not_added_to_currency');
+    }
+    return issues;
+};
+
+const validateLevelProgressionIntegrity = (ctx: AssertionContext): string[] => {
+    const issues: string[] = [];
+    const prevLevel = Number(ctx.prevCharacter?.level ?? ctx.prevCharacter?.attributes?.level ?? 0);
+    const nextLevel = Number(ctx.currentCharacter?.level ?? ctx.currentCharacter?.attributes?.level ?? prevLevel);
+    if (ctx.response.levelUpState) {
+        const reportedLevel =
+            Number(ctx.response.levelUpState.level ?? ctx.response.levelUpState.levelReached ?? nextLevel);
+        if (reportedLevel <= prevLevel) {
+            issues.push('levelup_state_without_progress');
+        }
+        if (reportedLevel !== nextLevel) {
+            issues.push('levelup_state_mismatch');
+        }
+    }
+    if (!ctx.response.levelUpState && nextLevel > prevLevel) {
+        issues.push('levelup_missing_payload');
+    }
+    const xpEvents = Array.isArray(ctx.response.xpEvents) ? ctx.response.xpEvents : [];
+    const progressionFeed = Array.isArray(ctx.response.progressionFeed) ? ctx.response.progressionFeed : [];
+    if (xpEvents.length > 0 && progressionFeed.length === 0) {
+        issues.push('progression_feed_missing');
+    }
+    if (progressionFeed.length > 0 && xpEvents.length === 0) {
+        issues.push('xp_events_missing');
+    }
+    return issues;
+};
+
+const findPlayerCombatant = (ctx: AssertionContext) => {
+    const combat = ctx.response.combatState;
+    if (!combat || !Array.isArray(combat.combatants)) return null;
+    const candidateIds = [
+        ctx.currentCharacter?.id,
+        ctx.currentCharacter?.characterId,
+        ctx.currentCharacter?.playerId,
+    ].filter((value): value is string => Boolean(value));
+    return combat.combatants.find(
+        combatant =>
+            combatant?.isPlayer ||
+            (combatant?.id && candidateIds.includes(combatant.id))
+    );
+};
+
+const validateRollTracking = (ctx: AssertionContext): string[] => {
+    const roll = ctx.response.playerRollRequest;
+    if (!roll) return [];
+    const issues: string[] = [];
+    if (!roll.requestId) {
+        issues.push('roll_request_missing_id');
+    } else if (ctx.rollRequestHistory) {
+        if (ctx.rollRequestHistory.has(roll.requestId)) {
+            issues.push('roll_request_duplicate_id');
+        } else {
+            ctx.rollRequestHistory.add(roll.requestId);
+        }
+    }
+    const needsHistoryBinding = new Set(['attack', 'damage', 'save', 'initiative']);
+    if (needsHistoryBinding.has(roll.rollType as string)) {
+        const playerCombatant = findPlayerCombatant(ctx);
+        if (playerCombatant) {
+            const history = Array.isArray(playerCombatant.rollHistory) ? playerCombatant.rollHistory : [];
+            const expectedType = roll.rollType as string;
+            const hasEntry = history.some(entry => entry?.type === expectedType);
+            if (!hasEntry) {
+                issues.push(`roll_history_missing_${expectedType}`);
+            }
+        }
+    }
+    return issues;
+};
+
+const validateRestConsistency = (ctx: AssertionContext): string[] => {
+    const rest = ctx.response.useHitDiceRequest;
+    if (!rest) return [];
+    const issues: string[] = [];
+    if (ctx.response.combatState?.isActive) {
+        issues.push('rest_requested_during_combat');
+    }
+    if (!(typeof rest.maxDice === 'number' && rest.maxDice > 0)) {
+        issues.push('rest_invalid_hit_dice');
+    }
+    return issues;
+};
+
+const validateSystemLogIntegrity = (ctx: AssertionContext): string[] => {
+    const log = ctx.response.systemLog;
+    if (typeof log !== 'string' || !/hash_schema=/i.test(log)) {
+        return ['system_log_missing_schema_hash'];
+    }
+    return [];
+};
+
+const contextualValidators = [
+    validateWorldContinuity,
+    validateCombatIntegrity,
+    validateCombatDurations,
+    validateInventoryConsistency,
+    validateLootEconomyIntegrity,
+    validateLevelProgressionIntegrity,
+    validateRollTracking,
+    validateRestConsistency,
+    validateSystemLogIntegrity,
+    validateNpcLocationMemory,
+];
 
 const setupDirectLogTee = async () => {
     const logsDir = path.join(process.cwd(), 'logs');
@@ -419,8 +1113,11 @@ const runSyntheticTurn = async (
 ): Promise<TurnMetric> => {
     const suppressRoll = !plan.expectRollRequest;
     const baseInput = buildInput(state, plan.playerAction, suppressRoll);
+    state.homebrewAllowed = baseInput.useAiHomebrew !== false;
+    const prevCombatState = state.lastCombatState ?? null;
 
     const prevCharacterSnapshot = cloneState(state.character);
+    hydrateSnapshotWorldState(prevCharacterSnapshot, state.lastWorldState);
     const narrativeStart = performance.now();
     const narrativeCall = await getGameUpdate(
         { ...baseInput, responseFocus: 'narrative' },
@@ -428,7 +1125,12 @@ const runSyntheticTurn = async (
         config,
         apiKey
     );
+    pruneNarrativePhaseResponse(narrativeCall.response, { allowRollRequest: Boolean(plan.expectRollRequest) });
     const narrativeEnd = performance.now();
+    console.log(
+        `\n[structured-output:debug] ${plan.label} – fase narrativa`,
+        JSON.stringify(narrativeCall.response, null, 2)
+    );
 
     state.gameLog = appendToGameLog(state.gameLog, narrativeCall.response);
 
@@ -447,31 +1149,48 @@ const runSyntheticTurn = async (
         onStateModelDowngrade();
     }
     const stateResult = statePhaseCall.result;
+    pruneStatePhaseResponse(stateResult.response);
+    normalizeWorldStatePlacement(stateResult.response, state.lastWorldState ?? prevCharacterSnapshot.worldState ?? null);
+    console.log(
+        `[structured-output:debug] ${plan.label} – fase de estado`,
+        JSON.stringify(stateResult.response, null, 2)
+    );
 
-    applyCharacterUpdate(state, stateResult.response);
-    const assertionIssues = validateStateAssertions(plan, stateResult.response, prevCharacterSnapshot, state.character);
-
-    const rollRequestIssued = Boolean(stateResult.response.playerRollRequest);
     const integrityNotesRaw = stateResult.response._meta?.integrityNotes;
     const integrityNotes = Array.isArray(integrityNotesRaw)
         ? integrityNotesRaw
         : integrityNotesRaw
             ? [integrityNotesRaw]
             : [];
-    const actionableNotes = integrityNotes.filter(note => !note.toLowerCase().includes('migrado automaticamente'));
+    const actionableNotes = integrityNotes.filter(note => {
+        if (!note) return false;
+        if (note.toLowerCase().includes('migrado automaticamente')) return false;
+        return !SANITIZER_NOTE_PATTERNS.some(pattern => pattern.test(note));
+    });
     let schemaIssues = actionableNotes.slice();
 
-    const onlyMigrationNote = integrityNotes.length > 0 && actionableNotes.length === 0;
-    const migrationWarning = (stateResult.warnings ?? []).some(w => w.type === 'schema_migration');
-    const sanitizedRollRequest = !plan.expectRollRequest && rollRequestIssued && (onlyMigrationNote || migrationWarning);
+    const mergedResponse = mergePhaseResponses(narrativeCall.response, stateResult.response);
+    console.log(
+        `[structured-output:debug] ${plan.label} – resposta combinada`,
+        JSON.stringify(mergedResponse, null, 2)
+    );
+    const guardResult = enforceResponseGuards(mergedResponse, { allowRollRequest: Boolean(plan.expectRollRequest) });
+    stateResult.response.playerRollRequest = mergedResponse.playerRollRequest;
 
-    if (sanitizedRollRequest) {
-        stateResult.response.playerRollRequest = undefined;
-    }
-
-    if (!plan.expectRollRequest && rollRequestIssued && !sanitizedRollRequest) {
-        schemaIssues.push('roll_request_unexpected');
-    }
+    applyCharacterUpdate(state, stateResult.response);
+    const assertionIssues = validateStateAssertions(
+        plan,
+        mergedResponse,
+        prevCharacterSnapshot,
+        state.character,
+        {
+            prevCombatState,
+            rollRequestHistory: state.rollRequestHistory,
+            homebrewAllowed: state.homebrewAllowed,
+        }
+    );
+    state.lastCombatState = mergedResponse.combatState ?? null;
+    const rollRequestIssued = Boolean(mergedResponse.playerRollRequest);
 
     const combinedWarnings = [
         ...(narrativeCall.warnings ?? []).map(w => w.type),
@@ -479,10 +1198,7 @@ const runSyntheticTurn = async (
     ];
     const { critical: criticalWarnings, info: infoWarnings } = classifyWarnings(combinedWarnings);
 
-    const fallbackTriggered = [
-        narrativeCall.response?.systemLog,
-        stateResult.response?.systemLog,
-    ].some(log => typeof log === 'string' && /fallback/i.test(log));
+    const fallbackTriggered = Boolean(mergedResponse.systemLog && /fallback/i.test(mergedResponse.systemLog));
 
     const metric: TurnMetric = {
         label: plan.label,
@@ -558,9 +1274,13 @@ const buildLiveWarnings = (response: GameMasterResponse): string[] => {
 
 const runLiveTurn = async (
     plan: TurnPlan,
-    context: LiveContext
+    context: LiveContext,
+    guards: LiveAssertionState
 ): Promise<TurnMetric> => {
     const prevSnapshot = await buildOptimizedCharacterForAI(context.characterId, false);
+    hydrateSnapshotWorldState(prevSnapshot, guards.lastWorldState);
+    guards.homebrewAllowed = Boolean(prevSnapshot?.useAiHomebrew ?? guards.homebrewAllowed);
+    guards.lastWorldState = prevSnapshot?.worldState ?? guards.lastWorldState ?? null;
     const start = performance.now();
     const response = await processPlayerTurn(
         context.sessionId,
@@ -569,8 +1289,22 @@ const runLiveTurn = async (
         context.apiKey
     );
     const end = performance.now();
+    normalizeWorldStatePlacement(response, guards.lastWorldState);
+    console.log(
+        `\n[structured-output:debug] ${plan.label} – resposta live`,
+        JSON.stringify(response, null, 2)
+    );
+    const guardResult = enforceResponseGuards(response, { allowRollRequest: Boolean(plan.expectRollRequest) });
     const nextSnapshot = await buildOptimizedCharacterForAI(context.characterId, false);
-    const assertionIssues = validateStateAssertions(plan, response, prevSnapshot, nextSnapshot, { enforceScenario: false });
+    hydrateSnapshotWorldState(nextSnapshot, response.worldState ?? guards.lastWorldState ?? null);
+    guards.lastWorldState = nextSnapshot?.worldState ?? guards.lastWorldState ?? null;
+    const assertionIssues = validateStateAssertions(plan, response, prevSnapshot, nextSnapshot, {
+        enforceScenario: false,
+        prevCombatState: guards.prevCombatState,
+        rollRequestHistory: guards.rollRequestHistory,
+        homebrewAllowed: guards.homebrewAllowed,
+    });
+    guards.prevCombatState = response.combatState ?? null;
     const rawWarnings = buildLiveWarnings(response);
     const { critical, info } = classifyWarnings(rawWarnings);
     const fallbackTriggered = Boolean(response.systemLog && /fallback/i.test(response.systemLog));
@@ -582,7 +1316,7 @@ const runLiveTurn = async (
         infoWarnings: info,
         fallbackTriggered,
         rollRequestIssued: Boolean(response.playerRollRequest),
-        schemaMismatches: [],
+        schemaMismatches: guardResult.rollRequestSanitized ? ['roll_request_sanitized'] : [],
         assertionIssues,
     };
     const shouldPersist = metric.warnings.length > 0 || metric.assertionIssues.length > 0 || metric.fallbackTriggered;
@@ -681,9 +1415,15 @@ export const runStructuredFull = async (cliArgs: string[] = process.argv.slice(2
         }
         try {
             const liveContext = await createLiveContext(sessionId, userId, apiKey);
+            const liveGuards: LiveAssertionState = {
+                prevCombatState: null,
+                rollRequestHistory: new Set<string>(),
+                homebrewAllowed: true,
+                lastWorldState: { ...DEFAULT_WORLD_STATE },
+            };
             for (const plan of TURN_SEQUENCE) {
                 console.log(`\n[structured-output:full] >>> Turno (live): ${plan.label}`);
-                const metric = await runLiveTurn(plan, liveContext);
+                const metric = await runLiveTurn(plan, liveContext, liveGuards);
                 metrics.push(metric);
             }
         } finally {
@@ -700,7 +1440,16 @@ export const runStructuredFull = async (cliArgs: string[] = process.argv.slice(2
         const sessionState: SessionState = {
             character,
             gameLog: 'SISTEMA: Sessão simulada para validação integral.',
+            lastCombatState: character?.combatState ?? null,
+            rollRequestHistory: new Set<string>(),
+            homebrewAllowed: true,
+            lastWorldState: character?.worldState ?? null,
         };
+        if (!sessionState.character.worldState && sessionState.lastWorldState) {
+            sessionState.character.worldState = sessionState.lastWorldState;
+        }
+        applyWorldStateDefaults(sessionState.character.worldState ?? (sessionState.character.worldState = { ...DEFAULT_WORLD_STATE }));
+        sessionState.lastWorldState = sessionState.character.worldState;
         for (const plan of TURN_SEQUENCE) {
             console.log(`\n[structured-output:full] >>> Turno: ${plan.label}`);
             const metric = await runSyntheticTurn(
