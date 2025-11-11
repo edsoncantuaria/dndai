@@ -1,5 +1,6 @@
 // backend/src/services/aiService.ts
 import { GoogleGenAI, type Content } from "@google/genai";
+import { randomUUID } from 'crypto';
 import JSON5 from 'json5';
 import { Buffer } from 'buffer';
 import { GameMasterResponse, GameMasterFlowInput, GameMasterResponseSchema, GameMasterFlowInputSchema, NarrativePhaseResponseSchema, StatePhaseResponseSchema } from "../schemas/gameSchemas.js";
@@ -16,7 +17,7 @@ import { recordTokenUsageSample } from './tokenMetricsService.js';
 import { env } from '../config/env.js';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { GAME_MASTER_RESPONSE_JSON_SCHEMA, GAME_MASTER_SCHEMA_HASH, markSchemaDrift, migrateLegacyResponse, normalizeResponseSchema, responseMatchesCurrentSchema } from './schemaIntegrityService.js';
+import { attachResponseMetadata, CURRENT_SCHEMA_VERSION, GAME_MASTER_RESPONSE_JSON_SCHEMA, GAME_MASTER_SCHEMA_HASH, markSchemaDrift, migrateLegacyResponse, normalizeResponseSchema, responseMatchesCurrentSchema } from './schemaIntegrityService.js';
 import { GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA, NARRATIVE_PHASE_GENERATIVE_SCHEMA, STATE_PHASE_GENERATIVE_SCHEMA } from '../schemas/gameMasterResponseGenerativeSchema.js';
 import { reconstructSemanticIntent } from './semanticRecoveryService.js';
 import { attemptJsonRepair, buildContinuationSnippet, softTailRepair, stripCodeFences, stripSuffix, trimAfterLastClosingBracket } from './aiRepairUtils.js';
@@ -110,6 +111,28 @@ const INCOMPLETE_END_FLAG = '[INCOMPLETE_END_FLAG]';
 const RESPONSE_SCHEMA_GLOBAL_ENABLED = true;
 const RESPONSE_SCHEMA_MODEL_BLOCKLIST: string[] = [];
 const RESPONSE_SCHEMA_MODEL_ALLOWLIST: string[] = [];
+const STATE_PHASE_ALLOWED_FIELDS = [
+    'updatedCharacter',
+    'worldState',
+    'combatState',
+    'playerRollRequest',
+    'xpEvents',
+    'progressionFeed',
+    'newHomebrewContent',
+    'levelUpState',
+    'shopState',
+    'lootOffer',
+    'useHitDiceRequest',
+    'gameClock',
+    'memoryContext',
+    'systemLog',
+    '_meta',
+];
+const STATE_PHASE_ALLOWED_FIELDS_LABEL = STATE_PHASE_ALLOWED_FIELDS.join(', ');
+const STATE_PHASE_HASH_LINE = `HASH_SCHEMA=${GAME_MASTER_SCHEMA_HASH}`;
+const STATE_SCHEMA_DRIFT_HINT = `ATENÇÃO: Gere novamente a fase de estado apenas com os campos permitidos (${STATE_PHASE_ALLOWED_FIELDS_LABEL}) e somente com deltas reais.`;
+const GENERIC_SCHEMA_DRIFT_HINT = `ATENÇÃO: Reescreva o GameMasterResponse obedecendo ao schema v${CURRENT_SCHEMA_VERSION}, mantendo apenas campos válidos e atualizados.`;
+const STATE_GUARD_MODE = (process.env.AI_STATE_GUARD_MODE ?? process.env.NEXT_PUBLIC_AI_STATE_GUARD_MODE ?? 'tests').toLowerCase();
 const FORCE_JSON_MIME = ['1', 'true', 'yes', 'on'].includes(
     (process.env.AI_FORCE_JSON_MIME ?? 'true').toString().trim().toLowerCase()
 );
@@ -1085,7 +1108,257 @@ const buildNarrativeDecisionTags = (character: any, playerAction?: string): stri
 };
 
 const narrativeExampleSnippet = `{"logEntries":[{"type":"narration","content":"Visão breve do cenário."},{"type":"system","content":"Observação objetiva."}],"actionOptions":[{"text":"Explorar o arco violeta","action":"explore","skill":"perception"},{"text":"Investigar o beco estreito","action":"investigate","skill":"stealth"},{"text":"Recuperar fôlego e observar","action":"wait"}],"systemLog":"Notas concisas sobre verificações e ganchos."}`;
-const stateExampleSnippet = `{"logEntries":[],"actionOptions":[],"updatedCharacter":{"worldState":{"currentRegion":"biblioteca-arcana","timeOfDay":"Manhã"}},"worldState":{"currentRegion":"biblioteca-arcana","poiSlug":"arco-violeta"},"playerRollRequest":{"reason":"Purificar a relíquia","dice":"1d20","dc":15,"rollType":"Arcana"},"systemLog":"Estado consolidado após a ação."}`;
+const stateExampleSnippet = `{"logEntries":[],"actionOptions":[],"updatedCharacter":{"worldState":{"currentRegion":"biblioteca-arcana","timeOfDay":"Manhã"}},"worldState":{"currentRegion":"biblioteca-arcana","poiSlug":"arco-violeta"},"playerRollRequest":{"reason":"Purificar a relíquia","dice":"1d20","dc":15,"rollType":"Arcana"},"systemLog":"Estado consolidado após a ação.","_meta":{"version":${CURRENT_SCHEMA_VERSION},"hash":"${GAME_MASTER_SCHEMA_HASH}"}}`;
+
+type StatePhaseGuardIssue = { reason: string; hint: string };
+
+const STATE_PHASE_GUARD_HINTS: Record<string, string> = {
+    logEntries: `ATENÇÃO: a fase de estado só pode retornar ${STATE_PHASE_ALLOWED_FIELDS_LABEL}. NÃO retorne logEntries/actionOptions nem texto narrativo.`,
+    actionOptions: `ATENÇÃO: a fase de estado só pode retornar ${STATE_PHASE_ALLOWED_FIELDS_LABEL}. NÃO retorne logEntries/actionOptions nem texto narrativo.`,
+    snapshot: 'ATENÇÃO: updatedCharacter/worldState devem conter apenas campos alterados; não replique o personagem completo ou inventário inteiro.',
+    suppressRoll: 'Se suppressRollRequest=true, não retorne playerRollRequest. Apenas sinalize deltas de estado.',
+    hash: `Inclua "_meta":{"version":${CURRENT_SCHEMA_VERSION},"hash":"${GAME_MASTER_SCHEMA_HASH}"} e registre "${STATE_PHASE_HASH_LINE}" no systemLog.`,
+};
+
+const SCENARIO_STATE_DIRECTIVES: Record<string, string[]> = {
+    'Recuperação / loot': [
+        'Forneça lootOffer com moedas ou itens coerentes OU inclua updatedCharacter.inventory/currency refletindo o saque.',
+        'Se houve descanso ou cura, atualize useHitDiceRequest e HP/conditions relevantes.',
+        'Forneça lootOffer com moedas ou itens coerentes OU inclua updatedCharacter.inventory/currency refletindo o saque.',
+        'Se houve descanso ou cura, atualize useHitDiceRequest e HP/conditions relevantes.',
+        'Atualize currency do personagem quando ganhar GP; não deixe lootOffer desconectado do inventário.',
+    ],
+    'Visita à loja': [
+        'Inclua shopState com isOpen=true, lista de itens e preços, além de limites de compra/venda.',
+        'Ao registrar compras/vendas, atualize apenas os deltas em updatedCharacter.inventory/currency.',
+        'Se a loja permanecer aberta, persista shopState para o próximo turno (não remova sem motivo).',
+    ],
+    'Revisão de progresso': [
+        'Liste xpEvents e progressionFeed descrevendo XP ganhos e marcos recentes.',
+        'Se o nível mudou, retorne levelUpState detalhando a evolução.',
+        'Mesmo sem evolução, registre progresso planejado (xpEvents vazia não é aceita).',
+    ],
+    'Combate prolongado': [
+        'Mantenha combatState.isActive=true e atualize combatants, turno, rodada e condições persistentes.',
+        'Aplique deltas de HP/status nos combatentes que agiram neste turno.',
+        'Não encerre o combate enquanto hostis estiverem em campo; mantenha lootOffer vazio até o fim.',
+    ],
+    'Desafio multi-rolagem': [
+        'Inclua playerRollRequest com requestId único (ex.: "rollreq_multiskill_01"), rollType apropriado, DC explícito e razão da rolagem.',
+        'Cite as skills/atributos envolvidos nas rolagens encadeadas deste desafio.',
+    ],
+    'Registro de NPCs e quests': [
+        'Atualize updatedCharacter.relationships/journal somente com entradas que mudaram desde o turno anterior.',
+        'Registre reputações/missões em progressionFeed ou memoryContext quando houver novidades relevantes.',
+    ],
+    'Queda e recuperação': [
+        'Atualize HP/conditions do personagem; se usar dados de vida, preencha useHitDiceRequest com maxDice/hitDieValue.',
+        'Registre efeitos persistentes (exaustão, penalidades) em updatedCharacter ou memoryContext.',
+    ],
+    'Resumo final controlado': [
+        'Consolide progressionFeed com XP, lootOffer, shopState e localização final antes de encerrar.',
+        'Inclua xpEvents resumindo a XP total deste ciclo (mesmo que nenhum ganho tenha ocorrido).',
+    ],
+};
+
+const buildScenarioStateDirectiveBlock = (label?: string): string => {
+    if (!label) return '';
+    const directives = SCENARIO_STATE_DIRECTIVES[label];
+    if (!directives || !directives.length) return '';
+    const bulletList = directives.map(entry => `- ${entry}`).join('\n');
+    return `Diretivas específicas para "${label}":\n${bulletList}`;
+};
+
+const detectStatePhaseGuardIssue = (
+    response: any,
+    input: GameMasterFlowInput
+): StatePhaseGuardIssue | null => {
+    if (input.responseFocus !== 'state' || !response || typeof response !== 'object') {
+        return null;
+    }
+    if (Array.isArray(response.logEntries) && response.logEntries.length) {
+        return { reason: 'log_entries_present', hint: STATE_PHASE_GUARD_HINTS.logEntries };
+    }
+    if (Array.isArray(response.actionOptions) && response.actionOptions.length) {
+        return { reason: 'action_options_present', hint: STATE_PHASE_GUARD_HINTS.actionOptions };
+    }
+    const baselineCharacter = isPlainObject(input.character) ? input.character : undefined;
+    if (
+        baselineCharacter &&
+        isPlainObject(response.updatedCharacter) &&
+        deepEqual(response.updatedCharacter, baselineCharacter)
+    ) {
+        return { reason: 'updated_character_snapshot', hint: STATE_PHASE_GUARD_HINTS.snapshot };
+    }
+    const suppressRoll = Boolean(input.suppressRollRequest);
+    if (suppressRoll && response.playerRollRequest) {
+        return { reason: 'player_roll_present_on_suppressed_turn', hint: STATE_PHASE_GUARD_HINTS.suppressRoll };
+    }
+    const combatActive = Boolean(input.combatState?.isActive);
+    if (combatActive) {
+        if (!response.combatState || !response.combatState.isActive) {
+            return {
+                reason: 'combat_state_missing_during_active_encounter',
+                hint: 'O combate permanece ativo; mantenha combatState.isActive=true com combatants completos até o término.',
+            };
+        }
+        if (response.lootOffer) {
+            return {
+                reason: 'loot_offered_during_combat',
+                hint: 'Não retorne lootOffer enquanto o combate estiver ativo; aguarde o término do encontro.',
+            };
+        }
+        if (response.shopState?.isOpen) {
+            return {
+                reason: 'shop_open_during_combat',
+                hint: 'Não abra shopState durante o combate; este campo só deve aparecer fora de combate.',
+            };
+        }
+        if (response.useHitDiceRequest) {
+            return {
+                reason: 'rest_requested_during_combat',
+                hint: 'Não solicite descanso/useHitDiceRequest enquanto o combate estiver ativo.',
+            };
+        }
+    }
+    if (!response._meta || response._meta.hash !== GAME_MASTER_SCHEMA_HASH) {
+        return { reason: 'missing_schema_meta', hint: STATE_PHASE_GUARD_HINTS.hash };
+    }
+    if (typeof response.systemLog !== 'string' || !response.systemLog.includes(STATE_PHASE_HASH_LINE)) {
+        return { reason: 'missing_schema_hash_line', hint: STATE_PHASE_GUARD_HINTS.hash };
+    }
+    const scenarioIssue = detectScenarioRequirementIssue(response, input, baselineCharacter);
+    if (scenarioIssue) {
+        return scenarioIssue;
+    }
+    return null;
+};
+
+const SCENARIOS_EXPECTING_ROLL = new Set([
+    'Ameaça súbita',
+    'Combate prolongado',
+    'Desafio multi-rolagem',
+    'Queda e recuperação',
+]);
+
+const detectScenarioRequirementIssue = (
+    response: any,
+    input: GameMasterFlowInput,
+    baselineCharacter?: Record<string, any>
+): StatePhaseGuardIssue | null => {
+    const lootCurrency = response.lootOffer?.currency;
+    const lootValue = lootCurrency && typeof lootCurrency === 'object'
+        ? Object.values(lootCurrency).reduce((sum, value) => sum + (Number(value) || 0), 0)
+        : 0;
+    if (lootValue > 0) {
+        const hasCurrencyDelta = isPlainObject(response.updatedCharacter?.currency)
+            && Object.keys(response.updatedCharacter.currency).length > 0;
+        if (!hasCurrencyDelta) {
+            return {
+                reason: 'loot_without_currency_delta',
+                hint: 'Sempre que lootOffer conceder moedas, inclua updatedCharacter.currency apenas com os deltas correspondentes.',
+            };
+        }
+    }
+
+    const prevClock = baselineCharacter?.gameClock;
+    const nextClock = response.gameClock ?? response.updatedCharacter?.gameClock;
+    if (prevClock) {
+        if (!nextClock) {
+            return {
+                reason: 'game_clock_missing',
+                hint: 'Inclua gameClock (dia/hora) na fase de estado quando o relógio existir; não deixe implícito.',
+            };
+        }
+        const prevDay = Number(prevClock.day ?? 0);
+        const prevHour = Number(prevClock.hour ?? 0);
+        const nextDay = Number(nextClock.day ?? prevDay);
+        const nextHour = Number(nextClock.hour ?? prevHour);
+        if (nextDay < prevDay || (nextDay === prevDay && nextHour < prevHour)) {
+            return {
+                reason: 'game_clock_regression',
+                hint: 'Não retroceda o gameClock; mantenha dia/hora iguais ou avance apenas para frente.',
+            };
+        }
+        if (nextHour < prevHour && nextDay === prevDay) {
+            return {
+                reason: 'game_clock_rollover_missing_day_increment',
+                hint: 'Se a hora diminuir, incremente o dia ao mesmo tempo.',
+            };
+        }
+    }
+
+    const progressionFeed = Array.isArray(response.progressionFeed) ? response.progressionFeed : [];
+    const xpEvents = Array.isArray(response.xpEvents) ? response.xpEvents : [];
+    if (progressionFeed.length > 0 && xpEvents.length === 0) {
+        return {
+            reason: 'xp_events_missing_for_feed',
+            hint: 'Sempre que progressionFeed tiver entradas, inclua xpEvents correspondentes descrevendo os ganhos de XP.',
+        };
+    }
+
+    const scenarioLabel = input.scenarioLabel;
+    if (!scenarioLabel) {
+        return null;
+    }
+
+    if (scenarioLabel === 'Revisão de progresso') {
+        if (xpEvents.length === 0 && progressionFeed.length === 0 && !response.levelUpState) {
+            return {
+                reason: 'progress_review_missing_xp',
+                hint: 'Em "Revisão de progresso", inclua xpEvents/progressionFeed (e levelUpState se aplicável).',
+            };
+        }
+    }
+
+    if (scenarioLabel === 'Recuperação / loot' && xpEvents.length === 0) {
+        return {
+            reason: 'recovery_loot_missing_xp',
+            hint: 'Durante "Recuperação / loot", registre xpEvents com o ganho de XP ou progresso do saque.',
+        };
+    }
+
+    if (scenarioLabel === 'Combate prolongado' && (!response.combatState || !response.combatState.isActive)) {
+        return {
+            reason: 'combat_state_missing_during_scenario',
+            hint: 'Durante "Combate prolongado", mantenha combatState.isActive=true com combatants completos.',
+        };
+    }
+
+    if (SCENARIOS_EXPECTING_ROLL.has(scenarioLabel) && !response.playerRollRequest) {
+        return {
+            reason: 'scenario_roll_request_missing',
+            hint: `O turno "${scenarioLabel}" exige playerRollRequest com requestId único, rollType e DC explícitos.`,
+        };
+    }
+
+    return null;
+};
+
+const mergeRetryHints = (existing: string[] | undefined, ...incoming: (string | undefined)[]): string[] => {
+    const unique = new Set<string>();
+    (existing ?? []).forEach(hint => {
+        if (hint) unique.add(hint);
+    });
+    incoming.forEach(hint => {
+        if (hint) unique.add(hint);
+    });
+    return Array.from(unique);
+};
+
+const shouldEnforceStateGuard = (input: GameMasterFlowInput): boolean => {
+    switch (STATE_GUARD_MODE) {
+        case 'strict':
+        case 'on':
+        case 'enabled':
+            return true;
+        case 'tests':
+        case 'test':
+            return Boolean(input.scenarioLabel);
+        default:
+            return false;
+    }
+};
 
 const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
     const {
@@ -1121,14 +1394,23 @@ ${narrativeExampleSnippet}
 - Mantenha systemLog sucinto (ex.: “Verificação de Percepção necessária se o jogador seguir pelo beco”).`;
         }
         if (focus === 'state') {
+            const suppressRollDirective = input.suppressRollRequest
+                ? 'Se suppressRollRequest=true, NÃO retorne playerRollRequest (o backend registrará que nenhuma rolagem foi solicitada).'
+                : 'Só gere playerRollRequest quando realmente necessário e descreva no systemLog o motivo da rolagem.';
+            const scenarioDirectiveBlock = buildScenarioStateDirectiveBlock(input.scenarioLabel);
             return `### FASE DE ESTADO (APENAS DELTAS)
+Campos permitidos: ${STATE_PHASE_ALLOWED_FIELDS_LABEL}.
 Estrutura obrigatória (JSON completo, sem campos extras):
 ${stateExampleSnippet}
+- ${scenarioDirectiveBlock || 'Sem diretivas adicionais específicas para este turno.'}
+- NÃO retorne logEntries/actionOptions ou snapshots completos; envie apenas os deltas solicitados.
 - logEntries e actionOptions DEVEM ser arrays vazios ( [] ).
 - Atualize updatedCharacter e worldState somente com os campos que MUDARAM. Se nada mudou, devolva {}.
 - Não aninhe worldState dentro de updatedCharacter se já estiver preenchendo o campo dedicado.
 - Atualize combatState, xpEvents, progressionFeed, lootOffer etc. apenas se houver mudanças reais.
-- Só gere playerRollRequest se ela for realmente necessária para o próximo turno (e tiver sido citada na fase narrativa). Caso contrário, omita esse campo.
+- ${suppressRollDirective}
+- Sempre que lootOffer conceder moedas/itens, atualize updatedCharacter.currency/inventory apenas com os deltas correspondentes.
+- Se o gameClock já existir, reporte o novo dia/hora sem retroceder valores.
 - Mantenha systemLog como um resumo objetivo das atualizações aplicadas.`;
         }
         return '';
@@ -1206,6 +1488,8 @@ ${stateExampleSnippet}
         spells: safeArray(character.spells),
         storySoFar: character.storySoFar,
         worldState: character.worldState,
+        gameClock: (character as any)?.gameClock,
+        currency: (character as any)?.currency,
         relationships: safeArray(character.relationships).map((r: any) => ({
             name: r.name,
             status: r.status,
@@ -1294,10 +1578,17 @@ ${stateExampleSnippet}
     const timeKeyword = includeStateBrief && characterForPrompt?.worldState?.timeOfDay
         ? `PERIODO=${characterForPrompt.worldState.timeOfDay}\n`
         : '';
+    const prevClock = characterForPrompt?.gameClock ?? (character as any)?.gameClock ?? null;
+    const gameClockNote = focus === 'state' && prevClock
+        ? `RELOGIO_ATUAL=dia ${Number(prevClock.day ?? 0)}, hora ${Number(prevClock.hour ?? 0)}. Não retroceda o relógio; avance apenas quando o tempo passar.\n`
+        : '';
+    const currencyNote = focus === 'state' && characterForPrompt?.currency
+        ? `TESOURO_ATUAL=gp ${Number((characterForPrompt.currency as any).gp ?? 0)} (não reduza sem motivo; adicione ganhos quando lootOffer conceder moedas).\n`
+        : '';
     const stateDiffHint = focus === 'state'
         ? 'ESTADO_PARCIAL=Informe apenas campos que mudaram desde o último turno; valores omitidos serão interpretados como "sem alteração".\n'
         : '';
-    const metadataSection = `${phaseLabel}\n${stateDiffHint}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
+    const metadataSection = `${phaseLabel}\n${stateDiffHint}${gameClockNote}${currencyNote}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
     const safeGameLog = typeof gameLog === 'string' && gameLog.trim().length ? gameLog : 'SEM_EVENTOS';
 
     const mainPrompt = `Responda estritamente com JSON válido. Nenhuma explicação fora do objeto.
@@ -1340,6 +1631,13 @@ Gere o próximo estado seguindo o formato definido e todas as regras.`;
  * Limpa a resposta bruta da IA, removendo nulls, strings inválidas e objetos vazios
  * para garantir que ela passe na validação estrutural do Zod.
  */
+const buildRollRequestId = (rollType?: string | null) => {
+    const normalized = typeof rollType === 'string' && rollType.trim()
+        ? rollType.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
+        : 'roll';
+    return `${normalized}_${randomUUID()}`;
+};
+
 const miniSanitize = (raw: any): any => {
   if (!raw || typeof raw !== 'object') return {};
   
@@ -1368,12 +1666,33 @@ const miniSanitize = (raw: any): any => {
           clean[key] = null; // ✅ Envia null, conforme o schema
           continue;
         }
-  
-        if (key === 'combatState' && (!('isActive' in val) || !val.isActive)) {
-          clean[key] = null; // ✅ combate não ativo → null
-          continue;
+ 
+        if (key === 'combatState') {
+          if (!('isActive' in val) || !val.isActive) {
+            clean[key] = null; // ✅ combate não ativo → null
+            continue;
+          }
+          if (Array.isArray(val.combatants)) {
+            val.combatants = val.combatants.map((combatant: any) => {
+              if (!combatant || typeof combatant !== 'object') return combatant;
+              const patched = { ...combatant };
+              if (typeof patched.actionPoints === 'number' && patched.actionPoints > 1) {
+                patched.actionPoints = 1;
+              }
+              if (typeof patched.bonusActionPoints === 'number' && patched.bonusActionPoints > 1) {
+                patched.bonusActionPoints = 1;
+              }
+              return patched;
+            });
+          }
         }
       }
+    }
+
+    if (clean.playerRollRequest && typeof clean.playerRollRequest === 'object') {
+        if (typeof clean.playerRollRequest.requestId !== 'string' || !clean.playerRollRequest.requestId.trim()) {
+            clean.playerRollRequest.requestId = buildRollRequestId(clean.playerRollRequest.rollType);
+        }
     }
 
     return clean;
@@ -1671,9 +1990,16 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
         }
     };
 
+    type AttemptRetryOptions = {
+        continuationRaw?: string;
+        schemaRetryCount?: number;
+        additionalHints?: string[];
+        schemaDriftRetryCount?: number;
+    };
+
     const attemptGeneration = async (
         attemptIndex: number = 0,
-        retryOptions: { continuationRaw?: string; schemaRetryCount?: number } = {}
+        retryOptions: AttemptRetryOptions = {}
     ): Promise<GameUpdateResult> => {
         const isRetry = attemptIndex > 0;
         const createResilienceFallback = (issue: string): GameUpdateResult => {
@@ -1738,6 +2064,10 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
 
 ATENÇÃO: A resposta JSON anterior foi truncada. Reescreva o objeto completo, seguindo estritamente o GameMasterResponseSchema, sem adicionar texto fora do JSON. Use o trecho abaixo apenas como referência e gere o JSON inteiro novamente de forma coerente.
 TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
+            }
+            const uniqueHints = Array.from(new Set(retryOptions.additionalHints ?? []));
+            if (uniqueHints.length) {
+                prompt = `${prompt}\n\n${uniqueHints.join('\n\n')}`;
             }
             prompt += (RETRY_PROMPT_HINTS[attemptIndex] ?? '');
             const contents = [buildUserContent(prompt)];
@@ -2035,7 +2365,19 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
 
             if (responseData && typeof responseData === 'object' && !responseMatchesCurrentSchema(responseData)) {
-                console.warn('[aiService] Hash de schema divergente detectado; aplicando migração defensiva.');
+                const schemaDriftRetryCount = retryOptions.schemaDriftRetryCount ?? 0;
+                if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS && schemaDriftRetryCount < 2) {
+                    console.warn('[aiService] Hash de schema divergente; solicitando nova tentativa antes da migração.');
+                    registerRecoveryStrategy('schema-drift-retry');
+                    const schemaHint = input.responseFocus === 'state' ? STATE_SCHEMA_DRIFT_HINT : GENERIC_SCHEMA_DRIFT_HINT;
+                    emitWarning('schema_drift_retry', { focus: input.responseFocus ?? 'full' });
+                    return attemptGeneration(attemptIndex + 1, {
+                        ...retryOptions,
+                        schemaDriftRetryCount: schemaDriftRetryCount + 1,
+                        additionalHints: mergeRetryHints(retryOptions.additionalHints, schemaHint),
+                    });
+                }
+                console.warn('[aiService] Hash de schema divergente persistiu; aplicando migração defensiva.');
                 responseData = migrateLegacyResponse(responseData, { input, rawText: jsonText });
                 markSchemaDrift(responseData);
                 emitWarning('schema_migration', { focus: input.responseFocus ?? 'full' });
@@ -2044,6 +2386,22 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
 
             // 1️⃣ Mini-sanitizer (limpeza pré-validação)
             const cleanedData = miniSanitize(responseData);
+
+            const guardIssue = shouldEnforceStateGuard(input)
+                ? detectStatePhaseGuardIssue(cleanedData, input)
+                : null;
+            if (guardIssue) {
+                emitWarning('state_guard_retry', { reason: guardIssue.reason });
+                if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
+                    registerRecoveryStrategy('state-guard');
+                    return attemptGeneration(attemptIndex + 1, {
+                        ...retryOptions,
+                        additionalHints: mergeRetryHints(retryOptions.additionalHints, guardIssue.hint),
+                    });
+                }
+                console.warn('[aiService] Fase de estado inválida até o limite de tentativas; acionando fallback.');
+                return ensureRetryOrFallback('A IA insistiu em responder a fase de estado com narrativa ou snapshot completo.');
+            }
 
             // 2️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character, input);
@@ -2085,17 +2443,17 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 throw createError(500, `A resposta da IA falhou na validação estrutural: ${JSON.stringify(flattenedError)}`);
             }
 
+            const metadataExtras = {
+                recoveryStrategies: Array.from(recoveryStrategies),
+                integrityNotes: [
+                    ...(structuredOutputDisabledReason && structuredOutputDisabledReason !== 'not-enabled'
+                        ? [`structured output desativado (${structuredOutputDisabledReason}).`]
+                        : []),
+                ],
+            };
             const validatedResponse = input.responseFocus
-                ? (validationResult.data as GameMasterResponse)
-                : normalizeResponseSchema(validationResult.data, {
-                    recoveryStrategies: Array.from(recoveryStrategies),
-                    integrityNotes: [
-                        ...(failoverTrail.length ? [`Failover aplicado: ${failoverTrail.join(' -> ')}`] : []),
-                        ...(structuredOutputDisabledReason && structuredOutputDisabledReason !== 'not-enabled'
-                            ? [`structured output desativado (${structuredOutputDisabledReason}).`]
-                            : []),
-                    ],
-                });
+                ? attachResponseMetadata(validationResult.data as GameMasterResponse, metadataExtras)
+                : normalizeResponseSchema(validationResult.data, metadataExtras);
             if (failoverTrail.length) {
                 const failoverNote = `[Failover] Modelo alternado: ${failoverTrail.join(' -> ')}`;
                 validatedResponse.systemLog = validatedResponse.systemLog

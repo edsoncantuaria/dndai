@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
 import type { GenerationConfig } from '../schemas/validationSchemas.js';
 import { getGameUpdate, type GameUpdateResult } from '../services/aiService.js';
+import { attachResponseMetadata } from '../services/schemaIntegrityService.js';
 import {
     validateActionEconomy,
     validateAttackFeasibility,
@@ -173,7 +174,7 @@ const appendToGameLog = (currentLog: string, response: GameMasterResponse): stri
     return combined.length > maxChars ? combined.slice(combined.length - maxChars) : combined;
 };
 
-const buildInput = (state: SessionState, action: string, suppressRoll: boolean): GameMasterFlowInput => ({
+const buildInput = (state: SessionState, action: string, suppressRoll: boolean, scenarioLabel: string): GameMasterFlowInput => ({
     character: state.character,
     playerAction: action,
     gameLog: state.gameLog || 'SEM_EVENTOS',
@@ -181,6 +182,7 @@ const buildInput = (state: SessionState, action: string, suppressRoll: boolean):
     enableNarrativeRevalidation: true,
     mode: 'gameplay',
     suppressRollRequest: suppressRoll,
+    scenarioLabel,
 });
 
 const cloneState = <T>(value: T): T =>
@@ -879,7 +881,11 @@ const validateInventoryConsistency = (ctx: AssertionContext): string[] => {
 
 const validateLootEconomyIntegrity = (ctx: AssertionContext): string[] => {
     const issues: string[] = [];
-    if (ctx.response.lootOffer?.currency?.gp !== undefined && ctx.response.lootOffer.currency.gp < 0) {
+    const lootCurrency = ctx.response.lootOffer?.currency;
+    const lootCurrencyTotal = lootCurrency && typeof lootCurrency === 'object'
+        ? Object.values(lootCurrency).reduce((sum, value) => sum + (Number(value) || 0), 0)
+        : 0;
+    if (lootCurrency?.gp !== undefined && Number(lootCurrency.gp) < 0) {
         issues.push('loot_currency_negative');
     }
     if (ctx.response.combatState?.isActive && ctx.response.lootOffer) {
@@ -900,7 +906,7 @@ const validateLootEconomyIntegrity = (ctx: AssertionContext): string[] => {
     if (nextGp < 0) {
         issues.push('character_currency_negative');
     }
-    if (ctx.response.lootOffer && nextGp < prevGp) {
+    if (ctx.response.lootOffer && lootCurrencyTotal > 0 && nextGp < prevGp + lootCurrencyTotal) {
         issues.push('loot_not_added_to_currency');
     }
     return issues;
@@ -1115,7 +1121,7 @@ const runSyntheticTurn = async (
     onStateModelDowngrade?: () => void
 ): Promise<TurnMetric> => {
     const suppressRoll = !plan.expectRollRequest;
-    const baseInput = buildInput(state, plan.playerAction, suppressRoll);
+    const baseInput = buildInput(state, plan.playerAction, suppressRoll, plan.label);
     state.homebrewAllowed = baseInput.useAiHomebrew !== false;
     const prevCombatState = state.lastCombatState ?? null;
 
@@ -1153,6 +1159,9 @@ const runSyntheticTurn = async (
     }
     const stateResult = statePhaseCall.result;
     pruneStatePhaseResponse(stateResult.response);
+    if (stateResult.response) {
+        attachResponseMetadata(stateResult.response);
+    }
     normalizeWorldStatePlacement(stateResult.response, state.lastWorldState ?? prevCharacterSnapshot.worldState ?? null);
     console.log(
         `[structured-output:debug] ${plan.label} – fase de estado`,
