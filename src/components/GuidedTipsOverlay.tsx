@@ -47,12 +47,6 @@ const GuidedTipsOverlay: React.FC<GuidedTipsOverlayProps> = ({ isOpen, onClose, 
         }
     }, [initialStep, isOpen]);
 
-    useEffect(() => {
-        if (isOpen) {
-            onStepChange?.(step);
-        }
-    }, [step, isOpen, onStepChange]);
-
     const updateSpotlight = useCallback(() => {
         if (typeof document === 'undefined') return;
         if (!isOpen) {
@@ -93,16 +87,23 @@ const GuidedTipsOverlay: React.FC<GuidedTipsOverlayProps> = ({ isOpen, onClose, 
         };
     }, [isOpen, updateSpotlight]);
 
+    const notifyStepChange = (nextStep: number) => {
+        setStep(nextStep);
+        onStepChange?.(nextStep);
+    };
+
     const handleNext = () => {
         if (step < tips.length - 1) {
-            setStep(step + 1);
+            notifyStepChange(step + 1);
         } else {
             onComplete?.();
         }
     };
 
     const handlePrev = () => {
-        if (step > 0) setStep(step - 1);
+        if (step > 0) {
+            notifyStepChange(step - 1);
+        }
     };
 
     return (

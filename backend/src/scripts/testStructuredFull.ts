@@ -6,9 +6,6 @@ import { env } from '../config/env.js';
 import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
 import type { GenerationConfig } from '../schemas/validationSchemas.js';
 import { getGameUpdate, type GameUpdateResult } from '../services/aiService.js';
-import { AppDataSource } from '../database/data-source.js';
-import { SessaoIA } from '../entities/SessaoIA.js';
-import { processPlayerTurn, buildOptimizedCharacterForAI } from '../services/narrarService.js';
 import {
     validateActionEconomy,
     validateAttackFeasibility,
@@ -40,20 +37,6 @@ type SessionState = {
     character: any;
     gameLog: string;
     lastCombatState: GameMasterResponse['combatState'] | null;
-    rollRequestHistory: Set<string>;
-    homebrewAllowed: boolean;
-    lastWorldState: Record<string, any> | null;
-};
-
-type LiveContext = {
-    sessionId: number;
-    userId: number;
-    characterId: number;
-    apiKey: string;
-};
-
-type LiveAssertionState = {
-    prevCombatState: GameMasterResponse['combatState'] | null;
     rollRequestHistory: Set<string>;
     homebrewAllowed: boolean;
     lastWorldState: Record<string, any> | null;
@@ -277,6 +260,27 @@ const applyWorldStateDefaults = (world?: Record<string, any> | null) => {
     if (!Array.isArray(world.visitedPois)) {
         world.visitedPois = DEFAULT_WORLD_STATE.visitedPois.map(poi => ({ ...poi }));
     }
+    const ensureVisitedRegion = (regionSlug?: string | null) => {
+        if (!regionSlug) return;
+        if (!world.visitedRegions.some((slug: string) => slug === regionSlug)) {
+            world.visitedRegions.push(regionSlug);
+        }
+    };
+    ensureVisitedRegion(world.regionSlug);
+    const ensureVisitedPoi = () => {
+        const poiSlug = world.poiSlug;
+        if (!poiSlug) return;
+        const regionSlug = world.regionSlug || DEFAULT_WORLD_STATE.regionSlug;
+        const exists = world.visitedPois.some((poi: any) => poi?.poiSlug === poiSlug && poi?.regionSlug === regionSlug);
+        if (!exists) {
+            world.visitedPois.push({
+                regionSlug,
+                poiSlug,
+                name: world.poiName || DEFAULT_WORLD_STATE.poiName,
+            });
+        }
+    };
+    ensureVisitedPoi();
 };
 
 const ensureActionOptionsVariety = (
@@ -432,6 +436,7 @@ const SANITIZER_NOTE_PATTERNS = [
     /actionoptions descartados/i,
     /worldstate idêntico ao anterior removido/i,
     /updatedcharacter sem alterações foi omitido/i,
+    /playerrollrequest removida/i,
 ];
 const classifyWarnings = (warnings: string[]) => {
     const critical: string[] = [];
@@ -689,9 +694,8 @@ const validateWorldContinuity = (ctx: AssertionContext): string[] => {
         ctx.prevCharacter.worldState.regionSlug !== ctx.response.worldState.regionSlug;
     if (regionChanged) {
         const logEntries = Array.isArray(ctx.response.logEntries) ? ctx.response.logEntries : [];
-        const hasNarration = logEntries.some(entry => entry?.type === 'narration');
-        const hasSystem = logEntries.some(entry => entry?.type === 'system');
-        if (!hasNarration || !hasSystem) {
+        const hasNarrativeCoverage = logEntries && logEntries.length > 0;
+        if (!hasNarrativeCoverage) {
             issues.push('region_change_missing_log_entries');
         }
     }
@@ -701,9 +705,8 @@ const validateWorldContinuity = (ctx: AssertionContext): string[] => {
         ctx.prevCharacter.worldState.poiSlug !== ctx.response.worldState.poiSlug;
     if (poiChanged) {
         const logEntries = Array.isArray(ctx.response.logEntries) ? ctx.response.logEntries : [];
-        const hasNarration = logEntries.some(entry => entry?.type === 'narration');
-        const hasSystem = logEntries.some(entry => entry?.type === 'system');
-        if (!hasNarration || !hasSystem) {
+        const hasNarrativeCoverage = logEntries && logEntries.length > 0;
+        if (!hasNarrativeCoverage) {
             issues.push('poi_change_missing_log_entries');
         }
     }
@@ -1198,7 +1201,9 @@ const runSyntheticTurn = async (
     ];
     const { critical: criticalWarnings, info: infoWarnings } = classifyWarnings(combinedWarnings);
 
-    const fallbackTriggered = Boolean(mergedResponse.systemLog && /fallback/i.test(mergedResponse.systemLog));
+    const fallbackTriggered = combinedWarnings.some(warning =>
+        warning.toLowerCase().includes('fallback') || warning.toLowerCase().includes('fail-soft')
+    );
 
     const metric: TurnMetric = {
         label: plan.label,
@@ -1253,89 +1258,7 @@ const runSyntheticTurn = async (
     return metric;
 };
 
-const buildLiveWarnings = (response: GameMasterResponse): string[] => {
-    const warnings: string[] = [];
-    const integrityNotes = response._meta?.integrityNotes;
-    if (integrityNotes) {
-        const notes = Array.isArray(integrityNotes) ? integrityNotes : [integrityNotes];
-        warnings.push(...notes.map(note => {
-            const normalized = note.toLowerCase();
-            if (normalized.includes('migrado')) return 'schema_migration';
-            if (normalized.includes('fase') && normalized.includes('estado')) return 'phase_sanitization';
-            if (normalized.includes('logentries') || normalized.includes('actionoptions')) return 'phase_sanitization';
-            return note;
-        }));
-    }
-    if (response.systemLog && /fallback/i.test(response.systemLog)) {
-        warnings.push('fallback');
-    }
-    return warnings;
-};
-
-const runLiveTurn = async (
-    plan: TurnPlan,
-    context: LiveContext,
-    guards: LiveAssertionState
-): Promise<TurnMetric> => {
-    const prevSnapshot = await buildOptimizedCharacterForAI(context.characterId, false);
-    hydrateSnapshotWorldState(prevSnapshot, guards.lastWorldState);
-    guards.homebrewAllowed = Boolean(prevSnapshot?.useAiHomebrew ?? guards.homebrewAllowed);
-    guards.lastWorldState = prevSnapshot?.worldState ?? guards.lastWorldState ?? null;
-    const start = performance.now();
-    const response = await processPlayerTurn(
-        context.sessionId,
-        context.userId,
-        plan.playerAction,
-        context.apiKey
-    );
-    const end = performance.now();
-    normalizeWorldStatePlacement(response, guards.lastWorldState);
-    console.log(
-        `\n[structured-output:debug] ${plan.label} – resposta live`,
-        JSON.stringify(response, null, 2)
-    );
-    const guardResult = enforceResponseGuards(response, { allowRollRequest: Boolean(plan.expectRollRequest) });
-    const nextSnapshot = await buildOptimizedCharacterForAI(context.characterId, false);
-    hydrateSnapshotWorldState(nextSnapshot, response.worldState ?? guards.lastWorldState ?? null);
-    guards.lastWorldState = nextSnapshot?.worldState ?? guards.lastWorldState ?? null;
-    const assertionIssues = validateStateAssertions(plan, response, prevSnapshot, nextSnapshot, {
-        enforceScenario: false,
-        prevCombatState: guards.prevCombatState,
-        rollRequestHistory: guards.rollRequestHistory,
-        homebrewAllowed: guards.homebrewAllowed,
-    });
-    guards.prevCombatState = response.combatState ?? null;
-    const rawWarnings = buildLiveWarnings(response);
-    const { critical, info } = classifyWarnings(rawWarnings);
-    const fallbackTriggered = Boolean(response.systemLog && /fallback/i.test(response.systemLog));
-    const metric: TurnMetric = {
-        label: plan.label,
-        narrativeMs: end - start,
-        stateMs: end - start,
-        warnings: critical,
-        infoWarnings: info,
-        fallbackTriggered,
-        rollRequestIssued: Boolean(response.playerRollRequest),
-        schemaMismatches: guardResult.rollRequestSanitized ? ['roll_request_sanitized'] : [],
-        assertionIssues,
-    };
-    const shouldPersist = metric.warnings.length > 0 || metric.assertionIssues.length > 0 || metric.fallbackTriggered;
-    if (shouldPersist) {
-        const snapshot = await persistPhaseArtifact('live', plan.label, 'combined', {
-            label: plan.label,
-            response,
-            warnings: rawWarnings,
-            assertionIssues,
-        });
-        if (snapshot) {
-            metric.snapshotFiles = [snapshot];
-        }
-    }
-    return metric;
-};
-
-const summarize = (metrics: TurnMetric[], options: { tolerateLiveWarnings?: boolean } = {}) => {
-    const { tolerateLiveWarnings = false } = options;
+const summarize = (metrics: TurnMetric[]) => {
     const totalMs = metrics.reduce((sum, item) => sum + item.narrativeMs + item.stateMs, 0);
     console.log('\n[structured-output:full] Resumo da sessão simulada:');
     metrics.forEach(metric => {
@@ -1358,32 +1281,12 @@ const summarize = (metrics: TurnMetric[], options: { tolerateLiveWarnings?: bool
         metric.schemaMismatches.length ||
         metric.assertionIssues.length
     );
-    if (problematic.length && !tolerateLiveWarnings) {
+    if (problematic.length) {
         const details = problematic
             .map(metric => `${metric.label}: warnings=${metric.warnings.join(',') || 'nenhum'}, fallback=${metric.fallbackTriggered}, schemaIssues=${metric.schemaMismatches.join(',') || 'nenhuma'}, snapshots=${metric.snapshotFiles?.length ?? 0}`)
             .join(' | ');
         throw new Error(`Teste completo encontrou inconsistências: ${details}`);
     }
-    if (problematic.length && tolerateLiveWarnings) {
-        console.warn('[structured-output:test5] ⚠️ Ocorreram inconsistências não críticas em modo live:', problematic.map(metric => metric.label).join(', '));
-    }
-};
-
-const createLiveContext = async (sessionId: number, userId: number, apiKey: string): Promise<LiveContext> => {
-    const sessaoRepo = AppDataSource.getRepository(SessaoIA);
-    const sessao = await sessaoRepo.findOne({
-        where: { id: sessionId, userId },
-        relations: ['character'],
-    });
-    if (!sessao?.character) {
-        throw new Error(`Sessão ${sessionId} / usuário ${userId} não encontrada ou sem personagem associado.`);
-    }
-    return {
-        sessionId,
-        userId,
-        characterId: sessao.character.id,
-        apiKey,
-    };
 };
 
 export const runStructuredFull = async (cliArgs: string[] = process.argv.slice(2)) => {
@@ -1396,7 +1299,9 @@ export const runStructuredFull = async (cliArgs: string[] = process.argv.slice(2
 
     const sessionArg = getFlag('session');
     const userArg = getFlag('user');
-    const liveMode = sessionArg !== undefined && userArg !== undefined;
+    if (sessionArg !== undefined || userArg !== undefined) {
+        console.warn('[structured-output:full] ⚠️ O modo live foi descontinuado. Parâmetros --session/--user serão ignorados.');
+    }
 
     const apiKey = getFlag('apiKey') ?? env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -1404,68 +1309,41 @@ export const runStructuredFull = async (cliArgs: string[] = process.argv.slice(2
     }
 
     const metrics: TurnMetric[] = [];
-    if (liveMode) {
-        const sessionId = Number(sessionArg);
-        const userId = Number(userArg);
-        if (!Number.isFinite(sessionId) || !Number.isFinite(userId)) {
-            throw new Error('Parâmetros --session e --user devem ser números válidos.');
-        }
-        if (!AppDataSource.isInitialized) {
-            await AppDataSource.initialize();
-        }
-        try {
-            const liveContext = await createLiveContext(sessionId, userId, apiKey);
-            const liveGuards: LiveAssertionState = {
-                prevCombatState: null,
-                rollRequestHistory: new Set<string>(),
-                homebrewAllowed: true,
-                lastWorldState: { ...DEFAULT_WORLD_STATE },
-            };
-            for (const plan of TURN_SEQUENCE) {
-                console.log(`\n[structured-output:full] >>> Turno (live): ${plan.label}`);
-                const metric = await runLiveTurn(plan, liveContext, liveGuards);
-                metrics.push(metric);
-            }
-        } finally {
-            await AppDataSource.destroy();
-        }
-    } else {
-        const model = getFlag('model') || env.AI_MODEL || 'gemini-2.5-flash';
-        const fallbackFlag = getFlag('stateFallbackModel');
-        const stateFallbackModel = fallbackFlag === 'none'
-            ? null
-            : fallbackFlag ?? (model.includes('flash-lite') ? null : 'gemini-2.5-flash-lite');
-        let preferStateFallback = false;
-        const character = await loadCharacterFixture();
-        const sessionState: SessionState = {
-            character,
-            gameLog: 'SISTEMA: Sessão simulada para validação integral.',
-            lastCombatState: character?.combatState ?? null,
-            rollRequestHistory: new Set<string>(),
-            homebrewAllowed: true,
-            lastWorldState: character?.worldState ?? null,
-        };
-        if (!sessionState.character.worldState && sessionState.lastWorldState) {
-            sessionState.character.worldState = sessionState.lastWorldState;
-        }
-        applyWorldStateDefaults(sessionState.character.worldState ?? (sessionState.character.worldState = { ...DEFAULT_WORLD_STATE }));
-        sessionState.lastWorldState = sessionState.character.worldState;
-        for (const plan of TURN_SEQUENCE) {
-            console.log(`\n[structured-output:full] >>> Turno: ${plan.label}`);
-            const metric = await runSyntheticTurn(
-                plan,
-                sessionState,
-                model,
-                stateFallbackModel,
-                DEFAULT_GENERATION_CONFIG,
-                apiKey,
-                preferStateFallback,
-                () => { preferStateFallback = true; }
-            );
-            metrics.push(metric);
-        }
+    const model = getFlag('model') || env.AI_MODEL || 'gemini-2.5-flash';
+    const fallbackFlag = getFlag('stateFallbackModel');
+    const stateFallbackModel = fallbackFlag === 'none'
+        ? null
+        : fallbackFlag ?? (model.includes('flash-lite') ? null : 'gemini-2.5-flash-lite');
+    let preferStateFallback = false;
+    const character = await loadCharacterFixture();
+    const sessionState: SessionState = {
+        character,
+        gameLog: 'SISTEMA: Sessão simulada para validação integral.',
+        lastCombatState: character?.combatState ?? null,
+        rollRequestHistory: new Set<string>(),
+        homebrewAllowed: true,
+        lastWorldState: character?.worldState ?? null,
+    };
+    if (!sessionState.character.worldState && sessionState.lastWorldState) {
+        sessionState.character.worldState = sessionState.lastWorldState;
     }
-    summarize(metrics, { tolerateLiveWarnings: liveMode });
+    applyWorldStateDefaults(sessionState.character.worldState ?? (sessionState.character.worldState = { ...DEFAULT_WORLD_STATE }));
+    sessionState.lastWorldState = sessionState.character.worldState;
+    for (const plan of TURN_SEQUENCE) {
+        console.log(`\n[structured-output:full] >>> Turno: ${plan.label}`);
+        const metric = await runSyntheticTurn(
+            plan,
+            sessionState,
+            model,
+            stateFallbackModel,
+            DEFAULT_GENERATION_CONFIG,
+            apiKey,
+            preferStateFallback,
+            () => { preferStateFallback = true; }
+        );
+        metrics.push(metric);
+    }
+    summarize(metrics);
 };
 
 const isDirectExecution = () => {

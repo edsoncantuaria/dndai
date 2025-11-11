@@ -2046,7 +2046,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             const cleanedData = miniSanitize(responseData);
 
             // 2️⃣ Sanitização semântica / lógica
-            const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character);
+            const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character, input);
             const enforcementNotes = enforcePhaseCompliance(finalResponse, input);
             if (enforcementNotes.length) {
                 emitWarning('phase_sanitization', {

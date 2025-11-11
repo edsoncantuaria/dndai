@@ -2,101 +2,197 @@
   "character": {
     "id": "sample-character",
     "name": "Guardião de Integridade",
-    "level": 3,
-    "xp": 0,
+    "race": "Humano",
+    "subrace": null,
+    "characterClass": "Mago",
+    "subclassFlavor": "Vigia do Éter",
+    "background": "Sábio",
+    "alignment": "Leal e Bom",
+    "level": 5,
+    "xp": 6500,
+    "hp": {
+      "current": 32,
+      "max": 45,
+      "temporary": 0
+    },
+    "proficiencyBonus": 3,
+    "attributes": {
+      "strength": 12,
+      "dexterity": 14,
+      "constitution": 14,
+      "intelligence": 18,
+      "wisdom": 13,
+      "charisma": 11
+    },
+    "gameClock": {
+      "day": 28,
+      "hour": 10,
+      "weather": "Céu limpo"
+    },
     "worldState": {
       "timeOfDay": "Manhã",
-      "weather": "Ensolarado",
+      "weather": "Céu limpo",
       "currentRegion": "Biblioteca Arcana",
       "regionSlug": "biblioteca-arcana",
+      "poiSlug": "sala-dos-astrolabios",
+      "poiName": "Sala dos Astrolábios",
       "visitedRegions": [
-        "biblioteca-arcana"
+        "biblioteca-arcana",
+        "mercado-etereo",
+        "cloister-aurora"
       ],
-      "visitedPois": [],
-      "poiSlug": null
+      "visitedPois": [
+        {
+          "regionSlug": "biblioteca-arcana",
+          "poiSlug": "sala-dos-astrolabios",
+          "name": "Sala dos Astrolábios"
+        },
+        {
+          "regionSlug": "mercado-etereo",
+          "poiSlug": "pavilhao-dos-artefatos",
+          "name": "Pavilhão dos Artefatos"
+        }
+      ],
+      "npcLocations": [
+        {
+          "npcId": "golem-vigia",
+          "name": "Golem Vigia",
+          "regionSlug": "biblioteca-arcana",
+          "poiSlug": "sala-dos-astrolabios"
+        },
+        {
+          "npcId": "borin-stonehand",
+          "name": "Borin Stonehand",
+          "regionSlug": "mercado-etereo",
+          "poiSlug": "pavilhao-dos-artefatos"
+        }
+      ]
     },
     "inventory": [
       {
-        "id": "tomo-do-vigia-sombrio-1762786152030-bp2pyionwg5",
-        "name": "Tomo do Vigia Sombrio",
+        "id": "espada-longa-runica",
+        "name": "Espada Longa Rúnica",
         "quantity": 1,
-        "description": "Um tomo pesado tomado do Suma-Vigia Kaldrax.",
-        "equipped": false,
-        "index": null
+        "description": "Lâmina canalizadora que vibra com energia arcana.",
+        "weapon_range": "Melee",
+        "damage": "1d8+2",
+        "equipped": true
       },
       {
-        "id": "amuleto-de-obedi-ncia-1762786152030-k75eyjx02nd",
-        "name": "Amuleto de Obediência",
+        "id": "escudo-de-safira",
+        "name": "Escudo de Safira",
         "quantity": 1,
-        "description": "Amuleto usado para controlar cultistas.",
-        "equipped": false,
-        "index": null
+        "description": "Escudo leve com runas protetoras.",
+        "equipped": true
       },
       {
-        "id": "rel-quia-restaurada-do-obelisco-1762786166937-6est5n3y1vf",
-        "name": "Relíquia Restaurada do Obelisco",
+        "id": "armadura-de-couro-entalhada",
+        "name": "Armadura de Couro Entalhada",
         "quantity": 1,
-        "description": "Fragmento cristalino purificado após o ritual.",
+        "description": "Armadura leve gravada com símbolos de vigilância.",
+        "equipped": true
+      },
+      {
+        "id": "arco-curto",
+        "name": "Arco Curto",
+        "quantity": 1,
+        "description": "Arco compacto para combate à distância.",
+        "weapon_range": "Ranged",
         "equipped": false
       },
       {
-        "id": "colar-r-nico-purificado-1762786166937-91y5u7k49hk",
-        "name": "Colar Rúnico Purificado",
-        "quantity": 1,
-        "description": "Colar de prata gravado com novas runas brilhantes.",
+        "id": "aljava-padrao",
+        "name": "Aljava",
+        "quantity": 20,
+        "description": "Aljava com flechas equilibradas.",
         "equipped": false
       },
       {
-        "id": "pergaminho-de-restauro-arcano-1762786166937-luxtvum4zg",
-        "name": "Pergaminho de Restauro Arcano",
+        "id": "kit-explorador",
+        "name": "Kit do Explorador",
         "quantity": 1,
-        "description": "Pergaminho utilizado para reverter corrupção em relíquias.",
+        "description": "Equipamentos variados úteis em expedições.",
         "equipped": false
       }
     ],
     "currency": {
-      "pp": 0,
-      "gp": 100,
+      "pp": 2,
+      "gp": 310,
       "ep": 0,
-      "sp": 0,
-      "cp": 0
+      "sp": 45,
+      "cp": 18
     },
     "spells": [
       "Raio Arcano",
-      "Escudo Místico"
+      "Escudo Místico",
+      "Passos Nebulosos",
+      "Mísseis Mágicos"
     ],
+    "resources": {
+      "hitDice": {
+        "size": 6,
+        "available": 5,
+        "maximum": 5
+      },
+      "spellSlots": {
+        "level1": { "available": 3, "maximum": 4 },
+        "level2": { "available": 2, "maximum": 3 },
+        "level3": { "available": 1, "maximum": 2 }
+      }
+    },
     "relationships": [
       {
+        "npcId": "golem-vigia",
         "name": "Golem Vigia",
         "status": "ally",
         "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null,
-        "npcId": "golem-vigia"
+        "regionSlug": "biblioteca-arcana",
+        "poiSlug": "sala-dos-astrolabios",
+        "description": "Guardião que responde diretamente ao personagem."
       },
       {
-        "npcId": "borin",
+        "npcId": "borin-stonehand",
         "name": "Borin Stonehand",
         "status": "friendly",
-        "affinity": 4
+        "affinity": 3,
+        "regionSlug": "mercado-etereo",
+        "poiSlug": "pavilhao-dos-artefatos",
+        "description": "Mercador que fornece equipamentos calibrados."
       },
       {
-        "name": "Borin Stonehand",
+        "npcId": "serena-luz-do-amanhecer",
+        "name": "Serena Luz-do-Amanhecer",
         "status": "friendly",
-        "affinity": 4,
-        "regionSlug": null,
-        "poiSlug": null,
-        "npcId": "borin-stonehand"
+        "affinity": 2,
+        "regionSlug": "cloister-aurora",
+        "poiSlug": "jardins-dourados",
+        "description": "Clériga que supervisiona rituais de cura."
       }
     ],
     "journal": [
       {
-        "status": "unexplored"
+        "id": "quest-eco-astral",
+        "name": "Eco Astral",
+        "region": "Biblioteca Arcana",
+        "summary": "Mapear ressonâncias que se acumulam na Sala dos Astrolábios.",
+        "status": "active",
+        "looted": false
       },
       {
-        "status": "unexplored"
+        "id": "quest-mercado",
+        "name": "Mercado Silenciado",
+        "region": "Mercado Etéreo",
+        "summary": "Ajudou Borin a expulsar contrabandistas.",
+        "status": "completed",
+        "looted": true
       }
     ],
-    "proficiencies": []
+    "proficiencies": [
+      "Arcanismo",
+      "História",
+      "Percepção",
+      "Furtividade"
+    ],
+    "storySoFar": "Guardião destacado para inspecionar experimentos perigosos que ameaçam estabilizar a Biblioteca Arcana."
   }
 }

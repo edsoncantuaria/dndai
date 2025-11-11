@@ -1,5 +1,5 @@
 // backend/src/services/aiSanitizer.ts
-import { GameMasterResponse } from "../schemas/gameSchemas.js";
+import type { GameMasterResponse, GameMasterFlowInput } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
 import type { InventoryLike } from './inventoryService.js';
 import { trackNormalization } from './normalizationRegistry.js';
@@ -505,7 +505,11 @@ const buildSafeWorldState = (source?: any, fallbackRegion?: string) => {
  * @param currentCharacter O estado atual do personagem, para fallback.
  * @returns Um objeto GameMasterResponse logicamente coerente e seguro.
  */
-export const sanitizeGameMasterResponse = (responseData: any, currentCharacter?: any): GameMasterResponse => {
+export const sanitizeGameMasterResponse = (
+    responseData: any,
+    currentCharacter?: any,
+    flowInput?: GameMasterFlowInput
+): GameMasterResponse => {
   if (!responseData || typeof responseData !== 'object') {
     return {
       logEntries: [{ type: 'system', content: 'A resposta da IA foi inválida ou vazia.' }],
@@ -1551,6 +1555,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       sanitized.playerRollRequest.disadvantage = Boolean(sanitized.playerRollRequest.disadvantage);
   }
 
+  const suppressRollFallback = Boolean(flowInput?.suppressRollRequest);
   const combinedLogText = sanitized.logEntries
     ?.map(entry => (typeof entry?.content === 'string' ? entry.content.toLowerCase() : ''))
     .join(' ') ?? '';
@@ -1562,7 +1567,9 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
   );
 
   if (rollMissing) {
-      if (looksLikeRest) {
+      if (suppressRollFallback) {
+          sanitationLogs.push('playerRollRequest ausente, mas suppressRollRequest=true; mantido vazio.');
+      } else if (looksLikeRest) {
           const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
           const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
           sanitized.playerRollRequest = {
@@ -1573,6 +1580,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
               advantage: false,
               disadvantage: false,
           };
+          sanitationLogs.push('playerRollRequest ausente durante descanso, criado fallback padrão.');
       } else {
           sanitized.playerRollRequest = {
               reason: 'Resolver a próxima ação arriscada.',
@@ -1582,11 +1590,11 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
               advantage: false,
               disadvantage: false,
           };
+          sanitationLogs.push('playerRollRequest ausente, criado fallback padrão.');
       }
-      sanitationLogs.push('playerRollRequest ausente, criado fallback padrão.');
   }
 
-  if (!sanitized.useHitDiceRequest && looksLikeRest) {
+  if (!sanitized.useHitDiceRequest && looksLikeRest && !suppressRollFallback) {
       const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
       const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
       const parsedDie = parseHitDieKey(typeof dieKey === 'string' && dieKey.includes('d') ? dieKey : `d${dieKey}`);
