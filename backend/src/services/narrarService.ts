@@ -201,6 +201,219 @@ const mergeNpcLocations = (
     return Array.from(map.values());
 };
 
+type AbilityKey = keyof Pick<CharacterAttributes, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'>;
+
+const normalizeText = (value?: string | null): string =>
+    value
+        ? value
+              .toString()
+              .toLowerCase()
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+        : '';
+
+const canonicalWord = (value?: string | null): string =>
+    normalizeText(value).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+type SkillConfig = {
+    key: string;
+    ability: AbilityKey;
+    keywords: string[];
+};
+
+const SKILL_CONFIG: SkillConfig[] = [
+    { key: 'athletics', ability: 'strength', keywords: ['atlet'] },
+    { key: 'acrobatics', ability: 'dexterity', keywords: ['acroba'] },
+    { key: 'sleight-of-hand', ability: 'dexterity', keywords: ['prestidig', 'sleight', 'mao-leve', 'mao leve'] },
+    { key: 'stealth', ability: 'dexterity', keywords: ['furtiv', 'stealth'] },
+    { key: 'arcana', ability: 'intelligence', keywords: ['arcana'] },
+    { key: 'history', ability: 'intelligence', keywords: ['hist', 'history'] },
+    { key: 'investigation', ability: 'intelligence', keywords: ['investig'] },
+    { key: 'nature', ability: 'intelligence', keywords: ['nature', 'natureza'] },
+    { key: 'religion', ability: 'intelligence', keywords: ['relig'] },
+    { key: 'animal-handling', ability: 'wisdom', keywords: ['animal', 'adestra', 'handling'] },
+    { key: 'insight', ability: 'wisdom', keywords: ['intu', 'insight'] },
+    { key: 'medicine', ability: 'wisdom', keywords: ['medici', 'cura'] },
+    { key: 'perception', ability: 'wisdom', keywords: ['percep'] },
+    { key: 'survival', ability: 'wisdom', keywords: ['sobreviv', 'survival'] },
+    { key: 'deception', ability: 'charisma', keywords: ['engan', 'decep'] },
+    { key: 'intimidation', ability: 'charisma', keywords: ['intimi'] },
+    { key: 'performance', ability: 'charisma', keywords: ['perform', 'apresent'] },
+    { key: 'persuasion', ability: 'charisma', keywords: ['persuas', 'convenc'] },
+];
+
+const ABILITY_KEYWORDS: Record<AbilityKey, string[]> = {
+    strength: ['forca', 'strength', 'str'],
+    dexterity: ['destreza', 'dexterity', 'dex'],
+    constitution: ['constitu', 'constitution', 'con'],
+    intelligence: ['intelig', 'intelligence', 'int'],
+    wisdom: ['sabedor', 'sabedoria', 'wisdom', 'wis'],
+    charisma: ['carism', 'charisma', 'cha'],
+};
+
+const abilityKeywordEntries = Object.entries(ABILITY_KEYWORDS) as Array<[AbilityKey, string[]]>;
+
+type ProficiencySnapshot = {
+    skillKeys: Set<string>;
+    savingThrows: Set<AbilityKey>;
+};
+
+const buildProficiencySnapshot = (character: Character | null | undefined): ProficiencySnapshot => {
+    const snapshot: ProficiencySnapshot = {
+        skillKeys: new Set<string>(),
+        savingThrows: new Set<AbilityKey>(),
+    };
+
+    const registerSkill = (value?: string) => {
+        const key = canonicalWord(value);
+        if (!key) return;
+        if (key.startsWith('skill-')) {
+            snapshot.skillKeys.add(key.slice(6));
+        } else {
+            snapshot.skillKeys.add(key);
+        }
+    };
+
+    const registerSave = (value?: string) => {
+        const key = canonicalWord(value);
+        if (!key) return;
+        if (key.startsWith('saving-throw-')) {
+            registerSave(key.slice('saving-throw-'.length));
+            return;
+        }
+        const abilityEntry = abilityKeywordEntries.find(([, keywords]) =>
+            keywords.some(keyword => key.includes(keyword))
+        );
+        if (abilityEntry) {
+            snapshot.savingThrows.add(abilityEntry[0]);
+        }
+    };
+
+    const registerFromText = (value?: string) => {
+        const normalized = normalizeText(value);
+        if (!normalized) return;
+        for (const config of SKILL_CONFIG) {
+            if (config.keywords.some(keyword => normalized.includes(keyword)) || normalized.includes(config.key)) {
+                registerSkill(config.key);
+            }
+        }
+        const abilityMatch = abilityKeywordEntries.find(([, keywords]) =>
+            keywords.some(keyword => normalized.includes(keyword))
+        );
+        if (abilityMatch && (normalized.includes('save') || normalized.includes('salvaguarda') || normalized.includes('salvamento') || normalized.includes('resistencia'))) {
+            snapshot.savingThrows.add(abilityMatch[0]);
+        }
+    };
+
+    const sourceProficiencies = Array.isArray(character?.proficiencies) ? character!.proficiencies : [];
+    if (!sourceProficiencies.length) {
+        return snapshot;
+    }
+
+    for (const proficiency of sourceProficiencies) {
+        if (!proficiency) continue;
+        if (typeof proficiency === 'string') {
+            registerFromText(proficiency);
+            continue;
+        }
+        const normalizedIndex = canonicalWord(proficiency?.index);
+        const normalizedName = canonicalWord(proficiency?.name);
+        const normalizedType = canonicalWord(proficiency?.type);
+
+        if (normalizedType.includes('skill')) {
+            registerSkill(normalizedIndex || normalizedName);
+            registerFromText(proficiency?.name);
+            continue;
+        }
+        if (normalizedType.includes('saving') || normalizedType.includes('resist')) {
+            registerSave(normalizedIndex || normalizedName);
+            registerFromText(proficiency?.name);
+            continue;
+        }
+
+        if (normalizedIndex.includes('skill')) registerSkill(normalizedIndex);
+        if (normalizedName.includes('skill')) registerSkill(normalizedName);
+        if (normalizedIndex.includes('saving-throw') || normalizedIndex.includes('salvaguarda')) registerSave(normalizedIndex);
+        if (normalizedName.includes('saving-throw') || normalizedName.includes('salvaguarda')) registerSave(normalizedName);
+        registerFromText(proficiency?.name);
+    }
+
+    return snapshot;
+};
+
+type RollIntent =
+    | { ability: AbilityKey; proficiency: 'skill'; skillKey: string }
+    | { ability: AbilityKey; proficiency: 'save' }
+    | { ability: AbilityKey; proficiency: null };
+
+const inferRollIntent = (request: PlayerRollRequest | null | undefined): RollIntent | null => {
+    if (!request?.reason) return null;
+    const normalizedReason = normalizeText(request.reason);
+    if (!normalizedReason) return null;
+
+    for (const config of SKILL_CONFIG) {
+        if (config.keywords.some(keyword => normalizedReason.includes(keyword))) {
+            return { ability: config.ability, proficiency: 'skill', skillKey: canonicalWord(config.key) };
+        }
+    }
+
+    const abilityFromReason = abilityKeywordEntries.find(([, keywords]) =>
+        keywords.some(keyword => normalizedReason.includes(keyword))
+    );
+
+    if (request.rollType === 'save') {
+        if (abilityFromReason) {
+            return { ability: abilityFromReason[0], proficiency: 'save' };
+        }
+        return null;
+    }
+
+    if (abilityFromReason) {
+        return { ability: abilityFromReason[0], proficiency: null };
+    }
+
+    return null;
+};
+
+const computeAbilityModifier = (score: number | null | undefined) => {
+    if (typeof score !== 'number' || !Number.isFinite(score)) {
+        return 0;
+    }
+    return Math.floor((score - 10) / 2);
+};
+
+const getProficiencyBonus = (level: number | null | undefined): number => {
+    if (!Number.isFinite(level)) return 2;
+    return Math.floor(((level ?? 1) - 1) / 4) + 2;
+};
+
+const recalculatePlayerRollModifier = (
+    request: PlayerRollRequest,
+    character: Character | null | undefined
+): number | null => {
+    if (!character) return null;
+    const intent = inferRollIntent(request);
+    if (!intent) return null;
+    const attributes = character.attributes;
+    if (!attributes) return null;
+    const abilityScore = attributes[intent.ability] ?? 10;
+    let modifier = computeAbilityModifier(abilityScore);
+    const proficiencyBonus = getProficiencyBonus(character.level ?? 1);
+    const snapshot = buildProficiencySnapshot(character);
+
+    if (intent.proficiency === 'skill') {
+        if (snapshot.skillKeys.has(intent.skillKey)) {
+            modifier += proficiencyBonus;
+        }
+    } else if (intent.proficiency === 'save') {
+        if (snapshot.savingThrows.has(intent.ability)) {
+            modifier += proficiencyBonus;
+        }
+    }
+
+    return modifier;
+};
 
 type RegionPromptContext = {
     slug: string;
@@ -1391,6 +1604,20 @@ export const processPlayerTurn = async (
             : `[GM Validator]\n${note}`;
     }
     aiResponse = validatorResult.validatedResponse;
+
+    if (aiResponse.playerRollRequest) {
+        const recalculatedModifier = recalculatePlayerRollModifier(aiResponse.playerRollRequest, characterForAI);
+        if (
+            recalculatedModifier !== null &&
+            recalculatedModifier !== aiResponse.playerRollRequest.modifier
+        ) {
+            aiResponse.playerRollRequest.modifier = recalculatedModifier;
+            aiResponse.systemLog = appendSystemLogEntry(
+                aiResponse.systemLog,
+                `[Regras] Modificador ajustado para ${recalculatedModifier >= 0 ? '+' : ''}${recalculatedModifier} com base nos atributos atuais.`
+            );
+        }
+    }
 
     if (isTestRun || !sessao) {
         return aiResponse;

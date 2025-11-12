@@ -22,6 +22,7 @@ import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 import * as RegionService from './regionService.js';
 import { extractQuestKeywordStrings } from './questKeywordService.js';
 import type { RegionLink } from '../entities/RegionLink.js';
+import { fetchObjectAsText } from './objectStorageService.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -237,6 +238,8 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
         });
     }
 
+    await hydrateLogResponses(sessao.logs);
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { apiKey, ...sessaoSegura } = sessao;
     return sessaoSegura;
@@ -318,6 +321,32 @@ const flattenJournalEntries = (entries?: JournalEntry[]): JournalEntry[] => {
         }
     }
     return result;
+};
+
+const resolveOffloadedResponse = async (raw?: string | null): Promise<string | null> => {
+    if (!raw) return raw ?? null;
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object' && parsed.storage === 's3' && typeof parsed.key === 'string') {
+            const restored = await fetchObjectAsText(parsed.key);
+            return restored ?? raw;
+        }
+    } catch {
+        // not an offloaded pointer; keep raw text
+    }
+    return raw;
+};
+
+const hydrateLogResponses = async (logs?: SessionLog[] | null) => {
+    if (!logs?.length) return;
+    await Promise.all(
+        logs.map(async log => {
+            const resolved = await resolveOffloadedResponse(log.response);
+            if (resolved) {
+                log.response = resolved;
+            }
+        })
+    );
 };
 
 export const getSessaoFacts = async (sessionId: number, userId: number): Promise<SessionFactsPayload> => {

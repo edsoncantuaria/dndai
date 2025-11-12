@@ -163,3 +163,26 @@ export const deleteObject = async (key?: string | null) => {
     console.warn('[objectStorage] Falha ao remover objeto do MinIO:', error);
   }
 };
+
+export const fetchObjectAsText = async (key?: string | null): Promise<string | null> => {
+  if (!key || !minioClient) return null;
+  const ready = await ensureBucket();
+  if (!ready) return null;
+  return new Promise(resolve => {
+    minioClient.getObject(bucketName, key, (err, dataStream) => {
+      if (err || !dataStream) {
+        console.warn('[objectStorage] Falha ao recuperar objeto do MinIO:', err);
+        return resolve(null);
+      }
+      const chunks: Buffer[] = [];
+      dataStream.on('data', chunk => chunks.push(chunk));
+      dataStream.on('end', () => {
+        resolve(Buffer.concat(chunks).toString('utf8'));
+      });
+      dataStream.on('error', streamErr => {
+        console.warn('[objectStorage] Erro durante leitura do objeto MinIO:', streamErr);
+        resolve(null);
+      });
+    });
+  });
+};

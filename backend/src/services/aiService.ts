@@ -2899,19 +2899,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
 
             if (responseData && typeof responseData === 'object' && !responseMatchesCurrentSchema(responseData)) {
-                const schemaDriftRetryCount = retryOptions.schemaDriftRetryCount ?? 0;
-                if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS && schemaDriftRetryCount < 2) {
-                    console.warn('[aiService] Hash de schema divergente; solicitando nova tentativa antes da migração.');
-                    registerRecoveryStrategy('schema-drift-retry');
-                    const schemaHint = input.responseFocus === 'state' ? STATE_SCHEMA_DRIFT_HINT : GENERIC_SCHEMA_DRIFT_HINT;
-                    emitWarning('schema_drift_retry', { focus: input.responseFocus ?? 'full' });
-                    return attemptGeneration(attemptIndex + 1, {
-                        ...retryOptions,
-                        schemaDriftRetryCount: schemaDriftRetryCount + 1,
-                        additionalHints: mergeRetryHints(retryOptions.additionalHints, schemaHint),
-                    });
-                }
-                console.warn('[aiService] Hash de schema divergente persistiu; aplicando migração defensiva.');
+                console.warn('[aiService] Hash de schema divergente; aplicando migração defensiva imediata.');
                 responseData = migrateLegacyResponse(responseData, { input, rawText: jsonText });
                 markSchemaDrift(responseData);
                 emitWarning('schema_migration', { focus: input.responseFocus ?? 'full' });

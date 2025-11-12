@@ -32,7 +32,7 @@ const GameContainer = () => {
         clearApiError,
     } = useGameStateContext();
 
-    const { useAiHomebrew, playMenuMusic, setPlayMenuMusic, volume, isMuted } = useSettingsContext();
+    const { useAiHomebrew, playMenuMusic, volume, isMuted } = useSettingsContext();
     const { logout, user } = useAuth();
     const { toast } = useToast();
 
@@ -147,18 +147,15 @@ const GameContainer = () => {
     const handleContinueGame = useCallback(async (sessionIdToLoad: number) => {
         setGameStage('playing');
         const loadedData = await loadGameSession(sessionIdToLoad);
-        if (loadedData) {
-            setPlayMenuMusic(false);
-        } else {
+        if (!loadedData) {
             setGameStage('main_menu');
         }
-    }, [loadGameSession, setPlayMenuMusic]);
+    }, [loadGameSession]);
 
     const returnToMenu = useCallback(() => {
         clearGameState();
         setGameStage('main_menu');
-        setPlayMenuMusic(true);
-    }, [clearGameState, setPlayMenuMusic]);
+    }, [clearGameState]);
 
     const confirmDeleteCharacter = useCallback(async () => {
         if (!characterToDelete) return;
