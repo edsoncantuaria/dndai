@@ -13,6 +13,18 @@ Este é o novo backend para o jogo "Crônicas de Aventuras", reconstruído para 
 - **Genkit (Google Gemini)**: Para a geração de conteúdo narrativo pela IA.
 - **dotenv**: Para gerenciamento de variáveis de ambiente.
 
+## Pipeline de IA em alto nível
+
+- **Prompt rico + memória estruturada:** cada turno envia o log condensado, timeline, resumos, grafo de memória (`MEMORIA_GRAFO=...`) e um snippet real (`EXEMPLO_STATE/NARRATIVE`) obtido de execuções anteriores (`scenario_examples`). Isso garante que a IA tenha o mesmo contexto que o jogador.
+- **Playbooks por cenário:** regras em `scenarioPlaybooks.ts` limitam o que cada fase pode fazer (combate não termina sem hostis, loja não abre durante luta, revisão exige XP, etc.). Se o modelo quebrar a regra, o guard impede a resposta e pede retry com o hint correto.
+- **Templates oficiais:** combatentes referenciam `enemy_templates` (persistidos no banco com CRUD/seed). Sempre que recebemos um combate, stats/HP/dano são normalizados com base nesses templates.
+- **Sanitizadores + validadores semânticos:** corrigimos loot/XP/relógio, mantemos apenas deltas, e verificamos coerência (hostis vivos, motivo de rolagem com perícia, iniciativa válida). Problemas geram retries automáticos.
+- **Feedback persistente:** avisos (ex.: `state_guard_retry`) são gravados em `ai_feedback_notes`; o próximo turno daquele cenário recebe automaticamente um `validationFeedback` explicando o erro.
+- **Observabilidade e métricas:** cada warning incrementa contadores em `logs/metrics/warnings.log` e expomos `/metrics/warnings` para Prometheus/ELK.
+- **Fallback resiliente:** se o modelo insiste em errar, geramos uma resposta mínima válida, registramos snapshots em `logs/phase-debug` e o jogador nunca vê estado quebrado.
+
+Esse pipeline garante consistência de sessão, combate, inventário, quests e memórias mesmo usando um modelo generativo externo.
+
 ## Como Iniciar
 
 ### 1. Pré-requisitos
@@ -72,6 +84,18 @@ Este comando irá:
 - Garantir que um usuário "Sistema" exista.
 - Ler os arquivos de tradução de magias, equipamentos e os dados de antecedentes.
 - Inserir ou atualizar esses dados na tabela `homebrew_content`, marcando-os como públicos para que possam ser usados no jogo.
+
+### 6. Templates oficiais de inimigos
+
+Os combates usam fichas persistidas na tabela `enemy_templates`. Para carregar os templates padrão e habilitar o CRUD:
+
+```bash
+npm run seed:enemy-templates
+```
+
+- O servidor sincroniza o cache com o banco durante o startup.
+- Há rotas autenticadas em `/api/ai/enemy-templates` (GET/POST/PUT/DELETE) para gerenciar novas fichas.
+- O sanitizador referencia esses templates automaticamente ao normalizar combatentes.
 
 ## Testando a API (Exemplos)
 
@@ -134,4 +158,3 @@ curl -X POST http://localhost:8071/api/narrar/1 \
 ```
 
 A cada chamada para este endpoint, a interação é salva no banco de dados e associada à sessão correta.
-
