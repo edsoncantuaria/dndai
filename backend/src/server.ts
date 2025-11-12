@@ -11,6 +11,7 @@ import { getTranslations } from './services/translationService.js'; // Importa o
 import { checkObjectStorageHealth } from './services/objectStorageService.js';
 import { env } from './config/env.js';
 import { ensureQdrantCollections } from './database/qdrant-client.js';
+import { refreshEnemyTemplatesFromDatabase } from './services/enemyTemplateRegistry.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
@@ -24,6 +25,7 @@ import unifiedDataRouter from './routes/unifiedDataRouter.js'; // Substitui dndA
 import cacheRoutes from './routes/cacheRoutes.js';
 import logsRoutes from './routes/logsRoutes.js';
 import regionRoutes from './routes/regionRoutes.js';
+import metricsRoutes from './routes/metricsRoutes.js';
 
 
 const app = express();
@@ -71,6 +73,7 @@ app.use('/api/data', unifiedDataRouter); // Nova rota unificada
 app.use('/api/cache', cacheRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/regions', regionRoutes);
+app.use('/metrics', metricsRoutes);
 
 
 // Rota de Traduções
@@ -96,6 +99,8 @@ const startServer = async () => {
     try {
         await AppDataSource.initialize();
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
+        await refreshEnemyTemplatesFromDatabase();
+        console.log('[Startup] Templates de inimigos sincronizados.');
 
         const storageHealth = await checkObjectStorageHealth();
         const storageMessagePrefix = '[Startup][ObjectStorage]';

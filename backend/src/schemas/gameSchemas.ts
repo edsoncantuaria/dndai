@@ -67,9 +67,26 @@ const CombatZoneSchema = z.enum(['perto', 'medio', 'longe', 'coberto']).describe
 
 /* -------------------------------- COMBAT -------------------------------- */
 export const CombatAttitudeSchema = z.enum(['hostile', 'neutral', 'ally']).describe("Postura do combatente em relação ao jogador.");
+const AbilityScoresSchema = z.object({
+  str: z.number().optional(),
+  dex: z.number().optional(),
+  con: z.number().optional(),
+  int: z.number().optional(),
+  wis: z.number().optional(),
+  cha: z.number().optional(),
+}).partial().describe("Atributos-base do combatente.");
+
+const DamageProfileSchema = z.object({
+  dice: z.string().describe("Dado de dano principal (ex.: '1d8+3')."),
+  type: z.string().optional().describe("Tipo de dano, se aplicável."),
+  average: z.number().optional().describe("Valor médio usado para pré-cálculos."),
+  notes: z.string().optional().describe("Observações adicionais (ex.: efeitos secundários)."),
+});
+
 export const FullCombatantSchema = z.object({
   id: z.string().describe("ID único do combatente (ex.: 'player', 'goblin-1')."),
   name: z.string().describe("Nome de exibição do combatente."),
+  templateId: z.string().optional().describe("Identificador do template persistido usado como base para este combatente."),
   hp: z.object({
     current: z.number().describe("Pontos de vida atuais."),
     max: z.number().describe("Pontos de vida máximos."),
@@ -90,6 +107,8 @@ export const FullCombatantSchema = z.object({
   readyAction: z.string().optional().describe("Descrição da ação preparada para um gatilho."),
   tempModifiers: z.any().optional().describe("Modificadores temporários de feitiços ou efeitos."),
   attitude: CombatAttitudeSchema.optional().default('neutral').describe("Relação atual com o personagem do jogador."),
+  baseStats: AbilityScoresSchema.optional().describe("Atributos persistentes associados ao template do combatente."),
+  damageProfile: DamageProfileSchema.optional().describe("Dados de dano baseados no template."),
   rollHistory: z.array(z.object({
     type: z.enum(['initiative', 'attack', 'damage', 'save', 'check']),
     roll: z.number(),
@@ -316,6 +335,7 @@ export const GameMasterFlowInputSchema = z.object({
   combatState: CombatStateSchema.optional().describe("Estado do combate atual, se ativo."),
   homebrewSummary: z.string().optional().describe("Resumo textual do conteúdo homebrew instalado para esta sessão."),
   validationFeedback: z.string().optional().describe("Feedback adicional sobre inconsistências detectadas para orientar a próxima resposta."),
+  sessionId: z.string().optional().describe("Identificador estável da sessão para agregação de feedback."),
   useAiHomebrew: z.boolean().optional().describe("Se a IA tem permissão para criar conteúdo homebrew."),
   enableNarrativeRevalidation: z.boolean().optional().describe("Ativa instruções extras para revalidar continuidade narrativa e lógica a cada resposta."),
   timelineFacts: z.string().optional().describe("Linha do tempo resumida com eventos relevantes da sessão."),
@@ -325,5 +345,6 @@ export const GameMasterFlowInputSchema = z.object({
   mode: z.enum(['gameplay', 'combat', 'generation', 'audit']).optional().describe("Modo de interação que orienta limites de tokens e parâmetros do modelo."),
   responseFocus: z.enum(['full', 'narrative', 'state']).optional().describe("Quando definido, orienta módulos de saída (ex.: fase narrativa ou fase de estado)."),
   suppressRollRequest: z.boolean().optional().describe("Se true, quaisquer playerRollRequest retornadas serão descartadas."),
+  exampleSnippet: z.string().optional().describe("Exemplo concreto extraído de execuções anteriores para orientar o modelo."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

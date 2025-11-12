@@ -20,7 +20,8 @@
     "ai:test-structured5": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured5.ts",
     "ai:test-structured-full": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructuredFull.ts",
     "ai:seed-normalizations": "tsx src/scripts/seedNormalizationPatterns.ts",
-    "seed:regions": "tsx src/scripts/seedRegions.ts"
+    "seed:regions": "tsx src/scripts/seedRegions.ts",
+    "seed:enemy-templates": "tsx src/scripts/seedEnemyTemplates.ts"
   },
   "keywords": [
     "rpg",

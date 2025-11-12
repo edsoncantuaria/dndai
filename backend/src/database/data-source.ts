@@ -32,6 +32,9 @@ import { RegionSnapshot } from '../entities/RegionSnapshot.js';
 import { QuestKeyword } from '../entities/QuestKeyword.js';
 import { VectorMemoryBacklog } from '../entities/VectorMemoryBacklog.js';
 import { SanitizationPattern } from '../entities/SanitizationPattern.js';
+import { EnemyTemplate as EnemyTemplateEntity } from '../entities/EnemyTemplate.js';
+import { AiFeedbackNote } from '../entities/AiFeedbackNote.js';
+import { ScenarioExample } from '../entities/ScenarioExample.js';
 
 
 /**
@@ -85,6 +88,9 @@ export const AppDataSource = new DataSource({
         QuestKeyword,
         VectorMemoryBacklog,
         SanitizationPattern,
+        EnemyTemplateEntity,
+        AiFeedbackNote,
+        ScenarioExample,
     ], 
     
     migrations: [],

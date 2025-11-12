@@ -37,6 +37,7 @@ import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { runGmValidator } from './gmValidator.js';
+import { buildFeedbackHint } from './aiFeedbackService.js';
 import { savePendingRollRequest, clearPendingRollRequest } from './rollRequestService.js';
 import * as RegionService from './regionService.js';
 
@@ -924,6 +925,8 @@ export const processPlayerTurn = async (
 
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
 
+    const sessionKey = sessao ? String(sessao.id) : undefined;
+
     const gameMasterFlowInput = {
         character: characterForAI,
         playerAction,
@@ -939,6 +942,7 @@ export const processPlayerTurn = async (
         discoveredRoutes: regionPromptContext?.discoveredRoutes,
         visitedRegions: regionPromptContext?.visitedRegions,
         mode: aiMode,
+        sessionId: sessionKey,
     };
 
     const appendSystemNote = (response: GameMasterResponse, note: string) => {
@@ -1029,8 +1033,10 @@ export const processPlayerTurn = async (
         };
     };
 
-    const narrativePhase = await requestPhaseResponse('narrative');
-    const statePhase = await requestPhaseResponse('state');
+    const narrativeHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'narrative');
+    const narrativePhase = await requestPhaseResponse('narrative', narrativeHint ? { validationFeedback: narrativeHint } : {});
+    const stateHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'state');
+    const statePhase = await requestPhaseResponse('state', stateHint ? { validationFeedback: stateHint } : {});
 
     const narrativeIssues = narrativePhase.usedFallback || narrativePhase.validationIssues.length || narrativePhase.warnings.length;
     if (narrativeIssues) {

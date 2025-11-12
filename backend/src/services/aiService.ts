@@ -23,6 +23,13 @@ import { reconstructSemanticIntent } from './semanticRecoveryService.js';
 import { attemptJsonRepair, buildContinuationSnippet, softTailRepair, stripCodeFences, stripSuffix, trimAfterLastClosingBracket } from './aiRepairUtils.js';
 import { buildFailSoftResponse } from './failSoftService.js';
 import { loadSessionSnapshot, normalizeSessionId, registerFailure, resetFailures, saveSessionSnapshot } from './sessionRecoveryCache.js';
+import { getEnemyTemplateByKey, type EnemyTemplateRecord } from './enemyTemplateRegistry.js';
+import { evaluateScenarioStatePlaybook } from '../game/scenarioPlaybooks.js';
+import { buildMemoryGraph, formatMemoryGraphSnippet } from '../game/memoryGraph.js';
+import { evaluateSemanticConsistency } from './semanticValidator.js';
+import { fetchScenarioExampleSnippet, recordScenarioExample } from './scenarioExampleService.js';
+import { recordFeedbackWarning } from './aiFeedbackService.js';
+import { trackWarningMetric } from './warningMetricsService.js';
 
 type GeminiMessage = Content;
 
@@ -1108,7 +1115,7 @@ const buildNarrativeDecisionTags = (character: any, playerAction?: string): stri
 };
 
 const narrativeExampleSnippet = `{"logEntries":[{"type":"narration","content":"Visão breve do cenário."},{"type":"system","content":"Observação objetiva."}],"actionOptions":[{"text":"Explorar o arco violeta","action":"explore","skill":"perception"},{"text":"Investigar o beco estreito","action":"investigate","skill":"stealth"},{"text":"Recuperar fôlego e observar","action":"wait"}],"systemLog":"Notas concisas sobre verificações e ganchos."}`;
-const stateExampleSnippet = `{"logEntries":[],"actionOptions":[],"updatedCharacter":{"worldState":{"currentRegion":"biblioteca-arcana","timeOfDay":"Manhã"}},"worldState":{"currentRegion":"biblioteca-arcana","poiSlug":"arco-violeta"},"playerRollRequest":{"reason":"Purificar a relíquia","dice":"1d20","dc":15,"rollType":"Arcana"},"systemLog":"Estado consolidado após a ação.","_meta":{"version":${CURRENT_SCHEMA_VERSION},"hash":"${GAME_MASTER_SCHEMA_HASH}"}}`;
+const stateExampleSnippet = `{"logEntries":[],"actionOptions":[],"updatedCharacter":{"worldState":{"currentRegion":"biblioteca-arcana","timeOfDay":"Manhã"}},"worldState":{"currentRegion":"biblioteca-arcana","poiSlug":"arco-violeta"},"playerRollRequest":{"reason":"Teste de Arcana para purificar a relíquia","dice":"1d20","dc":15,"rollType":"check"},"systemLog":"Estado consolidado após a ação.","_meta":{"version":${CURRENT_SCHEMA_VERSION},"hash":"${GAME_MASTER_SCHEMA_HASH}"}}`;
 
 type StatePhaseGuardIssue = { reason: string; hint: string };
 
@@ -1142,6 +1149,7 @@ const SCENARIO_STATE_DIRECTIVES: Record<string, string[]> = {
         'Mantenha combatState.isActive=true e atualize combatants, turno, rodada e condições persistentes.',
         'Aplique deltas de HP/status nos combatentes que agiram neste turno.',
         'Não encerre o combate enquanto hostis estiverem em campo; mantenha lootOffer vazio até o fim.',
+        'Se solicitar rolagem, use playerRollRequest.rollType="check" e coloque a perícia no reason (ex.: "Teste de Atletismo para resistir à investida").',
     ],
     'Desafio multi-rolagem': [
         'Inclua playerRollRequest com requestId único (ex.: "rollreq_multiskill_01"), rollType apropriado, DC explícito e razão da rolagem.',
@@ -1194,8 +1202,9 @@ const detectStatePhaseGuardIssue = (
     if (suppressRoll && response.playerRollRequest) {
         return { reason: 'player_roll_present_on_suppressed_turn', hint: STATE_PHASE_GUARD_HINTS.suppressRoll };
     }
-    const combatActive = Boolean(input.combatState?.isActive);
-    if (combatActive) {
+    const baselineCombat = input.combatState;
+    const combatRequiresContinuation = Boolean(baselineCombat?.isActive && hasActiveHostiles(baselineCombat));
+    if (combatRequiresContinuation) {
         if (!response.combatState || !response.combatState.isActive) {
             return {
                 reason: 'combat_state_missing_during_active_encounter',
@@ -1227,6 +1236,33 @@ const detectStatePhaseGuardIssue = (
     if (typeof response.systemLog !== 'string' || !response.systemLog.includes(STATE_PHASE_HASH_LINE)) {
         return { reason: 'missing_schema_hash_line', hint: STATE_PHASE_GUARD_HINTS.hash };
     }
+    if (combatRequiresContinuation) {
+        if (!response.combatState || !response.combatState.isActive) {
+            return {
+                reason: 'combat_state_missing_during_active_encounter',
+                hint: 'O combate segue ativo; responda com combatState.isActive=true, combatants completos e turn/round válidos.',
+            };
+        }
+        if (!isFiniteNumber(response.combatState.round) || response.combatState.round <= 0 ||
+            !isFiniteNumber(response.combatState.turn) || response.combatState.turn < 0) {
+            return {
+                reason: 'combat_round_turn_missing',
+                hint: 'Durante combate ativo informe números válidos para combatState.round e combatState.turn.',
+            };
+        }
+        if (response.shopState?.isOpen) {
+            return {
+                reason: 'shop_open_during_combat',
+                hint: 'Não mantenha shopState.isOpen enquanto o combate estiver ativo; só abra a loja depois do encontro.',
+            };
+        }
+        if (hasMeaningfulLoot(response.lootOffer)) {
+            return {
+                reason: 'loot_offer_during_combat',
+                hint: 'Não distribua lootOffer durante o combate; espere o encerramento para conceder recompensas.',
+            };
+        }
+    }
     const scenarioIssue = detectScenarioRequirementIssue(response, input, baselineCharacter);
     if (scenarioIssue) {
         return scenarioIssue;
@@ -1234,18 +1270,13 @@ const detectStatePhaseGuardIssue = (
     return null;
 };
 
-const SCENARIOS_EXPECTING_ROLL = new Set([
-    'Ameaça súbita',
-    'Combate prolongado',
-    'Desafio multi-rolagem',
-    'Queda e recuperação',
-]);
-
 const detectScenarioRequirementIssue = (
     response: any,
     input: GameMasterFlowInput,
     baselineCharacter?: Record<string, any>
 ): StatePhaseGuardIssue | null => {
+    const baselineCombat = input.combatState;
+    const baselineHasHostiles = Boolean(baselineCombat?.isActive && hasActiveHostiles(baselineCombat));
     const lootCurrency = response.lootOffer?.currency;
     const lootValue = lootCurrency && typeof lootCurrency === 'object'
         ? Object.values(lootCurrency).reduce((sum, value) => sum + (Number(value) || 0), 0)
@@ -1297,39 +1328,20 @@ const detectScenarioRequirementIssue = (
         };
     }
 
-    const scenarioLabel = input.scenarioLabel;
-    if (!scenarioLabel) {
-        return null;
+    const playbookIssue = evaluateScenarioStatePlaybook(response, input, { combatShouldContinue: baselineHasHostiles });
+    if (playbookIssue) {
+        return playbookIssue;
     }
 
-    if (scenarioLabel === 'Revisão de progresso') {
-        if (xpEvents.length === 0 && progressionFeed.length === 0 && !response.levelUpState) {
+    const baselineLevel = Number(baselineCharacter?.level ?? baselineCharacter?.attributes?.level ?? NaN);
+    if (response.levelUpState && Number.isFinite(baselineLevel)) {
+        const declaredLevel = Number(response.levelUpState.level ?? response.levelUpState.levelReached ?? NaN);
+        if (Number.isFinite(declaredLevel) && declaredLevel <= baselineLevel) {
             return {
-                reason: 'progress_review_missing_xp',
-                hint: 'Em "Revisão de progresso", inclua xpEvents/progressionFeed (e levelUpState se aplicável).',
+                reason: 'spurious_level_up_state',
+                hint: 'Só envie levelUpState quando o personagem realmente subir de nível; remova-o caso nada tenha evoluído.',
             };
         }
-    }
-
-    if (scenarioLabel === 'Recuperação / loot' && xpEvents.length === 0) {
-        return {
-            reason: 'recovery_loot_missing_xp',
-            hint: 'Durante "Recuperação / loot", registre xpEvents com o ganho de XP ou progresso do saque.',
-        };
-    }
-
-    if (scenarioLabel === 'Combate prolongado' && (!response.combatState || !response.combatState.isActive)) {
-        return {
-            reason: 'combat_state_missing_during_scenario',
-            hint: 'Durante "Combate prolongado", mantenha combatState.isActive=true com combatants completos.',
-        };
-    }
-
-    if (SCENARIOS_EXPECTING_ROLL.has(scenarioLabel) && !response.playerRollRequest) {
-        return {
-            reason: 'scenario_roll_request_missing',
-            hint: `O turno "${scenarioLabel}" exige playerRollRequest com requestId único, rollType e DC explícitos.`,
-        };
     }
 
     return null;
@@ -1409,6 +1421,7 @@ ${stateExampleSnippet}
 - Não aninhe worldState dentro de updatedCharacter se já estiver preenchendo o campo dedicado.
 - Atualize combatState, xpEvents, progressionFeed, lootOffer etc. apenas se houver mudanças reais.
 - ${suppressRollDirective}
+- Sempre use playerRollRequest.rollType="check" e descreva a perícia/atributo em reason (ex.: "Teste de Arcana para purificar a relíquia").
 - Sempre que lootOffer conceder moedas/itens, atualize updatedCharacter.currency/inventory apenas com os deltas correspondentes.
 - Se o gameClock já existir, reporte o novo dia/hora sem retroceder valores.
 - Mantenha systemLog como um resumo objetivo das atualizações aplicadas.`;
@@ -1571,6 +1584,16 @@ ${stateExampleSnippet}
                 ? `MAPA_REGIAO=${regionSlug}\n`
                 : '')
         : '';
+    const memoryGraph = buildMemoryGraph({
+        character,
+        world: characterForPrompt?.worldState,
+        combatState,
+    });
+    const memoryGraphSnippet = formatMemoryGraphSnippet(memoryGraph);
+    const memoryGraphSection = memoryGraphSnippet ? `${memoryGraphSnippet}\n` : '';
+    const scenarioExampleSection = input.exampleSnippet && focus !== 'full'
+        ? `EXEMPLO_${focus.toUpperCase()}=${input.exampleSnippet}\n`
+        : '';
     const worldStateDigest = JSON.stringify(characterForPrompt?.worldState ?? { timeOfDay: 'Manhã', weather: 'Ensolarado', currentRegion: 'Desconhecida' });
     const climateKeyword = includeStateBrief && characterForPrompt?.worldState?.weather
         ? `CLIMA=${characterForPrompt.worldState.weather}\n`
@@ -1605,7 +1628,7 @@ ${characterContext}
 ### COMBATE ATUAL
 ${combatContextValue}
 
-### INSTRUÇÃO
+${memoryGraphSection ? `${memoryGraphSection}` : ''}${scenarioExampleSection ? `${scenarioExampleSection}` : ''}### INSTRUÇÃO
 O jogador fez a seguinte ação:
 "${playerAction}"
 
@@ -1636,6 +1659,512 @@ const buildRollRequestId = (rollType?: string | null) => {
         ? rollType.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')
         : 'roll';
     return `${normalized}_${randomUUID()}`;
+};
+
+const normalizeRollType = (rollType?: string | null) => {
+    if (!rollType) return 'check';
+    const allowed = new Set(['check', 'save', 'attack', 'damage', 'initiative']);
+    const lowered = rollType.toLowerCase().trim();
+    if (allowed.has(lowered)) return lowered;
+    return 'check';
+};
+
+const isFiniteNumber = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isFinite(value);
+
+const hasActiveHostiles = (combatState?: any): boolean => {
+    if (!combatState || !Array.isArray(combatState.combatants)) return false;
+    return combatState.combatants.some((combatant: any) => {
+        if (!combatant) return false;
+        if (combatant.attitude !== 'hostile') return false;
+        if (combatant.isDead) return false;
+        const hp = combatant.hp;
+        if (hp && typeof hp.current === 'number') {
+            return hp.current > 0;
+        }
+        if (typeof combatant.hpCurrent === 'number') {
+            return combatant.hpCurrent > 0;
+        }
+        return true;
+    });
+};
+
+const hasMeaningfulLoot = (lootOffer?: any): boolean => {
+    if (!lootOffer || typeof lootOffer !== 'object') return false;
+    const items = Array.isArray(lootOffer.items) ? lootOffer.items : [];
+    const hasItems = items.length > 0;
+    const currency = lootOffer.currency && typeof lootOffer.currency === 'object'
+        ? Object.values(lootOffer.currency).some(value => Number(value) !== 0)
+        : false;
+    return hasItems || currency;
+};
+
+const isXpPlaceholder = (entry: any): boolean => {
+    if (!entry || typeof entry !== 'object') return false;
+    const description = typeof entry.description === 'string' ? entry.description.toLowerCase() : '';
+    const summary = typeof entry.summary === 'string' ? entry.summary.toLowerCase() : '';
+    return description.includes('placeholder') ||
+        description.includes('substitua') ||
+        summary.includes('placeholder') ||
+        summary.includes('substitua');
+};
+
+const toTemplateKey = (value?: string | null): string | null => {
+    if (!value || typeof value !== 'string') return null;
+    const normalized = value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return normalized || null;
+};
+
+const mergeBaseStats = (
+    existing: Record<string, number | undefined> | undefined,
+    template: EnemyTemplateRecord | undefined
+): Record<string, number | undefined> | undefined => {
+    const templateStats = template?.stats ?? {};
+    const merged: Record<string, number | undefined> = {
+        str: existing?.str ?? templateStats.str,
+        dex: existing?.dex ?? templateStats.dex,
+        con: existing?.con ?? templateStats.con,
+        int: existing?.int ?? templateStats.int,
+        wis: existing?.wis ?? templateStats.wis,
+        cha: existing?.cha ?? templateStats.cha,
+    };
+    const hasValue = Object.values(merged).some(value => typeof value === 'number');
+    return hasValue ? merged : undefined;
+};
+
+const mergeDamageProfile = (
+    existing: Record<string, any> | undefined,
+    template: EnemyTemplateRecord | undefined
+) => {
+    const templateDamage = template?.damageProfile;
+    if (!existing && !templateDamage) return undefined;
+    return {
+        dice: existing?.dice ?? templateDamage?.dice ?? '1d6',
+        type: existing?.type ?? templateDamage?.type,
+        average: existing?.average ?? templateDamage?.average,
+        notes: existing?.notes ?? templateDamage?.notes,
+    };
+};
+
+const attachTemplateMetadata = (combatant: any): any => {
+    const candidates = [
+        combatant?.templateId,
+        combatant?.id,
+        combatant?.name,
+    ].map(value => toTemplateKey(value));
+    let template: EnemyTemplateRecord | undefined;
+    for (const candidate of candidates) {
+        template = getEnemyTemplateByKey(candidate ?? undefined);
+        if (template) break;
+    }
+    if (!template) return combatant;
+    combatant.templateId = template.id;
+    combatant.baseStats = mergeBaseStats(combatant.baseStats, template);
+    const damageProfile = mergeDamageProfile(combatant.damageProfile, template);
+    if (damageProfile) {
+        combatant.damageProfile = damageProfile;
+    }
+    if (template.hitPoints) {
+        if (!isFiniteNumber(combatant.hp?.max) || combatant.hp.max < template.hitPoints) {
+            combatant.hp.max = template.hitPoints;
+        }
+        if (!isFiniteNumber(combatant.hp?.current)) {
+            combatant.hp.current = combatant.hp.max ?? template.hitPoints;
+        }
+    }
+    if (!isFiniteNumber(combatant.ac) && typeof template.armorClass === 'number') {
+        combatant.ac = template.armorClass;
+    }
+    if ((!isFiniteNumber(combatant.actionPoints) || combatant.actionPoints <= 0) && typeof template.actionPoints === 'number') {
+        combatant.actionPoints = template.actionPoints;
+    }
+    if ((!isFiniteNumber(combatant.bonusActionPoints) || combatant.bonusActionPoints < 0) && typeof template.bonusActionPoints === 'number') {
+        combatant.bonusActionPoints = template.bonusActionPoints;
+    }
+    return combatant;
+};
+
+const normalizeXpEventType = (rawType?: string | null): 'quest' | 'skill' | 'combat' => {
+    if (typeof rawType !== 'string') return 'quest';
+    const lowered = rawType.trim().toLowerCase();
+    if (lowered === 'skill') return 'skill';
+    if (lowered === 'combat') return 'combat';
+    return 'quest';
+};
+
+const normalizeCombatantSchema = (combatant: any, fallbackIndex: number) => {
+    if (!combatant || typeof combatant !== 'object') return combatant;
+    const patched: any = { ...combatant };
+    if (typeof patched.id !== 'string' || !patched.id.trim()) {
+        patched.id = `combatant_${fallbackIndex}`;
+    }
+    if (typeof patched.name !== 'string' || !patched.name.trim()) {
+        patched.name = `Combatente ${fallbackIndex + 1}`;
+    }
+    if (typeof patched.hp === 'object') {
+        if (typeof patched.hp.current !== 'number') {
+            patched.hp.current = typeof patched.hp.max === 'number' ? patched.hp.max : 10;
+        }
+        if (typeof patched.hp.max !== 'number') {
+            patched.hp.max = patched.hp.current;
+        }
+    } else {
+        const current = typeof patched.hpCurrent === 'number' ? patched.hpCurrent : 10;
+        const max = typeof patched.hpMax === 'number' ? patched.hpMax : current;
+        patched.hp = { current, max };
+    }
+    delete patched.hpCurrent;
+    delete patched.hpMax;
+    if (typeof patched.ac !== 'number') {
+        patched.ac = 12;
+    }
+    if (typeof patched.initiative !== 'number') {
+        patched.initiative = fallbackIndex + 10;
+    }
+    if (typeof patched.attitude !== 'string' || !['ally', 'neutral', 'hostile'].includes(patched.attitude)) {
+        patched.attitude = patched.isPlayer ? 'ally' : 'hostile';
+    }
+    if (typeof patched.zone === 'string' && !['perto', 'medio', 'longe', 'coberto'].includes(patched.zone)) {
+        delete patched.zone;
+    }
+    return attachTemplateMetadata(patched);
+};
+
+const clampCombatantActionEconomy = (combatState: any) => {
+    if (!combatState || !Array.isArray(combatState.combatants)) return;
+    combatState.combatants = combatState.combatants.map((combatant: any, index: number) => {
+        if (!combatant || typeof combatant !== 'object') return combatant;
+        const patched = normalizeCombatantSchema(combatant, index);
+        if (typeof patched.actionPoints === 'number' && patched.actionPoints > 1) {
+            patched.actionPoints = 1;
+        }
+        if (typeof patched.bonusActionPoints === 'number' && patched.bonusActionPoints > 1) {
+            patched.bonusActionPoints = 1;
+        }
+        return patched;
+    });
+};
+
+const enforceCombatContinuity = (
+    response: GameMasterResponse,
+    input: GameMasterFlowInput
+) => {
+    const prevCombat = input.combatState;
+    if (!prevCombat || !prevCombat.isActive || !hasActiveHostiles(prevCombat)) return;
+    if (!response.combatState || !response.combatState.isActive) {
+        response.combatState = cloneInput(prevCombat);
+        if (Array.isArray(response.combatState?.combatants) && response.combatState.combatants.length) {
+            response.combatState.combatants = response.combatState.combatants.map((combatant: any, index: number) =>
+                normalizeCombatantSchema(combatant, index)
+            );
+        }
+    } else {
+        if (Array.isArray(response.combatState?.combatants)) {
+            response.combatState.combatants = response.combatState.combatants.map((combatant: any, index: number) =>
+                normalizeCombatantSchema(combatant, index)
+            );
+        }
+    }
+    response.combatState.isActive = true;
+    clampCombatantActionEconomy(response.combatState);
+    if (response.lootOffer) {
+        delete response.lootOffer;
+    }
+    if (response.shopState?.isOpen) {
+        delete response.shopState;
+    }
+    if (response.useHitDiceRequest) {
+        delete response.useHitDiceRequest;
+    }
+};
+
+const rebuildCombatStateFromBaseline = (
+    response: GameMasterResponse,
+    input: GameMasterFlowInput
+): boolean => {
+    const baseline = input.combatState;
+    if (baseline && baseline.isActive) {
+        response.combatState = cloneInput(baseline);
+    } else {
+        ensureScenarioCombatSeed(response, input);
+    }
+    if (!response.combatState) return false;
+
+    const fallbackRound = Number(baseline?.round ?? response.combatState.round ?? 1);
+    const fallbackTurn = Number(baseline?.turn ?? response.combatState.turn ?? 0);
+    response.combatState.round = isFiniteNumber(response.combatState.round) && response.combatState.round > 0
+        ? response.combatState.round
+        : (isFiniteNumber(fallbackRound) && fallbackRound > 0 ? fallbackRound : 1);
+    response.combatState.turn = isFiniteNumber(response.combatState.turn) && response.combatState.turn >= 0
+        ? response.combatState.turn
+        : (isFiniteNumber(fallbackTurn) && fallbackTurn >= 0 ? fallbackTurn : 0);
+    response.combatState.isActive = true;
+
+    if (Array.isArray(response.combatState.combatants)) {
+        response.combatState.combatants = response.combatState.combatants.map((combatant: any, index: number) =>
+            normalizeCombatantSchema(combatant, index)
+        );
+    }
+    clampCombatantActionEconomy(response.combatState);
+    if (
+        !Array.isArray(response.combatState.initiativeOrder) ||
+        response.combatState.initiativeOrder.length === 0
+    ) {
+        response.combatState.initiativeOrder = Array.isArray(response.combatState.combatants)
+            ? response.combatState.combatants
+                .map((combatant: any) => (combatant && typeof combatant.id === 'string' ? combatant.id : null))
+                .filter(Boolean)
+            : [];
+    }
+    return true;
+};
+
+const ensureLootCurrencyDelta = (
+    response: GameMasterResponse,
+    input: GameMasterFlowInput
+) => {
+    const lootCurrency = response.lootOffer?.currency;
+    if (!lootCurrency || typeof lootCurrency !== 'object') return;
+    const deltas = Object.entries(lootCurrency)
+        .map(([key, value]) => [key, Number(value) || 0] as const)
+        .filter(([, amount]) => amount !== 0);
+    if (!deltas.length) return;
+    const baselineCurrency = (input.character as any)?.currency ?? {};
+    const nextCurrency = isPlainObject(response.updatedCharacter?.currency)
+        ? { ...(response.updatedCharacter as any).currency }
+        : {};
+    let changed = false;
+    deltas.forEach(([key, amount]) => {
+        const prevValue = Number(baselineCurrency?.[key] ?? 0);
+        nextCurrency[key] = prevValue + amount;
+        changed = true;
+    });
+    if (!changed) return;
+    response.updatedCharacter = {
+        ...(isPlainObject(response.updatedCharacter) ? response.updatedCharacter : {}),
+        currency: nextCurrency,
+    };
+};
+
+const ensureScenarioXpArtifacts = (response: GameMasterResponse, input: GameMasterFlowInput) => {
+    const scenarioLabel = input.scenarioLabel;
+    const progressionFeed = Array.isArray(response.progressionFeed) ? response.progressionFeed : [];
+    const existingXpEvents = Array.isArray(response.xpEvents) ? response.xpEvents : [];
+    const feedWithXp = progressionFeed.filter(entry => Number(entry?.xp) > 0);
+    const xpEventsWithValues = existingXpEvents.filter(event => Number(event?.xp) > 0);
+    const nonPlaceholderXpEvents = existingXpEvents.filter(event => !isXpPlaceholder(event));
+
+    if (feedWithXp.length && xpEventsWithValues.length === 0) {
+        response.xpEvents = feedWithXp.map(entry => ({
+            type: normalizeXpEventType(entry.type),
+            xp: entry.xp ?? 0,
+            description: entry.summary ?? entry.detail ?? 'XP espelhado do progressionFeed.',
+        }));
+    } else if (nonPlaceholderXpEvents.length && nonPlaceholderXpEvents.length !== existingXpEvents.length) {
+        response.xpEvents = nonPlaceholderXpEvents.map(event => ({
+            ...event,
+            type: normalizeXpEventType(event.type),
+        }));
+    } else if (existingXpEvents.length) {
+        response.xpEvents = existingXpEvents.map(event => ({
+            ...event,
+            type: normalizeXpEventType(event.type),
+        }));
+    }
+
+    const scenarioRequiresXp =
+        scenarioLabel === 'Revisão de progresso' ||
+        scenarioLabel === 'Recuperação / loot';
+    if ((!response.xpEvents || response.xpEvents.length === 0) && scenarioRequiresXp) {
+        response.xpEvents = [
+            {
+                type: 'quest',
+                xp: 0,
+                description: `Registre XP ganho durante "${scenarioLabel}". Substitua este placeholder pelos dados reais.`,
+            },
+        ];
+    }
+
+    if (scenarioLabel === 'Revisão de progresso' && progressionFeed.length === 0) {
+        response.progressionFeed = [
+            {
+                type: 'xp_gain',
+                summary: 'Atualize progressionFeed com marcos e XP ganhos neste turno.',
+                detail: 'Substitua este placeholder pelos eventos reais.',
+                xp: 0,
+            },
+        ];
+    }
+    if (scenarioLabel === 'Recuperação / loot' && progressionFeed.length === 0) {
+        response.progressionFeed = [
+            {
+                type: 'xp_gain',
+                summary: 'Resuma recompensas/XP da recuperação/loot neste turno.',
+                detail: 'Substitua este placeholder pelos eventos reais.',
+                xp: 0,
+            },
+        ];
+    }
+
+    if (Array.isArray(response.xpEvents) && response.xpEvents.length) {
+        response.xpEvents = response.xpEvents.map(event => ({
+            ...event,
+            type: normalizeXpEventType(event.type),
+        }));
+    }
+};
+
+const ensureGameClockProgression = (response: GameMasterResponse, input: GameMasterFlowInput) => {
+    const baselineClock = (input.character as any)?.gameClock;
+    if (!baselineClock) return;
+    const targetClock =
+        response.gameClock ??
+        response.updatedCharacter?.gameClock ??
+        null;
+    if (!targetClock) {
+        response.gameClock = cloneInput(baselineClock);
+        return;
+    }
+    const prevDay = Number(baselineClock.day ?? 0);
+    const prevHour = Number(baselineClock.hour ?? 0);
+    if (typeof targetClock.day === 'number' && targetClock.day < prevDay) {
+        targetClock.day = prevDay;
+    }
+    if (typeof targetClock.hour === 'number') {
+        if (targetClock.day === prevDay && targetClock.hour < prevHour) {
+            targetClock.hour = prevHour;
+        }
+        if (targetClock.hour < 0) {
+            targetClock.hour = prevHour;
+        }
+    } else {
+        targetClock.hour = prevHour;
+    }
+    if (typeof targetClock.day !== 'number') {
+        targetClock.day = prevDay;
+    }
+    response.gameClock = targetClock;
+};
+
+const ensureLevelProgressConsistency = (response: GameMasterResponse, input: GameMasterFlowInput) => {
+    const prevLevel = Number((input.character as any)?.level ?? (input.character as any)?.attributes?.level ?? 0);
+    const updatedLevelRaw = Number(response.updatedCharacter?.level ?? response.updatedCharacter?.attributes?.level ?? prevLevel);
+    const levelUpFeed = Array.isArray(response.progressionFeed)
+        ? response.progressionFeed.find(entry => entry?.type === 'level_up')
+        : undefined;
+    const declaredLevel = Number(
+        response.levelUpState?.level ??
+        response.levelUpState?.levelReached ??
+        levelUpFeed?.level ??
+        updatedLevelRaw
+    );
+    const safeUpdatedLevel = Number.isFinite(updatedLevelRaw) ? updatedLevelRaw : prevLevel;
+    const hasLevelIncrease = Number.isFinite(declaredLevel)
+        ? declaredLevel > prevLevel
+        : safeUpdatedLevel > prevLevel;
+
+    if (!hasLevelIncrease) {
+        if (response.levelUpState) {
+            delete response.levelUpState;
+        }
+        if (levelUpFeed && (!Number.isFinite(levelUpFeed.level) || Number(levelUpFeed.level) <= prevLevel)) {
+            response.progressionFeed = Array.isArray(response.progressionFeed)
+                ? response.progressionFeed.filter(entry => entry !== levelUpFeed)
+                : response.progressionFeed;
+        }
+        return;
+    }
+
+    const targetLevel = Number.isFinite(declaredLevel) && declaredLevel > prevLevel
+        ? declaredLevel
+        : Math.max(prevLevel + 1, safeUpdatedLevel);
+
+    if (!response.levelUpState) {
+        response.levelUpState = {
+            level: targetLevel,
+            levelReached: targetLevel,
+            previousLevel: prevLevel,
+            status: 'completed',
+        } as any;
+    } else {
+        response.levelUpState.level = targetLevel;
+        response.levelUpState.levelReached = targetLevel;
+        response.levelUpState.previousLevel = prevLevel;
+    }
+
+    if (!response.updatedCharacter) response.updatedCharacter = {};
+    response.updatedCharacter.level = targetLevel;
+    response.updatedCharacter.attributes = {
+        ...(isPlainObject(response.updatedCharacter.attributes) ? response.updatedCharacter.attributes : {}),
+        level: targetLevel,
+    };
+
+    if (levelUpFeed) {
+        levelUpFeed.level = targetLevel;
+        if (
+            typeof levelUpFeed.summary === 'string' &&
+            !levelUpFeed.summary.toLowerCase().includes(`${targetLevel}`)
+        ) {
+            levelUpFeed.summary = `Você subiu para o nível ${targetLevel}!`;
+        } else if (!levelUpFeed.summary) {
+            levelUpFeed.summary = `Você subiu para o nível ${targetLevel}!`;
+        }
+    }
+};
+
+const ensureScenarioCombatSeed = (response: GameMasterResponse, input: GameMasterFlowInput) => {
+    if (input.scenarioLabel !== 'Combate prolongado') return;
+    if (response.combatState && response.combatState.isActive) return;
+    const baseline = input.combatState;
+    if (baseline && baseline.isActive && hasActiveHostiles(baseline)) {
+        response.combatState = cloneInput(baseline);
+        response.combatState.isActive = true;
+        clampCombatantActionEconomy(response.combatState);
+        return;
+    }
+    const character = input.character as any;
+    response.combatState = {
+        isActive: true,
+        round: 1,
+        turn: 0,
+        combatants: [
+            {
+                id: character?.id ?? 'player',
+                name: character?.name ?? 'Herói',
+                attitude: 'ally',
+                hp: character?.hp ? { current: character.hp, max: character.hp } : undefined,
+                actionPoints: 1,
+                bonusActionPoints: 1,
+                initiative: 15,
+            },
+            {
+                id: 'hostile_1',
+                name: 'Hostil',
+                attitude: 'hostile',
+                hp: { current: 12, max: 12 },
+                actionPoints: 1,
+                bonusActionPoints: 1,
+                initiative: 10,
+            },
+        ],
+        initiativeOrder: ['player', 'hostile_1'],
+    } as any;
+};
+
+const pruneFinishedCombatState = (response: GameMasterResponse) => {
+    if (!response.combatState) return;
+    if (response.combatState.isActive && hasActiveHostiles(response.combatState)) {
+        return;
+    }
+    if (!response.combatState.isActive || !hasActiveHostiles(response.combatState)) {
+        response.combatState = null;
+    }
 };
 
 const miniSanitize = (raw: any): any => {
@@ -1672,19 +2201,7 @@ const miniSanitize = (raw: any): any => {
             clean[key] = null; // ✅ combate não ativo → null
             continue;
           }
-          if (Array.isArray(val.combatants)) {
-            val.combatants = val.combatants.map((combatant: any) => {
-              if (!combatant || typeof combatant !== 'object') return combatant;
-              const patched = { ...combatant };
-              if (typeof patched.actionPoints === 'number' && patched.actionPoints > 1) {
-                patched.actionPoints = 1;
-              }
-              if (typeof patched.bonusActionPoints === 'number' && patched.bonusActionPoints > 1) {
-                patched.bonusActionPoints = 1;
-              }
-              return patched;
-            });
-          }
+          clampCombatantActionEconomy(val);
         }
       }
     }
@@ -1692,6 +2209,11 @@ const miniSanitize = (raw: any): any => {
     if (clean.playerRollRequest && typeof clean.playerRollRequest === 'object') {
         if (typeof clean.playerRollRequest.requestId !== 'string' || !clean.playerRollRequest.requestId.trim()) {
             clean.playerRollRequest.requestId = buildRollRequestId(clean.playerRollRequest.rollType);
+        }
+        clean.playerRollRequest.rollType = normalizeRollType(clean.playerRollRequest.rollType);
+        if (clean.playerRollRequest.rollType === 'check' && typeof clean.playerRollRequest.reason === 'string') {
+            const originalReason = clean.playerRollRequest.reason;
+            clean.playerRollRequest.reason = originalReason;
         }
     }
 
@@ -1872,6 +2394,9 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
     const aggregatedWarnings: GameUpdateWarning[] = [];
     const emitWarning = (type: string, details?: Record<string, any> | string | null) => {
         aggregatedWarnings.push({ type, details });
+        recordFeedbackWarning(sessionId, input.scenarioLabel, (input.responseFocus ?? 'full') as 'narrative' | 'state' | 'full', type, typeof details === 'object' ? details : null)
+            .catch(err => console.warn('[aiService] Falha ao registrar feedback:', err));
+        trackWarningMetric(type, input.scenarioLabel).catch(err => console.warn('[aiService] Falha ao registrar métrica:', err));
     };
     const registerRecoveryStrategy = (strategy?: string | null) => {
         if (strategy) recoveryStrategies.add(strategy);
@@ -1917,6 +2442,15 @@ export const getGameUpdate = async (input: GameMasterFlowInput, modelName: strin
             : '[Prompt] Histórico condensado automaticamente para caber no limite.';
     }
     
+    if (input.scenarioLabel) {
+        const focusForExample = (input.responseFocus ?? 'full') === 'narrative' ? 'narrative' : 'state';
+        const exampleSnippet = await fetchScenarioExampleSnippet(input.scenarioLabel, focusForExample);
+        if (exampleSnippet) {
+            input.exampleSnippet = exampleSnippet;
+            condensedInput.exampleSnippet = exampleSnippet;
+        }
+    }
+
     const buildPrompts = (gemmaMode: boolean) => ({
         preview: createPrompt(input, gemmaMode),
         condensed: createPrompt(condensedInput, gemmaMode),
@@ -2385,7 +2919,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             }
 
             // 1️⃣ Mini-sanitizer (limpeza pré-validação)
-            const cleanedData = miniSanitize(responseData);
+            let cleanedData = miniSanitize(responseData);
 
             const guardIssue = shouldEnforceStateGuard(input)
                 ? detectStatePhaseGuardIssue(cleanedData, input)
@@ -2399,18 +2933,46 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                         additionalHints: mergeRetryHints(retryOptions.additionalHints, guardIssue.hint),
                     });
                 }
-                console.warn('[aiService] Fase de estado inválida até o limite de tentativas; acionando fallback.');
-                return ensureRetryOrFallback('A IA insistiu em responder a fase de estado com narrativa ou snapshot completo.');
+                const autoPatched = guardIssue.reason.startsWith('combat_')
+                    ? rebuildCombatStateFromBaseline(cleanedData as GameMasterResponse, input)
+                    : false;
+                if (autoPatched) {
+                    console.warn('[aiService] Fase de estado inválida; combate reconstruído localmente após esgotar tentativas.');
+                } else {
+                    console.warn('[aiService] Fase de estado inválida até o limite de tentativas; acionando fallback.');
+                    return ensureRetryOrFallback('A IA insistiu em responder a fase de estado com narrativa ou snapshot completo.');
+                }
             }
 
             // 2️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character, input);
+            enforceCombatContinuity(finalResponse, input);
+            ensureLootCurrencyDelta(finalResponse, input);
+            ensureScenarioXpArtifacts(finalResponse, input);
+            ensureGameClockProgression(finalResponse, input);
+            ensureLevelProgressConsistency(finalResponse, input);
+            ensureScenarioCombatSeed(finalResponse, input);
+            pruneFinishedCombatState(finalResponse);
             const enforcementNotes = enforcePhaseCompliance(finalResponse, input);
             if (enforcementNotes.length) {
                 emitWarning('phase_sanitization', {
                     focus: input.responseFocus ?? 'full',
                     notes: enforcementNotes,
                 });
+            }
+
+            const semanticIssues = evaluateSemanticConsistency(finalResponse, input);
+            if (semanticIssues.length) {
+                emitWarning('semantic_validator', { issues: semanticIssues });
+                if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
+                    registerRecoveryStrategy('semantic-validator');
+                    const semanticHints = semanticIssues.map(issue => issue.hint);
+                    return attemptGeneration(attemptIndex + 1, {
+                        ...retryOptions,
+                        additionalHints: mergeRetryHints(retryOptions.additionalHints, ...semanticHints),
+                    });
+                }
+                console.warn('[aiService] Semântica inconsistente; prosseguindo por falta de tentativas.');
             }
             
             // 3️⃣ Validação estrutural com Zod
@@ -2459,6 +3021,10 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 validatedResponse.systemLog = validatedResponse.systemLog
                     ? `${validatedResponse.systemLog}\n${failoverNote}`
                     : failoverNote;
+            }
+
+            if (input.scenarioLabel && (input.responseFocus === 'narrative' || input.responseFocus === 'state')) {
+                void recordScenarioExample(input.scenarioLabel, input.responseFocus, validatedResponse);
             }
 
             if (env.AI_DEBUG_LOGS) {
