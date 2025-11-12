@@ -34,6 +34,7 @@ import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, r
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 import { offloadLargePayload } from './objectStorageService.js';
 import { synthesizeNarrationAudio } from './ttsService.js';
+import { generateSceneImage, isImageGenerationAvailable } from './imageGenerationService.js';
 import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
@@ -245,14 +246,16 @@ const attachNarrationAudio = async (response: GameMasterResponse) => {
         const text = getPlainTextFromLogEntry(entry as any);
         if (!text) continue;
         const audio = await synthesizeNarrationAudio(text);
-        if (!audio?.url) continue;
+        if (!audio?.url || !audio.key) continue;
         (entry as any).audioUrl = audio.url;
+        (entry as any).audioKey = audio.key;
         if (typeof entry.content === 'string') {
-            entry.content = { content: entry.content, audioUrl: audio.url };
+            entry.content = { content: entry.content, audioUrl: audio.url, audioKey: audio.key };
         } else if (entry.content && typeof entry.content === 'object') {
             entry.content.audioUrl = audio.url;
+            (entry.content as any).audioKey = audio.key;
         } else {
-            entry.content = { content: text, audioUrl: audio.url };
+            entry.content = { content: text, audioUrl: audio.url, audioKey: audio.key };
         }
     }
 };
@@ -1022,23 +1025,8 @@ const buildHomebrewSummaryBlock = (installedContent: HomebrewContent[]): string 
 
 
 // Constrói um objeto de personagem otimizado para a IA.
-export const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = false) => {
-    const cacheKey = `character:${characterId}:optimized`;
-
-    // 1. Tenta buscar do cache
-    if (useCache && redisClient && redisClient.isOpen) {
-        try {
-            const cachedCharacter = await redisClient.get(cacheKey);
-            if (cachedCharacter) {
-                console.log(`[Cache] HIT: Carregando personagem otimizado ${characterId} do cache.`);
-                return JSON.parse(cachedCharacter);
-            }
-        } catch (error) {
-            console.error(`[Cache] Erro ao buscar personagem otimizado ${characterId}:`, error);
-        }
-    }
-    
-    // 2. Se não encontrar no cache, busca no DB
+export const buildOptimizedCharacterForAI = async (characterId: number) => {
+    // Sempre busca do banco para garantir dados consistentes
     const characterRepo = AppDataSource.getRepository(Character);
     const fullCharacter = await characterRepo
         .createQueryBuilder('character')
@@ -1101,16 +1089,6 @@ export const buildOptimizedCharacterForAI = async (characterId: number, useCache
         return null;
     }
 
-    // 3. Salva no cache antes de retornar
-    if (redisClient && redisClient.isOpen) {
-        try {
-            await redisClient.set(cacheKey, JSON.stringify(characterForAI), { EX: 3600 }); // Cache por 1 hora
-            console.log(`[Cache] SET: Personagem otimizado ${characterId} salvo no cache.`);
-        } catch (error) {
-            console.error(`[Cache] Erro ao salvar personagem otimizado ${characterId}:`, error);
-        }
-    }
-    
     return characterForAI;
 };
 
@@ -1726,6 +1704,29 @@ export const processPlayerTurn = async (
     }
     aiResponse = validatorResult.validatedResponse;
     await attachNarrationAudio(aiResponse);
+    
+    if (aiResponse.imagePrompt && isImageGenerationAvailable(apiKey)) {
+        const imageEntryExists = aiResponse.logEntries?.some(entry => entry?.type === 'image');
+        if (!imageEntryExists) {
+            const imageEntry = {
+                id: uuidv4(),
+                type: 'image' as const,
+                content: {
+                    status: 'generating',
+                    prompt: aiResponse.imagePrompt,
+                    requestedAt: new Date().toISOString(),
+                },
+            };
+            aiResponse.logEntries = [...(aiResponse.logEntries ?? []), imageEntry];
+        } else if (aiResponse.logEntries) {
+            aiResponse.logEntries = aiResponse.logEntries.map(entry => {
+                if (entry?.type === 'image' && entry.content && typeof entry.content === 'object' && !entry.content.prompt) {
+                    entry.content.prompt = aiResponse.imagePrompt;
+                }
+                return entry;
+            });
+        }
+    }
 
     if (aiResponse.playerRollRequest) {
         const recalculatedModifier = recalculatePlayerRollModifier(aiResponse.playerRollRequest, characterForAI);
@@ -1815,20 +1816,49 @@ export const processPlayerTurn = async (
             for (const entry of aiResponse.logEntries) {
                 let contentToSave = entry.content;
                 
-                if(entry.type === 'image' && typeof entry.content === 'object' && entry.content.status === 'generating') {
-                    try {
-                        const result = await getGameUpdate({
-                            ...gameMasterFlowInput,
-                            playerAction: `Gere uma imagem para o seguinte prompt: ${entry.content.prompt}`
-                        }, 'gemini-1.5-flash-latest', { temperature: 0.3, ...generationConfig }, apiKey);
-                        // Supondo que a IA retorne a URL da imagem no log
-                        const imageUrl = result.response.logEntries?.find(le => le.type === 'image')?.content.imageUrl;
-                        contentToSave = { ...entry.content, status: 'done', imageUrl: imageUrl };
-                    } catch (imageError: any) {
-                        console.error(`[narrarService] Falha ao gerar imagem inline:`, imageError);
-                        contentToSave = { ...entry.content, status: 'failed', text: `Falha ao gerar imagem: ${imageError.message}`};
+                if (entry.type === 'image' && entry.content && typeof entry.content === 'object') {
+                    const imageContent = entry.content as Record<string, any>;
+                    if (imageContent.status === 'generating' && imageContent.prompt) {
+                        if (!isImageGenerationAvailable(apiKey)) {
+                            contentToSave = {
+                                ...imageContent,
+                                status: 'failed',
+                                error: 'Serviço de geração de imagens indisponível no momento.',
+                            };
+                        } else {
+                            try {
+                                const generated = await generateSceneImage(imageContent.prompt, apiKey);
+                                if (generated) {
+                                    contentToSave = {
+                                        ...imageContent,
+                                        status: 'done',
+                                        imageUrl: generated.url ?? imageContent.imageUrl,
+                                        url: generated.url ?? imageContent.url,
+                                        imageKey: generated.key,
+                                        size: generated.size,
+                                        contentType: generated.contentType,
+                                        completedAt: new Date().toISOString(),
+                                    };
+                                } else {
+                                    contentToSave = {
+                                        ...imageContent,
+                                        status: 'failed',
+                                        error: 'Não foi possível gerar a imagem solicitada.',
+                                    };
+                                }
+                            } catch (imageError: any) {
+                                console.error(`[narrarService] Falha ao gerar imagem via Gemini:`, imageError);
+                                contentToSave = {
+                                    ...imageContent,
+                                    status: 'failed',
+                                    error: imageError?.message ?? 'Falha desconhecida ao gerar imagem.',
+                                };
+                            }
+                        }
+                        entry.content = contentToSave;
                     }
                 }
+
                 await persistSessionLog(entry.type || 'narration', 'GM Narration', contentToSave, entry.rollResult);
             }
         }

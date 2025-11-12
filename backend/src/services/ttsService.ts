@@ -5,7 +5,7 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
-import { uploadBinaryObject, isObjectStorageEnabled } from './objectStorageService.js';
+import { uploadBinaryObject, isObjectStorageEnabled, getSignedObjectUrl } from './objectStorageService.js';
 
 const PIPER_BIN_PATH = process.env.PIPER_BIN_PATH ?? '';
 const PIPER_MODEL_PATH = process.env.PIPER_MODEL_PATH ?? '';
@@ -93,4 +93,9 @@ export const synthesizeNarrationAudio = async (text: string): Promise<Synthesize
     console.warn('[ttsService] Falha ao sintetizar narração:', error);
     return null;
   }
+};
+
+export const getSignedNarrationUrl = async (key: string) => {
+  if (!key) return null;
+  return getSignedObjectUrl(key);
 };

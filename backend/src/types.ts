@@ -14,7 +14,14 @@ export interface PlayerRollRequest {
 export type ImageLogEntryContent = {
     status: 'generating' | 'failed' | 'done';
     url?: string;
+    imageUrl?: string;
+    imageKey?: string;
     prompt?: string;
+    error?: string;
+    size?: number;
+    contentType?: string;
+    requestedAt?: string;
+    completedAt?: string;
 };
 
 
@@ -356,7 +363,7 @@ export interface Character {
 export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
-    content: string | ImageLogEntryContent | { content?: string; text?: string; audioUrl?: string };
+    content: string | ImageLogEntryContent | { content?: string; text?: string; audioUrl?: string; audioKey?: string };
     rollResult?: {
         description: string;
         dice: string;
@@ -370,6 +377,7 @@ export interface LogEntry {
         disadvantage?: boolean;
     };
     audioUrl?: string;
+    audioKey?: string;
 };
 
 export interface CombatCooldown {

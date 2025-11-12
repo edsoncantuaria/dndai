@@ -29,6 +29,7 @@ import regionRoutes from './routes/regionRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
 import ttsRoutes from './routes/ttsRoutes.js';
 import rollRequestRoutes from './routes/rollRequestRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 
 
 const app = express();
@@ -79,6 +80,7 @@ app.use('/api/regions', regionRoutes);
 app.use('/metrics', metricsRoutes);
 app.use('/api/tts', ttsRoutes);
 app.use('/api/roll-requests', rollRequestRoutes);
+app.use('/api/images', imageRoutes);
 
 
 // Rota de Traduções

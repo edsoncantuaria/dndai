@@ -3,12 +3,13 @@
 
 import React, { ChangeEvent, useMemo, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield, Dice5 } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield, Dice5, Image as ImageIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { apiClient } from '@/services/apiClient';
+import { generateSceneImage as requestSceneImage } from '@/services/imageService';
 
 const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_35px_90px_rgba(0,0,0,0.65)]';
 
@@ -384,6 +385,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         generationConfig, setGenerationConfig,
         useAiHomebrew, setUseAiHomebrew
     } = useSettingsContext();
+    const { toast } = useToast();
+    const [imageTestPrompt, setImageTestPrompt] = useState('Retrate a cena atual como uma ilustração dramática.');
+    const [imageTestLoading, setImageTestLoading] = useState(false);
+    const [imageTestResult, setImageTestResult] = useState<{ url?: string; imageKey?: string; error?: string } | null>(null);
     
     if (!isOpen) return null;
     
@@ -398,6 +403,32 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const handleSaveAndClose = () => {
         onClose();
     }
+
+    const handleTestImageGeneration = async () => {
+        const prompt = imageTestPrompt.trim();
+        const trimmedKey = (apiKey || '').trim();
+        if (!prompt) {
+            toast({ variant: 'destructive', description: 'Informe um prompt para gerar a imagem.' });
+            return;
+        }
+        if (!trimmedKey) {
+            toast({ variant: 'destructive', description: 'Configure sua chave do Google AI antes de testar imagens.' });
+            return;
+        }
+        setImageTestLoading(true);
+        setImageTestResult(null);
+        try {
+            const response = await requestSceneImage(prompt, trimmedKey);
+            setImageTestResult({ url: response.imageUrl, imageKey: response.imageKey });
+            toast({ title: 'Imagem gerada!', description: 'Abra o preview abaixo para validar a cena.' });
+        } catch (error: any) {
+            const message = error?.message || 'Falha ao gerar imagem. Verifique a chave e tente novamente.';
+            setImageTestResult({ error: message });
+            toast({ variant: 'destructive', title: 'Erro ao gerar imagem', description: message });
+        } finally {
+            setImageTestLoading(false);
+        }
+    };
 
     return (
         <div 
@@ -430,11 +461,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                            <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
                               Como Obter?
                            </a>
-                        </div>
-                         <input
-                            id="api-key-input"
-                            type="password"
-                            value={apiKey}
+                    </div>
+                     <input
+                        id="api-key-input"
+                        type="password"
+                        value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
                             placeholder="Cole sua chave aqui"
                             className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
@@ -442,6 +473,52 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                          <p className="text-xs text-stone-500 mt-2">
                             Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
                         </p>
+                    </div>
+                    <div className="rounded-3xl border border-white/10 bg-black/30 p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm font-semibold text-stone-100 flex items-center gap-2">
+                                    <ImageIcon className="h-4 w-4 text-amber-400" />
+                                    Teste de geração de imagem
+                                </p>
+                                <p className="text-xs text-stone-400">Use o prompt abaixo para validar rapidamente se sua chave está habilitada para o modelo de imagens.</p>
+                            </div>
+                            {imageTestLoading && <Loader2 className="h-4 w-4 animate-spin text-amber-200" />}
+                        </div>
+                        <textarea
+                            value={imageTestPrompt}
+                            onChange={e => setImageTestPrompt(e.target.value)}
+                            rows={3}
+                            className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                            placeholder="Descreva a cena que deseja visualizar..."
+                        />
+                        <div className="flex flex-col gap-3">
+                            <button
+                                type="button"
+                                onClick={handleTestImageGeneration}
+                                disabled={imageTestLoading}
+                                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 py-2.5 px-4 text-sm font-semibold text-white transition hover:from-amber-400 hover:to-pink-400 disabled:opacity-50"
+                            >
+                                {imageTestLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                Gerar imagem de teste
+                            </button>
+                            {imageTestResult?.url && (
+                                <a
+                                    href={imageTestResult.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block overflow-hidden rounded-2xl border border-white/10 bg-black/50"
+                                >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={imageTestResult.url} alt="Prévia da imagem gerada" className="w-full object-cover" />
+                                </a>
+                            )}
+                            {imageTestResult?.error && (
+                                <p className="text-xs text-rose-300">
+                                    {imageTestResult.error}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     <AudioControls />
