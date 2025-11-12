@@ -33,6 +33,8 @@ import GuidedTipsOverlay from './GuidedTipsOverlay';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import PremiumLoader from '@/components/ui/PremiumLoader';
 import { TooltipProvider } from './ui/tooltip';
+import WorldMapModal from '@/components/world-map/WorldMapModal';
+import { getWorldMapSnapshot, type WorldMapSnapshot } from '@/services/gameService';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -81,6 +83,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const { 
         character,
         log,
+        sessionId,
         isLoading,
         levelUpState, 
         shopState, 
@@ -107,6 +110,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [eventBadges, setEventBadges] = useState<Array<{ id: string; text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }>>([]);
     const [isHeroPanelCollapsed, setIsHeroPanelCollapsed] = useState(true);
     const showCombatHud = combatState?.isActive;
+    const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
+    const [worldMapState, setWorldMapState] = useState<{ sessionId: number; snapshot: WorldMapSnapshot } | null>(null);
+    const [isWorldMapLoading, setIsWorldMapLoading] = useState(false);
     const prevStatsRef = React.useRef<{
         xp?: number;
         inventoryTotal?: number;
@@ -151,6 +157,27 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         setIsGuidedTipsOpen(true);
     }, []);
 
+    const handleOpenWorldMap = useCallback(async () => {
+        if (!sessionId) return;
+        setIsWorldMapOpen(true);
+        if (worldMapState?.sessionId === sessionId) return;
+        setIsWorldMapLoading(true);
+        try {
+            const snapshot = await getWorldMapSnapshot(sessionId);
+            setWorldMapState({ sessionId, snapshot });
+        } catch (error) {
+            console.error('[GameScreen] Falha ao carregar o mapa mundi', error);
+            toast({
+                variant: 'destructive',
+                description: 'Não foi possível carregar o mapa mundi desta sessão.',
+            });
+        } finally {
+            setIsWorldMapLoading(false);
+        }
+    }, [sessionId, worldMapState, toast]);
+
+    const handleCloseWorldMap = useCallback(() => setIsWorldMapOpen(false), []);
+
     useEffect(() => {
         if (!hasSeenGuidedTips) {
             setGuidedDismissed(false);
@@ -167,6 +194,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
             document.body.classList.remove('overscroll-contain');
         }
     }, [isMobileSheetOpen, isStoryDrawerOpen]);
+
+    useEffect(() => {
+        if (!sessionId) {
+            setWorldMapState(null);
+            setIsWorldMapOpen(false);
+            return;
+        }
+        setWorldMapState(prev => (prev && prev.sessionId === sessionId ? prev : null));
+    }, [sessionId]);
 
 
     useEffect(() => {
@@ -489,6 +525,18 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     <div className="flex flex-wrap items-center gap-3">
                         <AmbientPlayer variant="icon" />
                         <button
+                            onClick={handleOpenWorldMap}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-cyan-400/30 bg-cyan-500/10 text-cyan-100 shadow transition hover:border-cyan-300/60 hover:bg-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!sessionId || isWorldMapLoading}
+                        >
+                            <span className="sr-only">Mapa mundi</span>
+                            {isWorldMapLoading ? (
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                                <MapPinned className="h-5 w-5" />
+                            )}
+                        </button>
+                        <button
                             onClick={() => setIsStoryDrawerOpen(true)}
                             className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-200 shadow"
                         >
@@ -619,6 +667,15 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         {renderSidebarContent()}
                     </div>
                 </MobileToolbar>
+
+                <WorldMapModal
+                    isOpen={isWorldMapOpen}
+                    onClose={handleCloseWorldMap}
+                    snapshot={
+                        sessionId && worldMapState?.sessionId === sessionId ? worldMapState.snapshot : null
+                    }
+                    isLoading={isWorldMapLoading && (!worldMapState || worldMapState.sessionId !== sessionId)}
+                />
 
                 <GuidedTipsOverlay
                     isOpen={isGuidedTipsOpen}
