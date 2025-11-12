@@ -18,10 +18,20 @@ export const PlayerRollRequestSchema = z.object({
 export type PlayerRollRequest = z.infer<typeof PlayerRollRequestSchema>;
 
 /* -------------------------------- LOG ENTRY -------------------------------- */
+const LogEntryContentSchema = z.union([
+  z.string(),
+  z.object({
+    content: z.string().optional(),
+    text: z.string().optional(),
+    audioUrl: z.string().url().optional(),
+  }),
+]);
+
 const LogEntrySchema = z.object({
   type: z.enum(['narration', 'action', 'system', 'combat', 'insight', 'roll']),
-  content: z.string().describe("Conteúdo da entrada no log: string simples ou objeto estruturado para tipos especiais."),
+  content: LogEntryContentSchema.describe("Conteúdo textual ou estruturado da entrada."),
   rollResult: z.any().optional().describe("Dados estruturados opcionais para rolagens de dados."),
+  audioUrl: z.string().url().optional().describe("URL opcional para streaming de áudio da narração."),
 }).describe("Uma entrada do log de aventura.");
 const LogEntriesSchema = z.array(LogEntrySchema).min(1, "logEntries deve conter pelo menos uma entrada.");
 

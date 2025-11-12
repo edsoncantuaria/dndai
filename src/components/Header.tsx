@@ -1,8 +1,8 @@
 // src/components/Header.tsx
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { User, Heart, Shield, Loader2, Settings, DoorOpen, Zap, Eye, Brain, Search, BookOpenCheck } from 'lucide-react';
+import { User, Heart, Shield, Loader2, Settings, DoorOpen, Zap, Eye, Brain, Search, BookOpenCheck, Volume2, VolumeX } from 'lucide-react';
 import ActionModal from '@/components/ui/ActionModal';
 import SettingsModal from './SettingsModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +28,7 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu, onOpenGuidedTips }) => {
     
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [showExitModal, setShowExitModal] = useState(false);
+    const [isNarrationActive, setIsNarrationActive] = useState(false);
 
     const {
         name,
@@ -73,6 +74,25 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu, onOpenGuidedTips }) => {
         if (time.includes('madrugada')) return 'from-blue-900/40 via-indigo-800/20 to-transparent';
         return 'from-stone-800/30 via-stone-900/20 to-transparent';
     }, [character.worldState?.timeOfDay]);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+            setIsNarrationActive(Boolean(detail?.active));
+        };
+        window.addEventListener('narration-speech', handler as EventListener);
+        return () => {
+            window.removeEventListener('narration-speech', handler as EventListener);
+        };
+    }, []);
+
+    const handleNarrationToggle = useCallback(() => {
+        if (isNarrationActive) {
+            window.dispatchEvent(new Event('narration-stop-request'));
+        } else {
+            window.dispatchEvent(new Event('narration-play-request'));
+        }
+    }, [isNarrationActive]);
 
     return (
         <>
@@ -124,6 +144,18 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu, onOpenGuidedTips }) => {
                             <Settings className="h-5 w-5 text-amber-300" />
                         </button>
                         <button
+                            onClick={handleNarrationToggle}
+                            disabled={isInteractionDisabled}
+                            className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                            title={isNarrationActive ? 'Parar narração' : 'Ouvir narrativa atual'}
+                        >
+                            {isNarrationActive ? (
+                                <VolumeX className="h-5 w-5 text-amber-300" />
+                            ) : (
+                                <Volume2 className="h-5 w-5 text-amber-300" />
+                            )}
+                        </button>
+                        <button
                             onClick={() => setShowExitModal(true)}
                             disabled={isInteractionDisabled}
                             className="p-2 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
@@ -152,6 +184,18 @@ const Header: React.FC<HeaderProps> = ({ returnToMenu, onOpenGuidedTips }) => {
                             title="Configurações"
                         >
                             <Settings className="h-4 w-4 text-amber-300" />
+                        </button>
+                        <button
+                            onClick={handleNarrationToggle}
+                            disabled={isInteractionDisabled}
+                            className="p-1.5 bg-stone-700/80 hover:bg-stone-600 rounded-md transition-colors disabled:opacity-50"
+                            title={isNarrationActive ? 'Parar narração' : 'Ouvir narrativa atual'}
+                        >
+                            {isNarrationActive ? (
+                                <VolumeX className="h-4 w-4 text-amber-300" />
+                            ) : (
+                                <Volume2 className="h-4 w-4 text-amber-300" />
+                            )}
                         </button>
                         <button
                             onClick={() => setShowExitModal(true)}

@@ -382,7 +382,7 @@ export interface CharacterSpell {
 export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
-    content: any; // Can be string or ImageLogEntryContent
+    content: string | ImageLogEntryContent | { content?: string; text?: string; audioUrl?: string };
     rollResult?: {
         description: string;
         dice: string;
@@ -395,6 +395,7 @@ export interface LogEntry {
         advantage?: boolean;
         disadvantage?: boolean;
     };
+    audioUrl?: string;
     response?: string; // Para compatibilidade com o backend
     prompt?: string; // Para compatibilidade com o backend
     timestamp?: string; // Para compatibilidade com o backend

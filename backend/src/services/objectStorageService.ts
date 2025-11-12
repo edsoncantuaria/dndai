@@ -10,11 +10,13 @@ const {
   MINIO_USE_SSL,
   MINIO_BUCKET_NAME,
   MINIO_ENABLED,
+  MINIO_SIGNED_URL_TTL,
 } = process.env;
 
 const bucketName = MINIO_BUCKET_NAME || 'chronicles';
 const isMinioEnabled = (MINIO_ENABLED ?? 'true').toLowerCase() !== 'false';
 const hasCredentials = Boolean(MINIO_ENDPOINT && MINIO_ACCESS_KEY && MINIO_SECRET_KEY);
+const signedUrlTtlSeconds = Math.max(60, Number(MINIO_SIGNED_URL_TTL ?? 60 * 60)); // default 1 hora
 
 const minioClient =
   isMinioEnabled && hasCredentials
@@ -112,9 +114,33 @@ export const offloadLargePayload = async (
   }
 };
 
+const buildDirectObjectUrl = (key: string) =>
+  `${MINIO_USE_SSL === 'false' ? 'http' : 'https'}://${MINIO_ENDPOINT}/${bucketName}/${key}`;
+
 export const getObjectUrl = (key: string) => {
   if (!minioClient) return null;
-  return `${MINIO_USE_SSL === 'false' ? 'http' : 'https'}://${MINIO_ENDPOINT}/${bucketName}/${key}`;
+  return buildDirectObjectUrl(key);
+};
+
+const presignObject = (key: string, expiresInSeconds: number) =>
+  new Promise<string>((resolve, reject) => {
+    if (!minioClient) return reject(new Error('MinIO client indisponível.'));
+    minioClient.presignedGetObject(bucketName, key, expiresInSeconds, (err, url) => {
+      if (err || !url) return reject(err ?? new Error('URL assinada vazia.'));
+      resolve(url);
+    });
+  });
+
+export const getSignedObjectUrl = async (key: string, expiresInSeconds = signedUrlTtlSeconds) => {
+  if (!minioClient) return null;
+  const ready = await ensureBucket();
+  if (!ready) return null;
+  try {
+    return await presignObject(key, expiresInSeconds);
+  } catch (error) {
+    console.warn(`[objectStorage] Falha ao gerar URL assinada para ${key}:`, error);
+    return buildDirectObjectUrl(key);
+  }
 };
 
 interface UploadBinaryOptions {
@@ -145,9 +171,11 @@ export const uploadBinaryObject = async (
     'Content-Type': contentType,
   });
 
+  const signedUrl = await getSignedObjectUrl(key).catch(() => null);
+
   return {
     key,
-    url: getObjectUrl(key),
+    url: signedUrl ?? getObjectUrl(key),
     size: buffer.length,
     contentType,
   };

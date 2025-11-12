@@ -33,6 +33,7 @@ import { applyXpEvents, clampCharacterLevel } from './xpService.js';
 import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 import { offloadLargePayload } from './objectStorageService.js';
+import { synthesizeNarrationAudio } from './ttsService.js';
 import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
@@ -199,6 +200,61 @@ const mergeNpcLocations = (
     collect(current);
     collect(updates);
     return Array.from(map.values());
+};
+
+const getPlainTextFromLogEntry = (entry: GameMasterResponse['logEntries'][number]): string | null => {
+    if (!entry) return null;
+    const resolveContent = (value: any) => {
+        if (typeof value === 'string') return value;
+        if (value && typeof value === 'object') {
+            return value.content ?? value.text ?? null;
+        }
+        return null;
+    };
+
+    if (entry.type === 'narration' || entry.type === 'system' || entry.type === 'insight' || entry.type === 'combat') {
+        return resolveContent(entry.content);
+    }
+
+    if (entry.type === 'roll') {
+        const explicitText = resolveContent(entry.content);
+        if (explicitText) return explicitText;
+        const parts: string[] = [];
+        if (entry.rollResult?.description) {
+            parts.push(entry.rollResult.description);
+        }
+        if (typeof entry.rollResult?.total === 'number') {
+            const modifier = entry.rollResult.modifier ?? 0;
+            parts.push(`Total ${entry.rollResult.total} (${entry.rollResult.dice}${modifier ? ` ${modifier >= 0 ? '+' : '-'} ${Math.abs(modifier)}` : ''}).`);
+        }
+        if (entry.rollResult?.success === true) {
+            parts.push('Resultado: sucesso.');
+        } else if (entry.rollResult?.success === false) {
+            parts.push('Resultado: falha.');
+        }
+        return parts.length ? parts.join(' ') : null;
+    }
+
+    return null;
+};
+
+const attachNarrationAudio = async (response: GameMasterResponse) => {
+    if (!response?.logEntries?.length) return;
+    for (const entry of response.logEntries) {
+        if (!entry || (entry as any).audioUrl) continue;
+        const text = getPlainTextFromLogEntry(entry as any);
+        if (!text) continue;
+        const audio = await synthesizeNarrationAudio(text);
+        if (!audio?.url) continue;
+        (entry as any).audioUrl = audio.url;
+        if (typeof entry.content === 'string') {
+            entry.content = { content: entry.content, audioUrl: audio.url };
+        } else if (entry.content && typeof entry.content === 'object') {
+            entry.content.audioUrl = audio.url;
+        } else {
+            entry.content = { content: text, audioUrl: audio.url };
+        }
+    }
 };
 
 type AbilityKey = keyof Pick<CharacterAttributes, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'>;
@@ -657,6 +713,62 @@ const buildDefaultAttributes = (): Pick<CharacterAttributes, 'strength' | 'dexte
     conditions: [],
 });
 
+type InventoryForDerivedStats = {
+    id?: string;
+    name?: string;
+    equipped?: boolean;
+    armor_class?: {
+        base?: number;
+        dex_bonus?: boolean;
+        max_bonus?: number;
+    };
+    equipment_category?: {
+        index?: string | null;
+    };
+};
+
+const calculateArmorClassFromInventory = (
+    inventory: InventoryForDerivedStats[],
+    dexScore: number
+) => {
+    let baseAc = 10;
+    let bestArmor: InventoryForDerivedStats | null = null;
+
+    for (const item of inventory) {
+        if (!item?.equipped || !item.armor_class?.base) continue;
+        if (!bestArmor || (item.armor_class.base ?? 0) > (bestArmor.armor_class?.base ?? 0)) {
+            bestArmor = item;
+        }
+    }
+
+    let dexBonusAllowed = true;
+    let maxDexBonus: number | null = null;
+    if (bestArmor?.armor_class) {
+        baseAc = bestArmor.armor_class.base ?? baseAc;
+        dexBonusAllowed = bestArmor.armor_class.dex_bonus ?? true;
+        maxDexBonus = typeof bestArmor.armor_class.max_bonus === 'number'
+            ? bestArmor.armor_class.max_bonus
+            : null;
+    }
+
+    let dexMod = calculateModifier(dexScore);
+    if (!dexBonusAllowed) {
+        dexMod = 0;
+    } else if (maxDexBonus !== null) {
+        dexMod = Math.min(dexMod, maxDexBonus);
+    }
+
+    const hasShield = inventory.some(
+        item => item?.equipped && item.equipment_category?.index === 'shields'
+    );
+
+    const computedAc = (baseAc || 10) + dexMod + (hasShield ? 2 : 0);
+    return {
+        value: Math.max(10, computedAc),
+        source: bestArmor?.name || (hasShield ? 'Escudo' : 'Base'),
+    };
+};
+
 const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
     const attributes = fullCharacter.attributes ?? (buildDefaultAttributes() as CharacterAttributes);
     const proficiencies = ensureArray(fullCharacter.proficiencies);
@@ -684,6 +796,25 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
         .filter(Boolean) as string[];
     const worldStateSnapshot = buildWorldStateSnapshot(fullCharacter);
 
+    const derivedAc = calculateArmorClassFromInventory(
+        inventory as InventoryForDerivedStats[],
+        attributes.dexterity ?? 10
+    );
+    const normalizedHpCurrent = typeof attributes.hp === 'number'
+        ? attributes.hp
+        : (typeof attributes.maxHp === 'number' && attributes.maxHp > 0 ? attributes.maxHp : 10);
+    const normalizedHpMax = typeof attributes.maxHp === 'number' && attributes.maxHp > 0
+        ? attributes.maxHp
+        : normalizedHpCurrent;
+
+    const normalizedAttributes = {
+        ...attributes,
+        hp: normalizedHpCurrent,
+        maxHp: normalizedHpMax,
+        ac: derivedAc.value,
+        conditions: attributes.conditions || [],
+    };
+
     return {
         id: fullCharacter.id,
         name: fullCharacter.name,
@@ -691,17 +822,7 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
         characterClass: fullCharacter.characterClass,
         level: fullCharacter.level,
         xp: fullCharacter.xp ?? 0,
-        attributes: {
-            strength: attributes.strength,
-            dexterity: attributes.dexterity,
-            constitution: attributes.constitution,
-            intelligence: attributes.intelligence,
-            wisdom: attributes.wisdom,
-            charisma: attributes.charisma,
-            hp: attributes.hp ?? attributes.maxHp ?? 10,
-            ac: attributes.ac ?? 10,
-            conditions: attributes.conditions || [],
-        },
+        attributes: normalizedAttributes,
         passivePerception,
         passiveInsight,
         passiveInvestigation,
@@ -901,7 +1022,7 @@ const buildHomebrewSummaryBlock = (installedContent: HomebrewContent[]): string 
 
 
 // Constrói um objeto de personagem otimizado para a IA.
-export const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = true) => {
+export const buildOptimizedCharacterForAI = async (characterId: number, useCache: boolean = false) => {
     const cacheKey = `character:${characterId}:optimized`;
 
     // 1. Tenta buscar do cache
@@ -1604,6 +1725,7 @@ export const processPlayerTurn = async (
             : `[GM Validator]\n${note}`;
     }
     aiResponse = validatorResult.validatedResponse;
+    await attachNarrationAudio(aiResponse);
 
     if (aiResponse.playerRollRequest) {
         const recalculatedModifier = recalculatePlayerRollModifier(aiResponse.playerRollRequest, characterForAI);
@@ -1678,12 +1800,14 @@ export const processPlayerTurn = async (
             await persistSessionLog('summary', 'Story Summary', newStorySummaryForLog);
         }
 
-        if (combatReconciliation?.changed) {
+        const canonicalStateToPersist =
+            combatReconciliation?.canonicalState ?? null;
+        if (sessao && (canonicalStateToPersist || loadedCombat.encounterId !== null)) {
             await saveCombatEncounterState(
                 queryRunner,
                 sessao.id,
                 loadedCombat.encounterId,
-                combatReconciliation.canonicalState
+                canonicalStateToPersist
             );
         }
 

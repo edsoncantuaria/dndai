@@ -1,10 +1,10 @@
 // src/components/game-menu/GameMenuContent.tsx
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Beaker, Clock, CloudSun, Copy, Crown, Edit, FlaskConical, GitMerge, Languages, LogOut, MapPin, MoreVertical, Play, Plus, Settings, Shield, Sparkles, Sword, Trash2, User } from 'lucide-react';
+import { ArrowLeft, BookOpen, Beaker, Clock, CloudSun, Copy, Crown, Edit, FlaskConical, GitMerge, Languages, LogOut, MapPin, MoreVertical, Play, Plus, Settings, Shield, Sparkles, Sword, Trash2, User, Volume2, VolumeX } from 'lucide-react';
 import PremiumLoader from '@/components/ui/PremiumLoader';
 import Game from '@/components/Game';
 import HomebrewStore from '@/components/Homebrew/HomebrewStore';
@@ -72,6 +72,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
     openSessionActionModal,
 }) => {
     const [isSummaryExpanded, setIsSummaryExpanded] = useState(false);
+    const [isNarrationActive, setIsNarrationActive] = useState(false);
     const router = useRouter();
     const isAdmin = user?.id === 1;
 
@@ -82,6 +83,25 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
         { label: 'Heróis Prontos', value: characters.length, detail: 'personagens jogáveis' },
         { label: 'Homebrews', value: useAiHomebrew ? 'IA + Manual' : 'Manual', detail: 'fontes habilitadas' },
     ]), [sessions.length, characters.length, useAiHomebrew]);
+
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+            setIsNarrationActive(Boolean(detail?.active));
+        };
+        window.addEventListener('narration-speech', handler as EventListener);
+        return () => {
+            window.removeEventListener('narration-speech', handler as EventListener);
+        };
+    }, []);
+
+    const handleNarrationToggle = useCallback(() => {
+        if (isNarrationActive) {
+            window.dispatchEvent(new Event('narration-stop-request'));
+        } else {
+            window.dispatchEvent(new Event('narration-play-request'));
+        }
+    }, [isNarrationActive]);
 
     const menuActions = [
         {
@@ -614,6 +634,13 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                                 <Languages className="h-4 w-4" /> Traduções
                             </button>
                         )}
+                        <button
+                            onClick={handleNarrationToggle}
+                            className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-amber-200 hover:border-amber-300 transition-colors disabled:opacity-50"
+                        >
+                            {isNarrationActive ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                            {isNarrationActive ? 'Parar Narração' : 'Ouvir Narração'}
+                        </button>
                         <button
                             onClick={onLogout}
                             className="flex items-center gap-2 px-4 py-2 rounded-full border border-stone-600 bg-stone-900/60 text-sm text-stone-200 hover:text-red-300 hover:border-red-400 transition-colors"

@@ -34,7 +34,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
     useEffect(() => {
         const audio = audioRef.current;
         if (!audio) return;
-        
+
         audio.muted = isMuted;
         if (!isMuted) {
             audio.volume = volume;

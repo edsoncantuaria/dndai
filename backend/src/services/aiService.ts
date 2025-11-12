@@ -17,7 +17,7 @@ import { recordTokenUsageSample } from './tokenMetricsService.js';
 import { env } from '../config/env.js';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { attachResponseMetadata, CURRENT_SCHEMA_VERSION, GAME_MASTER_RESPONSE_JSON_SCHEMA, GAME_MASTER_SCHEMA_HASH, markSchemaDrift, migrateLegacyResponse, normalizeResponseSchema, responseMatchesCurrentSchema } from './schemaIntegrityService.js';
+import { attachResponseMetadata, CURRENT_SCHEMA_VERSION, GAME_MASTER_RESPONSE_JSON_SCHEMA, GAME_MASTER_SCHEMA_HASH, markSchemaDrift, migrateLegacyResponse, normalizeResponseSchema, responseMatchesCurrentSchema, ensureResponseSchemaHash } from './schemaIntegrityService.js';
 import { GAME_MASTER_RESPONSE_GENERATIVE_SCHEMA, NARRATIVE_PHASE_GENERATIVE_SCHEMA, STATE_PHASE_GENERATIVE_SCHEMA } from '../schemas/gameMasterResponseGenerativeSchema.js';
 import { reconstructSemanticIntent } from './semanticRecoveryService.js';
 import { attemptJsonRepair, buildContinuationSnippet, softTailRepair, stripCodeFences, stripSuffix, trimAfterLastClosingBracket } from './aiRepairUtils.js';
@@ -2898,12 +2898,16 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 return ensureRetryOrFallback('A IA enviou JSON inválido após múltiplas tentativas.');
             }
 
-            if (responseData && typeof responseData === 'object' && !responseMatchesCurrentSchema(responseData)) {
-                console.warn('[aiService] Hash de schema divergente; aplicando migração defensiva imediata.');
-                responseData = migrateLegacyResponse(responseData, { input, rawText: jsonText });
-                markSchemaDrift(responseData);
-                emitWarning('schema_migration', { focus: input.responseFocus ?? 'full' });
-                registerRecoveryStrategy('schema-migration');
+            if (responseData && typeof responseData === 'object') {
+                const matchesBefore = responseMatchesCurrentSchema(responseData as any);
+                ensureResponseSchemaHash(responseData as any);
+                if (!matchesBefore && !responseMatchesCurrentSchema(responseData as any)) {
+                    console.warn('[aiService] Hash de schema divergente; aplicando migração defensiva imediata.');
+                    responseData = migrateLegacyResponse(responseData, { input, rawText: jsonText });
+                    markSchemaDrift(responseData);
+                    emitWarning('schema_migration', { focus: input.responseFocus ?? 'full' });
+                    registerRecoveryStrategy('schema-migration');
+                }
             }
 
             // 1️⃣ Mini-sanitizer (limpeza pré-validação)
@@ -2934,6 +2938,7 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
 
             // 2️⃣ Sanitização semântica / lógica
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character, input);
+            ensureResponseSchemaHash(finalResponse);
             enforceCombatContinuity(finalResponse, input);
             ensureLootCurrencyDelta(finalResponse, input);
             ensureScenarioXpArtifacts(finalResponse, input);

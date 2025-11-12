@@ -356,7 +356,7 @@ export interface Character {
 export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
-    content: string | ImageLogEntryContent;
+    content: string | ImageLogEntryContent | { content?: string; text?: string; audioUrl?: string };
     rollResult?: {
         description: string;
         dice: string;
@@ -369,6 +369,7 @@ export interface LogEntry {
         advantage?: boolean;
         disadvantage?: boolean;
     };
+    audioUrl?: string;
 };
 
 export interface CombatCooldown {

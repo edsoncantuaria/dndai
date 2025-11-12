@@ -691,7 +691,27 @@ export const useNewGameState = () => {
                     }
                     const displayLogs = (sessionDetails.logs || [])
                         .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
-                        .map(log => ({ id: log.id?.toString() || uuidv4(), type: log.type as LogEntry['type'], content: log.response, rollResult: log.rollResult }));
+                        .map(log => {
+                            let parsedContent: any = log.response;
+                            if (typeof log.response === 'string') {
+                                try {
+                                    parsedContent = JSON.parse(log.response);
+                                } catch {
+                                    parsedContent = log.response;
+                                }
+                            }
+                            const audioUrl =
+                                parsedContent && typeof parsedContent === 'object' && 'audioUrl' in parsedContent
+                                    ? (parsedContent as any).audioUrl
+                                    : undefined;
+                            return {
+                                id: log.id?.toString() || uuidv4(),
+                                type: log.type as LogEntry['type'],
+                                content: parsedContent,
+                                rollResult: log.rollResult,
+                                audioUrl,
+                            };
+                        });
                     setCharacter(fullCharacter);
                     logState.setLog(displayLogs);
                     setSessionId(id);

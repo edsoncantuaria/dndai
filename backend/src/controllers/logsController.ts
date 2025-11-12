@@ -5,7 +5,7 @@ import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { SessionLog } from '../entities/SessionLog.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
-import { getObjectUrl } from '../services/objectStorageService.js';
+import { getObjectUrl, getSignedObjectUrl } from '../services/objectStorageService.js';
 
 const MAX_INLINE_PREVIEW = 1200;
 const DEFAULT_LIMIT = 120;
@@ -41,9 +41,10 @@ const stringifyPayload = (payload: unknown): string => {
   return JSON.stringify(payload);
 };
 
-const formatSessionLog = (log: SessionLog) => {
+const formatSessionLog = async (log: SessionLog) => {
   const parsed = safeJsonParse(log.response);
   if (isStoragePointer(parsed)) {
+    const signedUrl = await getSignedObjectUrl(parsed.key);
     return {
       id: log.id,
       type: log.type,
@@ -54,7 +55,7 @@ const formatSessionLog = (log: SessionLog) => {
         provider: parsed.provider ?? 'minio',
         bucket: parsed.bucket,
         key: parsed.key,
-        url: getObjectUrl(parsed.key),
+        url: signedUrl ?? getObjectUrl(parsed.key),
         contentType: parsed.contentType,
         size: parsed.size,
       },
@@ -111,7 +112,7 @@ export const getSessionLogs = async (req: AuthRequest, res: Response, next: Next
       take: limit,
     });
 
-    const entries = logs.map(formatSessionLog);
+    const entries = await Promise.all(logs.map(formatSessionLog));
     res.json({
       sessionId: sessaoId,
       count: entries.length,

@@ -12,6 +12,7 @@ import { checkObjectStorageHealth } from './services/objectStorageService.js';
 import { env } from './config/env.js';
 import { ensureQdrantCollections } from './database/qdrant-client.js';
 import { refreshEnemyTemplatesFromDatabase } from './services/enemyTemplateRegistry.js';
+import { describeTtsStatus } from './services/ttsService.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
@@ -26,6 +27,8 @@ import cacheRoutes from './routes/cacheRoutes.js';
 import logsRoutes from './routes/logsRoutes.js';
 import regionRoutes from './routes/regionRoutes.js';
 import metricsRoutes from './routes/metricsRoutes.js';
+import ttsRoutes from './routes/ttsRoutes.js';
+import rollRequestRoutes from './routes/rollRequestRoutes.js';
 
 
 const app = express();
@@ -74,6 +77,8 @@ app.use('/api/cache', cacheRoutes);
 app.use('/api/logs', logsRoutes);
 app.use('/api/regions', regionRoutes);
 app.use('/metrics', metricsRoutes);
+app.use('/api/tts', ttsRoutes);
+app.use('/api/roll-requests', rollRequestRoutes);
 
 
 // Rota de Traduções
@@ -117,6 +122,8 @@ const startServer = async () => {
                 console.error('[Startup][QDRANT] Falha ao preparar coleções:', error);
             }
         }
+
+        console.log(`[Startup][TTS] ${describeTtsStatus()}`);
         
         // Configurar o servidor WebSocket, passando o servidor HTTP
         configureWebSocket(server);

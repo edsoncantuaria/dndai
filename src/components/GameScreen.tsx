@@ -21,7 +21,7 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import ActionModal from './ui/ActionModal'; // Importar o ActionModal
-import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap } from 'lucide-react';
+import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap, Settings, Volume2, VolumeX, Dice5 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
 import StoryHighlightsCard from './StoryHighlightsCard';
@@ -35,6 +35,7 @@ import PremiumLoader from '@/components/ui/PremiumLoader';
 import { TooltipProvider } from './ui/tooltip';
 import WorldMapModal from '@/components/world-map/WorldMapModal';
 import { getWorldMapSnapshot, type WorldMapSnapshot } from '@/services/gameService';
+import type { PlayerRollRequest } from '@/types';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -113,13 +114,23 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
     const [worldMapState, setWorldMapState] = useState<{ sessionId: number; snapshot: WorldMapSnapshot } | null>(null);
     const [isWorldMapLoading, setIsWorldMapLoading] = useState(false);
+    const [isRollModalOpen, setIsRollModalOpen] = useState(false);
+    const [isNarrationActive, setIsNarrationActive] = useState(false);
     const prevStatsRef = React.useRef<{
         xp?: number;
         inventoryTotal?: number;
         relationships?: Map<string, number>;
     }>({});
     
-    const showDiceModal = !!playerRollRequest;
+    const showDiceModal = Boolean(playerRollRequest && isRollModalOpen);
+
+    useEffect(() => {
+        if (playerRollRequest) {
+            setIsRollModalOpen(true);
+        } else {
+            setIsRollModalOpen(false);
+        }
+    }, [playerRollRequest]);
     
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -152,10 +163,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         setIsGuidedTipsOpen(false);
     }, []);
 
-    const handleOpenGuidedTour = useCallback(() => {
-        setGuidedDismissed(false);
-        setIsGuidedTipsOpen(true);
+    useEffect(() => {
+        const handler = (event: Event) => {
+            const detail = (event as CustomEvent<{ active?: boolean }>).detail;
+            setIsNarrationActive(Boolean(detail?.active));
+        };
+        window.addEventListener('narration-speech', handler as EventListener);
+        return () => window.removeEventListener('narration-speech', handler as EventListener);
     }, []);
+
+    const handleNarrationToggle = useCallback(() => {
+        if (isNarrationActive) {
+            window.dispatchEvent(new Event('narration-stop-request'));
+        } else {
+            window.dispatchEvent(new Event('narration-play-request'));
+        }
+    }, [isNarrationActive]);
 
     const handleOpenWorldMap = useCallback(async () => {
         if (!sessionId) return;
@@ -215,6 +238,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         
         return () => clearTimeout(timeoutId);
     }, [character, hasSeenGuidedTips, guidedDismissed]);
+    const handleOpenGuidedTour = useCallback(() => {
+        setGuidedDismissed(false);
+        setIsGuidedTipsOpen(true);
+    }, []);
 
     const handleModalAction = () => setIsMobileSheetOpen(false);
 
@@ -435,11 +462,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 </AnimatePresence>
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
-                {showDiceModal && (
+                {showDiceModal && playerRollRequest && (
                     <DiceRollModal 
-                        request={playerRollRequest!}
+                        request={playerRollRequest}
                         onRoll={handleRollResult}
-                        onClose={() => setPlayerRollRequest(null)}
+                        onClose={() => setIsRollModalOpen(false)}
                         show={showDiceModal}
                     />
                 )}
@@ -537,6 +564,28 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             )}
                         </button>
                         <button
+                            onClick={handleNarrationToggle}
+                            className={cn(
+                                'inline-flex h-12 w-12 items-center justify-center rounded-full border shadow transition',
+                                isNarrationActive
+                                    ? 'border-amber-400/60 bg-amber-500/20 text-amber-100'
+                                    : 'border-white/15 bg-white/5 text-stone-200 hover:border-amber-300/50 hover:text-amber-200'
+                            )}
+                        >
+                            <span className="sr-only">Controle de narração</span>
+                            {isNarrationActive ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+                        </button>
+                        {playerRollRequest && !isRollModalOpen && (
+                            <button
+                                onClick={() => setIsRollModalOpen(true)}
+                                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-500/15 text-emerald-100 shadow transition hover:border-emerald-300/70"
+                                title="Reabrir rolagem pendente"
+                            >
+                                <span className="sr-only">Reabrir rolagem pendente</span>
+                                <Dice5 className="h-5 w-5" />
+                            </button>
+                        )}
+                        <button
                             onClick={() => setIsStoryDrawerOpen(true)}
                             className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-200 shadow"
                         >
@@ -544,11 +593,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             <Compass className="h-5 w-5" />
                         </button>
                         <button
-                            onClick={handleOpenGuidedTour}
-                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/15 bg-white/5 text-stone-200 transition hover:border-amber-300/50 hover:text-amber-200"
+                            onClick={() => typeof window !== 'undefined' && window.dispatchEvent(new Event('game-open-settings'))}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-white/10 text-stone-100 transition hover:border-amber-300/50 hover:text-amber-200"
                         >
-                            <span className="sr-only">Dicas guiadas</span>
-                            <Sparkles className="h-5 w-5" />
+                            <span className="sr-only">Configurações</span>
+                            <Settings className="h-5 w-5" />
                         </button>
                         <button
                             onClick={returnToMenu}

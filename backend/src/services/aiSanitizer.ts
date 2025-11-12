@@ -1559,9 +1559,14 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
   const combinedLogText = sanitized.logEntries
     ?.map(entry => (typeof entry?.content === 'string' ? entry.content.toLowerCase() : ''))
     .join(' ') ?? '';
-  const looksLikeRest = /descanso curto|descansar|dados de vida|hit dice|hp/.test(combinedLogText);
+  const restKeywordsDetected = /descanso curto|descansar|dados de vida|hit dice|hp/.test(combinedLogText);
+  const combatActive = Boolean(
+    sanitized.combatState?.isActive ||
+    flowInput?.combatState?.isActive
+  );
+  const allowRestFallback = restKeywordsDetected && !combatActive;
   const rollMissing = !sanitized.playerRollRequest && (
-    looksLikeRest ||
+    allowRestFallback ||
     Boolean(sanitized.combatState?.isActive) ||
     sanitized.actionOptions?.some(option => typeof option === 'object' && option?.skill)
   );
@@ -1569,7 +1574,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
   if (rollMissing) {
       if (suppressRollFallback) {
           sanitationLogs.push('playerRollRequest ausente, mas suppressRollRequest=true; mantido vazio.');
-      } else if (looksLikeRest) {
+      } else if (allowRestFallback) {
           const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
           const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
           sanitized.playerRollRequest = {
@@ -1594,7 +1599,7 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       }
   }
 
-  if (!sanitized.useHitDiceRequest && looksLikeRest && !suppressRollFallback) {
+  if (!sanitized.useHitDiceRequest && allowRestFallback && !suppressRollFallback) {
       const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
       const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
       const parsedDie = parseHitDieKey(typeof dieKey === 'string' && dieKey.includes('d') ? dieKey : `d${dieKey}`);

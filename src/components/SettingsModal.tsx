@@ -3,9 +3,12 @@
 
 import React, { ChangeEvent, useMemo, useState } from 'react';
 import { useSettingsContext, AVAILABLE_MODELS, AVAILABLE_TTS_MODELS, GenerationConfig, AVAILABLE_TTS_VOICES, ThemePreset } from '../contexts/SettingsContext';
-import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield } from 'lucide-react';
+import { Info, KeyRound, Volume2, VolumeX, FlaskConical, RefreshCw, Eraser, Palette, Sparkles, Accessibility, Undo2, AudioWaveform, Loader2, Shield, Dice5 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Switch } from '@/components/ui/switch';
+import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
+import { apiClient } from '@/services/apiClient';
 
 const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_35px_90px_rgba(0,0,0,0.65)]';
 
@@ -54,6 +57,7 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
 
 const AudioControls: React.FC = () => {
     const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic } = useSettingsContext();
+    const { autoSpeak, setAutoSpeak } = useNarrationSpeech();
 
     return (
          <div className="space-y-4 pt-6 border-t border-white/10">
@@ -85,6 +89,25 @@ const AudioControls: React.FC = () => {
                         className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${playMenuMusic ? 'translate-x-5' : 'translate-x-0'}`}
                     />
                 </button>
+            </div>
+            <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
+                <div className="flex items-center justify-between gap-3">
+                    <div>
+                        <p className="text-sm font-semibold text-stone-100">Narração automática</p>
+                        <p className="text-xs text-stone-400">Usa o TTS do servidor para falar cada novo bloco assim que ele chega.</p>
+                    </div>
+                    <Switch checked={autoSpeak} onCheckedChange={setAutoSpeak} />
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                    <button
+                        onClick={() => {
+                            window.dispatchEvent(new Event('narration-play-request'));
+                        }}
+                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-semibold text-stone-100 hover:border-amber-300/50 hover:text-amber-200"
+                    >
+                        Ouvir última narração
+                    </button>
+                </div>
             </div>
         </div>
     )
@@ -250,6 +273,7 @@ const CacheManagement: React.FC = () => {
     const { user, invalidateUserCache } = useAuth();
     const { toast } = useToast();
     const [isFlushingRedis, setIsFlushingRedis] = useState(false);
+    const [isClearingRolls, setIsClearingRolls] = useState(false);
 
     const handleClearEquipmentCache = () => {
         sessionStorage.removeItem('equipmentCache');
@@ -296,6 +320,25 @@ const CacheManagement: React.FC = () => {
         }
     };
 
+    const handleClearPendingRolls = async () => {
+        setIsClearingRolls(true);
+        try {
+            await apiClient('/roll-requests/clear', { method: 'POST' });
+            toast({
+                title: 'Rolagens pendentes limpas!',
+                description: 'Nenhuma rolagem bloqueada permanece nas suas sessões.',
+            });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Não foi possível limpar as rolagens',
+                description: error?.message || 'Tente novamente em instantes.',
+            });
+        } finally {
+            setIsClearingRolls(false);
+        }
+    };
+
     return (
         <div className="space-y-4 pt-6 border-t border-white/10">
             <h3 className="text-lg font-semibold text-stone-100">Manutenção e Cache</h3>
@@ -307,6 +350,14 @@ const CacheManagement: React.FC = () => {
                     <RefreshCw className="h-4 w-4" /> Sincronizar Dados de Homebrew
                 </button>
             </div>
+            <button
+                onClick={handleClearPendingRolls}
+                disabled={isClearingRolls}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-full text-sm font-semibold transition bg-gradient-to-r from-emerald-500 to-teal-600 text-white disabled:opacity-50"
+            >
+                {isClearingRolls ? <Loader2 className="h-4 w-4 animate-spin" /> : <Dice5 className="h-4 w-4" />}
+                Limpar Rolagens Pendentes
+            </button>
             {user?.id === 1 && (
                 <button
                     onClick={handleFlushRedis}

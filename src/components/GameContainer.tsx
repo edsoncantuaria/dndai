@@ -246,6 +246,14 @@ const GameContainer = () => {
         (apiError.toLowerCase().includes('chave da api') || apiError.toLowerCase().includes('api key'))
     );
 
+    useEffect(() => {
+        const handler = () => setShowSettingsModal(true);
+        window.addEventListener('game-open-settings', handler as EventListener);
+        return () => {
+            window.removeEventListener('game-open-settings', handler as EventListener);
+        };
+    }, []);
+
     return (
         <>
             <GameMenuContent

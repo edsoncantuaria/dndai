@@ -1,6 +1,8 @@
 // backend/src/services/rollRequestService.ts
 import { PlayerRollRequest } from '../types.js';
 import redisClient from '../database/redis-client.js';
+import { AppDataSource } from '../database/data-source.js';
+import { SessaoIA } from '../entities/SessaoIA.js';
 
 const ROLL_KEY = (sessionId: number) => `session:${sessionId}:pendingRoll`;
 const TTL_SECONDS = 60 * 15; // 15 minutes
@@ -56,4 +58,17 @@ export const clearPendingRollRequest = async (sessionId: number) => {
         await redisClient!.del(ROLL_KEY(sessionId));
     }
     memoryStore.delete(sessionId);
+};
+
+export const clearAllPendingRollRequestsForUser = async (userId: number): Promise<number> => {
+    const sessaoRepo = AppDataSource.getRepository(SessaoIA);
+    const sessions = await sessaoRepo.find({
+        where: { userId },
+        select: ['id'],
+    });
+    if (!sessions.length) return 0;
+    await Promise.all(
+        sessions.map(({ id }) => clearPendingRollRequest(id))
+    );
+    return sessions.length;
 };
