@@ -21,6 +21,7 @@ const defaultSettings = {
     volume: 0.3,
     isMuted: false,
     playMenuMusic: true,
+    playAmbientMusic: true,
     useAiHomebrew: true,
 };
 

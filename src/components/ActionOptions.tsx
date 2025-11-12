@@ -1,16 +1,27 @@
 // src/components/ActionOptions.tsx
 'use client';
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { Loader2, Send, Swords, MessageSquare, Compass, Eye, Zap, Shield, Sparkles, X } from 'lucide-react';
+import StructuredAttackPanel from './StructuredAttackPanel';
+import StructuredSkillPanel from './StructuredSkillPanel';
+import StructuredSpellPanel from './StructuredSpellPanel';
+import StructuredRestPanel from './StructuredRestPanel';
 
 
 const HitDiceRoller: React.FC = () => {
-    const { character, pendingHitDiceRequest, spendHitDice, isLoading } = useGameStateContext();
+    const { character, pendingHitDiceRequest, spendHitDice, declineHitDiceRequest, isLoading, combatState } = useGameStateContext();
     const [diceToSpend, setDiceToSpend] = useState(1);
-    
-    if (!pendingHitDiceRequest || !character) return null;
+    const isCombatActive = Boolean(combatState?.isActive);
+
+    useEffect(() => {
+        if (pendingHitDiceRequest && isCombatActive) {
+            declineHitDiceRequest();
+        }
+    }, [pendingHitDiceRequest, isCombatActive, declineHitDiceRequest]);
+
+    if (!pendingHitDiceRequest || !character || isCombatActive) return null;
 
     const maxDice = Math.min(pendingHitDiceRequest.maxDice || 0, character.hitDice.current || 0);
 
@@ -36,13 +47,23 @@ const HitDiceRoller: React.FC = () => {
                 />
                 <span className="font-bold text-lg text-amber-200">{diceToSpend}</span>
             </div>
-             <button
-                onClick={handleConfirm}
-                disabled={isLoading || diceToSpend === 0}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
-            >
-                {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Gastar ${diceToSpend} Dado(s) de Vida`}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2">
+                <button
+                    onClick={handleConfirm}
+                    disabled={isLoading || diceToSpend === 0}
+                    className="flex-1 bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-2 px-4 rounded-md transition-colors disabled:opacity-50"
+                >
+                    {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Gastar ${diceToSpend} Dado(s) de Vida`}
+                </button>
+                <button
+                    type="button"
+                    onClick={declineHitDiceRequest}
+                    disabled={isLoading}
+                    className="flex-1 border border-white/20 text-stone-200 hover:bg-white/5 rounded-md py-2 px-4 text-sm transition-colors disabled:opacity-50"
+                >
+                    Agora não
+                </button>
+            </div>
         </div>
     );
 };
@@ -210,6 +231,7 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
+    const [showStructuredTools, setShowStructuredTools] = useState(false);
 
     const getCombatantId = (entry: any): string => {
         if (!entry) return '';
@@ -297,7 +319,30 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
         const hasSuggestedActions = actionOptions.length > 0;
     
         return (
-            <div className="w-full">
+            <div className="w-full space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-transparent p-3 shadow-inner shadow-black/40">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] uppercase tracking-[0.4em] text-amber-300">Assistente de Regras</p>
+                            <p className="text-sm text-stone-300">Accione o motor SRD para rolagens oficiais.</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowStructuredTools(prev => !prev)}
+                            className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                        >
+                            {showStructuredTools ? 'Ocultar' : 'Mostrar'}
+                        </button>
+                    </div>
+                    {showStructuredTools && (
+                        <div className="mt-3 space-y-3">
+                            <StructuredAttackPanel />
+                            <StructuredSkillPanel />
+                            <StructuredSpellPanel />
+                            <StructuredRestPanel />
+                        </div>
+                    )}
+                </div>
                 {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Fighter",
+    "hit_die": 10,
+    "primary_abilities": ["strength", "dexterity"],
+    "saving_throws": ["strength", "constitution"],
+    "armor_proficiencies": ["light", "medium", "heavy", "shields"],
+    "weapon_proficiencies": ["simple", "martial"],
+    "tool_proficiencies": [],
+    "skills_choose": {
+      "count": 2,
+      "options": ["acrobatics", "animal_handling", "athletics", "history", "insight", "intimidation", "perception", "survival"]
+    },
+    "equipment_choices": [
+      ["chain_mail", "leather_armor", "longbow", "arrows_20"],
+      ["martial_weapon", "shield"]
+    ],
+    "level_progression": [
+      {
+        "level": 1,
+        "features": ["Fighting Style", "Second Wind"],
+        "proficiency_bonus": 2,
+        "spell_slots": {},
+        "class_resources": {
+          "actionSurge": { "uses": 0, "refresh": "short_rest" }
+        }
+      }
+    ]
+  }
+]

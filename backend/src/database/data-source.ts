@@ -35,6 +35,7 @@ import { SanitizationPattern } from '../entities/SanitizationPattern.js';
 import { EnemyTemplate as EnemyTemplateEntity } from '../entities/EnemyTemplate.js';
 import { AiFeedbackNote } from '../entities/AiFeedbackNote.js';
 import { ScenarioExample } from '../entities/ScenarioExample.js';
+import { SrdResource } from '../entities/SrdResource.js';
 
 
 /**
@@ -91,6 +92,7 @@ export const AppDataSource = new DataSource({
         EnemyTemplateEntity,
         AiFeedbackNote,
         ScenarioExample,
+        SrdResource,
     ], 
     
     migrations: [],

@@ -40,6 +40,7 @@ export const useInteractionManager = () => {
     const [shopState, setShopState] = useState<ShopState | null>(null);
     const [pendingLootOffer, setPendingLootOffer] = useState<LootOffer | null>(null);
     const [pendingHitDiceRequest, setPendingHitDiceRequest] = useState<UseHitDiceRequest | null>(null);
+    const [pendingStructuredIntent, setPendingStructuredIntent] = useState<any | null>(null);
     
     const setRequest = useCallback(({ type, request }: { type: RequestType, request: any }) => {
         switch (type) {
@@ -63,11 +64,15 @@ export const useInteractionManager = () => {
             case 'loot': setPendingLootOffer(null); break;
             case 'hitDice': setPendingHitDiceRequest(null); break;
         }
+        if (type === 'roll') {
+            setPendingStructuredIntent(null);
+        }
     }, []);
     
     const clearTransientInteractions = useCallback(() => {
         setPendingHitDiceRequest(null);
         setPendingLootOffer(null);
+        setPendingStructuredIntent(null);
     }, []);
 
     const clearAllInteractions = useCallback(() => {
@@ -211,5 +216,7 @@ export const useInteractionManager = () => {
         triggerTestShop,
         triggerTestCombat,
         triggerTestSkillCheck,
+        pendingStructuredIntent,
+        setPendingStructuredIntent,
     };
 };

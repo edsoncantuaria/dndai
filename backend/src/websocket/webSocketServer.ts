@@ -6,8 +6,12 @@ import { parse as urlParse } from 'url';
 import * as NarrarService from '../services/narrarService.js';
 import * as CharacterService from '../services/characterService.js';
 import createError from 'http-errors';
-import { getPendingRollRequest, clearPendingRollRequest } from '../services/rollRequestService.js';
+import { getPendingRollRequest, clearPendingRollRequest, savePendingRollRequest } from '../services/rollRequestService.js';
 import type { PlayerRollRequest } from '../types.js';
+import { validateActionIntent, type ActionIntent } from '../rules/actionIntentService.js';
+import { convertRollRequestToPlayerRoll } from '../rules/rollRequestAdapter.js';
+import { v4 as uuidv4 } from 'uuid';
+import { incrementStateVersion, loadStateVersion } from '../services/stateVersionService.js';
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: number;
@@ -53,6 +57,130 @@ const buildRollResolutionPrompt = (
             : '';
 
     return `Resultado da rolagem "${request.reason}": ${total}. (Dados ${request.dice}${advText}: [${diceValues.join(', ')}]${modifierText})${dcText}`.trim();
+};
+
+const ACTION_INTENT_ROLL_TYPE_MAP: Record<ActionIntent['type'], PlayerRollRequest['rollType']> = {
+    'weapon-attack': 'attack',
+    'skill-check': 'check',
+    'spell-attack': 'attack',
+};
+
+const ACTION_TIMEOUT_MS = 15000;
+const actionTimers = new Map<string, NodeJS.Timeout>();
+const startActionTimer = (ws: WebSocket, actionId: string) => {
+    const timer = setTimeout(() => {
+        actionTimers.delete(actionId);
+        ws.send(JSON.stringify({ type: 'timeout', payload: { actionId } }));
+    }, ACTION_TIMEOUT_MS);
+    actionTimers.set(actionId, timer);
+};
+const clearActionTimer = (actionId: string) => {
+    const timer = actionTimers.get(actionId);
+    if (timer) {
+        clearTimeout(timer);
+        actionTimers.delete(actionId);
+    }
+};
+const sessionStateVersions = new Map<number, number>();
+const getSessionStateVersion = (sessionId: number) => sessionStateVersions.get(sessionId) ?? 0;
+const bumpSessionStateVersion = async (sessionId: number) => {
+    const next = await incrementStateVersion(sessionId);
+    sessionStateVersions.set(sessionId, next);
+    return next;
+};
+
+const loadSessionStateVersion = async (sessionId: number) => {
+    const fromDb = await loadStateVersion(sessionId);
+    sessionStateVersions.set(sessionId, fromDb);
+    return fromDb;
+};
+
+type IntentHandlingResult = 'handled' | 'validated';
+
+const handleStructuredIntent = async ({
+    sessionId,
+    userId,
+    intent,
+    ws,
+    actionId,
+    combatState,
+}: {
+    sessionId: number;
+    userId: number;
+    intent: ActionIntent;
+    ws: AuthenticatedWebSocket;
+    actionId: string;
+    combatState?: any;
+}): Promise<IntentHandlingResult> => {
+    const { result } = await validateActionIntent(sessionId, userId, intent, { combatState });
+
+    if (result.status === 'rejected') {
+        throw createError(400, result.reason || 'Ação inválida segundo as regras.');
+    }
+
+    if (result.status === 'needs_roll' && result.rollRequest) {
+        const rollType = ACTION_INTENT_ROLL_TYPE_MAP[intent.type] ?? 'check';
+        const playerRollRequest = convertRollRequestToPlayerRoll(result.rollRequest, {
+            rollType,
+            reasonPrefix: 'Motor de Regras',
+        });
+        const requestId = uuidv4();
+        playerRollRequest.requestId = requestId;
+        await savePendingRollRequest(sessionId, userId, {
+            ...playerRollRequest,
+            requestId,
+        });
+        const currentVersion = await getSessionStateVersion(sessionId);
+        ws.send(
+            JSON.stringify({
+                type: 'gameStateUpdate',
+                payload: { playerRollRequest, stateVersion: currentVersion },
+            })
+        );
+        clearActionTimer(actionId);
+        ws.send(
+            JSON.stringify({
+                type: 'actionResolution',
+                payload: {
+                    actionId,
+                    stateVersion: getSessionStateVersion(sessionId),
+                    status: 'needs_roll',
+                    rule: intent.type,
+                    rollRequest: playerRollRequest,
+                },
+            })
+        );
+        return 'handled';
+    }
+
+    if (result.status === 'accepted' && intent.type === 'rest') {
+        const currentVersion = sessionStateVersions.has(sessionId)
+            ? getSessionStateVersion(sessionId)
+            : await loadSessionStateVersion(sessionId);
+        ws.send(
+            JSON.stringify({
+                type: 'actionResolution',
+                payload: {
+                    actionId,
+                    stateVersion: currentVersion,
+                    status: 'accepted',
+                    stateDelta: result.stateDelta ?? null,
+                    result: { systemLog: 'Descanso validado. Continue descrevendo a cena.' },
+                },
+            })
+        );
+        if (result.stateDelta) {
+            ws.send(
+                JSON.stringify({
+                    type: 'gameStateUpdate',
+                    payload: { stateDelta: result.stateDelta, stateVersion: currentVersion },
+                })
+            );
+        }
+        return 'validated';
+    }
+
+    return 'validated';
 };
 
 export function configureWebSocket(httpServer: Server) {
@@ -102,7 +230,7 @@ export function configureWebSocket(httpServer: Server) {
             switch (data.type) {
                 case 'processAction':
                     try {
-                        const { sessionId, prompt, combatState, useAiHomebrew, apiKey } = data.payload;
+                        const { sessionId, prompt, combatState, useAiHomebrew, apiKey, intent, actionId, clientStateVersion } = data.payload;
                         if (!sessionId || !prompt || !apiKey) {
                             throw createError(400, "Dados insuficientes para processar a ação.");
                         }
@@ -112,7 +240,40 @@ export function configureWebSocket(httpServer: Server) {
                             throw createError(409, `Você precisa resolver a rolagem pendente "${pendingRoll.reason}" antes de continuar.`);
                         }
 
-                        ws.send(JSON.stringify({ type: 'startLoading' }));
+                        const serverStateVersion = sessionStateVersions.has(sessionId)
+                            ? getSessionStateVersion(sessionId)
+                            : await loadSessionStateVersion(sessionId);
+                        if (typeof clientStateVersion === 'number' && clientStateVersion !== serverStateVersion) {
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    code: 'STATE_DESYNC',
+                                    message: 'Seu estado está desatualizado. Recarregue a sessão.',
+                                    expectedVersion: serverStateVersion,
+                                },
+                            }));
+                            break;
+                        }
+
+                        const resolvedActionId = actionId || uuidv4();
+                        ws.send(JSON.stringify({ type: 'actionAck', payload: { actionId: resolvedActionId, receivedAt: new Date().toISOString() } }));
+
+                        if (intent && typeof intent === 'object' && 'type' in intent) {
+                            const intentResult = await handleStructuredIntent({
+                                sessionId,
+                                userId: ws.userId,
+                                intent: intent as ActionIntent,
+                                ws,
+                                actionId: resolvedActionId,
+                                combatState,
+                            });
+                            if (intentResult === 'handled') {
+                                break;
+                            }
+                        }
+
+                        ws.send(JSON.stringify({ type: 'startLoading', payload: { actionId: resolvedActionId } }));
+                        startActionTimer(ws, resolvedActionId);
 
                         const response = await NarrarService.processPlayerTurn(
                             sessionId,
@@ -123,21 +284,48 @@ export function configureWebSocket(httpServer: Server) {
                             useAiHomebrew
                         );
 
-                        ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: response }));
+                        const newStateVersion = await bumpSessionStateVersion(sessionId);
+                        const enrichedResponse = { ...response, stateVersion: newStateVersion };
+                        ws.send(JSON.stringify({
+                            type: 'actionResolution',
+                            payload: {
+                                actionId: resolvedActionId,
+                                stateVersion: newStateVersion,
+                                status: 'accepted',
+                                result: response,
+                            },
+                        }));
+                        ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: enrichedResponse }));
 
                     } catch (error: any) {
                         console.error('[WSS] Erro ao processar ação:', error);
                         ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Erro interno no servidor.' } }));
                     } finally {
-                        ws.send(JSON.stringify({ type: 'stopLoading' }));
+                        clearActionTimer(resolvedActionId);
+                        ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId: resolvedActionId } }));
                     }
                     break;
                 
                 case 'submitRollResult':
                     try {
-                        const { sessionId, requestId, rolls, apiKey, combatState, useAiHomebrew } = data.payload;
+                        const { sessionId, requestId, rolls, apiKey, combatState, useAiHomebrew, clientStateVersion } = data.payload;
                         if (!sessionId || !requestId || !apiKey) {
                             throw createError(400, 'Dados insuficientes para enviar o resultado da rolagem.');
+                        }
+
+                        const serverStateVersion = sessionStateVersions.has(sessionId)
+                            ? getSessionStateVersion(sessionId)
+                            : await loadSessionStateVersion(sessionId);
+                        if (typeof clientStateVersion === 'number' && clientStateVersion !== serverStateVersion) {
+                            ws.send(JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    code: 'STATE_DESYNC',
+                                    message: 'Seu estado está desatualizado. Recarregue a sessão.',
+                                    expectedVersion: serverStateVersion,
+                                },
+                            }));
+                            break;
                         }
 
                         const pending = await getPendingRollRequest(sessionId);
@@ -161,7 +349,8 @@ export function configureWebSocket(httpServer: Server) {
                         const total = rawRoll + modifier;
                         const actionText = buildRollResolutionPrompt(pending, diceValues, rawRoll, total);
 
-                        ws.send(JSON.stringify({ type: 'startLoading' }));
+                        ws.send(JSON.stringify({ type: 'startLoading', payload: { actionId: requestId } }));
+                        startActionTimer(ws, requestId);
 
                         let response;
                         try {
@@ -174,9 +363,21 @@ export function configureWebSocket(httpServer: Server) {
                                 useAiHomebrew
                             );
                             await clearPendingRollRequest(sessionId);
-                            ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: response }));
+                            const newStateVersion = await bumpSessionStateVersion(sessionId);
+                            const enrichedResponse = { ...response, stateVersion: newStateVersion };
+                            ws.send(JSON.stringify({
+                                type: 'actionResolution',
+                                payload: {
+                                    actionId: requestId,
+                                    stateVersion: newStateVersion,
+                                    status: 'accepted',
+                                    result: response,
+                                },
+                            }));
+                            ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: enrichedResponse }));
                         } finally {
-                            ws.send(JSON.stringify({ type: 'stopLoading' }));
+                            clearActionTimer(requestId);
+                            ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId: requestId } }));
                         }
                     } catch (error: any) {
                         console.error('[WSS] Erro ao enviar resultado de rolagem:', error);

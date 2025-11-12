@@ -48,6 +48,9 @@ export class SessaoIA {
     @Column({ type: 'simple-json', nullable: true })
     homebrewContentIds: string[]; // Armazena IDs de todo o conteúdo necessário para esta sessão
 
+    @Column({ type: 'int', default: 0 })
+    stateVersion: number;
+
     @CreateDateColumn()
     createdAt: Date;
 

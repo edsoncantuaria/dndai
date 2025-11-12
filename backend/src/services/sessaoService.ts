@@ -238,6 +238,8 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
         });
     }
 
+    (sessao as any).stateVersion = sessao.stateVersion ?? 0;
+
     await hydrateLogResponses(sessao.logs);
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

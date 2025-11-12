@@ -79,7 +79,6 @@ const DiceTestSection: React.FC = () => {
                 <DiceRollModal
                     request={rollRequest}
                     onRoll={handleRollComplete as any}
-                    onClose={() => setRollRequest(null)}
                     show={!!rollRequest}
                 />
             )}

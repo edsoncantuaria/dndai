@@ -11,6 +11,8 @@ import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
 
+const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
+
 const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_35px_90px_rgba(0,0,0,0.65)]';
 
 interface SettingsModalProps {
@@ -57,7 +59,7 @@ const Slider: React.FC<SliderProps> = ({ id, label, tooltip, value, min, max, st
 );
 
 const AudioControls: React.FC = () => {
-    const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic } = useSettingsContext();
+    const { volume, setVolume, isMuted, setIsMuted, playMenuMusic, setPlayMenuMusic, playAmbientMusic, setPlayAmbientMusic } = useSettingsContext();
     const { autoSpeak, setAutoSpeak } = useNarrationSpeech();
 
     return (
@@ -78,18 +80,37 @@ const AudioControls: React.FC = () => {
                     onChange={(e) => setVolume(Number(e.target.value) / 100)}
                 />
             </div>
-            <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
-                <label htmlFor="menu-music-toggle" className="text-stone-200 font-semibold">Música da Tela Principal</label>
-                <button
-                    id="menu-music-toggle"
-                    onClick={() => setPlayMenuMusic(p => !p)}
-                    className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-500' : 'bg-stone-600'}`}
-                >
-                    <span
-                        aria-hidden="true"
-                        className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${playMenuMusic ? 'translate-x-5' : 'translate-x-0'}`}
-                    />
-                </button>
+            <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
+                    <label htmlFor="menu-music-toggle" className="text-stone-200 font-semibold text-sm">
+                        Música da Tela Principal
+                    </label>
+                    <button
+                        id="menu-music-toggle"
+                        onClick={() => setPlayMenuMusic(p => !p)}
+                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-amber-500 ${playMenuMusic ? 'bg-amber-500' : 'bg-stone-600'}`}
+                    >
+                        <span
+                            aria-hidden="true"
+                            className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${playMenuMusic ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                    </button>
+                </div>
+                <div className="flex items-center justify-between bg-black/30 border border-white/10 p-4 rounded-2xl">
+                    <label htmlFor="ambient-music-toggle" className="text-stone-200 font-semibold text-sm">
+                        Música ambiente na aventura
+                    </label>
+                    <button
+                        id="ambient-music-toggle"
+                        onClick={() => setPlayAmbientMusic(p => !p)}
+                        className={`relative inline-flex flex-shrink-0 h-6 w-11 border-2 border-transparent rounded-full cursor-pointer transition-colors ease-in-out duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-black focus:ring-emerald-500 ${playAmbientMusic ? 'bg-emerald-500' : 'bg-stone-600'}`}
+                    >
+                        <span
+                            aria-hidden="true"
+                            className={`inline-block h-5 w-5 rounded-full bg-white shadow-lg transform ring-0 transition ease-in-out duration-200 ${playAmbientMusic ? 'translate-x-5' : 'translate-x-0'}`}
+                        />
+                    </button>
+                </div>
             </div>
             <div className="space-y-3 rounded-2xl border border-white/10 bg-black/30 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -405,6 +426,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     }
 
     const handleTestImageGeneration = async () => {
+        if (!IMAGE_FEATURE_ENABLED) return;
         const prompt = imageTestPrompt.trim();
         const trimmedKey = (apiKey || '').trim();
         if (!prompt) {
@@ -474,52 +496,54 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                             Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
                         </p>
                     </div>
-                    <div className="rounded-3xl border border-white/10 bg-black/30 p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-semibold text-stone-100 flex items-center gap-2">
-                                    <ImageIcon className="h-4 w-4 text-amber-400" />
-                                    Teste de geração de imagem
-                                </p>
-                                <p className="text-xs text-stone-400">Use o prompt abaixo para validar rapidamente se sua chave está habilitada para o modelo de imagens.</p>
+                    {IMAGE_FEATURE_ENABLED && (
+                        <div className="rounded-3xl border border-white/10 bg-black/30 p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-stone-100 flex items-center gap-2">
+                                        <ImageIcon className="h-4 w-4 text-amber-400" />
+                                        Teste de geração de imagem
+                                    </p>
+                                    <p className="text-xs text-stone-400">Use o prompt abaixo para validar rapidamente se sua chave está habilitada para o modelo de imagens.</p>
+                                </div>
+                                {imageTestLoading && <Loader2 className="h-4 w-4 animate-spin text-amber-200" />}
                             </div>
-                            {imageTestLoading && <Loader2 className="h-4 w-4 animate-spin text-amber-200" />}
-                        </div>
-                        <textarea
-                            value={imageTestPrompt}
-                            onChange={e => setImageTestPrompt(e.target.value)}
-                            rows={3}
-                            className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
-                            placeholder="Descreva a cena que deseja visualizar..."
-                        />
-                        <div className="flex flex-col gap-3">
-                            <button
-                                type="button"
-                                onClick={handleTestImageGeneration}
-                                disabled={imageTestLoading}
-                                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 py-2.5 px-4 text-sm font-semibold text-white transition hover:from-amber-400 hover:to-pink-400 disabled:opacity-50"
-                            >
-                                {imageTestLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                                Gerar imagem de teste
-                            </button>
-                            {imageTestResult?.url && (
-                                <a
-                                    href={imageTestResult.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="block overflow-hidden rounded-2xl border border-white/10 bg-black/50"
+                            <textarea
+                                value={imageTestPrompt}
+                                onChange={e => setImageTestPrompt(e.target.value)}
+                                rows={3}
+                                className="w-full rounded-2xl border border-white/10 bg-black/40 p-3 text-sm text-stone-100 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/60"
+                                placeholder="Descreva a cena que deseja visualizar..."
+                            />
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    type="button"
+                                    onClick={handleTestImageGeneration}
+                                    disabled={imageTestLoading}
+                                    className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-amber-500 to-pink-500 py-2.5 px-4 text-sm font-semibold text-white transition hover:from-amber-400 hover:to-pink-400 disabled:opacity-50"
                                 >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={imageTestResult.url} alt="Prévia da imagem gerada" className="w-full object-cover" />
-                                </a>
-                            )}
-                            {imageTestResult?.error && (
-                                <p className="text-xs text-rose-300">
-                                    {imageTestResult.error}
-                                </p>
-                            )}
+                                    {imageTestLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                    Gerar imagem de teste
+                                </button>
+                                {imageTestResult?.url && (
+                                    <a
+                                        href={imageTestResult.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="block overflow-hidden rounded-2xl border border-white/10 bg-black/50"
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img src={imageTestResult.url} alt="Prévia da imagem gerada" className="w-full object-cover" />
+                                    </a>
+                                )}
+                                {imageTestResult?.error && (
+                                    <p className="text-xs text-rose-300">
+                                        {imageTestResult.error}
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <AudioControls />
                     <AppearanceControls />

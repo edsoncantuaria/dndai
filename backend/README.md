@@ -12,7 +12,7 @@ Este é o novo backend para o jogo "Crônicas de Aventuras", reconstruído para 
 - **MySQL**: Banco de dados relacional para persistência de dados.
 - **Genkit (Google Gemini)**: Para a geração de conteúdo narrativo pela IA.
 - **dotenv**: Para gerenciamento de variáveis de ambiente.
-
+1
 ## Pipeline de IA em alto nível
 
 - **Prompt rico + memória estruturada:** cada turno envia o log condensado, timeline, resumos, grafo de memória (`MEMORIA_GRAFO=...`) e um snippet real (`EXEMPLO_STATE/NARRATIVE`) obtido de execuções anteriores (`scenario_examples`). Isso garante que a IA tenha o mesmo contexto que o jogador.

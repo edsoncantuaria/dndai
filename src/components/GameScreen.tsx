@@ -21,7 +21,7 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import ActionModal from './ui/ActionModal'; // Importar o ActionModal
-import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap, Settings, Volume2, VolumeX, Dice5 } from 'lucide-react';
+import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap, Settings, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
 import StoryHighlightsCard from './StoryHighlightsCard';
@@ -114,7 +114,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
     const [worldMapState, setWorldMapState] = useState<{ sessionId: number; snapshot: WorldMapSnapshot } | null>(null);
     const [isWorldMapLoading, setIsWorldMapLoading] = useState(false);
-    const [isRollModalOpen, setIsRollModalOpen] = useState(false);
     const [isNarrationActive, setIsNarrationActive] = useState(false);
     const prevStatsRef = React.useRef<{
         xp?: number;
@@ -122,15 +121,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         relationships?: Map<string, number>;
     }>({});
     
-    const showDiceModal = Boolean(playerRollRequest && isRollModalOpen);
-
-    useEffect(() => {
-        if (playerRollRequest) {
-            setIsRollModalOpen(true);
-        } else {
-            setIsRollModalOpen(false);
-        }
-    }, [playerRollRequest]);
+    const showDiceModal = Boolean(playerRollRequest);
     
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -466,7 +457,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                     <DiceRollModal 
                         request={playerRollRequest}
                         onRoll={handleRollResult}
-                        onClose={() => setIsRollModalOpen(false)}
                         show={showDiceModal}
                     />
                 )}
@@ -575,16 +565,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                             <span className="sr-only">Controle de narração</span>
                             {isNarrationActive ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
                         </button>
-                        {playerRollRequest && !isRollModalOpen && (
-                            <button
-                                onClick={() => setIsRollModalOpen(true)}
-                                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-500/15 text-emerald-100 shadow transition hover:border-emerald-300/70"
-                                title="Reabrir rolagem pendente"
-                            >
-                                <span className="sr-only">Reabrir rolagem pendente</span>
-                                <Dice5 className="h-5 w-5" />
-                            </button>
-                        )}
                         <button
                             onClick={() => setIsStoryDrawerOpen(true)}
                             className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-amber-400/30 bg-amber-500/10 text-amber-200 shadow"

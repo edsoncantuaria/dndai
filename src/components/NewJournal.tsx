@@ -58,6 +58,10 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 const NewJournal: React.FC = () => {
     const { character } = useGameStateContext();
     const currentRegion = character?.worldState?.currentRegion || character?.currentRegion || 'Desconhecida';
+    const currentPoi =
+        character?.worldState?.poiName ||
+        (typeof character?.worldState?.poi === 'object' ? character?.worldState?.poi?.name : undefined);
+    const currentLocationLabel = currentPoi ? `${currentRegion} - ${currentPoi}` : currentRegion;
 
 
     if (!character || !character.journal || character.journal.length === 0) {
@@ -73,7 +77,7 @@ const NewJournal: React.FC = () => {
                             <h3 className="text-2xl font-serif text-white">Cartógrafo em Branco</h3>
                         </div>
                     </div>
-                    <p className="text-sm text-stone-400 flex items-center gap-2"><Compass className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-200">{currentRegion}</span></p>
+                    <p className="text-sm text-stone-400 flex items-center gap-2"><Compass className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-200">{currentLocationLabel}</span></p>
                 </div>
                 <div className="text-center text-stone-400 italic p-8 rounded-3xl border border-white/10 bg-black/30">
                     <p>Seu diário está vazio.</p>
@@ -105,7 +109,7 @@ const NewJournal: React.FC = () => {
                         <h3 className="text-2xl font-serif text-white">Cartografia Viva</h3>
                     </div>
                 </div>
-                <p className="text-sm text-stone-400 flex items-center gap-2"><MapPin className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-200">{currentRegion}</span></p>
+                <p className="text-sm text-stone-400 flex items-center gap-2"><MapPin className="h-4 w-4"/> Região Atual: <span className="font-semibold text-amber-200">{currentLocationLabel}</span></p>
             </div>
 
             <div className="space-y-4">

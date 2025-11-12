@@ -303,6 +303,8 @@ export const useNewGameState = () => {
     const [ambientSound, setAmbientSound] = useState<string>('none');
     const [progressionFeed, setProgressionFeed] = useState<ProgressionFeedItem[]>([]);
     const actionOptionsBackupRef = useRef<(string | { text: string; action: string; skill?: string })[] | null>(null);
+    const clientStateVersionRef = useRef(0);
+    const pendingActionsRef = useRef<Set<string>>(new Set());
     
     const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
 
@@ -549,11 +551,18 @@ export const useNewGameState = () => {
             }
         }
 
+        clientStateVersionRef.current += 1;
+
     }, [logState, updateCharacter, interactionState, toast, setProgressionFeed, character, ambientSound]);
 
     // WebSocket event handlers
     useEffect(() => {
-        const handleGameStateUpdate = (payload: GameMasterResponse) => handleApiResponse(payload);
+        const handleGameStateUpdate = (payload: GameMasterResponse & { stateVersion?: number }) => {
+            if (typeof payload?.stateVersion === 'number') {
+                clientStateVersionRef.current = payload.stateVersion;
+            }
+            handleApiResponse(payload);
+        };
         const handleError = (payload: { message: string }) => {
             setApiError(payload.message);
             if (actionOptionsBackupRef.current) {
@@ -561,19 +570,78 @@ export const useNewGameState = () => {
                 actionOptionsBackupRef.current = null;
             }
         };
-        const handleStartLoading = () => setIsLoading(true);
-        const handleStopLoading = () => setIsLoading(false);
+        const updateLoadingState = () => setIsLoading(pendingActionsRef.current.size > 0);
+
+        const handleStartLoading = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                pendingActionsRef.current.add(payload.actionId);
+                updateLoadingState();
+            } else {
+                setIsLoading(true);
+            }
+        };
+
+        const handleStopLoading = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                pendingActionsRef.current.delete(payload.actionId);
+                updateLoadingState();
+            } else {
+                pendingActionsRef.current.clear();
+                setIsLoading(false);
+            }
+        };
+
+        const handleActionAck = (payload?: { actionId?: string; receivedAt?: string }) => {
+            if (payload?.actionId) {
+                console.debug('[WS] actionAck', payload.actionId, payload.receivedAt);
+            }
+        };
+
+        const handleActionResolution = (payload?: { actionId?: string; stateVersion?: number; status?: string; result?: GameMasterResponse; stateDelta?: Record<string, unknown> }) => {
+            if (payload?.actionId) {
+                pendingActionsRef.current.delete(payload.actionId);
+                updateLoadingState();
+            }
+            if (typeof payload?.stateVersion === 'number') {
+                clientStateVersionRef.current = payload.stateVersion;
+            }
+            if (payload?.status === 'rejected' && payload.result?.systemLog) {
+                toast({ variant: 'destructive', title: payload.result.systemLog });
+            }
+            if (payload?.stateDelta?.rest && typeof payload.stateDelta.rest === 'object') {
+                const rest = payload.stateDelta.rest as { type?: string; benefits?: string[] };
+                toast({
+                    title: rest.type === 'long' ? 'Descanso longo validado' : 'Descanso curto validado',
+                    description: rest.benefits?.join(' • '),
+                });
+            }
+            if (payload?.result) {
+                handleApiResponse({ ...payload.result, stateVersion: payload.stateVersion });
+            }
+        };
 
         addEventListener('gameStateUpdate', handleGameStateUpdate);
         addEventListener('error', handleError);
         addEventListener('startLoading', handleStartLoading);
         addEventListener('stopLoading', handleStopLoading);
+        const handleActionTimeout = (payload?: { actionId?: string }) => {
+            if (!payload?.actionId) return;
+            pendingActionsRef.current.delete(payload.actionId);
+            updateLoadingState();
+            toast({ variant: 'destructive', title: 'Ação demorou demais', description: 'Reenvie ou recarregue a sessão.' });
+        };
+        addEventListener('timeout', handleActionTimeout);
+        addEventListener('actionAck', handleActionAck);
+        addEventListener('actionResolution', handleActionResolution);
 
         return () => {
             removeEventListener('gameStateUpdate', handleGameStateUpdate);
             removeEventListener('error', handleError);
             removeEventListener('startLoading', handleStartLoading);
             removeEventListener('stopLoading', handleStopLoading);
+            removeEventListener('timeout', handleActionTimeout);
+            removeEventListener('actionAck', handleActionAck);
+            removeEventListener('actionResolution', handleActionResolution);
         };
     }, [handleApiResponse, interactionState]);
 
@@ -608,14 +676,20 @@ export const useNewGameState = () => {
         interactionState.clearTransientInteractions();
         interactionState.setActionOptions([]);
         
+        const actionId = uuidv4();
+
         sendMessage('processAction', {
             sessionId: finalSessionId,
             prompt: action,
             apiKey: key,
             combatState: interactionState.combatState,
-            useAiHomebrew: useAiHomebrew,
-            model: modelOverride || model
+            useAiHomebrew,
+            model: modelOverride || model,
+            intent: interactionState.pendingStructuredIntent,
+            actionId,
+            clientStateVersion: clientStateVersionRef.current,
         });
+        interactionState.setPendingStructuredIntent(null);
         
     }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew]);
 
@@ -641,6 +715,7 @@ export const useNewGameState = () => {
             apiKey: key,
             combatState: interactionState.combatState,
             useAiHomebrew,
+            clientStateVersion: clientStateVersionRef.current,
         });
     }, [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, setApiError]);
     
@@ -906,6 +981,15 @@ export const useNewGameState = () => {
         processPlayerAction(`Eu gasto ${diceCount} dado(s) de vida para me curar.`);
     }, [character, processPlayerAction]);
 
+    const handleDeclineHitDiceRequest = useCallback(() => {
+        interactionState.clearRequest('hitDice');
+        toast({
+            title: 'Sem descanso agora',
+            description: 'Os Dados de Vida continuam disponíveis para a próxima pausa.',
+        });
+        processPlayerAction('Eu não vou gastar dados de vida agora.');
+    }, [interactionState, processPlayerAction, toast]);
+
     const memoizedValue = useMemo(() => ({
         character: character,
         log: logState.log,
@@ -933,6 +1017,7 @@ export const useNewGameState = () => {
         toggleEquipped: handleToggleEquipped,
         useConsumable: handleUseConsumable,
         spendHitDice: handleSpendHitDice,
+        declineHitDiceRequest: handleDeclineHitDiceRequest,
         takeLoot: interactionState.handleTakeLoot(processPlayerAction),
         buyItem: interactionState.handleBuyItem(processPlayerAction),
         sellItem: interactionState.handleSellItem(processPlayerAction),
@@ -945,7 +1030,7 @@ export const useNewGameState = () => {
         isLoading, apiError, ambientSound, progressionFeed,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
         startGame, processPlayerAction, submitRollResult, clearGameState, loadGameSession, handleApplyLevelUp,
-        handleToggleEquipped, handleUseConsumable, handleSpendHitDice, setCharacter
+        handleToggleEquipped, handleUseConsumable, handleSpendHitDice, handleDeclineHitDiceRequest, setCharacter
     ]);
 
     return memoizedValue;

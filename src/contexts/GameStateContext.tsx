@@ -17,6 +17,7 @@ export interface GameStateContextType {
     shopState: ShopState | null;
     pendingLootOffer: LootOffer | null;
     pendingHitDiceRequest: UseHitDiceRequest | null;
+    pendingStructuredIntent: any | null;
     skillCheckRequest: SkillCheckRequestState | null;
     setSkillCheckRequest: React.Dispatch<React.SetStateAction<SkillCheckRequestState | null>>;
     spellCastRequest: SpellCastRequestState | null;
@@ -40,6 +41,7 @@ export interface GameStateContextType {
     toggleEquipped: (itemId: string) => void;
     useConsumable: (itemId: string) => void;
     spendHitDice: (diceCount: number) => void;
+    declineHitDiceRequest: () => void;
     takeLoot: (takeAll: boolean) => void;
     buyItem: (item: ShopItem, price: number) => void;
     sellItem: (item: InventoryItem, price: number) => void;
@@ -58,6 +60,7 @@ export interface GameStateContextType {
     triggerTestShop: () => void;
     triggerTestCombat: () => void;
     triggerTestSkillCheck: (skillName: string) => void;
+    setPendingStructuredIntent: React.Dispatch<React.SetStateAction<any | null>>;
 }
 
 

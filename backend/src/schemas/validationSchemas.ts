@@ -51,6 +51,7 @@ export const SettingsSchema = z.object({
     volume: z.number().min(0).max(1),
     isMuted: z.boolean(),
     playMenuMusic: z.boolean(),
+    playAmbientMusic: z.boolean().default(true),
     useAiHomebrew: z.boolean().default(true), // Novo campo
 });
 

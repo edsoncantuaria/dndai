@@ -9,6 +9,7 @@ export interface PlayerRollRequest {
     advantage?: boolean;
     disadvantage?: boolean;
     requestId?: string;
+    details?: string[];
 }
 
 export type ImageLogEntryContent = {
@@ -29,6 +30,8 @@ export interface GameMasterResponse {
     logEntries?: LogEntry[];
     actionOptions?: (string | { text: string; action: string })[];
     updatedCharacter?: Partial<Character>;
+    stateVersion?: number;
+    stateDelta?: Record<string, unknown>;
     combatState?: CombatState;
     levelUpState?: LevelUpState;
     shopState?: ShopState;

@@ -71,6 +71,8 @@ interface SettingsContextType {
     setIsMuted: (isMuted: boolean) => void;
     playMenuMusic: boolean;
     setPlayMenuMusic: (play: boolean) => void;
+    playAmbientMusic: boolean;
+    setPlayAmbientMusic: (play: boolean) => void;
     useAiHomebrew: boolean;
     setUseAiHomebrew: (use: boolean) => void;
     theme: ThemePreset;
@@ -107,6 +109,7 @@ const defaultSettings = {
     volume: 0.3,
    isMuted: false,
    playMenuMusic: true,
+   playAmbientMusic: true,
    useAiHomebrew: true,
     theme: 'classic' as ThemePreset,
     fontScale: 'normal' as FontScale,
@@ -153,6 +156,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [volume, setVolume] = useState(defaultSettings.volume);
     const [isMuted, setIsMuted] = useState(defaultSettings.isMuted);
     const [playMenuMusic, setPlayMenuMusic] = useState(defaultSettings.playMenuMusic);
+    const [playAmbientMusic, setPlayAmbientMusic] = useState(defaultSettings.playAmbientMusic);
     const [useAiHomebrew, setUseAiHomebrew] = useState(defaultSettings.useAiHomebrew);
     const [theme, setTheme] = useState<ThemePreset>(defaultSettings.theme);
     const [fontScale, setFontScale] = useState<FontScale>(defaultSettings.fontScale);
@@ -189,6 +193,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             volume,
             isMuted,
             playMenuMusic,
+            playAmbientMusic,
             apiKey,
             useAiHomebrew,
             theme,
@@ -207,6 +212,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         volume,
         isMuted,
         playMenuMusic,
+        playAmbientMusic,
         apiKey,
         useAiHomebrew,
         theme,
@@ -236,6 +242,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.volume === 'number') setVolume(settings.volume);
             if (typeof settings.isMuted === 'boolean') setIsMuted(settings.isMuted);
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
+            if (typeof settings.playAmbientMusic === 'boolean') setPlayAmbientMusic(settings.playAmbientMusic);
             if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew);
             if (settings.apiKey) setApiKey(settings.apiKey);
             if (settings.theme && THEME_PRESETS.includes(settings.theme as ThemePreset)) {
@@ -298,6 +305,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         volume, setVolume,
         isMuted, setIsMuted,
         playMenuMusic, setPlayMenuMusic,
+        playAmbientMusic, setPlayAmbientMusic,
         useAiHomebrew, setUseAiHomebrew,
         theme, setTheme,
         fontScale, setFontScale,

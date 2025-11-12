@@ -1,0 +1,18 @@
+{
+  "syncedAt": "2025-11-12T16:02:11.666Z",
+  "resources": [
+    "races",
+    "subraces",
+    "classes",
+    "backgrounds",
+    "equipment",
+    "equipment-categories",
+    "spells",
+    "traits",
+    "feats",
+    "monsters",
+    "conditions",
+    "rules",
+    "rule-sections"
+  ]
+}

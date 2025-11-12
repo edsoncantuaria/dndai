@@ -809,6 +809,7 @@ const NewNarrativeLog: React.FC = () => {
 
     const handleGenerateImageEntry = useCallback(
         async (entry: LogEntryType) => {
+            if (!IMAGE_FEATURE_ENABLED) return;
             if (!entry?.id || entry.type !== 'image') return;
             const content = entry.content && typeof entry.content === 'object' ? (entry.content as ImageLogEntryContent) : null;
             const prompt = content?.prompt;
@@ -872,6 +873,7 @@ const NewNarrativeLog: React.FC = () => {
 
     const handleRefreshImageEntry = useCallback(
         async (entry: LogEntryType) => {
+            if (!IMAGE_FEATURE_ENABLED) return;
             if (!entry?.id || entry.type !== 'image') return;
             const content = entry.content && typeof entry.content === 'object' ? (entry.content as ImageLogEntryContent) : null;
             const key = content?.imageKey;
@@ -930,9 +932,9 @@ const NewNarrativeLog: React.FC = () => {
                         onPlayAudio={(item) => { void handlePlayEntry(item); }}
                         onGenerateAudio={handleGenerateAudio}
                         isGenerating={Boolean(generatingEntries[entry.id])}
-                        onGenerateImage={handleGenerateImageEntry}
-                        onRefreshImage={handleRefreshImageEntry}
-                        isImageLoading={Boolean(imageLoadingEntries[entry.id])}
+                        onGenerateImage={IMAGE_FEATURE_ENABLED ? handleGenerateImageEntry : undefined}
+                        onRefreshImage={IMAGE_FEATURE_ENABLED ? handleRefreshImageEntry : undefined}
+                        isImageLoading={IMAGE_FEATURE_ENABLED ? Boolean(imageLoadingEntries[entry.id]) : false}
                     />
                 );
             })}

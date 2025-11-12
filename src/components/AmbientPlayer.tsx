@@ -14,7 +14,7 @@ interface AmbientPlayerProps {
 
 const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
     const { ambientSound, character } = useGameStateContext();
-    const { volume, isMuted, playMenuMusic } = useSettingsContext();
+    const { volume, isMuted, playAmbientMusic } = useSettingsContext();
     
     // Usaremos apenas um player de áudio para simplificar
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -46,7 +46,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
         const audio = audioRef.current;
         if (!audio) return;
 
-        const targetSoundId = playMenuMusic ? ambientSound : 'none';
+        const targetSoundId = playAmbientMusic ? ambientSound : 'none';
         const soundData = ambientSounds.find(s => s.id === targetSoundId);
         const newUrl = soundData?.url && typeof window !== 'undefined' ? window.location.origin + soundData.url : null;
         const safeVolume = Math.max(volume, 0.05);
@@ -115,7 +115,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
             }
         };
 
-    }, [ambientSound, playMenuMusic, volume]);
+    }, [ambientSound, playAmbientMusic, volume]);
 
     const timeOfDay = character?.worldState?.timeOfDay?.toLowerCase() || '';
     const gradientByTag: Record<string, string> = {

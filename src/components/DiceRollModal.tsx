@@ -7,13 +7,12 @@ import { Dice5, Loader2, Target, Sparkles } from 'lucide-react';
 interface DiceRollModalProps {
   request: PlayerRollRequest;
   onRoll: (result: { rawRoll: number; rolls: number[] }) => void;
-  onClose: () => void;
   show: boolean;
 }
 
 type RollStatus = 'normal' | 'critical-success' | 'critical-failure' | 'success' | 'failure';
 
-const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose, show }) => {
+const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show }) => {
   const diceBoxRef = useRef<HTMLDivElement>(null);
   const diceBoxInstance = useRef<DiceBox | null>(null);
   const [isDiceboxReady, setIsDiceboxReady] = useState(false);
@@ -146,11 +145,9 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, onClose,
   return (
     <div
       className="fixed inset-0 bg-black/85 z-[100] flex items-center justify-center p-4 animate-fadeIn"
-      onClick={onClose}
     >
       <div
         className="w-full max-w-4xl rounded-3xl border border-amber-500/40 bg-[#05060b]/95 shadow-[0_40px_120px_rgba(0,0,0,0.85)] overflow-hidden grid lg:grid-cols-[1.2fr,1fr]"
-        onClick={e => e.stopPropagation()}
       >
         <div className="bg-black/70 border-r border-white/5 p-4 flex items-center justify-center">
           <div id="dicebox-premium" ref={diceBoxRef} className="w-full h-72 sm:h-96"></div>

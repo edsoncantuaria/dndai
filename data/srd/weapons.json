@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Longsword",
+    "category": "martial",
+    "type": "melee",
+    "damage": { "dice": "1d8", "type": "slashing" },
+    "versatile_damage": "1d10",
+    "properties": ["versatile"],
+    "weight_lb": 3,
+    "cost": { "currency": "gp", "amount": 15 }
+  },
+  {
+    "name": "Longbow",
+    "category": "martial",
+    "type": "ranged",
+    "damage": { "dice": "1d8", "type": "piercing" },
+    "properties": ["heavy", "two_handed", "ammunition"],
+    "range": { "normal": 150, "long": 600 },
+    "weight_lb": 2,
+    "cost": { "currency": "gp", "amount": 50 }
+  }
+]
