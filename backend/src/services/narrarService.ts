@@ -1239,8 +1239,24 @@ export const processPlayerTurn = async (
     const regionGraphSummary = regionPromptContext ? formatRegionGraphSummary(regionPromptContext) : undefined;
 
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
-    const normalizedStateHints = (stateHints ?? []).map(hint => hint?.trim()).filter(Boolean);
-    const latestStateHint = normalizedStateHints.length ? normalizedStateHints[normalizedStateHints.length - 1] : undefined;
+    const stateHintsFromContext: string[] = [];
+    if (sessao?.id) {
+        const pendingRoll = await getPendingRollRequest(sessao.id);
+        if (pendingRoll) {
+            stateHintsFromContext.push(
+                `[Roll] Aguardando resposta do jogador para ${pendingRoll.reason || pendingRoll.rollType}`
+            );
+        }
+    }
+    if (promptCombatState?.isActive) {
+        stateHintsFromContext.push('[Combat] Conflito ativo, mantenha foco em combate.');
+    }
+    const normalizedStateHints = [...(stateHints ?? []), ...stateHintsFromContext]
+        .map(hint => hint?.trim())
+        .filter(Boolean);
+    const latestStateHint = normalizedStateHints.length
+        ? normalizedStateHints[normalizedStateHints.length - 1]
+        : undefined;
 
     const sessionKey = sessao ? String(sessao.id) : undefined;
 
@@ -1822,10 +1838,22 @@ export const processPlayerTurn = async (
             await logRepository.save(log);
         };
 
-        if (rawText) {
-            await persistSessionLog('gm_raw', 'GM Raw Response', rawText);
-        }
+            const trimmedRawText = typeof rawText === 'string' ? rawText.slice(0, 4000) : null;
+            if (trimmedRawText) {
+                await persistSessionLog('gm_raw', 'GM Raw Response', trimmedRawText);
+            }
         await persistSessionLog('gm_validation', 'GM Validation', { attempts, issues: validationIssues, fallback: usedFallback });
+        if (trimmedRawText && (latestStateHint || validationIssues.length)) {
+            await persistSessionLog(
+                'gm_discarded',
+                'GM Discarded Response',
+                {
+                    rawText: trimmedRawText.slice(0, 4000),
+                    validationIssues,
+                    hints: normalizedStateHints,
+                }
+            );
+        }
         
         if(!isInternalAction) {
             await persistSessionLog('action', 'Player Action', playerAction);

@@ -81,6 +81,7 @@ export interface RuleCheckResult {
     reason?: string;
     rollRequest?: RollRequest;
     data?: Record<string, unknown>;
+    authoritativeSignature?: string;
     stateDelta?: {
         pendingAttack?: {
             weapon?: string;

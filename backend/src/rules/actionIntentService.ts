@@ -101,5 +101,12 @@ export async function validateActionIntent(
             throw createError(400, `Tipo de intenção ${intent.type} não é suportado.`);
     }
 
+    if (!result.authoritativeSignature) {
+        result = {
+            ...result,
+            authoritativeSignature: `rules:${intent.type}`,
+        };
+    }
+
     return { result, intent };
 }

@@ -424,6 +424,7 @@ export interface LogEntry {
     id: string;
     type: 'narration' | 'action' | 'system' | 'combat' | 'insight' | 'roll' | 'image';
     content: string | ImageLogEntryContent | { content?: string; text?: string; audioUrl?: string; audioKey?: string };
+    stateVersion?: number;
     rollResult?: {
         description: string;
         dice: string;

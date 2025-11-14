@@ -1,4 +1,5 @@
 // backend/src/services/aiSanitizer.ts
+import { randomUUID } from 'crypto';
 import type { GameMasterResponse, GameMasterFlowInput } from "../schemas/gameSchemas.js";
 import { HomebrewContentType } from "../entities/HomebrewContent.js";
 import type { InventoryLike } from './inventoryService.js';
@@ -1519,6 +1520,8 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       }
   });
 
+  const awaitingRollMessage = 'O motor aguarda a rolagem do jogador para continuar.';
+
   if (sanitized.playerRollRequest && typeof sanitized.playerRollRequest === 'object') {
       if (sanitized.playerRollRequest.dc === null) {
           delete sanitized.playerRollRequest.dc;
@@ -1553,6 +1556,21 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       }
       sanitized.playerRollRequest.advantage = Boolean(sanitized.playerRollRequest.advantage);
       sanitized.playerRollRequest.disadvantage = Boolean(sanitized.playerRollRequest.disadvantage);
+      if (sanitized.playerRollRequest && awaitingRollMessage) {
+          sanitized.actionOptions = [];
+          const systemLogs =
+              sanitized.logEntries
+                  ?.filter(entry => entry && entry.type === 'system' && typeof entry.content === 'string') ?? [];
+          sanitized.logEntries = [
+              ...systemLogs,
+              {
+                  id: randomUUID(),
+                  type: 'system',
+                  content: awaitingRollMessage,
+              },
+          ];
+          sanitationLogs.push('logEntries e actionOptions substituídos enquanto aguarda rolagem do jogador.');
+      }
   }
 
   const suppressRollFallback = Boolean(flowInput?.suppressRollRequest);

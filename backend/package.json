@@ -11,7 +11,7 @@
     "dev:log": "tsx watch src/server.ts 2>&1 | tee logs/server_$(date +'%Y-%m-%d_%H-%M-%S').log",
     "seed:data": "tsx src/scripts/migrate-data.ts",
     "seed:all": "npm run seed:data && npm run seed:regions && npm run seed:enemy-templates && npm run ai:seed-normalizations",
-    "test": "node --test --import tsx \"src/__tests__/**/*.spec.ts\"",
+    "test": "REDIS_URL=mock node --test --import tsx \"src/__tests__/**/*.spec.ts\"",
     "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts",
     "ai:test-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructuredOutput.ts",
     "ai:compare-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/compareStructuredScenario.ts",
@@ -33,6 +33,7 @@
     "test-state-hints": "node scripts/testStateHints.mjs",
     "check-session-logs": "node scripts/checkSessionLogs.js",
     "scenario-attack": "node scripts/runAttackScenario.js",
+    "scenario:intent": "node scripts/runIntentScenario.js",
     "test-session-reuse": "node scripts/testSessionReuse.js"
   },
   "keywords": [

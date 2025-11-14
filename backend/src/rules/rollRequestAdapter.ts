@@ -6,7 +6,11 @@ const ROLL_FORMULA_REGEX = /^(\d+d\d+)([+-]\d+)?$/i;
 
 export function convertRollRequestToPlayerRoll(
     request: RollRequest,
-    overrides: { rollType: PlayerRollRequest['rollType']; reasonPrefix?: string }
+    overrides: {
+        rollType: PlayerRollRequest['rollType'];
+        reasonPrefix?: string;
+        metadata?: Record<string, unknown>;
+    }
 ): PlayerRollRequest {
     const match = request.formula.match(ROLL_FORMULA_REGEX);
     const dice = match?.[1] ?? '1d20';
@@ -24,6 +28,6 @@ export function convertRollRequestToPlayerRoll(
         advantage: request.advantage,
         disadvantage: request.disadvantage,
         details: request.modifierBreakdown ?? [],
-        metadata: request.metadata,
+        metadata: overrides.metadata ?? request.metadata,
     };
 }

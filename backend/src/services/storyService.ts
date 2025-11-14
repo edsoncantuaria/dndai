@@ -22,6 +22,7 @@ interface TimelineEventInput {
 }
 
 const TIMELINE_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:timeline`;
+const TIMELINE_META_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:timeline_meta`;
 const SUMMARY_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary`;
 const SUMMARY_META_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
 const STORY_MODEL = 'models/gemini-2.5-flash-lite';
@@ -38,9 +39,10 @@ const IMPORTANT_KEYWORDS = [
 ];
 
 const SUMMARY_CHURN_WINDOW_MS = 60 * 1000;
-const timelineKeyTracker = new Map<number, string>();
+const timelineKeyTracker = new Map<number, { valueKey: string; metaKey: string }>();
 const summaryKeyTracker = new Map<number, { valueKey: string; metaKey: string }>();
 const summaryDeletionTracker = new Map<number, { timestamp: number; reason: 'manual' | 'rotation' }>();
+const timelineDeletionTracker = new Map<number, { timestamp: number; reason: 'manual' | 'rotation' }>();
 
 const getStateVersionForCache = async (sessaoId: number): Promise<number> => {
     try {
@@ -53,6 +55,8 @@ const getStateVersionForCache = async (sessaoId: number): Promise<number> => {
 
 const buildTimelineCacheKey = (sessaoId: number, version: number) =>
     `${TIMELINE_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
+const buildTimelineMetaCacheKey = (sessaoId: number, version: number) =>
+    `${TIMELINE_META_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
 const buildSummaryCacheKey = (sessaoId: number, version: number) =>
     `${SUMMARY_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
 const buildSummaryMetaCacheKey = (sessaoId: number, version: number) =>
@@ -67,12 +71,22 @@ const deleteKeyIfNeeded = async (key?: string) => {
     }
 };
 
-const swapTimelineCacheKey = async (sessaoId: number, nextKey: string) => {
+const markTimelineCacheInvalidated = (sessaoId: number, reason: 'manual' | 'rotation') => {
+    timelineDeletionTracker.set(sessaoId, { timestamp: Date.now(), reason });
+};
+
+export const registerTimelineCacheInvalidation = (sessaoId: number) => {
+    markTimelineCacheInvalidated(sessaoId, 'manual');
+};
+
+const swapTimelineCacheKey = async (sessaoId: number, valueKey: string, metaKey: string) => {
     const previous = timelineKeyTracker.get(sessaoId);
-    if (previous && previous !== nextKey) {
-        await deleteKeyIfNeeded(previous);
+    if (previous && (previous.valueKey !== valueKey || previous.metaKey !== metaKey)) {
+        await deleteKeyIfNeeded(previous.valueKey);
+        await deleteKeyIfNeeded(previous.metaKey);
+        markTimelineCacheInvalidated(sessaoId, 'rotation');
     }
-    timelineKeyTracker.set(sessaoId, nextKey);
+    timelineKeyTracker.set(sessaoId, { valueKey, metaKey });
 };
 
 const markSummaryCacheInvalidated = (sessaoId: number, reason: 'manual' | 'rotation') => {
@@ -101,6 +115,19 @@ const noteSummaryWrite = (sessaoId: number) => {
             console.warn(`[storyService] Summary cache para sessão ${sessaoId} foi recriado ${delta}ms após uma limpeza manual.`);
         }
         summaryDeletionTracker.delete(sessaoId);
+    }
+};
+
+const noteTimelineWrite = (sessaoId: number, version: number) => {
+    const record = timelineDeletionTracker.get(sessaoId);
+    if (record && record.reason === 'manual') {
+        const delta = Date.now() - record.timestamp;
+        if (delta < SUMMARY_CHURN_WINDOW_MS) {
+            console.warn(
+                `[storyService] Timeline cache da sessão ${sessaoId} (stateVersion=${version}) foi recriado ${delta}ms após uma limpeza manual.`
+            );
+        }
+        timelineDeletionTracker.delete(sessaoId);
     }
 };
 
@@ -137,14 +164,25 @@ const loadTimelineFromDb = async (sessaoId: number, limit?: number): Promise<Tim
 const cacheTimeline = async (sessaoId: number, version: number, events: TimelineEvent[]): Promise<void> => {
     if (!redisClient || !redisClient.isOpen) return;
     const key = buildTimelineCacheKey(sessaoId, version);
-    await swapTimelineCacheKey(sessaoId, key);
+    const metaKey = buildTimelineMetaCacheKey(sessaoId, version);
+    await swapTimelineCacheKey(sessaoId, key, metaKey);
     const pipeline = redisClient.multi();
     pipeline.del(key);
+    pipeline.del(metaKey);
     if (events.length) {
         pipeline.rPush(key, events.map(event => JSON.stringify(event)));
         pipeline.lTrim(key, -MAX_TIMELINE_ENTRIES, -1);
+        pipeline.set(
+            metaKey,
+            JSON.stringify({
+                stateVersion: version,
+                updatedAt: new Date().toISOString(),
+                totalEntries: events.length,
+            })
+        );
     }
     await pipeline.exec();
+    noteTimelineWrite(sessaoId, version);
 };
 
 const getTimelineFromCache = async (sessaoId: number, version: number): Promise<TimelineEvent[] | null> => {
@@ -214,7 +252,11 @@ export const getStorySummary = async (sessaoId: number): Promise<string | null> 
         await redisClient.set(summaryKey, summary.summary);
         await redisClient.set(
             summaryMetaKey,
-            JSON.stringify({ entriesSummarized: summary.entriesSummarized, updatedAt: summary.updatedAt.toISOString() })
+            JSON.stringify({
+                entriesSummarized: summary.entriesSummarized,
+                updatedAt: summary.updatedAt.toISOString(),
+                stateVersion: version,
+            })
         );
         noteSummaryWrite(sessaoId);
     }
@@ -245,17 +287,21 @@ const setStorySummary = async (sessaoId: number, summary: string, entriesSummari
         await redisClient.set(summaryKey, summary);
         await redisClient.set(
             summaryMetaKey,
-            JSON.stringify({ entriesSummarized, updatedAt: new Date().toISOString() })
+            JSON.stringify({
+                entriesSummarized,
+                updatedAt: new Date().toISOString(),
+                stateVersion: version,
+            })
         );
         noteSummaryWrite(sessaoId);
     }
 };
 
-const getSummaryMeta = async (sessaoId: number): Promise<{ entriesSummarized: number } | null> => {
+const getSummaryMeta = async (sessaoId: number): Promise<{ entriesSummarized: number; stateVersion: number } | null> => {
     const version = await getStateVersionForCache(sessaoId);
     const summaryMetaKey = buildSummaryMetaCacheKey(sessaoId, version);
     if (redisClient && redisClient.isOpen) {
-        const cached = safeParse<{ entriesSummarized: number }>(await redisClient.get(summaryMetaKey));
+        const cached = safeParse<{ entriesSummarized: number; stateVersion: number }>(await redisClient.get(summaryMetaKey));
         if (cached) return cached;
     }
 
@@ -266,11 +312,15 @@ const getSummaryMeta = async (sessaoId: number): Promise<{ entriesSummarized: nu
     if (redisClient && redisClient.isOpen) {
         await redisClient.set(
             summaryMetaKey,
-            JSON.stringify({ entriesSummarized: summary.entriesSummarized, updatedAt: summary.updatedAt.toISOString() })
+            JSON.stringify({
+                entriesSummarized: summary.entriesSummarized,
+                updatedAt: summary.updatedAt.toISOString(),
+                stateVersion: version,
+            })
         );
     }
 
-    return { entriesSummarized: summary.entriesSummarized };
+    return { entriesSummarized: summary.entriesSummarized, stateVersion: version };
 };
 
 const appendTimelineEvent = async (

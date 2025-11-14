@@ -1,5 +1,17 @@
 // backend/src/entities/Character.ts
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, DeleteDateColumn, ManyToOne, JoinColumn, OneToMany, OneToOne, Index } from 'typeorm';
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    UpdateDateColumn,
+    DeleteDateColumn,
+    ManyToOne,
+    JoinColumn,
+    OneToMany,
+    OneToOne,
+    Index,
+} from 'typeorm';
 import { User } from './User.js';
 import { SessaoIA } from './SessaoIA.js';
 import { CharacterAttributes } from './CharacterAttributes.js';
@@ -10,6 +22,24 @@ import { JournalEntry } from './JournalEntry.js';
 import { Relationship } from './Relationship.js';
 import { CharacterResource } from './CharacterResource.js';
 
+const jsonColumnTransformer = {
+    to: (value: unknown) => {
+        if (value === null || value === undefined) return null;
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return JSON.stringify(null);
+        }
+    },
+    from: (value: string | null) => {
+        if (!value) return null;
+        try {
+            return JSON.parse(value);
+        } catch {
+            return null;
+        }
+    },
+};
 
 @Entity('characters')
 export class Character {
@@ -74,8 +104,8 @@ export class Character {
     @Column({ type: 'varchar', length: 20, nullable: true })
     skinColor: string;
     
-    @Column({ type: 'json', nullable: true })
-    feats: any[];
+    @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
+    feats: any[] | null;
     
     @Index()
     @Column({ type: 'simple-json', nullable: true })
@@ -110,18 +140,20 @@ export class Character {
     @Column({ type: 'text', nullable: true })
     storySoFar: string; 
 
-    @Column({ type: 'json', nullable: true })
-    factionReputation: Record<string, number>;
+    @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
+    factionReputation: Record<string, number> | null;
 
-    @Column({ type: 'json', nullable: true })
-    worldState: Record<string, any>; 
+    @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
+    worldState: Record<string, any> | null;
 
-    @Column({ type: 'json', nullable: true })
-    gameClock: {
-        day?: number;
-        hour?: number;
-        weather?: string;
-    } | null;
+    @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
+    gameClock:
+        | {
+              day?: number;
+              hour?: number;
+              weather?: string;
+          }
+        | null;
     
     @Column({ type: 'varchar', length: 100, nullable: true })
     currentRegion: string;

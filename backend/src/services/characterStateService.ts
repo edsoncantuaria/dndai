@@ -38,6 +38,8 @@ export interface StateDeltaContext {
     metadata?: Record<string, any>;
     encounterId?: number;
     entityId?: string;
+    authoritativeSignature?: string | null;
+    expectedStateVersion?: number;
 }
 
 export const applyCharacterStateDelta = async (

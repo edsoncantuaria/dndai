@@ -60,6 +60,8 @@ export const SettingsSchema = z.object({
 export const CreateSessaoSchema = z.object({
     nome: z.string().min(1, "O nome da sessão é obrigatório.").max(100),
     characterId: z.number().positive("ID do personagem inválido."),
+    clientInstanceId: z.string().trim().min(8).max(64).optional(),
+    forceNew: z.boolean().optional(),
 });
 
 // --- Character ---

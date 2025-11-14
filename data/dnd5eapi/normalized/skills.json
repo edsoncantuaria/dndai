@@ -1,0 +1,8 @@
+[
+  {
+    "index": "perception",
+    "name": "Perception",
+    "ability_score": { "index": "wisdom" },
+    "desc": ["Notice clues and spot hidden threats."]
+  }
+]

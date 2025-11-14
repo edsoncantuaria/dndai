@@ -1,26 +1,13 @@
 import type { Request, Response, NextFunction } from 'express';
 import createError from 'http-errors';
-import { z } from 'zod';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import { processActionIntent } from '../services/actionService.js';
-import { CombatStateSchema } from '../schemas/gameSchemas.js';
-import { z } from 'zod';
-
-const processActionSchema = z.object({
-    prompt: z.string().min(1).optional(),
-    intent: z
-        .object({
-            type: z.string(),
-            payload: z.record(z.any()),
-        })
-        .optional(),
-    combatState: CombatStateSchema.nullable().optional(),
-    apiKey: z.string().optional(),
-    useAiHomebrew: z.boolean().optional(),
-    model: z.string().optional(),
-    clientStateVersion: z.number().optional(),
-    actionId: z.string().optional(),
-});
+import {
+    ProcessActionSchema,
+    CURRENT_CONTRACT_VERSION,
+    ProcessActionPayload,
+    isContractVersionSupported,
+} from '../schemas/processActionSchema.js';
 
 export const processActionRest = async (req: AuthRequest, res: Response, next: NextFunction) => {
     const sessionId = Number(req.params.sessionId);
@@ -28,16 +15,21 @@ export const processActionRest = async (req: AuthRequest, res: Response, next: N
         return next(createError(400, 'Parâmetro sessionId inválido.'));
     }
 
-    const validation = processActionSchema.safeParse(req.body);
+    const validation = ProcessActionSchema.safeParse(req.body);
     if (!validation.success) {
         return next(createError(400, 'Payload inválido para processAction.', { details: validation.error.flatten() }));
+    }
+
+    const bodyPayload: ProcessActionPayload = validation.data;
+    if (!isContractVersionSupported(bodyPayload.contractVersion)) {
+        return next(createError(426, `CONTRACT_VERSION_MISMATCH: supported=${CURRENT_CONTRACT_VERSION}`));
     }
 
     try {
         const payload = await processActionIntent({
             sessionId,
             userId: req.user!.userId,
-            body: validation.data,
+            body: bodyPayload,
         });
         res.status(200).json(payload);
     } catch (error) {

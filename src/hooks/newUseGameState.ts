@@ -736,7 +736,7 @@ export const useNewGameState = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [user, handleApiResponse, processPlayerAction, startGame, logState, toast, clearGameState, sessionId]);
+    }, [user, handleApiResponse, startGame, logState, toast, clearGameState, sessionId]);
 
     // WebSocket event handlers
     useEffect(() => {

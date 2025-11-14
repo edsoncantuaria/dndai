@@ -436,7 +436,20 @@ const LogEntry = React.memo(function LogEntry({
     
     if(contentComponent === null) return null;
 
-    return <div className="animate-fadeIn" style={{animationDuration: '500ms'}}>{contentComponent}</div>;
+    const stateVersionBadge = typeof entry.stateVersion === 'number'
+        ? (
+            <span className="pointer-events-none absolute -bottom-1 left-0 text-[9px] uppercase tracking-[0.4em] text-stone-500/60">
+                v{entry.stateVersion}
+            </span>
+        )
+        : null;
+
+    return (
+        <div className="relative animate-fadeIn pb-4" style={{ animationDuration: '500ms' }}>
+            {contentComponent}
+            {stateVersionBadge}
+        </div>
+    );
 });
 
 

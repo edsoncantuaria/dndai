@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Loader2, Send, Swords, MessageSquare, Compass, Eye, Zap, Shield, Sparkles, X } from 'lucide-react';
+import { Loader2, Send, Swords, MessageSquare, Compass, Eye, Zap, Shield, Sparkles, X, Dice5 } from 'lucide-react';
 import StructuredAttackPanel from './StructuredAttackPanel';
 import StructuredSkillPanel from './StructuredSkillPanel';
 import StructuredSpellPanel from './StructuredSpellPanel';
@@ -228,6 +228,8 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
         combatState,
         character,
         nextTurn,
+        actionPhaseLabel,
+        isRollPending,
     } = useGameStateContext();
 
     const [isOpen, setIsOpen] = useState(false);
@@ -255,7 +257,7 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
     }, [combatState, character]);
 
     
-    const isActionLocked = !!playerRollRequest || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
+    const isActionLocked = Boolean(actionPhaseLabel) || isRollPending || !!pendingLootOffer || !!pendingHitDiceRequest || isLoading;
 
     const handleActionClick = (action: string | { text: string; action: string; skill?: string; }) => {
         // Prioriza o texto visível para o jogador.
@@ -275,9 +277,24 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
     };
 
     const renderActionContent = () => {
+        const phaseBanner = actionPhaseLabel ? (
+            <div className="mb-3 flex items-center gap-3 rounded-2xl border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-50 shadow-inner shadow-amber-900/20">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-black/40 border border-amber-300/30">
+                    {isRollPending ? <Dice5 className="h-4 w-4 text-amber-200" /> : <Loader2 className="h-4 w-4 text-amber-200 animate-spin" />}
+                </span>
+                <div className="flex flex-col">
+                    <span className="font-semibold tracking-wide">{actionPhaseLabel}</span>
+                    <span className="text-xs text-amber-100/70">
+                        {isRollPending ? 'Finalize a rolagem para liberar novas ações.' : 'O motor está processando a sua intenção.'}
+                    </span>
+                </div>
+            </div>
+        ) : null;
+
         if (combatState.isActive && !isPlayerTurn) {
             return (
                 <div className="text-center">
+                    {phaseBanner}
                     <p className="text-stone-400 italic mb-3">Aguardando turno de outros combatentes...</p>
                     <button
                         onClick={nextTurn}
@@ -292,26 +309,51 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
 
         if(playerRollRequest) {
             return (
-                <div className="flex items-center justify-center p-4 text-stone-400">
-                    <Loader2 className="animate-spin" />
-                    <span className="ml-2">Aguardando sua rolagem de dados...</span>
+                <div className="space-y-3">
+                    {phaseBanner}
+                    <div className="flex items-center justify-center p-4 text-stone-400 rounded-2xl border border-white/10 bg-black/40">
+                        <Loader2 className="animate-spin" />
+                        <span className="ml-2">Aguardando sua rolagem de dados...</span>
+                    </div>
                 </div>
             );
         }
 
         if (pendingLootOffer) {
-            return <LootOfferDisplay />;
+            return (
+                <div className="space-y-3">
+                    {phaseBanner}
+                    <LootOfferDisplay />
+                </div>
+            );
         }
     
         if (pendingHitDiceRequest) {
-            return <HitDiceRoller />;
+            return (
+                <div className="space-y-3">
+                    {phaseBanner}
+                    <HitDiceRoller />
+                </div>
+            );
+        }
+
+        if (actionPhaseLabel && !isLoading && !playerRollRequest && !pendingLootOffer && !pendingHitDiceRequest) {
+            return (
+                <div className="space-y-3 text-center">
+                    {phaseBanner}
+                    <p className="text-sm text-stone-300">O motor está processando sua ação atual. Aguarde para enviar outra.</p>
+                </div>
+            );
         }
         
         if (isLoading) {
             return (
-                <div className="flex items-center justify-center p-4 text-stone-400">
-                    <Loader2 className="animate-spin" />
-                    <span className="ml-2">Aguardando o mestre...</span>
+                <div className="space-y-3">
+                    {phaseBanner}
+                    <div className="flex items-center justify-center p-4 text-stone-400">
+                        <Loader2 className="animate-spin" />
+                        <span className="ml-2">Aguardando o mestre...</span>
+                    </div>
                 </div>
             );
         }
@@ -320,29 +362,24 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
     
         return (
             <div className="w-full space-y-3">
-                <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-transparent p-3 shadow-inner shadow-black/40">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-[10px] uppercase tracking-[0.4em] text-amber-300">Assistente de Regras</p>
-                            <p className="text-sm text-stone-300">Accione o motor SRD para rolagens oficiais.</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => setShowStructuredTools(prev => !prev)}
-                            className="rounded-full border border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
-                        >
-                            {showStructuredTools ? 'Ocultar' : 'Mostrar'}
-                        </button>
-                    </div>
-                    {showStructuredTools && (
-                        <div className="mt-3 space-y-3">
-                            <StructuredAttackPanel />
-                            <StructuredSkillPanel />
-                            <StructuredSpellPanel />
-                            <StructuredRestPanel />
-                        </div>
-                    )}
+                {phaseBanner}
+                <div className="flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() => setShowStructuredTools(prev => !prev)}
+                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-stone-200 transition hover:bg-white/15"
+                    >
+                        {showStructuredTools ? 'Ocultar ferramentas SRD' : 'Ferramentas SRD'}
+                    </button>
                 </div>
+                {showStructuredTools && (
+                    <div className="space-y-3 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 via-white/0 to-transparent p-3 shadow-inner shadow-black/40">
+                        <StructuredAttackPanel />
+                        <StructuredSkillPanel />
+                        <StructuredSpellPanel />
+                        <StructuredRestPanel />
+                    </div>
+                )}
                 {hasSuggestedActions && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {actionOptions.map((action, index) => {
@@ -365,7 +402,9 @@ const ActionOptions: React.FC<ActionOptionsProps> = ({ variant = 'default' }) =>
                 )}
                  <CustomActionInput onActionSubmit={handleCustomSubmit} disabled={isActionLocked} />
                  {!hasSuggestedActions && (
-                     <p className="text-center text-xs text-stone-500 italic mt-2">O mestre aguarda sua próxima ação.</p>
+                     <p className="text-center text-xs text-stone-500 italic mt-2">
+                        {isLoading || actionPhaseLabel ? 'O motor está processando sua ação...' : 'O mestre aguarda sua próxima ação.'}
+                     </p>
                  )}
             </div>
         );

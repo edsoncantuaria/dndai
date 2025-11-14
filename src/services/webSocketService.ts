@@ -20,6 +20,11 @@ interface MessagePayload {
 
 const eventListeners: Record<string, ((payload: any) => void)[]> = {};
 
+function emitEvent(type: string, payload: any) {
+  const listeners = eventListeners[type] || [];
+  listeners.forEach(callback => callback(payload));
+}
+
 /**
  * 🔐 Cria o WebSocket autenticado
  */
@@ -57,9 +62,7 @@ function connect() {
     try {
       const message: MessagePayload = JSON.parse(event.data);
       console.log('%c[WSS] 📩 Mensagem recebida:', 'color: #60a5fa', message.type);
-
-      const listeners = eventListeners[message.type] || [];
-      listeners.forEach((callback) => callback(message.payload));
+      emitEvent(message.type, message.payload);
     } catch (error) {
       console.error('[WSS] ❌ Erro ao processar mensagem recebida:', error);
     }
@@ -70,6 +73,7 @@ function connect() {
     console.warn(`[WSS] ⚠️ Conexão fechada (código ${event.code}) | Motivo: ${reason}`);
     socket = null;
     isConnecting = false;
+    emitEvent('connectionClosed', { code: event.code, reason });
 
     // Apenas tenta reconectar se o fechamento não foi intencional
     if (!manualClose && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {

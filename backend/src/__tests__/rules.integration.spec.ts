@@ -128,9 +128,53 @@ test('roll request adapter preserves metadata for player-facing rolls', () => {
     const converted = convertRollRequestToPlayerRoll(baseRequest, {
         rollType: 'attack',
         reasonPrefix: 'Motor de Regras',
+        metadata: baseRequest.metadata,
     });
     assert.equal(converted.dice, '1d20');
     assert.equal(converted.modifier, 5);
     assert.match(converted.reason, /Motor de Regras/);
     assert.equal(converted.metadata?.damageFormula, '1d8+3');
+});
+
+test('weapon attack intent metadata stays isolated across concurrent validations', async () => {
+    const snapshot: RulesCharacterSnapshot = {
+        ...baseSnapshot,
+        weaponProficiencies: ['longsword'],
+    };
+    const firstIntent: WeaponAttackIntent = {
+        type: 'weapon-attack',
+        weaponIndex: 'longsword',
+        targetArmorClass: 12,
+        targetName: 'Sentinela A',
+    };
+    const secondIntent: WeaponAttackIntent = {
+        type: 'weapon-attack',
+        weaponIndex: 'longsword',
+        targetArmorClass: 16,
+        targetName: 'Sentinela B',
+    };
+    const first = await validateWeaponAttack(snapshot, firstIntent);
+    const second = await validateWeaponAttack(snapshot, secondIntent);
+    assert.ok(first.stateDelta?.pendingAttack, 'first attack should produce pendingAttack metadata');
+    assert.ok(second.stateDelta?.pendingAttack, 'second attack should produce pendingAttack metadata');
+    // Mutate the first payload and ensure the second one remains untouched.
+    if (first.stateDelta?.pendingAttack) {
+        first.stateDelta.pendingAttack.damageFormula = 'mutated-formula';
+    }
+    assert.equal(second.stateDelta?.pendingAttack?.damageFormula, '1d8', 'second attack metadata must stay stable');
+});
+
+test('sanitizeGameMasterResponse ignores AI roll fallbacks quando suppressRollRequest=true', async () => {
+    process.env.REDIS_URL = 'mock';
+    const { sanitizeGameMasterResponse } = await import('../services/aiSanitizer.js');
+    const raw = {
+        playerRollRequest: {
+            reason: 'Teste de Atletismo',
+            dice: '1d20',
+            modifier: 1,
+            rollType: 'check',
+        },
+    };
+    const sanitized = sanitizeGameMasterResponse(raw, undefined, { suppressRollRequest: true });
+    assert.equal(sanitized.playerRollRequest, undefined);
 });

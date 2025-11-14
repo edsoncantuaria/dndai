@@ -2,7 +2,7 @@
 import type { Response, NextFunction } from 'express';
 import redisClient from '../database/redis-client.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
-import { registerSummaryCacheInvalidation } from '../services/storyService.js';
+import { registerSummaryCacheInvalidation, registerTimelineCacheInvalidation } from '../services/storyService.js';
 
 const CACHE_PATTERNS = [
     'character:*',
@@ -22,14 +22,18 @@ const deleteKeysByPattern = async (pattern: string) => {
             COUNT: 200,
         });
         cursor = scanResult.cursor;
-        if (scanResult.keys.length) {
-            for (const key of scanResult.keys) {
-                const summaryMatch = key.match(/^session:(\d+):story_summary/);
-                if (summaryMatch) {
-                    registerSummaryCacheInvalidation(Number(summaryMatch[1]));
-                }
-                await redisClient.del(key);
-            }
+                if (scanResult.keys.length) {
+                    for (const key of scanResult.keys) {
+                        const summaryMatch = key.match(/^session:(\d+):story_summary/);
+                        if (summaryMatch) {
+                            registerSummaryCacheInvalidation(Number(summaryMatch[1]));
+                        }
+                        const timelineMatch = key.match(/^session:(\d+):timeline/);
+                        if (timelineMatch) {
+                            registerTimelineCacheInvalidation(Number(timelineMatch[1]));
+                        }
+                        await redisClient.del(key);
+                    }
             removed += scanResult.keys.length;
         }
     } while (cursor !== '0');

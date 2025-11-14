@@ -10,6 +10,13 @@ import type { PlayerRollRequest } from '../types.js';
 import type { CombatState } from '../schemas/gameSchemas.js';
 import { logAppliedDelta } from './deltaLogger.js';
 import { recordDamage, recordHealing, recordSpellSlotUse, recordRestMetric } from './deltaMetricsService.js';
+import { heartbeatSessionLeaseOrThrow, validateAndPersistActionCursor } from './sessionRuntimeService.js';
+import { beginActionPhase, advanceActionPhase, clearActionPhase } from './actionPhaseService.js';
+import {
+    computeIntentHash,
+    registerActionIntentTelemetry,
+    clearActionTelemetry,
+} from './actionObservabilityService.js';
 
 interface ProcessActionInput {
     sessionId: number;
@@ -23,15 +30,69 @@ interface ProcessActionInput {
         model?: string;
         clientStateVersion?: number;
         actionId?: string;
+        clientInstanceId?: string;
+        actionCursor?: number;
     };
 }
 
-export const processActionIntent = async ({
-    sessionId,
-    userId,
-    body,
-}: ProcessActionInput) => {
-    const stateVersion = await loadStateVersion(sessionId);
+type ActionServiceDeps = {
+    validateAndPersistActionCursor: typeof validateAndPersistActionCursor;
+    heartbeatSessionLeaseOrThrow: typeof heartbeatSessionLeaseOrThrow;
+    loadStateVersion: typeof loadStateVersion;
+    getPendingRollRequest: typeof getPendingRollRequest;
+    validateActionIntent: typeof validateActionIntent;
+    savePendingRollRequest: typeof savePendingRollRequest;
+    applyResultingStateDelta: typeof applyResultingStateDelta;
+    incrementStateVersion: typeof incrementStateVersion;
+    logAppliedDelta: typeof logAppliedDelta;
+    recordDamage: typeof recordDamage;
+    recordHealing: typeof recordHealing;
+    recordSpellSlotUse: typeof recordSpellSlotUse;
+    recordRestMetric: typeof recordRestMetric;
+    beginActionPhase: typeof beginActionPhase;
+    advanceActionPhase: typeof advanceActionPhase;
+    clearActionPhase: typeof clearActionPhase;
+};
+
+const defaultDeps: ActionServiceDeps = {
+    validateAndPersistActionCursor,
+    heartbeatSessionLeaseOrThrow,
+    loadStateVersion,
+    getPendingRollRequest,
+    validateActionIntent,
+    savePendingRollRequest,
+    applyResultingStateDelta,
+    incrementStateVersion,
+    logAppliedDelta,
+    recordDamage,
+    recordHealing,
+    recordSpellSlotUse,
+    recordRestMetric,
+    beginActionPhase,
+    advanceActionPhase,
+    clearActionPhase,
+};
+
+export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>) => {
+    const deps: ActionServiceDeps = { ...defaultDeps, ...(overrides ?? {}) };
+    return async ({
+        sessionId,
+        userId,
+        body,
+    }: ProcessActionInput) => {
+        await deps.validateAndPersistActionCursor({
+        sessionId,
+        userId,
+        incomingCursor: body.actionCursor ?? null,
+    });
+
+        await deps.heartbeatSessionLeaseOrThrow({
+        sessionId,
+        userId,
+        clientInstanceId: body.clientInstanceId,
+    });
+
+        const stateVersion = await deps.loadStateVersion(sessionId);
     if (
         typeof body.clientStateVersion === 'number' &&
         body.clientStateVersion !== stateVersion
@@ -39,23 +100,37 @@ export const processActionIntent = async ({
         throw createError(409, 'STATE_DESYNC');
     }
 
-    const pendingRoll = await getPendingRollRequest(sessionId);
+        const pendingRoll = await deps.getPendingRollRequest(sessionId);
     if (pendingRoll) {
         throw createError(409, 'Há rolagens pendentes para esta sessão.');
     }
 
-    let actionId = body.actionId || uuidv4();
+    const actionId = body.actionId || uuidv4();
+    let phaseAcquired = false;
+    registerActionIntentTelemetry(
+        sessionId,
+        actionId,
+        computeIntentHash({ intent: body.intent, prompt: body.prompt })
+    );
 
-    if (body.intent) {
-        const { result } = await validateActionIntent(sessionId, userId, body.intent, {
-            combatState: body.combatState,
-        });
+        try {
+            await deps.beginActionPhase({ sessionId, userId, actionId });
+        phaseAcquired = true;
 
-        if (result.status === 'rejected') {
-            throw createError(400, result.reason ?? 'Intent inválida segundo o motor.');
-        }
+            await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'NORMALIZED' });
 
-        if (result.status === 'needs_roll' && result.rollRequest) {
+        if (body.intent) {
+                await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'RULES' });
+
+                const { result } = await deps.validateActionIntent(sessionId, userId, body.intent, {
+                combatState: body.combatState,
+            });
+
+            if (result.status === 'rejected') {
+                throw createError(400, result.reason ?? 'Intent inválida segundo o motor.');
+            }
+
+            if (result.status === 'needs_roll' && result.rollRequest) {
             const rollTypeMap: Record<ActionIntent['type'], PlayerRollRequest['rollType']> = {
                 'weapon-attack': 'attack',
                 'skill-check': 'check',
@@ -65,13 +140,19 @@ export const processActionIntent = async ({
                 healing: 'healing',
                 'consume-item': 'check',
             };
+            const mergedMetadata = {
+                ...(result.rollRequest.metadata ?? {}),
+                ...(result.data ?? {}),
+                ...(result.stateDelta?.pendingAttack ? { pendingAttack: result.stateDelta.pendingAttack } : {}),
+            };
 
             const converted = convertRollRequestToPlayerRoll(result.rollRequest, {
                 rollType: rollTypeMap[body.intent.type] ?? 'check',
                 reasonPrefix: 'Motor de Regras',
+                metadata: mergedMetadata,
             });
             converted.requestId = uuidv4();
-            await savePendingRollRequest(
+                await deps.savePendingRollRequest(
                 sessionId,
                 userId,
                 converted,
@@ -79,92 +160,114 @@ export const processActionIntent = async ({
                     actionId,
                     intentType: body.intent.type,
                     intentPayload: body.intent.payload,
-                    metadata: result.data ?? undefined,
+                    metadata: mergedMetadata,
                 }
             );
 
-            return {
-                actionResolution: {
-                    actionId,
-                    stateVersion,
-                    status: 'needs_roll',
-                    rule: body.intent.type,
-                    rollRequest: converted,
-                },
-                gameStateUpdate: {
-                    stateVersion,
-                    playerRollRequest: converted,
-                },
-            };
-        }
-
-        if (result.status === 'accepted' && result.stateDelta) {
-            const applied = await applyResultingStateDelta(sessionId, result.stateDelta, {
-                actionId,
-                actionType: body.intent.type,
-            });
-            const newVersion = await incrementStateVersion(sessionId);
-            if (applied.appliedDelta) {
-                await logAppliedDelta({
-                    sessionId,
-                    actionId,
-                    stateVersion: newVersion,
-                    delta: applied.appliedDelta as Record<string, unknown>,
-                    metrics: applied.metrics,
-                });
+                const payload = {
+                    actionResolution: {
+                        actionId,
+                        stateVersion,
+                        status: 'needs_roll',
+                        rule: body.intent.type,
+                        rollRequest: converted,
+                    },
+                    gameStateUpdate: {
+                        stateVersion,
+                        playerRollRequest: converted,
+                    },
+                };
+                return payload;
             }
-            recordDamage(applied.metrics.damage);
-            recordHealing(applied.metrics.healing);
-            recordSpellSlotUse(applied.metrics.spellSlotsUsed);
-            recordRestMetric(applied.metrics.restType);
 
-            return {
-                actionResolution: {
+            if (result.status === 'accepted' && result.stateDelta) {
+                    const applied = await deps.applyResultingStateDelta(sessionId, result.stateDelta, {
                     actionId,
-                    stateVersion: newVersion,
-                    status: 'accepted',
-                    stateDelta: result.stateDelta,
-                    result: {
+                    actionType: body.intent.type,
+                    expectedStateVersion: stateVersion,
+                    authoritativeSignature: result.authoritativeSignature ?? null,
+                });
+                    const newVersion = await deps.incrementStateVersion(sessionId);
+                if (applied.appliedDelta) {
+                        await deps.logAppliedDelta({
+                        sessionId,
+                        actionId,
+                        stateVersion: newVersion,
+                        delta: applied.appliedDelta as Record<string, unknown>,
+                        metrics: applied.metrics,
+                    });
+                }
+                    deps.recordDamage(applied.metrics.damage);
+                    deps.recordHealing(applied.metrics.healing);
+                    deps.recordSpellSlotUse(applied.metrics.spellSlotsUsed);
+                    deps.recordRestMetric(applied.metrics.restType);
+
+                    await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+
+                return {
+                    actionResolution: {
+                        actionId,
+                        stateVersion: newVersion,
+                        status: 'accepted',
+                        stateDelta: result.stateDelta,
+                        result: {
+                            updatedCharacter: applied.updatedCharacter,
+                            updatedEntities: applied.updatedEntities,
+                        },
+                    },
+                    gameStateUpdate: {
+                        stateVersion: newVersion,
                         updatedCharacter: applied.updatedCharacter,
                         updatedEntities: applied.updatedEntities,
+                        stateDelta: result.stateDelta,
                     },
-                },
-                gameStateUpdate: {
-                    stateVersion: newVersion,
-                    updatedCharacter: applied.updatedCharacter,
-                    updatedEntities: applied.updatedEntities,
-                    stateDelta: result.stateDelta,
-                },
-            };
+                };
+            }
         }
+
+        if (!body.intent) {
+            await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'RULES' });
+        }
+
+        if (!body.prompt || !body.apiKey) {
+            throw createError(400, 'Prompt e apiKey são obrigatórios quando não há intent estruturado.');
+        }
+
+            await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+
+        const response = await NarrarService.processPlayerTurn(
+            sessionId,
+            userId,
+            body.prompt,
+            body.apiKey,
+            body.combatState ?? undefined,
+            body.useAiHomebrew,
+            undefined,
+            actionId
+        );
+            const newVersion = await deps.incrementStateVersion(sessionId);
+
+            await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+
+        return {
+            actionResolution: {
+                actionId,
+                stateVersion: newVersion,
+                status: 'accepted',
+                result: response,
+            },
+            gameStateUpdate: {
+                ...response,
+                stateVersion: newVersion,
+            },
+        };
+        } finally {
+        if (phaseAcquired) {
+            await deps.clearActionPhase({ sessionId, actionId });
+        }
+        clearActionTelemetry(sessionId, actionId);
     }
-
-    if (!body.prompt || !body.apiKey) {
-        throw createError(400, 'Prompt e apiKey são obrigatórios quando não há intent estruturado.');
-    }
-
-    const response = await NarrarService.processPlayerTurn(
-        sessionId,
-        userId,
-        body.prompt,
-        body.apiKey,
-        body.combatState ?? undefined,
-        body.useAiHomebrew,
-        undefined,
-        actionId
-    );
-    const newVersion = await incrementStateVersion(sessionId);
-
-    return {
-        actionResolution: {
-            actionId,
-            stateVersion: newVersion,
-            status: 'accepted',
-            result: response,
-        },
-        gameStateUpdate: {
-            ...response,
-            stateVersion: newVersion,
-        },
-    };
 };
+};
+
+export const processActionIntent = createProcessActionIntent();

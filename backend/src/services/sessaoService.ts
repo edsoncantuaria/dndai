@@ -12,7 +12,6 @@ import type { z } from 'zod';
 import type { CreateSessaoSchema } from '../schemas/validationSchemas.js';
 import { buildTimelineFacts, getStorySummary, getTimeline } from './storyService.js';
 import type { Relationship as CharacterRelationship, JournalEntry } from '../types.js';
-import { SessionLog } from '../entities/SessionLog.js';
 import { TimelineEvent } from '../entities/TimelineEvent.js';
 import { StorySummary } from '../entities/StorySummary.js';
 import { CombatEncounter } from '../entities/CombatEncounter.js';
@@ -24,6 +23,7 @@ import * as RegionService from './regionService.js';
 import { extractQuestKeywordStrings } from './questKeywordService.js';
 import type { RegionLink } from '../entities/RegionLink.js';
 import { fetchObjectAsText } from './objectStorageService.js';
+import { acquireSessionLeaseOrThrow } from './sessionRuntimeService.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -114,8 +114,10 @@ export interface WorldMapSnapshot {
   updatedAt: string;
 }
 
+const SESSION_LEASE_TTL_MS = 60_000;
+
 export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
-    const { nome, characterId } = data;
+    const { nome, characterId, clientInstanceId, forceNew } = data;
     
     const characterRepository = AppDataSource.getRepository(Character);
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
@@ -126,13 +128,34 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
         order: { updatedAt: 'DESC' },
         relations: ['character'],
     });
-    if (existingSessao && existingSessao.character && !existingSessao.character.isTemplate) {
-        console.log('[getOrCreateSessao] Sessão ativa encontrada, reutilizando.', {
-            sessionId: existingSessao.id,
-            characterId: existingSessao.characterId,
+    const canReuseExisting =
+        existingSessao &&
+        existingSessao.character &&
+        existingSessao.character.isTemplate === false;
+
+    if (canReuseExisting && !forceNew) {
+        await acquireSessionLeaseOrThrow({
+            sessionId: existingSessao!.id,
+            userId,
+            clientInstanceId,
+            ttlMs: SESSION_LEASE_TTL_MS,
         });
-        const { apiKey: _apiKey, ...safe } = existingSessao;
+        console.log('[getOrCreateSessao] Sessão ativa encontrada, reutilizando.', {
+            sessionId: existingSessao!.id,
+            characterId: existingSessao!.characterId,
+            clientInstanceId: clientInstanceId ?? `legacy-user-${userId}`,
+        });
+        const { apiKey: _apiKey, ...safe } = existingSessao!;
         return { sessao: safe, isNew: false };
+    }
+
+    if (canReuseExisting && forceNew) {
+        console.warn('[getOrCreateSessao] Forçando criação de nova sessão apesar de sessão reaproveitável.', {
+            userId,
+            existingSessionId: existingSessao!.id,
+            characterId: existingSessao!.characterId,
+            clientInstanceId: clientInstanceId ?? `legacy-user-${userId}`,
+        });
     }
 
     const [characterTemplate, user] = await Promise.all([
@@ -187,8 +210,21 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     novaSessao.userId = userId;
     novaSessao.apiKey = '';
     novaSessao.homebrewContentIds = Array.from(allDependentIds);
+    novaSessao.actionCursor = 0;
 
     const sessaoSalva = await sessaoRepository.save(novaSessao);
+    await acquireSessionLeaseOrThrow({
+        sessionId: sessaoSalva.id,
+        userId,
+        clientInstanceId,
+        ttlMs: SESSION_LEASE_TTL_MS,
+        allowTakeover: true,
+    });
+    console.log('[getOrCreateSessao] Nova sessão criada e lease inicial estabelecido.', {
+        sessionId: sessaoSalva.id,
+        characterId: newCharacterForSession.id,
+        clientInstanceId: clientInstanceId ?? `legacy-user-${userId}`,
+    });
     await characterRepository.update(
         { id: newCharacterForSession.id },
         {

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 
 const BASE_URL = process.env.API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8071/api';
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
@@ -28,16 +29,21 @@ const headers = {
   Authorization: `Bearer ${token}`,
 };
 
-const createRequestPayload = () => ({
+const baseClientInstanceId =
+  process.env.SESSION_REUSE_CLIENT_ID ||
+  `session-reuse-${randomUUID().slice(0, 8)}`;
+
+const createRequestPayload = (clientInstanceId = baseClientInstanceId) => ({
   nome: sessionName,
   characterId,
+  clientInstanceId,
 });
 
-const callCreateSession = async () => {
+const callCreateSession = async (clientInstanceId = baseClientInstanceId) => {
   const response = await fetch(`${BASE_URL}/sessoes`, {
     method: 'POST',
     headers,
-    body: JSON.stringify(createRequestPayload()),
+    body: JSON.stringify(createRequestPayload(clientInstanceId)),
   });
   const bodyText = await response.text();
   let json;
@@ -58,8 +64,8 @@ try {
     process.exit(1);
   }
 
-  console.log('[sessionReuse] POST /sessoes (segunda chamada)');
-  const second = await callCreateSession();
+  console.log('[sessionReuse] POST /sessoes (segunda chamada - mesmo client)');
+  const second = await callCreateSession(baseClientInstanceId);
   console.log('[sessionReuse] segunda resposta', second);
   if (second.status !== 201 || !second.body?.sessao?.id) {
     console.error('[sessionReuse] segunda chamada falhou.');
@@ -68,16 +74,29 @@ try {
 
   const firstId = first.body.sessao.id;
   const secondId = second.body.sessao.id;
-  if (firstId === secondId) {
-    console.log('[sessionReuse] ✅ Sessão reaberta sem clonar', { sessionId: firstId });
-    process.exit(0);
-  } else {
+  if (firstId !== secondId) {
     console.error('[sessionReuse] ❌ API criou uma nova sessão em vez de reutilizar a existente.', {
       firstId,
       secondId,
     });
     process.exit(1);
   }
+
+  console.log('[sessionReuse] ✅ Sessão reaberta sem clonar', { sessionId: firstId });
+
+  const rivalClientId = `${baseClientInstanceId}-rival`;
+  console.log('[sessionReuse] POST /sessoes (terceira chamada - cliente rival)');
+  const rival = await callCreateSession(rivalClientId);
+  console.log('[sessionReuse] terceira resposta', rival);
+  if (rival.status !== 409) {
+    console.error('[sessionReuse] ❌ Esperávamos conflito de lease, mas a API não bloqueou.', {
+      rivalStatus: rival.status,
+      rivalBody: rival.body,
+    });
+    process.exit(1);
+  }
+  console.log('[sessionReuse] ✅ Conflito de lease detectado com sucesso');
+  process.exit(0);
 } catch (err) {
   console.error('[sessionReuse] erro inesperado', err);
   process.exit(1);

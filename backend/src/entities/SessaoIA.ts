@@ -2,7 +2,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, ManyToOne, JoinColumn, DeleteDateColumn, Index } from "typeorm";
 import { SessionLog } from "./SessionLog.js";
 import { User } from "./User.js";
-import { Character } from "./Character.js"; // Importa a nova entidade
+import { Character } from "./Character.js";
 import { CombatEncounter } from "./CombatEncounter.js";
 import { TimelineEvent } from "./TimelineEvent.js";
 import { StorySummary } from "./StorySummary.js";
@@ -50,6 +50,27 @@ export class SessaoIA {
 
     @Column({ type: 'int', default: 0 })
     stateVersion: number;
+
+    @Column({ type: 'varchar', length: 64, nullable: true })
+    leaseOwnerClientId: string | null;
+
+    @Column({ type: 'datetime', nullable: true })
+    leaseExpiresAt: Date | null;
+
+    @Column({ type: 'datetime', nullable: true })
+    lastHeartbeatAt: Date | null;
+
+    @Column({ type: 'int', default: 0 })
+    actionCursor: number;
+
+    @Column({ type: 'varchar', length: 64, nullable: true })
+    currentActionId: string | null;
+
+    @Column({ type: 'varchar', length: 32, nullable: true })
+    currentActionPhase: string | null;
+
+    @Column({ type: 'datetime', nullable: true })
+    actionPhaseUpdatedAt: Date | null;
 
     @CreateDateColumn()
     createdAt: Date;

@@ -17,7 +17,8 @@ type ResourceName =
     | 'monsters'
     | 'conditions'
     | 'rules'
-    | 'rule-sections';
+    | 'rule-sections'
+    | 'skills';
 
 const repoRoot = path.resolve(process.cwd(), '..');
 const normalizedDir = path.join(repoRoot, 'data', 'dnd5eapi', 'normalized');

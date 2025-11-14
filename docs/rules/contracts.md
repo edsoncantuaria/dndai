@@ -2,11 +2,12 @@
 
 ## WebSocket – `processAction`
 
-### Payload Atual
+### Payload Atual (DTO compartilhado com REST)
 
 ```json
 {
   "type": "processAction",
+  "contractVersion": 1,
   "sessionId": 123,
   "prompt": "Eu ataco o goblin.",
   "combatState": { "...": "..." },
@@ -14,6 +15,8 @@
   "model": "gemini-2.5",
   "actionId": "uuid-v4",
   "clientStateVersion": 7,
+  "clientInstanceId": "frontend-tab-XYZ",
+  "actionCursor": 42,
   "intent": {
     "type": "weapon-attack",
     "payload": {
@@ -23,6 +26,10 @@
   }
 }
 ```
+
+- `contractVersion` **obrigatório** → clientes que enviarem valor diferente de `1` recebem `CONTRACT_VERSION_MISMATCH` (HTTP 426 ou erro WS).
+- `clientInstanceId` identifica o lease da sessão (previne clones).
+- `actionCursor` deve ser monotônico e reflete o último intent aplicado no cliente.
 
 ### Intents suportados
 
@@ -42,7 +49,7 @@ Se o `intent` não for enviado, o backend ainda aceita o fluxo legacy controlado
 
 1. **`actionAck`** – confirma recepção.
 2. **`startLoading { actionId }`** – indica processamento e ativa timeout (15 s).
-3. **`actionResolution`** – resultado do motor/IA. Sempre traz `stateVersion` e pode incluir:
+3. **`actionResolution`** – resultado do motor/IA, com **pipeline em fases** (`RECEIVED → NORMALIZED → RULES → AI_SYNTHESIS → DELTA_APPLIED`). Logs `ActionFlow` indicam cada fase e o tamanho atual da `rollQueue`. A resposta sempre traz `stateVersion` e pode incluir:
    - `stateDelta`: efeitos determinísticos (HP, recursos, inventário, descanso).
    - `updatedCharacter`: espelho resumido (HP atual, slots/recursos alterados).
    - `updatedEntities`: array `{ encounterId, entityId, hp, hpMax }` para NPCs/inimigos.
@@ -65,7 +72,7 @@ Se o `intent` não for enviado, o backend ainda aceita o fluxo legacy controlado
    - `status: "needs_roll"` → motor exigiu `rollRequest`.
    - `status: "accepted"` → motor/IA aplicou resultado (opcional `result`, `stateDelta`).
    - `status: "rejected"` → motivo em `result.systemLog`.
-4. **`gameStateUpdate`** – payload completo com `stateVersion`, `updatedCharacter` (HP, slots, inventário), `updatedEntities` (lista `{ encounterId, entityId, hp, hpMax }`), `playerRollRequest` (quando aplicável) e logs. Após dano/cura automático, o estado chega já persistido.
+4. **`gameStateUpdate`** – payload completo com `stateVersion`, `updatedCharacter` (HP, slots, inventário), `updatedEntities` (lista `{ encounterId, entityId, hp, hpMax }`), `playerRollRequest` (quando aplicável) e logs. Após dano/cura automático, o estado chega já persistido. Quando `playerRollRequest` existe, o backend envia apenas entradas `system` (ex.: “O motor aguarda sua rolagem...”) e `actionOptions = []` – o cliente deve bloquear novas intents até que `submitRollResult` conclua o ciclo.
 5. **`stopLoading { actionId }`** – encerra spinner (também emitido em caso de timeout).
 
 ### Timeouts
@@ -115,10 +122,11 @@ Recebe o mesmo pipeline (`startLoading` → `actionResolution` → `gameStateUpd
 
 ## REST – `POST /api/sessions/:id/actions`
 
-Endpoint equivalente ao WebSocket. Payload:
+Endpoint equivalente ao WebSocket. Payload (o mesmo DTO, exceto `sessionId` que vem da rota):
 
 ```json
 {
+  "contractVersion": 1,
   "prompt": "Eu ataco o goblin.",
   "intent": { "...": "opcional" },
   "combatState": null,
@@ -144,17 +152,34 @@ Resposta:
 
 | Código | Descrição |
 | --- | --- |
+| 426 `CONTRACT_VERSION_MISMATCH` | Cliente desatualizado (enviar `contractVersion: 1`). |
 | 409 `STATE_DESYNC` | `clientStateVersion` divergente. |
 | 409 `pending roll` | Existe `playerRollRequest` não resolvido (use `npm run clean-roll` em dev). |
 | 422 | Intent rejeitada pelo motor (mensagem detalhada no corpo). |
 | 504 | Tempo limite atingido durante IA/validação (após mover o timer para `needs_roll`, não reproduzido). |
-| 500 | Falha interna (ex.: exceções da IA, delta inválido). |
+| 500 | Falha interna (ex.: exceções da IA, delta inválido, SRD ausente). |
 
 O cliente deve reaplicar o mesmo fluxo do WebSocket: resolver `playerRollRequest` via `submitRollResult`, tratar `updatedEntities`, etc.
 
 > Teste complementar: `npm run test-state-version -- <sessaoId>` lê `stateVersion` antes/depois. Após limpar as rolagens pendentes (`npm run clean-roll`), o teste confirmou que o REST incrementa o `stateVersion` apenas quando a ação é aceita (ex.: 5 → 6).
 
+### Erros autoritativos (payloads)
+
+```json
+{ "type": "error", "payload": { "code": "STATE_DESYNC", "message": "Seu estado está desatualizado.", "expectedVersion": 42 } }
+```
+
+```json
+{ "type": "error", "payload": { "code": "CONTRACT_VERSION_MISMATCH", "message": "Atualize o cliente para contractVersion 1." } }
+```
+
+```json
+{ "type": "error", "payload": { "code": "ROLL_PENDING", "message": "Há rolagens pendentes para esta sessão." } }
+```
+
 ## Próximos passos
 
 - Expor endpoint REST equivalente para `submitRollResult` (se for necessário uso fora do WS).
 - Emitir webhooks ou eventos quando múltiplos NPCs forem atualizados.
+- Distribuir exemplos de erros autoritativos (409, 426 etc.) no guia de integração.
++ Distribuir exemplos de erros autoritativos (409, 426 etc.) no guia de integração.

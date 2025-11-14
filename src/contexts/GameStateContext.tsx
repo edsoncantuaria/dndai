@@ -56,6 +56,8 @@ export interface GameStateContextType {
     setCharacter: React.Dispatch<React.SetStateAction<Character | null>>;
     setLog: React.Dispatch<React.SetStateAction<LogEntry[]>>;
     setSessionId: React.Dispatch<React.SetStateAction<number | null>>;
+    actionPhaseLabel: string | null;
+    isRollPending: boolean;
     // Debug Triggers
     triggerTestShop: () => void;
     triggerTestCombat: () => void;

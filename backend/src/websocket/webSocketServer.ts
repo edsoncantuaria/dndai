@@ -6,7 +6,7 @@ import { parse as urlParse } from 'url';
 import * as NarrarService from '../services/narrarService.js';
 import * as CharacterService from '../services/characterService.js';
 import createError from 'http-errors';
-import { getPendingRollRequest, clearPendingRollRequest, savePendingRollRequest } from '../services/rollRequestService.js';
+import { getPendingRollRequest, clearPendingRollRequest, savePendingRollRequest, getRollQueueSize } from '../services/rollRequestService.js';
 import type { PlayerRollRequest } from '../types.js';
 import { validateActionIntent, type ActionIntent } from '../rules/actionIntentService.js';
 import type { RuleCheckResult } from '../rules/types.js';
@@ -20,6 +20,19 @@ import { applyResultingStateDelta } from '../services/stateDeltaService.js';
 import { sanitizeRollValues, computeRawRollFromValues, buildRollResolutionPrompt } from './utils.js';
 import { logAppliedDelta } from '../services/deltaLogger.js';
 import { recordDamage, recordHealing, recordSpellSlotUse, recordRestMetric } from '../services/deltaMetricsService.js';
+import { beginActionPhase, advanceActionPhase, clearActionPhase, type ActionPhase } from '../services/actionPhaseService.js';
+import {
+    computeIntentHash,
+    registerActionIntentTelemetry,
+    clearActionTelemetry,
+    markActionPhaseTelemetry,
+    getActionTelemetry,
+} from '../services/actionObservabilityService.js';
+import {
+    ProcessActionSchema,
+    isContractVersionSupported,
+    CURRENT_CONTRACT_VERSION,
+} from '../schemas/processActionSchema.js';
 
 interface AuthenticatedWebSocket extends WebSocket {
   userId?: number;
@@ -39,7 +52,32 @@ const cancelledActions = new Set<string>();
 const ACTION_FLOW_DEBUG = process.env.ACTION_FLOW_DEBUG !== 'false';
 const logActionFlow = (stage: string, details: Record<string, unknown>) => {
     if (!ACTION_FLOW_DEBUG) return;
-    console.log(`[ActionFlow] ${stage}`, details);
+    const sessionId =
+        typeof details.sessionId === 'number' ? (details.sessionId as number) : null;
+    const actionId =
+        typeof details.actionId === 'string' ? (details.actionId as string) : null;
+    const telemetry =
+        sessionId !== null && actionId ? getActionTelemetry(sessionId, actionId) : null;
+    const basePayload = {
+        ...details,
+        traceId: telemetry?.traceId ?? actionId ?? null,
+        intentHash: telemetry?.intentHash ?? null,
+        phase: details.phase ?? telemetry?.currentPhase ?? undefined,
+    };
+    if (sessionId == null) {
+        console.log(`[ActionFlow] ${stage}`, basePayload);
+        return;
+    }
+    getRollQueueSize(sessionId)
+        .then(size => {
+            console.log(`[ActionFlow] ${stage}`, {
+                ...basePayload,
+                rollQueueSize: size,
+            });
+        })
+        .catch(() => {
+            console.log(`[ActionFlow] ${stage}`, basePayload);
+        });
 };
 const actionTimers = new Map<string, NodeJS.Timeout>();
 const startActionTimer = (ws: WebSocket, actionId: string) => {
@@ -95,9 +133,15 @@ const handleStructuredIntent = async ({
 
     if (result.status === 'needs_roll' && result.rollRequest) {
         const rollType = ACTION_INTENT_ROLL_TYPE_MAP[intent.type] ?? 'check';
+        const mergedMetadata = {
+            ...(result.rollRequest.metadata ?? {}),
+            ...(result.data ?? {}),
+            ...(result.stateDelta?.pendingAttack ? { pendingAttack: result.stateDelta.pendingAttack } : {}),
+        };
         const playerRollRequest = convertRollRequestToPlayerRoll(result.rollRequest, {
             rollType,
             reasonPrefix: 'Motor de Regras',
+            metadata: mergedMetadata,
         });
         const requestId = uuidv4();
         playerRollRequest.requestId = requestId;
@@ -149,6 +193,8 @@ const handleStructuredIntent = async ({
         const applied = await applyResultingStateDelta(sessionId, result.stateDelta, {
             actionId,
             actionType: intent.type,
+            expectedStateVersion: getSessionStateVersion(sessionId),
+            authoritativeSignature: result.authoritativeSignature ?? null,
         });
         const newVersion = await bumpSessionStateVersion(sessionId);
         if (applied.appliedDelta) {
@@ -243,23 +289,97 @@ export function configureWebSocket(httpServer: Server) {
 
             switch (data.type) {
                 case 'processAction': {
+                    const validation = ProcessActionSchema.safeParse(data.payload);
+                    if (!validation.success) {
+                        console.warn('[WSS] processAction payload inválido', validation.error.flatten());
+                        ws.send(
+                            JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    code: 'INVALID_PAYLOAD',
+                                    message: 'Payload inválido para processAction.',
+                                    details: validation.error.flatten(),
+                                },
+                            })
+                        );
+                        break;
+                    }
+                    const processPayload = validation.data;
+                    if (!isContractVersionSupported(processPayload.contractVersion)) {
+                        ws.send(
+                            JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    code: 'CONTRACT_VERSION_MISMATCH',
+                                    message: `Atualize o cliente para contractVersion ${CURRENT_CONTRACT_VERSION}.`,
+                                },
+                            })
+                        );
+                        break;
+                    }
+                    if (!processPayload.sessionId) {
+                        ws.send(
+                            JSON.stringify({
+                                type: 'error',
+                                payload: {
+                                    code: 'INVALID_SESSION',
+                                    message: 'sessionId é obrigatório neste contrato.',
+                                },
+                            })
+                        );
+                        break;
+                    }
                     let resolvedActionId: string | undefined;
-                    try {
-                        const { sessionId, prompt, combatState, useAiHomebrew, apiKey, intent, actionId, clientStateVersion } = data.payload;
-                        if (!sessionId || !prompt || !apiKey) {
-                            throw createError(400, "Dados insuficientes para processar a ação.");
+                    let currentSessionId: number | undefined;
+                    let phaseLockAcquired = false;
+                    const recordPhase = async (phase: ActionPhase) => {
+                        if (!ws.userId || !currentSessionId || !resolvedActionId) return;
+                        if (phase === 'RECEIVED') {
+                            await beginActionPhase({
+                                sessionId: currentSessionId,
+                                userId: ws.userId,
+                                actionId: resolvedActionId,
+                            });
+                            phaseLockAcquired = true;
+                        } else {
+                            await advanceActionPhase({
+                                sessionId: currentSessionId,
+                                userId: ws.userId,
+                                actionId: resolvedActionId,
+                                phase,
+                            });
                         }
-                        logActionFlow('processAction:received', {
+                        const spanInfo = markActionPhaseTelemetry(currentSessionId, resolvedActionId, phase);
+                        logActionFlow('processAction:phase', {
+                            sessionId: currentSessionId,
+                            actionId: resolvedActionId,
                             userId: ws.userId,
-                            sessionId,
-                            hasIntent: Boolean(intent),
-                            hasActionId: Boolean(actionId),
+                            phase,
+                            previousPhase: spanInfo?.previousPhase,
+                            previousPhaseDurationMs: spanInfo?.previousPhaseDurationMs,
                         });
-
+                    };
+                    try {
+                        const {
+                            sessionId,
+                            prompt,
+                            combatState,
+                            useAiHomebrew,
+                            apiKey,
+                            intent,
+                            actionId,
+                            clientStateVersion,
+                        } = processPayload;
+                        currentSessionId = sessionId;
+                        const hasIntent = Boolean(intent && typeof intent === 'object');
+                        if (!hasIntent && (!prompt || !apiKey)) {
+                            throw createError(400, 'Prompt e apiKey são obrigatórios quando não há intent estruturado.');
+                        }
                         const pendingRoll = await getPendingRollRequest(sessionId);
                         if (pendingRoll) {
                             logActionFlow('processAction:blockedByPendingRoll', {
                                 sessionId,
+                                actionId: actionId ?? null,
                                 pendingReason: pendingRoll.reason,
                                 requestId: pendingRoll.requestId,
                             });
@@ -282,6 +402,20 @@ export function configureWebSocket(httpServer: Server) {
                         }
 
                         resolvedActionId = actionId || uuidv4();
+                        const intentHash = computeIntentHash({
+                            intent: intent as ActionIntent | undefined,
+                            prompt,
+                        });
+                        registerActionIntentTelemetry(sessionId, resolvedActionId, intentHash);
+                        logActionFlow('processAction:received', {
+                            userId: ws.userId,
+                            sessionId,
+                            actionId: resolvedActionId,
+                            hasIntent: Boolean(intent),
+                            hasActionId: Boolean(actionId),
+                            intentHash,
+                        });
+                        await recordPhase('RECEIVED');
                         logActionFlow('processAction:ack', {
                             sessionId,
                             actionId: resolvedActionId,
@@ -289,12 +423,18 @@ export function configureWebSocket(httpServer: Server) {
                         });
                         ws.send(JSON.stringify({ type: 'actionAck', payload: { actionId: resolvedActionId, receivedAt: new Date().toISOString() } }));
 
+                        await recordPhase('NORMALIZED');
+                        if (!intent) {
+                            await recordPhase('RULES');
+                        }
+
                         if (intent && typeof intent === 'object' && 'type' in intent) {
                             logActionFlow('processAction:handleStructuredIntent:start', {
                                 sessionId,
                                 actionId: resolvedActionId,
                                 intentType: intent.type,
                             });
+                            await recordPhase('RULES');
                             const intentResult = await handleStructuredIntent({
                                 sessionId,
                                 userId: ws.userId,
@@ -318,6 +458,7 @@ export function configureWebSocket(httpServer: Server) {
                             sessionId,
                             actionId: resolvedActionId,
                         });
+                        await recordPhase('AI_SYNTHESIS');
                         ws.send(JSON.stringify({ type: 'narrationLoading', payload: { actionId: resolvedActionId } }));
                         activeActions.add(resolvedActionId);
                         const response = await NarrarService.processPlayerTurn(
@@ -341,7 +482,10 @@ export function configureWebSocket(httpServer: Server) {
                         const enrichedResponse = { ...response, stateVersion: newStateVersion };
                         if (cancelledActions.has(resolvedActionId)) {
                             cancelledActions.delete(resolvedActionId);
-                            logActionFlow('processAction:responseDiscarded', { actionId: resolvedActionId });
+                            logActionFlow('processAction:responseDiscarded', {
+                                sessionId,
+                                actionId: resolvedActionId,
+                            });
                         } else {
                             ws.send(JSON.stringify({
                                 type: 'actionResolution',
@@ -355,15 +499,38 @@ export function configureWebSocket(httpServer: Server) {
                             ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: enrichedResponse }));
                             ws.send(JSON.stringify({ type: 'narrationComplete', payload: { actionId: resolvedActionId } }));
                         }
+                        await recordPhase('DELTA_APPLIED');
                     } catch (error: any) {
                         console.error('[WSS] Erro ao processar ação:', error);
-                        ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Erro interno no servidor.' } }));
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            payload: {
+                                message: error.message || 'Erro interno no servidor.',
+                                code: error.status || error.code || 'PROCESS_ACTION_ERROR',
+                                actionId: resolvedActionId ?? null,
+                            },
+                        }));
                     } finally {
                         if (resolvedActionId) {
                             activeActions.delete(resolvedActionId);
                             logActionFlow('processAction:finalized', {
                                 actionId: resolvedActionId,
+                                sessionId: currentSessionId,
                             });
+                            if (currentSessionId) {
+                                clearActionTelemetry(currentSessionId, resolvedActionId);
+                            }
+                        }
+                        if (phaseLockAcquired && resolvedActionId && currentSessionId) {
+                            try {
+                                await clearActionPhase({ sessionId: currentSessionId, actionId: resolvedActionId });
+                            } catch (phaseError) {
+                                console.warn('[ActionPhase] Falha ao limpar fase da ação.', {
+                                    sessionId: currentSessionId,
+                                    actionId: resolvedActionId,
+                                    error: phaseError instanceof Error ? phaseError.message : String(phaseError),
+                                });
+                            }
                         }
                     }
                     break;
@@ -378,6 +545,7 @@ export function configureWebSocket(httpServer: Server) {
                         logActionFlow('roll:submit:start', {
                             sessionId,
                             requestId,
+                            actionId: requestId,
                             diceCount: Array.isArray(rolls) ? rolls.length : 0,
                         });
 
@@ -409,6 +577,7 @@ export function configureWebSocket(httpServer: Server) {
                         logActionFlow('roll:pendingLoaded', {
                             sessionId,
                             requestId,
+                            actionId: pending.context?.actionId ?? requestId,
                             rollType: pending.rollType,
                             intentType: pending.context?.intentType ?? null,
                         });
@@ -494,6 +663,7 @@ export function configureWebSocket(httpServer: Server) {
                                 requestId,
                                 nextRequestId,
                                 rollType: followUpRequest.rollType,
+                                actionId: pending.context?.actionId ?? requestId,
                             });
                             ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId: requestId } }));
                             break;
@@ -581,6 +751,7 @@ export function configureWebSocket(httpServer: Server) {
                             logActionFlow('roll:submit:completed', {
                                 sessionId,
                                 requestId,
+                                actionId: pending?.context?.actionId ?? requestId,
                                 followUpIssued: Boolean(resolutionResult?.nextRollRequest),
                             });
                         }
