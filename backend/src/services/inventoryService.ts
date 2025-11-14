@@ -1,262 +1,205 @@
-// backend/src/services/inventoryService.ts
 import { AppDataSource } from '../database/data-source.js';
 import { CharacterItem } from '../entities/CharacterItem.js';
+import { recordActionLog } from './actionLogService.js';
 import type { EntityManager } from 'typeorm';
-import { getUnifiedDetails } from './unifiedDataService.js';
 
-const COIN_TYPES = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
-type CoinType = typeof COIN_TYPES[number];
-const COIN_WEIGHT = 0.02; // 50 moedas = 1 lb
-
-export interface InventoryLike {
-    id?: string | number;
-    index?: string;
-    name?: string;
-    quantity?: number;
-    itemData?: Record<string, any>;
-    weight?: number;
-    equipped?: boolean;
-    [key: string]: any;
+interface LogContext {
+    sessionId: number;
+    actionId?: string;
+    actionType?: string;
+    stateVersion?: number;
+    metadata?: Record<string, any>;
 }
 
-export interface InventoryMetrics {
-    currency: Record<CoinType, number>;
-    totalWeight: number;
-    totalCoinCount: number;
+export interface ConsumeItemParams {
+    characterId: number;
+    itemId?: number;
+    itemIndex?: string;
+    quantity: number;
+    removeWhenZero?: boolean;
+    logContext?: LogContext;
 }
 
-export interface HydratedInventoryResult {
-    items: InventoryLike[];
-    metrics: InventoryMetrics;
+const COIN_KEYS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
+
+const clamp = (value: number, min: number) => (value < min ? min : value);
+
+async function findItem(params: { characterId: number; itemId?: number; itemIndex?: string }): Promise<CharacterItem | null> {
+    const repo = AppDataSource.getRepository(CharacterItem);
+    if (params.itemId) {
+        return repo.findOne({ where: { id: params.itemId, characterId: params.characterId } });
+    }
+
+    if (params.itemIndex) {
+        const items = await repo.find({ where: { characterId: params.characterId } });
+        return items.find(item => item.itemData?.index === params.itemIndex) ?? null;
+    }
+
+    return null;
 }
 
-const getItemsRepository = (manager?: EntityManager) => {
-    if (manager) {
-        return manager.getRepository(CharacterItem);
+export async function consumeCharacterItem(params: ConsumeItemParams): Promise<CharacterItem | null> {
+    if (params.quantity <= 0) {
+        throw new Error('Quantidade a consumir deve ser positiva.');
     }
-    return AppDataSource.getRepository(CharacterItem);
-};
 
-const normaliseDbItem = (item: CharacterItem): InventoryLike => {
-    const baseData = item.itemData && typeof item.itemData === 'object'
-        ? item.itemData
-        : {};
+    const repo = AppDataSource.getRepository(CharacterItem);
+    const item = await findItem({ characterId: params.characterId, itemId: params.itemId, itemIndex: params.itemIndex });
 
-    const indexFromUrl = typeof baseData.url === 'string'
-        ? baseData.url.split('/').filter(Boolean).pop()
-        : undefined;
-
-    return {
-        ...baseData,
-        id: item.id.toString(),
-        index: baseData.index || indexFromUrl || baseData.name || item.name,
-        name: baseData.name || item.name,
-        quantity: item.quantity ?? baseData.quantity ?? 1,
-        equipped: typeof item.equipped === 'boolean' ? item.equipped : Boolean(baseData.equipped),
-    };
-};
-
-export const getInventorySnapshotFromDb = async (
-    characterId: number,
-    manager?: EntityManager
-): Promise<InventoryLike[]> => {
-    const repo = getItemsRepository(manager);
-    const storedItems = await repo.find({
-        where: { characterId },
-        order: { id: 'ASC' },
-    });
-    console.log('[inventoryService] snapshot from DB', { characterId, count: storedItems.length });
-    return storedItems.map(normaliseDbItem);
-};
-
-const isCoinIndex = (index?: string): index is CoinType => {
-    if (!index) return false;
-    return (COIN_TYPES as readonly string[]).includes(index);
-};
-
-const normaliseQuantity = (value: unknown): number => {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-    return 1;
-};
-
-const ensureCurrencyShape = (currency?: Record<string, number>): Record<CoinType, number> => {
-    const result: Record<CoinType, number> = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
-    if (!currency) return result;
-    for (const coin of COIN_TYPES) {
-        const value = currency[coin];
-        result[coin] = typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+    if (!item) {
+        throw new Error('Item não encontrado para o personagem informado.');
     }
-    return result;
-};
 
-const mergeCurrency = (...sources: Record<CoinType, number>[]): Record<CoinType, number> => {
-    const merged: Record<CoinType, number> = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
-    for (const source of sources) {
-        for (const coin of COIN_TYPES) {
-            merged[coin] += source[coin] ?? 0;
-        }
-    }
-    return merged;
-};
+    const originalQuantity = item.quantity;
+    const newQuantity = clamp(item.quantity - params.quantity, 0);
+    const delta = newQuantity - originalQuantity;
 
-const buildItemKey = (item?: InventoryLike): string | null => {
-    if (!item) return null;
-    const raw = item.index || item.id || item.name;
-    if (!raw) return null;
-    return String(raw).toLowerCase();
-};
+    if (newQuantity === 0 && (params.removeWhenZero ?? true)) {
+        await repo.remove(item);
+    } else {
+        item.quantity = newQuantity;
+        await repo.save(item);
+    }
 
-const mergeWithFallback = (item: InventoryLike, fallback?: InventoryLike): InventoryLike => {
-    if (!fallback) return { ...item };
-    const merged = { ...fallback, ...item };
-    if (!merged.index && fallback.index) merged.index = fallback.index;
-    if (!merged.name && fallback.name) merged.name = fallback.name;
-    if (item.quantity === undefined && fallback.quantity !== undefined) {
-        merged.quantity = fallback.quantity;
+    if (params.logContext) {
+        const { logContext } = params;
+        await recordActionLog({
+            sessionId: logContext.sessionId,
+            actionId: logContext.actionId,
+            actionType: logContext.actionType ?? 'inventory.consume',
+            stateVersion: logContext.stateVersion,
+            characterId: params.characterId,
+            delta: {
+                inventory: [
+                    {
+                        itemId: item.id,
+                        itemIndex: item.itemData?.index,
+                        quantityDelta: delta,
+                    },
+                ],
+            },
+            metadata: {
+                ...(logContext.metadata ?? {}),
+                removed: newQuantity === 0,
+            },
+        });
     }
-    if (item.equipped === undefined && fallback.equipped !== undefined) {
-        merged.equipped = fallback.equipped;
-    }
-    if (!merged.itemData && fallback.itemData) {
-        merged.itemData = fallback.itemData;
-    }
-    if (!merged.id && fallback.id) {
-        merged.id = fallback.id;
-    }
-    return merged;
-};
+
+    return newQuantity === 0 ? null : item;
+}
+
+export async function getInventorySnapshotFromDb(characterId: number, manager?: EntityManager) {
+    const repo = (manager ?? AppDataSource.manager).getRepository(CharacterItem);
+    const rows = await repo.find({ where: { characterId } });
+    return rows.map(row => ({
+        id: row.id,
+        index: row.itemData?.index ?? null,
+        name: row.name ?? row.itemData?.name ?? `Item ${row.id}`,
+        quantity: row.quantity ?? 1,
+        equipped: row.equipped ?? false,
+        weight: (row.itemData as any)?.weight ?? 0,
+        itemData: row.itemData ?? null,
+    }));
+}
 
 interface HydrationOptions {
     allowHomebrew?: boolean;
 }
 
-export const hydrateInventoryItems = async (
-    items: InventoryLike[],
-    userId: number,
-    fallbackItems?: InventoryLike[],
-    options: HydrationOptions = {}
-): Promise<HydratedInventoryResult> => {
-    if (!Array.isArray(items)) {
-        return {
-            items: [],
-            metrics: {
-                currency: ensureCurrencyShape(),
-                totalWeight: 0,
-                totalCoinCount: 0,
-            },
+export const reconcileCurrency = (
+    primary?: Record<string, unknown>,
+    fallback?: Record<string, unknown>
+) => {
+    const result: Record<(typeof COIN_KEYS)[number], number> = {
+        pp: 0,
+        gp: 0,
+        ep: 0,
+        sp: 0,
+        cp: 0,
+    };
+
+    const apply = (source?: Record<string, unknown>) => {
+        if (!source) return;
+        for (const coin of COIN_KEYS) {
+            const value = Number((source as any)[coin]);
+            if (Number.isFinite(value) && value >= 0) {
+                result[coin] = value;
+            }
+        }
+    };
+
+    apply(fallback);
+    apply(primary);
+
+    return result;
+};
+
+export async function hydrateInventoryItems(
+    items: any[],
+    _userId: number,
+    baseline?: any[],
+    _options?: HydrationOptions
+) {
+    const baselineMap = new Map<string, any>();
+    (baseline || []).forEach(entry => {
+        if (!entry) return;
+        const key = String(entry.id ?? entry.index ?? entry.name ?? Math.random());
+        baselineMap.set(key, entry);
+    });
+
+    const sanitized: any[] = [];
+    let totalWeight = 0;
+    const currencyAccumulator: Record<string, number> = {
+        pp: 0,
+        gp: 0,
+        ep: 0,
+        sp: 0,
+        cp: 0,
+    };
+
+    items.forEach((raw, index) => {
+        if (!raw) return;
+        const lookupKey = String(raw.id ?? raw.index ?? raw.name ?? index);
+        const fallback = baselineMap.get(lookupKey);
+        const quantity = Number.isFinite(Number(raw.quantity))
+            ? Number(raw.quantity)
+            : Number(fallback?.quantity ?? 1);
+        const weight =
+            Number(raw.weight ?? raw.itemData?.weight ?? fallback?.weight ?? fallback?.itemData?.weight ?? 0) || 0;
+
+        const normalized = {
+            id: raw.id ?? fallback?.id ?? lookupKey,
+            index: raw.index ?? fallback?.index ?? null,
+            name: raw.name ?? fallback?.name ?? `Item ${index + 1}`,
+            quantity,
+            equipped: Boolean(raw.equipped ?? fallback?.equipped),
+            weight,
+            metadata: raw.metadata ?? fallback?.metadata ?? null,
+            itemData: raw.itemData ?? fallback?.itemData ?? null,
         };
-    }
 
-    const allowHomebrew = options.allowHomebrew ?? true;
+        totalWeight += weight * quantity;
 
-    const fallbackMap = new Map<string, InventoryLike>();
-    if (Array.isArray(fallbackItems)) {
-        for (const fallback of fallbackItems) {
-            const key = buildItemKey(fallback);
-            if (key) {
-                fallbackMap.set(key, fallback);
-            }
-        }
-    }
-
-    const hydratedItems: InventoryLike[] = [];
-    const currencyFromCoins: Record<CoinType, number> = { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
-    let baseWeight = 0;
-    let totalCoinCount = 0;
-
-    for (const item of items) {
-        if (!item) continue;
-        const key = buildItemKey(item);
-        const withFallback = mergeWithFallback(item, key ? fallbackMap.get(key) : undefined);
-        const hasFallback = Boolean(key && fallbackMap.get(key));
-
-        const quantity = normaliseQuantity(withFallback.quantity ?? 1);
-        const index = withFallback.index || withFallback.itemData?.index;
-
-        if (isCoinIndex(index)) {
-            currencyFromCoins[index] += quantity;
-            totalCoinCount += quantity;
-            hydratedItems.push({
-                ...withFallback,
-                index,
-                quantity,
-                name: withFallback.name || index.toUpperCase(),
-                equipped: Boolean(withFallback.equipped),
-            });
-            continue;
-        }
-
-        let enrichedItem: InventoryLike = { ...withFallback, quantity };
-        let hasUnifiedDetails = false;
-
-        let unifiedDetails: InventoryLike | null = null;
-        if (index && !hasFallback) {
-            try {
-                unifiedDetails = await getUnifiedDetails('equipment', index, userId);
-            } catch (error) {
-                console.warn(`[inventoryService] Falha ao buscar detalhes de ${index}:`, error);
+        if (raw.currency && typeof raw.currency === 'object') {
+            for (const coin of COIN_KEYS) {
+                const value = Number(raw.currency[coin]);
+                if (Number.isFinite(value) && value > 0) {
+                    currencyAccumulator[coin] += value;
+                }
             }
         }
 
-        if (unifiedDetails) {
-            hasUnifiedDetails = true;
-            enrichedItem = {
-                ...unifiedDetails,
-                ...enrichedItem,
-                itemData: { ...unifiedDetails, ...(enrichedItem.itemData || {}) },
-            };
-            if (unifiedDetails.weight && !enrichedItem.weight) {
-                enrichedItem.weight = unifiedDetails.weight;
-            }
-        } else if (enrichedItem.itemData) {
-            enrichedItem = {
-                ...enrichedItem.itemData,
-                ...enrichedItem,
-            };
-            const classificationExists =
-                enrichedItem.weapon_category ||
-                enrichedItem.armor_category ||
-                enrichedItem.equipment_category;
-            hasUnifiedDetails = Boolean(classificationExists);
-        }
+        sanitized.push(normalized);
+    });
 
-        if (!allowHomebrew && !hasFallback && !hasUnifiedDetails) {
-            const identifier = enrichedItem.index || enrichedItem.name || enrichedItem.id;
-            console.warn(`[inventoryService] Ignorando item não reconhecido (homebrew desativado): ${identifier}`);
-            continue;
-        }
-
-        const weight = typeof enrichedItem.weight === 'number' ? enrichedItem.weight : 0;
-        baseWeight += weight * quantity;
-        if (typeof enrichedItem.equipped !== 'boolean') {
-            enrichedItem.equipped = Boolean(withFallback.equipped);
-        }
-        if (!enrichedItem.id) {
-            const identifier = enrichedItem.index || enrichedItem.name;
-            enrichedItem.id = identifier ? String(identifier) : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        }
-
-        hydratedItems.push(enrichedItem);
-    }
-
-    const totalWeight = baseWeight + totalCoinCount * COIN_WEIGHT;
+    const totalCoinCount = Object.values(currencyAccumulator).reduce((sum, value) => sum + value, 0);
 
     return {
-        items: hydratedItems,
+        items: sanitized,
         metrics: {
-            currency: currencyFromCoins,
             totalWeight,
             totalCoinCount,
+            currency: currencyAccumulator,
         },
     };
-};
-
-export const reconcileCurrency = (
-    existingCurrency: Record<string, number> | undefined,
-    derivedFromCoins: Record<CoinType, number>
-): Record<CoinType, number> => {
-    const base = ensureCurrencyShape(existingCurrency);
-    return mergeCurrency(base, derivedFromCoins);
-};
+}

@@ -43,6 +43,13 @@ const buildSystemInstructionPayload = (instruction: string): GeminiMessage => ({
     parts: [{ text: (instruction ?? '').toString() }],
 });
 
+type GameUpdateFunction = (
+    input: GameMasterFlowInput,
+    modelName: string,
+    generationConfig: GenerationConfig,
+    apiKey: string
+) => Promise<GameUpdateResult>;
+
 type ModelAdapter = {
     isGemma: boolean;
     supportsStructuredOutput: boolean;
@@ -1611,7 +1618,10 @@ ${stateExampleSnippet}
     const stateDiffHint = focus === 'state'
         ? 'ESTADO_PARCIAL=Informe apenas campos que mudaram desde o último turno; valores omitidos serão interpretados como "sem alteração".\n'
         : '';
-    const metadataSection = `${phaseLabel}\n${stateDiffHint}${gameClockNote}${currencyNote}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}`;
+    const hintsSection = input.stateHints?.length
+        ? `HINTS_APLICADOS=\n${input.stateHints.map(hint => `- ${hint}`).join('\n')}\n`
+        : '';
+    const metadataSection = `${phaseLabel}\n${stateDiffHint}${gameClockNote}${currencyNote}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}${hintsSection}`;
     const safeGameLog = typeof gameLog === 'string' && gameLog.trim().length ? gameLog : 'SEM_EVENTOS';
 
     const mainPrompt = `Responda estritamente com JSON válido. Nenhuma explicação fora do objeto.
@@ -2364,7 +2374,7 @@ const enforcePhaseCompliance = (
 /**
  * 🔸 AI Service: Main entry point for getting a game update from the AI.
  */
-export const getGameUpdate = async (input: GameMasterFlowInput, modelName: string, generationConfig: GenerationConfig, apiKey: string): Promise<GameUpdateResult> => {
+const runGameUpdate: GameUpdateFunction = async (input, modelName, generationConfig, apiKey) => {
     const inputValidation = GameMasterFlowInputSchema.safeParse(input);
     if (!inputValidation.success) {
         console.error("Entrada para a IA é inválida:", inputValidation.error.flatten());
@@ -3103,4 +3113,14 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
     }
 
     return await attemptGeneration();
+};
+
+let gameUpdateImplementation: GameUpdateFunction = runGameUpdate;
+
+export const getGameUpdate: GameUpdateFunction = (input, modelName, generationConfig, apiKey) => {
+    return gameUpdateImplementation(input, modelName, generationConfig, apiKey);
+};
+
+export const setGameUpdateOverride = (override?: GameUpdateFunction | null) => {
+    gameUpdateImplementation = override ?? runGameUpdate;
 };

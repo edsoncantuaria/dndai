@@ -5,12 +5,20 @@ import { validateWeaponAttack } from './attack.js';
 import { validateSkillCheck } from './skills.js';
 import { validateSpellAttack } from './spellAttack.js';
 import { validateRestIntent } from './rest.js';
+import {
+    validateDamageIntent,
+    validateHealingIntent,
+    validateConsumeItemIntent,
+} from './damage.js';
 import type {
     WeaponAttackIntent,
     RuleCheckResult,
     SkillCheckIntentPayload,
     SpellAttackIntentPayload,
     RestIntentPayload,
+    DamageIntentPayload,
+    HealingIntentPayload,
+    ConsumeItemIntentPayload,
 } from './types.js';
 import type { CombatState } from '../types.js';
 
@@ -30,9 +38,29 @@ export type ActionIntent =
     | {
           type: 'rest';
           payload: RestIntentPayload;
+      }
+    | {
+          type: 'damage';
+          payload: DamageIntentPayload;
+      }
+    | {
+          type: 'healing';
+          payload: HealingIntentPayload;
+      }
+    | {
+          type: 'consume-item';
+          payload: ConsumeItemIntentPayload;
       };
 
-export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>(['weapon-attack', 'skill-check', 'spell-attack', 'rest']);
+export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>([
+    'weapon-attack',
+    'skill-check',
+    'spell-attack',
+    'rest',
+    'damage',
+    'healing',
+    'consume-item',
+]);
 
 export async function validateActionIntent(
     sessionId: number,
@@ -59,6 +87,15 @@ export async function validateActionIntent(
             break;
         case 'rest':
             result = validateRestIntent(snapshot, intent.payload, context?.combatState);
+            break;
+        case 'damage':
+            result = validateDamageIntent(intent.payload, context?.combatState);
+            break;
+        case 'healing':
+            result = validateHealingIntent(intent.payload, context?.combatState);
+            break;
+        case 'consume-item':
+            result = validateConsumeItemIntent(intent.payload);
             break;
         default:
             throw createError(400, `Tipo de intenção ${intent.type} não é suportado.`);

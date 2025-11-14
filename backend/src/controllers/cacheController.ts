@@ -2,6 +2,7 @@
 import type { Response, NextFunction } from 'express';
 import redisClient from '../database/redis-client.js';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
+import { registerSummaryCacheInvalidation } from '../services/storyService.js';
 
 const CACHE_PATTERNS = [
     'character:*',
@@ -23,6 +24,10 @@ const deleteKeysByPattern = async (pattern: string) => {
         cursor = scanResult.cursor;
         if (scanResult.keys.length) {
             for (const key of scanResult.keys) {
+                const summaryMatch = key.match(/^session:(\d+):story_summary/);
+                if (summaryMatch) {
+                    registerSummaryCacheInvalidation(Number(summaryMatch[1]));
+                }
                 await redisClient.del(key);
             }
             removed += scanResult.keys.length;

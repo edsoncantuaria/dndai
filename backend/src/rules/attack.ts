@@ -1,6 +1,7 @@
 // backend/src/rules/attack.ts
 import { getSrdResource } from '../services/srdCatalogService.js';
 import { computeAbilityBonus, getAttackAbility } from './utils.js';
+import { deriveAttackModifiers } from './combat.js';
 import type {
     RuleCheckResult,
     RulesCharacterSnapshot,
@@ -55,6 +56,14 @@ export async function validateWeaponAttack(
         modifierBreakdown.push(`Arma: ${weapon.name}`);
     }
 
+    const attackModifierReport = deriveAttackModifiers(character.conditions, intent.targetConditions);
+    const advantage = attackModifierReport.advantage && !attackModifierReport.disadvantage;
+    const disadvantage = attackModifierReport.disadvantage && !attackModifierReport.advantage;
+
+    if (attackModifierReport.reasons.length) {
+        modifierBreakdown.push(...attackModifierReport.reasons);
+    }
+
     const rollFormula = attackBonus >= 0 ? `1d20+${attackBonus}` : `1d20${attackBonus}`;
     const context =
         intent.context ??
@@ -67,6 +76,30 @@ export async function validateWeaponAttack(
             modifierBreakdown,
             context,
             targetDc: intent.targetArmorClass,
+            advantage,
+            disadvantage,
+            metadata: {
+                source: {
+                    kind: 'weapon',
+                    index: weapon.index,
+                    name: weapon.name,
+                    damageDice: weapon.damage?.damage_dice,
+                    damageType: weapon.damage?.damage_type?.name,
+                },
+                targets: intent.targetArmorClass
+                    ? [
+                          {
+                              kind: intent.targetKind ?? 'entity',
+                              id: intent.targetId,
+                              name: intent.targetName,
+                              armorClass: intent.targetArmorClass,
+                          },
+                      ]
+                    : undefined,
+                damageFormula: weapon.damage?.damage_dice ?? undefined,
+                damageType: weapon.damage?.damage_type?.name ?? undefined,
+                effect: 'attack',
+            },
         },
         data: {
             weapon: {

@@ -1,5 +1,7 @@
 // backend/src/rules/spells.ts
 import { listSrdResources, getSrdResource } from '../services/srdCatalogService.js';
+import type { Ability, RulesCharacterSnapshot, RollResourceCost } from './types.js';
+import { abilityModifier, getAbilityScore } from './utils.js';
 
 export interface NormalizedSpellComponent {
     verbal: boolean;
@@ -41,6 +43,39 @@ export async function getNormalizedSpell(index: string): Promise<NormalizedSpell
 export async function listNormalizedSpells(): Promise<NormalizedSpell[]> {
     const spells = await listSrdResources('spells');
     return spells.map(normalizeSpell);
+}
+
+const getSpellSlotResourceKey = (level: number) => `level-${level}`;
+
+export function ensureSpellSlotAvailability(character: RulesCharacterSnapshot, slotLevel: number): {
+    available: boolean;
+    remaining: number;
+} {
+    const key = getSpellSlotResourceKey(slotLevel);
+    const resource = character.resources?.find(res => res.type === 'spell-slot' && res.key === key);
+    if (!resource) {
+        return { available: false, remaining: 0 };
+    }
+    return { available: resource.current > 0, remaining: resource.current };
+}
+
+export function buildSpellSlotCost(level: number, amount = 1): RollResourceCost {
+    return {
+        kind: 'spell-slot',
+        level,
+        amount,
+        resourceKey: getSpellSlotResourceKey(level),
+    };
+}
+
+export function getSpellSaveDc(character: RulesCharacterSnapshot, ability: Ability): number {
+    const mod = abilityModifier(getAbilityScore(character, ability));
+    return 8 + character.proficiencyBonus + mod;
+}
+
+export function getSpellAttackBonus(character: RulesCharacterSnapshot, ability: Ability): number {
+    const mod = abilityModifier(getAbilityScore(character, ability));
+    return mod + character.proficiencyBonus;
 }
 
 function normalizeSpell(spell: any): NormalizedSpell {

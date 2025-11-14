@@ -17,6 +17,7 @@ import { JournalEntry } from '../entities/JournalEntry.js';
 import { Relationship } from '../entities/Relationship.js';
 import { Quest } from '../entities/Quest.js';
 import { syncQuestKeywords, extractQuestKeywordStrings } from './questKeywordService.js';
+import { syncCharacterResources } from './characterResourceService.js';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -234,6 +235,13 @@ export const createCharacter = async (userId: number, characterData: z.infer<typ
         await queryRunner.manager.save(spells);
 
         await queryRunner.commitTransaction();
+
+        try {
+            await syncCharacterResources(savedCharacter.id);
+        } catch (syncError) {
+            console.error(`[CharacterService] Falha ao sincronizar recursos do personagem ${savedCharacter.id}:`, syncError);
+        }
+
         return savedCharacter;
 
     } catch (error) {

@@ -1,7 +1,7 @@
 // src/components/GameScreen.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
@@ -35,7 +35,7 @@ import PremiumLoader from '@/components/ui/PremiumLoader';
 import { TooltipProvider } from './ui/tooltip';
 import WorldMapModal from '@/components/world-map/WorldMapModal';
 import { getWorldMapSnapshot, type WorldMapSnapshot } from '@/services/gameService';
-import type { PlayerRollRequest } from '@/types';
+import type { PlayerRollRequest, Character } from '@/types';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -108,7 +108,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const { toast } = useToast();
     const { hasSeenGuidedTips, setHasSeenGuidedTips } = useSettingsContext();
     const { playCue } = useEventFeedback();
-    const [eventBadges, setEventBadges] = useState<Array<{ id: string; text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }>>([]);
+    const [eventBadges, setEventBadges] = useState<Array<{ id: string; text: string; variant: 'xp' | 'ally' | 'enemy' | 'resource'; icon: React.ReactNode }>>([]);
     const [isHeroPanelCollapsed, setIsHeroPanelCollapsed] = useState(true);
     const showCombatHud = combatState?.isActive;
     const [isWorldMapOpen, setIsWorldMapOpen] = useState(false);
@@ -119,6 +119,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         xp?: number;
         inventoryTotal?: number;
         relationships?: Map<string, number>;
+        hp?: number;
+        spellSlots?: Record<string, number>;
     }>({});
     
     const showDiceModal = Boolean(playerRollRequest);
@@ -281,12 +283,27 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         );
     }
 
-    const pushBadge = useCallback((badge: { text: string; variant: 'xp' | 'ally' | 'enemy'; icon: React.ReactNode }) => {
+    const pushBadge = useCallback((badge: { text: string; variant: 'xp' | 'ally' | 'enemy' | 'resource'; icon: React.ReactNode }) => {
         const id = `${Date.now()}-${Math.random()}`;
         setEventBadges(prev => [...prev, { ...badge, id }]);
         setTimeout(() => {
             setEventBadges(prev => prev.filter(item => item.id !== id));
         }, 3000);
+    }, []);
+
+    const buildSpellSlotSnapshot = useCallback((slots: Character['spellSlots'] | undefined) => {
+        const snapshot: Record<string, number> = {};
+        if (!slots) return snapshot;
+        Object.entries(slots).forEach(([key, value]) => {
+            if (!value) return;
+            snapshot[key] = Number(value.current ?? 0);
+        });
+        return snapshot;
+    }, []);
+
+    const formatSlotLabel = useCallback((key: string) => {
+        const match = key.match(/\d+/);
+        return match ? `Nível ${match[0]}` : key.replace(/level/gi, 'Nível ');
     }, []);
 
     useEffect(() => {
@@ -348,12 +365,58 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
             });
         }
 
+        const currentHp = Number(character.hp?.current ?? 0);
+        if (prev.hp !== undefined && currentHp !== prev.hp) {
+            const delta = currentHp - prev.hp;
+            const hpMax = Number(character.hp?.max ?? 0);
+            toast({
+                title: delta > 0 ? 'Você recuperou vida' : 'Você sofreu dano',
+                description: `${delta > 0 ? '+' : ''}${delta} HP • ${currentHp}/${hpMax} restantes`,
+                className: delta > 0
+                    ? 'bg-emerald-900/80 border border-emerald-400 text-emerald-100'
+                    : 'bg-rose-900/80 border border-rose-400 text-rose-100',
+            });
+            playCue(delta > 0 ? 'hpGain' : 'hpLoss');
+            pushBadge({
+                text: `${delta > 0 ? '+' : ''}${delta} HP`,
+                variant: delta > 0 ? 'ally' : 'enemy',
+                icon: <Heart className="h-3.5 w-3.5" />,
+            });
+        }
+
+        const prevSlots = prev.spellSlots;
+        const currentSlots = buildSpellSlotSnapshot(character.spellSlots);
+        if (prevSlots) {
+            const slotKeys = new Set([...Object.keys(prevSlots), ...Object.keys(currentSlots)]);
+            slotKeys.forEach(key => {
+                if (!(key in currentSlots) || !(key in prevSlots)) return;
+                const delta = currentSlots[key] - prevSlots[key];
+                if (delta === 0) return;
+                const slotMeta = character.spellSlots?.[key];
+                toast({
+                    title: delta < 0 ? 'Slot de magia gasto' : 'Slot de magia restaurado',
+                    description: `${formatSlotLabel(key)} • ${currentSlots[key]}/${slotMeta?.max ?? '?'}`,
+                    className: delta < 0
+                        ? 'bg-indigo-900/80 border border-indigo-400 text-indigo-100'
+                        : 'bg-sky-900/80 border border-sky-400 text-sky-100',
+                });
+                playCue('resourceUse');
+                pushBadge({
+                    text: `${formatSlotLabel(key)} ${delta > 0 ? '+' : ''}${delta}`,
+                    variant: 'resource',
+                    icon: <Sparkles className="h-3.5 w-3.5" />,
+                });
+            });
+        }
+
         prevStatsRef.current = {
             xp: character.xp,
             inventoryTotal,
             relationships: currentRelMap,
+            hp: currentHp,
+            spellSlots: currentSlots,
         };
-    }, [character, toast, playCue, pushBadge]);
+    }, [character, toast, playCue, pushBadge, buildSpellSlotSnapshot, formatSlotLabel]);
 
     if (!character) {
         return (
@@ -443,7 +506,9 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                                     ? 'bg-amber-500/90 text-stone-900 border-amber-300'
                                     : badge.variant === 'ally'
                                         ? 'bg-emerald-500/90 text-stone-900 border-emerald-300'
-                                        : 'bg-rose-500/90 text-stone-900 border-rose-300'
+                                        : badge.variant === 'resource'
+                                            ? 'bg-indigo-500/90 text-stone-900 border-indigo-300'
+                                            : 'bg-rose-500/90 text-stone-900 border-rose-300'
                             )}
                         >
                             {badge.icon}

@@ -22,7 +22,7 @@ export interface NormalizedCondition {
     effects: ConditionEffect;
 }
 
-const CONDITION_MAP: Record<string, ConditionEffect> = {
+export const CONDITION_MAP: Record<string, ConditionEffect> = {
     blinded: {
         attackRollDisadvantage: true,
         attackRollAdvantageAgainst: true,

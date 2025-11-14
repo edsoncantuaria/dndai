@@ -3,7 +3,16 @@ import { useGameStateContext } from '@/contexts/GameStateContext';
 import type { InventoryItem } from '@/types';
 
 const StructuredAttackPanel: React.FC = () => {
-    const { character, isLoading, processPlayerAction, setPendingStructuredIntent } = useGameStateContext();
+    const {
+        character,
+        isLoading,
+        processPlayerAction,
+        setPendingStructuredIntent,
+        playerRollRequest,
+        pendingLootOffer,
+        pendingHitDiceRequest,
+        combatState,
+    } = useGameStateContext();
     const weapons = useMemo(() => {
         if (!character?.inventory?.length) return [];
         return character.inventory.filter((item: InventoryItem) => {
@@ -20,8 +29,31 @@ const StructuredAttackPanel: React.FC = () => {
 
     if (!weapons.length) return null;
 
+    const isPlayerTurn = useMemo(() => {
+        if (!combatState?.isActive || !character) return true;
+        const order = combatState.initiativeOrder ?? [];
+        if (!order.length) return false;
+        const current = order[combatState.turn % order.length];
+        const normalizeId = (entry: any): string => {
+            if (!entry) return '';
+            if (typeof entry === 'string') return entry;
+            return entry.id || entry.name || entry.combatantId || '';
+        };
+        const currentId = normalizeId(current);
+        const player = combatState.combatants?.find(c => c.isPlayer);
+        return player ? currentId === normalizeId(player) : false;
+    }, [combatState, character]);
+
+    const intentLocked =
+        isLoading ||
+        !!playerRollRequest ||
+        !!pendingLootOffer ||
+        !!pendingHitDiceRequest ||
+        (combatState?.isActive && !isPlayerTurn);
+
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
+        if (intentLocked) return;
         const weapon = weapons.find(w => w.index === selectedWeaponId) ?? weapons[0];
         if (!weapon) return;
 
@@ -71,11 +103,16 @@ const StructuredAttackPanel: React.FC = () => {
             </div>
             <button
                 type="submit"
-                disabled={isLoading}
+                disabled={intentLocked}
                 className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 py-2 text-sm font-semibold text-stone-900 transition hover:from-amber-400 hover:to-amber-500 disabled:opacity-50"
             >
                 Solicitar rolagem automática
             </button>
+            {intentLocked && (
+                <p className="text-[11px] text-amber-200/70 text-center">
+                    Aguarde terminar o turno atual ou resolver a rolagem pendente.
+                </p>
+            )}
         </form>
     );
 };

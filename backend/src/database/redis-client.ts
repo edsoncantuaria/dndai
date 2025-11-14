@@ -8,8 +8,9 @@ if (!redisUrl) {
     console.warn("AVISO: REDIS_URL não está definida. O cache não será utilizado.");
 }
 
-// O cliente é criado apenas se a URL existir.
-const redisClient = redisUrl ? createClient({ url: redisUrl }) : null;
+const redisClient = redisUrl === 'mock'
+    ? (await import('../scripts/mockRedis.js')).redisClient
+    : (redisUrl ? createClient({ url: redisUrl }) : null);
 
 // Adicionando listeners de eventos para depuração
 redisClient?.on('error', (err) => console.error('[Cache] Erro no Cliente Redis:', err));

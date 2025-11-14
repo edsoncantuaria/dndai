@@ -4,6 +4,7 @@ import { AppDataSource } from '../database/data-source.js';
 import redisClient from '../database/redis-client.js';
 import { TimelineEvent as TimelineEventEntity } from '../entities/TimelineEvent.js';
 import { StorySummary as StorySummaryEntity } from '../entities/StorySummary.js';
+import { loadStateVersion } from './stateVersionService.js';
 
 interface TimelineEvent {
     turn: number;
@@ -20,9 +21,9 @@ interface TimelineEventInput {
     notes?: string;
 }
 
-const TIMELINE_KEY = (sessaoId: number) => `session:${sessaoId}:timeline`;
-const SUMMARY_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary`;
-const SUMMARY_META_KEY = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
+const TIMELINE_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:timeline`;
+const SUMMARY_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary`;
+const SUMMARY_META_KEY_PREFIX = (sessaoId: number) => `session:${sessaoId}:story_summary_meta`;
 const STORY_MODEL = 'models/gemini-2.5-flash-lite';
 
 const MAX_TIMELINE_ENTRIES = 200;
@@ -35,6 +36,73 @@ const IMPORTANT_KEYWORDS = [
     'vitoria', 'vitória', 'tesouro', 'artefato', 'relic', 'boss', 'xp', 'level', 'resgat', 'descobriu',
     'descobert', 'surpre', 'traic', 'aliança', 'invas', 'ritual'
 ];
+
+const SUMMARY_CHURN_WINDOW_MS = 60 * 1000;
+const timelineKeyTracker = new Map<number, string>();
+const summaryKeyTracker = new Map<number, { valueKey: string; metaKey: string }>();
+const summaryDeletionTracker = new Map<number, { timestamp: number; reason: 'manual' | 'rotation' }>();
+
+const getStateVersionForCache = async (sessaoId: number): Promise<number> => {
+    try {
+        return await loadStateVersion(sessaoId);
+    } catch (error) {
+        console.warn(`[storyService] Falha ao consultar stateVersion da sessão ${sessaoId}:`, error);
+        return 0;
+    }
+};
+
+const buildTimelineCacheKey = (sessaoId: number, version: number) =>
+    `${TIMELINE_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
+const buildSummaryCacheKey = (sessaoId: number, version: number) =>
+    `${SUMMARY_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
+const buildSummaryMetaCacheKey = (sessaoId: number, version: number) =>
+    `${SUMMARY_META_KEY_PREFIX(sessaoId)}:v${version ?? 0}`;
+
+const deleteKeyIfNeeded = async (key?: string) => {
+    if (!key || !redisClient || !redisClient.isOpen) return;
+    try {
+        await redisClient.del(key);
+    } catch (error) {
+        console.warn('[storyService] Falha ao remover chave de cache:', key, error);
+    }
+};
+
+const swapTimelineCacheKey = async (sessaoId: number, nextKey: string) => {
+    const previous = timelineKeyTracker.get(sessaoId);
+    if (previous && previous !== nextKey) {
+        await deleteKeyIfNeeded(previous);
+    }
+    timelineKeyTracker.set(sessaoId, nextKey);
+};
+
+const markSummaryCacheInvalidated = (sessaoId: number, reason: 'manual' | 'rotation') => {
+    summaryDeletionTracker.set(sessaoId, { timestamp: Date.now(), reason });
+};
+
+export const registerSummaryCacheInvalidation = (sessaoId: number) => {
+    markSummaryCacheInvalidated(sessaoId, 'manual');
+};
+
+const swapSummaryCacheKeys = async (sessaoId: number, valueKey: string, metaKey: string) => {
+    const previous = summaryKeyTracker.get(sessaoId);
+    if (previous && (previous.valueKey !== valueKey || previous.metaKey !== metaKey)) {
+        await deleteKeyIfNeeded(previous.valueKey);
+        await deleteKeyIfNeeded(previous.metaKey);
+        markSummaryCacheInvalidated(sessaoId, 'rotation');
+    }
+    summaryKeyTracker.set(sessaoId, { valueKey, metaKey });
+};
+
+const noteSummaryWrite = (sessaoId: number) => {
+    const record = summaryDeletionTracker.get(sessaoId);
+    if (record && record.reason === 'manual') {
+        const delta = Date.now() - record.timestamp;
+        if (delta < SUMMARY_CHURN_WINDOW_MS) {
+            console.warn(`[storyService] Summary cache para sessão ${sessaoId} foi recriado ${delta}ms após uma limpeza manual.`);
+        }
+        summaryDeletionTracker.delete(sessaoId);
+    }
+};
 
 const safeParse = <T>(value: string | null): T | null => {
     if (!value) return null;
@@ -66,9 +134,10 @@ const loadTimelineFromDb = async (sessaoId: number, limit?: number): Promise<Tim
     return entities.reverse().map(toTimelineEventDto);
 };
 
-const cacheTimeline = async (sessaoId: number, events: TimelineEvent[]): Promise<void> => {
+const cacheTimeline = async (sessaoId: number, version: number, events: TimelineEvent[]): Promise<void> => {
     if (!redisClient || !redisClient.isOpen) return;
-    const key = TIMELINE_KEY(sessaoId);
+    const key = buildTimelineCacheKey(sessaoId, version);
+    await swapTimelineCacheKey(sessaoId, key);
     const pipeline = redisClient.multi();
     pipeline.del(key);
     if (events.length) {
@@ -78,35 +147,28 @@ const cacheTimeline = async (sessaoId: number, events: TimelineEvent[]): Promise
     await pipeline.exec();
 };
 
-const getTimelineFromCache = async (sessaoId: number): Promise<TimelineEvent[] | null> => {
+const getTimelineFromCache = async (sessaoId: number, version: number): Promise<TimelineEvent[] | null> => {
     if (!redisClient || !redisClient.isOpen) return null;
-    const raw = await redisClient.lRange(TIMELINE_KEY(sessaoId), 0, -1);
+    const raw = await redisClient.lRange(buildTimelineCacheKey(sessaoId, version), 0, -1);
     if (!raw.length) return null;
     return raw.map(safeParse<TimelineEvent>).filter(Boolean) as TimelineEvent[];
 };
 
 export const getTimeline = async (sessaoId: number): Promise<TimelineEvent[]> => {
-    const cached = await getTimelineFromCache(sessaoId);
+    const version = await getStateVersionForCache(sessaoId);
+    const cached = await getTimelineFromCache(sessaoId, version);
     if (cached && cached.length) return cached;
 
     const events = await loadTimelineFromDb(sessaoId, MAX_TIMELINE_ENTRIES);
-    if (events.length) {
-        await cacheTimeline(sessaoId, events);
-    }
+    await cacheTimeline(sessaoId, version, events);
     return events;
 };
 
 const getRecentTimelineEvents = async (sessaoId: number, limit: number): Promise<TimelineEvent[]> => {
     if (limit <= 0) return [];
-    const cached = await getTimeline(sessaoId);
-    if (cached.length >= limit) {
-        return cached.slice(-limit);
-    }
-    const events = await loadTimelineFromDb(sessaoId, Math.max(limit * 3, limit));
-    if (events.length) {
-        await cacheTimeline(sessaoId, events.slice(-MAX_TIMELINE_ENTRIES));
-    }
-    return events.slice(-limit);
+    const events = await getTimeline(sessaoId);
+    if (!events.length) return [];
+    return events.slice(-Math.min(limit, events.length));
 };
 
 const isEventRelevant = (event: TimelineEvent): boolean => {
@@ -135,8 +197,11 @@ export const buildTimelineFacts = async (sessaoId: number, limit: number = TIMEL
 };
 
 export const getStorySummary = async (sessaoId: number): Promise<string | null> => {
+    const version = await getStateVersionForCache(sessaoId);
+    const summaryKey = buildSummaryCacheKey(sessaoId, version);
+    const summaryMetaKey = buildSummaryMetaCacheKey(sessaoId, version);
     if (redisClient && redisClient.isOpen) {
-        const cached = await redisClient.get(SUMMARY_KEY(sessaoId));
+        const cached = await redisClient.get(summaryKey);
         if (cached) return cached;
     }
 
@@ -145,11 +210,13 @@ export const getStorySummary = async (sessaoId: number): Promise<string | null> 
     if (!summary) return null;
 
     if (redisClient && redisClient.isOpen) {
-        await redisClient.set(SUMMARY_KEY(sessaoId), summary.summary);
+        await swapSummaryCacheKeys(sessaoId, summaryKey, summaryMetaKey);
+        await redisClient.set(summaryKey, summary.summary);
         await redisClient.set(
-            SUMMARY_META_KEY(sessaoId),
+            summaryMetaKey,
             JSON.stringify({ entriesSummarized: summary.entriesSummarized, updatedAt: summary.updatedAt.toISOString() })
         );
+        noteSummaryWrite(sessaoId);
     }
 
     return summary.summary;
@@ -171,23 +238,37 @@ const setStorySummary = async (sessaoId: number, summary: string, entriesSummari
     await repo.save(entity);
 
     if (redisClient && redisClient.isOpen) {
-        await redisClient.set(SUMMARY_KEY(sessaoId), summary);
+        const version = await getStateVersionForCache(sessaoId);
+        const summaryKey = buildSummaryCacheKey(sessaoId, version);
+        const summaryMetaKey = buildSummaryMetaCacheKey(sessaoId, version);
+        await swapSummaryCacheKeys(sessaoId, summaryKey, summaryMetaKey);
+        await redisClient.set(summaryKey, summary);
         await redisClient.set(
-            SUMMARY_META_KEY(sessaoId),
+            summaryMetaKey,
             JSON.stringify({ entriesSummarized, updatedAt: new Date().toISOString() })
         );
+        noteSummaryWrite(sessaoId);
     }
 };
 
 const getSummaryMeta = async (sessaoId: number): Promise<{ entriesSummarized: number } | null> => {
+    const version = await getStateVersionForCache(sessaoId);
+    const summaryMetaKey = buildSummaryMetaCacheKey(sessaoId, version);
     if (redisClient && redisClient.isOpen) {
-        const cached = safeParse<{ entriesSummarized: number }>(await redisClient.get(SUMMARY_META_KEY(sessaoId)));
+        const cached = safeParse<{ entriesSummarized: number }>(await redisClient.get(summaryMetaKey));
         if (cached) return cached;
     }
 
     const repo = storySummaryRepository();
     const summary = await repo.findOne({ where: { sessaoId } });
     if (!summary) return null;
+
+    if (redisClient && redisClient.isOpen) {
+        await redisClient.set(
+            summaryMetaKey,
+            JSON.stringify({ entriesSummarized: summary.entriesSummarized, updatedAt: summary.updatedAt.toISOString() })
+        );
+    }
 
     return { entriesSummarized: summary.entriesSummarized };
 };
@@ -214,9 +295,8 @@ const appendTimelineEvent = async (
     await repo.save(entity);
 
     const events = await loadTimelineFromDb(sessaoId, MAX_TIMELINE_ENTRIES);
-    if (events.length) {
-        await cacheTimeline(sessaoId, events);
-    }
+    const version = await getStateVersionForCache(sessaoId);
+    await cacheTimeline(sessaoId, version, events);
 
     return { events, totalEvents: nextTurn };
 };

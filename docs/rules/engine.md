@@ -74,6 +74,10 @@ interface ValidationResult {
 
 ## Próximos Passos
 
-1. Implementar skeleton TS (`src/rules/`).
-2. Carregar catálogos em um serviço singleton.
-3. Criar primeiros testes: `abilityModifier`, `proficiencyBonus`, `resolveWeaponAttack`.
+| Item | Status |
+| --- | --- |
+| Implementar skeleton TS (`src/rules/`) | ✅ (`backend/src/rules`) |
+| Carregar catálogos em um serviço singleton | ✅ (`srdCatalogService`) |
+| Criar primeiros testes (`abilityModifier`, `resolveWeaponAttack` etc.) | ⏳ (não implementado) |
+| Aplicar efeitos automaticamente (HP, recursos) | 🚧 iniciamos pelo descanso; demais intents pendentes |
+| Expor intents em REST | ⏳ (planejado em `docs/rules/integration-plan.md`) |

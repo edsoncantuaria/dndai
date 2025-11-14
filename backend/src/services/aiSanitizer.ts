@@ -1556,6 +1556,14 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
   }
 
   const suppressRollFallback = Boolean(flowInput?.suppressRollRequest);
+  if (suppressRollFallback && sanitized.playerRollRequest) {
+      delete sanitized.playerRollRequest;
+      sanitationLogs.push('playerRollRequest removida pois suppressRollRequest=true.');
+  }
+  if (suppressRollFallback && sanitized.useHitDiceRequest) {
+      delete sanitized.useHitDiceRequest;
+      sanitationLogs.push('useHitDiceRequest removida pois suppressRollRequest=true.');
+  }
   const combinedLogText = sanitized.logEntries
     ?.map(entry => (typeof entry?.content === 'string' ? entry.content.toLowerCase() : ''))
     .join(' ') ?? '';

@@ -8,6 +8,7 @@ import { CharacterItem } from './CharacterItem.js';
 import { CharacterSpell } from './CharacterSpell.js';
 import { JournalEntry } from './JournalEntry.js';
 import { Relationship } from './Relationship.js';
+import { CharacterResource } from './CharacterResource.js';
 
 
 @Entity('characters')
@@ -92,6 +93,9 @@ export class Character {
     
     @OneToMany(() => CharacterSpell, spell => spell.character, { cascade: true })
     spells: CharacterSpell[];
+
+    @OneToMany(() => CharacterResource, resource => resource.character, { cascade: true })
+    resources: CharacterResource[];
 
     @OneToMany(() => SessaoIA, (sessao) => sessao.character)
     sessoes: SessaoIA[];

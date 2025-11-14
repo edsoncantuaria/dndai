@@ -40,7 +40,8 @@ import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { runGmValidator } from './gmValidator.js';
 import { buildFeedbackHint } from './aiFeedbackService.js';
-import { savePendingRollRequest, clearPendingRollRequest } from './rollRequestService.js';
+import { savePendingRollRequest, clearPendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
+import { recordUnexpectedAiRoll } from './rollMetricsService.js';
 import * as RegionService from './regionService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
@@ -1093,12 +1094,14 @@ export const buildOptimizedCharacterForAI = async (characterId: number) => {
 };
 
 export const processPlayerTurn = async (
-    sessionId: number, 
-    userId: number, 
-    playerAction: string, 
-    apiKey: string, 
-    currentCombatState?: CombatState, 
-    useAiHomebrew?: boolean
+    sessionId: number,
+    userId: number,
+    playerAction: string,
+    apiKey: string,
+    currentCombatState?: CombatState,
+    useAiHomebrew?: boolean,
+    stateHints?: string[],
+    actionId?: string
 ): Promise<GameMasterResponse> => {
     let isTestRun = false;
     let sessao: SessaoIA | null = null;
@@ -1236,6 +1239,8 @@ export const processPlayerTurn = async (
     const regionGraphSummary = regionPromptContext ? formatRegionGraphSummary(regionPromptContext) : undefined;
 
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
+    const normalizedStateHints = (stateHints ?? []).map(hint => hint?.trim()).filter(Boolean);
+    const latestStateHint = normalizedStateHints.length ? normalizedStateHints[normalizedStateHints.length - 1] : undefined;
 
     const sessionKey = sessao ? String(sessao.id) : undefined;
 
@@ -1255,6 +1260,8 @@ export const processPlayerTurn = async (
         visitedRegions: regionPromptContext?.visitedRegions,
         mode: aiMode,
         sessionId: sessionKey,
+        stateHints: latestStateHint ? [latestStateHint] : undefined,
+        suppressRollRequest: true,
     };
 
     const appendSystemNote = (response: GameMasterResponse, note: string) => {
@@ -1272,6 +1279,7 @@ export const processPlayerTurn = async (
         usedFallback: boolean;
         focus: ResponseFocusMode;
         warnings: GameUpdateWarning[];
+        suppressRollRequest: boolean;
     }
 
     const requestPhaseResponse = async (
@@ -1288,10 +1296,12 @@ export const processPlayerTurn = async (
         let usedFallback = false;
 
         let lastWarnings: GameUpdateWarning[] = [];
+        const suppressRollRequest =
+            extraInput.suppressRollRequest ?? gameMasterFlowInput.suppressRollRequest ?? false;
         while (retryCount < MAX_VALIDATION_ATTEMPTS) {
             calls += 1;
             const { response: candidate, rawText: currentRaw, warnings: callWarnings = [] } = await getGameUpdate(
-                { ...gameMasterFlowInput, ...extraInput, responseFocus: focus, validationFeedback },
+                { ...gameMasterFlowInput, ...extraInput, suppressRollRequest, responseFocus: focus, validationFeedback },
                 modelToUse,
                 generationConfig,
                 apiKey
@@ -1342,6 +1352,7 @@ export const processPlayerTurn = async (
             usedFallback,
             focus,
             warnings: lastWarnings,
+            suppressRollRequest,
         };
     };
 
@@ -1728,7 +1739,22 @@ export const processPlayerTurn = async (
         }
     }
 
-    if (aiResponse.playerRollRequest) {
+    const pendingRollForSession = sessao ? await getPendingRollRequest(sessao.id) : null;
+    const allowAiRollRequest = !statePhase.suppressRollRequest && !pendingRollForSession;
+
+    if (aiResponse.playerRollRequest && !allowAiRollRequest) {
+        const reason = statePhase.suppressRollRequest ? 'suppress-roll-request' : 'pending-roll-exists';
+        if (sessao?.id || sessionId) {
+            recordUnexpectedAiRoll(sessao?.id ?? sessionId, reason);
+        }
+        aiResponse.playerRollRequest = undefined;
+        appendSystemNote(
+            aiResponse,
+            statePhase.suppressRollRequest
+                ? '[RollGuard] Solicitação de rolagem descartada: o motor não está aguardando rolagens neste turno.'
+                : '[RollGuard] Solicitação de rolagem descartada: já existe uma rolagem pendente para esta sessão.'
+        );
+    } else if (aiResponse.playerRollRequest) {
         const recalculatedModifier = recalculatePlayerRollModifier(aiResponse.playerRollRequest, characterForAI);
         if (
             recalculatedModifier !== null &&
@@ -1749,10 +1775,22 @@ export const processPlayerTurn = async (
     if (aiResponse.playerRollRequest) {
         const requestId = uuidv4();
         aiResponse.playerRollRequest.requestId = requestId;
-        await savePendingRollRequest(sessao.id, userId, {
-            ...aiResponse.playerRollRequest,
-            requestId,
-        });
+        await savePendingRollRequest(
+            sessao.id,
+            userId,
+            {
+                ...aiResponse.playerRollRequest,
+                requestId,
+            },
+            {
+                actionId: actionId ?? requestId,
+                intentType: 'narration',
+                metadata: {
+                    scenarioLabel: gameMasterFlowInput.scenarioLabel,
+                    playerAction: playerAction.slice(0, 200),
+                },
+            }
+        );
         return aiResponse;
     } else {
         await clearPendingRollRequest(sessao.id);

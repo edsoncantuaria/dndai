@@ -1,15 +1,46 @@
 // types.ts
 
+export type PlayerRollSourceKind = 'weapon' | 'spell' | 'skill' | 'feature' | 'item';
+export type PlayerRollTargetKind = 'character' | 'entity' | 'object';
+export type PlayerRollResourceKind = 'spell-slot' | 'class-resource' | 'item';
+
+export interface PlayerRollRequestMetadata {
+    source?: {
+        kind: PlayerRollSourceKind;
+        index?: string;
+        name?: string;
+        damageDice?: string;
+        damageType?: string;
+    };
+    targets?: {
+        kind: PlayerRollTargetKind;
+        id?: string;
+        name?: string;
+        armorClass?: number;
+    }[];
+    damageFormula?: string;
+    damageType?: string;
+    resourceCosts?: {
+        kind: PlayerRollResourceKind;
+        level?: number;
+        resourceKey?: string;
+        amount?: number;
+        itemId?: number;
+        itemIndex?: string;
+    }[];
+}
+
 export interface PlayerRollRequest {
     reason: string;
     dice: string; // Ex: "1d20", "2d6"
     modifier: number;
     dc?: number;
-    rollType: 'check' | 'save' | 'attack' | 'damage';
+    rollType: 'check' | 'save' | 'attack' | 'damage' | 'healing';
     advantage?: boolean;
     disadvantage?: boolean;
     requestId?: string;
     details?: string[];
+    metadata?: PlayerRollRequestMetadata;
 }
 
 export type ImageLogEntryContent = {

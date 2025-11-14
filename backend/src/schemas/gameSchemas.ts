@@ -3,15 +3,49 @@ import { z } from 'zod';
 import { CreateHomebrewSchema } from './validationSchemas.js';
 
 /* -------------------------------- PLAYER ROLL -------------------------------- */
+const RollTargetSchema = z.object({
+  kind: z.enum(['character', 'entity', 'object']).default('entity'),
+  id: z.string().optional(),
+  name: z.string().optional(),
+  armorClass: z.number().optional(),
+  encounterId: z.number().optional(),
+  characterId: z.number().optional(),
+});
+
+const RollResourceCostSchema = z.object({
+  kind: z.enum(['spell-slot', 'class-resource', 'item']),
+  level: z.number().optional(),
+  resourceKey: z.string().optional(),
+  amount: z.number().optional(),
+  itemId: z.number().optional(),
+  itemIndex: z.string().optional(),
+});
+
+const PlayerRollMetadataSchema = z.object({
+  source: z.object({
+    kind: z.enum(['weapon', 'spell', 'skill', 'feature', 'item']),
+    index: z.string().optional(),
+    name: z.string().optional(),
+    damageDice: z.string().optional(),
+    damageType: z.string().optional(),
+  }).optional(),
+  targets: z.array(RollTargetSchema).optional(),
+  damageFormula: z.string().optional(),
+  damageType: z.string().optional(),
+  resourceCosts: z.array(RollResourceCostSchema).optional(),
+  effect: z.enum(['damage', 'healing']).optional(),
+}).optional();
+
 export const PlayerRollRequestSchema = z.object({
   reason: z.string().describe("Motivo da rolagem (ex.: 'persuadir o guarda', 'desviar do fireball'). Exibido ao jogador."),
   dice: z.string().describe("Dados a rolar, no padrão padrão (ex.: '1d20', '2d6')."),
   modifier: z.number().describe("Modificador total da rolagem, calculado a partir dos atributos do personagem."),
   dc: z.number().optional().describe("Classe de Dificuldade (DC) que o jogador precisa superar."),
-  rollType: z.enum(['check', 'save', 'attack', 'damage', 'initiative']).describe("Tipo da rolagem."),
+  rollType: z.enum(['check', 'save', 'attack', 'damage', 'initiative', 'healing']).describe("Tipo da rolagem."),
   advantage: z.boolean().optional().describe("Indica se a rolagem tem vantagem."),
   disadvantage: z.boolean().optional().describe("Indica se a rolagem tem desvantagem."),
   requestId: z.string().optional().describe("Identificador único gerado pelo backend para correlacionar o resultado da rolagem."),
+  metadata: PlayerRollMetadataSchema,
 }).refine(data => !(data.advantage && data.disadvantage), {
   message: "Uma rolagem não pode ter vantagem e desvantagem ao mesmo tempo",
 });
@@ -356,5 +390,6 @@ export const GameMasterFlowInputSchema = z.object({
   responseFocus: z.enum(['full', 'narrative', 'state']).optional().describe("Quando definido, orienta módulos de saída (ex.: fase narrativa ou fase de estado)."),
   suppressRollRequest: z.boolean().optional().describe("Se true, quaisquer playerRollRequest retornadas serão descartadas."),
   exampleSnippet: z.string().optional().describe("Exemplo concreto extraído de execuções anteriores para orientar o modelo."),
+  stateHints: z.array(z.string()).optional().describe("Lista de deltas já aplicados (ex.: '-7 HP', 'Slot de magia gasto') para a IA narrar com precisão."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

@@ -2,16 +2,47 @@
 // Este arquivo será eventualmente substituído por tipos gerados diretamente
 // a partir dos schemas Zod do backend para garantir consistência.
 
+export type PlayerRollSourceKind = 'weapon' | 'spell' | 'skill' | 'feature' | 'item';
+export type PlayerRollTargetKind = 'character' | 'entity' | 'object';
+export type PlayerRollResourceKind = 'spell-slot' | 'class-resource' | 'item';
+
+export interface PlayerRollRequestMetadata {
+    source?: {
+        kind: PlayerRollSourceKind;
+        index?: string;
+        name?: string;
+        damageDice?: string;
+        damageType?: string;
+    };
+    targets?: {
+        kind: PlayerRollTargetKind;
+        id?: string;
+        name?: string;
+        armorClass?: number;
+    }[];
+    damageFormula?: string;
+    damageType?: string;
+    resourceCosts?: {
+        kind: PlayerRollResourceKind;
+        level?: number;
+        resourceKey?: string;
+        amount?: number;
+        itemId?: number;
+        itemIndex?: string;
+    }[];
+}
+
 export interface PlayerRollRequest {
     reason: string;
     dice: string;
     modifier: number;
     dc?: number;
-    rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative';
+    rollType: 'check' | 'save' | 'attack' | 'damage' | 'initiative' | 'healing';
     advantage?: boolean;
     disadvantage?: boolean;
     requestId?: string;
     details?: string[];
+     metadata?: PlayerRollRequestMetadata;
 }
 
 export type ImageLogEntryContent = {

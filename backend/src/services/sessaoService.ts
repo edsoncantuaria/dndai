@@ -1,6 +1,7 @@
 // backend/src/services/sessaoService.ts
 import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
+import { SessionLog } from '../entities/SessionLog.js';
 import { User } from '../entities/User.js';
 import { Character } from '../entities/Character.js';
 import { IsNull, In, QueryRunner } from 'typeorm';
@@ -120,6 +121,20 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const userRepository = AppDataSource.getRepository(User);
 
+    const existingSessao = await sessaoRepository.findOne({
+        where: { userId, deletedAt: IsNull() },
+        order: { updatedAt: 'DESC' },
+        relations: ['character'],
+    });
+    if (existingSessao && existingSessao.character && !existingSessao.character.isTemplate) {
+        console.log('[getOrCreateSessao] Sessão ativa encontrada, reutilizando.', {
+            sessionId: existingSessao.id,
+            characterId: existingSessao.characterId,
+        });
+        const { apiKey: _apiKey, ...safe } = existingSessao;
+        return { sessao: safe, isNew: false };
+    }
+
     const [characterTemplate, user] = await Promise.all([
         characterRepository.findOne({ where: { id: characterId, userId }, loadEagerRelations: false }),
         userRepository.findOneBy({ id: userId }),
@@ -213,7 +228,8 @@ export const getSessoesForUser = async (userId: number) => {
 
 export const getSessaoDetails = async (sessionId: number, userId?: number) => {
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
-    
+    const logRepo = AppDataSource.getRepository(SessionLog);
+
     const whereClause: any = { id: sessionId, deletedAt: IsNull() };
     if (userId) {
         whereClause.userId = userId;
@@ -221,30 +237,52 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
 
     const sessao = await sessaoRepository.findOne({
         where: whereClause,
-        relations: ['logs', 'character']
+        select: {
+            id: true,
+            userId: true,
+            nome: true,
+            characterId: true,
+            apiKey: true,
+            stateVersion: true,
+            homebrewContentIds: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+        loadEagerRelations: false,
     });
 
     if (!sessao) {
         throw createError(404, 'Sessão não encontrada ou você não tem permissão.');
     }
-
-    if (sessao.character) {
-        sessao.character = await buildFullCharacterObject(sessao.character, { disableCache: true }) as Character;
-        console.log('[getSessaoDetails] personagem carregado', {
-            sessionId,
-            characterId: sessao.character?.id,
-            attributes: sessao.character?.attributes,
-            inventory: sessao.character?.inventory?.length,
-        });
+    let characterPayload: Character | null = null;
+    if (sessao.characterId) {
+        const characterRepo = AppDataSource.getRepository(Character);
+        const rawCharacter = await characterRepo.findOne({ where: { id: sessao.characterId } });
+        if (rawCharacter) {
+            characterPayload = (await buildFullCharacterObject(rawCharacter, { disableCache: true })) as Character;
+            console.log('[getSessaoDetails] personagem carregado', {
+                sessionId,
+                characterId: characterPayload?.id,
+                attributes: characterPayload?.attributes,
+                inventory: characterPayload?.inventory?.length,
+            });
+        }
     }
 
-    (sessao as any).stateVersion = sessao.stateVersion ?? 0;
+    const logs = await logRepo.find({
+        where: { sessaoId: sessao.id, deletedAt: IsNull() },
+        order: { timestamp: 'ASC' },
+    });
+    await hydrateLogResponses(logs);
 
-    await hydrateLogResponses(sessao.logs);
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { apiKey, ...sessaoSegura } = sessao;
-    return sessaoSegura;
+    const safePayload = {
+        ...sessao,
+        stateVersion: sessao.stateVersion ?? 0,
+        character: characterPayload,
+        logs,
+    } as any;
+    delete safePayload.apiKey;
+    return safePayload;
 };
 
 export const deleteSessao = async (sessionId: number, userId: number) => {

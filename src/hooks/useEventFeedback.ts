@@ -4,7 +4,15 @@
 import { useCallback, useRef } from 'react';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 
-type EventCue = 'xp' | 'loot' | 'relationshipUp' | 'relationshipDown' | 'shop';
+type EventCue =
+    | 'xp'
+    | 'loot'
+    | 'relationshipUp'
+    | 'relationshipDown'
+    | 'shop'
+    | 'hpLoss'
+    | 'hpGain'
+    | 'resourceUse';
 
 const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate: number }> = {
     xp: { frequency: 920, duration: 180, vibrate: 25 },
@@ -12,6 +20,9 @@ const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate
     relationshipUp: { frequency: 760, duration: 160, vibrate: 20 },
     relationshipDown: { frequency: 420, duration: 220, vibrate: 35 },
     shop: { frequency: 520, duration: 160, vibrate: 18 },
+    hpLoss: { frequency: 380, duration: 240, vibrate: 40 },
+    hpGain: { frequency: 680, duration: 220, vibrate: 25 },
+    resourceUse: { frequency: 560, duration: 200, vibrate: 22 },
 };
 
 export const useEventFeedback = () => {

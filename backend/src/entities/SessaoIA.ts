@@ -32,7 +32,7 @@ export class SessaoIA {
     @JoinColumn({ name: 'characterId' })
     character: Character | null;
 
-    @OneToMany(() => SessionLog, log => log.sessao, { cascade: true, eager: true })
+    @OneToMany(() => SessionLog, log => log.sessao, { cascade: true })
     logs: SessionLog[];
 
     @OneToMany(() => CombatEncounter, combat => combat.sessao)

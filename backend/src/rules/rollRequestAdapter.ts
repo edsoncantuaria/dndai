@@ -21,6 +21,9 @@ export function convertRollRequestToPlayerRoll(
         modifier,
         dc: request.targetDc,
         rollType: overrides.rollType,
+        advantage: request.advantage,
+        disadvantage: request.disadvantage,
         details: request.modifierBreakdown ?? [],
+        metadata: request.metadata,
     };
 }

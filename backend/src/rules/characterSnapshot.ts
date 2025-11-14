@@ -4,6 +4,8 @@ import { AppDataSource } from '../database/data-source.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import { CharacterProficiency } from '../entities/CharacterProficiency.js';
+import { CharacterResource } from '../entities/CharacterResource.js';
+import { CharacterItem } from '../entities/CharacterItem.js';
 import type { RulesCharacterSnapshot, Ability } from './types.js';
 import { computeProficiencyBonus } from './utils.js';
 
@@ -20,7 +22,13 @@ export async function loadCharacterSnapshot(sessionId: number, userId: number): 
     const sessaoRepo = AppDataSource.getRepository(SessaoIA);
     const sessao = await sessaoRepo.findOne({
         where: { id: sessionId, userId },
-        relations: ['character', 'character.attributes', 'character.proficiencies'],
+        relations: [
+            'character',
+            'character.attributes',
+            'character.proficiencies',
+            'character.resources',
+            'character.items',
+        ],
     });
 
     if (!sessao) {
@@ -65,6 +73,29 @@ export async function loadCharacterSnapshot(sessionId: number, userId: number): 
 
     const level = sessao.character.level ?? 1;
 
+    const conditions =
+        Array.isArray(attributes.conditions) && attributes.conditions.length
+            ? attributes.conditions.map(value => String(value).toLowerCase())
+            : [];
+
+    const resources =
+        sessao.character.resources?.map((resource: CharacterResource) => ({
+            type: resource.type,
+            key: resource.resourceKey,
+            current: resource.current,
+            max: resource.max,
+            refresh: resource.metadata?.refresh,
+            metadata: resource.metadata ?? undefined,
+        })) ?? [];
+
+    const inventory =
+        sessao.character.items?.map((item: CharacterItem) => ({
+            index: item.itemData?.index,
+            name: item.name ?? item.itemData?.name,
+            quantity: item.quantity,
+            equipped: item.equipped,
+        })) ?? [];
+
     return {
         id: `character:${sessao.character.id}`,
         name: sessao.character.name,
@@ -73,5 +104,8 @@ export async function loadCharacterSnapshot(sessionId: number, userId: number): 
         abilities: abilityScores,
         weaponProficiencies,
         skillProficiencies,
+        conditions,
+        resources,
+        inventory,
     };
 }

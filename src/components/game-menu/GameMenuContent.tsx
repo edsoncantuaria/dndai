@@ -28,7 +28,7 @@ interface GameMenuContentProps {
     onReturnToMenu: () => void;
     onContinueGame: (sessionId: number) => void;
     onCharacterCreated: () => void;
-    onStartFromVault: (character: Character) => void;
+    onStartFromVault: (character: Character, existingSession?: SessaoIA | null) => void;
     onRequestDeleteCharacter: (character: Character) => void;
     onRequestDeleteSession: (session: SessaoIA) => void;
     onRequestRenameSession: (session: SessaoIA) => void;
@@ -346,7 +346,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-3">
                                     <button
-                                        onClick={() => onStartFromVault(char)}
+                                        onClick={() => onStartFromVault(char, sessions.find(s => s.characterId === char.id))}
                                         className="inline-flex items-center gap-2 rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-emerald-300 transition"
                                     >
                                         <Play className="h-4 w-4" /> Iniciar jornada

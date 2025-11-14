@@ -45,8 +45,39 @@ export function calculateHitDiceRecovery(character: RulesCharacterSnapshot, type
     return Math.max(1, Math.floor(character.level / 2));
 }
 
+const DEFAULT_REFRESH: Record<string, 'short-rest' | 'long-rest'> = {
+    'spell-slot': 'long-rest',
+};
+
+function buildResourceRecoveryDelta(
+    character: RulesCharacterSnapshot,
+    restType: 'short' | 'long'
+) {
+    const resources = character.resources ?? [];
+    if (!resources.length) return undefined;
+    const eligible = resources.filter(resource => {
+        const refresh =
+            resource.refresh ??
+            resource.metadata?.refresh ??
+            DEFAULT_REFRESH[resource.type] ??
+            'long-rest';
+        if (restType === 'short') {
+            return refresh === 'short-rest';
+        }
+        return true;
+    });
+    const deltas = eligible
+        .map(resource => ({
+            type: resource.type,
+            key: resource.key,
+            delta: resource.max - resource.current,
+        }))
+        .filter(entry => entry.delta !== 0);
+    return deltas.length ? deltas : undefined;
+}
+
 export function validateRestIntent(
-    _character: RulesCharacterSnapshot,
+    character: RulesCharacterSnapshot,
     payload: RestIntentPayload,
     combatState?: CombatState | null
 ): RuleCheckResult {
@@ -57,6 +88,7 @@ export function validateRestIntent(
         };
     }
     const rules = getRestRules(payload.restType);
+    const resourceDelta = buildResourceRecoveryDelta(character, payload.restType);
     return {
         status: 'accepted',
         data: {
@@ -69,6 +101,17 @@ export function validateRestIntent(
                 benefits: rules.benefits,
                 limitations: rules.limitations,
             },
+            character:
+                payload.restType === 'long'
+                    ? {
+                          hp: { setToMax: true },
+                          resources: resourceDelta,
+                      }
+                    : resourceDelta
+                      ? {
+                            resources: resourceDelta,
+                        }
+                      : undefined,
         },
     };
 }

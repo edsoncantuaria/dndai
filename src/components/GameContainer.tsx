@@ -124,9 +124,14 @@ const GameContainer = () => {
         }
     }, [gameStage, playMenuMusic, volume, isMuted]);
 
-    const handleNewGameFromVault = useCallback(async (char: Character) => {
+    const handleNewGameFromVault = useCallback(async (char: Character, existingSession?: SessaoIA) => {
         setGameStage('playing');
         try {
+            const sessionId = existingSession?.id;
+            if (sessionId) {
+                await loadGameSession(sessionId);
+                return;
+            }
             const { sessao } = await GameService.createGameSession(`Aventura de ${char.name}`, char.id);
             if (sessao) {
                 await loadGameSession(sessao.id);

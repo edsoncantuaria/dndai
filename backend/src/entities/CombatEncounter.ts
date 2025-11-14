@@ -3,6 +3,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, CreateDa
 import { SessaoIA } from './SessaoIA.js';
 import { CombatantState } from './CombatantState.js';
 import { CombatLogEntry } from './CombatLogEntry.js';
+import { CombatEntity } from './CombatEntity.js';
 
 @Entity('combat_encounters')
 export class CombatEncounter {
@@ -37,6 +38,9 @@ export class CombatEncounter {
 
     @OneToMany(() => CombatLogEntry, log => log.encounter, { cascade: true })
     logs: CombatLogEntry[];
+
+    @OneToMany(() => CombatEntity, entity => entity.encounter, { cascade: true })
+    entities: CombatEntity[];
 
     @CreateDateColumn()
     createdAt: Date;

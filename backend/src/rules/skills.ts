@@ -1,9 +1,24 @@
 // backend/src/rules/skills.ts
 import { getSrdResource, listSrdResources } from '../services/srdCatalogService.js';
 import { computeAbilityBonus } from './utils.js';
-import type { NormalizedSkill, SkillCheckIntentPayload, RuleCheckResult, RulesCharacterSnapshot } from './types.js';
+import type {
+    NormalizedSkill,
+    SkillCheckIntentPayload,
+    RuleCheckResult,
+    RulesCharacterSnapshot,
+    SkillDifficulty,
+} from './types.js';
 
 const skillCache = new Map<string, NormalizedSkill>();
+
+const DIFFICULTY_TO_DC: Record<SkillDifficulty, number> = {
+    very_easy: 5,
+    easy: 10,
+    medium: 15,
+    hard: 20,
+    very_hard: 25,
+    nearly_impossible: 30,
+};
 
 export async function listNormalizedSkills(): Promise<NormalizedSkill[]> {
     if (skillCache.size) {
@@ -56,19 +71,40 @@ export async function validateSkillCheck(
     });
 
     const rollFormula = total >= 0 ? `1d20+${total}` : `1d20${total}`;
+    const inferredDc =
+        payload.dc ??
+        (payload.difficulty ? DIFFICULTY_TO_DC[payload.difficulty] : undefined);
+
     return {
         status: 'needs_roll',
         rollRequest: {
             formula: rollFormula,
             modifierBreakdown: [...breakdown, `Perícia: ${skill.name}`],
             context: `Teste de ${skill.name}`,
-            targetDc: payload.dc,
+            targetDc: inferredDc,
+            metadata: {
+                source: {
+                    kind: 'skill',
+                    index: skill.index,
+                    name: skill.name,
+                },
+                targets: inferredDc
+                    ? [
+                          {
+                              kind: 'entity',
+                              name: 'Desafio informado',
+                              armorClass: inferredDc,
+                          },
+                      ]
+                    : undefined,
+            },
         },
         data: {
             skill: skill.name,
             ability,
             proficient,
-            suggestedDc: payload.dc,
+            suggestedDc: inferredDc,
+            difficulty: payload.difficulty,
         },
     };
 }

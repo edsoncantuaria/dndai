@@ -24,6 +24,8 @@ import { CombatantState } from '../entities/CombatantState.js';
 import { CombatCooldown } from '../entities/CombatCooldown.js';
 import { CombatStatusEffect } from '../entities/CombatStatusEffect.js';
 import { CombatLogEntry } from '../entities/CombatLogEntry.js';
+import { CombatEntity } from '../entities/CombatEntity.js';
+import { ActionLog } from '../entities/ActionLog.js';
 import { CampaignArtifact } from '../entities/CampaignArtifact.js';
 import { Region } from '../entities/Region.js';
 import { RegionLink } from '../entities/RegionLink.js';
@@ -36,6 +38,7 @@ import { EnemyTemplate as EnemyTemplateEntity } from '../entities/EnemyTemplate.
 import { AiFeedbackNote } from '../entities/AiFeedbackNote.js';
 import { ScenarioExample } from '../entities/ScenarioExample.js';
 import { SrdResource } from '../entities/SrdResource.js';
+import { CharacterResource } from '../entities/CharacterResource.js';
 
 
 /**
@@ -81,6 +84,8 @@ export const AppDataSource = new DataSource({
         CombatCooldown,
         CombatStatusEffect,
         CombatLogEntry,
+        CombatEntity,
+        ActionLog,
         CampaignArtifact,
         Region,
         RegionLink,
@@ -93,6 +98,7 @@ export const AppDataSource = new DataSource({
         AiFeedbackNote,
         ScenarioExample,
         SrdResource,
+        CharacterResource,
     ], 
     
     migrations: [],
