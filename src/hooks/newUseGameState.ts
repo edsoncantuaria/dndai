@@ -304,7 +304,14 @@ export const useNewGameState = () => {
     const [progressionFeed, setProgressionFeed] = useState<ProgressionFeedItem[]>([]);
     const actionOptionsBackupRef = useRef<(string | { text: string; action: string; skill?: string })[] | null>(null);
     const clientStateVersionRef = useRef(0);
+    const lastLogVersionRef = useRef(0);
+    const [actionPhaseLabel, setActionPhaseLabel] = useState<string | null>(null);
+    const actionPhaseActionIdRef = useRef<string | null>(null);
+    const [clientInstanceId] = useState(() => `web-${Math.random().toString(36).slice(2, 10)}`);
+    const actionCursorRef = useRef(0);
     const pendingActionsRef = useRef<Set<string>>(new Set());
+    const actionTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+    const processPlayerActionRef = useRef<(action: string, sessionIdOverride?: number, modelOverride?: string) => Promise<void>>();
     
     const [reinstallModal, setReinstallModal] = useState<{ open: boolean; deps: HomebrewContent[]; onConfirm: () => void }>({ open: false, deps: [], onConfirm: () => {} });
 
@@ -313,6 +320,28 @@ export const useNewGameState = () => {
     
     const getApiKey = useCallback(() => apiKey, [apiKey]);
     const clearApiError = useCallback(() => setApiError(null), []);
+
+    const resetActionPipeline = useCallback((label: string | null = null) => {
+        pendingActionsRef.current.clear();
+        actionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+        actionTimeoutsRef.current.clear();
+        setIsLoading(false);
+        setActionPhaseLabel(label);
+    }, []);
+
+    const clearPendingAction = useCallback((actionId?: string) => {
+        if (!actionId) return;
+        pendingActionsRef.current.delete(actionId);
+        const timer = actionTimeoutsRef.current.get(actionId);
+        if (timer) {
+            clearTimeout(timer);
+            actionTimeoutsRef.current.delete(actionId);
+        }
+        setIsLoading(pendingActionsRef.current.size > 0);
+        if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
+            setActionPhaseLabel(null);
+        }
+    }, [interactionState.playerRollRequest]);
 
     const updateCharacter = useCallback((updates: Partial<Character>) => {
         setCharacter(prev => {
@@ -471,13 +500,23 @@ export const useNewGameState = () => {
         setSessionId(null);
         setApiError(null);
         setProgressionFeed([]);
+        resetActionPipeline(null);
         closeWebSocket();
-    }, [logState, interactionState]);
+    }, [logState, interactionState, resetActionPipeline]);
 
 
     const handleApiResponse = useCallback((response: GameMasterResponse, isRestoring: boolean = false) => {
-        if (!isRestoring && response.logEntries) {
-            const newLogEntries = response.logEntries.map((entry: any) => ({ ...entry, id: uuidv4() }));
+        const responseStateVersion = typeof response.stateVersion === 'number' ? response.stateVersion : undefined;
+        const versionForLogs = responseStateVersion ?? clientStateVersionRef.current ?? null;
+        if (!isRestoring && response.logEntries && (!versionForLogs || versionForLogs > lastLogVersionRef.current)) {
+            if (typeof versionForLogs === 'number') {
+                lastLogVersionRef.current = versionForLogs;
+            }
+            const newLogEntries = response.logEntries.map((entry: any) => ({
+                ...entry,
+                id: uuidv4(),
+                stateVersion: versionForLogs ?? undefined,
+            }));
             logState.addLogEntries(newLogEntries);
         }
 
@@ -551,179 +590,14 @@ export const useNewGameState = () => {
             }
         }
 
-        clientStateVersionRef.current += 1;
-
     }, [logState, updateCharacter, interactionState, toast, setProgressionFeed, character, ambientSound]);
 
-    // WebSocket event handlers
-    useEffect(() => {
-        const handleGameStateUpdate = (payload: GameMasterResponse & { stateVersion?: number }) => {
-            if (typeof payload?.stateVersion === 'number') {
-                clientStateVersionRef.current = payload.stateVersion;
-            }
-            handleApiResponse(payload);
-        };
-        const handleError = (payload: { message: string }) => {
-            setApiError(payload.message);
-            if (actionOptionsBackupRef.current) {
-                interactionState.setActionOptions(actionOptionsBackupRef.current);
-                actionOptionsBackupRef.current = null;
-            }
-        };
-        const updateLoadingState = () => setIsLoading(pendingActionsRef.current.size > 0);
-
-        const handleStartLoading = (payload?: { actionId?: string }) => {
-            if (payload?.actionId) {
-                pendingActionsRef.current.add(payload.actionId);
-                updateLoadingState();
-            } else {
-                setIsLoading(true);
-            }
-        };
-
-        const handleStopLoading = (payload?: { actionId?: string }) => {
-            if (payload?.actionId) {
-                pendingActionsRef.current.delete(payload.actionId);
-                updateLoadingState();
-            } else {
-                pendingActionsRef.current.clear();
-                setIsLoading(false);
-            }
-        };
-
-        const handleActionAck = (payload?: { actionId?: string; receivedAt?: string }) => {
-            if (payload?.actionId) {
-                console.debug('[WS] actionAck', payload.actionId, payload.receivedAt);
-            }
-        };
-
-        const handleActionResolution = (payload?: { actionId?: string; stateVersion?: number; status?: string; result?: GameMasterResponse; stateDelta?: Record<string, unknown> }) => {
-            if (payload?.actionId) {
-                pendingActionsRef.current.delete(payload.actionId);
-                updateLoadingState();
-            }
-            if (typeof payload?.stateVersion === 'number') {
-                clientStateVersionRef.current = payload.stateVersion;
-            }
-            if (payload?.status === 'rejected' && payload.result?.systemLog) {
-                toast({ variant: 'destructive', title: payload.result.systemLog });
-            }
-            if (payload?.stateDelta?.rest && typeof payload.stateDelta.rest === 'object') {
-                const rest = payload.stateDelta.rest as { type?: string; benefits?: string[] };
-                toast({
-                    title: rest.type === 'long' ? 'Descanso longo validado' : 'Descanso curto validado',
-                    description: rest.benefits?.join(' • '),
-                });
-            }
-            if (payload?.result) {
-                handleApiResponse({ ...payload.result, stateVersion: payload.stateVersion });
-            }
-        };
-
-        addEventListener('gameStateUpdate', handleGameStateUpdate);
-        addEventListener('error', handleError);
-        addEventListener('startLoading', handleStartLoading);
-        addEventListener('stopLoading', handleStopLoading);
-        const handleActionTimeout = (payload?: { actionId?: string }) => {
-            if (!payload?.actionId) return;
-            pendingActionsRef.current.delete(payload.actionId);
-            updateLoadingState();
-            toast({ variant: 'destructive', title: 'Ação demorou demais', description: 'Reenvie ou recarregue a sessão.' });
-        };
-        addEventListener('timeout', handleActionTimeout);
-        addEventListener('actionAck', handleActionAck);
-        addEventListener('actionResolution', handleActionResolution);
-
-        return () => {
-            removeEventListener('gameStateUpdate', handleGameStateUpdate);
-            removeEventListener('error', handleError);
-            removeEventListener('startLoading', handleStartLoading);
-            removeEventListener('stopLoading', handleStopLoading);
-            removeEventListener('timeout', handleActionTimeout);
-            removeEventListener('actionAck', handleActionAck);
-            removeEventListener('actionResolution', handleActionResolution);
-        };
-    }, [handleApiResponse, interactionState]);
-
-
-    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
-        const currentSessionId = sessionIdOverride ?? sessionId;
-        
-        let finalSessionId = currentSessionId;
-        if (finalSessionId === null || finalSessionId === undefined) {
-            finalSessionId = -1; // Use a mock session ID for tests
-            console.log("[processPlayerAction] No active session. Running in test mode.");
-            if (!character) {
-                const mockCharacter = await characterUtils.buildFrontendCharacter({ id: 1, name: 'Herói de Teste' } as any);
-                setCharacter(mockCharacter);
-            }
-        }
-        
-        const key = getApiKey();
-        if (!key) {
-             console.error("[processPlayerAction] Aborted: No API Key.");
-             setApiError("Chave de API não encontrada. Por favor, configure-a nas Configurações.");
-             return;
-        }
-        
-        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
-
-        if (!isInternalAction && finalSessionId !== -1) {
-            logState.addLogEntry({ id: uuidv4(), type: 'action', content: action });
-        }
-
-        actionOptionsBackupRef.current = interactionState.actionOptions.slice();
-        interactionState.clearTransientInteractions();
-        interactionState.setActionOptions([]);
-        
-        const actionId = uuidv4();
-
-        sendMessage('processAction', {
-            sessionId: finalSessionId,
-            prompt: action,
-            apiKey: key,
-            combatState: interactionState.combatState,
-            useAiHomebrew,
-            model: modelOverride || model,
-            intent: interactionState.pendingStructuredIntent,
-            actionId,
-            clientStateVersion: clientStateVersionRef.current,
-        });
-        interactionState.setPendingStructuredIntent(null);
-        
-    }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew]);
-
-    const submitRollResult = useCallback((request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => {
-        if (!sessionId) {
-            setApiError('Nenhuma sessão ativa para enviar o resultado da rolagem.');
-            return;
-        }
-        if (!request.requestId) {
-            setApiError('Esta rolagem não possui um identificador válido.');
-            return;
-        }
-        const key = getApiKey();
-        if (!key) {
-            setApiError('Chave de API não encontrada. Configure-a nas Configurações.');
-            return;
-        }
-        sendMessage('submitRollResult', {
-            sessionId,
-            requestId: request.requestId,
-            rolls: result.rolls,
-            rawRoll: result.rawRoll,
-            apiKey: key,
-            combatState: interactionState.combatState,
-            useAiHomebrew,
-            clientStateVersion: clientStateVersionRef.current,
-        });
-    }, [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, setApiError]);
-    
     const startGame = useCallback(async (newSessionId?: number): Promise<void> => {
         const targetSessionId = newSessionId ?? sessionId;
         if (!targetSessionId || isLoading) return;
-        await processPlayerAction("A aventura começa. Onde eu estou e o que está acontecendo?", targetSessionId);
-    }, [sessionId, isLoading, processPlayerAction]);
+        if (!processPlayerActionRef.current) return;
+        await processPlayerActionRef.current("A aventura começa. Onde eu estou e o que está acontecendo?", targetSessionId);
+    }, [sessionId, isLoading]);
 
     const loadGameSession = useCallback(async (id: number): Promise<{ character: Character, logs: any[] } | null> => {
         setIsLoading(true);
@@ -764,6 +638,7 @@ export const useNewGameState = () => {
                     if ((!fullCharacter.inventory || fullCharacter.inventory.length === 0) && inventorySnapshot?.length) {
                         fullCharacter.inventory = inventorySnapshot as InventoryItem[];
                     }
+                    const baseStateVersion = sessionDetails.stateVersion ?? 0;
                     const displayLogs = (sessionDetails.logs || [])
                         .filter(log => !['state', 'gm_raw', 'gm_validation'].includes(log.type))
                         .map(log => {
@@ -785,24 +660,38 @@ export const useNewGameState = () => {
                                 content: parsedContent,
                                 rollResult: log.rollResult,
                                 audioUrl,
+                                stateVersion: log.stateVersion ?? baseStateVersion,
                             };
                         });
+                    const previousStateVersion = lastLogVersionRef.current ?? 0;
                     setCharacter(fullCharacter);
-                    logState.setLog(displayLogs);
+                    logState.setLog(prev => {
+                        if (!prev.length || sessionId !== id) {
+                            return displayLogs;
+                        }
+                        const incrementalEntries = displayLogs.filter(entry => {
+                            if (typeof entry.stateVersion !== 'number') return false;
+                            return entry.stateVersion > previousStateVersion;
+                        });
+                        if (!incrementalEntries.length) {
+                            return prev;
+                        }
+                        return [...prev, ...incrementalEntries];
+                    });
                     setSessionId(id);
+                    clientStateVersionRef.current = sessionDetails.stateVersion ?? clientStateVersionRef.current;
+                    lastLogVersionRef.current = sessionDetails.stateVersion ?? previousStateVersion;
 
                     const lastStateLog = [...(sessionDetails.logs || [])].reverse().find(l => l.type === 'state');
                     if (lastStateLog?.response) {
-                         try {
+                        try {
                             const parsedState = JSON.parse(lastStateLog.response);
                             handleApiResponse(parsedState, true);
                         } catch(e) {
-                            await processPlayerAction("Recarregar estado atual e obter opções.", id);
+                            await startGame(id);
                         }
                     } else if (displayLogs.length === 0) {
                         await startGame(id);
-                    } else {
-                         await processPlayerAction("Recarregar estado atual e obter opções.", id);
                     }
                     return { character: fullCharacter, logs: displayLogs };
                 }
@@ -816,7 +705,7 @@ export const useNewGameState = () => {
                     deps: deps.filter((d): d is HomebrewContent => !!d),
                     onConfirm: async () => {
                         try {
-                             setIsLoading(true);
+                            setIsLoading(true);
                             for (const depId of missingIds) {
                                 await GameService.updateSessionHomebrew(id, depId, 'install');
                             }
@@ -845,10 +734,251 @@ export const useNewGameState = () => {
             }
             return null;
         } finally {
-             setIsLoading(false);
+            setIsLoading(false);
         }
-    }, [user, handleApiResponse, processPlayerAction, startGame, logState, toast, clearGameState]);
+    }, [user, handleApiResponse, processPlayerAction, startGame, logState, toast, clearGameState, sessionId]);
 
+    // WebSocket event handlers
+    useEffect(() => {
+        const handleGameStateUpdate = (payload: GameMasterResponse & { stateVersion?: number }) => {
+            if (typeof payload?.stateVersion === 'number') {
+                clientStateVersionRef.current = payload.stateVersion;
+            }
+            handleApiResponse(payload);
+            if (!interactionState.playerRollRequest && pendingActionsRef.current.size === 0) {
+                setActionPhaseLabel(null);
+            }
+        };
+        const handleError = (payload: { message: string; actionId?: string | null }) => {
+            setApiError(payload.message);
+            if (payload?.actionId) {
+                clearPendingAction(payload.actionId);
+            } else if (pendingActionsRef.current.size) {
+                pendingActionsRef.current.forEach(id => clearPendingAction(id));
+                pendingActionsRef.current.clear();
+                actionTimeoutsRef.current.forEach(timer => clearTimeout(timer));
+                actionTimeoutsRef.current.clear();
+                setActionPhaseLabel(null);
+            }
+            if (actionOptionsBackupRef.current) {
+                interactionState.setActionOptions(actionOptionsBackupRef.current);
+                actionOptionsBackupRef.current = null;
+            }
+            if (sessionId) {
+                void loadGameSession(sessionId);
+            }
+        };
+        const updateLoadingState = () => setIsLoading(pendingActionsRef.current.size > 0);
+
+        const handleStartLoading = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                pendingActionsRef.current.add(payload.actionId);
+                updateLoadingState();
+            } else {
+                setIsLoading(true);
+            }
+            setActionPhaseLabel('Validando regras...');
+        };
+
+        const handleStopLoading = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                clearPendingAction(payload.actionId);
+            } else {
+                pendingActionsRef.current.clear();
+                actionTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+                actionTimeoutsRef.current.clear();
+                setIsLoading(false);
+            }
+            if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
+                setActionPhaseLabel(null);
+            }
+        };
+
+        const handleActionAck = (payload?: { actionId?: string; receivedAt?: string }) => {
+            if (payload?.actionId) {
+                console.debug('[WS] actionAck', payload.actionId, payload.receivedAt);
+            }
+        };
+
+        const handleActionResolution = (payload?: { actionId?: string; stateVersion?: number; status?: string; result?: GameMasterResponse; stateDelta?: Record<string, unknown> }) => {
+            if (payload?.actionId) {
+                clearPendingAction(payload.actionId);
+            }
+            if (typeof payload?.stateVersion === 'number') {
+                clientStateVersionRef.current = payload.stateVersion;
+            }
+            if (payload?.status === 'rejected' && payload.result?.systemLog) {
+                toast({ variant: 'destructive', title: payload.result.systemLog });
+            }
+            if (payload?.stateDelta?.rest && typeof payload.stateDelta.rest === 'object') {
+                const rest = payload.stateDelta.rest as { type?: string; benefits?: string[] };
+                toast({
+                    title: rest.type === 'long' ? 'Descanso longo validado' : 'Descanso curto validado',
+                    description: rest.benefits?.join(' • '),
+                });
+            }
+            if (payload?.status === 'needs_roll') {
+                setActionPhaseLabel('Aguardando rolagem do jogador');
+            } else if (payload?.status === 'accepted') {
+                setActionPhaseLabel('Gerando narrativa...');
+            }
+            if (payload?.result) {
+                handleApiResponse({ ...payload.result, stateVersion: payload.stateVersion });
+            }
+        };
+
+        const handleSocketClosed = (payload?: { code?: number; reason?: string }) => {
+            resetActionPipeline('Conexão perdida. Reconectando...');
+            if (sessionId) {
+                void loadGameSession(sessionId);
+            }
+            console.warn('[WS] conexão encerrada', payload);
+        };
+
+        addEventListener('gameStateUpdate', handleGameStateUpdate);
+        addEventListener('error', handleError);
+        addEventListener('startLoading', handleStartLoading);
+        addEventListener('stopLoading', handleStopLoading);
+        const handleActionTimeout = (payload?: { actionId?: string }) => {
+            if (!payload?.actionId) return;
+            pendingActionsRef.current.delete(payload.actionId);
+            updateLoadingState();
+            toast({ variant: 'destructive', title: 'Ação demorou demais', description: 'Recarregando a sessão para sincronizar.' });
+            if (sessionId) {
+                void loadGameSession(sessionId);
+            }
+        };
+        addEventListener('timeout', handleActionTimeout);
+        addEventListener('actionAck', handleActionAck);
+        addEventListener('actionResolution', handleActionResolution);
+        addEventListener('connectionClosed', handleSocketClosed);
+
+        return () => {
+            removeEventListener('gameStateUpdate', handleGameStateUpdate);
+            removeEventListener('error', handleError);
+            removeEventListener('startLoading', handleStartLoading);
+            removeEventListener('stopLoading', handleStopLoading);
+            removeEventListener('timeout', handleActionTimeout);
+            removeEventListener('actionAck', handleActionAck);
+            removeEventListener('actionResolution', handleActionResolution);
+            removeEventListener('connectionClosed', handleSocketClosed);
+        };
+    }, [handleApiResponse, interactionState.playerRollRequest, interactionState, clearPendingAction, loadGameSession, sessionId, resetActionPipeline]);
+
+
+    const processPlayerAction = useCallback(async (action: string, sessionIdOverride?: number, modelOverride?: string) => {
+        const currentSessionId = sessionIdOverride ?? sessionId;
+        
+        if (currentSessionId == null || currentSessionId <= 0) {
+            const warningMessage = 'Nenhuma sessão ativa. Abra ou selecione uma aventura antes de agir.';
+            console.warn('[processPlayerAction] aborted: no active session.');
+            setApiError(warningMessage);
+            toast({ variant: 'destructive', title: warningMessage });
+            return;
+        }
+        const finalSessionId = currentSessionId;
+        
+        const key = getApiKey();
+        if (!key) {
+             console.error("[processPlayerAction] Aborted: No API Key.");
+             setApiError("Chave de API não encontrada. Por favor, configure-a nas Configurações.");
+             return;
+        }
+        
+        const isInternalAction = action.startsWith("Recarregar estado atual") || action.startsWith("A aventura começa.") || action.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
+
+        if (!isInternalAction && finalSessionId !== -1) {
+            logState.addLogEntry({
+                id: uuidv4(),
+                type: 'action',
+                content: action,
+                stateVersion: clientStateVersionRef.current,
+            });
+        }
+
+        actionOptionsBackupRef.current = interactionState.actionOptions.slice();
+        interactionState.clearTransientInteractions();
+        interactionState.setActionOptions([]);
+        
+        const actionId = uuidv4();
+        actionCursorRef.current += 1;
+        actionPhaseActionIdRef.current = actionId;
+        setActionPhaseLabel('Enfileirando ação...');
+
+        const intentPayload = interactionState.pendingStructuredIntent && typeof interactionState.pendingStructuredIntent === 'object'
+            ? interactionState.pendingStructuredIntent
+            : undefined;
+
+        sendMessage('processAction', {
+            contractVersion: 1,
+            sessionId: finalSessionId,
+            prompt: action,
+            apiKey: key,
+            combatState: interactionState.combatState,
+            useAiHomebrew,
+            model: modelOverride || model,
+            intent: intentPayload,
+            actionId,
+            clientStateVersion: clientStateVersionRef.current,
+            clientInstanceId,
+            actionCursor: actionCursorRef.current,
+        });
+        interactionState.setPendingStructuredIntent(null);
+        const timeout = setTimeout(() => {
+            actionTimeoutsRef.current.delete(actionId);
+            if (pendingActionsRef.current.delete(actionId)) {
+                setIsLoading(pendingActionsRef.current.size > 0);
+                setActionPhaseLabel('Sem resposta do motor');
+                toast({
+                    variant: 'destructive',
+                    title: 'Ação não confirmada',
+                    description: 'O motor não respondeu a tempo. Recarregando a sessão.',
+                });
+                void loadGameSession(finalSessionId);
+            }
+        }, 15000);
+        actionTimeoutsRef.current.set(actionId, timeout);
+        
+    }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew, toast, loadGameSession]);
+
+    useEffect(() => {
+        processPlayerActionRef.current = processPlayerAction;
+    }, [processPlayerAction]);
+
+    const submitRollResult = useCallback((request: PlayerRollRequest, result: { rawRoll: number; rolls: number[] }) => {
+        if (!sessionId) {
+            setApiError('Nenhuma sessão ativa para enviar o resultado da rolagem.');
+            return;
+        }
+        if (!request.requestId) {
+            setApiError('Esta rolagem não possui um identificador válido.');
+            return;
+        }
+        const key = getApiKey();
+        if (!key) {
+            setApiError('Chave de API não encontrada. Configure-a nas Configurações.');
+            return;
+        }
+        sendMessage('submitRollResult', {
+            sessionId,
+            requestId: request.requestId,
+            rolls: result.rolls,
+            rawRoll: result.rawRoll,
+            apiKey: key,
+            combatState: interactionState.combatState,
+            useAiHomebrew,
+            clientStateVersion: clientStateVersionRef.current,
+        });
+    }, [sessionId, getApiKey, interactionState.combatState, useAiHomebrew, setApiError]);
+
+    useEffect(() => {
+        if (interactionState.playerRollRequest) {
+            setActionPhaseLabel('Aguardando sua rolagem...');
+        } else if (pendingActionsRef.current.size === 0) {
+            setActionPhaseLabel(null);
+        }
+    }, [interactionState.playerRollRequest]);
+    
 
     const createCharacter = useCallback(async (info: NewCharacterInfo): Promise<Character | null> => {
         setIsLoading(true);
@@ -990,6 +1120,14 @@ export const useNewGameState = () => {
         processPlayerAction('Eu não vou gastar dados de vida agora.');
     }, [interactionState, processPlayerAction, toast]);
 
+    const isRollPending = Boolean(interactionState.playerRollRequest);
+
+    useEffect(() => {
+        if (sessionId) {
+            resetActionPipeline(null);
+        }
+    }, [sessionId, resetActionPipeline]);
+
     const memoizedValue = useMemo(() => ({
         character: character,
         log: logState.log,
@@ -1025,12 +1163,15 @@ export const useNewGameState = () => {
         setCharacter,
         setLog: logState.setLog,
         setSessionId,
+        actionPhaseLabel,
+        isRollPending,
     }), [
         character, logState, sessionId, interactionState, reinstallModal,
         isLoading, apiError, ambientSound, progressionFeed,
         clearApiError, getApiKey, createCharacter, deleteCharacter, deleteSession, 
         startGame, processPlayerAction, submitRollResult, clearGameState, loadGameSession, handleApplyLevelUp,
-        handleToggleEquipped, handleUseConsumable, handleSpendHitDice, handleDeclineHitDiceRequest, setCharacter
+        handleToggleEquipped, handleUseConsumable, handleSpendHitDice, handleDeclineHitDiceRequest, setCharacter,
+        actionPhaseLabel, isRollPending
     ]);
 
     return memoizedValue;
