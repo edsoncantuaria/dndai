@@ -9,6 +9,8 @@ import { hb } from '@/features/homebrew/forms/formUi';
 interface Props {
     contentType: HomebrewContentType;
     data: any;
+    /** Oculta título duplicado quando o cabeçalho do painel já mostra o nome */
+    hideTitle?: boolean;
 }
 
 const Section: React.FC<{ title: string; children: React.ReactNode, isSubSection?: boolean }> = ({ title, children, isSubSection }) => (
@@ -25,9 +27,11 @@ const KeyValue: React.FC<{ label: string; value?: string | number | null }> = ({
     );
 }
 
-const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
+const RaceViewer: React.FC<{ data: any; hideTitle?: boolean }> = ({ data, hideTitle }) => (
     <div>
-        <h3 className="text-2xl font-bold font-garamond text-amber-300">{data.name}</h3>
+        {!hideTitle ? (
+            <h3 className="text-2xl font-bold font-garamond text-amber-300">{data.name}</h3>
+        ) : null}
         <Section title="Atributos Principais">
             <KeyValue label="Velocidade" value={`${data.speed} pés`} />
             <KeyValue label="Tamanho" value={`${data.size}, ${data.size_description}`} />
@@ -38,10 +42,21 @@ const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
             <div>
                 <h5 className="font-semibold text-stone-300">Bônus de Atributo</h5>
                 <ul className="list-disc list-inside text-stone-200">
-                    {data.ability_bonuses?.map((bonus: any) => (
-                        <li key={bonus.ability_score.index}>{bonus.ability_score.name} +{bonus.bonus}</li>
-                    ))}
+                    {(data.ability_bonuses || []).map((bonus: any, i: number) => {
+                        const label =
+                            bonus?.ability_score?.name ||
+                            bonus?.ability_score?.index?.toUpperCase() ||
+                            `Atributo ${i + 1}`;
+                        return (
+                            <li key={bonus?.ability_score?.index ?? i}>
+                                {label} +{bonus?.bonus ?? 0}
+                            </li>
+                        );
+                    })}
                 </ul>
+                {(data.ability_bonuses || []).length === 0 ? (
+                    <p className={hb.muted}>Nenhum bônus definido.</p>
+                ) : null}
             </div>
             <div>
                 <h5 className="font-semibold text-stone-300">Proficiências Iniciais</h5>
@@ -55,8 +70,11 @@ const RaceViewer: React.FC<{ data: any }> = ({ data }) => (
         </Section>
         <Section title="Traços Raciais">
             <ul className="list-disc list-inside text-stone-200">
-                {data.traits?.map((trait: ApiListItem) => <li key={trait.index}>{trait.name}</li>)}
+                {(data.traits || []).map((trait: ApiListItem) => (
+                    <li key={trait.index}>{trait.name}</li>
+                ))}
             </ul>
+            {(data.traits || []).length === 0 ? <p className={hb.muted}>Nenhum traço selecionado.</p> : null}
         </Section>
     </div>
 );
@@ -121,15 +139,24 @@ const MonsterViewer: React.FC<{ data: any }> = ({ data }) => (
 );
 
 
-const ExampleViewer: React.FC<Props> = ({ contentType, data }) => {
+const ExampleViewer: React.FC<Props> = ({ contentType, data, hideTitle = false }) => {
     if (!data) {
         return <p className="text-center text-stone-500 italic">Exemplo não disponível.</p>;
     }
 
+    const descText =
+        typeof data.desc === 'string'
+            ? data.desc
+            : Array.isArray(data.desc)
+              ? data.desc.filter((p: unknown) => typeof p === 'string').join(' ')
+              : null;
+
     switch (contentType) {
         case 'race':
-            return <RaceViewer data={data} />;
+        case 'subrace':
+            return <RaceViewer data={data} hideTitle={hideTitle} />;
         case 'class':
+        case 'subclass':
             return <ClassViewer data={data} />;
         case 'spell':
             return <NewSpellCard spell={data} defaultExpanded={true} />;
@@ -138,8 +165,21 @@ const ExampleViewer: React.FC<Props> = ({ contentType, data }) => {
         default:
             return (
                 <div>
-                     <h3 className="text-xl font-bold font-garamond text-amber-300 mb-2">{data.name}</h3>
-                     <p className={hb.muted}>{data.desc?.[0] || data.desc || 'Descrição não disponível.'}</p>
+                    <h3 className="text-xl font-bold font-garamond text-amber-300 mb-2">{data.name}</h3>
+                    {descText ? (
+                        <p className="font-narrative text-sm leading-relaxed text-stone-200">{descText}</p>
+                    ) : (
+                        <p className={hb.muted}>Descrição não disponível.</p>
+                    )}
+                    {Array.isArray(data.traits) && data.traits.length > 0 ? (
+                        <Section title="Traços" isSubSection>
+                            <ul className="list-disc list-inside text-stone-200">
+                                {data.traits.map((trait: ApiListItem) => (
+                                    <li key={trait.index}>{trait.name}</li>
+                                ))}
+                            </ul>
+                        </Section>
+                    ) : null}
                 </div>
             );
     }

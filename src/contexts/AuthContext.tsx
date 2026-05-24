@@ -6,6 +6,7 @@ import { ApiError } from '@/services/apiClient';
 import type { ApiFieldErrors } from '@/services/apiClient';
 import { useSettingsContext } from './SettingsContext';
 import { useToast } from '@/hooks/use-toast';
+import { readGeminiApiKey, writeGeminiApiKey } from '@/lib/geminiApiKeyStorage';
 
 interface User {
     id: number;
@@ -28,6 +29,8 @@ interface AuthContextType {
     isLicenseActive: boolean;
     hasApiKey: boolean;
     isLoading: boolean;
+    /** Preferências locais (incl. chave API) já carregadas do localStorage */
+    isSettingsReady: boolean;
     isActionLoading: boolean;
     login: (credentials: authService.LoginCredentials) => Promise<AuthActionResult>;
     register: (details: authService.RegisterDetails) => Promise<AuthActionResult>;
@@ -68,7 +71,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
-    const hasApiKey = !!apiKey;
+    const hasApiKey = isSettingsLoaded && !!apiKey.trim();
 
     const revalidateUserSession = useCallback(async () => {
         const token = localStorage.getItem('token');
@@ -85,6 +88,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     if (userData.settings) {
                         loadSettings(userData.settings);
                     }
+                    const storedKey = readGeminiApiKey();
+                    if (storedKey) {
+                        setApiKey(storedKey);
+                    }
                 } else {
                     logout();
                 }
@@ -93,7 +100,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 logout();
             }
         }
-    }, [loadSettings]);
+    }, [loadSettings, setApiKey]);
 
     const logout = useCallback(() => {
         setUser(null);
@@ -109,7 +116,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         toast({
             description: "Você saiu da sua conta.",
         });
-    }, [toast, setApiKey]);
+    }, [toast]);
     
     useEffect(() => {
         const validateSession = async () => {
@@ -262,10 +269,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveApiKey = async (newApiKey: string) => {
-        setApiKey(newApiKey);
+        const trimmed = newApiKey.trim();
+        if (!trimmed) return false;
+        writeGeminiApiKey(trimmed);
+        setApiKey(trimmed);
         toast({
             title: "Chave de API Salva!",
-            description: "Sua chave foi salva em sua conta.",
+            description: "Sua chave ficou salva neste navegador.",
         });
         return true;
     };
@@ -308,7 +318,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         isAuthenticated: !!user,
         isLicenseActive,
         hasApiKey,
-        isLoading,
+        isLoading: isLoading || !isSettingsLoaded,
+        isSettingsReady: isSettingsLoaded,
         isActionLoading,
         login,
         register,

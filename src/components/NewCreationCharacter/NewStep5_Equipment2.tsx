@@ -179,12 +179,15 @@ const NewStep5_Equipment2: React.FC<{
         fixedEquipment,
         finalizedEquipment,
         loadingStates,
+        equipmentReady,
         areAllEquipmentChoicesMade,
         handleRandomizeEquipment,
         finalProficiencies,
     } = hook;
 
-    if (loadingStates.isLoading) {
+    const equipmentLoading = !equipmentReady && (loadingStates.isBlocking || loadingStates.isFetching);
+
+    if (equipmentLoading) {
         return (
             <PremiumLoader
                 title="Montando o arsenal inicial"
@@ -243,7 +246,7 @@ const NewStep5_Equipment2: React.FC<{
                     </button>
                 </div>
 
-                {loadingStates.isLoading ? (
+                {equipmentLoading ? (
                     <div className="flex flex-col items-center justify-center p-12 text-stone-400">
                         <Loader2 className="h-12 w-12 animate-spin" />
                         <p className="mt-4">{loadingStates.message || 'Carregando opções...'}</p>
@@ -312,7 +315,7 @@ const NewStep5_Equipment2: React.FC<{
                 <button
                     type="button"
                     onClick={nextStep}
-                    disabled={!areAllEquipmentChoicesMade || loadingStates.isLoading}
+                    disabled={!areAllEquipmentChoicesMade || equipmentLoading}
                     className="flex items-center justify-center gap-3 rounded-full border border-amber-400/40 bg-gradient-to-r from-amber-500/80 to-rose-500/70 px-6 py-3 text-base font-semibold text-stone-950 shadow-lg shadow-amber-500/30 transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     {areAllEquipmentChoicesMade ? 'Prosseguir para Magias' : 'Conclua as escolhas pendentes'}

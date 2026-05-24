@@ -15,8 +15,20 @@ export interface StageTransitionProps {
 export function StageTransition({ stageKey, children, className }: StageTransitionProps) {
   const reducedMotion = usePrefersReducedMotion();
 
+  const isPlaying = stageKey === 'playing';
+  const isCreating = stageKey === 'creating_character';
+  const stageClass = isPlaying
+    ? 'dnd-gameplay-root'
+    : isCreating
+      ? 'min-h-full w-full overflow-y-auto overflow-x-hidden'
+      : 'min-h-full w-full';
+
   if (reducedMotion) {
-    return <div className={cn('min-h-full w-full', className)}>{children}</div>;
+    return (
+      <div className={cn(stageClass, className)}>
+        {children}
+      </div>
+    );
   }
 
   return (
@@ -27,7 +39,7 @@ export function StageTransition({ stageKey, children, className }: StageTransiti
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -8 }}
         transition={{ duration: 0.35, ease: EASE }}
-        className={cn('min-h-full w-full', className)}
+        className={cn(stageClass, className)}
       >
         {children}
       </motion.div>

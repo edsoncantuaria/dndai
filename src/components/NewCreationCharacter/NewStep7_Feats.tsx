@@ -39,7 +39,7 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav }) 
         return null;
     }
 
-    const isLoadingFeats = loadingStates.isLoading && availableFeats.length === 0;
+    const isLoadingFeats = loadingStates.isFetching && availableFeats.length === 0;
 
     if (isLoadingFeats) {
         return (

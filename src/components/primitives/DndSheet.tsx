@@ -23,31 +23,44 @@ export function DndSheet({ open, onOpenChange, title, children, side }: DndSheet
       <button
         type="button"
         aria-label="Fechar painel"
-        className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-40 bg-dnd-obsidian/75 backdrop-blur-[2px]"
         onClick={() => onOpenChange(false)}
       />
       <div
         role="dialog"
         aria-modal
+        aria-labelledby={title ? 'dnd-sheet-title' : undefined}
         className={cn(
-          'fixed z-50 dnd-surface-glass shadow-[var(--dnd-shadow-elevated)]',
+          'fixed z-50 flex flex-col bg-dnd-obsidian-raised shadow-[var(--dnd-shadow-elevated)]',
+          'border-dnd-gold/20',
           resolvedSide === 'bottom' &&
-            'inset-x-0 bottom-0 max-h-[85vh] rounded-t-xl border-t border-dnd-gold/20 pb-[var(--dnd-safe-bottom)]',
+            'inset-x-0 bottom-0 max-h-[min(85vh,520px)] rounded-t-2xl border-t pb-[var(--dnd-safe-bottom)]',
           resolvedSide === 'right' &&
-            'right-0 top-0 h-full w-full max-w-md border-l border-dnd-gold/20 pt-[var(--dnd-safe-top)]'
+            'right-0 top-0 h-full w-full max-w-md border-l pt-[var(--dnd-safe-top)]'
         )}
       >
-        <div className="flex items-center justify-between border-b border-dnd-gold/15 px-4 py-3">
-          {title ? <h2 className="font-display text-lg text-dnd-gold">{title}</h2> : <span />}
+        <div className="flex shrink-0 items-center justify-between border-b border-dnd-gold/15 px-4 py-3">
+          {title ? (
+            <h2 id="dnd-sheet-title" className="font-display text-lg text-dnd-gold">
+              {title}
+            </h2>
+          ) : (
+            <span />
+          )}
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="font-ui text-sm text-dnd-parchment-muted hover:text-dnd-parchment"
+            className="rounded-lg px-2 py-1 font-ui text-sm text-dnd-parchment-muted transition hover:bg-dnd-mist hover:text-dnd-parchment"
           >
             Fechar
           </button>
         </div>
-        <div className="overflow-y-auto p-4" style={{ maxHeight: resolvedSide === 'bottom' ? 'calc(85vh - 56px)' : 'calc(100vh - 56px)' }}>
+        <div
+          className={cn(
+            'min-h-0 overflow-y-auto p-4',
+            resolvedSide === 'bottom' ? 'flex-1' : 'flex-1'
+          )}
+        >
           {children}
         </div>
       </div>

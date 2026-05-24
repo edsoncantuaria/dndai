@@ -14,6 +14,8 @@ export interface DndGameModalShellProps {
   className?: string;
   closeDisabled?: boolean;
   closeOnBackdrop?: boolean;
+  /** Mobile: modal colado nas bordas (mapa mundi, etc.) */
+  edgeToEdge?: boolean;
 }
 
 /** Moldura dourada + blur para modais de jogo (UI v2) */
@@ -28,17 +30,24 @@ export function DndGameModalShell({
   className,
   closeDisabled,
   closeOnBackdrop = true,
+  edgeToEdge = false,
 }: DndGameModalShellProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex animate-fadeIn items-center justify-center bg-dnd-obsidian/80 p-4 backdrop-blur-md"
+      className={cn(
+        'fixed inset-0 z-50 flex animate-fadeIn items-center justify-center bg-dnd-obsidian/80 backdrop-blur-md',
+        edgeToEdge ? 'p-0 md:p-4' : 'p-4'
+      )}
       onClick={closeOnBackdrop ? onClose : undefined}
       role="dialog"
       aria-modal="true"
     >
       <div
         className={cn(
-          'dnd-border-gold dnd-surface-glass flex max-h-[92vh] w-full flex-col overflow-hidden rounded-lg shadow-[var(--dnd-shadow-elevated)]',
+          'dnd-border-gold dnd-surface-glass flex w-full flex-col overflow-hidden shadow-[var(--dnd-shadow-elevated)]',
+          edgeToEdge
+            ? 'h-[100dvh] max-h-[100dvh] rounded-none md:h-auto md:max-h-[92vh] md:rounded-lg'
+            : 'max-h-[92vh] rounded-lg',
           maxWidth,
           className
         )}

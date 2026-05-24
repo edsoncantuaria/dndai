@@ -27,13 +27,21 @@ export function RegionGraphView({
     const regionsAsDto = snapshot.regions as RegionDTO[];
     const roots = buildRegionHierarchy(regionsAsDto);
     const positions = computeHierarchyLayout(roots);
+    const coords = Object.values(positions);
     let maxX = 0;
     let maxY = 0;
-    positions.forEach((pos) => {
+    for (const pos of coords) {
       maxX = Math.max(maxX, pos.x);
       maxY = Math.max(maxY, pos.y);
-    });
-    return { positions, roots, width: maxX + NODE_W + 40, height: maxY + NODE_H + 40, links: snapshot.links };
+    }
+    const links = Array.isArray(snapshot.links) ? snapshot.links : [];
+    return {
+      positions,
+      roots,
+      width: Math.max(maxX + NODE_W + 40, NODE_W + 40),
+      height: Math.max(maxY + NODE_H + 40, NODE_H + 40),
+      links,
+    };
   }, [snapshot]);
 
   const onWheel = useCallback((e: React.WheelEvent) => {

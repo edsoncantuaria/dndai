@@ -21,12 +21,13 @@ export const DndTextarea = React.forwardRef<HTMLTextAreaElement, DndTextareaProp
           id={areaId}
           ref={ref}
           className={cn(
-            'min-h-[120px] w-full resize-y rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-4 py-3',
-            'font-narrative text-base leading-relaxed text-dnd-parchment placeholder:text-dnd-parchment-muted/60',
-            'transition-colors duration-[var(--dnd-duration-ui)]',
-            'focus:border-dnd-gold/60 focus:outline-none focus:ring-2 focus:ring-dnd-gold/25',
+            'dnd-field min-h-[120px] w-full resize-y rounded-xl border px-4 py-3',
+            'font-narrative text-base leading-relaxed',
+            'shadow-inner transition-colors duration-[var(--dnd-duration-ui)]',
+            'focus:outline-none focus:ring-2 focus:ring-dnd-gold/25',
             className
           )}
+          style={{ colorScheme: 'dark' }}
           {...props}
         />
       </div>

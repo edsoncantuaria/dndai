@@ -148,7 +148,7 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
 
   return (
     <TooltipProvider>
-      <div className="relative flex h-full min-h-0 w-full flex-col">
+      <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden">
         {loadingState.banner && (
           <div
             className={cn(

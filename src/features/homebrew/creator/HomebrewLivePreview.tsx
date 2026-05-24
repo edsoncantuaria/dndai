@@ -1,92 +1,141 @@
 'use client';
 
-import { DndBadge, DndCard, DndHeading } from '@/components/primitives';
+import { DndBadge } from '@/components/primitives';
 import { SourceKindBadge } from '@/features/homebrew/sourceKindBadge';
+import { cn } from '@/lib/utils';
 import type * as HomebrewService from '@/services/homebrewService';
+import { HomebrewPreviewContent } from './HomebrewPreviewContent';
 import type { HomebrewCreatorStepId } from './constants';
-import { HOMEBREW_CREATOR_STEPS } from './constants';
 
 export interface HomebrewLivePreviewProps {
-  activeStep: HomebrewCreatorStepId;
+  activeStep?: HomebrewCreatorStepId;
   type: HomebrewService.HomebrewContentType;
   sourceKind: HomebrewService.HomebrewSourceKind;
   contentData: Record<string, unknown>;
   isPublic: boolean;
   locale: string;
+  variant?: 'sidebar' | 'compact';
+  className?: string;
 }
 
-function pickPreviewLines(data: Record<string, unknown>, type: string): string[] {
-  const lines: string[] = [];
-  if (typeof data.desc === 'string' && data.desc) {
-    lines.push(data.desc.slice(0, 120) + (data.desc.length > 120 ? '…' : ''));
+const TYPE_LABELS: Record<HomebrewService.HomebrewContentType, string> = {
+  race: 'Raça',
+  subrace: 'Sub-raça',
+  class: 'Classe',
+  subclass: 'Subclasse',
+  spell: 'Magia',
+  item: 'Item',
+  monster: 'Monstro',
+  background: 'Antecedente',
+  feat: 'Talento',
+  skill: 'Perícia',
+  translation: 'Tradução',
+};
+
+function countHighlights(data: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  const traits = data.traits;
+  if (Array.isArray(traits) && traits.length) {
+    parts.push(`${traits.length} traço${traits.length > 1 ? 's' : ''}`);
   }
-  if (type === 'spell' && data.level !== undefined) lines.push(`Nível: ${String(data.level)}`);
-  if (type === 'item' && data.equipment_category) {
-    const cat = data.equipment_category as { name?: string };
-    if (cat?.name) lines.push(`Categoria: ${cat.name}`);
+  const bonuses = data.ability_bonuses;
+  if (Array.isArray(bonuses) && bonuses.length) {
+    parts.push(`${bonuses.length} bônus`);
   }
-  if (type === 'monster' && data.challenge_rating !== undefined) {
-    lines.push(`ND: ${String(data.challenge_rating)}`);
-  }
-  if (typeof data.size === 'string') lines.push(`Tamanho: ${data.size}`);
-  return lines.slice(0, 4);
+  if (typeof data.speed === 'number') parts.push(`${data.speed} pés`);
+  if (data.level !== undefined) parts.push(`nível ${String(data.level)}`);
+  return parts.length ? parts.join(' · ') : null;
+}
+
+function PreviewHeader({
+  name,
+  typeLabel,
+  index,
+  highlights,
+  badges,
+  showLabel = true,
+}: {
+  name: string;
+  typeLabel: string;
+  index: string;
+  highlights: string | null;
+  badges: React.ReactNode;
+  showLabel?: boolean;
+}) {
+  return (
+    <div className="shrink-0">
+      {showLabel ? (
+        <p className="font-ui text-[10px] font-semibold uppercase tracking-wider text-dnd-parchment-muted">
+          Resumo ao vivo
+        </p>
+      ) : null}
+      <h3
+        className={cn(
+          'font-display leading-tight text-dnd-parchment',
+          showLabel ? 'mt-1 text-xl' : 'text-lg'
+        )}
+      >
+        {name}
+      </h3>
+      <p className="mt-0.5 font-ui text-xs text-dnd-parchment-muted sm:text-sm">
+        {typeLabel}
+        {index !== '—' ? ` · ${index}` : ''}
+        {highlights ? ` · ${highlights}` : ''}
+      </p>
+      <div className="mt-2">{badges}</div>
+    </div>
+  );
 }
 
 export function HomebrewLivePreview({
-  activeStep,
   type,
   sourceKind,
   contentData,
   isPublic,
   locale,
+  variant = 'sidebar',
+  className,
 }: HomebrewLivePreviewProps) {
-  const stepMeta = HOMEBREW_CREATOR_STEPS.find((s) => s.id === activeStep);
-  const name = typeof contentData.name === 'string' ? contentData.name : 'Sem nome';
-  const index = typeof contentData.index === 'string' ? contentData.index : '—';
-  const previewLines = pickPreviewLines(contentData, type);
-  const fieldCount = Object.keys(contentData || {}).length;
+  const name = typeof contentData.name === 'string' && contentData.name.trim() ? contentData.name : 'Sem nome';
+  const index = typeof contentData.index === 'string' && contentData.index ? contentData.index : '—';
+  const typeLabel = TYPE_LABELS[type] ?? type;
+  const highlights = countHighlights(contentData);
+  const isCompact = variant === 'compact';
+
+  const badges = (
+    <div className="flex flex-wrap gap-1.5">
+      <SourceKindBadge sourceKind={sourceKind} />
+      <DndBadge variant={isPublic ? 'success' : 'muted'}>{isPublic ? 'Público' : 'Privado'}</DndBadge>
+      <DndBadge variant="muted">{locale}</DndBadge>
+    </div>
+  );
 
   return (
-    <DndCard
-      padding="md"
-      className="lg:sticky lg:top-4 border-dnd-gold/20 bg-[linear-gradient(165deg,rgba(251,191,36,0.06),transparent_45%)]"
+    <div
+      className={cn(
+        'rounded-lg border border-dnd-gold/15 bg-dnd-obsidian-raised/40',
+        !isCompact && 'lg:sticky lg:top-[calc(1rem+var(--dnd-safe-top))]',
+        className
+      )}
+      aria-live="polite"
     >
-      <DndHeading variant="label">Pré-visualização</DndHeading>
-      <p className="mt-0.5 font-ui text-xs text-dnd-parchment-muted">{stepMeta?.label ?? activeStep}</p>
-
-      <div className="mt-4 space-y-3">
-        <div>
-          <h3 className="font-display text-lg text-dnd-parchment">{name}</h3>
-          <p className="font-ui text-xs capitalize text-dnd-parchment-muted">{type}</p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <SourceKindBadge sourceKind={sourceKind} />
-          <DndBadge variant={isPublic ? 'success' : 'muted'}>{isPublic ? 'Público' : 'Privado'}</DndBadge>
-          <DndBadge variant="muted">{locale}</DndBadge>
-        </div>
-
-        <dl className="space-y-1 font-ui text-xs text-dnd-parchment-muted">
-          <div className="flex justify-between gap-2">
-            <dt>Index</dt>
-            <dd className="text-dnd-parchment">{index}</dd>
-          </div>
-          <div className="flex justify-between gap-2">
-            <dt>Campos</dt>
-            <dd className="text-dnd-parchment">{fieldCount}</dd>
-          </div>
-        </dl>
-
-        {previewLines.length > 0 ? (
-          <div className="rounded-md border border-dnd-gold/15 bg-dnd-obsidian-raised/60 p-3">
-            <p className="font-narrative text-sm leading-relaxed text-dnd-parchment-muted">{previewLines.join(' · ')}</p>
-          </div>
-        ) : (
-          <p className="font-narrative text-sm italic text-dnd-parchment-muted">
-            Preencha a estrutura para ver detalhes aqui.
-          </p>
-        )}
+      <div className={cn('border-b border-dnd-gold/10 p-4', isCompact && 'pb-3')}>
+        <PreviewHeader
+          name={name}
+          typeLabel={typeLabel}
+          index={index}
+          highlights={highlights}
+          badges={badges}
+          showLabel
+        />
       </div>
-    </DndCard>
+      <div className="p-4 pt-3">
+        <HomebrewPreviewContent
+          type={type}
+          contentData={contentData}
+          className={isCompact ? 'max-h-[min(50vh,360px)]' : 'max-h-[min(60vh,520px)]'}
+        />
+      </div>
+    </div>
   );
 }

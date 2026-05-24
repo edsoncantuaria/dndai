@@ -21,6 +21,7 @@ import { WizardShell, WizardStepLayout } from './WizardStepLayout';
 import { TOTAL_CREATION_STEPS } from './constants';
 import { canProceedFromStep } from './stepCompleteness';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { cn } from '@/lib/utils';
 
 export interface CharacterCreationWizardProps {
   races: ApiListItem[];
@@ -42,12 +43,13 @@ export function CharacterCreationWizard({
   onCancel,
 }: CharacterCreationWizardProps) {
   const { createCharacter } = useGameStateContext();
-  const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
   const { isLgUp } = useBreakpoint();
 
   const [currentStep, setCurrentStep] = useState(1);
   const [highestStep, setHighestStep] = useState(1);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+
+  const hook = useCharacterCreator({ allLanguages: allLanguages || [], currentStep });
 
   const noop = useCallback(() => {}, []);
 
@@ -87,11 +89,11 @@ export function CharacterCreationWizard({
     }
   }, [currentStep, hook.isVariantHuman]);
 
-  if (hook.loadingStates.isLoading) {
+  if (hook.loadingStates.isBlocking) {
     return (
       <WizardShell>
         <LoadingOracle
-          label={hook.loadingStates.message || 'Preparando o crisol de criação…'}
+          label={hook.loadingStates.message || 'Preparando equipamentos…'}
         />
       </WizardShell>
     );
@@ -185,7 +187,12 @@ export function CharacterCreationWizard({
         )}
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:flex-row lg:gap-6">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div
+            className={cn(
+              'flex min-h-0 min-w-0 flex-1 flex-col',
+              !isLgUp && 'pb-[calc(13rem+var(--dnd-safe-bottom))]'
+            )}
+          >
             <WizardStepLayout
               step={currentStep}
               onBack={currentStep > 1 ? goPrev : undefined}
@@ -195,6 +202,7 @@ export function CharacterCreationWizard({
               isLastStep={currentStep === 8}
               onFinalize={() => setShowConfirmationModal(true)}
               finalizeDisabled={!hook.isComplete}
+              hideFooter={!isLgUp}
               nextLabel={
                 currentStep === 7 ? 'Ver revelação' : currentStep === 6 && !canProceed ? 'Continuar' : 'Continuar'
               }
@@ -203,11 +211,39 @@ export function CharacterCreationWizard({
             </WizardStepLayout>
           </div>
 
-          <div className="shrink-0 lg:w-72">
-            <CharacterSummaryCollapsible hook={hook} defaultOpen={isLgUp} />
-          </div>
+          {isLgUp ? (
+            <div className="hidden shrink-0 lg:block lg:w-72">
+              <CharacterSummaryCollapsible
+                hook={hook}
+                currentStep={currentStep}
+                defaultOpen
+              />
+            </div>
+          ) : null}
         </div>
       </div>
+
+      {!isLgUp ? (
+        <CharacterSummaryCollapsible
+          hook={hook}
+          currentStep={currentStep}
+          mobileNav={{
+            onBack: currentStep > 1 ? goPrev : undefined,
+            onNext: currentStep < 8 ? goNext : undefined,
+            nextDisabled: !canProceed,
+            showNext: currentStep < 8,
+            isLastStep: currentStep === 8,
+            onFinalize: () => setShowConfirmationModal(true),
+            finalizeDisabled: !hook.isComplete,
+            nextLabel:
+              currentStep === 7
+                ? 'Ver revelação'
+                : currentStep === 6 && !canProceed
+                  ? 'Continuar'
+                  : 'Continuar',
+          }}
+        />
+      ) : null}
 
       {showConfirmationModal ? (
         <ActionModal

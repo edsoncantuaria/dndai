@@ -32,7 +32,8 @@ services:
       AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
     ports:
       - '8071:8071'
-    command: npx tsx watch src/server.ts
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["npx", "tsx", "watch", "src/server.ts"]
     depends_on:
       mysql:
         condition: service_healthy

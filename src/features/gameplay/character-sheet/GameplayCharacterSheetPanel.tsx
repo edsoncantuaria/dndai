@@ -19,7 +19,7 @@ export function GameplayCharacterSheetPanel() {
   const [tab, setTab] = useState('attrs');
 
   return (
-    <div className="flex min-h-0 flex-col gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
       <DndTabs items={SHEET_TABS} value={tab} onValueChange={setTab} className="shrink-0" />
       <div className="min-h-0 flex-1 overflow-y-auto [&_.rounded-3xl]:rounded-lg [&_.border-white\\/10]:border-dnd-gold/15">
         {tab === 'attrs' && <CharacterSheet />}

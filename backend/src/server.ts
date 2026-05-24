@@ -119,6 +119,14 @@ const startServer = async () => {
         await refreshEnemyTemplatesFromDatabase();
         console.log('[Startup] Templates de inimigos sincronizados.');
 
+        const { ensureDefaultSpawnRegions } = await import('./services/regionService.js');
+        const spawnReady = await ensureDefaultSpawnRegions();
+        console.log(
+          spawnReady
+            ? '[Startup] Spawn pool de cidades pronto.'
+            : '[Startup] Aviso: spawn pool de cidades vazio — novas sessões podem falhar até `npm run seed:regions`.'
+        );
+
         const storageHealth = await checkObjectStorageHealth();
         const storageMessagePrefix = '[Startup][ObjectStorage]';
         if (storageHealth.ok) {

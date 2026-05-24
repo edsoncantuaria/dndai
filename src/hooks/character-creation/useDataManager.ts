@@ -16,25 +16,68 @@ import type {
 import { fetchDetailsInChunks } from '../../utils/apiUtils';
 import { normalizeKey } from '@/utils/equipmentCacheBuilder';
 
-
-// ============================================================
-// 🧩 Normalizador de URLs para equipamentos (mesmo do outro hook)
-// ============================================================
 const normalizeEquipmentUrl = (urlOrIndex: string): string => {
   if (!urlOrIndex) return '';
-
   if (urlOrIndex.startsWith('/api/data/equipment/')) return urlOrIndex;
-
   const normalized = urlOrIndex
-    .replace(/^\/?api\/\d{0,4}\/?/, '') // remove /api/2014/, /api/5e/, etc
-    .replace(/^\/?v\d+\//, '')          // remove /v1/, /v2/, etc
-    .replace(/^\/?equipment\//, '')     // remove equipment/
-    .replace(/^\/+/, '');               // remove barras extras
-  
+    .replace(/^\/?api\/\d{0,4}\/?/, '')
+    .replace(/^\/?v\d+\//, '')
+    .replace(/^\/?equipment\//, '')
+    .replace(/^\/+/, '');
   return `/api/data/equipment/${normalized}`;
 };
 
-export const useDataManager = (race: string, subrace: string, characterClass: string, background: string) => {
+export type DataManagerLoadingState = {
+  /** Bloqueia a UI inteira — só na 1ª carga de equipamentos (passo 5+) */
+  isBlocking: boolean;
+  /** Busca em segundo plano (raça, classe, etc.) — não desmonta o wizard */
+  isFetching: boolean;
+  message: string;
+  progress: number;
+};
+
+const idleLoading: DataManagerLoadingState = {
+  isBlocking: false,
+  isFetching: false,
+  message: '',
+  progress: 0,
+};
+
+async function loadDragonbornAncestryOptions() {
+  const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
+  if (!ancestryTrait?.trait_specific?.subtrait_options?.from?.options) return [];
+  const ancestryRefs = ancestryTrait.trait_specific.subtrait_options.from.options.map((o: any) => o.item);
+  const ancestryDetails = await fetchDetailsInChunks(ancestryRefs, DndApiService.getTraitDetails, () => {});
+  return ancestryDetails
+    .map((detail) => {
+      if (detail?.trait_specific?.damage_type) {
+        return {
+          index: detail.index,
+          name: detail.name,
+          damage_type: detail.trait_specific.damage_type.name,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean);
+}
+
+type UseDataManagerOptions = {
+  /** Pré-carrega arsenal em background (não bloqueia a UI) */
+  prefetchEquipment?: boolean;
+  /** Exige arsenal pronto — bloqueia só neste passo se ainda não carregou */
+  requireEquipment?: boolean;
+};
+
+export const useDataManager = (
+  race: string,
+  subrace: string,
+  characterClass: string,
+  background: string,
+  options: UseDataManagerOptions = {}
+) => {
+  const { prefetchEquipment = true, requireEquipment = false } = options;
+
   const [raceDetails, setRaceDetails] = useState<ApiRace | null>(null);
   const [subraceDetails, setSubraceDetails] = useState<ApiSubrace | null>(null);
   const [classDetails, setClassDetails] = useState<ApiClass | null>(null);
@@ -47,89 +90,108 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
   const [subclassSpells, setSubclassSpells] = useState<ApiSpell[]>([]);
   const [allEquipment, setAllEquipment] = useState<InventoryItem[]>([]);
   const [equipmentCategoryCache, setEquipmentCategoryCache] = useState<Record<string, InventoryItem[]>>({});
+  const [equipmentReady, setEquipmentReady] = useState(false);
 
-  const [loadingStates, setLoadingStates] = useState({
-    isLoading: false,
-    message: '',
-    progress: 0,
-  });
+  const [loadingStates, setLoadingStates] = useState<DataManagerLoadingState>(idleLoading);
 
-  const initialized = useRef(false);
+  const equipmentInitStarted = useRef(false);
+  const raceCache = useRef(new Map<string, ApiRace>());
+  const subraceCache = useRef(new Map<string, ApiSubrace>());
+  const classCache = useRef(new Map<string, { details: ApiClass; levels: ApiClassLevel[]; classSpells: ApiSpell[]; subclassSpells: ApiSpell[] }>());
+  const backgroundCache = useRef(new Map<string, ApiBackground>());
+  const traitsCacheKey = useRef<string>('');
 
-  /** =============================================================
-   * ⚙️ Construção e cache do arsenal base
-   * ============================================================= */
+  const setFetching = useCallback((message: string, progress = 0) => {
+    setLoadingStates((prev) => ({
+      ...prev,
+      isFetching: true,
+      message,
+      progress,
+    }));
+  }, []);
+
+  const clearFetching = useCallback(() => {
+    setLoadingStates((prev) => ({
+      ...prev,
+      isFetching: false,
+      message: '',
+      progress: 0,
+    }));
+  }, []);
+
+  const setBlocking = useCallback((message: string, progress = 0) => {
+    setLoadingStates({
+      isBlocking: true,
+      isFetching: false,
+      message,
+      progress,
+    });
+  }, []);
+
   const initializeEquipment = useCallback(async () => {
-    if (initialized.current) return;
-    initialized.current = true;
-  
-    setLoadingStates({ isLoading: true, message: 'Carregando o arsenal...', progress: 0 });
-    
+    if (equipmentInitStarted.current) return;
+    equipmentInitStarted.current = true;
+
+    setFetching('Preparando arsenal…', 0);
+
     try {
       const categoryList = await DndApiService.getEquipmentCategories();
       const categories = categoryList?.results || [];
       const newCache: Record<string, InventoryItem[]> = {};
       let loadedCategories = 0;
-      const totalCategories = categories.length;
-  
+      const totalCategories = Math.max(categories.length, 1);
+
       for (const cat of categories) {
         try {
           const categoryDetails = await DndApiService.getEquipmentCategoryDetails(cat.index);
           let itemsInCategory = (categoryDetails?.equipment || []) as InventoryItem[];
-  
           itemsInCategory = itemsInCategory.map((item) => ({
             ...item,
             url: normalizeEquipmentUrl(item.url || item.index),
           }));
-  
           if (itemsInCategory.length > 0) {
-            const normalizedCatKey = normalizeKey(cat.index);
-            newCache[normalizedCatKey] = itemsInCategory;
+            newCache[normalizeKey(cat.index)] = itemsInCategory;
           }
         } catch (catError) {
-          console.warn(`[useDataManager] ⚠️ Falha ao buscar detalhes da categoria ${cat.index}:`, catError);
+          console.warn(`[useDataManager] Categoria ${cat.index}:`, catError);
         }
         loadedCategories++;
-        setLoadingStates({
-            isLoading: true,
-            message: `Carregando categoria: ${cat.name}`,
-            progress: (loadedCategories / totalCategories) * 100,
-        });
+        setFetching(`Arsenal: ${cat.name}`, (loadedCategories / totalCategories) * 100);
       }
-      
+
       setEquipmentCategoryCache(newCache);
-  
-      const flatEquipmentList = Object.values(newCache).flat();
       const uniqueEquipmentMap = new Map<string, InventoryItem>();
-      flatEquipmentList.forEach(item => {
-        if (item && item.index) {
-          uniqueEquipmentMap.set(item.index, item);
-        }
-      });
-  
-      const allUniqueEquipment = Array.from(uniqueEquipmentMap.values()).map(item => ({
-        ...item,
-        url: normalizeEquipmentUrl(item.url || item.index),
-      }));
-  
-      setAllEquipment(allUniqueEquipment);
-  
+      Object.values(newCache)
+        .flat()
+        .forEach((item) => {
+          if (item?.index) uniqueEquipmentMap.set(item.index, item);
+        });
+      setAllEquipment(
+        Array.from(uniqueEquipmentMap.values()).map((item) => ({
+          ...item,
+          url: normalizeEquipmentUrl(item.url || item.index),
+        }))
+      );
+      setEquipmentReady(true);
     } catch (err) {
-      console.error('[useDataManager] ❌ Falha catastrófica ao carregar equipamentos:', err);
+      console.error('[useDataManager] Falha ao carregar equipamentos:', err);
+      setEquipmentReady(true);
     } finally {
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
+      clearFetching();
+      setLoadingStates((prev) => ({ ...prev, isBlocking: false }));
     }
-  }, []);
-  
+  }, [clearFetching, setFetching]);
 
   useEffect(() => {
-    initializeEquipment();
-  }, [initializeEquipment]);
+    if (!prefetchEquipment) return;
+    void initializeEquipment();
+  }, [prefetchEquipment, initializeEquipment]);
 
-
-  /** =============================================================
-   * 🧬 Demais fetches (raças, classes, magias etc.)
-   * ============================================================= */
+  useEffect(() => {
+    if (!requireEquipment || equipmentReady) return;
+    setBlocking('Carregando equipamentos…');
+    void initializeEquipment();
+  }, [requireEquipment, equipmentReady, initializeEquipment, setBlocking]);
 
   useEffect(() => {
     if (!race) {
@@ -138,47 +200,47 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
       return;
     }
 
-    const fetchRace = async () => {
-      setLoadingStates({ isLoading: true, message: 'Buscando linhagens...', progress: 50 });
-      const details = await DndApiService.getRaceDetails(race);
-      setRaceDetails(details);
+    let cancelled = false;
 
+    const cached = raceCache.current.get(race);
+    if (cached) {
+      setRaceDetails(cached);
       if (race === 'dragonborn') {
-        const ancestryTrait = await DndApiService.getTraitDetails('draconic-ancestry');
-        if (ancestryTrait?.trait_specific?.subtrait_options?.from?.options) {
-          const ancestryRefs = ancestryTrait.trait_specific.subtrait_options.from.options.map(
-            (o: any) => o.item
-          );
-
-          const ancestryDetails = await fetchDetailsInChunks(
-            ancestryRefs,
-            DndApiService.getTraitDetails,
-            () => {}
-          );
-
-          const detailedOptions = ancestryDetails
-            .map((detail) => {
-              if (detail && detail.trait_specific?.damage_type) {
-                return {
-                  index: detail.index,
-                  name: detail.name,
-                  damage_type: detail.trait_specific.damage_type.name,
-                };
-              }
-              return null;
-            })
-            .filter(Boolean);
-
-          setDraconicAncestryOptions(detailedOptions);
-        }
+        void loadDragonbornAncestryOptions().then((options) => {
+          if (!cancelled) setDraconicAncestryOptions(options);
+        });
       } else {
         setDraconicAncestryOptions([]);
       }
+      return () => {
+        cancelled = true;
+      };
+    }
 
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
+    const fetchRace = async () => {
+      setFetching('Carregando raça…');
+      try {
+        const details = await DndApiService.getRaceDetails(race);
+        if (cancelled) return;
+        raceCache.current.set(race, details);
+        setRaceDetails(details);
+
+        if (race === 'dragonborn') {
+          const options = await loadDragonbornAncestryOptions();
+          if (!cancelled) setDraconicAncestryOptions(options);
+        } else {
+          setDraconicAncestryOptions([]);
+        }
+      } finally {
+        if (!cancelled) clearFetching();
+      }
     };
 
-    fetchRace();
+    void fetchRace();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [race]);
 
   useEffect(() => {
@@ -187,13 +249,30 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
       return;
     }
 
-    const fetchSubrace = async () => {
-      setLoadingStates({ isLoading: true, message: 'Consultando sub-raças...', progress: 50 });
-      setSubraceDetails(await DndApiService.getSubraceDetails(subrace));
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
+    const cached = subraceCache.current.get(subrace);
+    if (cached) {
+      setSubraceDetails(cached);
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      setFetching('Carregando sub-raça…');
+      try {
+        const details = await DndApiService.getSubraceDetails(subrace);
+        if (!cancelled && details) {
+          subraceCache.current.set(subrace, details);
+          setSubraceDetails(details);
+        }
+      } finally {
+        if (!cancelled) clearFetching();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    fetchSubrace();
-  }, [subrace]);
+  }, [subrace, clearFetching, setFetching]);
 
   useEffect(() => {
     if (!characterClass) {
@@ -204,67 +283,78 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
       return;
     }
 
-    const fetchClass = async () => {
-      setLoadingStates({ isLoading: true, message: 'Estudando as artes...', progress: 0 });
-      const [details, levelsData] = await Promise.all([
-        DndApiService.getClassDetails(characterClass),
-        DndApiService.getClassLevels(characterClass),
-      ]);
+    const cached = classCache.current.get(characterClass);
+    if (cached) {
+      setClassDetails(cached.details);
+      setClassLevels(cached.levels);
+      setClassSpellOptions(cached.classSpells);
+      setSubclassSpells(cached.subclassSpells);
+      return;
+    }
 
-      setClassDetails(details);
+    let cancelled = false;
 
-      const levels = Array.isArray(levelsData)
-        ? levelsData
-        : levelsData
-        ? Object.values(levelsData)
-        : [];
+    void (async () => {
+      setFetching('Carregando classe…');
+      try {
+        const [details, levelsData] = await Promise.all([
+          DndApiService.getClassDetails(characterClass),
+          DndApiService.getClassLevels(characterClass),
+        ]);
+        if (cancelled) return;
 
-      setClassLevels(levels as ApiClassLevel[]);
+        const levels = Array.isArray(levelsData) ? levelsData : levelsData ? Object.values(levelsData) : [];
 
-      if (details?.spellcasting) {
-        const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
-        if (spellsResponse?.results) {
-          const spellDetails = await fetchDetailsInChunks(
-            spellsResponse.results,
-            DndApiService.getSpellDetails,
-            (loaded, total, progress) =>
-              setLoadingStates({
-                isLoading: true,
-                message: `Carregando Magias ${loaded} de ${total}...`,
-                progress,
-              })
-          );
-          setClassSpellOptions(
-            spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1)
-          );
-        }
-      } else {
-        setClassSpellOptions([]);
-      }
+        let classSpells: ApiSpell[] = [];
+        let subSpells: ApiSpell[] = [];
 
-      setSubclassSpells([]);
-      if (details?.subclasses?.[0]) {
-        const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
-        if (subClassDetails?.spells) {
-          const spellRefs = subClassDetails.spells
-            .filter((s) => s.prerequisites.some((p) => p && p.url.endsWith('/1')))
-            .map((s) => s.spell);
-          if (spellRefs.length > 0) {
+        if (details?.spellcasting) {
+          const spellsResponse = await DndApiService.getSpellsForClass(characterClass);
+          if (spellsResponse?.results) {
             const spellDetails = await fetchDetailsInChunks(
-              spellRefs,
+              spellsResponse.results,
               DndApiService.getSpellDetails,
-              () => {}
+              (loaded, total, progress) => setFetching(`Magias ${loaded}/${total}`, progress)
             );
-            setSubclassSpells(spellDetails.filter(Boolean) as ApiSpell[]);
+            classSpells = spellDetails.filter((s): s is ApiSpell => s !== null && s.level <= 1);
           }
         }
+
+        if (details?.subclasses?.[0]) {
+          const subClassDetails = await DndApiService.getSubclassDetails(details.subclasses[0].index);
+          if (subClassDetails?.spells) {
+            const spellRefs = subClassDetails.spells
+              .filter((s) => s.prerequisites.some((p) => p && p.url.endsWith('/1')))
+              .map((s) => s.spell);
+            if (spellRefs.length > 0) {
+              const spellDetails = await fetchDetailsInChunks(spellRefs, DndApiService.getSpellDetails, () => {});
+              subSpells = spellDetails.filter(Boolean) as ApiSpell[];
+            }
+          }
+        }
+
+        if (cancelled) return;
+
+        classCache.current.set(characterClass, {
+          details,
+          levels: levels as ApiClassLevel[],
+          classSpells,
+          subclassSpells: subSpells,
+        });
+
+        setClassDetails(details);
+        setClassLevels(levels as ApiClassLevel[]);
+        setClassSpellOptions(classSpells);
+        setSubclassSpells(subSpells);
+      } finally {
+        if (!cancelled) clearFetching();
       }
+    })();
 
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
+    return () => {
+      cancelled = true;
     };
-
-    fetchClass();
-  }, [characterClass]);
+  }, [characterClass, clearFetching, setFetching]);
 
   useEffect(() => {
     if (!background) {
@@ -272,65 +362,95 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
       return;
     }
 
-    const fetchBackground = async () => {
-      setLoadingStates({ isLoading: true, message: 'Relembrando o passado...', progress: 50 });
-      const details = await DndApiService.getBackgroundDetails(background);
-      setBackgroundDetails(details);
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
-    };
+    const cached = backgroundCache.current.get(background);
+    if (cached) {
+      setBackgroundDetails(cached);
+      return;
+    }
 
-    fetchBackground();
-  }, [background]);
+    let cancelled = false;
+    void (async () => {
+      setFetching('Carregando antecedente…');
+      try {
+        const details = await DndApiService.getBackgroundDetails(background);
+        if (!cancelled && details) {
+          backgroundCache.current.set(background, details);
+          setBackgroundDetails(details);
+        }
+      } finally {
+        if (!cancelled) clearFetching();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [background, clearFetching, setFetching]);
 
   useEffect(() => {
-    const fetchRacialTraits = async () => {
-      if (!raceDetails) {
-        setTraitChoiceDetails([]);
-        return;
-      }
-      setLoadingStates({ isLoading: true, message: 'Analisando traços...', progress: 0 });
-      const allTraitList = [
-        ...(raceDetails.traits || []),
-        ...(subraceDetails?.racial_traits || []),
-      ].filter(Boolean);
-      const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(
-        allTraitList,
-        DndApiService.getTraitDetails,
-        (l, t, p) => {
-          setLoadingStates({
-            isLoading: true,
-            message: `Analisando Traços ${l} de ${t}...`,
-            progress: p,
-          });
+    if (!raceDetails) {
+      setTraitChoiceDetails([]);
+      traitsCacheKey.current = '';
+      return;
+    }
+
+    const key = `${race}|${subrace || ''}`;
+    if (traitsCacheKey.current === key) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      setFetching('Analisando traços…');
+      try {
+        const allTraitList = [...(raceDetails.traits || []), ...(subraceDetails?.racial_traits || [])].filter(
+          Boolean
+        );
+        const traitDetails = await fetchDetailsInChunks<ApiListItem, ApiTrait>(
+          allTraitList,
+          DndApiService.getTraitDetails,
+          (l, t, p) => setFetching(`Traços ${l}/${t}`, p)
+        );
+        if (!cancelled) {
+          traitsCacheKey.current = key;
+          setTraitChoiceDetails(traitDetails.filter(Boolean));
         }
-      );
-      setTraitChoiceDetails(traitDetails.filter(Boolean));
-      setLoadingStates({ isLoading: false, message: '', progress: 0 });
+      } finally {
+        if (!cancelled) clearFetching();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    fetchRacialTraits();
-  }, [raceDetails, subraceDetails]);
+  }, [raceDetails, subraceDetails, subrace, race, clearFetching, setFetching]);
 
   const fetchFeats = async () => {
-    setLoadingStates({ isLoading: true, message: 'Procurando talentos...', progress: 0 });
-    const featsList = await DndApiService.getFeats();
-    if (featsList?.results) {
-      const featDetails = await fetchDetailsInChunks(
-        featsList.results,
-        DndApiService.getFeatDetails,
-        (l, t, p) => {
-          setLoadingStates({
-            isLoading: true,
-            message: `Carregando Talentos ${l} de ${t}...`,
-            progress: p,
-          });
-        }
-      );
-      setAvailableFeats(featDetails as Feat[]);
+    if (availableFeats.length > 0) return;
+    setFetching('Carregando talentos…');
+    try {
+      const featsList = await DndApiService.getFeats();
+      if (featsList?.results) {
+        const featDetails = await fetchDetailsInChunks(featsList.results, DndApiService.getFeatDetails, (l, t, p) =>
+          setFetching(`Talentos ${l}/${t}`, p)
+        );
+        setAvailableFeats(featDetails as Feat[]);
+      }
+    } finally {
+      clearFetching();
     }
-    setLoadingStates({ isLoading: false, message: '', progress: 0 });
   };
 
   const safeCache = useMemo(() => equipmentCategoryCache || {}, [equipmentCategoryCache]);
+
+  const loadingWithLegacy = useMemo(
+    () => ({
+      ...loadingStates,
+      /** Bloqueio de tela cheia — preferir isBlocking */
+      isLoading: loadingStates.isBlocking,
+    }),
+    [loadingStates]
+  );
 
   return {
     details: {
@@ -347,7 +467,8 @@ export const useDataManager = (race: string, subrace: string, characterClass: st
     },
     allEquipment,
     equipmentCategoryCache: safeCache,
-    loadingStates,
+    equipmentReady,
+    loadingStates: loadingWithLegacy,
     fetchFeats,
   };
 };

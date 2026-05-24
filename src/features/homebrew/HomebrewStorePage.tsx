@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useState } from 'react';
 import HomebrewStore from '@/components/Homebrew/HomebrewStore';
 import { HomebrewLayout } from './HomebrewLayout';
 import { LandscapeBlocker } from '@/features/intro/LandscapeBlocker';
@@ -8,18 +9,38 @@ export interface HomebrewStorePageProps {
   onBack: () => void;
 }
 
-/** Marketplace homebrew — sem entrada para o estúdio de tradução do sistema */
+type StoreView = 'list' | 'create' | 'edit';
+
+/** Marketplace homebrew — sem estúdio de tradução do sistema */
 export function HomebrewStorePage({ onBack }: HomebrewStorePageProps) {
+  const [storeView, setStoreView] = useState<StoreView>('list');
+
+  const handleViewChange = useCallback((view: StoreView) => {
+    setStoreView(view);
+  }, []);
+
+  const inCreator = storeView === 'create' || storeView === 'edit';
+
   return (
     <HomebrewLayout
-      title="Oficina & marketplace"
-      subtitle="Crie, instale e compartilhe raças, classes, itens e monstros. Traduções do jogo ficam em outro lugar."
-      onBack={onBack}
+      title={inCreator ? (storeView === 'edit' ? 'Editar criação' : 'Nova criação') : 'Grimório'}
+      subtitle={
+        inCreator
+          ? 'Preencha as etapas. O conteúdo é validado ao salvar.'
+          : 'Publique raças, classes, itens e monstros. Instale o que outros mestres compartilharam.'
+      }
+      onBack={inCreator ? () => setStoreView('list') : onBack}
+      backLabel={inCreator ? 'Voltar ao grimório' : 'Voltar ao hub'}
     >
       <LandscapeBlocker />
-      <div className="rounded-xl border border-dnd-gold/15 overflow-hidden">
-        <HomebrewStore returnToMenu={onBack} embedded hideTranslationEntry showSourceBadges />
-      </div>
+      <HomebrewStore
+        returnToMenu={onBack}
+        embedded
+        hideTranslationEntry
+        showSourceBadges
+        controlledView={storeView}
+        onViewChange={handleViewChange}
+      />
     </HomebrewLayout>
   );
 }

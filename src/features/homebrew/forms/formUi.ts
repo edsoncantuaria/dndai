@@ -1,13 +1,13 @@
 /** Classes compartilhadas dos formulários homebrew (design system v2) */
 export const hb = {
   root: 'hb-form space-y-4',
-  label: 'mb-1 block font-ui text-xs uppercase tracking-wider text-dnd-parchment-muted',
+  label: 'mb-1 block font-ui text-xs font-semibold uppercase tracking-wider text-dnd-parchment',
   control:
-    'min-h-[44px] w-full rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-4 py-2 font-ui text-sm text-dnd-parchment placeholder:text-dnd-parchment-muted/60 focus:border-dnd-gold/60 focus:outline-none focus:ring-2 focus:ring-dnd-gold/25',
+    'dnd-field min-h-[44px] w-full rounded-md border px-4 py-2 font-ui text-base shadow-inner placeholder:text-dnd-parchment-muted focus:border-dnd-gold focus:outline-none focus:ring-2 focus:ring-dnd-gold/35',
   controlSm:
-    'min-h-[36px] w-full rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-3 py-1.5 font-ui text-sm text-dnd-parchment focus:border-dnd-gold/60 focus:outline-none focus:ring-2 focus:ring-dnd-gold/25',
+    'dnd-field min-h-[36px] w-full rounded-md border px-3 py-1.5 font-ui text-sm shadow-inner focus:border-dnd-gold focus:outline-none focus:ring-2 focus:ring-dnd-gold/35',
   textarea:
-    'min-h-[88px] w-full resize-y rounded-md border border-dnd-gold/25 bg-dnd-obsidian-raised/90 px-4 py-3 font-narrative text-sm leading-relaxed text-dnd-parchment placeholder:text-dnd-parchment-muted/60 focus:border-dnd-gold/60 focus:outline-none focus:ring-2 focus:ring-dnd-gold/25',
+    'dnd-field min-h-[88px] w-full resize-y rounded-md border px-4 py-3 font-narrative text-base leading-relaxed shadow-inner placeholder:text-dnd-parchment-muted focus:border-dnd-gold focus:outline-none focus:ring-2 focus:ring-dnd-gold/35',
   checkbox:
     'h-4 w-4 shrink-0 rounded border-dnd-gold/40 bg-dnd-obsidian-raised text-dnd-gold focus:ring-2 focus:ring-dnd-gold/30',
   checkLabel: 'flex cursor-pointer items-center gap-2 font-ui text-sm text-dnd-parchment',

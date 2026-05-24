@@ -27,6 +27,7 @@ export interface GameStateContextType {
     isLoading: boolean;
     apiError: string | null;
     ambientSound: string;
+    setAmbientSound: React.Dispatch<React.SetStateAction<string>>;
     progressionFeed: ProgressionFeedItem[];
     reinstallModal: { open: boolean, deps: HomebrewContent[], onConfirm: () => void };
     setReinstallModal: React.Dispatch<React.SetStateAction<{ open: boolean, deps: HomebrewContent[], onConfirm: () => void }>>;

@@ -7,6 +7,7 @@ import { useSettingsContext } from '@/contexts/SettingsContext';
 import SettingsModal from './SettingsModal';
 import SystemTestModal from './system/SystemTestModal';
 import * as GameService from '@/services/gameService';
+import { ApiError } from '@/services/apiClient';
 import type { Character, SessaoIA } from '@/types';
 import ActionModal from './ui/ActionModal';
 import { useAuth } from '@/contexts/AuthContext';
@@ -130,9 +131,20 @@ const GameContainer = () => {
             }
         } catch (error) {
             console.error('[GameContainer] Failed to start new game session:', error);
-            setGameStage('main_menu');
+            const message =
+                error instanceof ApiError
+                    ? error.message
+                    : error instanceof Error
+                      ? error.message
+                      : 'Não foi possível iniciar a aventura.';
+            toast({
+                variant: 'destructive',
+                title: 'Falha ao abrir a mesa',
+                description: message,
+            });
+            setGameStage('character_vault');
         }
-    }, [loadGameSession]);
+    }, [loadGameSession, toast]);
     
     const handleCharacterCreated = () => {
         setGameStage('character_vault');

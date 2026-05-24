@@ -84,7 +84,7 @@ export function GameplayShell({
   return (
     <div
       className={cn(
-        'relative flex h-full min-h-0 w-full flex-col bg-dnd-obsidian text-dnd-parchment',
+        'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-dnd-obsidian text-dnd-parchment',
         'pl-[var(--dnd-safe-left)] pr-[var(--dnd-safe-right)]'
       )}
     >
@@ -104,19 +104,23 @@ export function GameplayShell({
         >
           {(!showMobileNav || mobileTab === 'narrative') && narrativeColumn}
           {showMobileNav && mobileTab !== 'narrative' && mobileTab !== 'menu' && (
-            <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto p-3">
-              {sidePanel(mobileTab)}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pt-2">
+              <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto">
+                {sidePanel(mobileTab)}
+              </div>
             </div>
           )}
           {showMobileNav && mobileTab === 'menu' && (
-            <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto p-3">
-              <GameplayMobileMenuPanel
-                onOpenWorldMap={onOpenWorldMap}
-                onOpenSettings={onOpenSettings}
-                onNarrationToggle={onNarrationToggle}
-                isNarrationActive={isNarrationActive}
-                onExitSession={() => onMenuClick?.()}
-              />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-3 pt-2">
+              <div className="gameplay-panel-scroll min-h-0 flex-1 overflow-y-auto">
+                <GameplayMobileMenuPanel
+                  onOpenWorldMap={onOpenWorldMap}
+                  onOpenSettings={onOpenSettings}
+                  onNarrationToggle={onNarrationToggle}
+                  isNarrationActive={isNarrationActive}
+                  onExitSession={() => onMenuClick?.()}
+                />
+              </div>
             </div>
           )}
         </main>

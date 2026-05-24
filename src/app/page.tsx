@@ -12,7 +12,7 @@ export default function HomePage() {
     <main
       className={
         isUiV2Enabled()
-          ? 'h-full w-full'
+          ? 'flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden'
           : 'h-full w-full p-2 md:p-4 flex flex-col items-center justify-start md:justify-center'
       }
     >

@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSettingsContext } from '@/contexts/SettingsContext';
 import { AmbientBackground, DndButton, DndCard, DndHeading, DndInput } from '@/components/primitives';
 
 export function ApiKeyStep() {
   const { saveApiKey, logout, isActionLoading } = useAuth();
-  const [key, setKey] = useState('');
+  const { apiKey } = useSettingsContext();
+  const [key, setKey] = useState(() => apiKey);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

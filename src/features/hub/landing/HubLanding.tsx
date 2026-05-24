@@ -17,7 +17,6 @@ import type { SessaoIA } from '@/types';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { LandscapeBlocker } from '@/features/intro/LandscapeBlocker';
 import { HubHeroParallax } from '@/components/motion/HubHeroParallax';
-import Vignette from '@/components/Vignette';
 
 export interface HubLandingProps {
   onNavigate: (intent: HubIntent) => void;
@@ -109,8 +108,7 @@ export function HubLanding({ onNavigate }: HubLandingProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
-      <AmbientBackground variant="ember" />
-      <Vignette mode="subtle" />
+      <AmbientBackground variant="ember" showVignette={false} />
       <LandscapeBlocker />
 
       <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-12 pt-[calc(1.5rem+var(--dnd-safe-top))]">

@@ -2,6 +2,11 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService'; // Importa authService
+import {
+    migrateGeminiApiKeyFromLegacySettings,
+    readGeminiApiKey,
+    writeGeminiApiKey,
+} from '@/lib/geminiApiKeyStorage';
 
 export const AVAILABLE_MODELS = [
     "gemini-2.5-pro",
@@ -171,10 +176,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Load from localStorage on initial mount
     useEffect(() => {
         try {
+            const storedApiKey = migrateGeminiApiKeyFromLegacySettings() || readGeminiApiKey();
+            if (storedApiKey) {
+                setApiKey(storedApiKey);
+            }
             const localSettings = localStorage.getItem('userSettings');
             if (localSettings) {
                 const settings = JSON.parse(localSettings);
                 loadSettings(settings);
+            }
+            // Garante que a chave dedicada prevalece sobre userSettings sem apiKey
+            if (storedApiKey) {
+                setApiKey(storedApiKey);
             }
         } catch (error) {
             console.warn("Could not load settings from localStorage", error);
@@ -224,6 +237,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         hapticsEnabled,
     ]);
 
+    // Persiste chave Gemini em storage dedicado (sobrevive a login/logout)
+    useEffect(() => {
+        if (isLoaded) {
+            writeGeminiApiKey(apiKey);
+        }
+    }, [apiKey, isLoaded]);
+
     // Save to localStorage whenever a setting changes
     useEffect(() => {
         if (isLoaded) {
@@ -244,7 +264,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
             if (typeof settings.playAmbientMusic === 'boolean') setPlayAmbientMusic(settings.playAmbientMusic);
             if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew);
-            if (settings.apiKey) setApiKey(settings.apiKey);
+            if (typeof settings.apiKey === 'string' && settings.apiKey.trim()) {
+                setApiKey(settings.apiKey.trim());
+            }
             if (settings.theme && THEME_PRESETS.includes(settings.theme as ThemePreset)) {
                 setTheme(settings.theme as ThemePreset);
             }

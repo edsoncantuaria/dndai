@@ -2,7 +2,7 @@
 
 import type { SessaoIA } from '@/types';
 import { DndButton } from '@/components/primitives';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Scroll } from 'lucide-react';
 import { SessionCard } from './SessionCard';
 
 export interface SessionGridProps {
@@ -19,29 +19,33 @@ export function SessionGrid({
   onPlay,
   onManage,
   onCreateHero,
-  emptyTitle = 'Nenhuma crônica iniciada',
+  emptyTitle = 'Nenhuma crônica ainda',
   compact,
 }: SessionGridProps) {
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-dnd-gold/25 bg-dnd-mist px-6 py-16 text-center">
-        <Sparkles className="mb-4 h-12 w-12 text-dnd-gold/50" />
-        <h3 className="font-display text-2xl text-dnd-parchment">{emptyTitle}</h3>
-        <p className="mt-2 max-w-md font-narrative text-dnd-parchment-muted">
-          Nenhuma crônica iniciada — forje seu destino. Crie um herói no cofre e abra a primeira mesa.
+      <div className="flex flex-col items-center rounded-2xl border border-dashed border-dnd-gold/20 bg-dnd-obsidian-raised/30 px-6 py-14 text-center">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-dnd-gold/10 text-dnd-gold">
+          <Scroll className="h-7 w-7" aria-hidden />
+        </div>
+        <h3 className="font-display text-xl text-dnd-parchment">{emptyTitle}</h3>
+        <p className="mt-2 max-w-sm font-narrative text-sm leading-relaxed text-dnd-parchment-muted">
+          Crie um herói no cofre e abra a primeira mesa — sua história começa com um único passo.
         </p>
-        {onCreateHero ? (
-          <DndButton variant="ember" className="mt-6" onClick={onCreateHero}>
-            <Plus className="h-4 w-4" />
-            Forjar primeiro herói
-          </DndButton>
-        ) : null}
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          {onCreateHero ? (
+            <DndButton variant="ember" onClick={onCreateHero}>
+              <Plus className="h-4 w-4" />
+              Criar herói
+            </DndButton>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {sessions.map((session) => (
         <SessionCard
           key={session.id}

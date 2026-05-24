@@ -20,7 +20,13 @@ export type EquipmentChoiceGroup = {
     choice: ProficiencyChoice;
 }
 
-export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListItem[] }) => {
+export type UseCharacterCreatorOptions = {
+  allLanguages: ApiListItem[];
+  /** Passo atual do wizard — equipamento só bloqueia a partir do passo 5 */
+  currentStep?: number;
+};
+
+export const useCharacterCreator = ({ allLanguages, currentStep = 1 }: UseCharacterCreatorOptions) => {
     const [state, dispatch] = useReducer(characterCreatorReducer, initialState);
 
     const setField = useCallback((field: keyof CharacterCreatorState, value: any) => {
@@ -33,7 +39,11 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         fetchFeats, 
         allEquipment,
         equipmentCategoryCache,
-    } = useDataManager(state.race, state.subrace, state.characterClass, state.background);
+        equipmentReady,
+    } = useDataManager(state.race, state.subrace, state.characterClass, state.background, {
+        prefetchEquipment: true,
+        requireEquipment: currentStep >= 5,
+    });
     
     const { raceDetails, classDetails, backgroundDetails } = details;
 
@@ -253,6 +263,7 @@ export const useCharacterCreator = ({ allLanguages }: { allLanguages: ApiListIte
         handleBackgroundChange,
         handleRandomizeRaceAndClass,
         fetchFeats,
+        equipmentReady,
         isComplete,
         buildCharacter,
     };

@@ -15,8 +15,9 @@ interface Props {
 
 const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav }) => {
     const {
+        characterClass,
         loadingStates,
-        details: { classSpellOptions, subclassSpells },
+        details: { classDetails, classSpellOptions, subclassSpells },
         racialSpellTraits,
         handleClassSpellChange,
         handleRacialSpellChange,
@@ -46,7 +47,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav })
 
     const allChosenSpellIndices = new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()]);
 
-    if (loadingStates.isLoading) {
+    if (characterClass && !classDetails && loadingStates.isFetching) {
         return (
             <PremiumLoader
                 title="Carregando grimórios iniciais"

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { SessaoIA } from '@/types';
-import { HubLayout } from './HubLayout';
+import { HubLayout, HubSectionHeader, HubStatPill } from './HubLayout';
 import { SessionGrid } from './session/SessionGrid';
 import { SessionActionsSheet } from './session/SessionCard';
 
@@ -29,17 +29,24 @@ export function SessionListPage({
 
   return (
     <HubLayout
-      title="Retome uma crônica"
-      subtitle="Todas as sessões guardadas. Continue do ponto exato onde parou."
-      label="Continuar"
+      title="Todas as crônicas"
+      subtitle="Cada sessão guardada. Continue do ponto exato onde parou."
+      label="Crônicas"
       onBack={onBack}
       backLabel="Voltar ao hub"
     >
+      <div className="mb-6">
+        <HubStatPill variant="inline" label="Total" value={sessions.length} />
+      </div>
+
+      <HubSectionHeader title="Suas mesas" />
+
       <SessionGrid
         sessions={sessions}
         onPlay={onContinueGame}
         onManage={setManageSession}
         onCreateHero={onCreateHero}
+        emptyTitle="Nenhuma crônica salva"
       />
       <SessionActionsSheet
         session={manageSession}

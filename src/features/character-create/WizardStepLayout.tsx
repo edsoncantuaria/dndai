@@ -14,6 +14,8 @@ export interface WizardStepLayoutProps {
   isLastStep?: boolean;
   onFinalize?: () => void;
   finalizeDisabled?: boolean;
+  /** No mobile a navegação fica no dock do resumo — evita sobreposição */
+  hideFooter?: boolean;
 }
 
 export function WizardStepLayout({
@@ -27,6 +29,7 @@ export function WizardStepLayout({
   isLastStep,
   onFinalize,
   finalizeDisabled,
+  hideFooter = false,
 }: WizardStepLayoutProps) {
   const meta = CREATION_STEPS[step - 1];
 
@@ -40,7 +43,8 @@ export function WizardStepLayout({
         <p className="mt-1 font-narrative text-sm text-dnd-parchment-muted">{meta?.description}</p>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">{children}</div>
-      <div className="mt-4 flex shrink-0 gap-2 border-t border-dnd-gold/15 pt-4 pb-[var(--dnd-safe-bottom)]">
+      {hideFooter ? null : (
+      <div className="mt-4 flex shrink-0 gap-2 border-t border-dnd-gold/15 pt-4">
         {onBack ? (
           <DndButton variant="ghost" onClick={onBack} className="flex-1 sm:flex-none">
             Voltar
@@ -63,6 +67,7 @@ export function WizardStepLayout({
           </DndButton>
         ) : null}
       </div>
+      )}
     </div>
   );
 }
