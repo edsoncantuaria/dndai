@@ -21,7 +21,9 @@ import { AmbientAudioEngine } from '@/components/AmbientAudioEngine';
 import { useStageAmbientSound } from '@/hooks/useStageAmbientSound';
 import { useMenuMusicCrossfade } from '@/hooks/useMenuMusicCrossfade';
 import { consumeHubIntent } from '@/lib/hubIntentStorage';
+import { setHubBackTarget } from '@/lib/hubSession';
 import type { HubIntent } from '@/contexts/HubIntentContext';
+import { useHubNavigation } from '@/contexts/HubNavigationContext';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
 import { Loader2 } from 'lucide-react';
@@ -43,6 +45,7 @@ const GameContainer = () => {
     const { useAiHomebrew, playMenuMusic, volume, isMuted } = useSettingsContext();
     const { logout, user } = useAuth();
     const { toast } = useToast();
+    const hubNavigation = useHubNavigation();
 
     const [gameStage, setGameStage] = useState<GameStage>('loading');
     const [sessions, setSessions] = useState<SessaoIA[]>([]);
@@ -161,6 +164,7 @@ const GameContainer = () => {
 
     const applyHubIntent = useCallback(
         (intent: HubIntent) => {
+            setHubBackTarget('landing');
             switch (intent.type) {
                 case 'continue':
                     void handleContinueGame(intent.sessionId);
@@ -304,6 +308,7 @@ const GameContainer = () => {
                 isLoadingData={isLoadingData}
                 onSetStage={onSetStage}
                 onReturnToMenu={returnToMenu}
+                onReturnToHubLanding={hubNavigation?.returnToHubLanding}
                 onContinueGame={handleContinueGame}
                 onCharacterCreated={handleCharacterCreated}
                 onStartFromVault={handleNewGameFromVault}

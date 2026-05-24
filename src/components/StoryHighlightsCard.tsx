@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { getSessionFacts, getSessionReplay, SessionReplayResponse } from '@/services/gameService';
 import type { SessionFactsResponse } from '@/services/gameService'; // Corrigido a importação
-import { Loader2, RefreshCw, Download, MapPin, Users, CalendarClock, Bookmark, BookOpen, ChevronDown } from 'lucide-react';
+import { Loader2, RefreshCw, MapPin, Users, CalendarClock, Bookmark, BookOpen, ChevronDown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ActionModal from '@/components/ui/ActionModal';
 
@@ -156,28 +156,6 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
         }
     }, [sessionId, toast]);
 
-    const handleDownloadReplay = useCallback(async () => {
-        if (!sessionId) return;
-        try {
-            const data = replayPreview ?? await getSessionReplay(sessionId);
-            const blob = new Blob([data.markdown], { type: 'text/markdown;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = data.fileName || `replay-${sessionId}.md`;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error('[StoryHighlightsCard] Falha ao exportar resumo:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Não foi possível exportar o resumo da sessão.',
-            });
-        }
-    }, [sessionId, replayPreview, toast]);
-
     const isCompact = variant === 'compact' || variant === 'v2';
     const isV2 = variant === 'v2';
 
@@ -241,14 +219,19 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                         ))}
                     </div>
                 </CollapsibleCardSection>
-                 <button
-                    onClick={handleOpenReplayPreview}
-                    disabled={isPreviewLoading}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-amber-600/90 px-3 py-2 text-xs font-semibold text-stone-900 hover:bg-amber-600 disabled:opacity-50 mt-2"
-                >
-                    {isPreviewLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <BookOpen className="h-4 w-4" />}
-                    Visualizar e Exportar Resumo
-                </button>
+
+                {isV2 && facts?.activeQuests?.length ? (
+                    <CollapsibleCardSection title="Missões" icon={<MapPin className="h-4 w-4" />} hasContent>
+                        <ul className="space-y-1 text-sm text-stone-300">
+                            {facts.activeQuests.map((quest) => (
+                                <li key={quest.id}>
+                                    <span className="font-medium text-stone-200">{quest.title}</span>
+                                    <span className="text-stone-500"> — {quest.source}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </CollapsibleCardSection>
+                ) : null}
             </div>
         );
     }
@@ -343,11 +326,10 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
                 onClose={() => setIsPreviewOpen(false)}
                 actions={[
                     {
-                        text: 'Exportar Markdown',
-                        onClick: handleDownloadReplay,
+                        text: 'Fechar',
+                        onClick: () => setIsPreviewOpen(false),
                         variant: 'primary',
-                        icon: <Download className="h-4 w-4" />,
-                    }
+                    },
                 ]}
             >
                 {replayPreview ? (

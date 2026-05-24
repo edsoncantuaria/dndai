@@ -3,6 +3,25 @@ import { AppDataSource } from '../database/data-source.js';
 import { SessionCastMember, type CastRole, type CastVitals } from '../entities/SessionCastMember.js';
 import { SessaoIA } from '../entities/SessaoIA.js';
 import { Character } from '../entities/Character.js';
+import { Relationship } from '../entities/Relationship.js';
+
+export type WorldEchoDto = {
+    name: string;
+    kind: 'other_player';
+    regionSlug?: string | null;
+    note: string;
+};
+
+type CastSyncSource = 'relationship' | 'combat' | 'player';
+
+type CombatantInput = {
+    id?: string;
+    name?: string;
+    isPlayer?: boolean;
+    isDead?: boolean;
+    hp?: { current?: number; max?: number };
+    attitude?: 'hostile' | 'neutral' | 'ally';
+};
 
 export type CreateCastMemberInput = {
     displayName: string;
@@ -16,7 +35,10 @@ export type CreateCastMemberInput = {
 
 async function assertSessionOwner(sessionId: number, userId: number): Promise<SessaoIA> {
     const repo = AppDataSource.getRepository(SessaoIA);
-    const sessao = await repo.findOne({ where: { id: sessionId, userId } });
+    const sessao = await repo.findOne({
+        where: { id: sessionId, userId },
+        relations: ['character'],
+    });
     if (!sessao) {
         throw createError(404, 'Sessão não encontrada.');
     }
@@ -36,12 +58,195 @@ function characterToSnapshot(character: Character): Record<string, unknown> {
     };
 }
 
-export async function listSessionCast(sessionId: number, userId: number): Promise<SessionCastMember[]> {
+function normalizeSlug(value: unknown): string | null {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    return value
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function relationshipToRole(status: Relationship['status']): CastRole {
+    if (status === 'hostile' || status === 'unfriendly') return 'enemy';
+    if (status === 'ally' || status === 'friendly') return 'ally';
+    return 'npc';
+}
+
+function combatantToRole(c: CombatantInput): CastRole {
+    if (c.isPlayer) return 'pc';
+    if (c.attitude === 'ally') return 'ally';
+    if (c.attitude === 'hostile') return 'enemy';
+    return 'enemy';
+}
+
+function combatantToVitals(c: CombatantInput): CastVitals {
+    if (c.isDead) return 'dead';
+    const current = c.hp?.current;
+    if (typeof current === 'number' && current <= 0) return 'unconscious';
+    return 'alive';
+}
+
+function castSyncKey(source: CastSyncSource, id: string): string {
+    return `${source}:${id}`;
+}
+
+async function upsertAutoCastMember(
+    sessionId: number,
+    userId: number,
+    key: string,
+    input: CreateCastMemberInput & { metadata: Record<string, unknown> },
+): Promise<void> {
+    const repo = AppDataSource.getRepository(SessionCastMember);
+    const members = await repo.find({ where: { sessionId } });
+    const existing = members.find(m => {
+        const meta = m.metadata as { syncKey?: string } | null;
+        return meta?.syncKey === key;
+    });
+
+    if (existing) {
+        existing.displayName = input.displayName;
+        existing.role = input.role;
+        existing.vitals = input.vitals ?? existing.vitals;
+        if (input.sheetSnapshot) existing.sheetSnapshot = input.sheetSnapshot;
+        existing.metadata = { ...(existing.metadata ?? {}), ...input.metadata, syncKey: key, auto: true };
+        await repo.save(existing);
+        return;
+    }
+
+    await addSessionCastMember(sessionId, userId, {
+        ...input,
+        metadata: { ...input.metadata, syncKey: key, auto: true },
+    });
+}
+
+async function pruneAutoCastMembers(sessionId: number, activeKeys: Set<string>): Promise<void> {
+    const repo = AppDataSource.getRepository(SessionCastMember);
+    const members = await repo.find({ where: { sessionId } });
+    const toRemove = members.filter(m => {
+        if (m.role === 'pc') return false;
+        const meta = m.metadata as { auto?: boolean; syncKey?: string } | null;
+        if (!meta?.auto || !meta.syncKey) return false;
+        return !activeKeys.has(meta.syncKey);
+    });
+    if (toRemove.length) {
+        await repo.delete(toRemove.map(m => m.id));
+    }
+}
+
+export type SyncSessionCastOptions = {
+    combatState?: { isActive?: boolean; combatants?: CombatantInput[] } | null;
+};
+
+/** Sincroniza elenco com ficha, NPCs das relações e combatentes ativos (mundo vivo). */
+export async function syncSessionCastFromWorld(
+    sessionId: number,
+    userId: number,
+    options: SyncSessionCastOptions = {},
+): Promise<void> {
+    const sessao = await assertSessionOwner(sessionId, userId);
+    const activeKeys = new Set<string>();
+
+    if (sessao.characterId) {
+        const charRepo = AppDataSource.getRepository(Character);
+        const character = await charRepo.findOne({
+            where: { id: sessao.characterId, userId },
+            relations: ['relationships', 'relationships.quests'],
+        });
+        if (character) {
+            await ensurePlayerInCast(sessionId, userId, character);
+            activeKeys.add(castSyncKey('player', String(character.id)));
+
+            for (const rel of character.relationships ?? []) {
+                if (!rel?.name?.trim()) continue;
+                const key = castSyncKey('relationship', rel.npcId || String(rel.id));
+                activeKeys.add(key);
+                await upsertAutoCastMember(sessionId, userId, key, {
+                    displayName: rel.name.trim(),
+                    role: relationshipToRole(rel.status),
+                    vitals: 'alive',
+                    metadata: {
+                        source: 'relationship',
+                        npcId: rel.npcId,
+                        status: rel.status,
+                        description: rel.description ?? null,
+                        regionSlug: rel.regionSlug ?? null,
+                    },
+                });
+            }
+        }
+    }
+
+    const combat = options.combatState;
+    if (combat?.isActive && Array.isArray(combat.combatants)) {
+        for (const c of combat.combatants) {
+            if (!c?.name?.trim()) continue;
+            const id = c.id || c.name;
+            const key = castSyncKey('combat', id);
+            activeKeys.add(key);
+            if (c.isPlayer) continue;
+            await upsertAutoCastMember(sessionId, userId, key, {
+                displayName: c.name.trim(),
+                role: combatantToRole(c),
+                vitals: combatantToVitals(c),
+                metadata: { source: 'combat', combatantId: id },
+            });
+        }
+    }
+
+    await pruneAutoCastMembers(sessionId, activeKeys);
+}
+
+export async function listWorldEchoes(sessionId: number, userId: number): Promise<WorldEchoDto[]> {
+    const sessao = await assertSessionOwner(sessionId, userId);
+    const charRepo = AppDataSource.getRepository(Character);
+    const worldState = (sessao.character?.worldState ?? {}) as Record<string, unknown>;
+    const regionSlug =
+        normalizeSlug(worldState.regionSlug ?? worldState.currentRegionSlug ?? worldState.currentRegion) ||
+        normalizeSlug(sessao.character?.currentRegion);
+    if (!regionSlug) return [];
+
+    const strangers = await charRepo
+        .createQueryBuilder('c')
+        .innerJoin(SessaoIA, 's', 's.characterId = c.id')
+        .where('c.userId != :userId', { userId })
+        .andWhere('s.id != :sessionId', { sessionId })
+        .andWhere("JSON_UNQUOTE(JSON_EXTRACT(c.worldState, '$.regionSlug')) = :slug", {
+            slug: regionSlug,
+        })
+        .limit(8)
+        .getMany();
+
+    return strangers.map(c => ({
+        name: c.name,
+        kind: 'other_player' as const,
+        regionSlug,
+        note: 'Eco de outra mesa nesta região — rumor ou rastro, não diálogo em tempo real.',
+    }));
+}
+
+export type SessionCastListResult = {
+    cast: SessionCastMember[];
+    worldEchoes: WorldEchoDto[];
+};
+
+export async function listSessionCast(
+    sessionId: number,
+    userId: number,
+    options?: { skipSync?: boolean },
+): Promise<SessionCastListResult> {
     await assertSessionOwner(sessionId, userId);
-    return AppDataSource.getRepository(SessionCastMember).find({
+    if (!options?.skipSync) {
+        await syncSessionCastFromWorld(sessionId, userId);
+    }
+    const cast = await AppDataSource.getRepository(SessionCastMember).find({
         where: { sessionId },
         order: { role: 'ASC', displayName: 'ASC' },
     });
+    const worldEchoes = await listWorldEchoes(sessionId, userId);
+    return { cast, worldEchoes };
 }
 
 export async function addSessionCastMember(
@@ -172,7 +377,6 @@ export async function getWorldPresenceHints(
 ): Promise<string[]> {
     if (!regionSlug?.trim()) return [];
     const hints: string[] = [];
-    const sessaoRepo = AppDataSource.getRepository(SessaoIA);
     const charRepo = AppDataSource.getRepository(Character);
     const ownOthers = await charRepo
         .createQueryBuilder('c')

@@ -12,7 +12,7 @@ const dndButtonVariants = cva(
     variants: {
       variant: {
         ember:
-          'bg-dnd-ember text-white shadow-[0_4px_14px_var(--dnd-ember-muted)] hover:bg-dnd-ember-hover active:scale-[0.98]',
+          'bg-dnd-ember text-white uppercase tracking-[0.08em] shadow-[0_6px_24px_var(--dnd-ember-muted)] hover:bg-dnd-ember-hover hover:shadow-[0_8px_28px_var(--dnd-ember-glow)] active:scale-[0.98]',
         goldOutline:
           'border border-dnd-gold/60 bg-transparent text-dnd-gold hover:border-dnd-gold hover:bg-dnd-gold/10',
         ghost:

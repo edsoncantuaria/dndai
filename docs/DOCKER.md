@@ -26,7 +26,7 @@ cp backend/.env.example backend/.env
 npm install
 npm run install:backend
 
-# 2) Subir MySQL + Redis + SRD (sem build do app)
+# 2) Subir MySQL + Redis + SRD + MinIO + Piper (1ª vez: build do Piper)
 npm run dev:infra
 
 # 3) Dois terminais — salvou o arquivo, recarrega sozinho
@@ -41,7 +41,18 @@ DB_HOST=localhost
 DB_PORT=3306
 REDIS_URL=redis://localhost:6379
 SRD_API_BASE=http://localhost:3000/api/2014
+
+# MinIO + Piper (serviços do docker compose)
+MINIO_ENDPOINT=localhost
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_ACCESS_KEY=dndai_minio
+MINIO_SECRET_KEY=dndai_minio_secret
+PIPER_HTTP_URL=http://localhost:5500
+API_PUBLIC_URL=http://localhost:8071/api
 ```
+
+Veja `backend/.env.example` para a lista completa.
 
 Parar infra: `docker compose down` (dados do MySQL ficam no volume).
 
@@ -77,6 +88,18 @@ Mais lento no primeiro boot; útil se não quiser Node no host.
 | Backend | http://localhost:8071/api/health |
 | WebSocket | ws://localhost:8071/ |
 | SRD API | http://localhost:3000/api/2014 |
+| MinIO API | http://localhost:9000 |
+| MinIO Console | http://localhost:9001 (login = `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`) |
+| Piper TTS | http://localhost:5500/health |
+
+### Áudio da narração (Piper + MinIO internos)
+
+- **Piper** e **MinIO** ficam só na rede Docker — **não** precisam de porta pública em produção.
+- O browser baixa áudio via **`GET /api/tts/audio?key=...`** (proxy no backend).
+- Configure `API_PUBLIC_URL` (ex.: `http://localhost:8071/api` em dev).
+- Em deploy, exponha apenas **frontend** + **backend**; MinIO/Piper/MySQL/Redis atrás do compose.
+
+Na subida do backend: `[Startup][TTS] Ativo · Piper HTTP=...`
 
 ---
 

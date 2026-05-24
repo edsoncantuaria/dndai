@@ -13,6 +13,8 @@ import {
 import type { SessaoIA } from '@/types';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { DndButton } from '@/components/primitives';
+import { CinematicBackdrop } from '@/components/cinematic';
+import { cinematicImages } from '@/lib/cinematicAssets';
 import { HubLayout, HubNavCard, HubSectionHeader, HubStatPill } from './HubLayout';
 import { SessionGrid } from './session/SessionGrid';
 import { SessionActionsSheet } from './session/SessionCard';
@@ -52,21 +54,20 @@ function FeaturedChronicle({
   });
 
   return (
-    <section className="relative mb-8 overflow-hidden rounded-2xl border border-dnd-gold/15 bg-dnd-obsidian-raised/50">
-      <div
-        className="pointer-events-none absolute -right-8 -top-8 h-40 w-40 rounded-full bg-dnd-gold/10 blur-2xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute bottom-0 left-0 h-24 w-full bg-gradient-to-t from-dnd-obsidian/80 to-transparent"
-        aria-hidden
-      />
-
-      <div className="relative p-5 sm:p-6">
-        <p className="font-ui text-[11px] font-semibold uppercase tracking-[0.2em] text-dnd-gold/90">
+    <section className="relative mb-10 overflow-hidden rounded-2xl border border-dnd-gold/15 shadow-[var(--dnd-shadow-hero)]">
+      <CinematicBackdrop
+        image={cinematicImages.rpgStillLife}
+        imageAlt="Luz de velas na taverna — última mesa"
+        intensity="strong"
+        kenBurns
+        className="min-h-[280px]"
+      >
+      <div className="relative flex min-h-[280px] flex-col justify-end p-6 sm:p-8">
+        <div className="dnd-brand-accent-wide mb-4 max-w-[8rem]" aria-hidden />
+        <p className="font-ui text-[11px] font-bold uppercase tracking-[0.28em] text-dnd-ember">
           Última mesa
         </p>
-        <h2 className="mt-1 font-display text-2xl leading-tight text-dnd-parchment sm:text-[1.65rem]">
+        <h2 className="mt-2 font-display text-3xl leading-tight text-dnd-parchment sm:text-4xl">
           {session.nome}
         </h2>
         <p className="mt-1 font-ui text-xs text-dnd-parchment-muted">Atualizada em {updated}</p>
@@ -81,11 +82,12 @@ function FeaturedChronicle({
           </p>
         )}
 
-        <DndButton variant="ember" className="mt-5" onClick={onContinue}>
+        <DndButton variant="ember" size="lg" className="mt-6" onClick={onContinue}>
           <Play className="h-4 w-4" />
           Retomar agora
         </DndButton>
       </div>
+      </CinematicBackdrop>
     </section>
   );
 }
@@ -121,13 +123,19 @@ export function HubMain({
       subtitle="Retome uma aventura em andamento ou abra novos caminhos na mesa."
       label="Sua mesa"
       headerActions={
-        <div className="flex items-center gap-1 rounded-xl border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <DndButton variant="secondary" size="sm" onClick={onOpenAllSessions}>
+            <BookOpen className="h-4 w-4" />
+            Suas mesas
+          </DndButton>
+          <div className="flex items-center gap-1 rounded-xl border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-1">
           <DndButton variant="ghost" size="sm" onClick={onOpenSettings} aria-label="Configurações">
             <Settings className="h-4 w-4" />
           </DndButton>
           <DndButton variant="ghost" size="sm" onClick={onLogout} aria-label="Sair">
             <LogOut className="h-4 w-4" />
           </DndButton>
+          </div>
         </div>
       }
     >
@@ -179,14 +187,14 @@ export function HubMain({
         />
         <HubNavCard
           icon={<FlaskConical className="h-5 w-5" />}
-          title="Grimório"
-          description="Homebrew, magias e criaturas"
+          title="Homebrew"
+          description="Magias, itens e criaturas custom"
           onClick={onOpenHomebrew}
         />
         <HubNavCard
           icon={<BookOpen className="h-5 w-5" />}
-          title="Todas as crônicas"
-          description="Lista completa de sessões"
+          title="Suas mesas"
+          description="Lista completa de crônicas"
           onClick={onOpenAllSessions}
         />
         {isAdmin && onOpenTranslation ? (

@@ -46,11 +46,32 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
     } = deps;
 
     useEffect(() => {
+        const releaseNarrationPipeline = () => {
+            pendingActionsRef.current.clear();
+            actionTimeoutsRef.current.forEach(timer => clearTimeout(timer));
+            actionTimeoutsRef.current.clear();
+            setIsLoading(false);
+            if (!interactionState.playerRollRequest) {
+                setActionPhaseLabel(null);
+            }
+        };
+
         const handleGameStateUpdate = (payload: GameMasterResponse & { stateVersion?: number }) => {
             if (typeof payload?.stateVersion === 'number') {
                 clientStateVersionRef.current = payload.stateVersion;
             }
             handleApiResponse(payload);
+            const hasNarrativePayload =
+                (Array.isArray(payload?.logEntries) && payload.logEntries.length > 0) ||
+                Boolean(payload?.systemLog);
+            if (
+                hasNarrativePayload &&
+                !interactionState.playerRollRequest &&
+                !payload?.playerRollRequest
+            ) {
+                releaseNarrationPipeline();
+                return;
+            }
             if (!interactionState.playerRollRequest && pendingActionsRef.current.size === 0) {
                 setActionPhaseLabel(null);
             }
@@ -133,8 +154,26 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
             }
             if (payload?.status === 'needs_roll') {
                 setActionPhaseLabel('Aguardando rolagem do jogador');
+                if (pendingActionsRef.current.size === 0) {
+                    setIsLoading(false);
+                }
             } else if (payload?.status === 'accepted') {
-                setActionPhaseLabel('Gerando narrativa...');
+                const awaitingRoll = Boolean(payload?.result?.playerRollRequest);
+                const hasNarration =
+                    (Array.isArray(payload?.result?.logEntries) && payload.result.logEntries.length > 0) ||
+                    Boolean(payload?.result?.systemLog);
+                if (awaitingRoll) {
+                    setActionPhaseLabel('Aguardando rolagem do jogador');
+                } else if (hasNarration && !interactionState.playerRollRequest) {
+                    releaseNarrationPipeline();
+                } else {
+                    setActionPhaseLabel('Gerando narrativa...');
+                }
+            } else if (payload?.status === 'rejected') {
+                if (!interactionState.playerRollRequest && pendingActionsRef.current.size === 0) {
+                    setActionPhaseLabel(null);
+                    setIsLoading(false);
+                }
             }
             if (payload?.result) {
                 handleApiResponse({ ...payload.result, stateVersion: payload.stateVersion });
@@ -170,7 +209,15 @@ export function useGameWebSocket(deps: GameWebSocketDeps) {
         const handleActionTimeout = (payload?: { actionId?: string }) => {
             if (!payload?.actionId) return;
             pendingActionsRef.current.delete(payload.actionId);
+            const timer = actionTimeoutsRef.current.get(payload.actionId);
+            if (timer) {
+                clearTimeout(timer);
+                actionTimeoutsRef.current.delete(payload.actionId);
+            }
             updateLoadingState();
+            if (!interactionState.playerRollRequest) {
+                setActionPhaseLabel(null);
+            }
             toast({
                 variant: 'destructive',
                 title: 'Ação demorou demais',

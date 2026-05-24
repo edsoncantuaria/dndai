@@ -27,9 +27,9 @@ export function HubLayout({
 }: HubLayoutProps) {
   return (
     <div className={cn('relative h-full min-h-0 w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
-      <AmbientBackground variant="ember" showVignette={false} />
-      <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-16 pt-[calc(1rem+var(--dnd-safe-top))] sm:px-6">
-        <header className="mb-8 border-b border-dnd-gold/12 pb-6">
+      <AmbientBackground variant="cinematic" showVignette={false} />
+      <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-16 pt-[calc(1.25rem+var(--dnd-safe-top))] sm:px-6">
+        <header className="dnd-hero-stage mb-10 border-b border-dnd-gold/10 pb-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               {onBack ? (
@@ -43,17 +43,22 @@ export function HubLayout({
                 </button>
               ) : null}
               {label ? (
-                <p className="font-ui text-[11px] font-semibold uppercase tracking-[0.22em] text-dnd-gold/80">
-                  {label}
-                </p>
-              ) : null}
+                <>
+                  <div className="dnd-brand-accent mb-3" aria-hidden />
+                  <p className="font-ui text-[11px] font-bold uppercase tracking-[0.28em] text-dnd-ember">
+                    {label}
+                  </p>
+                </>
+              ) : (
+                <div className="dnd-brand-accent mb-3" aria-hidden />
+              )}
               <h1
                 className={cn(
-                  'font-display text-3xl leading-tight tracking-tight text-dnd-parchment sm:text-[2rem]',
-                  label ? 'mt-1' : undefined
+                  'font-display text-4xl leading-[1.05] tracking-tight text-dnd-parchment sm:text-5xl lg:text-[3.25rem]',
+                  label ? 'mt-2' : 'mt-1'
                 )}
               >
-                {title}
+                <span className="dnd-text-gradient-gold">{title}</span>
               </h1>
               {subtitle ? (
                 <p className="mt-3 max-w-lg font-narrative text-[0.95rem] leading-relaxed text-dnd-parchment-muted">
@@ -146,8 +151,8 @@ export function HubNavCard({
     accent === 'cyan'
       ? 'group-hover:border-cyan-400/35 group-hover:shadow-[0_0_24px_-8px_rgba(34,211,238,0.25)]'
       : accent === 'ember'
-        ? 'group-hover:border-dnd-ember/35 group-hover:shadow-[0_0_24px_-8px_rgba(196,30,58,0.2)]'
-        : 'group-hover:border-dnd-gold/30 group-hover:shadow-[0_0_24px_-8px_rgba(201,162,39,0.15)]';
+        ? 'group-hover:border-dnd-ember/40 group-hover:shadow-[0_0_28px_-6px_var(--dnd-ember-glow)]'
+        : 'group-hover:border-dnd-gold/35 group-hover:shadow-[0_0_28px_-8px_var(--dnd-gold-glow)]';
 
   const iconBg =
     accent === 'cyan'

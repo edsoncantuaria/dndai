@@ -1,4 +1,5 @@
 import { apiClient } from '@/services/apiClient';
+import type { CombatState } from '@/types';
 
 export type CastRole = 'pc' | 'npc' | 'ally' | 'enemy';
 export type CastVitals = 'alive' | 'dead' | 'unconscious' | 'unknown';
@@ -16,22 +17,29 @@ export interface SessionCastMemberDto {
   visibleToParty: boolean;
 }
 
-export async function fetchSessionCast(sessionId: number): Promise<SessionCastMemberDto[]> {
-  return apiClient<SessionCastMemberDto[]>(`/sessoes/${sessionId}/cast`);
+export interface WorldEchoDto {
+  name: string;
+  kind: 'other_player';
+  regionSlug?: string | null;
+  note: string;
 }
 
-export async function addCastMember(
+export interface SessionCastListResponse {
+  cast: SessionCastMemberDto[];
+  worldEchoes: WorldEchoDto[];
+}
+
+export async function fetchSessionCast(sessionId: number): Promise<SessionCastListResponse> {
+  return apiClient<SessionCastListResponse>(`/sessoes/${sessionId}/cast`);
+}
+
+export async function syncSessionCast(
   sessionId: number,
-  body: {
-    displayName: string;
-    role: CastRole;
-    vitals?: CastVitals;
-    characterId?: number | null;
-  },
-): Promise<SessionCastMemberDto> {
-  return apiClient<SessionCastMemberDto>(`/sessoes/${sessionId}/cast`, {
+  combatState?: CombatState | null,
+): Promise<SessionCastListResponse> {
+  return apiClient<SessionCastListResponse>(`/sessoes/${sessionId}/cast/sync`, {
     method: 'POST',
-    body: JSON.stringify(body),
+    body: JSON.stringify({ combatState: combatState ?? null }),
   });
 }
 
@@ -44,8 +52,4 @@ export async function updateCastMember(
     method: 'PATCH',
     body: JSON.stringify(patch),
   });
-}
-
-export async function deleteCastMember(sessionId: number, memberId: number): Promise<void> {
-  await apiClient<void>(`/sessoes/${sessionId}/cast/${memberId}`, { method: 'DELETE' });
 }

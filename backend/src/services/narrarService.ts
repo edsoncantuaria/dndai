@@ -29,7 +29,7 @@ import {
 import { applyXpEvents, clampCharacterLevel } from './xpService.js';
 import { recordTimelineEventAndSummarize, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
-import { synthesizeNarrationAudio } from './ttsService.js';
+import { synthesizeNarrationAudio, buildTtsPlaybackUrl } from './ttsService.js';
 import { isImageGenerationAvailable } from './imageGenerationService.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { savePendingRollRequest, clearPendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
@@ -141,16 +141,17 @@ const attachNarrationAudio = async (response: GameMasterResponse) => {
         const text = getPlainTextFromLogEntry(entry as any);
         if (!text) continue;
         const audio = await synthesizeNarrationAudio(text);
-        if (!audio?.url || !audio.key) continue;
-        (entry as any).audioUrl = audio.url;
+        if (!audio?.key) continue;
+        const playbackUrl = audio.url ?? buildTtsPlaybackUrl(audio.key);
+        (entry as any).audioUrl = playbackUrl;
         (entry as any).audioKey = audio.key;
         if (typeof entry.content === 'string') {
-            entry.content = { content: entry.content, audioUrl: audio.url, audioKey: audio.key };
+            entry.content = { content: entry.content, audioUrl: playbackUrl, audioKey: audio.key };
         } else if (entry.content && typeof entry.content === 'object') {
-            entry.content.audioUrl = audio.url;
+            entry.content.audioUrl = playbackUrl;
             (entry.content as any).audioKey = audio.key;
         } else {
-            entry.content = { content: text, audioUrl: audio.url, audioKey: audio.key };
+            entry.content = { content: text, audioUrl: playbackUrl, audioKey: audio.key };
         }
     }
 };
@@ -949,12 +950,12 @@ export const processPlayerTurn = async (
     let castAndWorldHints: string[] = [];
     if (!isTestRun && sessao?.id) {
         try {
-            const { getCastSummaryForSession, getWorldPresenceHints, ensurePlayerInCast } = await import(
+            const { getCastSummaryForSession, getWorldPresenceHints, syncSessionCastFromWorld } = await import(
                 './sessionCastService.js'
             );
-            if (sessao.character) {
-                await ensurePlayerInCast(sessao.id, userId, sessao.character);
-            }
+            await syncSessionCastFromWorld(sessao.id, userId, {
+                combatState: promptCombatState as { isActive?: boolean; combatants?: unknown[] } | null,
+            });
             const castBlock = await getCastSummaryForSession(sessao.id);
             if (castBlock) castAndWorldHints.push(castBlock);
             const regionSlug =

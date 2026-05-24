@@ -96,6 +96,14 @@ const clearActionTimer = (actionId: string) => {
         actionTimers.delete(actionId);
     }
 };
+
+/** Garante que o cliente saia do estado "narrando" mesmo em erro ou cancelamento. */
+const emitActionRelease = (ws: WebSocket, actionId: string | undefined) => {
+    if (!actionId) return;
+    clearActionTimer(actionId);
+    ws.send(JSON.stringify({ type: 'narrationComplete', payload: { actionId } }));
+    ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId } }));
+};
 const sessionStateVersions = new Map<number, number>();
 const getSessionStateVersion = (sessionId: number) => sessionStateVersions.get(sessionId) ?? 0;
 const bumpSessionStateVersion = async (sessionId: number) => {
@@ -196,7 +204,7 @@ const handleStructuredIntent = async ({
                     payload: { ...response, stateVersion: newVersion },
                 })
             );
-            ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId } }));
+            emitActionRelease(ws, actionId);
             return 'handled';
         }
 
@@ -557,6 +565,7 @@ export function configureWebSocket(httpServer: Server) {
                                 sessionId,
                                 actionId: resolvedActionId,
                             });
+                            emitActionRelease(ws, resolvedActionId);
                         } else {
                             ws.send(JSON.stringify({
                                 type: 'actionResolution',
@@ -573,6 +582,7 @@ export function configureWebSocket(httpServer: Server) {
                         await recordPhase('DELTA_APPLIED');
                     } catch (error: any) {
                         console.error('[WSS] Erro ao processar ação:', error);
+                        emitActionRelease(ws, resolvedActionId);
                         ws.send(JSON.stringify({
                             type: 'error',
                             payload: {
@@ -583,6 +593,7 @@ export function configureWebSocket(httpServer: Server) {
                         }));
                     } finally {
                         if (resolvedActionId) {
+                            emitActionRelease(ws, resolvedActionId);
                             activeActions.delete(resolvedActionId);
                             logActionFlow('processAction:finalized', {
                                 actionId: resolvedActionId,
@@ -876,8 +887,7 @@ export function configureWebSocket(httpServer: Server) {
                             }));
                             ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: enrichedResponse }));
                         } finally {
-                            clearActionTimer(requestId);
-                            ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId: requestId } }));
+                            emitActionRelease(ws, requestId);
                             logActionFlow('roll:submit:completed', {
                                 sessionId,
                                 requestId,
@@ -887,7 +897,8 @@ export function configureWebSocket(httpServer: Server) {
                         }
                     } catch (error: any) {
                         console.error('[WSS] Erro ao enviar resultado de rolagem:', error);
-                        ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Falha ao registrar resultado da rolagem.' } }));
+                        emitActionRelease(ws, requestId);
+                        ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Falha ao registrar resultado da rolagem.', actionId: requestId } }));
                     }
                     break;
 

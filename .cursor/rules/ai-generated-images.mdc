@@ -1,0 +1,18 @@
+---
+description: Destino padrão de imagens geradas por IA neste projeto
+alwaysApply: true
+---
+
+# Imagens geradas por IA
+
+Imagens para o app dndai (upload manual / assets estáticos) devem ir para:
+
+**`public/assets/AI/`**
+
+## Regras
+
+- **Caminho no disco:** `public/assets/AI/<nome-descritivo>.png` (ou `.jpg` / `.webp`).
+- **URL no app:** `/assets/AI/<nome-descritivo>.png`
+- **Nomes:** kebab-case, descritivos (`hero-tavern-night.png`).
+- **Não usar** API paga de geração de imagem (Gemini Image / MCP) no fluxo automático.
+- Usar `AI_ASSETS_BASE` de `src/lib/aiAssets.ts` no código.

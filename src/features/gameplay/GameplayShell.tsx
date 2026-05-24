@@ -88,7 +88,7 @@ export function GameplayShell({
         'pl-[var(--dnd-safe-left)] pr-[var(--dnd-safe-right)]'
       )}
     >
-      <AmbientBackground variant="ember" />
+      <AmbientBackground variant="cinematic" />
       <Vignette mode="hp" />
       <GameplayTopBar
         region={region}

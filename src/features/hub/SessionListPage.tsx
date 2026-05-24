@@ -29,17 +29,17 @@ export function SessionListPage({
 
   return (
     <HubLayout
-      title="Todas as crônicas"
+      title="Suas mesas"
       subtitle="Cada sessão guardada. Continue do ponto exato onde parou."
       label="Crônicas"
       onBack={onBack}
-      backLabel="Voltar ao hub"
+      backLabel="Voltar"
     >
       <div className="mb-6">
         <HubStatPill variant="inline" label="Total" value={sessions.length} />
       </div>
 
-      <HubSectionHeader title="Suas mesas" />
+      <HubSectionHeader title="Sessões" />
 
       <SessionGrid
         sessions={sessions}

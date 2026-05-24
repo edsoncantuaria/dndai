@@ -74,9 +74,9 @@ export function WizardStepLayout({
 
 export function WizardShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-dnd-obsidian">
+    <div className="relative h-full min-h-0 w-full overflow-hidden bg-dnd-obsidian">
       <AmbientBackground variant="parchment" />
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-screen-xl flex-col px-3 py-4 sm:px-6 sm:py-6">
+      <div className="relative z-10 mx-auto flex h-full min-h-0 max-w-screen-xl flex-col overflow-hidden px-3 py-4 sm:px-6 sm:py-6">
         {children}
       </div>
     </div>

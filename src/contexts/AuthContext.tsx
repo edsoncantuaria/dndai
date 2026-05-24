@@ -111,6 +111,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // Limpa também o cache de equipamentos para garantir que o próximo login tenha dados frescos
             sessionStorage.removeItem('equipmentCache');
             sessionStorage.removeItem('dndai_hub_v2_entered');
+            sessionStorage.removeItem('dndai_hub_back_target');
             sessionStorage.removeItem('dndai_hub_intent');
         }
         toast({

@@ -20,7 +20,7 @@ export function StageTransition({ stageKey, children, className }: StageTransiti
   const stageClass = isPlaying
     ? 'dnd-gameplay-root'
     : isCreating
-      ? 'flex min-h-0 w-full flex-1 flex-col overflow-x-hidden overflow-y-auto'
+      ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden'
       : 'flex min-h-0 w-full flex-1 flex-col overflow-hidden';
 
   if (reducedMotion) {

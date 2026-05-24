@@ -10,6 +10,8 @@ import {
   DndDivider,
   DndHeading,
 } from '@/components/primitives';
+import { CinematicBackdrop } from '@/components/cinematic';
+import { cinematicImages } from '@/lib/cinematicAssets';
 import { useAuth } from '@/contexts/AuthContext';
 import type { HubIntent } from '@/contexts/HubIntentContext';
 import * as GameService from '@/services/gameService';
@@ -73,6 +75,13 @@ export function HubLanding({ onNavigate }: HubLandingProps) {
       },
     },
     {
+      id: 'sessions' as const,
+      title: 'Suas mesas',
+      desc: 'Crônicas salvas e sessões em andamento',
+      icon: <BookOpen className="h-6 w-6" />,
+      action: () => onNavigate({ type: 'session_list' }),
+    },
+    {
       id: 'new' as const,
       title: 'Nova aventura',
       desc: 'Escolha um herói e abra uma mesa',
@@ -88,7 +97,7 @@ export function HubLanding({ onNavigate }: HubLandingProps) {
     },
     {
       id: 'homebrew' as const,
-      title: 'Grimório',
+      title: 'Homebrew',
       desc: 'Itens, magias e criaturas da comunidade',
       icon: <FlaskConical className="h-6 w-6" />,
       action: () => onNavigate({ type: 'homebrew_store' }),
@@ -108,44 +117,65 @@ export function HubLanding({ onNavigate }: HubLandingProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden">
-      <AmbientBackground variant="ember" showVignette={false} />
+      <AmbientBackground variant="cinematic" showVignette={false} />
       <LandscapeBlocker />
 
-      <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-12 pt-[calc(1.5rem+var(--dnd-safe-top))]">
-        <header className="flex flex-wrap items-start justify-between gap-4">
-          <HubHeroParallax>
-          <div>
-            <DndHeading variant="label">Sua jornada começa aqui</DndHeading>
-            <DndHeading variant="hero" className="mt-2 max-w-2xl">
-              Bem-vindo, {user?.username ?? 'aventureiro'}
-            </DndHeading>
-            <p className="mt-3 max-w-xl font-narrative text-lg text-dnd-parchment-muted">
-              Escolha um destino. O destino observa.
-            </p>
-          </div>
-          </HubHeroParallax>
-          <DndButton variant="ghost" size="sm" onClick={logout}>
-            Sair
-          </DndButton>
-        </header>
+      <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-12 pt-[calc(2rem+var(--dnd-safe-top))]">
+        <section className="relative mb-12 overflow-hidden rounded-2xl border border-dnd-gold/15 shadow-[var(--dnd-shadow-hero)]">
+          <CinematicBackdrop
+            image={cinematicImages.finalBattle}
+            imageAlt="Céu dramático sobre as terras da aventura"
+            intensity="strong"
+            kenBurns
+            className="min-h-[min(52vh,420px)]"
+          >
+            <header className="dnd-hero-stage flex min-h-[min(52vh,420px)] flex-col justify-end p-6 sm:p-10">
+              <HubHeroParallax>
+                <div className="max-w-3xl">
+                  <div className="dnd-brand-accent mb-4" aria-hidden />
+                  <DndHeading variant="label">Sua jornada começa aqui</DndHeading>
+                  <DndHeading variant="hero" className="mt-3 max-w-4xl">
+                    Bem-vindo, {user?.username ?? 'aventureiro'}
+                  </DndHeading>
+                  <p className="mt-5 max-w-xl font-narrative text-xl leading-relaxed text-dnd-parchment md:text-2xl">
+                    Escolha um destino. O destino observa.
+                  </p>
+                </div>
+              </HubHeroParallax>
+              <DndButton variant="ghost" size="sm" className="absolute right-4 top-4 border border-dnd-gold/20 bg-dnd-obsidian/50" onClick={logout}>
+                Sair
+              </DndButton>
+            </header>
+          </CinematicBackdrop>
+        </section>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2">
+        <DndHeading variant="section" className="mb-6">
+          Escolha seu caminho
+        </DndHeading>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           {cards.map((card) => (
             <button
               key={card.id}
               type="button"
               disabled={card.disabled || loading}
               onClick={card.action}
-              className="text-left disabled:opacity-40"
+              className="group text-left disabled:opacity-40"
             >
-              <DndCard padding="lg" hover className="h-full">
+              <DndCard
+                padding="lg"
+                hover
+                className="h-full border-dnd-gold/10 transition duration-300 group-hover:border-dnd-ember/30 group-hover:shadow-[var(--dnd-shadow-elevated)]"
+              >
                 <div className="flex items-start gap-4">
-                  <div className="rounded-lg border border-dnd-gold/30 bg-dnd-ember/10 p-3 text-dnd-gold">
+                  <div className="rounded-xl border border-dnd-gold/25 bg-gradient-to-br from-dnd-ember/20 to-dnd-obsidian-raised p-3.5 text-dnd-gold shadow-[0_0_24px_-8px_var(--dnd-ember-glow)] transition group-hover:border-dnd-ember/40">
                     {card.icon}
                   </div>
                   <div>
-                    <h3 className="font-display text-xl text-dnd-parchment">{card.title}</h3>
-                    <p className="mt-1 font-ui text-sm text-dnd-parchment-muted">{card.desc}</p>
+                    <h3 className="font-display text-xl text-dnd-parchment transition group-hover:text-dnd-gold-bright md:text-2xl">
+                      {card.title}
+                    </h3>
+                    <p className="mt-1.5 font-ui text-sm leading-relaxed text-dnd-parchment-muted">{card.desc}</p>
                   </div>
                 </div>
               </DndCard>

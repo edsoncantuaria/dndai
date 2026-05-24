@@ -7,11 +7,17 @@ import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { useToast } from '@/hooks/use-toast';
-import { generateNarrationAudio, getSignedNarrationAudio } from '@/services/ttsService';
+import {
+    generateNarrationAudio,
+    resolveNarrationPlaybackUrl,
+    withPlaybackAuthToken,
+} from '@/services/ttsService';
 import { generateSceneImage, getSignedImageUrl } from '@/services/imageService';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import clsx from 'clsx';
 import { DndButton, DndCard } from '@/components/primitives';
+import { NarrativeBeatCard } from '@/components/cinematic';
+import type { NarrativeBeatVisual } from '@/lib/cinematicAssets';
 import {
   NarrativeLogVariantProvider,
   useNarrativeLogVariant,
@@ -70,7 +76,9 @@ const NarrationEntry: React.FC<{
   isGenerating?: boolean;
   prefix?: React.ReactNode;
   textClassName?: string;
-}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, prefix, textClassName }) => {
+  /** Evita card duplo quando já está dentro de NarrativeBeatCard. */
+  bare?: boolean;
+}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, prefix, textClassName, bare = false }) => {
     const variant = useNarrativeLogVariant();
     const isV2 = variant === 'v2';
     const textContent = extractEntryText(entry.content);
@@ -109,7 +117,7 @@ const NarrationEntry: React.FC<{
       </button>
     ) : null;
 
-    const body = (
+    const inner = (
       <div className="flex items-start gap-2">
         {prefix ? <div className="shrink-0 pt-0.5">{prefix}</div> : null}
         <p
@@ -126,16 +134,48 @@ const NarrationEntry: React.FC<{
       </div>
     );
 
-    if (isV2) {
-      return (
-        <DndCard padding="md" hover={false} className="border-dnd-gold/12 bg-dnd-obsidian-raised/40">
-          {body}
-        </DndCard>
-      );
+    if (isV2 && !bare) {
+      return <NarrativeBeatCard type="narration">{inner}</NarrativeBeatCard>;
     }
-    return body;
+    return inner;
 };
 
+const BeatNarrationEntry: React.FC<{
+  beatType: NarrativeBeatVisual;
+  entry: LogEntryType;
+  onPlayAudio?: (entry: LogEntryType) => void;
+  onGenerateAudio?: (entry: LogEntryType) => void;
+  isGenerating?: boolean;
+  prefix?: React.ReactNode;
+  textClassName?: string;
+}> = (props) => {
+  const variant = useNarrativeLogVariant();
+  if (variant !== 'v2') {
+    return (
+      <NarrationEntry
+        entry={props.entry}
+        onPlayAudio={props.onPlayAudio}
+        onGenerateAudio={props.onGenerateAudio}
+        isGenerating={props.isGenerating}
+        prefix={props.prefix}
+        textClassName={props.textClassName}
+      />
+    );
+  }
+  return (
+    <NarrativeBeatCard type={props.beatType}>
+      <NarrationEntry
+        bare
+        entry={props.entry}
+        onPlayAudio={props.onPlayAudio}
+        onGenerateAudio={props.onGenerateAudio}
+        isGenerating={props.isGenerating}
+        prefix={props.prefix}
+        textClassName={props.textClassName}
+      />
+    </NarrativeBeatCard>
+  );
+};
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     const isV2 = useNarrativeLogVariant() === 'v2';
@@ -479,12 +519,12 @@ const LogEntry = React.memo(function LogEntry({
              const actionText = extractEntryText(entry.content);
              if (actionText && actionText.trim()) {
                  contentComponent = isV2 ? (
-                    <DndCard padding="sm" hover={false} className="border-dnd-gold/20 bg-dnd-obsidian-raised/30">
+                    <NarrativeBeatCard type="action">
                       <div className="flex items-start gap-3">
                         <div className="shrink-0 pt-0.5">{getActionIcon(actionText)}</div>
                         <p className="font-ui text-sm font-semibold text-dnd-gold">{actionText}</p>
                       </div>
-                    </DndCard>
+                    </NarrativeBeatCard>
                  ) : (
                     <div className="my-4 flex items-start gap-3 border-y-2 border-stone-700/50 py-3">
                         <div className="shrink-0 pt-1">{getActionIcon(actionText)}</div>
@@ -501,37 +541,40 @@ const LogEntry = React.memo(function LogEntry({
             break;
         case 'system':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="system"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
-                    prefix={<Sparkles className="h-4 w-4 text-yellow-500/80" />}
-                    textClassName="text-yellow-500/80 italic"
+                    prefix={<Sparkles className="h-4 w-4 text-dnd-gold/90" />}
+                    textClassName="text-dnd-gold/90 italic"
                 />
             );
             break;
         case 'combat':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="combat"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
-                    prefix={<Swords className="h-4 w-4 text-red-400" />}
-                    textClassName="text-red-300 font-semibold"
+                    prefix={<Swords className="h-4 w-4 text-dnd-ember" />}
+                    textClassName="text-dnd-parchment font-semibold"
                 />
             );
             break;
         case 'insight':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="insight"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
                     prefix={<BrainCircuit className="h-4 w-4 text-purple-300" />}
-                    textClassName="text-purple-200 italic"
+                    textClassName="text-purple-200/90 italic"
                 />
             );
             break;
@@ -778,23 +821,18 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
         [toast, setEntryGenerating, updateEntryAudio]
     );
 
-    const fetchSignedAudioUrl = useCallback(
-        async (entry: LogEntryType) => {
+    const resolveEntryPlaybackUrl = useCallback(
+        (entry: LogEntryType) => {
             const audioKey = getEntryAudioKey(entry);
-            if (!audioKey) return null;
-            if (audioUrlCache[entry.id]) return audioUrlCache[entry.id];
-            try {
-                const { audioUrl } = await getSignedNarrationAudio(audioKey);
-                if (audioUrl) {
-                    updateEntryAudio(entry.id, audioUrl, extractEntryText(entry.content) ?? '', audioKey);
-                    return audioUrl;
-                }
-            } catch (error) {
-                console.error('[NewNarrativeLog] Falha ao obter URL assinada de áudio:', error);
+            const cached = audioUrlCache[entry.id];
+            if (cached) return withPlaybackAuthToken(cached);
+            const resolved = resolveNarrationPlaybackUrl(audioKey, getEntryAudioUrl(entry));
+            if (resolved && entry.id) {
+                setAudioUrlCache(prev => ({ ...prev, [entry.id]: resolved }));
             }
-            return null;
+            return resolved;
         },
-        [audioUrlCache, updateEntryAudio]
+        [audioUrlCache],
     );
 
     const ensurePlayableAudio = useCallback(
@@ -803,32 +841,35 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
             const existingUrl = getEntryAudioUrl(entry, audioUrlCache);
 
             if (audioKey) {
-                if (existingUrl) return existingUrl;
-                return fetchSignedAudioUrl(entry);
+                const playback = resolveEntryPlaybackUrl(entry);
+                if (playback) return playback;
             }
 
-            // Sem audioKey: re-sintetiza para garantir URL fresca
+            if (existingUrl?.includes('/tts/audio?')) {
+                return withPlaybackAuthToken(existingUrl);
+            }
+
+            // Sem audioKey / URL legada MinIO: re-sintetiza
             const regeneratedUrl = await requestEntryAudio(entry, { silent: opts.silent ?? true });
             if (regeneratedUrl) return regeneratedUrl;
 
-            return existingUrl ?? null;
+            return existingUrl ? withPlaybackAuthToken(existingUrl) : null;
         },
-        [audioUrlCache, fetchSignedAudioUrl, requestEntryAudio]
+        [resolveEntryPlaybackUrl, requestEntryAudio]
     );
 
     const ensureAudioForEntries = useCallback(
         async (entries: LogEntryType[]) => {
             for (const entry of entries) {
                 if (!entry?.id || !isNarratableEntry(entry)) continue;
-                const hasUrl = getEntryAudioUrl(entry, audioUrlCache);
-                if (hasUrl) continue;
-                if (!getEntryAudioKey(entry)) {
+                const audioKey = getEntryAudioKey(entry);
+                if (audioKey && resolveNarrationPlaybackUrl(audioKey)) continue;
+                if (!audioKey) {
                     await requestEntryAudio(entry, { silent: true });
                 }
-                await fetchSignedAudioUrl(entry);
             }
         },
-        [audioUrlCache, requestEntryAudio, fetchSignedAudioUrl]
+        [requestEntryAudio]
     );
 
     const announceSpeechState = useCallback((active: boolean) => {

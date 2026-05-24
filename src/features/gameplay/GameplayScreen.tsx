@@ -77,6 +77,11 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
     [isLoading, isRollPending, actionPhaseLabel]
   );
 
+  const showNarrationBanner =
+    Boolean(actionPhaseLabel) && isLoading && loadingState.kind === 'narration';
+  const showBlockingLoader =
+    Boolean(actionPhaseLabel) && isLoading && loadingState.kind !== 'narration' && loadingState.kind !== 'idle';
+
   useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<{ active?: boolean }>).detail;
@@ -226,9 +231,20 @@ export function GameplayScreen({ returnToMenu }: GameplayScreenProps) {
           showCombat={showCombatHud}
           narrative={
             <div className="relative flex min-h-0 flex-1 flex-col">
-              {isLoading && actionPhaseLabel ? (
+              {showNarrationBanner ? (
+                <div
+                  className="sticky top-0 z-10 border-b border-dnd-gold/15 bg-dnd-obsidian/90 px-3 py-2 backdrop-blur-sm"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <p className="text-center font-ui text-xs tracking-wide text-dnd-parchment-muted">
+                    {loadingState.shortLabel ?? actionPhaseLabel}
+                  </p>
+                </div>
+              ) : null}
+              {showBlockingLoader ? (
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-dnd-obsidian/60 backdrop-blur-[2px]">
-                  <LoadingOracle label={loadingState.shortLabel ?? actionPhaseLabel} />
+                  <LoadingOracle label={loadingState.shortLabel ?? actionPhaseLabel ?? undefined} />
                 </div>
               ) : null}
               <div className="gameplay-narrative-scroll min-h-0 flex-1 overflow-y-auto px-2 py-3 md:px-4">

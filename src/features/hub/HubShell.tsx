@@ -1,6 +1,7 @@
 'use client';
 
 import type { GameMenuContentProps } from '@/components/game-menu/GameMenuContent';
+import { getHubBackTarget, setHubBackTarget } from '@/lib/hubSession';
 import { HubMain } from './HubMain';
 import { SessionListPage } from './SessionListPage';
 import { HeroVault } from './vault/HeroVault';
@@ -22,6 +23,7 @@ type HubShellProps = Pick<
   | 'onOpenSettings'
   | 'onLogout'
   | 'isAdmin'
+  | 'onReturnToHubLanding'
 >;
 
 export function HubShell({
@@ -40,7 +42,23 @@ export function HubShell({
   onOpenSettings,
   onLogout,
   isAdmin,
+  onReturnToHubLanding,
 }: HubShellProps) {
+  const goToMesa = () => onSetStage('main_menu');
+
+  const goBackFromSubHub = () => {
+    if (getHubBackTarget() === 'landing') {
+      onReturnToHubLanding();
+      return;
+    }
+    goToMesa();
+  };
+
+  const openFromMesa = (stage: 'character_vault' | 'session_list' | 'homebrew_store' | 'translation_studio') => {
+    setHubBackTarget('mesa');
+    onSetStage(stage);
+  };
+
   if (gameStage === 'main_menu') {
     return (
       <HubMain
@@ -50,16 +68,16 @@ export function HubShell({
         useAiHomebrew={useAiHomebrew}
         isAdmin={isAdmin}
         onContinueGame={onContinueGame}
-        onOpenVault={() => onSetStage('character_vault')}
-        onOpenHomebrew={() => onSetStage('homebrew_store')}
-        onOpenTranslation={isAdmin ? () => onSetStage('translation_studio') : undefined}
-        onOpenAllSessions={() => onSetStage('session_list')}
+        onOpenVault={() => openFromMesa('character_vault')}
+        onOpenHomebrew={() => openFromMesa('homebrew_store')}
+        onOpenTranslation={isAdmin ? () => openFromMesa('translation_studio') : undefined}
+        onOpenAllSessions={() => openFromMesa('session_list')}
         onOpenSettings={onOpenSettings}
         onLogout={onLogout}
         onRequestRenameSession={onRequestRenameSession}
         onRequestCloneSession={onRequestCloneSession}
         onRequestDeleteSession={onRequestDeleteSession}
-        onCreateHero={() => onSetStage('character_vault')}
+        onCreateHero={() => openFromMesa('character_vault')}
       />
     );
   }
@@ -68,9 +86,12 @@ export function HubShell({
     return (
       <SessionListPage
         sessions={sessions}
-        onBack={() => onSetStage('main_menu')}
+        onBack={goBackFromSubHub}
         onContinueGame={onContinueGame}
-        onCreateHero={() => onSetStage('character_vault')}
+        onCreateHero={() => {
+          setHubBackTarget('mesa');
+          onSetStage('character_vault');
+        }}
         onRequestRenameSession={onRequestRenameSession}
         onRequestCloneSession={onRequestCloneSession}
         onRequestDeleteSession={onRequestDeleteSession}
@@ -83,11 +104,11 @@ export function HubShell({
       <HeroVault
         characters={characters}
         sessions={sessions}
-        onBack={() => onSetStage('main_menu')}
+        onBack={goBackFromSubHub}
         onCreateHero={() => onSetStage('creating_character')}
         onStartWithHero={onStartFromVault}
         onDeleteHero={onRequestDeleteCharacter}
-        onViewSessions={() => onSetStage('session_list')}
+        onViewSessions={() => openFromMesa('session_list')}
       />
     );
   }

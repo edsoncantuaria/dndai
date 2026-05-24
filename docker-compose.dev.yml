@@ -30,6 +30,15 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
+      MINIO_ENABLED: 'true'
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: '9000'
+      MINIO_USE_SSL: 'false'
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-dndai_minio}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-dndai_minio_secret}
+      MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
+      PIPER_HTTP_URL: http://piper:5500
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
     ports:
       - '8071:8071'
     entrypoint: ["/docker-entrypoint.sh"]
@@ -38,6 +47,10 @@ services:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      piper:
         condition: service_healthy
 
   frontend-dev:

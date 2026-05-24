@@ -68,8 +68,8 @@ export function GameplaySidePanelContent({
     case 'story':
       return (
         <div className="space-y-4">
-          <StoryHighlightsCard variant="compact" />
           <NewJournal />
+          <StoryHighlightsCard variant="compact" />
         </div>
       );
     case 'inventory':

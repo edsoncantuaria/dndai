@@ -4,6 +4,7 @@ import {
     addSessionCastMember,
     listSessionCast,
     removeSessionCastMember,
+    syncSessionCastFromWorld,
     updateSessionCastMember,
 } from '../services/sessionCastService.js';
 import type { CastRole, CastVitals } from '../entities/SessionCastMember.js';
@@ -16,8 +17,8 @@ export const listCast = async (req: Request, res: Response, next: NextFunction) 
         const sessionId = Number(req.params.sessionId);
         const userId = (req as any).user?.id;
         if (!userId) throw createError(401, 'Não autenticado.');
-        const cast = await listSessionCast(sessionId, userId);
-        res.json(cast);
+        const payload = await listSessionCast(sessionId, userId);
+        res.json(payload);
     } catch (err) {
         next(err);
     }
@@ -56,6 +57,20 @@ export const patchCastMember = async (req: Request, res: Response, next: NextFun
         if (!userId) throw createError(401, 'Não autenticado.');
         const member = await updateSessionCastMember(sessionId, userId, memberId, req.body ?? {});
         res.json(member);
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const syncCast = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const sessionId = Number(req.params.sessionId);
+        const userId = (req as any).user?.id;
+        if (!userId) throw createError(401, 'Não autenticado.');
+        const combatState = req.body?.combatState ?? null;
+        await syncSessionCastFromWorld(sessionId, userId, { combatState });
+        const payload = await listSessionCast(sessionId, userId, { skipSync: true });
+        res.json(payload);
     } catch (err) {
         next(err);
     }

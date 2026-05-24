@@ -29,6 +29,8 @@ export interface GameMenuContentProps {
   isLoadingData: boolean;
   onSetStage: (stage: GameStage) => void;
   onReturnToMenu: () => void;
+  /** UI v2: volta à HubLanding (fora do app interno). */
+  onReturnToHubLanding?: () => void;
   onContinueGame: (sessionId: number) => void;
   onCharacterCreated: () => void;
   onStartFromVault: (character: Character, existingSession?: SessaoIA | null) => void;
@@ -56,9 +58,12 @@ const GameMenuContent: React.FC<GameMenuContentProps> = (props) => {
     isLoadingData,
     onSetStage,
     onReturnToMenu,
+    onReturnToHubLanding,
     onCharacterCreated,
     user,
   } = props;
+
+  const exitToHubLanding = onReturnToHubLanding ?? (() => onSetStage('main_menu'));
 
   const isAdmin = user?.id === 1;
   const v2 = isUiV2Enabled();
@@ -107,6 +112,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = (props) => {
         onRequestCloneSession={props.onRequestCloneSession}
         onOpenSettings={props.onOpenSettings}
         onLogout={props.onLogout}
+        onReturnToHubLanding={exitToHubLanding}
       />
     );
   }
@@ -151,14 +157,14 @@ const GameMenuContent: React.FC<GameMenuContentProps> = (props) => {
 
   if (gameStage === 'homebrew_store') {
     if (v2) {
-      return <HomebrewStorePage onBack={() => onSetStage('main_menu')} />;
+      return <HomebrewStorePage onBack={exitToHubLanding} />;
     }
     return <HomebrewStore returnToMenu={() => onSetStage('main_menu')} />;
   }
 
   if (gameStage === 'translation_studio') {
     if (v2) {
-      return <TranslationStudioPage onBack={() => onSetStage('main_menu')} />;
+      return <TranslationStudioPage onBack={exitToHubLanding} />;
     }
     return <TranslationStudio onCancel={() => onSetStage('main_menu')} />;
   }

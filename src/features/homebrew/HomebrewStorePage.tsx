@@ -23,14 +23,14 @@ export function HomebrewStorePage({ onBack }: HomebrewStorePageProps) {
 
   return (
     <HomebrewLayout
-      title={inCreator ? (storeView === 'edit' ? 'Editar criação' : 'Nova criação') : 'Grimório'}
+      title={inCreator ? (storeView === 'edit' ? 'Editar criação' : 'Nova criação') : 'Homebrew'}
       subtitle={
         inCreator
           ? 'Preencha as etapas. O conteúdo é validado ao salvar.'
           : 'Publique raças, classes, itens e monstros. Instale o que outros mestres compartilharam.'
       }
       onBack={inCreator ? () => setStoreView('list') : onBack}
-      backLabel={inCreator ? 'Voltar ao grimório' : 'Voltar ao hub'}
+      backLabel={inCreator ? 'Voltar ao Homebrew' : 'Voltar ao hub'}
     >
       <LandscapeBlocker />
       <HomebrewStore

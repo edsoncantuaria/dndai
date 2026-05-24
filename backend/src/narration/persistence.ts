@@ -322,6 +322,15 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
         persistedStateVersion = await incrementStateVersion(sessao.id);
         aiResponse.stateVersion = persistedStateVersion;
 
+        try {
+            const { syncSessionCastFromWorld } = await import('../services/sessionCastService.js');
+            await syncSessionCastFromWorld(sessao.id, userId, {
+                combatState: aiResponse.combatState as { isActive?: boolean; combatants?: unknown[] } | null,
+            });
+        } catch (castSyncErr) {
+            console.warn('[persistence] Falha ao sincronizar elenco da sessão:', castSyncErr);
+        }
+
         const memoryLines = [
             `Jogador: ${playerAction}`,
             latestNarrationSummary ? `Mestre: ${latestNarrationSummary}` : null,
