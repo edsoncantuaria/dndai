@@ -6,6 +6,7 @@ import NewJournal from '@/components/NewJournal';
 import StoryHighlightsCard from '@/components/StoryHighlightsCard';
 import { StoryTimeline } from './StoryTimeline';
 import { SessionFactsPanel } from './SessionFactsPanel';
+import { SessionCastPanel } from '../components/SessionCastPanel';
 
 export function GameplayStoryPanel({ sessionId }: { sessionId: number | null }) {
   return (
@@ -22,6 +23,8 @@ export function GameplayStoryPanel({ sessionId }: { sessionId: number | null }) 
       </DndCard>
 
       <SessionFactsPanel sessionId={sessionId} />
+
+      {sessionId ? <SessionCastPanel sessionId={sessionId} /> : null}
 
       <div className="[&_.rounded-3xl]:rounded-lg [&_.border-stone-800]:border-dnd-gold/15">
         <StoryHighlightsCard variant="v2" />

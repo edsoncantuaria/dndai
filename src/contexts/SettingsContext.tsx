@@ -8,29 +8,32 @@ import {
     writeGeminiApiKey,
 } from '@/lib/geminiApiKeyStorage';
 
-export const AVAILABLE_MODELS = [
-    "gemini-2.5-pro",
-    "gemini-2.5-pro-preview-06-05",
-    "gemini-2.5-pro-preview-05-06",
-    "gemini-2.5-pro-preview-03-25",
+/** Modelos free no OpenRouter — motor principal do jogo. */
+export const OPENROUTER_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "google/gemma-3-27b-it:free",
+] as const;
+
+/** Gemini — fallback (TTS/homebrew ainda usam Google). */
+export const GEMINI_GAME_MODELS = [
     "gemini-2.5-flash",
-    "gemini-2.5-flash-preview-05-20",
-    "gemini-2.5-flash-preview-09-2025",
     "gemini-2.5-flash-lite",
-    "gemini-2.5-flash-lite-preview-09-2025",
-    "gemini-2.5-flash-lite-preview-06-17",
-    "gemini-2.0-pro-exp",
-    "gemini-2.0-pro-exp-02-05",
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-001",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-lite-001",
+    "gemini-2.5-pro",
+] as const;
+
+export const AVAILABLE_MODELS = [
+    ...OPENROUTER_MODELS,
+    ...GEMINI_GAME_MODELS,
+    "gemini-2.5-pro-preview-06-05",
+    "gemini-2.5-flash-preview-09-2025",
     "gemini-flash-latest",
-    "gemini-flash-lite-latest",
     "gemini-pro-latest",
-    "gemini-2.5-computer-use-preview-10-2025"
-  ];
+] as const;
   
 
   export const AVAILABLE_TTS_MODELS = [
@@ -106,7 +109,7 @@ export const defaultGenerationConfig: GenerationConfig = {
 };
 
 const defaultSettings = {
-    model: AVAILABLE_MODELS[0],
+    model: OPENROUTER_MODELS[0],
     ttsModel: AVAILABLE_TTS_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
     apiKey: '',
@@ -255,7 +258,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Function to load settings from AuthContext or localStorage
     const loadSettings = useCallback((settings: any) => {
         if (settings) {
-            if (settings.model && AVAILABLE_MODELS.includes(settings.model)) setModel(settings.model);
+            if (settings.model && typeof settings.model === 'string') {
+                setModel(settings.model);
+            }
             if (settings.ttsModel && AVAILABLE_TTS_MODELS.includes(settings.ttsModel)) setTtsModel(settings.ttsModel);
             if (settings.ttsVoice && AVAILABLE_TTS_VOICES.includes(settings.ttsVoice)) setTtsVoice(settings.ttsVoice);
             if (settings.generationConfig) setGenerationConfig(prev => clampGenerationConfigValues({ ...prev, ...settings.generationConfig }));

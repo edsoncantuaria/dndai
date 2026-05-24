@@ -1,14 +1,16 @@
 # Pipeline de IA (narrativa)
 
-O backend separa **motor de regras** (autoritativo) e **IA narrativa** (Gemini). O modo de operação é controlado por `AI_PIPELINE_MODE`.
+O backend separa **motor de regras** (autoritativo) e **IA narrativa** (OpenRouter por padrão; Gemini opcional). O modo de operação é controlado por `AI_PIPELINE_MODE`.
 
-## Modos (`AI_PIPELINE_MODE`)
+Ver também: [AI_OPENROUTER.md](./AI_OPENROUTER.md), [AI_CONTRACT.md](./AI_CONTRACT.md) (entrada/saída, schemas, quem manda em cada regra).
 
-| Modo | Comportamento |
-|------|----------------|
-| `narration_only` | **Padrão.** A IA devolve prosa, `logEntries`, `actionOptions` e metadados leves. HP, inventário, combate, XP e mapa vêm do motor + persistência. Campos de estado são removidos da resposta antes de chegar ao cliente (`motorStateBridge`). |
-| `dual` | Duas chamadas Gemini: fase **narrative** (texto) e fase **state** (patch de estado). O motor ainda reconcilia combate/inventário quando aplicável. |
-| `full` | Uma resposta JSON completa no schema legado `GameMasterResponse` (modo transição / testes). |
+## Modo (`AI_PIPELINE_MODE`)
+
+Somente **`narration_only`** é suportado. `full` e `dual` no `.env` são ignorados (aviso no log do backend).
+
+| Comportamento |
+|---------------|
+| A IA devolve prosa, `logEntries`, `actionOptions` e `memoryContext`. HP, inventário, combate, XP, loot e loja vêm do **motor** + persistência. Campos de estado da IA são descartados (`motorStateBridge`, `narrativeContract`). |
 
 Defina no `backend/.env`:
 
@@ -34,12 +36,12 @@ Entrada principal: `processPlayerTurn` em `services/narrarService.ts` (carrega s
 ```
 processAction (WS) → motor de intents → processPlayerTurn
   → buildNarrationContext
-  → runNarrationAiPhases (Gemini)
+  → runNarrationAiPhases (OpenRouter / Gemini)
   → validador / combate / XP
   → persistNarrationTurn (MySQL + Redis)
 ```
 
-## Cliente Gemini (`backend/src/ai/`)
+## Cliente de IA (`backend/src/ai/`)
 
 - `instructions.ts` — system instruction
 - `gameUpdate.ts` — fachada `getGameUpdate`

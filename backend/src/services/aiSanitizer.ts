@@ -1582,6 +1582,30 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
       delete sanitized.useHitDiceRequest;
       sanitationLogs.push('useHitDiceRequest removida pois suppressRollRequest=true.');
   }
+  if (suppressRollFallback) {
+      const motorKeys = [
+          'updatedCharacter',
+          'worldState',
+          'combatState',
+          'xpEvents',
+          'progressionFeed',
+          'newHomebrewContent',
+          'levelUpState',
+          'shopState',
+          'lootOffer',
+          'useHitDiceRequest',
+          '_meta',
+          'newFacts',
+          'imagePrompt',
+          'gameClock',
+      ] as const;
+      for (const key of motorKeys) {
+          if ((sanitized as Record<string, unknown>)[key] !== undefined) {
+              delete (sanitized as Record<string, unknown>)[key];
+              sanitationLogs.push(`${key} removido (modo narração/motor).`);
+          }
+      }
+  }
   const combinedLogText = sanitized.logEntries
     ?.map(entry => (typeof entry?.content === 'string' ? entry.content.toLowerCase() : ''))
     .join(' ') ?? '';

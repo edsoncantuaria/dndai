@@ -19,7 +19,7 @@ export function TranslationLayout({
   className,
 }: TranslationLayoutProps) {
   return (
-    <div className={cn('relative min-h-full w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
+    <div className={cn('relative h-full min-h-0 w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
       <AmbientBackground variant="midnight" />
       <div
         className="pointer-events-none absolute inset-0 opacity-50"

@@ -26,7 +26,7 @@ export function HubLayout({
   className,
 }: HubLayoutProps) {
   return (
-    <div className={cn('relative min-h-full w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
+    <div className={cn('relative h-full min-h-0 w-full overflow-x-hidden overflow-y-auto bg-dnd-obsidian', className)}>
       <AmbientBackground variant="ember" showVignette={false} />
       <div className="relative z-10 mx-auto max-w-screen-xl px-4 pb-16 pt-[calc(1rem+var(--dnd-safe-top))] sm:px-6">
         <header className="mb-8 border-b border-dnd-gold/12 pb-6">

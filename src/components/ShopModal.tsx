@@ -16,7 +16,7 @@ const PANEL_LEGACY =
   'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-2xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
 
 const ShopModal: React.FC = () => {
-  const { shopState, character, buyItem, sellItem, processPlayerAction, isLoading } =
+  const { shopState, character, buyItem, sellItem, closeShop, isLoading } =
     useGameStateContext();
   const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
@@ -28,7 +28,7 @@ const ShopModal: React.FC = () => {
   }
 
   const handleClose = () => {
-    processPlayerAction('Eu saio da loja.');
+    closeShop();
   };
 
   const isInteractionDisabled = isLoading || shopState.isHaggling;

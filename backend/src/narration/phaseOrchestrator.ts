@@ -1,13 +1,12 @@
 import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
 import { getGameUpdate, type GameUpdateWarning } from '../ai/gameUpdate.js';
-import { validateGameMasterResponse } from '../services/gameResponseValidator.js';
 import { validateByPhaseFocus } from '../ai/responseValidator.js';
 import { generateFallbackResponse } from '../services/gameOrchestrator.js';
 import type { GenerationConfig } from '../schemas/validationSchemas.js';
 import { resolvePipelineMode, type AiPipelineMode } from '../ai/constants.js';
 import { recordAiPipelineMetric } from '../ai/metrics.js';
 
-export type ResponseFocusMode = 'full' | 'narrative' | 'state';
+export type ResponseFocusMode = 'narrative';
 
 export interface PhaseResult {
     response: GameMasterResponse;
@@ -31,12 +30,10 @@ export interface PhaseOrchestratorInput {
     apiKey: string;
     sessionId?: string;
     narrativeHint?: string;
-    stateHint?: string;
     pipelineMode?: AiPipelineMode;
 }
 
 async function requestPhaseResponse(
-    focus: ResponseFocusMode,
     ctx: PhaseOrchestratorInput,
     extraInput: Partial<GameMasterFlowInput> = {},
 ): Promise<PhaseResult> {
@@ -62,7 +59,7 @@ async function requestPhaseResponse(
                 ...ctx.baseInput,
                 ...extraInput,
                 suppressRollRequest,
-                responseFocus: focus,
+                responseFocus: 'narrative',
                 validationFeedback,
             },
             ctx.modelToUse,
@@ -72,38 +69,39 @@ async function requestPhaseResponse(
         lastWarnings = callWarnings;
 
         rawText = currentRaw;
-        const validation = validateByPhaseFocus(candidate, focus);
+        const validation = validateByPhaseFocus(candidate, 'narrative');
         if (validation.valid) {
             finalFromModel = candidate;
             latestIssues = [];
             void recordAiPipelineMetric({
                 sessionId: ctx.sessionId,
-                phase: focus === 'full' ? 'full' : focus,
-                model: ctx.modelToUse,
-                latencyMs: Date.now() - phaseStarted,
-                retryCount,
+                phase: 'narrative',
                 success: true,
+                attempts: calls,
+                latencyMs: Date.now() - phaseStarted,
             });
             break;
         }
 
         latestIssues = validation.issues;
-        validationFeedback = `Inconsistências: ${validation.issues.join('; ')}. Corrija e retorne JSON válido para a fase ${focus}.`;
         retryCount += 1;
+        validationFeedback = `Corrija o JSON narrativo. Problemas: ${validation.issues.join('; ')}`;
+        void recordAiPipelineMetric({
+            sessionId: ctx.sessionId,
+            phase: 'narrative',
+            success: false,
+            attempts: calls,
+            latencyMs: Date.now() - phaseStarted,
+        });
     }
 
     if (!finalFromModel) {
-        finalFromModel = generateFallbackResponse({ character: ctx.characterForAI }, ctx.playerAction, latestIssues);
         usedFallback = true;
-        void recordAiPipelineMetric({
-            sessionId: ctx.sessionId,
-            phase: focus === 'full' ? 'full' : focus,
-            model: ctx.modelToUse,
-            latencyMs: Date.now() - started,
-            retryCount,
-            usedFallback: true,
-            success: false,
-        });
+        finalFromModel = generateFallbackResponse(
+            { character: ctx.characterForAI },
+            ctx.playerAction,
+            latestIssues,
+        );
     }
 
     return {
@@ -113,7 +111,7 @@ async function requestPhaseResponse(
         attempts: calls,
         retryCount,
         usedFallback,
-        focus,
+        focus: 'narrative',
         warnings: lastWarnings,
         suppressRollRequest,
         latencyMs: Date.now() - started,
@@ -123,51 +121,33 @@ async function requestPhaseResponse(
 export interface OrchestratedPhases {
     pipelineMode: AiPipelineMode;
     narrativePhase: PhaseResult;
-    statePhase: PhaseResult | null;
+    statePhase: null;
     mergedResponse: GameMasterResponse;
 }
 
-/** Orquestra fases de IA conforme AI_PIPELINE_MODE. */
+/** Orquestra fase narrativa única (motor detém estado). */
 export async function runAiPhases(ctx: PhaseOrchestratorInput): Promise<OrchestratedPhases> {
-    const pipelineMode = ctx.pipelineMode ?? resolvePipelineMode();
+    const pipelineMode = resolvePipelineMode();
 
     const narrativePhase = await requestPhaseResponse(
-        'narrative',
         ctx,
         ctx.narrativeHint ? { validationFeedback: ctx.narrativeHint } : {},
     );
 
-    if (pipelineMode === 'narration_only') {
-        const merged: GameMasterResponse = {
-            logEntries: narrativePhase.response.logEntries ?? [],
-            actionOptions: narrativePhase.response.actionOptions ?? [],
-            systemLog: narrativePhase.response.systemLog,
-            memoryContext: narrativePhase.response.memoryContext,
-        };
-        return {
-            pipelineMode,
-            narrativePhase,
-            statePhase: null,
-            mergedResponse: merged,
-        };
-    }
-
-    const statePhase = await requestPhaseResponse(
-        'state',
-        ctx,
-        ctx.stateHint ? { validationFeedback: ctx.stateHint } : {},
-    );
-
-    const mergedResponse: GameMasterResponse = {
-        ...statePhase.response,
+    const merged: GameMasterResponse = {
         logEntries: narrativePhase.response.logEntries ?? [],
         actionOptions: narrativePhase.response.actionOptions ?? [],
+        systemLog: narrativePhase.response.systemLog,
+        memoryContext: narrativePhase.response.memoryContext,
     };
 
     return {
         pipelineMode,
         narrativePhase,
-        statePhase,
-        mergedResponse,
+        statePhase: null,
+        mergedResponse: merged,
     };
 }
+
+/** Alias usado por narrarService. */
+export const runNarrationAiPhases = runAiPhases;

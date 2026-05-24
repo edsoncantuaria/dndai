@@ -20,17 +20,18 @@ export function ApiKeyStep() {
     <div className="relative flex min-h-screen items-center justify-center px-4">
       <AmbientBackground variant="parchment" />
       <DndCard padding="lg" className="relative z-10 w-full max-w-md">
-        <DndHeading variant="section">Chave de API Gemini</DndHeading>
+        <DndHeading variant="section">Chave OpenRouter</DndHeading>
         <p className="mt-2 font-ui text-sm text-dnd-parchment-muted">
-          Licença ativa! Informe sua chave do Google AI Studio para o mestre virtual narrar.
+          Licença ativa! Informe sua chave do OpenRouter para o mestre narrar (modelos free recomendados).
+          O Gemini permanece opcional para voz e homebrew com IA.
         </p>
         <a
-          href="https://aistudio.google.com/api-keys"
+          href="https://openrouter.ai/keys"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-2 inline-block font-ui text-xs text-dnd-gold hover:underline"
         >
-          Como obter uma chave?
+          Criar chave no OpenRouter
         </a>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <DndInput

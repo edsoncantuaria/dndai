@@ -311,6 +311,9 @@ const DiceRollModal: React.FC<DiceRollModalProps> = ({ request, onRoll, show, an
               <p className="flex items-center gap-2 text-xs uppercase tracking-[0.5em] text-amber-300">
                 <Sparkles className="h-4 w-4" /> TESTE DO MESTRE
               </p>
+              <p className="mt-1 font-ui text-xs uppercase tracking-wider text-dnd-gold/90">
+                Mestre solicita — role nos dados 3D
+              </p>
               <h1 className="mt-2 font-serif text-2xl leading-tight text-white">{request.reason}</h1>
             </header>
             <div className="flex-1 space-y-4 p-6 text-stone-200">

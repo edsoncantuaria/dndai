@@ -477,10 +477,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                      <div>
                         <div className="flex justify-between items-center mb-2">
                            <label htmlFor="api-key-input" className="text-stone-300 font-semibold flex items-center gap-2">
-                              <KeyRound className="h-4 w-4"/> Chave de API do Google AI
+                              <KeyRound className="h-4 w-4"/> Chave OpenRouter (jogo)
                            </label>
-                           <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
-                              Como Obter?
+                           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
+                              Criar chave
                            </a>
                     </div>
                      <input
@@ -488,11 +488,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         type="password"
                         value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Cole sua chave aqui"
+                            placeholder="sk-or-v1-..."
                             className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                         />
                          <p className="text-xs text-stone-500 mt-2">
-                            Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
+                            Salva só no seu navegador. Modelos free no OpenRouter; Gemini opcional para voz e imagens (chave Google separada).
                         </p>
                     </div>
                     {IMAGE_FEATURE_ENABLED && (

@@ -267,6 +267,21 @@ export async function resolveStructuredRoll(
             hints.push(
                 `${describeTarget(target)} perde ${Math.max(amount, 0)} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`
             );
+            try {
+                const attrs = applied?.attributes;
+                if (attrs && typeof attrs.hp === 'number') {
+                    const { syncPlayerHpToSessionCombat } = await import('./combatHpBridge.js');
+                    await syncPlayerHpToSessionCombat({
+                        sessaoId: sessionId,
+                        hpCurrent: attrs.hp,
+                        hpMax: attrs.maxHp,
+                        characterId: applied.characterId,
+                    });
+                    hints.push('[Motor] PV do jogador sincronizado com o combate.');
+                }
+            } catch (syncErr) {
+                console.warn('[ruleResolution] syncPlayerHp:', syncErr);
+            }
             return { updatedCharacter: cumulativeCharacterDelta ?? undefined, shouldNarrate: true, hints };
         }
         const entityId = target.id;
@@ -289,6 +304,18 @@ export async function resolveStructuredRoll(
                 hints.push(
                     `${target.name ?? 'Inimigo'} perde ${Math.max(amount, 0)} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`
                 );
+                try {
+                    const { syncEntityHpToSessionCombat } = await import('./combatHpBridge.js');
+                    await syncEntityHpToSessionCombat({
+                        sessaoId: sessionId,
+                        entityId,
+                        hpCurrent: entity.hpCurrent,
+                        entityName: target.name,
+                    });
+                    hints.push('[Motor] PV do combatente sincronizado com o encontro.');
+                } catch (syncErr) {
+                    console.warn('[ruleResolution] combatHpBridge:', syncErr);
+                }
                 return {
                     updatedCharacter: cumulativeCharacterDelta ?? undefined,
                     updatedEntity: {
@@ -317,6 +344,20 @@ export async function resolveStructuredRoll(
             hints.push(
                 `${describeTarget(target)} recupera ${Math.max(amount, 0)} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`
             );
+            try {
+                const attrs = applied?.attributes;
+                if (attrs && typeof attrs.hp === 'number') {
+                    const { syncPlayerHpToSessionCombat } = await import('./combatHpBridge.js');
+                    await syncPlayerHpToSessionCombat({
+                        sessaoId: sessionId,
+                        hpCurrent: attrs.hp,
+                        hpMax: attrs.maxHp,
+                        characterId: applied.characterId,
+                    });
+                }
+            } catch (syncErr) {
+                console.warn('[ruleResolution] syncPlayerHp heal:', syncErr);
+            }
             return { updatedCharacter: cumulativeCharacterDelta ?? undefined, shouldNarrate: true, hints };
         }
         const entityId = target.id;
@@ -339,6 +380,17 @@ export async function resolveStructuredRoll(
                 hints.push(
                     `${target.name ?? 'Inimigo'} recupera ${Math.max(amount, 0)} HP${metadata?.source?.name ? ` (${metadata.source.name})` : ''}.`
                 );
+                try {
+                    const { syncEntityHpToSessionCombat } = await import('./combatHpBridge.js');
+                    await syncEntityHpToSessionCombat({
+                        sessaoId: sessionId,
+                        entityId,
+                        hpCurrent: entity.hpCurrent,
+                        entityName: target.name,
+                    });
+                } catch (syncErr) {
+                    console.warn('[ruleResolution] combatHpBridge heal:', syncErr);
+                }
                 return {
                     updatedCharacter: cumulativeCharacterDelta ?? undefined,
                     updatedEntity: {

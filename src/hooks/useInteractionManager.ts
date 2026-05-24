@@ -1,5 +1,11 @@
 // src/hooks/useInteractionManager.ts
 import { useState, useCallback } from 'react';
+import {
+    buildBuyItemIntent,
+    buildSellItemIntent,
+    buildOpenShopIntent,
+    buildStartEncounterFromCharacter,
+} from '@/hooks/game/motorIntents';
 import type {
     PlayerRollRequest, CombatState, LevelUpState, ShopState,
     LootOffer, UseHitDiceRequest, ApiSpell, ShopItem, InventoryItem
@@ -138,13 +144,43 @@ export const useInteractionManager = () => {
 
     const handleBuyItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: ShopItem, price: number) => {
         setPlayerRollRequest(null);
-        processPlayerAction(`Eu quero comprar ${item.name} por ${price} ${item.cost.unit}.`);
-    }, []);
+        setPendingStructuredIntent(buildBuyItemIntent(item));
+        processPlayerAction(`Compro ${item.name} por ${price} ${item.cost.unit}.`);
+    }, [setPendingStructuredIntent]);
 
     const handleSellItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: InventoryItem, price: number) => {
         setPlayerRollRequest(null);
-        processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
-    }, []);
+        const intent = buildSellItemIntent(item, price);
+        if (intent.payload.itemId > 0) {
+            setPendingStructuredIntent(intent);
+            processPlayerAction(`Vendo ${item.name} por ${price} gp.`);
+        } else {
+            processPlayerAction(`Eu quero vender meu ${item.name} por ${price} gp.`);
+        }
+    }, [setPendingStructuredIntent]);
+
+    const handleOpenShop = useCallback((
+        processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void,
+    ) => (catalog: { name: string; inventory: ShopItem[]; merchantName?: string }) => {
+        setPendingStructuredIntent(buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName));
+        processPlayerAction(`Entro em ${catalog.name} para negociar.`);
+    }, [setPendingStructuredIntent]);
+
+    const handleCloseShop = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
+        setShopState(null);
+        setPendingStructuredIntent({ type: 'close-shop', payload: {} });
+        processPlayerAction('Saio da loja.');
+    }, [setPendingStructuredIntent]);
+
+    const handleStartEncounter = useCallback((
+        processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void,
+    ) => (
+        character: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
+        hostiles: Array<{ id: string; name: string; hp: number; maxHp: number; ac?: number; initiative?: number }>,
+    ) => {
+        setPendingStructuredIntent(buildStartEncounterFromCharacter(character, hostiles));
+        processPlayerAction('O combate começa!');
+    }, [setPendingStructuredIntent]);
     
     const nextTurn = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => () => {
         processPlayerAction("Processar próximo turno");
@@ -155,33 +191,59 @@ export const useInteractionManager = () => {
     }, []);
 
      // --- Debug/Test Triggers ---
-    const triggerTestShop = useCallback(() => {
+    const getTestShopCatalog = useCallback(() => ({
+        name: 'Loja de Testes do Ferreiro',
+        merchantName: 'Ferreiro',
+        inventory: [
+            { id: 'item-1', index: 'potion-of-healing', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
+            { id: 'item-2', index: 'longsword', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
+            { id: 'item-3', index: 'rations', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: 20, equipped: false },
+        ] as ShopItem[],
+    }), []);
+
+    const triggerTestShop = useCallback((
+        processPlayerAction?: (action: string) => void,
+    ) => {
+        const catalog = getTestShopCatalog();
+        if (processPlayerAction) {
+            setPendingStructuredIntent(buildOpenShopIntent(catalog.name, catalog.inventory, catalog.merchantName));
+            processPlayerAction(`Visito ${catalog.name}.`);
+            return;
+        }
         setShopState({
             isOpen: true,
             isHaggling: false,
-            name: "Loja de Testes do Ferreiro",
-            inventory: [
-                { id: 'item-1', index: 'potion-of-healing', name: 'Poção de Cura', cost: { quantity: 50, unit: 'gp' }, quantity: 5, equipped: false },
-                { id: 'item-2', index: 'longsword', name: 'Espada Longa +1', cost: { quantity: 500, unit: 'gp' }, quantity: 1, equipped: false },
-                { id: 'item-3', index: 'rations', name: 'Rações (1 dia)', cost: { quantity: 5, unit: 'sp' }, quantity: Infinity, equipped: false },
-            ],
-            sellPrices: { 'player-item-1': 25, 'player-item-2': 10 },
+            name: catalog.name,
+            inventory: catalog.inventory,
+            sellPrices: {},
         });
-    }, []);
+    }, [getTestShopCatalog, setPendingStructuredIntent]);
 
-    const triggerTestCombat = useCallback(() => {
+    const triggerTestCombat = useCallback((
+        processPlayerAction?: (action: string) => void,
+        character?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
+    ) => {
+        const hostiles = [
+            { id: 'goblin-1', name: 'Goblin Batedor', hp: 7, maxHp: 7, ac: 13, initiative: 12 },
+            { id: 'goblin-2', name: 'Goblin Arqueiro', hp: 5, maxHp: 7, ac: 13, initiative: 10 },
+        ];
+        if (processPlayerAction && character) {
+            setPendingStructuredIntent(buildStartEncounterFromCharacter(character, hostiles));
+            processPlayerAction('Inimigos surgem — combate!');
+            return;
+        }
         setCombatState({
             isActive: true,
-            round: 2,
-            turn: 1, // Goblin's turn
+            round: 1,
+            turn: 0,
             initiativeOrder: ['player', 'goblin-1', 'goblin-2'],
             combatants: [
-                { id: 'player', name: 'Herói de Teste', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [] },
-                { id: 'goblin-1', name: 'Goblin Batedor', hp: { current: 7, max: 7 }, ac: 13, initiative: 15, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
-                { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 12, hasMoved: false, hasActed: false, actionPoints: 1, bonusActionPoints: 1, conditions: ['Frightened'], rollHistory: [], isDead: false },
+                { id: 'player', name: character?.name ?? 'Herói', isPlayer: true, hp: { current: 45, max: 50 }, ac: 16, initiative: 18, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [] },
+                { id: 'goblin-1', name: 'Goblin Batedor', hp: { current: 7, max: 7 }, ac: 13, initiative: 12, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
+                { id: 'goblin-2', name: 'Goblin Arqueiro', hp: { current: 5, max: 7 }, ac: 13, initiative: 10, hasMoved: false, hasActed: false, actionPoints: 3, bonusActionPoints: 1, conditions: [], rollHistory: [], isDead: false },
             ],
         });
-    }, []);
+    }, [setPendingStructuredIntent]);
 
     const triggerTestSkillCheck = useCallback((skillName: string) => {
         setSkillCheckRequest({ skillName });
@@ -211,11 +273,15 @@ export const useInteractionManager = () => {
         handleTakeLoot,
         handleBuyItem,
         handleSellItem,
+        handleOpenShop,
+        handleCloseShop,
+        handleStartEncounter,
         nextTurn,
 
         // Debug triggers
         triggerTestShop,
         triggerTestCombat,
+        getTestShopCatalog,
         triggerTestSkillCheck,
         pendingStructuredIntent,
         setPendingStructuredIntent,

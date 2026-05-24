@@ -718,6 +718,9 @@ export interface SessaoIA {
     templateCharacterId?: number | null;
   };
   logs?: LogEntry[];
+  combatState?: CombatState | null;
+  pendingLootOffer?: LootOffer | null;
+  shopState?: ShopState | null;
   createdAt: string;
   updatedAt: string;
   homebrewContentIds?: string[];

@@ -34,6 +34,10 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
     takeLoot,
     spendHitDice,
     declineHitDiceRequest,
+    openShop,
+    getTestShopCatalog,
+    startEncounter,
+    setPendingStructuredIntent,
   } = useGameStateContext();
 
   const [showStructuredTools, setShowStructuredTools] = useState(false);
@@ -150,10 +154,52 @@ export function GameplayActionDock({ onFreeAction }: { onFreeAction: () => void 
           <StructuredRestPanel variant="v2" />
         </div>
       ) : null}
-      <div className="flex justify-end px-3 pt-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-1">
+        {!combatState.isActive && character && getTestShopCatalog && openShop ? (
+          <div className="flex flex-wrap gap-1">
+            <DndButton
+              variant="ghost"
+              size="sm"
+              disabled={isActionLocked}
+              onClick={() => openShop(getTestShopCatalog())}
+            >
+              Mercador
+            </DndButton>
+            {setPendingStructuredIntent ? (
+              <DndButton
+                variant="ghost"
+                size="sm"
+                disabled={isActionLocked}
+                onClick={() => {
+                  setPendingStructuredIntent({
+                    type: 'quest-complete',
+                    payload: { description: 'Objetivo cumprido na aventura.' },
+                  });
+                  processPlayerAction('Concluo o objetivo principal da missão.');
+                }}
+              >
+                Concluir missão
+              </DndButton>
+            ) : null}
+          </div>
+        ) : null}
+        {!combatState.isActive && character && startEncounter ? (
+          <DndButton
+            variant="ghost"
+            size="sm"
+            disabled={isActionLocked}
+            onClick={() =>
+              startEncounter(character, [
+                { id: 'goblin-1', name: 'Goblin', hp: 7, maxHp: 7, ac: 13, initiative: 10 },
+              ])
+            }
+          >
+            Iniciar combate
+          </DndButton>
+        ) : null}
         <button
           type="button"
-          className="font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold"
+          className="ml-auto font-ui text-[10px] uppercase tracking-wider text-dnd-parchment-muted hover:text-dnd-gold"
           onClick={() => setShowStructuredTools((v) => !v)}
         >
           {showStructuredTools ? 'Ocultar SRD' : 'Ferramentas SRD'}

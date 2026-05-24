@@ -3,6 +3,8 @@ import { buildCompactPromptSections } from './promptSections.js';
 import { createSystemInstruction } from './instructions.js';
 import { buildMemoryGraph, formatMemoryGraphSnippet } from '../game/memoryGraph.js';
 import { CURRENT_SCHEMA_VERSION, GAME_MASTER_SCHEMA_HASH } from '../services/schemaIntegrityService.js';
+import { buildNarrativeContractPromptBlock } from './narrativeContract.js';
+import { resolvePipelineMode } from './constants.js';
 
 const MAX_PROMPT_INVENTORY_ITEMS = 12;
 const MAX_PROMPT_PROFICIENCIES = 8;
@@ -229,18 +231,22 @@ export const createPrompt = (input: GameMasterFlowInput, isGemma: boolean) => {
             : 'FASE_ATUAL=COMPLETA';
     const focusInstruction = (() => {
         if (focus === 'narrative') {
-            return `### FASE NARRATIVA (APENAS STORY + OPÇÕES)
+            const contractBlock =
+                resolvePipelineMode() === 'narration_only' ? `\n${buildNarrativeContractPromptBlock()}\n` : '';
+            return `${contractBlock}### FASE NARRATIVA — VOCÊ É O MESTRE DE JOGO
 Estrutura obrigatória (JSON completo, sem campos extras):
 ${narrativeExampleSnippet}
-- Gere pelo menos 2 logEntries e 3 actionOptions coerentes com o turno.
-- Não replique inventário, proficiências ou listas extensas; a fase narrativa só precisa de contexto textual.
-- NÃO inclua updatedCharacter, worldState, combatState, xpEvents, memoryContext, playerRollRequest ou qualquer outro campo de estado; mantenha-os omitidos.
-- Não solicite rolagens aqui. Se perceber que uma rolagem será necessária, registre essa intenção em systemLog (texto curto) para a fase seguinte.
-- Mantenha systemLog sucinto (ex.: “Verificação de Percepção necessária se o jogador seguir pelo beco”).`;
+- Narre em português do Brasil, tom de mesa D&D 5e: sensorial, claro, sem metajogo.
+- Gere pelo menos 2 logEntries e 3–5 actionOptions jogáveis (explorar, falar, combater, inventário, descanso).
+- O motor de regras controla HP, inventário, loot, loja e rolagens — você NÃO altera nem solicita playerRollRequest.
+- Se o bloco [Mestre — rolagem automática] ou [Motor] vier no prompt, narre o desfecho já resolvido (sucesso/falha).
+- Respeite o [Elenco da sessão]; não mate ou transforme NPCs listados sem motivo forte.
+- NÃO inclua updatedCharacter, worldState, combatState, xpEvents, lootOffer, shopState nem playerRollRequest.
+- memoryContext é opcional (resumo curto para continuidade). systemLog apenas se necessário.`;
         }
         if (focus === 'state') {
             const suppressRollDirective = input.suppressRollRequest
-                ? 'Se suppressRollRequest=true, NÃO retorne playerRollRequest (o backend registrará que nenhuma rolagem foi solicitada).'
+                ? 'Se suppressRollRequest=true, NÃO retorne playerRollRequest (o motor já rolou e aplicou regras).'
                 : 'Só gere playerRollRequest quando realmente necessário e descreva no systemLog o motivo da rolagem.';
             const scenarioDirectiveBlock = buildScenarioStateDirectiveBlock(input.scenarioLabel);
             return `### FASE DE ESTADO (APENAS DELTAS)
