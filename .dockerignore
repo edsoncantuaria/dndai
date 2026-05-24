@@ -1,0 +1,39 @@
+# Dependências e build
+node_modules
+.next
+out
+dist
+coverage
+.turbo
+
+# Monorepo / serviços separados (não entram na imagem do frontend)
+backend
+5e-srd-api
+
+# Git e IDE
+.git
+.gitignore
+.cursor
+.vscode
+*.md
+!README.md
+
+# Env e logs
+.env
+.env.*
+!.env.example
+*.log
+logs
+
+# Docker (evita rebuild circular)
+Dockerfile*
+docker-compose*.yml
+
+# Dados locais pesados (SRD snapshot no host; backend monta se necessário)
+data
+
+# Testes e docs
+docs
+**/__tests__
+**/*.spec.ts
+**/*.test.ts

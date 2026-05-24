@@ -107,7 +107,6 @@ export class Character {
     @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
     feats: any[] | null;
     
-    @Index()
     @Column({ type: 'simple-json', nullable: true })
     homebrewContentIds: string[]; // Armazena IDs de raça, classe, antecedente, etc.
 

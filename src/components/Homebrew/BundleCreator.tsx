@@ -6,6 +6,7 @@ import type { HomebrewContent, HomebrewBundle } from '@/services/homebrewService
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save, Search, PackagePlus, Users, Shield, Layers } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
+import { hb } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     isOpen: boolean;
@@ -185,7 +186,7 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated, bund
                             </li>
                             <li className="flex items-center justify-between rounded-xl border border-white/5 bg-stone-900/50 px-3 py-2">
                                 <span>Disponíveis</span>
-                                <span className="font-semibold text-stone-200">{availableContent.length}</span>
+                                <span className="font-ui text-sm font-semibold text-dnd-parchment">{availableContent.length}</span>
                             </li>
                             <li className="flex items-center justify-between rounded-xl border border-white/5 bg-stone-900/50 px-3 py-2">
                                 <span>Status</span>
@@ -231,7 +232,7 @@ const BundleCreator: React.FC<Props> = ({ isOpen, onClose, onBundleCreated, bund
                                     >
                                         <div>
                                             <p className="font-semibold">{item.name}</p>
-                                            <p className="text-xs text-stone-400">{item.type}</p>
+                                            <p className={hb.muted}>{item.type}</p>
                                         </div>
                                         <input
                                             type="checkbox"

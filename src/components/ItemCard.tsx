@@ -6,6 +6,7 @@ import * as DndApiService from '../services/dndApiService';
 
 interface ItemCardProps {
   item: InventoryItem;
+  variant?: 'legacy' | 'v2';
   onToggleEquip?: (itemId: string) => void;
   onUseConsumable?: (itemId: string) => void;
   actionDisabled?: boolean;
@@ -27,12 +28,14 @@ const ProficiencyIndicator: React.FC<{ proficient: boolean }> = ({ proficient })
 
 const ItemCard: React.FC<ItemCardProps> = ({
   item,
+  variant = 'legacy',
   onToggleEquip,
   onUseConsumable,
   actionDisabled,
   defaultExpanded = false,
   proficiencies = [],
 }) => {
+  const isV2 = variant === 'v2';
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [detailedItem, setDetailedItem] = useState<InventoryItem | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
@@ -125,7 +128,13 @@ const ItemCard: React.FC<ItemCardProps> = ({
   };
 
   return (
-    <div className="bg-stone-800/70 p-3 rounded-lg border border-stone-700">
+    <div
+      className={
+        isV2
+          ? 'rounded-md border border-dnd-gold/15 bg-dnd-obsidian-raised/60 p-2.5'
+          : 'rounded-lg border border-stone-700 bg-stone-800/70 p-3'
+      }
+    >
       <div
         className="flex justify-between items-start cursor-pointer"
         onClick={() => setIsExpanded((prev) => !prev)}

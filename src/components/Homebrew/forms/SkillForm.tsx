@@ -5,6 +5,7 @@ import * as DndApiService from '@/services/dndApiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { ApiListItem } from '@/types';
 import { Loader2 } from 'lucide-react';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -84,24 +85,24 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     
     if (user?.id !== 1) {
         return (
-            <div className="text-center p-8 bg-stone-800 rounded-lg">
-                <p className="text-red-400 font-semibold">Apenas administradores podem traduzir ou editar perícias.</p>
+            <div className={`${hb.section} text-center p-8`}>
+                <p className="font-ui text-sm text-dnd-danger">Apenas administradores podem traduzir ou editar perícias.</p>
             </div>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
             {isLoading ? (
                 <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>
             ) : (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Perícia Oficial para Traduzir</label>
+                    <label htmlFor="official_index" className={hb.label}>Perícia Oficial para Traduzir</label>
                     <select 
                         id="official_index" 
                         value={skillData.official_index} 
                         onChange={e => handleOfficialIndexChange(e.target.value)} 
-                        className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
+                        className={hb.control}
                     >
                         <option value="">Selecione a perícia original...</option>
                         {allSkills.map(skill => (
@@ -111,25 +112,25 @@ const SkillForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
             )}
             <div>
-                <label htmlFor="skill-name" className="block text-sm font-medium text-stone-300 mb-1">Nome Traduzido da Perícia</label>
+                <label htmlFor="skill-name" className={hb.label}>Nome Traduzido da Perícia</label>
                 <input 
                     id="skill-name" 
                     type="text" 
                     value={skillData.name} 
                     onChange={e => handleFieldChange('name', e.target.value)} 
                     required 
-                    className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" 
+                    className={hb.control} 
                     placeholder="Ex: Atletismo"
                 />
             </div>
             <div>
-                <label htmlFor="skill-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <label htmlFor="skill-desc" className={hb.label}>Descrição</label>
                 <textarea 
                     id="skill-desc" 
                     value={skillData.desc[0]} 
                     onChange={e => handleFieldChange('desc', [e.target.value])} 
                     rows={4}
-                    className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" 
+                    className={hb.control} 
                     placeholder="Descrição da perícia em português."
                 />
             </div>

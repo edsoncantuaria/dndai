@@ -1,0 +1,97 @@
+/**
+ * Crônicas de Aventuras — Design tokens (UI v2)
+ * Inspirado na paleta WotC sem usar assets protegidos.
+ */
+
+:root {
+  /* Cores marca */
+  --dnd-ember: #c41e3a;
+  --dnd-ember-hover: #d42a48;
+  --dnd-ember-muted: rgba(196, 30, 58, 0.35);
+  --dnd-gold: #c9a227;
+  --dnd-gold-dim: #8a7020;
+  --dnd-gold-glow: rgba(201, 162, 39, 0.45);
+  --dnd-obsidian: #0a0a0c;
+  --dnd-obsidian-raised: #141418;
+  --dnd-obsidian-glass: rgba(10, 10, 12, 0.82);
+  --dnd-parchment: #f4e8d0;
+  --dnd-parchment-muted: #c9b89a;
+  --dnd-mist: rgba(255, 255, 255, 0.08);
+  --dnd-mist-strong: rgba(255, 255, 255, 0.14);
+  --dnd-success: #2d8a4e;
+  --dnd-danger: #b91c1c;
+
+  /* Tipografia */
+  --font-display: var(--font-cinzel), 'Cinzel Decorative', serif;
+  --font-narrative: var(--font-im-fell), 'IM Fell English', serif;
+  --font-ui: var(--font-inter), 'Inter', system-ui, sans-serif;
+
+  /* Espaçamento (escala 4px) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Raio */
+  --dnd-radius-sm: 0.375rem;
+  --dnd-radius-md: 0.5rem;
+  --dnd-radius-lg: 0.75rem;
+  --dnd-radius-xl: 1rem;
+
+  /* Sombras */
+  --dnd-shadow-card:
+    0 4px 24px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(201, 162, 39, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --dnd-shadow-elevated:
+    0 12px 40px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(201, 162, 39, 0.2);
+
+  /* Motion */
+  --dnd-duration-ui: 200ms;
+  --dnd-duration-scene: 700ms;
+  --dnd-duration-scene-slow: 900ms;
+  --dnd-ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Layout */
+  --dnd-container-max: 1280px;
+  --dnd-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --dnd-safe-top: env(safe-area-inset-top, 0px);
+  --dnd-safe-left: env(safe-area-inset-left, 0px);
+  --dnd-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Utilitários de superfície */
+.dnd-surface-glass {
+  background: var(--dnd-obsidian-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.dnd-border-gold {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--dnd-obsidian-raised), var(--dnd-obsidian-raised)) padding-box,
+    linear-gradient(135deg, var(--dnd-gold-dim), var(--dnd-gold), var(--dnd-gold-dim)) border-box;
+}
+
+.dnd-text-gradient-gold {
+  background: linear-gradient(180deg, #e8d48a 0%, var(--dnd-gold) 50%, var(--dnd-gold-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dnd-duration-ui: 0ms;
+    --dnd-duration-scene: 0ms;
+    --dnd-duration-scene-slow: 0ms;
+  }
+}

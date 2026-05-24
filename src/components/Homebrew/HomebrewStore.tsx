@@ -1,3 +1,8 @@
+/**
+ * Grimório homebrew — UI fullscreen legada.
+ * @deprecated Em UI v2 use `HomebrewStorePage` (`@/features/homebrew`) com `embedded`.
+ * O motor e serviços permanecem aqui até migração completa para `features/homebrew`.
+ */
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 
@@ -43,7 +48,7 @@ import TranslationStudio from './TranslationStudio';
 type View = 'list' | 'create' | 'edit';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
 
-const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
+const MARKETPLACE_CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race',
     'subrace',
     'class',
@@ -54,7 +59,6 @@ const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'background',
     'feat',
     'skill',
-    'translation',
 ];
 
 const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.ReactNode> = {
@@ -188,7 +192,22 @@ const BundleCard: React.FC<{
     );
 };
 
-const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
+export interface HomebrewStoreProps {
+    returnToMenu: () => void;
+    /** Esconde chrome de página inteira (header/footer) — uso com HomebrewLayout v2 */
+    embedded?: boolean;
+    /** Remove botão e fluxo do Estúdio de Tradução (rota separada) */
+    hideTranslationEntry?: boolean;
+    /** Exibe badge Original / Fork / Tradução SRD nos cards */
+    showSourceBadges?: boolean;
+}
+
+const HomebrewStore: React.FC<HomebrewStoreProps> = ({
+    returnToMenu,
+    embedded = false,
+    hideTranslationEntry = false,
+    showSourceBadges = false,
+}) => {
     const [view, setView] = useState<View>('list');
     const [contentToEdit, setContentToEdit] = useState<HomebrewService.HomebrewContent | null>(null);
     const [bundleToEdit, setBundleToEdit] = useState<HomebrewService.HomebrewBundle | null>(null);
@@ -209,6 +228,8 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false);
     const [showTranslationStudio, setShowTranslationStudio] = useState(false);
     const importFileRef = useRef<HTMLInputElement>(null);
+
+    const contentTypeFilters = hideTranslationEntry ? MARKETPLACE_CONTENT_TYPES : [...MARKETPLACE_CONTENT_TYPES, 'translation'];
 
     const installedIds = useMemo(() => new Set(user?.installedHomebrewIds || []), [user]);
 
@@ -442,6 +463,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const filteredContent = useCallback(
         (contentList: HomebrewService.HomebrewContent[]) =>
             contentList.filter((item) => {
+                if (hideTranslationEntry && item.type === 'translation') return false;
                 const matchesType = typeFilter === 'all' || item.type === typeFilter;
                 const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
                 return matchesType && matchesSearch;
@@ -484,6 +506,19 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         </p>
                                     </div>
                                     <div className="flex flex-col gap-2 items-end">
+                                        {showSourceBadges && item.sourceKind ? (
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                                                    item.sourceKind === 'fork'
+                                                        ? 'bg-purple-500/20 text-purple-200 border border-purple-400/30'
+                                                        : item.sourceKind === 'translation'
+                                                        ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/30'
+                                                        : 'bg-amber-500/15 text-amber-200 border border-amber-400/30'
+                                                }`}
+                                            >
+                                                {item.sourceKind === 'fork' ? 'Fork SRD' : item.sourceKind === 'translation' ? 'Tradução SRD' : 'Original'}
+                                            </span>
+                                        ) : null}
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-stone-200">
                                             {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-3.5 w-3.5" />} {item.type}
                                         </span>
@@ -680,7 +715,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     },
                 ]}
             >
-                <p className="text-stone-300">
+                <p className="text-xs text-stone-400">
                     {isInstall
                         ? `Instalar "${candidate.item.name}" adicionará o conteúdo à sua conta.`
                         : `Remover "${candidate.item.name}" faz com que ele deixe de aparecer nas suas sessões.`}
@@ -704,11 +739,35 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         );
     };
 
-    if (showTranslationStudio) {
+    if (showTranslationStudio && !hideTranslationEntry) {
         return <TranslationStudio onCancel={() => setShowTranslationStudio(false)} />;
     }
 
     if (view === 'create' || view === 'edit') {
+        const creatorProps = {
+            onContentCreated: () => {
+                setView('list');
+                fetchContentAndBundles();
+            },
+            onCancel: () => setView('list'),
+            contentToEdit,
+        };
+
+        if (embedded) {
+            return (
+                <div className="space-y-4">
+                    <button
+                        type="button"
+                        onClick={() => setView('list')}
+                        className="inline-flex items-center gap-2 font-ui text-sm text-dnd-parchment-muted hover:text-dnd-gold"
+                    >
+                        <ArrowLeft className="h-4 w-4" /> Voltar ao marketplace
+                    </button>
+                    <HomebrewCreator {...creatorProps} variant="v2" />
+                </div>
+            );
+        }
+
         return (
             <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 px-4 py-8">
                 <div className="mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl shadow-black/60 backdrop-blur">
@@ -724,14 +783,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             <h2 className="text-2xl font-semibold text-white">Oficina de Criação</h2>
                         </div>
                     </div>
-                    <HomebrewCreator
-                        onContentCreated={() => {
-                            setView('list');
-                            fetchContentAndBundles();
-                        }}
-                        onCancel={() => setView('list')}
-                        contentToEdit={contentToEdit}
-                    />
+                    <HomebrewCreator {...creatorProps} />
                 </div>
             </div>
         );
@@ -746,9 +798,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     return (
         <>
-            <div className="relative min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 py-6">
-                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-30" aria-hidden />
-                <div className="relative z-10 mx-auto w-full max-w-6xl px-4 space-y-6">
+            <div className={embedded ? 'relative space-y-4' : 'relative min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 py-6'}>
+                {!embedded ? <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-30" aria-hidden /> : null}
+                <div className={embedded ? 'relative space-y-4' : 'relative z-10 mx-auto w-full max-w-6xl px-4 space-y-6'}>
+                    {!embedded ? (
                     <header className="rounded-3xl border border-white/10 bg-gradient-to-r from-stone-950/90 via-stone-900/70 to-stone-900/50 p-6 shadow-2xl shadow-black/60 backdrop-blur">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
                             <div className="flex-1 min-w-0 text-left">
@@ -795,12 +848,15 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     >
                                         <Bot className="h-4 w-4" /> Gerar com IA
                                     </button>
+                                    {!hideTranslationEntry ? (
                                     <button
+                                        type="button"
                                         onClick={() => setShowTranslationStudio(true)}
                                         className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-200 hover:text-amber-200"
                                     >
                                         <Languages className="h-4 w-4" /> Estúdio de tradução
                                     </button>
+                                    ) : null}
                                 </div>
                             </div>
                             <div className="grid w-full flex-1 min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -814,6 +870,51 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </div>
                         </div>
                     </header>
+                    ) : (
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setContentToEdit(null);
+                                setView('create');
+                            }}
+                            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 px-4 py-2 text-xs font-semibold text-stone-950"
+                        >
+                            <Plus className="h-3.5 w-3.5" /> Criar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setBundleToEdit(null);
+                                setIsBundleCreatorOpen(true);
+                            }}
+                            className="inline-flex items-center gap-2 rounded-full border border-purple-400/40 bg-purple-500/10 px-4 py-2 text-xs font-semibold text-purple-100"
+                        >
+                            <PackagePlus className="h-3.5 w-3.5" /> Pacote
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => importFileRef.current?.click()}
+                            className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-100"
+                        >
+                            <Upload className="h-3.5 w-3.5" /> Importar
+                        </button>
+                        <input
+                            ref={importFileRef}
+                            type="file"
+                            accept="application/json,.json"
+                            className="hidden"
+                            onChange={handleImportBundleFile}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setIsAiCreatorOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-100"
+                        >
+                            <Bot className="h-3.5 w-3.5" /> IA
+                        </button>
+                    </div>
+                    )}
 
                     <section className="grid grid-cols-1 gap-3 rounded-3xl border border-white/5 bg-black/20 p-5 shadow-inner shadow-black/40 md:grid-cols-2 lg:grid-cols-3">
                         <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/70 to-stone-900/30 p-4">
@@ -868,7 +969,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 >
                                     Todos
                                 </button>
-                                {CONTENT_TYPES.map((type) => (
+                                {contentTypeFilters.map((type) => (
                                     <button
                                         key={type}
                                         onClick={() => setTypeFilter(type)}
@@ -915,6 +1016,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         <div className="mt-6 rounded-2xl border border-white/5 bg-black/30 p-4 min-h-[50vh]">{renderActiveTab()}</div>
                     </section>
 
+                    {!embedded ? (
                     <footer className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-stone-300">
                         <button
                             onClick={returnToMenu}
@@ -924,6 +1026,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         </button>
                         <p className="text-xs text-stone-500">Marketplace compartilhado pela comunidade. Curadoria automática da IA mantém o conteúdo consistente.</p>
                     </footer>
+                    ) : null}
                 </div>
             </div>
 
@@ -956,7 +1059,12 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 bundleToEdit={bundleToEdit}
             />
 
-            <AiCreator isOpen={isAiCreatorOpen} onClose={() => setIsAiCreatorOpen(false)} onContentGenerated={handleAiContentCreated} />
+            <AiCreator
+                variant={embedded ? 'v2' : 'legacy'}
+                isOpen={isAiCreatorOpen}
+                onClose={() => setIsAiCreatorOpen(false)}
+                onContentGenerated={handleAiContentCreated}
+            />
         </>
     );
 };

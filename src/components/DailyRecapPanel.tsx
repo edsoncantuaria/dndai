@@ -7,7 +7,9 @@ import { Compass, Clock, CloudSun, Flame, Sparkles, MapPin, Trophy, Activity, Br
 import { cn } from '@/lib/utils';
 import { getSessionFacts, type SessionFactsResponse } from '@/services/gameService';
 
-const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
+const PANEL_LEGACY =
+  'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
+const PANEL_V2 = 'dnd-border-gold dnd-surface-glass rounded-lg shadow-[var(--dnd-shadow-card)]';
 const iconClasses = 'h-4 w-4 text-amber-300';
 
 const parseLogSummary = (entry: any): string => {
@@ -22,7 +24,8 @@ const parseLogSummary = (entry: any): string => {
     return '';
 };
 
-const DailyRecapPanel: React.FC = () => {
+const DailyRecapPanel: React.FC<{ variant?: 'legacy' | 'v2' }> = ({ variant = 'legacy' }) => {
+    const PANEL = variant === 'v2' ? PANEL_V2 : PANEL_LEGACY;
     const { character, log, combatState, sessionId } = useGameStateContext();
     const [facts, setFacts] = useState<SessionFactsResponse | null>(null);
 

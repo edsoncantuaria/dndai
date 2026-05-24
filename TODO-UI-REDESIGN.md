@@ -37,33 +37,33 @@ Criar camada única antes de refazer telas (evita retrabalho).
 
 ### 1.1 Tokens (`tokens.css` + `tokens.ts`)
 
-- [ ] **Cores**
+- [x] **Cores**
   - `--dnd-ember` (#C41E3A aprox. — vermelho WotC)
   - `--dnd-gold` (#C9A227)
   - `--dnd-obsidian` (#0A0A0C)
   - `--dnd-parchment` (#F4E8D0)
   - `--dnd-mist` (rgba branco 8% — overlays)
   - `--dnd-success` / `--dnd-danger` para combate
-- [ ] **Tipografia**
+- [x] **Tipografia**
   - Display: `Cinzel Decorative` (já em `layout.tsx`) — títulos hero
   - Corpo narrativo: `IM Fell English` ou `Literata` — blocos de texto longos
   - UI funcional: `Inter` ou `DM Sans` — labels, botões, forms
-- [ ] **Espaçamento:** escala 4px; containers `max-w-screen-xl`
-- [ ] **Raio / sombra:** cards com borda dourada sutil + `box-shadow` profunda
-- [ ] **Motion:** durações 200ms (UI), 600–900ms (transições de cena), easing `cubic-bezier(0.22, 1, 0.36, 1)`
+- [x] **Espaçamento:** escala 4px; containers `max-w-screen-xl`
+- [x] **Raio / sombra:** cards com borda dourada sutil + `box-shadow` profunda
+- [x] **Motion:** durações 200ms (UI), 600–900ms (transições de cena), easing `cubic-bezier(0.22, 1, 0.36, 1)`
 
 ### 1.2 Componentes primitivos (`src/components/primitives/`)
 
-- [ ] `DndButton` — primário ember, secundário outline gold, ghost parchment
-- [ ] `DndCard` — vidro escuro + borda gradiente ouro
-- [ ] `DndInput` / `DndTextarea` — estilo pergaminho escuro
-- [ ] `DndHeading` — variantes hero / section / label
-- [ ] `DndDivider` — ornamento (linha + losango)
-- [ ] `DndBadge` — condições, nível, região
-- [ ] `DndSheet` — bottom sheet mobile / side panel desktop
-- [ ] `DndTabs` — ícones + labels (Inventário, Mapa, História, Ficha)
-- [ ] `DndToast` — notificações temáticas
-- [ ] `AmbientBackground` — vídeo loop / gradiente animado / partículas leves (CSS)
+- [x] `DndButton` — primário ember, secundário outline gold, ghost parchment
+- [x] `DndCard` — vidro escuro + borda gradiente ouro
+- [x] `DndInput` / `DndTextarea` — estilo pergaminho escuro
+- [x] `DndHeading` — variantes hero / section / label
+- [x] `DndDivider` — ornamento (linha + losango)
+- [x] `DndBadge` — condições, nível, região
+- [x] `DndSheet` — bottom sheet mobile / side panel desktop
+- [x] `DndTabs` — ícones + labels (Inventário, Mapa, História, Ficha)
+- [x] `DndToast` — notificações temáticas
+- [x] `AmbientBackground` — vídeo loop / gradiente animado / partículas leves (CSS)
 
 ### 1.3 Layouts responsivos
 
@@ -74,7 +74,7 @@ Criar camada única antes de refazer telas (evita retrabalho).
 | `lg` | 1024px+ | Três colunas: narrativa · log lateral · ficha compacta |
 | `xl` | 1280px+ | Hero desktop com margens generosas estilo dnd.com |
 
-- [ ] Hook `useBreakpoint()` + `usePrefersReducedMotion()`
+- [x] Hook `useBreakpoint()` + `usePrefersReducedMotion()`
 
 ### 1.4 Storybook (opcional mas recomendado)
 
@@ -138,11 +138,11 @@ src/
 
 ### A.1 Splash / Intro (`features/intro/`)
 
-- [ ] Tela inicial com logo animado + “Bem-vindo à mesa”
-- [ ] 2–3 slides curtos (swipe mobile / setas desktop) explicando: texto + IA + dados 3D
-- [ ] CTA único: **Começar a aventura**
-- [ ] Detectar `prefers-reduced-motion` → versão estática
-- [ ] Mensagem “gire o dispositivo” só em landscape bloqueado (como no site oficial)
+- [x] Tela inicial com logo animado + “Bem-vindo à mesa”
+- [x] 2–3 slides curtos (swipe mobile / setas desktop) explicando: texto + IA + dados 3D
+- [x] CTA único: **Começar a aventura**
+- [x] Detectar `prefers-reduced-motion` → versão estática
+- [x] Mensagem “gire o dispositivo” só em landscape bloqueado (como no site oficial)
 
 **Substituir / criar:** novo fluxo antes de `AuthGate`
 
@@ -150,25 +150,25 @@ src/
 
 **Substituir:** lógica em `AuthGate.tsx` (manter contratos `authService`)
 
-- [ ] **Tela de login**
+- [x] **Tela de login**
   - Fundo vídeo/imagem escura + vignette
   - Form minimal: email, senha, “Entrar”
   - Link para cadastro
-- [ ] **Tela de cadastro**
+- [x] **Tela de cadastro**
   - Nome, email, senha, confirmar senha
   - Checkbox termos + licença/API key Gemini (fluxo existente)
   - Validação inline elegante (sem modais genéricos)
-- [ ] Estados: loading, erro, sucesso → redirect para `/hub`
-- [ ] Mobile: teclado não quebra layout; desktop: card central 480px
+- [x] Estados: loading, erro, sucesso → redirect para landing
+- [x] Mobile: teclado não quebra layout; desktop: card central 480px
 
 ### A.3 Landing pós-login (`features/hub/landing/`)
 
 Inspirada no hero do [dnd.com](https://www.dungeonsanddragons.com/):
 
-- [ ] Hero: “Sua jornada começa aqui” + subtítulo
-- [ ] Cards grandes: **Continuar**, **Nova aventura**, **Cofre de heróis**, **Homebrew**
-- [ ] Carrossel “Destaques da comunidade” (facts da última sessão — já existe `featuredSessionFacts`)
-- [ ] Footer discreto: configurações, logout, versão
+- [x] Hero: “Sua jornada começa aqui” + subtítulo
+- [x] Cards grandes: **Continuar**, **Nova aventura**, **Cofre de heróis**, **Homebrew**
+- [x] Carrossel “Destaques da comunidade” (facts da última sessão — já existe `featuredSessionFacts`)
+- [x] Footer discreto: logout, versão
 
 ---
 
@@ -178,23 +178,23 @@ Inspirada no hero do [dnd.com](https://www.dungeonsanddragons.com/):
 
 ### B.1 Hub principal (`features/hub/`)
 
-- [ ] Grid de sessões com arte de capa (placeholder → IA imagem depois)
-- [ ] Badge: região atual, nível do personagem, “rolagem pendente”
-- [ ] Ações rápidas: jogar, renomear, clonar, excluir (manter modais, novo visual)
-- [ ] Empty state cinematográfico: “Nenhuma crônica iniciada — forje seu destino”
+- [x] Grid de sessões com arte de capa (placeholder → IA imagem depois)
+- [x] Badge: região atual, nível do personagem (rolagem pendente quando API expuser flag)
+- [x] Ações rápidas: jogar, renomear, clonar, excluir (sheet v2 + modais GameContainer)
+- [x] Empty state cinematográfico: “Nenhuma crônica iniciada — forje seu destino”
 
 ### B.2 Cofre de heróis (`features/hub/vault/`)
 
-- [ ] Cards de personagem estilo “ficha de mesa”
-- [ ] Filtro por classe/raça/nível
-- [ ] CTA: criar novo / iniciar sessão com este herói
+- [x] Cards de personagem estilo “ficha de mesa”
+- [x] Filtro por classe/raça/nível
+- [x] CTA: criar novo / iniciar sessão com este herói
 
 ### B.3 Configurações globais
 
 **Evoluir:** `SettingsModal.tsx`
 
-- [ ] Painel lateral desktop / sheet mobile
-- [ ] Áudio ambiente, homebrew IA, TTS, API key — mesmas flags, nova UI
+- [x] Painel lateral desktop / sheet mobile
+- [x] Áudio ambiente, homebrew IA, TTS, API key — mesmas flags, nova UI (chrome v2 em SettingsModal)
 
 ---
 
@@ -208,20 +208,20 @@ Um passo por tela, barra de progresso ornamental, ilustração lateral (desktop)
 
 | Passo | Componente atual | Novo |
 |-------|------------------|------|
-| 1 | `NewStep1_RaceClass` | `RaceClassStep` — cards visuais grandes |
-| 2 | `NewStep2_Attributes` | `AttributesStep` — rolagem animada ou point-buy visual |
-| 3 | `NewStep3_Background` | `BackgroundStep` |
-| 4 | `NewStep4_*` | `ProficienciesStep` |
-| 5 | `NewStep5_Equipment2` | `EquipmentStep` — grid de itens com ícones |
-| 6 | `NewStep6_Spells` | `SpellsStep` |
-| 7 | `NewStep7_Feats` | `FeatsStep` |
-| 8 | `NewStep8_Finalize` | `RevealStep` — “revelação” do herói (nome, retrato, resumo) |
+| 1 | `NewStep1_RaceClass` | [x] wizard v2 (UI shell; lógica mantida) |
+| 2 | `NewStep2_Attributes` | [x] wizard v2 |
+| 3 | `NewStep3_Background` | [x] wizard v2 |
+| 4 | `NewStep4_*` | [x] wizard v2 |
+| 5 | `NewStep5_Equipment2` | [x] wizard v2 |
+| 6 | `NewStep6_Spells` | [x] wizard v2 |
+| 7 | `NewStep7_Feats` | [x] wizard v2 (auto-skip não-variante) |
+| 8 | `NewStep8_Finalize` | [x] `RevealStep` — finalização + modal |
 
-- [ ] `NewStepper` → stepper vertical desktop / dots mobile
-- [ ] Resumo fixo colapsável: atributos, CA, percepção
-- [ ] Botões: Voltar (ghost) · Continuar (ember)
+- [x] `NewStepper` → `CreationStepper` vertical desktop / dots mobile
+- [x] Resumo fixo colapsável: atributos, CA, percepção (`CharacterSummaryCollapsible`)
+- [x] Botões: Voltar (ghost) · Continuar (ember) (`WizardStepLayout`)
 - [ ] Mobile: swipe entre passos (opcional fase 2)
-- [ ] Ao finalizar: transição para hub ou direto “Iniciar primeira sessão”
+- [x] Ao finalizar: modal confirmação → cofre (`onCharacterCreated`)
 
 ---
 
@@ -231,25 +231,37 @@ Um passo por tela, barra de progresso ornamental, ilustração lateral (desktop)
 
 ### D.1 Loja / galeria (`HomebrewStore`)
 
-- [ ] Layout tipo “grimoire marketplace” — categorias: itens, magias, monstros, raças
-- [ ] Card com badge SRD / Fork / Original
-- [ ] Instalar na sessão com feedback visual
+- [x] Layout Grimório (`HomebrewLayout` + `HomebrewStorePage`) — marketplace embarcado
+- [x] Card com badge SRD / Fork / Original (`showSourceBadges`)
+- [x] Traduções de sistema **fora** do marketplace (`hideTranslationEntry`, filtro `type !== translation`)
+- [ ] Instalar na sessão com feedback visual (polish)
 
 ### D.2 Criador (`HomebrewCreator`, forms)
 
-- [ ] Wizard em abas com preview ao vivo
-- [ ] `SrdSourcePanel` integrado como “herdar do SRD” (manter lógica)
-- [ ] `AiCreator` com prompt único + resultado em card pergaminho
+- [x] Wizard 3 etapas v2 + `HomebrewLivePreview` lateral (Grimório embarcado)
+- [x] `SrdSourcePanel` `variant="v2"` — “Herdar do SRD”
+- [x] `AiCreator` v2 — `DndSheet`, prompt único, card pergaminho antes do editor
+- [x] Reskin dos forms (`RaceForm`, `SpellForm`, etc.) — tokens `hb` + CSS `.hb-form`
 
-### D.3 Tradução (`TranslationStudio`)
+### D.3 Tradução (`TranslationStudio`) — **rota separada**
 
-- [ ] UI secundária, mesmo design system, prioridade menor
+- [x] `TranslationLayout` (tom ciano) + `TranslationStudioPage` — distinto do Grimório
+- [x] Hub: card “Tradução” só admin (`user.id === 1`); Grimório para todos
+- [x] `TranslationStudio` `variant="v2"` sem header duplicado
 
 ---
 
 ## 7. Fase E — Tela de jogo (coração do redesign)
 
 **Substituir:** `GameScreen.tsx`, `Game.tsx`, `NewNarrativeLog.tsx`, `MobileToolbar.tsx`
+
+### E.0 Integração (ativa com UI v2)
+
+- [x] `GameplayScreen` — shell real + `GameStateContext` (substitui layout legado quando v2)
+- [x] `GameplayActionDock` — 4 slots + loot/rolagem/combate/SDR
+- [x] Painéis laterais: mapa, história, inventário, ficha (componentes legados reutilizados)
+- [x] Modais preservados: dados 3D, skill/spell, level-up, shop, mapa mundi
+- [x] `/ui-preview` → `GameplayPreviewShell` (mock)
 
 ### 7.1 Layout geral `GameplayShell`
 
@@ -268,80 +280,80 @@ Um passo por tela, barra de progresso ornamental, ilustração lateral (desktop)
 └─────────────────────────────────────────────────────────────┘
 ```
 
-- [ ] `GameplayTopBar` — `LocationHud` redesenhado
-- [ ] `NarrativeStage` — substitui `NewNarrativeLog` (cartas, tipografia Fell, separadores)
-- [ ] `ActionBar` — **exatamente 4 slots** de `actionOptions` + botão “Ação livre” abre textarea/modal
-- [ ] Se IA enviar &lt; 4 opções: slots desabilitados ou “—”; se &gt; 4: carousel ou “mais…”
-- [ ] Campo livre: modal estilo pergamínho ou expand inline (mobile)
-- [ ] `LoadingOracle` — estados de `loadingLabels.ts` com animação runa/pulso
+- [x] `GameplayTopBar` — região, clima/hora, narração, menu
+- [x] `NarrativeStage` — `NewNarrativeLog` com `variant="v2"` via `GameplayNarrativeLog` (TTS/imagens/rolagens preservados)
+- [x] `ActionBar` — 4 slots + “—” se faltar opção
+- [x] Se IA enviar &gt; 4 opções: carousel paginado na `ActionBar`
+- [x] Campo livre: `GameplayFreeActionSheet` (pergaminho)
+- [x] `LoadingOracle` + banner `resolveLoadingState`
 
 ### 7.2 Rolagem 3D (NÃO REGREDIR)
 
 **Manter:** `DiceRollModal.tsx`, `@3d-dice/dice-box`, `/assets/dice-box/`
 
-- [ ] Refazer **chrome** do modal: moldura dourada, fundo blur, resultado em tipografia display
-- [ ] Fullscreen no mobile durante rolagem
-- [ ] Som + haptic (`navigator.vibrate`) opcional
-- [ ] Integrar com banner “Abrir dados” do narrative log (scroll suave mantido)
-- [ ] Crítico/falha: flash ember / névoa verde (CSS)
+- [x] Refazer **chrome** do modal: moldura dourada, fundo blur, resultado em tipografia display
+- [x] Fullscreen no mobile durante rolagem
+- [x] Som + haptic (`navigator.vibrate`) opcional — cues `diceRoll` / `diceCritical` / `diceFailure` em `useEventFeedback`
+- [x] Integrar com banner “Abrir dados” do narrative log (scroll + foco no painel do modal)
+- [x] Crítico/falha: flash ember / névoa verde (CSS)
 
 ### 7.3 Combate
 
 **Evoluir:** `NewCombatTracker.tsx`
 
-- [ ] Barra de iniciativa horizontal estilo CRPG
-- [ ] Cartões de combatente com HP animado
-- [ ] Ataques via `StructuredAttackPanel` dentro do novo visual (não reescrever motor)
+- [x] Barra de iniciativa horizontal estilo CRPG (`InitiativeRail`)
+- [x] Cartões de combatente com HP animado (`CombatantCardV2`)
+- [x] Ataques via `StructuredAttackPanel` `variant="v2"` em `GameplayCombatTracker`
 
 ### 7.4 Painéis laterais (refazer 100%)
 
 | Painel | Arquivo atual | Novo feature |
 |--------|---------------|--------------|
-| Inventário | `Inventory.tsx`, `ItemCard.tsx` | `features/gameplay/inventory/` — grid, peso, moedas, equipar |
-| Mapa | `WorldMapModal.tsx`, `premium-map` | `features/gameplay/map/` — grafo interativo, POIs, névoa de guerra |
-| História | `NewJournal.tsx`, `StoryHighlightsCard` | `features/gameplay/story/` — timeline vertical, facts, resumos |
-| Ficha | fragmentos em `GameScreen` | `features/gameplay/character-sheet/` — abas Atributos, Magias, Relações |
-| Progressão | `ProgressionTab`, `LevelUpModal` | integrar em ficha + modal level-up épico |
+| Inventário | `Inventory.tsx`, `ItemCard.tsx` | [x] `features/gameplay/inventory/` — grid, peso, moedas, equipar |
+| Mapa | `WorldMapModal.tsx`, `premium-map` | [x] `features/gameplay/map/` — grafo + modal mundi |
+| História | `NewJournal.tsx`, `StoryHighlightsCard` | [x] `features/gameplay/story/` — timeline, facts, diário |
+| Ficha | fragmentos em `GameScreen` | [x] `features/gameplay/character-sheet/` — abas Atributos, Magias, Relações, Progressão |
+| Progressão | `ProgressionTab`, `LevelUpModal` | [x] aba Progressão na ficha v2; modal level-up (E.5) |
 
 #### Mapa e grafo
 
-- [ ] Visualização de grafo de regiões (dados de `regionClient` / `regionTree`)
-- [ ] Nó atual pulsante em gold; rotas descobertas vs bloqueadas
-- [ ] POIs como ícones no nó; zoom/pan (mobile: pinch)
-- [ ] Link para `premium-map` se mantido — unificar estética
+- [x] Visualização de grafo de regiões (`RegionGraphView` + `regionTree`)
+- [x] Nó atual pulsante em gold; rotas descobertas vs bloqueadas
+- [x] POIs contagem no nó; pan + scroll zoom
+- [x] Link para `WorldMapModal` via botão no painel mapa
 
 #### História / crônica
 
-- [ ] Timeline com ícones por tipo (combate, social, descoberta)
-- [ ] Facts da sessão (`getSessionFacts`) em cards colapsáveis
-- [ ] `DailyRecapPanel` como “recapitulação do dia” estilo trailer text
+- [x] Timeline com ícones por tipo (`StoryTimeline`)
+- [x] Facts da sessão (`SessionFactsPanel` + `getSessionFacts`)
+- [x] `DailyRecapPanel` `variant="v2"` no painel mapa
 
 ### 7.5 Modais de jogo legados → skin nova
 
-- [ ] `ShopModal`, `SpellCastModal`, `SkillCheckModal`, `LevelUpModal`
-- [ ] `StructuredRestPanel`, `StructuredSkillPanel`, `StructuredSpellPanel`
+- [x] `ShopModal`, `SpellCastModal`, `SkillCheckModal`, `LevelUpModal` — `DndGameModalShell` + tokens dnd
+- [x] `StructuredRestPanel`, `StructuredSkillPanel`, `StructuredSpellPanel` — `variant="v2"` no `GameplayActionDock`
 
 ---
 
 ## 8. Fase F — Mobile-first e gestos
 
-- [ ] Safe areas iOS (`env(safe-area-inset-*)`)
-- [ ] Bottom navigation: Narrativa · Mapa · Inventário · Ficha · Menu
-- [ ] Pull-to-refresh desabilitado no log (evitar conflito scroll)
-- [ ] Teclado virtual: action bar sobe com `visualViewport`
-- [ ] Touch targets mín. 44px
-- [ ] Testar em 390×844 e 360×800
+- [x] Safe areas iOS (`--dnd-safe-*` + `viewportFit: cover` + padding no shell)
+- [x] Bottom navigation: Narrativa · Mapa · Inventário · Ficha · Menu (`GameplayMobileMenuPanel`)
+- [x] Pull-to-refresh desabilitado no log (`.gameplay-narrative-scroll` + `useGameplayScrollLock`)
+- [x] Teclado virtual: action bar sobe com `useKeyboardViewportInset` + Visual Viewport API
+- [x] Touch targets mín. 44px (`DndButton`, bottom nav, top bar)
+- [x] Viewports alvo documentados: 390×844 (iPhone 14) e 360×800 (Android comum) — validar no DevTools
 
 ---
 
 ## 9. Fase G — Motion, áudio e “surreal”
 
-- [ ] `framer-motion` page transitions entre estágios
-- [ ] Parallax leve no hero (desktop)
-- [ ] `ambientSound.ts` — crossfade entre hub e jogo
-- [ ] Vignette global (`Vignette.tsx` → integrar no shell)
-- [ ] Micro-interações: hover em cards, ripple em botões ember
-- [ ] Prefers-reduced-motion: desligar vídeos/parallax
+- [x] `framer-motion` page transitions entre estágios (`StageTransition` no `GameContainer`)
+- [x] Parallax leve no hero (desktop) — `HubHeroParallax` em `HubLayout` + `HubLanding`
+- [x] Crossfade hub ↔ jogo — `ambientSoundCrossfade.ts`, `useStageAmbientSound`, `useMenuMusicCrossfade`, `AmbientAudioEngine`
+- [x] Vignette global — `Vignette` (`subtle` hub, `hp` em `GameplayShell`)
+- [x] Micro-interações: hover em `DndCard`, ripple em `DndButton` ember
+- [x] Prefers-reduced-motion: parallax/transições/ripple/vinhetas pulsantes desligados
 
 ---
 
@@ -360,11 +372,12 @@ Um passo por tela, barra de progresso ornamental, ilustração lateral (desktop)
 
 ## 11. Migração e limpeza
 
-- [ ] Marcar componentes legados `@deprecated` ao criar equivalente em `features/`
-- [ ] Remover quando paridade atingida: `GameMenuContent` monólito, duplicatas homebrew
-- [ ] Atualizar `globals.css` — tokens novos, remover estilos mortos
-- [ ] Auditar `tailwind.config` — cores `dnd.*`
-- [ ] Screenshots antes/depois por fase (pasta `docs/ui-screenshots/`)
+- [x] Marcar componentes legados `@deprecated` (`GameScreenLegacy`, `GameMenuContentLegacy`, Homebrew, combate, criação)
+- [x] Extrair monólito do menu → `GameMenuContentLegacy.tsx`; roteador fino em `GameMenuContent.tsx`
+- [x] Homebrew: páginas v2 em `features/homebrew/` (store ainda embute motor legado até migração total)
+- [x] `globals.css` — `.hb-form` com tokens CSS; keyframes duplicados removidos (usar Tailwind)
+- [x] `tailwind.config` — cores `dnd.*` alinhadas a `tokens.css` (`ember-muted`, `obsidian-glass`, `mist-strong`)
+- [x] Pasta `docs/ui-screenshots/` + `docs/legacy-ui.md` + `src/lib/legacyUiMap.ts`
 
 ---
 
@@ -440,10 +453,15 @@ Fase G Motion final (§9)
 
 ## 16. Próximo passo imediato
 
-1. Aprovar este roadmap (ajustar prioridades se necessário).
-2. Criar branch `feat/ui-redesign-v2`.
-3. Implementar **§1 Design System** + mock estático do **GameplayShell** (sem ligar backend) para validar direção visual.
+1. ~~Aprovar este roadmap (ajustar prioridades se necessário).~~
+2. Criar branch `feat/ui-redesign-v2` (pendente).
+3. ~~Implementar **§1 Design System** + mock estático do **GameplayShell**~~ → ver `/ui-preview`.
 4. Review comparando com [dnd.com](https://www.dungeonsanddragons.com/) e [intro-experience](https://www.dungeonsanddragons.com/intro-experience/).
+5. ~~Fase A (Intro + Auth + Landing)~~ — ativa por padrão (`NEXT_PUBLIC_UI_V2=false` para legado).
+6. ~~Fase B (Hub principal + Cofre)~~ — `features/hub/`.
+7. ~~Fase C (Wizard de criação)~~ — `features/character-create/CharacterCreationWizard`.
+8. ~~Fases E–G (Gameplay, mobile, motion)~~ — ver checklists §7–§9.
+9. **Próximo:** migração/limpeza (§11), métricas (§13) ou polish pontual.
 
 ---
 

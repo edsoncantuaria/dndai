@@ -20,6 +20,7 @@ interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
 type AttributeKey = keyof Attributes;
@@ -287,7 +288,7 @@ const FinalAttributesPanel: React.FC<Pick<Props, 'hook'>> = ({ hook }) => {
     );
 };
 
-const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
+const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav }) => {
     const {
         attributeMethod,
         setField,
@@ -333,6 +334,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
             {attributeMethod && <FinalAttributesPanel hook={hook} />}
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -352,6 +354,7 @@ const NewStep2_Attributes: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

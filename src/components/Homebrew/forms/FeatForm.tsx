@@ -5,6 +5,7 @@ import * as characterUtils from '@/utils/characterUtils';
 import type { Attributes } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Prerequisite {
     ability_score: { index: string; name: string, url: string };
@@ -71,31 +72,31 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
             <div>
-                <label htmlFor="feat-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Talento</label>
-                <input id="feat-name" type="text" value={featData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre de Armas de Haste"/>
+                <label htmlFor="feat-name" className={hb.label}>Nome do Talento</label>
+                <input id="feat-name" type="text" value={featData.name} onChange={e => handleFieldChange('name', e.target.value)} required className={hb.control} placeholder="Ex: Mestre de Armas de Haste"/>
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
-                    <input id="official_index" type="text" value={featData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: grappler (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever/Traduzir)</label>
+                    <input id="official_index" type="text" value={featData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: grappler (opcional)"/>
                 </div>
             )}
             <div>
-                <label htmlFor="feat-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea id="feat-desc" value={featData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={5} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva os benefícios e as regras do talento."/>
+                <label htmlFor="feat-desc" className={hb.label}>Descrição</label>
+                <textarea id="feat-desc" value={featData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={5} className={hb.control} placeholder="Descreva os benefícios e as regras do talento."/>
             </div>
             
-            <div className="pt-4 border-t border-stone-700/60">
-                 <h5 className="text-sm font-medium text-stone-300 mb-2">Pré-requisitos</h5>
+            <div className={hb.dividerSection}>
+                 <h5 className={hb.headingSm}>Pré-requisitos</h5>
                  <div className="space-y-2">
                     {featData.prerequisites.map((prereq, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
+                        <div key={index} className={hb.row}>
                             <select 
                                 value={prereq.ability_score.index} 
                                 onChange={e => handlePrerequisiteChange(index, 'ability_score', e.target.value)} 
-                                className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
+                                className={hb.controlSm}
                             >
                                 {Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).map(attr => (
                                     <option key={attr} value={attr}>{attr.toUpperCase()}</option>
@@ -105,16 +106,16 @@ const FeatForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 type="number" 
                                 value={prereq.minimum_score} 
                                 onChange={e => handlePrerequisiteChange(index, 'minimum_score', e.target.value)} 
-                                className="w-24 bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
+                                className={`${hb.controlSm} w-24`}
                                 placeholder="Pontos"
                             />
-                            <button type="button" onClick={() => removePrerequisite(index)} className="p-2 text-red-500 hover:text-red-400">
+                            <button type="button" onClick={() => removePrerequisite(index)} className={hb.btnDanger}>
                                 <Trash2 className="h-4 w-4"/>
                             </button>
                         </div>
                     ))}
                  </div>
-                 <button type="button" onClick={addPrerequisite} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                 <button type="button" onClick={addPrerequisite} className={hb.linkBtn}>
                     <Plus className="h-4 w-4"/> Adicionar Pré-requisito
                 </button>
             </div>

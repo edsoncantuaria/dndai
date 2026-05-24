@@ -7,6 +7,7 @@ import { ArrowLeft, Check, Loader2, Save } from 'lucide-react';
 import * as HomebrewService from '@/services/homebrewService';
 import * as translationService from '@/services/translationService';
 import PremiumLoader from '@/components/ui/PremiumLoader';
+import { DndButton, DndCard } from '@/components/primitives';
 
 // Lista expandida para incluir todos os novos tipos de tradução
 const TRANSLATION_CATEGORIES = [
@@ -15,7 +16,17 @@ const TRANSLATION_CATEGORIES = [
     "Languages", "World State"
 ];
 
-const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) => {
+export interface TranslationStudioProps {
+    onCancel: () => void;
+    /**
+     * `v2` — via `TranslationStudioPage`.
+     * @deprecated `legacy` — fullscreen antigo; use `variant="v2"` ou `TranslationStudioPage`.
+     */
+    variant?: 'legacy' | 'v2';
+}
+
+const TranslationStudio: React.FC<TranslationStudioProps> = ({ onCancel, variant = 'legacy' }) => {
+    const isV2 = variant === 'v2';
     const [translations, setTranslations] = useState<Record<string, Record<string, string>>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
@@ -88,22 +99,27 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
         )
     }
 
-    return (
-         <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col text-center animate-fadeIn p-4 sm:p-6">
-            <header className="mb-8">
-                <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
-                    Estúdio de Tradução
-                </h1>
-                <p className="text-stone-400 mt-2">Edite os termos base do jogo para todo o sistema.</p>
-            </header>
-             <main className="w-full bg-stone-900/50 p-4 rounded-lg border border-stone-700 max-h-[70vh] flex flex-col md:flex-row gap-6">
+    const mainPanel = (
+             <main className={`w-full p-4 max-h-[70vh] flex flex-col md:flex-row gap-6 ${
+                isV2
+                    ? 'rounded-xl border border-cyan-500/20 bg-dnd-obsidian-raised/80'
+                    : 'bg-stone-900/50 rounded-lg border border-stone-700'
+             }`}>
                 <nav className="flex-shrink-0 md:w-64 border-b md:border-b-0 md:border-r border-stone-700 pb-4 md:pb-0 md:pr-4">
                     <ul className="space-y-1">
                         {TRANSLATION_CATEGORIES.map(cat => (
                             <li key={cat}>
                                 <button
                                     onClick={() => setActiveCategory(cat)}
-                                    className={`w-full text-left p-2 rounded-md text-sm font-semibold transition-colors ${activeCategory === cat ? 'bg-amber-800/50 text-amber-200' : 'text-stone-300 hover:bg-stone-800'}`}
+                                    className={`w-full text-left p-2 rounded-md text-sm font-semibold transition-colors ${
+                                        activeCategory === cat
+                                            ? isV2
+                                                ? 'bg-cyan-500/20 text-cyan-200'
+                                                : 'bg-amber-800/50 text-amber-200'
+                                            : isV2
+                                            ? 'text-dnd-parchment-muted hover:bg-cyan-500/10'
+                                            : 'text-stone-300 hover:bg-stone-800'
+                                    }`}
                                 >
                                     {cat}
                                 </button>
@@ -112,7 +128,7 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
                     </ul>
                 </nav>
                 <div className="flex-grow overflow-y-auto pr-2">
-                    <h3 className="text-2xl font-bold text-amber-200 mb-4">{activeCategory}</h3>
+                    <h3 className={`text-2xl font-bold mb-4 ${isV2 ? 'text-cyan-200 font-display' : 'text-amber-200'}`}>{activeCategory}</h3>
                     <div className="space-y-3">
                          {Object.keys(translations[activeCategory] || {}).map(key => (
                             <div key={key} className="grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
@@ -122,7 +138,11 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
                                     type="text"
                                     value={translations[activeCategory][key]}
                                     onChange={(e) => handleValueChange(activeCategory, key, e.target.value)}
-                                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200"
+                                    className={`w-full rounded-md p-2 ${
+                                        isV2
+                                            ? 'bg-dnd-obsidian border border-cyan-500/20 text-dnd-parchment focus:border-cyan-400/50 focus:outline-none'
+                                            : 'bg-stone-800 border-stone-600 text-stone-200'
+                                    }`}
                                 />
                             </div>
                          ))}
@@ -132,6 +152,20 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
                     </div>
                 </div>
             </main>
+    );
+
+    const footerActions = isV2 ? (
+        <div className="mt-6 flex flex-wrap justify-end gap-3">
+            <DndButton variant="ghost" size="sm" onClick={onCancel}>
+                <ArrowLeft className="h-4 w-4" />
+                Cancelar
+            </DndButton>
+            <DndButton variant="ember" size="sm" onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Salvar traduções
+            </DndButton>
+        </div>
+    ) : (
              <footer className="mt-8 flex flex-wrap items-center justify-between gap-4">
                 <button
                     onClick={onCancel}
@@ -148,6 +182,27 @@ const TranslationStudio: React.FC<{ onCancel: () => void; }> = ({ onCancel }) =>
                     Salvar Traduções
                 </button>
             </footer>
+    );
+
+    if (isV2) {
+        return (
+            <DndCard padding="none" className="overflow-hidden">
+                {mainPanel}
+                <div className="border-t border-cyan-500/15 px-4 py-3">{footerActions}</div>
+            </DndCard>
+        );
+    }
+
+    return (
+         <div className="relative z-10 w-full max-w-7xl mx-auto flex flex-col text-center animate-fadeIn p-4 sm:p-6">
+            <header className="mb-8">
+                <h1 className="text-5xl md:text-7xl font-bold text-amber-50 font-serif text-shadow-amber">
+                    Estúdio de Tradução
+                </h1>
+                <p className="text-stone-400 mt-2">Edite os termos base do jogo para todo o sistema.</p>
+            </header>
+            {mainPanel}
+            {footerActions}
         </div>
     );
 };

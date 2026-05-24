@@ -1,7 +1,7 @@
 // src/components/GameContainer.tsx
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import SettingsModal from './SettingsModal';
@@ -14,6 +14,13 @@ import ArchitectureHelpModal from './system/ArchitectureHelpModal';
 import { loadTranslations } from '@/utils/translator';
 import type { SessionFactsResponse } from '@/services/gameService';
 import { useToast } from '@/hooks/use-toast';
+import { isUiV2Enabled } from '@/lib/uiV2';
+import { StageTransition } from '@/components/motion/StageTransition';
+import { AmbientAudioEngine } from '@/components/AmbientAudioEngine';
+import { useStageAmbientSound } from '@/hooks/useStageAmbientSound';
+import { useMenuMusicCrossfade } from '@/hooks/useMenuMusicCrossfade';
+import { consumeHubIntent } from '@/lib/hubIntentStorage';
+import type { HubIntent } from '@/contexts/HubIntentContext';
 import GameMenuContent from './game-menu/GameMenuContent';
 import { GameStage } from '@/types/gameStage';
 import { Loader2 } from 'lucide-react';
@@ -54,9 +61,10 @@ const GameContainer = () => {
     const [isActionModalOpen, setIsActionModalOpen] = useState(false);
 
 
-    const menuAudioRef = useRef<HTMLAudioElement | null>(null);
-    
     const onSetStage = (stage: GameStage) => setGameStage(stage);
+
+    useStageAmbientSound(gameStage);
+    useMenuMusicCrossfade({ gameStage, playMenuMusic, volume, isMuted });
 
     const fetchInitialData = useCallback(async () => {
         setIsLoadingData(true);
@@ -106,24 +114,6 @@ const GameContainer = () => {
         }
     }, [isLoadingData, gameStage]);
 
-    useEffect(() => {
-        if (!menuAudioRef.current) {
-            const audio = new Audio('/audios/index/inicio.mp3');
-            audio.loop = true;
-            menuAudioRef.current = audio;
-        }
-
-        const audio = menuAudioRef.current;
-        const shouldPlay = playMenuMusic && (gameStage !== 'playing');
-        audio.volume = isMuted ? 0 : volume;
-
-        if (shouldPlay && audio.paused) {
-            audio.play().catch(e => console.warn('Menu audio auto-play was prevented.', e));
-        } else if (!shouldPlay && !audio.paused) {
-            audio.pause();
-        }
-    }, [gameStage, playMenuMusic, volume, isMuted]);
-
     const handleNewGameFromVault = useCallback(async (char: Character, existingSession?: SessaoIA) => {
         setGameStage('playing');
         try {
@@ -156,6 +146,38 @@ const GameContainer = () => {
             setGameStage('main_menu');
         }
     }, [loadGameSession]);
+
+    const applyHubIntent = useCallback(
+        (intent: HubIntent) => {
+            switch (intent.type) {
+                case 'continue':
+                    void handleContinueGame(intent.sessionId);
+                    break;
+                case 'session_list':
+                    setGameStage('session_list');
+                    break;
+                case 'character_vault':
+                    setGameStage('character_vault');
+                    break;
+                case 'creating_character':
+                    setGameStage('creating_character');
+                    break;
+                case 'homebrew_store':
+                    setGameStage('homebrew_store');
+                    break;
+                case 'translation_studio':
+                    setGameStage('translation_studio');
+                    break;
+            }
+        },
+        [handleContinueGame]
+    );
+
+    useEffect(() => {
+        if (!isUiV2Enabled() || isLoadingData || gameStage !== 'main_menu') return;
+        const intent = consumeHubIntent();
+        if (intent) applyHubIntent(intent);
+    }, [isLoadingData, gameStage, applyHubIntent]);
 
     const returnToMenu = useCallback(() => {
         clearGameState();
@@ -259,8 +281,7 @@ const GameContainer = () => {
         };
     }, []);
 
-    return (
-        <>
+    const menuContent = (
             <GameMenuContent
                 gameStage={gameStage}
                 character={character}
@@ -288,6 +309,17 @@ const GameContainer = () => {
                 handleActionModalClose={handleActionModalClose}
                 openSessionActionModal={openSessionActionModal}
             />
+    );
+
+    return (
+        <>
+            {isUiV2Enabled() ? (
+                <StageTransition stageKey={gameStage}>{menuContent}</StageTransition>
+            ) : (
+                menuContent
+            )}
+
+            {isUiV2Enabled() ? <AmbientAudioEngine /> : null}
 
             {characterToDelete && (
                 <ActionModal

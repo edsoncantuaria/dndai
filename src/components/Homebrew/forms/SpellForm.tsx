@@ -6,6 +6,7 @@ import { Loader2, Plus, Trash2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import ItemSelector from '../ItemSelector';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -206,60 +207,60 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     const scalingData = spellData.damage?.[scalingType === 'character' ? 'damage_at_character_level' : 'damage_at_slot_level'] || {};
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
              <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Nome da Magia</label>
-                <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <label className={hb.label}>Nome da Magia</label>
+                <input type="text" value={spellData.name} onChange={e => handleFieldChange('name', e.target.value)} required className={hb.control} />
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever)</label>
-                    <input id="official_index" type="text" value={spellData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: fire-bolt (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever)</label>
+                    <input id="official_index" type="text" value={spellData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: fire-bolt (opcional)"/>
                 </div>
             )}
             <div>
-                <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <label className={hb.label}>Descrição</label>
+                <textarea value={spellData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className={hb.control} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Nível</label>
-                    <select value={spellData.level} onChange={e => handleFieldChange('level', Number(e.target.value))} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <label className={hb.label}>Nível</label>
+                    <select value={spellData.level} onChange={e => handleFieldChange('level', Number(e.target.value))} className={hb.control}>
                         {Array.from({length: 10}).map((_, i) => <option key={i} value={i}>{i === 0 ? 'Truque' : `${i}º Nível`}</option>)}
                     </select>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Escola de Magia</label>
-                    <select value={spellData.school?.index || ''} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <label className={hb.label}>Escola de Magia</label>
+                    <select value={spellData.school?.index || ''} onChange={e => { const school = magicSchools.find(s => s.index === e.target.value); if(school) handleFieldChange('school', {index: school.index, name: school.name })}} className={hb.control}>
                         {magicSchools.map(s => <option key={s.index} value={s.index}>{s.name}</option>)}
                     </select>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Tempo de Conjuração</label>
-                    <select value={spellData.casting_time} onChange={e => handleFieldChange('casting_time', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <label className={hb.label}>Tempo de Conjuração</label>
+                    <select value={spellData.casting_time} onChange={e => handleFieldChange('casting_time', e.target.value)} className={hb.control}>
                         {CASTING_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Alcance</label>
-                    <select value={spellData.range} onChange={e => handleFieldChange('range', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <label className={hb.label}>Alcance</label>
+                    <select value={spellData.range} onChange={e => handleFieldChange('range', e.target.value)} className={hb.control}>
                         {RANGES.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                 </div>
                  <div>
-                    <label className="block text-sm font-medium text-stone-300 mb-1">Duração</label>
-                    <select value={spellData.duration} onChange={e => handleFieldChange('duration', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <label className={hb.label}>Duração</label>
+                    <select value={spellData.duration} onChange={e => handleFieldChange('duration', e.target.value)} className={hb.control}>
                         {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
                     </select>
                 </div>
             </div>
             
             <div className="space-y-2">
-                 <label className="block text-sm font-medium text-stone-300">Componentes</label>
+                 <label className={hb.label}>Componentes</label>
                  <div className="flex gap-4">
-                    {['V', 'S', 'M'].map(c => ( <label key={c} className="flex items-center gap-2 text-stone-200"><input type="checkbox" checked={spellData.components.includes(c)} onChange={() => handleComponentChange(c as any)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />{c}</label>))}
-                    <label className="flex items-center gap-2 text-stone-200"><input type="checkbox" checked={spellData.concentration} onChange={e => handleFieldChange('concentration', e.target.checked)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />Concentração</label>
+                    {['V', 'S', 'M'].map(c => ( <label key={c} className={hb.checkLabel}><input type="checkbox" checked={spellData.components.includes(c)} onChange={() => handleComponentChange(c as any)} className={hb.checkbox} />{c}</label>))}
+                    <label className={hb.checkLabel}><input type="checkbox" checked={spellData.concentration} onChange={e => handleFieldChange('concentration', e.target.checked)} className={hb.checkbox} />Concentração</label>
                  </div>
             </div>
             {spellData.components.includes('M') && (
@@ -271,9 +272,9 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
             )}
             
-            <div className="pt-4 border-t border-stone-700/50">
-                 <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Ataque</label>
-                <select value={spellData.attack_type} onChange={e => handleFieldChange('attack_type', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+            <div className={hb.dividerSection}>
+                 <label className={hb.label}>Tipo de Ataque</label>
+                <select value={spellData.attack_type} onChange={e => handleFieldChange('attack_type', e.target.value)} className={hb.control}>
                     <option value="">Nenhum</option>
                     <option value="ranged">À Distância</option>
                     <option value="melee">Corpo a Corpo</option>
@@ -281,25 +282,25 @@ const SpellForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             </div>
             
             {spellData.attack_type && (
-                <div className="pt-4 border-t border-stone-700/50 space-y-4">
-                    <h5 className="text-sm font-medium text-stone-300">Dano e Escalonamento</h5>
+                <div className={`${hb.dividerSection} space-y-4`}>
+                    <h5 className={hb.headingSm}>Dano e Escalonamento</h5>
                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                          <div>
-                            <label className="block text-sm font-medium text-stone-300 mb-1">Tipo de Dano</label>
-                            <select value={spellData.damage?.damage_type?.index || ''} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                            <label className={hb.label}>Tipo de Dano</label>
+                            <select value={spellData.damage?.damage_type?.index || ''} onChange={e => { const dt = damageTypes.find(d => d.index === e.target.value); if(dt) handleDamageChange('damage_type', { index: dt.index, name: dt.name })}} className={hb.control}>
                                 {damageTypes.map(d => <option key={d.index} value={d.index}>{d.name}</option>)}
                             </select>
                         </div>
                     </div>
-                     <p className="text-xs text-stone-400">Dano base e escalonamento por {scalingLabel}.</p>
+                     <p className={hb.muted}>Dano base e escalonamento por {scalingLabel}.</p>
                     {Object.entries(scalingData).map(([level, dice], index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
-                             <input type="number" placeholder={scalingLabel} value={level} onChange={(e) => handleScalingChange(scalingType, index, 'level', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
-                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice as string} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"/>
-                            <button type="button" onClick={() => removeScalingEntry(scalingType, level)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
+                        <div key={index} className={hb.row}>
+                             <input type="number" placeholder={scalingLabel} value={level} onChange={(e) => handleScalingChange(scalingType, index, 'level', e.target.value)} className={hb.controlSm} />
+                             <input type="text" placeholder="Dado de Dano (ex: 3d8)" value={dice as string} onChange={(e) => handleScalingChange(scalingType, index, 'dice', e.target.value)} className={hb.controlSm}/>
+                            <button type="button" onClick={() => removeScalingEntry(scalingType, level)} className={hb.btnDanger}><Trash2 className="h-5 w-5" /></button>
                         </div>
                     ))}
-                     <button type="button" onClick={() => addScalingEntry(scalingType)} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"><Plus className="h-4 w-4" /> Adicionar Escalonamento</button>
+                     <button type="button" onClick={() => addScalingEntry(scalingType)} className={hb.linkBtn}><Plus className="h-4 w-4" /> Adicionar Escalonamento</button>
                 </div>
             )}
         </div>

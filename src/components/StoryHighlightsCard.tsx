@@ -20,7 +20,7 @@ const formatDateTime = (value: string) => {
 };
 
 interface StoryHighlightsCardProps {
-    variant?: 'default' | 'compact';
+    variant?: 'default' | 'compact' | 'v2';
 }
 
 const CollapsibleCardSection: React.FC<{
@@ -178,7 +178,8 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
         }
     }, [sessionId, replayPreview, toast]);
 
-    const isCompact = variant === 'compact';
+    const isCompact = variant === 'compact' || variant === 'v2';
+    const isV2 = variant === 'v2';
 
     if (!sessionId) {
         return (
@@ -190,7 +191,14 @@ const StoryHighlightsCard: React.FC<StoryHighlightsCardProps> = ({ variant = 'de
 
     if (isCompact) {
          return (
-            <div data-tour-id="facts" className="rounded-lg border border-stone-700 bg-stone-900/80 p-4 shadow-inner space-y-3">
+            <div
+              data-tour-id="facts"
+              className={
+                isV2
+                  ? 'dnd-border-gold dnd-surface-glass space-y-3 rounded-lg p-4'
+                  : 'rounded-lg border border-stone-700 bg-stone-900/80 p-4 shadow-inner space-y-3'
+              }
+            >
                 <div className="flex items-center justify-between">
                     <div>
                         <p className="text-[10px] uppercase tracking-wide text-stone-500 font-semibold">Painel Vivo</p>

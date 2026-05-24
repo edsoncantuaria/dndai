@@ -13,11 +13,12 @@ interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     handleFinalize: () => void;
+    hideNav?: boolean;
 }
 
 const attributeOrder: (keyof Attributes)[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
-const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) => {
+const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize, hideNav }) => {
     const {
         name, setField, sex, hairStyle, beardStyle, skinColor,
         isComplete, race, subrace, characterClass, background, alignment,
@@ -262,6 +263,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
             </div>
             </section>
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -281,6 +283,7 @@ const NewStep8_Finalize: React.FC<Props> = ({ hook, prevStep, handleFinalize }) 
                     <Play className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

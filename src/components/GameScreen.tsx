@@ -2,6 +2,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { isUiV2Enabled } from '@/lib/uiV2';
+import { GameplayScreen } from '@/features/gameplay/GameplayScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import ActionOptions from './ActionOptions';
 import Inventory from './Inventory';
@@ -81,7 +83,11 @@ const ReinstallDependenciesModal: React.FC = () => {
 };
 
 
-const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
+/**
+ * Tela de jogo monolítica (pré-GameplayShell).
+ * @deprecated Use `GameplayScreen` / `GameplayShell` (`NEXT_PUBLIC_UI_V2` padrão).
+ */
+const GameScreenLegacy: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     const [activeTab, setActiveTab] = useState<Tab>('character');
     const { 
         character,
@@ -129,14 +135,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     
     const showDiceModal = Boolean(playerRollRequest);
 
-    useEffect(() => {
-        const focusRoll = () => {
-            document.getElementById('dice-roll-modal-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        };
-        window.addEventListener('game-focus-roll-modal', focusRoll);
-        return () => window.removeEventListener('game-focus-roll-modal', focusRoll);
-    }, []);
-    
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const storedStep = window.localStorage.getItem('guidedTipsStep');
@@ -547,13 +545,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {showDiceModal && playerRollRequest && (
-                    <div id="dice-roll-modal-anchor">
-                        <DiceRollModal
-                            request={playerRollRequest}
-                            onRoll={handleRollResult}
-                            show={showDiceModal}
-                        />
-                    </div>
+                    <DiceRollModal
+                        request={playerRollRequest}
+                        onRoll={handleRollResult}
+                        show={showDiceModal}
+                        anchorId="dice-roll-modal-anchor"
+                    />
                 )}
                 {skillCheckRequest && (
                     <SkillCheckModal
@@ -822,6 +819,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
             </div>
         </TooltipProvider>
     );
+};
+
+const GameScreen: React.FC<GameScreenProps> = (props) => {
+    if (isUiV2Enabled()) {
+        return <GameplayScreen returnToMenu={props.returnToMenu} />;
+    }
+    return <GameScreenLegacy {...props} />;
 };
 
 export default GameScreen;

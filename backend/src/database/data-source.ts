@@ -46,9 +46,8 @@ const isProduction = process.env.NODE_ENV === 'production';
 const migrationsOnly = process.env.DB_MIGRATIONS_ONLY === 'true';
 /** Dev: DB_SYNC=true (padrão). Prod: false — use npm run migration:run */
 const synchronize =
-    !isProduction &&
-    !migrationsOnly &&
-    process.env.DB_SYNC !== 'false';
+    process.env.DB_SYNC === 'true' ||
+    (!isProduction && !migrationsOnly && process.env.DB_SYNC !== 'false');
 
 /**
  * Configuração da fonte de dados para o TypeORM.

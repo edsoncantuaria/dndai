@@ -7,6 +7,7 @@ import * as HomebrewService from '@/services/homebrewService';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import TraitSelector from '../TraitSelector';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -124,34 +125,34 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className={hb.root}>
             <div>
-                <label htmlFor="subrace-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Sub-raça</label>
-                <input id="subrace-name" type="text" value={subraceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Elfo da Floresta, Anão Cinzento"/>
+                <label htmlFor="subrace-name" className={hb.label}>Nome da Sub-raça</label>
+                <input id="subrace-name" type="text" value={subraceData.name} onChange={e => handleFieldChange('name', e.target.value)} required className={hb.control} placeholder="Ex: Elfo da Floresta, Anão Cinzento"/>
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
-                    <input id="official_index" type="text" value={subraceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: high-elf (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever/Traduzir)</label>
+                    <input id="official_index" type="text" value={subraceData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: high-elf (opcional)"/>
                 </div>
             )}
             <div>
-                <label htmlFor="subrace-parent-race" className="block text-sm font-medium text-stone-300 mb-1">Raça Principal</label>
-                <select id="subrace-parent-race" value={subraceData.race.index} onChange={e => handleRaceChange(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                <label htmlFor="subrace-parent-race" className={hb.label}>Raça Principal</label>
+                <select id="subrace-parent-race" value={subraceData.race.index} onChange={e => handleRaceChange(e.target.value)} required className={hb.control}>
                     <option value="" disabled>Selecione a raça principal...</option>
                     {races.map(r => <option key={r.index} value={r.index}>{r.name}</option>)}
                 </select>
             </div>
             <div>
-                <label htmlFor="subrace-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea id="subrace-desc" value={subraceData.desc} onChange={e => handleFieldChange('desc', e.target.value)} required rows={3} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva as características únicas desta sub-raça."/>
+                <label htmlFor="subrace-desc" className={hb.label}>Descrição</label>
+                <textarea id="subrace-desc" value={subraceData.desc} onChange={e => handleFieldChange('desc', e.target.value)} required rows={3} className={hb.control} placeholder="Descreva as características únicas desta sub-raça."/>
             </div>
              <div>
-                <h5 className="text-sm font-medium text-stone-300 mb-2">Bônus de Atributo</h5>
+                <h5 className={hb.headingSm}>Bônus de Atributo</h5>
                 <div className="space-y-2">
                     {subraceData.ability_bonuses.map((bonus, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
-                            <select value={bonus.ability_score.index} onChange={e => handleBonusChange(index, 'ability_score', e.target.value)} className="bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200">
+                        <div key={index} className={hb.row}>
+                            <select value={bonus.ability_score.index} onChange={e => handleBonusChange(index, 'ability_score', e.target.value)} className={hb.controlSm}>
                                 <option value="str">Força</option>
                                 <option value="dex">Destreza</option>
                                 <option value="con">Constituição</option>
@@ -159,12 +160,12 @@ const SubraceForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                 <option value="wis">Sabedoria</option>
                                 <option value="cha">Carisma</option>
                             </select>
-                            <input type="number" value={bonus.bonus} onChange={e => handleBonusChange(index, 'bonus', e.target.value)} className="w-20 bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200" />
-                            <button type="button" onClick={() => removeBonus(index)} className="text-red-400 hover:text-red-300"><Trash2 className="h-5 w-5" /></button>
+                            <input type="number" value={bonus.bonus} onChange={e => handleBonusChange(index, 'bonus', e.target.value)} className={`${hb.controlSm} w-20`} />
+                            <button type="button" onClick={() => removeBonus(index)} className={hb.btnDanger}><Trash2 className="h-5 w-5" /></button>
                         </div>
                     ))}
                 </div>
-                <button type="button" onClick={addBonus} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1"><Plus className="h-4 w-4" /> Adicionar Bônus</button>
+                <button type="button" onClick={addBonus} className={hb.linkBtn}><Plus className="h-4 w-4" /> Adicionar Bônus</button>
             </div>
              <div>
                 <TraitSelector

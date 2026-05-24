@@ -57,7 +57,7 @@ export class CombatEntity {
     @Column({ type: 'json', nullable: true })
     metadata?: Record<string, any> | null;
 
-    @Column({ type: 'json', default: '[]' })
+    @Column({ type: 'json', nullable: true })
     pendingEffects: ScheduledEffectPayload[];
 
     @Column({ type: 'json', nullable: true })

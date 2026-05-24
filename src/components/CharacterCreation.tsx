@@ -5,13 +5,30 @@ import type { ApiListItem } from '@/types';
 import * as DndApiService from '@/services/dndApiService';
 import NewCharacterCreation from './NewCreationCharacter/NewCharacterCreation';
 import PremiumLoader from '@/components/ui/PremiumLoader';
+import { isUiV2Enabled } from '@/lib/uiV2';
+import dynamic from 'next/dynamic';
+
+const CharacterCreationWizard = dynamic(
+  () => import('@/features/character-create/CharacterCreationWizard'),
+  {
+    loading: () => (
+      <PremiumLoader
+        title="Carregando o forjador de heróis"
+        subtitle="Preparando o ritual de criação v2."
+        showSkeletons={false}
+      />
+    ),
+    ssr: false,
+  }
+);
 
 
 interface CharacterCreationProps {
   onCharacterCreated: () => void;
+  onCancel?: () => void;
 }
 
-const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated }) => {
+const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated, onCancel }) => {
     // Data Fetching State
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [races, setRaces] = useState<ApiListItem[]>([]);
@@ -98,16 +115,22 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         );
     }
 
-    return (
-        <NewCharacterCreation
-            races={races}
-            classes={classes}
-            backgrounds={backgrounds}
-            alignments={alignments}
-            allLanguages={allLanguages}
-            onCharacterCreated={onCharacterCreated}
-        />
-    );
+    const sharedProps = {
+        races,
+        classes,
+        backgrounds,
+        alignments,
+        allLanguages,
+        onCharacterCreated,
+        onCancel,
+    };
+
+    if (isUiV2Enabled()) {
+        return <CharacterCreationWizard {...sharedProps} />;
+    }
+
+    /** @deprecated `NewCharacterCreation` — use `CharacterCreationWizard` em `@/features/character-create`. */
+    return <NewCharacterCreation {...sharedProps} />;
 };
 
 export default CharacterCreation;

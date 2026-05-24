@@ -4,6 +4,7 @@ import React from 'react';
 import { HomebrewContentType } from '@/services/homebrewService';
 import NewSpellCard from '../Spells/NewSpellCard';
 import type { ApiListItem } from '@/types';
+import { hb } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     contentType: HomebrewContentType;
@@ -95,7 +96,7 @@ const MonsterViewer: React.FC<{ data: any }> = ({ data }) => (
             <div className="grid grid-cols-3 gap-2 text-center">
                 {['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'].map(attr => (
                     <div key={attr} className="bg-stone-800 p-1 rounded">
-                        <div className="text-xs text-stone-400">{attr.substring(0,3).toUpperCase()}</div>
+                        <div className={hb.muted}>{attr.substring(0,3).toUpperCase()}</div>
                         <div className="font-bold text-stone-200">{data[attr]} ({Math.floor((data[attr] - 10) / 2) >= 0 ? '+' : ''}{Math.floor((data[attr] - 10) / 2)})</div>
                     </div>
                 ))}
@@ -108,12 +109,12 @@ const MonsterViewer: React.FC<{ data: any }> = ({ data }) => (
         </Section>
         {data.special_abilities?.length > 0 && <Section title="Habilidades Especiais">
             {data.special_abilities.map((ability: any, i: number) => (
-                <p key={i}><strong className="text-stone-300">{ability.name}.</strong> {ability.desc}</p>
+                <p key={i}><strong className={hb.muted}>{ability.name}.</strong> {ability.desc}</p>
             ))}
         </Section>}
          {data.actions?.length > 0 && <Section title="Ações">
             {data.actions.map((action: any, i: number) => (
-                <p key={i}><strong className="text-stone-300">{action.name}.</strong> {action.desc}</p>
+                <p key={i}><strong className={hb.muted}>{action.name}.</strong> {action.desc}</p>
             ))}
         </Section>}
     </div>
@@ -138,7 +139,7 @@ const ExampleViewer: React.FC<Props> = ({ contentType, data }) => {
             return (
                 <div>
                      <h3 className="text-xl font-bold font-garamond text-amber-300 mb-2">{data.name}</h3>
-                     <p className="text-stone-300">{data.desc?.[0] || data.desc || 'Descrição não disponível.'}</p>
+                     <p className={hb.muted}>{data.desc?.[0] || data.desc || 'Descrição não disponível.'}</p>
                 </div>
             );
     }

@@ -1,6 +1,7 @@
 // src/components/Homebrew/forms/FeatureForm.tsx
 'use client';
 import React, { useState, useEffect } from 'react';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -39,9 +40,9 @@ const FeatureForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     };
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
              <div>
-                <label htmlFor="feature-name" className="block text-sm font-medium text-stone-300 mb-1">
+                <label htmlFor="feature-name" className={hb.label}>
                     Nome da Característica
                 </label>
                 <input 
@@ -51,11 +52,11 @@ const FeatureForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     onChange={e => handleFieldChange('name', e.target.value)}
                     placeholder="Ex: Fúria, Surto de Ação"
                     required 
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
+                    className={hb.control} 
                 />
             </div>
             <div>
-                <label htmlFor="feature-level" className="block text-sm font-medium text-stone-300 mb-1">
+                <label htmlFor="feature-level" className={hb.label}>
                     Nível Adquirido
                 </label>
                 <input 
@@ -66,11 +67,11 @@ const FeatureForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     value={featureData.level}
                     onChange={e => handleFieldChange('level', Number(e.target.value))}
                     required 
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
+                    className={hb.control} 
                 />
             </div>
              <div>
-                <label htmlFor="feature-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <label htmlFor="feature-desc" className={hb.label}>Descrição</label>
                 <textarea
                     id="feature-desc"
                     value={featureData.desc[0]}
@@ -78,7 +79,7 @@ const FeatureForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     rows={6}
                     placeholder="Descreva o que esta característica faz, incluindo seus benefícios mecânicos e como usá-la."
                     required
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
+                    className={hb.control}
                 />
             </div>
         </div>

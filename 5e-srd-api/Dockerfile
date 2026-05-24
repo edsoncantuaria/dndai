@@ -3,14 +3,11 @@ FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json ./
-# Copy the package-lock.json that was freshly generated on your host
-COPY package-lock.json ./
+COPY package.json package-lock.json* ./
 
-# Clean existing node_modules just in case of Docker layer caching weirdness.
-# Then run `npm ci` which is generally recommended for CI/Docker if you have a package-lock.json.
-RUN rm -rf node_modules
-RUN npm ci
+RUN rm -rf node_modules \
+  && if [ -f package-lock.json ]; then npm ci --legacy-peer-deps; else npm install --legacy-peer-deps; fi \
+  && npm install graphql-scalars graphql mongoose@9.6.0 --legacy-peer-deps
 
 # Copy the rest of the application source code
 # .dockerignore will handle exclusions like node_modules, dist, etc.
@@ -26,8 +23,7 @@ FROM node:24-alpine
 WORKDIR /app
 
 # Copy package.json and lock file (good practice)
-COPY package.json ./
-COPY package-lock.json* ./
+COPY package.json package-lock.json* ./
 
 # Copy node_modules from builder stage - this includes all dependencies with scripts run
 COPY --from=builder /app/node_modules ./node_modules/

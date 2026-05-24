@@ -1,5 +1,9 @@
 import type {Config} from 'tailwindcss';
 
+/**
+ * Cores `dnd.*` mapeiam CSS vars em `src/design-system/tokens.css`.
+ * Preferir tokens semânticos (dnd-ember, dnd-gold, dnd-parchment) em UI v2.
+ */
 const config: Config = {
   darkMode: ["class"],
   content: [
@@ -21,8 +25,27 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-im-fell)'],
         serif: ['var(--font-cinzel)'],
+        display: ['var(--font-cinzel)', 'Cinzel Decorative', 'serif'],
+        narrative: ['var(--font-im-fell)', 'IM Fell English', 'serif'],
+        ui: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
+        dnd: {
+          ember: 'var(--dnd-ember)',
+          'ember-hover': 'var(--dnd-ember-hover)',
+          'ember-muted': 'var(--dnd-ember-muted)',
+          gold: 'var(--dnd-gold)',
+          'gold-dim': 'var(--dnd-gold-dim)',
+          obsidian: 'var(--dnd-obsidian)',
+          'obsidian-raised': 'var(--dnd-obsidian-raised)',
+          'obsidian-glass': 'var(--dnd-obsidian-glass)',
+          parchment: 'var(--dnd-parchment)',
+          'parchment-muted': 'var(--dnd-parchment-muted)',
+          mist: 'var(--dnd-mist)',
+          'mist-strong': 'var(--dnd-mist-strong)',
+          success: 'var(--dnd-success)',
+          danger: 'var(--dnd-danger)',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -88,11 +111,22 @@ const config: Config = {
           '50%': { opacity: '.7' },
         }
       },
+      transitionTimingFunction: {
+        'dnd-out': 'var(--dnd-ease-out-expo)',
+      },
+      transitionDuration: {
+        ui: 'var(--dnd-duration-ui)',
+        scene: 'var(--dnd-duration-scene)',
+      },
+      maxWidth: {
+        'screen-xl': 'var(--dnd-container-max)',
+      },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fadeIn": "fadeIn 0.5s ease-in-out",
         "fadeInSlideUp": "fadeInSlideUp 400ms ease-out forwards",
+        "staggerIn": "staggerIn 0.4s var(--dnd-ease-out-expo) forwards",
       },
       backgroundSize: {
         '200%': '200%',

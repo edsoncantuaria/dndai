@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import * as DndApiService from '@/services/dndApiService';
 import { ApiListItem } from '@/types';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -71,9 +72,9 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
              <div>
-                <label htmlFor="action-name" className="block text-sm font-medium text-stone-300 mb-1">
+                <label htmlFor="action-name" className={hb.label}>
                     Nome da Ação
                 </label>
                 <input 
@@ -83,11 +84,11 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     onChange={e => handleFieldChange('name', e.target.value)}
                     placeholder="Ex: Mordida, Pancada com a Cauda"
                     required 
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
+                    className={hb.control} 
                 />
             </div>
             <div>
-                <label htmlFor="action-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                <label htmlFor="action-desc" className={hb.label}>Descrição</label>
                 <textarea
                     id="action-desc"
                     value={actionData.desc}
@@ -95,48 +96,48 @@ const ActionForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     rows={3}
                     placeholder="Descreva o que a ação faz, incluindo detalhes de ataque, dano, alcance e efeitos."
                     required
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
+                    className={hb.control}
                 />
             </div>
             <div>
-                <label htmlFor="action-attack-bonus" className="block text-sm font-medium text-stone-300 mb-1">Bônus de Ataque</label>
+                <label htmlFor="action-attack-bonus" className={hb.label}>Bônus de Ataque</label>
                 <input
                     id="action-attack-bonus"
                     type="number"
                     value={actionData.attack_bonus}
                     onChange={e => handleFieldChange('attack_bonus', Number(e.target.value))}
-                    className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
+                    className={hb.control}
                 />
             </div>
 
-            <div className="pt-4 border-t border-stone-700/60">
-                 <h5 className="text-sm font-medium text-stone-300 mb-2">Componentes de Dano</h5>
+            <div className={hb.dividerSection}>
+                 <h5 className={hb.headingSm}>Componentes de Dano</h5>
                 <div className="space-y-2">
                     {actionData.damage.map((dmg, index) => (
-                        <div key={index} className="flex items-center gap-2 p-2 bg-stone-900/50 rounded-md">
+                        <div key={index} className={hb.row}>
                             <input
                                 type="text"
                                 value={dmg.damage_dice}
                                 onChange={e => handleDamageChange(index, 'damage_dice', e.target.value)}
                                 placeholder="Ex: 2d6"
-                                className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
+                                className={hb.controlSm}
                             />
                              <select
                                 value={dmg.damage_type.index}
                                 onChange={e => handleDamageChange(index, 'damage_type', e.target.value)}
-                                className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
+                                className={hb.controlSm}
                             >
                                 {damageTypes.map(dt => (
                                     <option key={dt.index} value={dt.index}>{dt.name}</option>
                                 ))}
                             </select>
-                            <button type="button" onClick={() => removeDamage(index)} className="p-2 text-red-500 hover:text-red-400">
+                            <button type="button" onClick={() => removeDamage(index)} className={hb.btnDanger}>
                                 <Trash2 className="h-4 w-4"/>
                             </button>
                         </div>
                     ))}
                 </div>
-                <button type="button" onClick={addDamage} className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1">
+                <button type="button" onClick={addDamage} className={hb.linkBtn}>
                     <Plus className="h-4 w-4"/> Adicionar Componente de Dano
                 </button>
             </div>

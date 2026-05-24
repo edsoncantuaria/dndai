@@ -6,6 +6,7 @@ import type { ApiListItem } from '@/types';
 import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import FeatureCreator from './FeatureCreator';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -168,9 +169,9 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
 
 
     return (
-        <div className="space-y-6">
+        <div className={hb.root}>
              <div>
-                <label htmlFor="class-name" className="block text-sm font-medium text-stone-300 mb-1">
+                <label htmlFor="class-name" className={hb.label}>
                     Nome da Classe
                 </label>
                 <input 
@@ -180,39 +181,39 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     onChange={e => handleFieldChange('name', e.target.value)}
                     placeholder="Ex: Mestre das Lâminas"
                     required 
-                    className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
+                    className={hb.control} 
                 />
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
-                    <input id="official_index" type="text" value={classData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: barbarian (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever/Traduzir)</label>
+                    <input id="official_index" type="text" value={classData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: barbarian (opcional)"/>
                 </div>
             )}
             <div>
-                <label htmlFor="hit-die" className="block text-sm font-medium text-stone-300 mb-1">
+                <label htmlFor="hit-die" className={hb.label}>
                     Dado de Vida
                 </label>
                 <select 
                     id="hit-die"
                     value={classData.hit_die}
                     onChange={e => handleFieldChange('hit_die', Number(e.target.value))}
-                    className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200"
+                    className={hb.control}
                 >
                     {HIT_DICE_OPTIONS.map(d => <option key={d} value={d}>d{d}</option>)}
                 </select>
             </div>
             {/* Saving Throws */}
             <div>
-                <label className="block text-sm font-medium text-stone-300 mb-2">Testes de Resistência (Escolha 2)</label>
+                <label className={hb.headingSm}>Testes de Resistência (Escolha 2)</label>
                 <div className="grid grid-cols-3 gap-2">
                     {Object.keys(characterUtils.ATTRIBUTE_SHORT_MAP).map(attr => (
-                        <label key={attr} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.saving_throws.some((s:any) => s.index === attr) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                        <label key={attr} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${hbTileClass(classData.saving_throws.some((s:any) => s.index === attr) )}`}>
                             <input type="checkbox"
                                 checked={classData.saving_throws.some((s:any) => s.index === attr)}
                                 onChange={() => handleSavingThrowToggle(attr)}
                                 disabled={classData.saving_throws.length >= 2 && !classData.saving_throws.some((s:any) => s.index === attr)}
-                                className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
+                                className={hb.checkbox}
                             />
                             {attr.toUpperCase()}
                         </label>
@@ -221,15 +222,15 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             </div>
              {/* Proficiencies */}
             <div>
-                <label className="block text-sm font-medium text-stone-300 mb-2">Proficiências com Equipamentos</label>
+                <label className={hb.headingSm}>Proficiências com Equipamentos</label>
                 <div className="space-y-2">
                     <div className="grid grid-cols-2 gap-2">
                         {ALL_ARMOR_PROFS.map(prof => (
-                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some((p:any) => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${hbTileClass(classData.proficiencies.some((p:any) => p.index === prof.index) )}`}>
                                 <input type="checkbox"
                                     checked={classData.proficiencies.some((p:any) => p.index === prof.index)}
                                     onChange={() => handleProficiencyToggle(prof)}
-                                    className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
+                                    className={hb.checkbox}
                                 />
                                 {prof.name}
                             </label>
@@ -237,11 +238,11 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                     </div>
                      <div className="grid grid-cols-2 gap-2">
                         {ALL_WEAPON_PROFS.map(prof => (
-                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${classData.proficiencies.some((p:any) => p.index === prof.index) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                            <label key={prof.index} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${hbTileClass(classData.proficiencies.some((p:any) => p.index === prof.index) )}`}>
                                 <input type="checkbox"
                                     checked={classData.proficiencies.some((p:any) => p.index === prof.index)}
                                     onChange={() => handleProficiencyToggle(prof)}
-                                    className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
+                                    className={hb.checkbox}
                                 />
                                 {prof.name}
                             </label>
@@ -251,9 +252,9 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             </div>
              {/* Skill Choices */}
              <div>
-                <label className="block text-sm font-medium text-stone-300 mb-2">Escolhas de Perícia</label>
-                <div className="flex items-center gap-4 mb-2 bg-stone-800/80 p-2 rounded-md">
-                    <label htmlFor="skill-choice-count" className="text-sm text-stone-300">Nº de escolhas:</label>
+                <label className={hb.headingSm}>Escolhas de Perícia</label>
+                <div className={`mb-2 flex items-center gap-4 rounded-md bg-dnd-obsidian-raised/50 p-2`}>
+                    <label htmlFor="skill-choice-count" className={hb.muted}>Nº de escolhas:</label>
                     <input 
                         id="skill-choice-count"
                         type="number" 
@@ -261,12 +262,12 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                         max="4" 
                         value={skillChoiceGroup?.choose || 2}
                         onChange={e => handleSkillChoiceChange('choose', Number(e.target.value))}
-                        className="w-20 bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200 text-center"
+                        className={`${hb.controlSm} w-20 text-center`}
                     />
                 </div>
                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {characterUtils.ALL_SKILLS.map(skill => (
-                        <label key={skill} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${selectedSkillOptions.includes(skill) ? 'bg-amber-900/50 border-amber-700' : 'bg-stone-800/80 border-stone-700'}`}>
+                        <label key={skill} className={`flex items-center gap-2 p-2 rounded-md border text-sm transition-colors cursor-pointer ${hbTileClass(selectedSkillOptions.includes(skill) )}`}>
                             <input
                                 type="checkbox"
                                 checked={selectedSkillOptions.includes(skill)}
@@ -276,7 +277,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                                         : [...selectedSkillOptions, skill];
                                     handleSkillChoiceChange('options', newSkills);
                                 }}
-                                className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded"
+                                className={hb.checkbox}
                             />
                             {skill}
                         </label>
@@ -284,30 +285,30 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                  </div>
              </div>
              {/* Features Section */}
-             <div className="pt-4 border-t border-stone-700">
+             <div className={hb.dividerSection}>
                 <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-bold text-amber-300">Características de Classe</h4>
-                    <button type="button" onClick={openCreateModal} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                    <h4 className={hb.heading}>Características de Classe</h4>
+                    <button type="button" onClick={openCreateModal} className={hb.btnAdd}>
                         <Plus className="h-4 w-4" /> Adicionar
                     </button>
                 </div>
-                <div className="space-y-4">
+                <div className={hb.root}>
                     {Object.keys(groupedFeatures).length > 0 ? (
                         Object.keys(groupedFeatures).map(level => (
                             <div key={level}>
-                                <h5 className="font-semibold text-stone-300 text-md border-b border-stone-600 pb-1 mb-2">{level}</h5>
+                                <h5 className={`${hb.sectionTitle} border-b border-dnd-gold/20 pb-1 mb-2`}>{level}</h5>
                                 <div className="space-y-2">
                                 {groupedFeatures[level].map((feature: any, index: number) => (
-                                    <div key={feature.index || index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
+                                    <div key={feature.index || index} className={hb.rowBetween}>
                                         <div>
-                                            <p className="font-semibold text-stone-200">{feature.name}</p>
-                                            <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
+                                            <p className="font-ui text-sm font-semibold text-dnd-parchment">{feature.name}</p>
+                                            <p className="mt-1 font-ui text-xs text-dnd-parchment-muted">{feature.desc[0].substring(0, 100)}...</p>
                                         </div>
                                         <div className="flex flex-shrink-0 ml-2 gap-2">
                                             <button type="button" onClick={() => openEditModal(feature, classData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-blue-400 hover:text-blue-300">
                                                 <Edit className="h-4 w-4"/>
                                             </button>
-                                            <button type="button" onClick={() => handleRemoveFeature(classData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-red-500 hover:text-red-400">
+                                            <button type="button" onClick={() => handleRemoveFeature(classData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className={hb.btnDanger}>
                                                 <Trash2 className="h-4 w-4"/>
                                             </button>
                                         </div>
@@ -317,7 +318,7 @@ const ClassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                             </div>
                         ))
                     ) : (
-                        <p className="text-sm text-center italic text-stone-500">Nenhuma característica adicionada ainda.</p>
+                        <p className={hb.empty}>Nenhuma característica adicionada ainda.</p>
                     )}
                 </div>
              </div>

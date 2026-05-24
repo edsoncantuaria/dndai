@@ -1,6 +1,12 @@
 #!/bin/sh
 set -e
-echo "[entrypoint] Aplicando migrações TypeORM..."
-node dist/database/run-migrations.js
+
+if [ "${DB_SYNC}" = "true" ]; then
+  echo "[entrypoint] DB_SYNC=true — schema via TypeORM (sem migrações SQL)."
+else
+  echo "[entrypoint] Aplicando migrações TypeORM..."
+  npx tsx src/database/run-migrations.ts
+fi
+
 echo "[entrypoint] Iniciando servidor..."
-exec node dist/server.js
+exec npx tsx src/server.ts

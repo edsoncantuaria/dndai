@@ -172,7 +172,8 @@ const NewStep5_Equipment2: React.FC<{
     hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
-}> = ({ hook, prevStep, nextStep }) => {
+    hideNav?: boolean;
+}> = ({ hook, prevStep, nextStep, hideNav }) => {
     const {
         equipmentChoiceGroups,
         fixedEquipment,
@@ -298,6 +299,7 @@ const NewStep5_Equipment2: React.FC<{
                 )}
             </section>
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -317,6 +319,7 @@ const NewStep5_Equipment2: React.FC<{
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

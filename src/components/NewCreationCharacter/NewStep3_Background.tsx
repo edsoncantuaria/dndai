@@ -11,6 +11,7 @@ interface Props {
     alignments: ApiListItem[];
     prevStep: () => void;
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
 type PersonalitySection = 'ideals' | 'bonds' | 'flaws';
@@ -45,7 +46,7 @@ const SelectCard: React.FC<{
     </button>
 );
 
-const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, prevStep, nextStep }) => {
+const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, prevStep, nextStep, hideNav }) => {
     const {
         background,
         handleBackgroundChange,
@@ -240,6 +241,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                 </div>
             </section>
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -259,6 +261,7 @@ const NewStep3_Background: React.FC<Props> = ({ hook, backgrounds, alignments, p
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

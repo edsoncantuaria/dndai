@@ -12,9 +12,12 @@ type EventCue =
     | 'shop'
     | 'hpLoss'
     | 'hpGain'
-    | 'resourceUse';
+    | 'resourceUse'
+    | 'diceRoll'
+    | 'diceCritical'
+    | 'diceFailure';
 
-const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate: number }> = {
+const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate: number | number[] }> = {
     xp: { frequency: 920, duration: 180, vibrate: 25 },
     loot: { frequency: 640, duration: 200, vibrate: 30 },
     relationshipUp: { frequency: 760, duration: 160, vibrate: 20 },
@@ -23,6 +26,9 @@ const cueConfig: Record<EventCue, { frequency: number; duration: number; vibrate
     hpLoss: { frequency: 380, duration: 240, vibrate: 40 },
     hpGain: { frequency: 680, duration: 220, vibrate: 25 },
     resourceUse: { frequency: 560, duration: 200, vibrate: 22 },
+    diceRoll: { frequency: 320, duration: 140, vibrate: 18 },
+    diceCritical: { frequency: 920, duration: 320, vibrate: [20, 40, 55, 30] },
+    diceFailure: { frequency: 180, duration: 280, vibrate: [45, 35, 50] },
 };
 
 export const useEventFeedback = () => {
@@ -39,10 +45,10 @@ export const useEventFeedback = () => {
     }, []);
 
     const triggerVibration = useCallback(
-        (duration: number) => {
+        (pattern: number | number[]) => {
             if (!hapticsEnabled) return;
             if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-                navigator.vibrate(duration);
+                navigator.vibrate(pattern);
             }
         },
         [hapticsEnabled]

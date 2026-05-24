@@ -123,9 +123,10 @@ interface Props {
     races: ApiListItem[];
     classes: ApiListItem[];
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
-const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep }) => {
+const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep, hideNav }) => {
     const {
         race,
         subrace,
@@ -338,6 +339,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                     </div>
                 </section>
 
+                {!hideNav ? (
                 <div className="flex justify-end pt-2">
                     <button
                         type="button"
@@ -349,6 +351,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                         <ArrowRight className="h-5 w-5" />
                     </button>
                 </div>
+                ) : null}
             </div>
 
             {classDetails && (

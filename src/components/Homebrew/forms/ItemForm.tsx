@@ -5,6 +5,7 @@ import * as DndApiService from '@/services/dndApiService';
 import { Loader2 } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -103,31 +104,31 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }
 
     return (
-        <div className="space-y-4">
+        <div className={hb.root}>
             <div>
-                <label htmlFor="item-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Item</label>
-                <input id="item-name" type="text" value={itemData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                <label htmlFor="item-name" className={hb.label}>Nome do Item</label>
+                <input id="item-name" type="text" value={itemData.name} onChange={e => handleFieldChange('name', e.target.value)} required className={hb.control} />
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
-                    <input id="official_index" type="text" value={itemData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: longsword (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever/Traduzir)</label>
+                    <input id="official_index" type="text" value={itemData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: longsword (opcional)"/>
                 </div>
             )}
              <div>
-                 <label className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                 <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva a aparência e os efeitos do item."/>
+                 <label className={hb.label}>Descrição</label>
+                 <textarea value={itemData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={4} className={hb.control} placeholder="Descreva a aparência e os efeitos do item."/>
             </div>
              <div className="flex items-center gap-4">
                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={itemData.isMagic} onChange={(e) => handleFieldChange('isMagic', e.target.checked)} className="form-checkbox text-amber-500 bg-stone-700 border-stone-600 rounded" />
+                    <input type="checkbox" checked={itemData.isMagic} onChange={(e) => handleFieldChange('isMagic', e.target.checked)} className={hb.checkbox} />
                     É um item mágico?
                 </label>
              </div>
              {itemData.isMagic && (
                  <div className="animate-fadeIn">
-                     <label htmlFor="item-rarity" className="block text-sm font-medium text-stone-300 mb-1">Raridade</label>
-                    <select id="item-rarity" value={itemData.rarity.name} onChange={(e) => handleRarityChange(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                     <label htmlFor="item-rarity" className={hb.label}>Raridade</label>
+                    <select id="item-rarity" value={itemData.rarity.name} onChange={(e) => handleRarityChange(e.target.value)} className={hb.control}>
                         {RARITIES.map(r => (
                             <option key={r} value={r}>{r}</option>
                         ))}
@@ -135,9 +136,9 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                 </div>
             )}
             <div>
-                 <label htmlFor="item-category" className="block text-sm font-medium text-stone-300 mb-1">Categoria do Equipamento</label>
+                 <label htmlFor="item-category" className={hb.label}>Categoria do Equipamento</label>
                 {isLoadingCategories ? <Loader2 className="animate-spin" /> : (
-                    <select id="item-category" value={itemData.equipment_category.index} onChange={(e) => handleCategoryChange(e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                    <select id="item-category" value={itemData.equipment_category.index} onChange={(e) => handleCategoryChange(e.target.value)} className={hb.control}>
                         {equipmentCategories.map(cat => (
                             <option key={cat.index} value={cat.index}>{cat.name}</option>
                         ))}
@@ -146,17 +147,17 @@ const ItemForm: React.FC<Props> = ({ onDataChange, initialData }) => {
             </div>
              <div className="grid grid-cols-2 gap-4">
                 <div>
-                     <label className="block text-sm font-medium text-stone-300 mb-1">Peso (em lbs)</label>
-                    <input type="number" value={itemData.weight} onChange={e => handleFieldChange('weight', Number(e.target.value))} min="0" className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                     <label className={hb.label}>Peso (em lbs)</label>
+                    <input type="number" value={itemData.weight} onChange={e => handleFieldChange('weight', Number(e.target.value))} min="0" className={hb.control} />
                 </div>
                  <div className="flex gap-2">
                      <div className="flex-grow">
-                        <label className="block text-sm font-medium text-stone-300 mb-1">Custo</label>
-                        <input type="number" value={itemData.cost.quantity} onChange={e => handleCostChange('quantity', Number(e.target.value))} min="0" className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" />
+                        <label className={hb.label}>Custo</label>
+                        <input type="number" value={itemData.cost.quantity} onChange={e => handleCostChange('quantity', Number(e.target.value))} min="0" className={hb.control} />
                     </div>
                      <div className="w-24">
-                        <label className="block text-sm font-medium text-stone-300 mb-1">Moeda</label>
-                         <select value={itemData.cost.unit} onChange={e => handleCostChange('unit', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                        <label className={hb.label}>Moeda</label>
+                         <select value={itemData.cost.unit} onChange={e => handleCostChange('unit', e.target.value)} className={hb.control}>
                              <option value="cp">CP</option>
                              <option value="sp">SP</option>
                              <option value="gp">GP</option>

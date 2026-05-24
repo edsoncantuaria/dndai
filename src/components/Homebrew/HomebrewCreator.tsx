@@ -31,6 +31,10 @@ import ExampleModal from './ExampleModal';
 import SrdSourcePanel from './SrdSourcePanel';
 import { EXAMPLES } from '@/data/examples';
 import { useAuth } from '@/contexts/AuthContext';
+import { DndButton, DndCard, DndHeading, DndInput } from '@/components/primitives';
+import { HomebrewCreationStepper } from '@/features/homebrew/creator/HomebrewCreationStepper';
+import { HomebrewLivePreview } from '@/features/homebrew/creator/HomebrewLivePreview';
+import { HOMEBREW_CREATOR_STEPS, creatorSelectClass } from '@/features/homebrew/creator/constants';
 
 const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race',
@@ -51,6 +55,8 @@ interface Props {
     onContentCreated: () => void;
     onCancel: () => void;
     contentToEdit?: HomebrewService.HomebrewContent | null;
+    /** v2: stepper + preview ao vivo (Grimório) */
+    variant?: 'legacy' | 'v2';
 }
 
 const slugify = (value: string) =>
@@ -90,9 +96,14 @@ function extractSrdOverrides(
     return overrides;
 }
 
-const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit }) => {
+const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit, variant = 'legacy' }) => {
     const { user } = useAuth();
     const { toast } = useToast();
+    const isV2 = variant === 'v2';
+    const fieldLabel = isV2 ? undefined : 'text-sm font-semibold text-stone-200';
+    const fieldInput = isV2
+        ? ''
+        : 'w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500';
 
     const [type, setType] = useState<HomebrewService.HomebrewContentType>(contentToEdit?.type || 'race');
     const [sourceKind, setSourceKind] = useState<HomebrewService.HomebrewSourceKind>(
@@ -233,7 +244,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     }, [contentToEdit, exampleToLoad, type, contentData]);
 
     const renderForm = () => {
-        const commonProps = { data: initialDataForForm, onChange: setContentData };
+        const commonProps = { onDataChange: setContentData, initialData: initialDataForForm };
         switch (type) {
             case 'race':
                 return <RaceForm {...commonProps} />;
@@ -267,12 +278,6 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     );
     const canAdvanceToReview = canAdvanceToStructure && Boolean(contentData && Object.keys(contentData).length > 0);
 
-    const stepper = [
-        { id: 'meta', label: 'Metadados', description: 'Nome, índice e visibilidade' },
-        { id: 'structure', label: 'Estrutura', description: 'Campos específicos do tipo' },
-        { id: 'review', label: 'Revisão', description: 'JSON final e dependências' },
-    ] satisfies { id: Step; label: string; description: string }[];
-
     const jsonPreview = useMemo(
         () => JSON.stringify({ type, sourceKind, sourceResource, sourceIndex, locale, isPublic, content: contentData }, null, 2),
         [type, sourceKind, sourceResource, sourceIndex, locale, isPublic, contentData],
@@ -282,7 +287,13 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1">
-                    <label className="text-sm font-semibold text-stone-200">Origem do conteúdo</label>
+                    {isV2 ? (
+                        <label className="font-ui text-xs uppercase tracking-wider text-dnd-parchment-muted">
+                            Origem do conteúdo
+                        </label>
+                    ) : (
+                        <label className={fieldLabel}>Origem do conteúdo</label>
+                    )}
                     <select
                         value={sourceKind}
                         onChange={(e) => {
@@ -298,7 +309,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                                 }));
                             }
                         }}
-                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 outline-none focus:border-amber-500"
+                        className={isV2 ? creatorSelectClass : fieldInput}
                     >
                         <option value="original">Original (novo, padrão SRD)</option>
                         <option value="translation">Tradução (base SRD)</option>
@@ -306,7 +317,13 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     </select>
                 </div>
                 <div className="space-y-1">
-                    <label className="text-sm font-semibold text-stone-200">Tipo de conteúdo</label>
+                    {isV2 ? (
+                        <label className="font-ui text-xs uppercase tracking-wider text-dnd-parchment-muted">
+                            Tipo de conteúdo
+                        </label>
+                    ) : (
+                        <label className={fieldLabel}>Tipo de conteúdo</label>
+                    )}
                     <select
                         value={type}
                         onChange={(e) => {
@@ -316,7 +333,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                             setSourceResource(null);
                             setOfficialBaseline(null);
                         }}
-                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 outline-none focus:border-amber-500"
+                        className={isV2 ? creatorSelectClass : fieldInput}
                     >
                         {availableContentTypes.map((ct) => (
                             <option key={ct} value={ct}>
@@ -326,19 +343,31 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     </select>
                 </div>
                 <div className="space-y-1">
-                    <label className="text-sm font-semibold text-stone-200">Nome / título</label>
-                    <input
-                        type="text"
-                        value={contentData.name || ''}
-                        onChange={(e) => setContentData((prev: any) => ({ ...prev, name: e.target.value }))}
-                        placeholder="Ex: Espada Solar"
-                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
-                    />
+                    {isV2 ? (
+                        <DndInput
+                            label="Nome / título"
+                            value={contentData.name || ''}
+                            onChange={(e) => setContentData((prev: any) => ({ ...prev, name: e.target.value }))}
+                            placeholder="Ex: Espada Solar"
+                        />
+                    ) : (
+                        <>
+                            <label className={fieldLabel}>Nome / título</label>
+                            <input
+                                type="text"
+                                value={contentData.name || ''}
+                                onChange={(e) => setContentData((prev: any) => ({ ...prev, name: e.target.value }))}
+                                placeholder="Ex: Espada Solar"
+                                className={fieldInput}
+                            />
+                        </>
+                    )}
                 </div>
             </div>
 
             {sourceKind !== 'original' && (
                 <SrdSourcePanel
+                    variant={variant}
                     homebrewType={type}
                     sourceKind={sourceKind}
                     selectedIndex={sourceIndex}
@@ -434,26 +463,63 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     );
 
     const renderStructureStep = () => (
-        <div className="rounded-2xl border border-stone-700 bg-black/30 p-4 shadow-inner shadow-black/60">
+        <div
+            className={
+                isV2
+                    ? 'space-y-4'
+                    : 'rounded-2xl border border-stone-700 bg-black/30 p-4 shadow-inner shadow-black/60'
+            }
+        >
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                    <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">
-                        Editor estruturado
+                    {isV2 ? (
+                        <>
+                            <DndHeading variant="label">Editor estruturado</DndHeading>
+                            <DndHeading variant="section" className="mt-1">
+                                Campos para {type}
+                            </DndHeading>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Editor estruturado</p>
+                            <h2 className="text-xl font-semibold text-white">Campos para {type}</h2>
+                        </>
+                    )}
+                    <p className={isV2 ? 'mt-1 font-narrative text-sm text-dnd-parchment-muted' : 'text-sm text-stone-400'}>
+                        As seções se adaptam automaticamente ao tipo escolhido.
                     </p>
-                    <h2 className="text-xl font-semibold text-white">Campos para {type}</h2>
-                    <p className="text-sm text-stone-400">As seções se adaptam automaticamente ao tipo escolhido.</p>
                 </div>
-                <Layers className="h-10 w-10 text-amber-300" />
+                <Layers className={isV2 ? 'h-10 w-10 text-dnd-gold' : 'h-10 w-10 text-amber-300'} />
             </div>
-            <div className="mt-4 rounded-2xl border border-stone-800 bg-stone-950/60 p-4">{renderForm()}</div>
+            <div
+                className={
+                    isV2
+                        ? 'rounded-lg border border-dnd-gold/15 bg-dnd-obsidian-raised/50 p-4'
+                        : 'mt-4 rounded-2xl border border-stone-800 bg-stone-950/60 p-4'
+                }
+            >
+                {renderForm()}
+            </div>
         </div>
     );
 
     const renderReviewStep = () => (
         <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-4 shadow-inner shadow-black/60">
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Resumo</p>
-                <h2 className="text-xl font-semibold text-white">Check-list</h2>
+            <div
+                className={
+                    isV2
+                        ? 'rounded-lg border border-dnd-gold/15 bg-dnd-obsidian-raised/40 p-4'
+                        : 'rounded-2xl border border-white/10 bg-black/30 p-4 shadow-inner shadow-black/60'
+                }
+            >
+                {isV2 ? (
+                    <DndHeading variant="label">Resumo</DndHeading>
+                ) : (
+                    <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Resumo</p>
+                )}
+                <h2 className={isV2 ? 'mt-1 font-display text-xl text-dnd-parchment' : 'text-xl font-semibold text-white'}>
+                    Check-list
+                </h2>
                 <ul className="mt-4 space-y-3 text-sm text-stone-300">
                     <li className="flex items-center gap-2">
                         <CheckCircle className={`h-4 w-4 ${contentData.name ? 'text-emerald-300' : 'text-stone-500'}`} />
@@ -469,12 +535,36 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     </li>
                 </ul>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-black/30 p-4 shadow-inner shadow-black/60">
-                <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Pré-visualização JSON</p>
-                <pre className="mt-3 max-h-72 overflow-auto rounded-2xl bg-black/60 p-4 text-xs text-amber-100">{jsonPreview}</pre>
+            <div
+                className={
+                    isV2
+                        ? 'rounded-lg border border-dnd-gold/20 bg-[linear-gradient(160deg,rgba(251,191,36,0.08),transparent)] p-4'
+                        : 'rounded-2xl border border-white/10 bg-black/30 p-4 shadow-inner shadow-black/60'
+                }
+            >
+                {isV2 ? (
+                    <DndHeading variant="label">Pergaminho (JSON)</DndHeading>
+                ) : (
+                    <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">Pré-visualização JSON</p>
+                )}
+                <pre
+                    className={
+                        isV2
+                            ? 'mt-3 max-h-72 overflow-auto rounded-md border border-dnd-gold/15 bg-dnd-obsidian p-4 font-mono text-xs text-dnd-parchment-muted'
+                            : 'mt-3 max-h-72 overflow-auto rounded-2xl bg-black/60 p-4 text-xs text-amber-100'
+                    }
+                >
+                    {jsonPreview}
+                </pre>
             </div>
         </div>
     );
+
+    const legacyStepper = [
+        { id: 'meta' as const, label: 'Metadados', description: 'Nome, índice e visibilidade' },
+        { id: 'structure' as const, label: 'Estrutura', description: 'Campos específicos do tipo' },
+        { id: 'review' as const, label: 'Revisão', description: 'JSON final e dependências' },
+    ];
 
     const renderStepContent = () => {
         switch (activeStep) {
@@ -489,8 +579,8 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         }
     };
 
-    return (
-        <div className="space-y-6">
+    const modals = (
+        <>
             {isHelpModalOpen && <HomebrewHelpModal onClose={() => setIsHelpModalOpen(false)} />}
             {isExampleModalOpen && (
                 <ExampleModal
@@ -505,6 +595,83 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                     }}
                 />
             )}
+        </>
+    );
+
+    const activeStepMeta = HOMEBREW_CREATOR_STEPS.find((s) => s.id === activeStep);
+
+    if (isV2) {
+        return (
+            <div className="space-y-4">
+                {modals}
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <DndHeading variant="label">
+                        {contentToEdit ? 'Editar criação' : 'Nova criação'}
+                    </DndHeading>
+                    <p className="font-ui text-xs text-dnd-parchment-muted">Sanitização automática ao salvar</p>
+                </div>
+
+                <HomebrewCreationStepper
+                    activeStep={activeStep}
+                    canStructure={canAdvanceToStructure}
+                    canReview={canAdvanceToReview}
+                    onStepChange={setActiveStep}
+                />
+
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <DndCard padding="md" className="min-w-0">
+                        <DndHeading variant="section">{activeStepMeta?.label}</DndHeading>
+                        <p className="mt-1 font-narrative text-sm text-dnd-parchment-muted">
+                            {activeStepMeta?.description}
+                        </p>
+                        <div className="mt-4">{renderStepContent()}</div>
+                        <div className="mt-6 flex flex-wrap gap-3 border-t border-dnd-gold/15 pt-4">
+                            {activeStep !== 'meta' && (
+                                <DndButton
+                                    variant="ghost"
+                                    className="flex-1"
+                                    onClick={() => setActiveStep(activeStep === 'review' ? 'structure' : 'meta')}
+                                >
+                                    Voltar
+                                </DndButton>
+                            )}
+                            {activeStep !== 'review' && (
+                                <DndButton
+                                    variant="ember"
+                                    className="flex-1"
+                                    disabled={
+                                        (activeStep === 'meta' && !canAdvanceToStructure) ||
+                                        (activeStep === 'structure' && !canAdvanceToReview)
+                                    }
+                                    onClick={() => setActiveStep(activeStep === 'meta' ? 'structure' : 'review')}
+                                >
+                                    Continuar
+                                </DndButton>
+                            )}
+                            {activeStep === 'review' && (
+                                <DndButton variant="ember" className="flex-1" disabled={isLoading} onClick={handleSubmit}>
+                                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Salvar no Grimório'}
+                                </DndButton>
+                            )}
+                        </div>
+                    </DndCard>
+
+                    <HomebrewLivePreview
+                        activeStep={activeStep}
+                        type={type}
+                        sourceKind={sourceKind}
+                        contentData={contentData}
+                        isPublic={isPublic}
+                        locale={locale}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-6">
+            {modals}
 
             <div className="flex items-center justify-between flex-wrap gap-4">
                 <button
@@ -523,7 +690,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
             <div className="rounded-3xl border border-white/10 bg-black/30 p-5 shadow-2xl shadow-black/60">
                 <div className="flex flex-col gap-4">
                     <div className="flex flex-wrap gap-3">
-                        {stepper.map((step, index) => (
+                        {legacyStepper.map((step) => (
                             <button
                                 key={step.id}
                                 type="button"

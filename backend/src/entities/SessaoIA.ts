@@ -44,7 +44,6 @@ export class SessaoIA {
     @OneToMany(() => StorySummary, summary => summary.sessao)
     storySummaries: StorySummary[];
     
-    @Index()
     @Column({ type: 'simple-json', nullable: true })
     homebrewContentIds: string[]; // Armazena IDs de todo o conteúdo necessário para esta sessão
 

@@ -1,121 +1,20 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { ambientSounds, AmbientSound } from '@/data/ambient-sounds';
 import { useSettingsContext } from '@/contexts/SettingsContext';
+import { useAmbientTrackPlayer } from '@/hooks/useAmbientTrackPlayer';
 import { Music3, ChevronDown } from 'lucide-react';
-
-const FADE_DURATION = 2000; // 2 segundos em milissegundos
 
 interface AmbientPlayerProps {
     variant?: 'panel' | 'chip' | 'icon';
 }
 
 const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
-    const { ambientSound, character } = useGameStateContext();
-    const { volume, isMuted, playAmbientMusic } = useSettingsContext();
-    
-    // Usaremos apenas um player de áudio para simplificar
-    const audioRef = useRef<HTMLAudioElement | null>(null);
-    const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    const [currentAmbient, setCurrentAmbient] = useState<AmbientSound | null>(null);
+    const { character } = useGameStateContext();
+    const { volume } = useSettingsContext();
+    const { audioRef, currentAmbient } = useAmbientTrackPlayer();
     const [isExpanded, setIsExpanded] = useState(false);
-
-    // Efeito para criar e configurar o elemento de áudio
-    useEffect(() => {
-        if (!audioRef.current) {
-            audioRef.current = new Audio();
-            audioRef.current.loop = true;
-        }
-    }, []);
-
-    // Efeito para controlar o volume e o estado mudo
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        audio.muted = isMuted;
-        if (!isMuted) {
-            audio.volume = volume;
-        }
-    }, [isMuted, volume]);
-
-    // Efeito principal para trocar de faixa
-    useEffect(() => {
-        const audio = audioRef.current;
-        if (!audio) return;
-
-        const targetSoundId = playAmbientMusic ? ambientSound : 'none';
-        const soundData = ambientSounds.find(s => s.id === targetSoundId);
-        const newUrl = soundData?.url && typeof window !== 'undefined' ? window.location.origin + soundData.url : null;
-        const safeVolume = Math.max(volume, 0.05);
-        
-        const fadeOut = (callback: () => void) => {
-            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
-            if (audio.volume === 0 || isNaN(audio.duration) || audio.paused) {
-                callback();
-                return;
-            }
-            
-            let currentVolume = audio.volume;
-            fadeIntervalRef.current = setInterval(() => {
-                currentVolume -= 0.05; // Ajuste para uma transição de 2 segundos
-                if (currentVolume <= 0) {
-                    clearInterval(fadeIntervalRef.current!);
-                    audio.pause();
-                    audio.volume = volume; // Reseta o volume para a próxima vez
-                    callback();
-                } else {
-                    audio.volume = currentVolume;
-                }
-            }, FADE_DURATION / Math.max(safeVolume / 0.05, 1));
-        };
-
-        const fadeIn = () => {
-            if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current);
-            if (!newUrl) return;
-
-            audio.src = newUrl;
-            audio.volume = 0;
-
-            audio.play().then(() => {
-                let currentVolume = 0;
-                fadeIntervalRef.current = setInterval(() => {
-                    currentVolume += 0.05;
-                     if (currentVolume >= volume) {
-                        clearInterval(fadeIntervalRef.current!);
-                        audio.volume = volume;
-                    } else {
-                        audio.volume = currentVolume;
-                    }
-                }, FADE_DURATION / Math.max(safeVolume / 0.05, 1));
-            }).catch(e => console.warn("Ambient audio play failed:", e));
-
-            setCurrentAmbient(soundData ?? null);
-        };
-        
-        // Se a nova URL for a mesma que está tocando, não faz nada.
-        if (audio.src === newUrl && !audio.paused) {
-            return;
-        }
-
-        fadeOut(() => {
-            if (newUrl) {
-                fadeIn();
-            } else {
-                setCurrentAmbient(null);
-            }
-        });
-
-        // Cleanup ao desmontar
-        return () => {
-            if (fadeIntervalRef.current) {
-                clearInterval(fadeIntervalRef.current);
-            }
-        };
-
-    }, [ambientSound, playAmbientMusic, volume]);
 
     const timeOfDay = character?.worldState?.timeOfDay?.toLowerCase() || '';
     const gradientByTag: Record<string, string> = {
@@ -138,6 +37,8 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
         if (timeOfDay.includes('tarde')) return 'from-orange-400/15 via-amber-300/10 to-transparent';
         return 'from-stone-900/15 via-stone-800/10 to-transparent';
     };
+
+    const audioElement = <audio ref={audioRef} loop className="hidden" />;
 
     if (variant === 'icon') {
         return (
@@ -170,7 +71,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
                         </div>
                     </div>
                 )}
-                <audio ref={audioRef} loop className="hidden" />
+                {audioElement}
             </>
         );
     }
@@ -201,7 +102,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
                         </p>
                     </div>
                 )}
-                <audio ref={audioRef} loop className="hidden" />
+                {audioElement}
             </>
         );
     }
@@ -250,7 +151,7 @@ const AmbientPlayer: React.FC<AmbientPlayerProps> = ({ variant = 'panel' }) => {
                     </div>
                 </div>
             )}
-            <audio ref={audioRef} loop className="hidden" />
+            {audioElement}
         </div>
     );
 };
