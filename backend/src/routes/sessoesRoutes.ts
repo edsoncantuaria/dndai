@@ -13,6 +13,7 @@ import {
     getWorldMapSnapshot,
 } from '../controllers/sessoesController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
+import sessionCastRoutes from './sessionCastRoutes.js';
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.use(authMiddleware);
 
 router.post('/', createSessao);
 router.get('/', getSessoes);
+router.use('/:sessionId/cast', sessionCastRoutes);
 router.get('/:id/world-map', getWorldMapSnapshot);
 router.get('/:id/facts', getSessaoFacts);
 router.get('/:id/replay', getSessaoReplayMarkdown);

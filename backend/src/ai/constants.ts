@@ -18,7 +18,16 @@ export const MODEL = {
     defaultOutputTokens: 8192,
     hardOutputCap: 8192,
     maxAttempts: 3,
-    defaultFailoverChain: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+    /** Padrão: OpenRouter free → Gemini fallback (ver providerFactory). */
+    defaultFailoverChain: [
+        'meta-llama/llama-3.3-70b-instruct:free',
+        'qwen/qwen3-next-80b-a3b-instruct:free',
+        'openai/gpt-oss-120b:free',
+        'nousresearch/hermes-3-llama-3.1-405b:free',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+    ],
+    defaultGameplayModel: 'meta-llama/llama-3.3-70b-instruct:free',
 } as const;
 
 export const RETRY_PROMPT_HINTS = [
@@ -27,12 +36,15 @@ export const RETRY_PROMPT_HINTS = [
     '\n\nATENÇÃO FINAL: Reescreva o JSON COMPLETO, feche todas as chaves e inclua os campos obrigatórios da fase atual.',
 ] as const;
 
-export type AiPipelineMode = 'full' | 'dual' | 'narration_only';
+/** Único modo suportado: IA só narra; motor autoritativo para estado. */
+export type AiPipelineMode = 'narration_only';
 
-export function resolvePipelineMode(raw?: string): AiPipelineMode {
-    const value = (raw ?? process.env.AI_PIPELINE_MODE ?? 'narration_only').trim().toLowerCase();
-    if (value === 'full' || value === 'narration_only' || value === 'narration-only') {
-        return value === 'narration-only' ? 'narration_only' : (value as AiPipelineMode);
+export function resolvePipelineMode(_raw?: string): AiPipelineMode {
+    const value = (_raw ?? process.env.AI_PIPELINE_MODE ?? 'narration_only').trim().toLowerCase();
+    if (value !== 'narration_only' && value !== 'narration-only') {
+        console.warn(
+            `[pipeline] AI_PIPELINE_MODE="${value}" ignorado; usando narration_only (modos full/dual removidos).`,
+        );
     }
-    return 'dual';
+    return 'narration_only';
 }

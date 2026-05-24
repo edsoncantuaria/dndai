@@ -1,7 +1,10 @@
 import { GoogleGenAI, type Content } from '@google/genai';
 import { MODEL } from './constants.js';
+import { resolveDefaultFailoverChain } from './providerFactory.js';
+import type { ModelAdapter } from './providers/types.js';
 
 export type GeminiMessage = Content;
+export type { ModelAdapter } from './providers/types.js';
 
 export const buildUserContent = (text: string): GeminiMessage => ({
     role: 'user',
@@ -12,20 +15,6 @@ export const buildSystemInstructionPayload = (instruction: string): GeminiMessag
     role: 'system',
     parts: [{ text: (instruction ?? '').toString() }],
 });
-
-export type ModelAdapter = {
-    modelName: string;
-    isGemma: boolean;
-    supportsStructuredOutput: boolean;
-    generateContent: (
-        body: Record<string, unknown>,
-        systemInstructionPayload?: GeminiMessage,
-    ) => ReturnType<GoogleGenAI['models']['generateContent']>;
-    countTokens: (
-        body: Record<string, unknown>,
-        systemInstructionPayload?: GeminiMessage,
-    ) => ReturnType<GoogleGenAI['models']['countTokens']>;
-};
 
 const RESPONSE_SCHEMA_GLOBAL_ENABLED = !['0', 'false', 'no', 'off'].includes(
     (process.env.AI_DISABLE_STRUCTURED_OUTPUT ?? 'false').trim().toLowerCase(),
@@ -66,6 +55,7 @@ export function createModelAdapter(genAI: GoogleGenAI, targetModel: string): Mod
     };
 
     return {
+        provider: 'gemini',
         modelName: targetModel,
         isGemma: gemmaMode,
         supportsStructuredOutput,
@@ -74,20 +64,21 @@ export function createModelAdapter(genAI: GoogleGenAI, targetModel: string): Mod
                 model: providerModelName,
                 ...withSystemInstruction(body, systemInstructionPayload),
             }),
-        countTokens: (body, systemInstructionPayload) =>
-            genAI.models.countTokens({
+        countTokens: async (body, systemInstructionPayload) => {
+            const result = await genAI.models.countTokens({
                 model: providerModelName,
                 ...withSystemInstruction(body, systemInstructionPayload),
-            }),
+            });
+            return {
+                totalTokens: (result as { totalTokens?: number })?.totalTokens,
+                tokenCount: (result as { tokenCount?: number })?.tokenCount,
+            };
+        },
     };
 }
 
 export function resolveFailoverChain(): string[] {
-    const fromEnv = (process.env.AI_FAILOVER_CHAIN ?? MODEL.defaultFailoverChain.join(','))
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean);
-    return fromEnv.length ? fromEnv : [...MODEL.defaultFailoverChain];
+    return resolveDefaultFailoverChain();
 }
 
 export const isFailoverEnabled = (): boolean =>

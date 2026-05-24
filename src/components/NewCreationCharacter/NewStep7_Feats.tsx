@@ -10,9 +10,10 @@ interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
-const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
+const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav }) => {
     const {
         isVariantHuman,
         details: { availableFeats },
@@ -29,16 +30,16 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
     }, [isVariantHuman, fetchFeats]);
 
     useEffect(() => {
-        if (!isVariantHuman) {
+        if (!isVariantHuman && !hideNav) {
             nextStep();
         }
-    }, [isVariantHuman, nextStep]);
+    }, [isVariantHuman, nextStep, hideNav]);
 
     if (!isVariantHuman) {
         return null;
     }
 
-    const isLoadingFeats = loadingStates.isLoading && availableFeats.length === 0;
+    const isLoadingFeats = loadingStates.isFetching && availableFeats.length === 0;
 
     if (isLoadingFeats) {
         return (
@@ -96,6 +97,7 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 </div>
             </section>
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -115,6 +117,7 @@ const NewStep7_Feats: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

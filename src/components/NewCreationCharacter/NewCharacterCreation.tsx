@@ -232,9 +232,9 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
     onCharacterCreated
 }) => {
     const { createCharacter } = useGameStateContext();
-    const hook = useCharacterCreator({ allLanguages: allLanguages || [] });
     const [showConfirmationModal, setShowConfirmationModal] = useState(false);
     const [openStep, setOpenStep] = useState(1);
+    const hook = useCharacterCreator({ allLanguages: allLanguages || [], currentStep: openStep });
     
     const handleFinalizeAndSubmit = async () => {
         const finalCharacterData = hook.buildCharacter();
@@ -278,7 +278,7 @@ const NewCharacterCreation: React.FC<NewCharacterCreationProps> = ({
         <NewStep8_Finalize hook={hook} prevStep={prevStep} handleFinalize={() => setShowConfirmationModal(true)} />,
     ];
 
-    if (hook.loadingStates.isLoading) {
+    if (hook.loadingStates.isBlocking) {
         return (
             <PremiumLoader
                 title="Preparando o Crisol de Criação"

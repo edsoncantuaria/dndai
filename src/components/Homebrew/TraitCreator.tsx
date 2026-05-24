@@ -5,6 +5,7 @@ import * as HomebrewService from '@/services/homebrewService';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import ActionModal from '../ui/ActionModal';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     isOpen: boolean;
@@ -83,9 +84,9 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                 { text: "Salvar Traço", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
-            <div className="space-y-4">
+            <div className={hb.root}>
                  <div>
-                    <label htmlFor="trait-name" className="block text-sm font-medium text-stone-300 mb-1">Nome do Traço</label>
+                    <label htmlFor="trait-name" className={hb.label}>Nome do Traço</label>
                     <input 
                         id="trait-name" 
                         type="text" 
@@ -93,11 +94,11 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                         onChange={e => setName(e.target.value)}
                         placeholder="Ex: Visão no Escuro Superior"
                         required 
-                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500" 
+                        className={hb.control} 
                     />
                 </div>
                  <div>
-                    <label htmlFor="trait-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
+                    <label htmlFor="trait-desc" className={hb.label}>Descrição</label>
                     <textarea
                         id="trait-desc"
                         value={description}
@@ -105,7 +106,7 @@ const TraitCreator: React.FC<Props> = ({ isOpen, onClose, onTraitCreated }) => {
                         rows={5}
                         placeholder="Descreva o que este traço faz, mecanicamente e em termos de história."
                         required
-                        className="w-full bg-stone-800 border-stone-600 rounded-md p-2 text-stone-200 focus:ring-amber-500 focus:border-amber-500"
+                        className={hb.control}
                     />
                 </div>
             </div>

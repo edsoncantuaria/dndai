@@ -5,6 +5,8 @@ import { randomUUID } from 'crypto';
 const {
   MINIO_ENDPOINT,
   MINIO_PORT,
+  MINIO_PUBLIC_ENDPOINT,
+  MINIO_PUBLIC_PORT,
   MINIO_ACCESS_KEY,
   MINIO_SECRET_KEY,
   MINIO_USE_SSL,
@@ -114,8 +116,35 @@ export const offloadLargePayload = async (
   }
 };
 
-const buildDirectObjectUrl = (key: string) =>
-  `${MINIO_USE_SSL === 'false' ? 'http' : 'https'}://${MINIO_ENDPOINT}/${bucketName}/${key}`;
+const resolvePublicHost = () => MINIO_PUBLIC_ENDPOINT?.trim() || MINIO_ENDPOINT;
+const resolvePublicPort = () => {
+  const raw = MINIO_PUBLIC_PORT?.trim() || MINIO_PORT;
+  return raw ? Number(raw) : undefined;
+};
+
+const buildObjectBaseUrl = (host: string, port?: number) => {
+  const scheme = MINIO_USE_SSL === 'false' ? 'http' : 'https';
+  const portSuffix = port && port !== 80 && port !== 443 ? `:${port}` : '';
+  return `${scheme}://${host}${portSuffix}`;
+};
+
+const buildDirectObjectUrl = (key: string) => {
+  const host = resolvePublicHost();
+  const port = resolvePublicPort();
+  return `${buildObjectBaseUrl(host!, port)}/${bucketName}/${key}`;
+};
+
+/** Reescreve host/porta de URLs assinadas para acesso pelo browser (ex.: minio → localhost). */
+const rewriteUrlForPublicAccess = (url: string): string => {
+  if (!MINIO_ENDPOINT) return url;
+  const publicHost = resolvePublicHost();
+  const internalPort = MINIO_PORT ? Number(MINIO_PORT) : undefined;
+  const publicPort = resolvePublicPort();
+  const internalBase = buildObjectBaseUrl(MINIO_ENDPOINT, internalPort);
+  const publicBase = buildObjectBaseUrl(publicHost!, publicPort);
+  if (internalBase === publicBase) return url;
+  return url.split(internalBase).join(publicBase);
+};
 
 export const getObjectUrl = (key: string) => {
   if (!minioClient) return null;
@@ -136,7 +165,8 @@ export const getSignedObjectUrl = async (key: string, expiresInSeconds = signedU
   const ready = await ensureBucket();
   if (!ready) return null;
   try {
-    return await presignObject(key, expiresInSeconds);
+    const signed = await presignObject(key, expiresInSeconds);
+    return rewriteUrlForPublicAccess(signed);
   } catch (error) {
     console.warn(`[objectStorage] Falha ao gerar URL assinada para ${key}:`, error);
     return buildDirectObjectUrl(key);
@@ -190,6 +220,46 @@ export const deleteObject = async (key?: string | null) => {
   } catch (error) {
     console.warn('[objectStorage] Falha ao remover objeto do MinIO:', error);
   }
+};
+
+export type StoredObjectPayload = {
+    buffer: Buffer;
+    contentType: string;
+    size: number;
+};
+
+export const fetchObjectBuffer = async (key?: string | null): Promise<StoredObjectPayload | null> => {
+    if (!key || !minioClient) return null;
+    const ready = await ensureBucket();
+    if (!ready) return null;
+
+    return new Promise(resolve => {
+        minioClient!.statObject(bucketName, key, (statErr, stat) => {
+            if (statErr || !stat) {
+                console.warn('[objectStorage] Objeto não encontrado:', key, statErr);
+                return resolve(null);
+            }
+            minioClient!.getObject(bucketName, key, (err, dataStream) => {
+                if (err || !dataStream) {
+                    console.warn('[objectStorage] Falha ao ler objeto:', key, err);
+                    return resolve(null);
+                }
+                const chunks: Buffer[] = [];
+                dataStream.on('data', chunk => chunks.push(chunk as Buffer));
+                dataStream.on('end', () => {
+                    resolve({
+                        buffer: Buffer.concat(chunks),
+                        contentType: stat.metaData?.['content-type'] ?? stat.metaData?.['Content-Type'] ?? 'application/octet-stream',
+                        size: stat.size,
+                    });
+                });
+                dataStream.on('error', streamErr => {
+                    console.warn('[objectStorage] Erro na leitura do stream:', streamErr);
+                    resolve(null);
+                });
+            });
+        });
+    });
 };
 
 export const fetchObjectAsText = async (key?: string | null): Promise<string | null> => {

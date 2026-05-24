@@ -33,9 +33,15 @@ import { trackWarningMetric } from './warningMetricsService.js';
 import { extractResponseText, parseGameMasterJson } from '../ai/responseParser.js';
 import { buildCompactPromptSections } from '../ai/promptSections.js';
 import { recordAiPipelineMetric } from '../ai/metrics.js';
-import { JSON_PARSE } from '../ai/constants.js';
+import { JSON_PARSE, resolvePipelineMode } from '../ai/constants.js';
 import { createSystemInstruction, getCachedInstruction } from '../ai/instructions.js';
 import { createPrompt } from '../ai/promptAssembler.js';
+import {
+    apiKeyRequiredMessage,
+    createGameplayModelAdapter,
+    resolveDefaultFailoverChain,
+} from '../ai/providerFactory.js';
+import type { ModelAdapter } from '../ai/providers/types.js';
 
 type GeminiMessage = Content;
 
@@ -55,20 +61,6 @@ type GameUpdateFunction = (
     generationConfig: GenerationConfig,
     apiKey: string
 ) => Promise<GameUpdateResult>;
-
-type ModelAdapter = {
-    isGemma: boolean;
-    supportsStructuredOutput: boolean;
-    generateContent: (
-        body: Record<string, any>,
-        systemInstructionPayload?: GeminiMessage
-    ) => ReturnType<GoogleGenAI['models']['generateContent']>;
-    countTokens: (
-        body: Record<string, any>,
-        systemInstructionPayload?: GeminiMessage
-    ) => ReturnType<GoogleGenAI['models']['countTokens']>;
-};
-
 
 const allowStructuredOutputForModel = (modelName: string): boolean => {
     if (!RESPONSE_SCHEMA_GLOBAL_ENABLED) return false;
@@ -91,13 +83,7 @@ const RETRY_PROMPT_HINTS = [
     "\n\nSua resposta anterior não era um objeto JSON válido ou falhou na validação do schema. Por favor, corrija o formato e forneça uma resposta estritamente no formato JSON solicitado, sem nenhum texto ou marcador extra e garantindo que todos os campos obrigatórios estejam presentes e com os tipos corretos.",
     "\n\nATENÇÃO FINAL: Reescreva o GameMasterResponse COMPLETO, obedecendo o schema integralmente e sem repetir texto fora do JSON. Priorize fechar todas as chaves e inclua, no mínimo, logEntries, actionOptions, updatedCharacter, worldState e combatState (mesmo vazios).",
 ] as const;
-const DEFAULT_FAILOVER_CHAIN = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
-const MODEL_FAILOVER_CHAIN = (
-    process.env.AI_FAILOVER_CHAIN ?? DEFAULT_FAILOVER_CHAIN.join(',')
-)
-    .split(',')
-    .map(entry => entry.trim())
-    .filter(Boolean);
+const MODEL_FAILOVER_CHAIN = resolveDefaultFailoverChain();
 const FAILOVER_ENABLED = !['1', 'true', 'yes', 'on'].includes(
     (process.env.AI_DISABLE_AUTO_FAILOVER ?? 'false').toString().trim().toLowerCase()
 );
@@ -1789,7 +1775,7 @@ const runGameUpdate: GameUpdateFunction = async (input, modelName, generationCon
     }
     
     if (!apiKey) {
-      throw new Error("Chave de API do Google não configurada. Por favor, adicione sua chave nas configurações.");
+      throw new Error(apiKeyRequiredMessage(modelName));
     }
     const sessionId = normalizeSessionId(
         (input as any)?.sessionId ??
@@ -1798,11 +1784,10 @@ const runGameUpdate: GameUpdateFunction = async (input, modelName, generationCon
         input.character?.name ??
         'session'
     );
-    const genAI = new GoogleGenAI({ apiKey });
 
     const systemInstruction = getCachedInstruction(
         input.useAiHomebrew ?? true,
-        input.enableNarrativeRevalidation ?? true
+        input.enableNarrativeRevalidation ?? true,
     );
     const systemInstructionContent = buildSystemInstructionPayload(systemInstruction);
 
@@ -1819,37 +1804,8 @@ const runGameUpdate: GameUpdateFunction = async (input, modelName, generationCon
         if (strategy) recoveryStrategies.add(strategy);
     };
 
-    const instantiateModel = (targetModel: string): ModelAdapter => {
-        const lower = targetModel.toLowerCase();
-        const gemmaMode = lower.includes('gemma');
-        const supportsStructuredOutput = allowStructuredOutputForModel(targetModel);
-        const providerModelName = toProviderModelName(targetModel);
-
-        const withSystemInstructionTopLevel = (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) => {
-            if (!systemInstructionPayload || gemmaMode) {
-                return body;
-            }
-            return {
-                ...body,
-                systemInstruction: systemInstructionPayload,
-            };
-        };
-
-        return {
-            isGemma: gemmaMode,
-            supportsStructuredOutput,
-            generateContent: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
-                genAI.models.generateContent({
-                    model: providerModelName,
-                    ...withSystemInstructionTopLevel(body, systemInstructionPayload),
-                }),
-            countTokens: (body: Record<string, any>, systemInstructionPayload?: GeminiMessage) =>
-                genAI.models.countTokens({
-                    model: providerModelName,
-                    ...withSystemInstructionTopLevel(body, systemInstructionPayload),
-                }),
-        };
-    };
+    const instantiateModel = (targetModel: string): ModelAdapter =>
+        createGameplayModelAdapter(apiKey, targetModel);
 
     const wasCondensed = { value: false };
     const condensedInput = condenseGameMasterInput(input, wasCondensed);
@@ -2299,16 +2255,9 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
                 }
             }
 
-            // 2️⃣ Sanitização semântica / lógica
+            // 2️⃣ Sanitização — modo narrativo: sem reidratar combate/loot/XP (motor autoritativo)
             const finalResponse = sanitizeGameMasterResponse(cleanedData, input.character, input);
             ensureResponseSchemaHash(finalResponse);
-            enforceCombatContinuity(finalResponse, input);
-            ensureLootCurrencyDelta(finalResponse, input);
-            ensureScenarioXpArtifacts(finalResponse, input);
-            ensureGameClockProgression(finalResponse, input);
-            ensureLevelProgressConsistency(finalResponse, input);
-            ensureScenarioCombatSeed(finalResponse, input);
-            pruneFinishedCombatState(finalResponse);
             const enforcementNotes = enforcePhaseCompliance(finalResponse, input);
             if (enforcementNotes.length) {
                 emitWarning('phase_sanitization', {

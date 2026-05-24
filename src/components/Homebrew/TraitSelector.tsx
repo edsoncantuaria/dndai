@@ -7,6 +7,7 @@ import { ApiListItem } from '@/types';
 import { Loader2, Plus } from 'lucide-react';
 import TraitCreator from './TraitCreator'; // Importar o novo componente
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     selectedTraits: ApiListItem[];
@@ -82,39 +83,39 @@ const TraitSelector: React.FC<Props> = ({ selectedTraits, onSelectionChange }) =
     );
 
     return (
-        <div className="space-y-3">
-            <h5 className="text-sm font-medium text-stone-300 mb-2">Traços Raciais</h5>
+        <div className={hb.section}>
+            <h5 className={hb.headingSm}>Traços Raciais</h5>
             <input
                 type="text"
                 placeholder="Buscar traços..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-sm text-stone-200"
+                className={hb.controlSm}
             />
             {isLoading ? (
                 <div className="flex items-center justify-center p-4">
-                    <Loader2 className="h-6 w-6 animate-spin text-stone-400" />
+                    <Loader2 className="h-6 w-6 animate-spin text-dnd-parchment-muted" />
                 </div>
             ) : (
-                <div className="max-h-48 overflow-y-auto space-y-2 rounded-md bg-stone-900/50 p-2 border border-stone-700 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className={`${hb.pickerPanel} space-y-2`}>
                     {filteredTraits.map(trait => {
                          const isSelected = selectedTraits.some(st => st.index === trait.index);
                         return (
-                            <label key={trait.index} className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${isSelected ? 'bg-amber-900/40' : 'hover:bg-stone-800'}`}>
+                            <label key={trait.index} className={`flex items-center gap-3 p-2 rounded cursor-pointer transition-colors ${isSelected  ? hb.pickerItemSelected : hb.pickerItem}`}>
                                 <input
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => handleToggleTrait(trait)}
-                                    className="form-checkbox h-4 w-4 text-amber-500 bg-stone-700 border-stone-600 rounded focus:ring-amber-500"
+                                    className={hb.checkbox}
                                 />
-                                <span className="text-sm text-stone-300">{trait.name}</span>
+                                <span className="font-ui text-sm text-dnd-parchment">{trait.name}</span>
                             </label>
                         )
                     })}
                 </div>
             )}
             <div className="text-right">
-                <button type="button" className="mt-2 text-sm text-amber-400 hover:text-amber-300 flex items-center gap-1" onClick={() => setIsCreatorOpen(true)}>
+                <button type="button" className={hb.linkBtn} onClick={() => setIsCreatorOpen(true)}>
                     <Plus className="h-4 w-4" /> Criar Novo Traço
                 </button>
             </div>

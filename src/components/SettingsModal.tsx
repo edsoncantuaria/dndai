@@ -10,6 +10,8 @@ import { Switch } from '@/components/ui/switch';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { apiClient } from '@/services/apiClient';
 import { generateSceneImage as requestSceneImage } from '@/services/imageService';
+import { isUiV2Enabled } from '@/lib/uiV2';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
@@ -398,6 +400,8 @@ const CacheManagement: React.FC = () => {
 
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+    const { isMdUp } = useBreakpoint();
+    const useSheetLayout = isUiV2Enabled();
     const { 
         model, setModel, 
         ttsModel, setTtsModel, 
@@ -452,14 +456,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         }
     };
 
-    return (
-        <div 
-            className="fixed inset-0 z-50 flex items-center justify-center bg-[#04060a]/90 backdrop-blur animate-fadeIn p-4"
-            style={{ animationDuration: '200ms' }}
-            onClick={handleSaveAndClose}
-        >
+    const panelContent = (
             <div 
-                className={`${PANEL} w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden`}
+                className={`${useSheetLayout ? 'dnd-surface-glass border border-dnd-gold/20 shadow-[var(--dnd-shadow-elevated)]' : PANEL} w-full flex flex-col overflow-hidden ${useSheetLayout ? (isMdUp ? 'h-full max-w-md' : 'max-h-[90vh]') : 'max-w-4xl max-h-[92vh]'}`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <header className="p-6 border-b border-white/10 flex justify-between items-start gap-4">
@@ -478,10 +477,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                      <div>
                         <div className="flex justify-between items-center mb-2">
                            <label htmlFor="api-key-input" className="text-stone-300 font-semibold flex items-center gap-2">
-                              <KeyRound className="h-4 w-4"/> Chave de API do Google AI
+                              <KeyRound className="h-4 w-4"/> Chave OpenRouter (jogo)
                            </label>
-                           <a href="https://aistudio.google.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
-                              Como Obter?
+                           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
+                              Criar chave
                            </a>
                     </div>
                      <input
@@ -489,11 +488,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         type="password"
                         value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Cole sua chave aqui"
+                            placeholder="sk-or-v1-..."
                             className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
                         />
                          <p className="text-xs text-stone-500 mt-2">
-                            Sua chave é salva localmente no seu navegador. Se não for fornecida, o jogo tentará usar uma chave de ambiente.
+                            Salva só no seu navegador. Modelos free no OpenRouter; Gemini opcional para voz e imagens (chave Google separada).
                         </p>
                     </div>
                     {IMAGE_FEATURE_ENABLED && (
@@ -679,6 +678,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </button>
                 </footer>
             </div>
+    );
+
+    if (useSheetLayout) {
+        return (
+            <>
+                <div
+                    className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                    onClick={handleSaveAndClose}
+                    aria-hidden
+                />
+                <div
+                    className={`fixed z-50 flex flex-col ${
+                        isMdUp
+                            ? 'right-0 top-0 h-full w-full max-w-md border-l border-dnd-gold/20 pt-[var(--dnd-safe-top)]'
+                            : 'inset-x-0 bottom-0 rounded-t-xl border-t border-dnd-gold/20 pb-[var(--dnd-safe-bottom)]'
+                    }`}
+                >
+                    {panelContent}
+                </div>
+            </>
+        );
+    }
+
+    return (
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[#04060a]/90 backdrop-blur animate-fadeIn p-4"
+            style={{ animationDuration: '200ms' }}
+            onClick={handleSaveAndClose}
+        >
+            {panelContent}
         </div>
     );
 };

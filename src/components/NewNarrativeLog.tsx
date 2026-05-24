@@ -2,16 +2,27 @@
 'use client';
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
-import { Dice5 } from 'lucide-react';
 import { Button } from './ui/button';
 import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
 import { useToast } from '@/hooks/use-toast';
-import { generateNarrationAudio, getSignedNarrationAudio } from '@/services/ttsService';
+import {
+    generateNarrationAudio,
+    resolveNarrationPlaybackUrl,
+    withPlaybackAuthToken,
+} from '@/services/ttsService';
 import { generateSceneImage, getSignedImageUrl } from '@/services/imageService';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import clsx from 'clsx';
+import { DndButton, DndCard } from '@/components/primitives';
+import { NarrativeBeatCard } from '@/components/cinematic';
+import type { NarrativeBeatVisual } from '@/lib/cinematicAssets';
+import {
+  NarrativeLogVariantProvider,
+  useNarrativeLogVariant,
+  type NarrativeLogVariant,
+} from '@/features/gameplay/narrative/narrativeLogVariant';
 
 const IMAGE_FEATURE_ENABLED = process.env.NEXT_PUBLIC_ENABLE_IMAGE_GENERATION === 'true';
 
@@ -65,47 +76,109 @@ const NarrationEntry: React.FC<{
   isGenerating?: boolean;
   prefix?: React.ReactNode;
   textClassName?: string;
-}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, prefix, textClassName }) => {
+  /** Evita card duplo quando já está dentro de NarrativeBeatCard. */
+  bare?: boolean;
+}> = ({ entry, onPlayAudio, onGenerateAudio, isGenerating, prefix, textClassName, bare = false }) => {
+    const variant = useNarrativeLogVariant();
+    const isV2 = variant === 'v2';
     const textContent = extractEntryText(entry.content);
     if (!textContent) return null;
     const audioUrl = getEntryAudioUrl(entry);
     const hasAudio = Boolean(audioUrl || getEntryAudioKey(entry));
-    return (
-        <div className="flex items-start gap-2">
-            {prefix ? <div className="flex-shrink-0 pt-1">{prefix}</div> : null}
-            <p className={clsx("text-stone-300 leading-relaxed flex-grow font-sans", textClassName)}>
-                {textContent}
-            </p>
-            {hasAudio ? (
-              <button
-                type="button"
-                onClick={() => {
-                    void onPlayAudio?.(entry);
-                }}
-                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-stone-200 hover:text-amber-200 hover:border-amber-300/60 transition"
-                title="Ouvir esta narração"
-              >
-                <Volume2 className="h-4 w-4" />
-              </button>
-            ) : (
-              onGenerateAudio && (
-                <button
-                  type="button"
-                  onClick={() => onGenerateAudio(entry)}
-                  disabled={isGenerating}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-stone-200 hover:text-amber-200 hover:border-amber-300/60 transition disabled:opacity-40 disabled:cursor-not-allowed"
-                  title="Gerar áudio para esta narração"
-                >
-                  {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-                </button>
-              )
-            )}
-        </div>
+
+    const ttsBtn = hasAudio ? (
+      <button
+        type="button"
+        onClick={() => void onPlayAudio?.(entry)}
+        className={clsx(
+          'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition',
+          isV2
+            ? 'border-dnd-gold/30 text-dnd-gold hover:bg-dnd-gold/15'
+            : 'border-white/15 text-stone-200 hover:text-amber-200 hover:border-amber-300/60'
+        )}
+        title="Ouvir esta narração"
+      >
+        <Volume2 className="h-4 w-4" />
+      </button>
+    ) : onGenerateAudio ? (
+      <button
+        type="button"
+        onClick={() => onGenerateAudio(entry)}
+        disabled={isGenerating}
+        className={clsx(
+          'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition disabled:opacity-40',
+          isV2
+            ? 'border-dnd-gold/30 text-dnd-parchment-muted hover:text-dnd-gold'
+            : 'border-white/15 text-stone-200 hover:text-amber-200'
+        )}
+        title="Gerar áudio para esta narração"
+      >
+        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+      </button>
+    ) : null;
+
+    const inner = (
+      <div className="flex items-start gap-2">
+        {prefix ? <div className="shrink-0 pt-0.5">{prefix}</div> : null}
+        <p
+          className={clsx(
+            'flex-grow leading-relaxed',
+            isV2
+              ? 'font-narrative text-base text-dnd-parchment md:text-lg'
+              : clsx('font-sans text-stone-300', textClassName)
+          )}
+        >
+          {textContent}
+        </p>
+        {ttsBtn}
+      </div>
     );
+
+    if (isV2 && !bare) {
+      return <NarrativeBeatCard type="narration">{inner}</NarrativeBeatCard>;
+    }
+    return inner;
 };
 
+const BeatNarrationEntry: React.FC<{
+  beatType: NarrativeBeatVisual;
+  entry: LogEntryType;
+  onPlayAudio?: (entry: LogEntryType) => void;
+  onGenerateAudio?: (entry: LogEntryType) => void;
+  isGenerating?: boolean;
+  prefix?: React.ReactNode;
+  textClassName?: string;
+}> = (props) => {
+  const variant = useNarrativeLogVariant();
+  if (variant !== 'v2') {
+    return (
+      <NarrationEntry
+        entry={props.entry}
+        onPlayAudio={props.onPlayAudio}
+        onGenerateAudio={props.onGenerateAudio}
+        isGenerating={props.isGenerating}
+        prefix={props.prefix}
+        textClassName={props.textClassName}
+      />
+    );
+  }
+  return (
+    <NarrativeBeatCard type={props.beatType}>
+      <NarrationEntry
+        bare
+        entry={props.entry}
+        onPlayAudio={props.onPlayAudio}
+        onGenerateAudio={props.onGenerateAudio}
+        isGenerating={props.isGenerating}
+        prefix={props.prefix}
+        textClassName={props.textClassName}
+      />
+    </NarrativeBeatCard>
+  );
+};
 
 const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
+    const isV2 = useNarrativeLogVariant() === 'v2';
     if (!entry.rollResult) return null;
     const { description, dice, total, modifier, success, advantage, disadvantage, rolls, rollType, dc } = entry.rollResult;
     
@@ -155,11 +228,12 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
     const advantageText = advantage ? "Vantagem" : disadvantage ? "Desvantagem" : null;
     const rollsText = rolls?.join(', ') || total - (modifier || 0);
 
-    return (
-         <div className={`relative overflow-hidden rounded-2xl border ${palette.border} bg-black/40 p-4 text-sm shadow-lg`}>
-            <div className={`absolute inset-0 bg-gradient-to-br ${palette.gradient} opacity-80 pointer-events-none`} />
+    const inner = (
             <div className="relative space-y-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest text-stone-400">
+                <div className={clsx(
+                  'flex flex-wrap items-center gap-2 text-xs uppercase tracking-widest',
+                  isV2 ? 'font-ui text-dnd-parchment-muted' : 'text-stone-400'
+                )}>
                     <span className={`px-2 py-0.5 rounded-full ${palette.badge} font-semibold flex items-center gap-1`}>
                         <Dice5 className="h-3.5 w-3.5" /> {outcomeText}
                     </span>
@@ -175,14 +249,32 @@ const RollEntry: React.FC<{ entry: LogEntryType }> = ({ entry }) => {
                     )}
                 </div>
                 <p className={`font-semibold text-base ${palette.accent}`}>{description}</p>
-                <div className="rounded-2xl border border-white/10 bg-black/40 p-3 font-mono text-stone-200">
+                <div className={clsx(
+                  'rounded-lg border p-3 font-mono text-sm',
+                  isV2 ? 'border-dnd-gold/15 bg-dnd-obsidian text-dnd-parchment' : 'border-white/10 bg-black/40 text-stone-200'
+                )}>
                     <p>
                         {dice} ({rollsText}) {modifier ? (modifier >= 0 ? `+ ${modifier}` : `- ${Math.abs(modifier || 0)}`) : ''} ={' '}
                         <span className="text-2xl font-bold">{total}</span>
                     </p>
                 </div>
             </div>
-        </div>
+    );
+
+    if (isV2) {
+      return (
+        <DndCard padding="md" hover={false} className={clsx('relative overflow-hidden border', palette.border)}>
+          <div className={clsx('pointer-events-none absolute inset-0 bg-gradient-to-br opacity-60', palette.gradient)} aria-hidden />
+          <div className="relative">{inner}</div>
+        </DndCard>
+      );
+    }
+
+    return (
+      <div className={clsx('relative overflow-hidden rounded-2xl border p-4 text-sm shadow-lg', palette.border, 'bg-black/40')}>
+        <div className={clsx('pointer-events-none absolute inset-0 bg-gradient-to-br opacity-80', palette.gradient)} aria-hidden />
+        {inner}
+      </div>
     );
 }
 
@@ -220,6 +312,7 @@ const ImageEntry: React.FC<{
     onRefreshImage?: (entry: LogEntryType) => void;
     isLoading?: boolean;
 }> = ({ entry, onGenerateImage, onRefreshImage, isLoading }) => {
+    const isV2 = useNarrativeLogVariant() === 'v2';
     if (entry.type !== 'image' || !entry.content || typeof entry.content !== 'object') return null;
     const content = entry.content as ImageLogEntryContent;
     const hasPrompt = Boolean(content.prompt && content.prompt.trim().length);
@@ -255,19 +348,37 @@ const ImageEntry: React.FC<{
         }
     })();
 
-    return (
-        <div className="rounded-2xl border border-white/10 bg-stone-950/70 p-4 space-y-4 shadow-lg">
+    const imgBody = (
+      <>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs uppercase tracking-widest text-stone-400">
+                    <div className={clsx(
+                      'flex items-center gap-2 text-xs uppercase tracking-widest',
+                      isV2 ? 'font-ui text-dnd-parchment-muted' : 'text-stone-400'
+                    )}>
                         <ImageIcon className="h-4 w-4" />
                         Visual da Cena
                         {statusBadge}
                     </div>
-                    <p className="text-sm text-stone-300">{promptText}</p>
+                    <p className={clsx('text-sm', isV2 ? 'text-dnd-parchment' : 'text-stone-300')}>{promptText}</p>
                 </div>
-                <div className="flex gap-2">
-                    {canGenerate && (
+                <div className="flex flex-wrap gap-2">
+                    {canGenerate && (isV2 ? (
+                        <DndButton
+                            variant="goldOutline"
+                            size="sm"
+                            disabled={isLoading || status === 'generating'}
+                            onClick={() => onGenerateImage?.(entry)}
+                            title="Solicitar uma nova imagem para esta cena"
+                        >
+                            {isLoading && status === 'generating' ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="h-4 w-4" />
+                            )}
+                            {status === 'done' ? 'Gerar novamente' : 'Gerar imagem'}
+                        </DndButton>
+                    ) : (
                         <button
                             type="button"
                             disabled={isLoading || status === 'generating'}
@@ -282,8 +393,21 @@ const ImageEntry: React.FC<{
                             )}
                             {status === 'done' ? 'Gerar novamente' : 'Gerar imagem'}
                         </button>
-                    )}
+                    ))}
                     {canRefresh && (
+                        isV2 ? (
+                          <DndButton
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={isLoading}
+                            onClick={() => onRefreshImage?.(entry)}
+                            title="Atualizar a URL assinada desta imagem"
+                          >
+                            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
+                            Atualizar link
+                          </DndButton>
+                        ) : (
                         <button
                             type="button"
                             disabled={isLoading}
@@ -294,16 +418,20 @@ const ImageEntry: React.FC<{
                             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
                             Atualizar link
                         </button>
+                        )
                     )}
                 </div>
             </div>
             {status === 'failed' && (
-                <div className="rounded-xl border border-rose-500/30 bg-rose-950/40 p-3 text-sm text-rose-200">
+                <div className={clsx(
+                  'rounded-lg border p-3 text-sm',
+                  isV2 ? 'border-dnd-ember/40 bg-dnd-ember/10 text-dnd-parchment' : 'border-rose-500/30 bg-rose-950/40 text-rose-200'
+                )}>
                     {content.error ?? 'Falha ao gerar a imagem.'}
                 </div>
             )}
             {status === 'generating' && (
-                <div className="flex items-center gap-2 text-sm text-amber-200">
+                <div className={clsx('flex items-center gap-2 text-sm', isV2 ? 'text-dnd-gold' : 'text-amber-200')}>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Processando imagem com o Gemini...
                 </div>
@@ -313,22 +441,39 @@ const ImageEntry: React.FC<{
                     href={imageUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="block overflow-hidden rounded-xl border border-white/10 bg-black/60"
+                    className={clsx(
+                      'block overflow-hidden rounded-lg border',
+                      isV2 ? 'border-dnd-gold/20 bg-dnd-obsidian' : 'border-white/10 bg-black/60'
+                    )}
                 >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imageUrl} alt={promptText} className="w-full object-cover" loading="lazy" />
                 </a>
             )}
             {status === 'done' && !imageUrl && (
-                <p className="text-sm text-stone-400">
+                <p className={clsx('text-sm', isV2 ? 'text-dnd-parchment-muted' : 'text-stone-400')}>
                     A URL temporária desta imagem expirou. Clique em &quot;Atualizar link&quot; para gerar outra.
                 </p>
             )}
             {content.completedAt && (
-                <p className="text-xs text-stone-500">
+                <p className={clsx('text-xs', isV2 ? 'text-dnd-parchment-muted/70' : 'text-stone-500')}>
                     Gerado em {new Date(content.completedAt).toLocaleString()}
                 </p>
             )}
+      </>
+    );
+
+    if (isV2) {
+      return (
+        <DndCard padding="md" hover={false} className="space-y-4 border-dnd-gold/12">
+          {imgBody}
+        </DndCard>
+      );
+    }
+
+    return (
+        <div className="space-y-4 rounded-2xl border border-white/10 bg-stone-950/70 p-4 shadow-lg">
+          {imgBody}
         </div>
     );
 };
@@ -351,6 +496,7 @@ const LogEntry = React.memo(function LogEntry({
     onRefreshImage?: (entry: LogEntryType) => void;
     isImageLoading?: boolean;
 }) {
+    const isV2 = useNarrativeLogVariant() === 'v2';
     let contentComponent;
 
     // Ação interna do sistema, não deve ser renderizada.
@@ -372,10 +518,17 @@ const LogEntry = React.memo(function LogEntry({
         case 'action': {
              const actionText = extractEntryText(entry.content);
              if (actionText && actionText.trim()) {
-                 contentComponent = (
-                    <div className="flex items-start gap-3 my-4 py-3 border-y-2 border-stone-700/50">
-                        <div className="flex-shrink-0 pt-1">{getActionIcon(actionText)}</div>
-                        <p className="text-amber-400 font-semibold">{actionText}</p>
+                 contentComponent = isV2 ? (
+                    <NarrativeBeatCard type="action">
+                      <div className="flex items-start gap-3">
+                        <div className="shrink-0 pt-0.5">{getActionIcon(actionText)}</div>
+                        <p className="font-ui text-sm font-semibold text-dnd-gold">{actionText}</p>
+                      </div>
+                    </NarrativeBeatCard>
+                 ) : (
+                    <div className="my-4 flex items-start gap-3 border-y-2 border-stone-700/50 py-3">
+                        <div className="shrink-0 pt-1">{getActionIcon(actionText)}</div>
+                        <p className="font-semibold text-amber-400">{actionText}</p>
                     </div>
                 );
              } else {
@@ -388,37 +541,40 @@ const LogEntry = React.memo(function LogEntry({
             break;
         case 'system':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="system"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
-                    prefix={<Sparkles className="h-4 w-4 text-yellow-500/80" />}
-                    textClassName="text-yellow-500/80 italic"
+                    prefix={<Sparkles className="h-4 w-4 text-dnd-gold/90" />}
+                    textClassName="text-dnd-gold/90 italic"
                 />
             );
             break;
         case 'combat':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="combat"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
-                    prefix={<Swords className="h-4 w-4 text-red-400" />}
-                    textClassName="text-red-300 font-semibold"
+                    prefix={<Swords className="h-4 w-4 text-dnd-ember" />}
+                    textClassName="text-dnd-parchment font-semibold"
                 />
             );
             break;
         case 'insight':
             contentComponent = (
-                <NarrationEntry
+                <BeatNarrationEntry
+                    beatType="insight"
                     entry={entry}
                     onPlayAudio={onPlayAudio}
                     onGenerateAudio={onGenerateAudio}
                     isGenerating={isGenerating}
                     prefix={<BrainCircuit className="h-4 w-4 text-purple-300" />}
-                    textClassName="text-purple-200 italic"
+                    textClassName="text-purple-200/90 italic"
                 />
             );
             break;
@@ -483,38 +639,67 @@ const NpcRollDisplay: React.FC = () => {
 
 const PendingRollBanner: React.FC = () => {
     const { isRollPending, playerRollRequest, actionPhaseLabel } = useGameStateContext();
+    const isV2 = useNarrativeLogVariant() === 'v2';
     if (!isRollPending || !playerRollRequest) return null;
 
     const reason = playerRollRequest.reason || playerRollRequest.skillName || 'Teste pendente';
 
-    return (
-        <div className="sticky top-0 z-10 mb-4 rounded-lg border border-amber-500/50 bg-amber-950/80 px-4 py-3 shadow-lg backdrop-blur-sm">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-2 text-amber-100">
-                    <Dice5 className="h-5 w-5 shrink-0 mt-0.5 text-amber-300" />
-                    <div>
-                        <p className="font-semibold text-sm">Rolagem pendente</p>
-                        <p className="text-xs text-amber-200/90 mt-0.5">{reason}</p>
-                        {actionPhaseLabel && (
-                            <p className="text-xs text-amber-300/70 mt-1">{actionPhaseLabel}</p>
-                        )}
-                    </div>
-                </div>
-                <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="shrink-0 border-amber-400/40 bg-amber-900/60 text-amber-50 hover:bg-amber-800"
-                    onClick={() => window.dispatchEvent(new CustomEvent('game-focus-roll-modal'))}
-                >
-                    Abrir dados
-                </Button>
-            </div>
+    const openDice = () => window.dispatchEvent(new CustomEvent('game-focus-roll-modal'));
+
+    const inner = (
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className={clsx('flex items-start gap-2', isV2 ? 'text-dnd-parchment' : 'text-amber-100')}>
+          <Dice5 className={clsx('mt-0.5 h-5 w-5 shrink-0', isV2 ? 'text-dnd-gold' : 'text-amber-300')} />
+          <div>
+            <p className={clsx('text-sm font-semibold', isV2 && 'font-ui text-dnd-gold')}>Rolagem pendente</p>
+            <p className={clsx('mt-0.5 text-xs', isV2 ? 'text-dnd-parchment-muted' : 'text-amber-200/90')}>{reason}</p>
+            {actionPhaseLabel ? (
+              <p className={clsx('mt-1 text-xs', isV2 ? 'text-dnd-parchment-muted/80' : 'text-amber-300/70')}>
+                {actionPhaseLabel}
+              </p>
+            ) : null}
+          </div>
         </div>
+        {isV2 ? (
+          <DndButton variant="ember" size="sm" className="shrink-0" onClick={openDice}>
+            Abrir dados
+          </DndButton>
+        ) : (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="shrink-0 border-amber-400/40 bg-amber-900/60 text-amber-50 hover:bg-amber-800"
+            onClick={openDice}
+          >
+            Abrir dados
+          </Button>
+        )}
+      </div>
+    );
+
+    if (isV2) {
+      return (
+        <div className="sticky top-0 z-10 mb-4">
+          <DndCard padding="sm" hover={false} className="border-dnd-gold/30 bg-dnd-obsidian-raised/80 backdrop-blur-sm">
+            {inner}
+          </DndCard>
+        </div>
+      );
+    }
+
+    return (
+      <div className="sticky top-0 z-10 mb-4 rounded-lg border border-amber-500/50 bg-amber-950/80 px-4 py-3 shadow-lg backdrop-blur-sm">
+        {inner}
+      </div>
     );
 };
 
-const NewNarrativeLog: React.FC = () => {
+export type NewNarrativeLogProps = {
+  variant?: NarrativeLogVariant;
+};
+
+const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' }) => {
     const { log, setLog } = useGameStateContext();
     const { apiKey } = useSettingsContext();
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -636,23 +821,18 @@ const NewNarrativeLog: React.FC = () => {
         [toast, setEntryGenerating, updateEntryAudio]
     );
 
-    const fetchSignedAudioUrl = useCallback(
-        async (entry: LogEntryType) => {
+    const resolveEntryPlaybackUrl = useCallback(
+        (entry: LogEntryType) => {
             const audioKey = getEntryAudioKey(entry);
-            if (!audioKey) return null;
-            if (audioUrlCache[entry.id]) return audioUrlCache[entry.id];
-            try {
-                const { audioUrl } = await getSignedNarrationAudio(audioKey);
-                if (audioUrl) {
-                    updateEntryAudio(entry.id, audioUrl, extractEntryText(entry.content) ?? '', audioKey);
-                    return audioUrl;
-                }
-            } catch (error) {
-                console.error('[NewNarrativeLog] Falha ao obter URL assinada de áudio:', error);
+            const cached = audioUrlCache[entry.id];
+            if (cached) return withPlaybackAuthToken(cached);
+            const resolved = resolveNarrationPlaybackUrl(audioKey, getEntryAudioUrl(entry));
+            if (resolved && entry.id) {
+                setAudioUrlCache(prev => ({ ...prev, [entry.id]: resolved }));
             }
-            return null;
+            return resolved;
         },
-        [audioUrlCache, updateEntryAudio]
+        [audioUrlCache],
     );
 
     const ensurePlayableAudio = useCallback(
@@ -661,32 +841,35 @@ const NewNarrativeLog: React.FC = () => {
             const existingUrl = getEntryAudioUrl(entry, audioUrlCache);
 
             if (audioKey) {
-                if (existingUrl) return existingUrl;
-                return fetchSignedAudioUrl(entry);
+                const playback = resolveEntryPlaybackUrl(entry);
+                if (playback) return playback;
             }
 
-            // Sem audioKey: re-sintetiza para garantir URL fresca
+            if (existingUrl?.includes('/tts/audio?')) {
+                return withPlaybackAuthToken(existingUrl);
+            }
+
+            // Sem audioKey / URL legada MinIO: re-sintetiza
             const regeneratedUrl = await requestEntryAudio(entry, { silent: opts.silent ?? true });
             if (regeneratedUrl) return regeneratedUrl;
 
-            return existingUrl ?? null;
+            return existingUrl ? withPlaybackAuthToken(existingUrl) : null;
         },
-        [audioUrlCache, fetchSignedAudioUrl, requestEntryAudio]
+        [resolveEntryPlaybackUrl, requestEntryAudio]
     );
 
     const ensureAudioForEntries = useCallback(
         async (entries: LogEntryType[]) => {
             for (const entry of entries) {
                 if (!entry?.id || !isNarratableEntry(entry)) continue;
-                const hasUrl = getEntryAudioUrl(entry, audioUrlCache);
-                if (hasUrl) continue;
-                if (!getEntryAudioKey(entry)) {
+                const audioKey = getEntryAudioKey(entry);
+                if (audioKey && resolveNarrationPlaybackUrl(audioKey)) continue;
+                if (!audioKey) {
                     await requestEntryAudio(entry, { silent: true });
                 }
-                await fetchSignedAudioUrl(entry);
             }
         },
-        [audioUrlCache, requestEntryAudio, fetchSignedAudioUrl]
+        [requestEntryAudio]
     );
 
     const announceSpeechState = useCallback((active: boolean) => {
@@ -959,37 +1142,44 @@ const NewNarrativeLog: React.FC = () => {
         [setImageEntryLoading, toast, updateImageEntry]
     );
 
-    if (!log || log.length === 0) {
-        return (
-            <div className="text-center text-stone-500 italic p-8">
-                A aventura ainda não começou.
-            </div>
-        );
-    }
+    const isV2 = variant === 'v2';
 
-    return (
-        <div className="space-y-4">
-            <PendingRollBanner />
-            <NpcRollDisplay />
-
-            {log.map((entry) => {
-                if(!entry || !entry.id) return null;
-                return (
-                    <LogEntry
-                        key={entry.id}
-                        entry={entry}
-                        onPlayAudio={(item) => { void handlePlayEntry(item); }}
-                        onGenerateAudio={handleGenerateAudio}
-                        isGenerating={Boolean(generatingEntries[entry.id])}
-                        onGenerateImage={IMAGE_FEATURE_ENABLED ? handleGenerateImageEntry : undefined}
-                        onRefreshImage={IMAGE_FEATURE_ENABLED ? handleRefreshImageEntry : undefined}
-                        isImageLoading={IMAGE_FEATURE_ENABLED ? Boolean(imageLoadingEntries[entry.id]) : false}
-                    />
-                );
-            })}
-            <div ref={logEndRef} />
+    const logContent =
+      !log || log.length === 0 ? (
+        <div
+          className={clsx(
+            'p-8 text-center italic',
+            isV2 ? 'font-narrative text-dnd-parchment-muted' : 'text-stone-500'
+          )}
+        >
+          A aventura ainda não começou.
         </div>
-    );
+      ) : (
+        <div className={clsx('space-y-3', isV2 && 'space-y-4')}>
+          <PendingRollBanner />
+          <NpcRollDisplay />
+          {log.map((entry) => {
+            if (!entry || !entry.id) return null;
+            return (
+              <LogEntry
+                key={entry.id}
+                entry={entry}
+                onPlayAudio={(item) => {
+                  void handlePlayEntry(item);
+                }}
+                onGenerateAudio={handleGenerateAudio}
+                isGenerating={Boolean(generatingEntries[entry.id])}
+                onGenerateImage={IMAGE_FEATURE_ENABLED ? handleGenerateImageEntry : undefined}
+                onRefreshImage={IMAGE_FEATURE_ENABLED ? handleRefreshImageEntry : undefined}
+                isImageLoading={IMAGE_FEATURE_ENABLED ? Boolean(imageLoadingEntries[entry.id]) : false}
+              />
+            );
+          })}
+          <div ref={logEndRef} />
+        </div>
+      );
+
+    return <NarrativeLogVariantProvider variant={variant}>{logContent}</NarrativeLogVariantProvider>;
 };
 
 export default NewNarrativeLog;

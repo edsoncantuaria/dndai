@@ -2,30 +2,38 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import * as authService from '@/services/authService'; // Importa authService
+import {
+    migrateGeminiApiKeyFromLegacySettings,
+    readGeminiApiKey,
+    writeGeminiApiKey,
+} from '@/lib/geminiApiKeyStorage';
+
+/** Modelos free no OpenRouter — motor principal do jogo. */
+export const OPENROUTER_MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "deepseek/deepseek-chat-v3-0324:free",
+    "google/gemma-3-27b-it:free",
+] as const;
+
+/** Gemini — fallback (TTS/homebrew ainda usam Google). */
+export const GEMINI_GAME_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    "gemini-2.5-pro",
+] as const;
 
 export const AVAILABLE_MODELS = [
-    "gemini-2.5-pro",
+    ...OPENROUTER_MODELS,
+    ...GEMINI_GAME_MODELS,
     "gemini-2.5-pro-preview-06-05",
-    "gemini-2.5-pro-preview-05-06",
-    "gemini-2.5-pro-preview-03-25",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-preview-05-20",
     "gemini-2.5-flash-preview-09-2025",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-flash-lite-preview-09-2025",
-    "gemini-2.5-flash-lite-preview-06-17",
-    "gemini-2.0-pro-exp",
-    "gemini-2.0-pro-exp-02-05",
-    "gemini-2.0-flash-exp",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-001",
-    "gemini-2.0-flash-lite",
-    "gemini-2.0-flash-lite-001",
     "gemini-flash-latest",
-    "gemini-flash-lite-latest",
     "gemini-pro-latest",
-    "gemini-2.5-computer-use-preview-10-2025"
-  ];
+] as const;
   
 
   export const AVAILABLE_TTS_MODELS = [
@@ -101,7 +109,7 @@ export const defaultGenerationConfig: GenerationConfig = {
 };
 
 const defaultSettings = {
-    model: AVAILABLE_MODELS[0],
+    model: OPENROUTER_MODELS[0],
     ttsModel: AVAILABLE_TTS_MODELS[0],
     ttsVoice: AVAILABLE_TTS_VOICES[0],
     apiKey: '',
@@ -171,10 +179,18 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Load from localStorage on initial mount
     useEffect(() => {
         try {
+            const storedApiKey = migrateGeminiApiKeyFromLegacySettings() || readGeminiApiKey();
+            if (storedApiKey) {
+                setApiKey(storedApiKey);
+            }
             const localSettings = localStorage.getItem('userSettings');
             if (localSettings) {
                 const settings = JSON.parse(localSettings);
                 loadSettings(settings);
+            }
+            // Garante que a chave dedicada prevalece sobre userSettings sem apiKey
+            if (storedApiKey) {
+                setApiKey(storedApiKey);
             }
         } catch (error) {
             console.warn("Could not load settings from localStorage", error);
@@ -224,6 +240,13 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         hapticsEnabled,
     ]);
 
+    // Persiste chave Gemini em storage dedicado (sobrevive a login/logout)
+    useEffect(() => {
+        if (isLoaded) {
+            writeGeminiApiKey(apiKey);
+        }
+    }, [apiKey, isLoaded]);
+
     // Save to localStorage whenever a setting changes
     useEffect(() => {
         if (isLoaded) {
@@ -235,7 +258,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     // Function to load settings from AuthContext or localStorage
     const loadSettings = useCallback((settings: any) => {
         if (settings) {
-            if (settings.model && AVAILABLE_MODELS.includes(settings.model)) setModel(settings.model);
+            if (settings.model && typeof settings.model === 'string') {
+                setModel(settings.model);
+            }
             if (settings.ttsModel && AVAILABLE_TTS_MODELS.includes(settings.ttsModel)) setTtsModel(settings.ttsModel);
             if (settings.ttsVoice && AVAILABLE_TTS_VOICES.includes(settings.ttsVoice)) setTtsVoice(settings.ttsVoice);
             if (settings.generationConfig) setGenerationConfig(prev => clampGenerationConfigValues({ ...prev, ...settings.generationConfig }));
@@ -244,7 +269,9 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             if (typeof settings.playMenuMusic === 'boolean') setPlayMenuMusic(settings.playMenuMusic);
             if (typeof settings.playAmbientMusic === 'boolean') setPlayAmbientMusic(settings.playAmbientMusic);
             if (typeof settings.useAiHomebrew === 'boolean') setUseAiHomebrew(settings.useAiHomebrew);
-            if (settings.apiKey) setApiKey(settings.apiKey);
+            if (typeof settings.apiKey === 'string' && settings.apiKey.trim()) {
+                setApiKey(settings.apiKey.trim());
+            }
             if (settings.theme && THEME_PRESETS.includes(settings.theme as ThemePreset)) {
                 setTheme(settings.theme as ThemePreset);
             }

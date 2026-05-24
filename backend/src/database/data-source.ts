@@ -40,15 +40,16 @@ import { ScenarioExample } from '../entities/ScenarioExample.js';
 import { SrdResource } from '../entities/SrdResource.js';
 import { CharacterResource } from '../entities/CharacterResource.js';
 import { SessionFact } from '../entities/SessionFact.js';
+import { SessionCastMember } from '../entities/SessionCastMember.js';
 import { Phase4And5Schema1735689600000 } from './migrations/1735689600000-Phase4And5Schema.js';
+import { SessionCastMembers1740000000000 } from './migrations/1740000000000-SessionCastMembers.js';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const migrationsOnly = process.env.DB_MIGRATIONS_ONLY === 'true';
 /** Dev: DB_SYNC=true (padrão). Prod: false — use npm run migration:run */
 const synchronize =
-    !isProduction &&
-    !migrationsOnly &&
-    process.env.DB_SYNC !== 'false';
+    process.env.DB_SYNC === 'true' ||
+    (!isProduction && !migrationsOnly && process.env.DB_SYNC !== 'false');
 
 /**
  * Configuração da fonte de dados para o TypeORM.
@@ -104,9 +105,10 @@ export const AppDataSource = new DataSource({
         SrdResource,
         CharacterResource,
         SessionFact,
+        SessionCastMember,
     ], 
     
-    migrations: [Phase4And5Schema1735689600000],
+    migrations: [Phase4And5Schema1735689600000, SessionCastMembers1740000000000],
     migrationsTableName: 'typeorm_migrations',
     subscribers: [],
 });

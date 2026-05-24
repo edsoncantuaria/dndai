@@ -123,9 +123,10 @@ interface Props {
     races: ApiListItem[];
     classes: ApiListItem[];
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
-const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep }) => {
+const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep, hideNav }) => {
     const {
         race,
         subrace,
@@ -187,7 +188,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                                 ))}
                             </div>
 
-                            {loadingStates.isLoading && (
+                            {race && !raceDetails && loadingStates.isFetching && (
                                 <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-stone-900/80 via-stone-900/60 to-stone-900/80 p-5 shadow-inner shadow-black/40">
                                     <div className="flex flex-col items-center gap-3 text-center">
                                         <div className="inline-flex items-center gap-3">
@@ -275,7 +276,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                         </div>
 
                         <div className="space-y-4">
-                            {!loadingStates.isLoading && race && raceDetails && <RaceDetailsDisplay hook={hook} />}
+                            {race && raceDetails && <RaceDetailsDisplay hook={hook} />}
                             {!race && (
                                 <div className="rounded-3xl border border-dashed border-white/10 bg-stone-950/30 p-6 text-center text-sm text-stone-400">
                                     Escolha uma raça para ver bônus e traços especiais aqui.
@@ -338,6 +339,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                     </div>
                 </section>
 
+                {!hideNav ? (
                 <div className="flex justify-end pt-2">
                     <button
                         type="button"
@@ -349,6 +351,7 @@ const NewStep1_RaceClass: React.FC<Props> = ({ hook, races, classes, nextStep })
                         <ArrowRight className="h-5 w-5" />
                     </button>
                 </div>
+                ) : null}
             </div>
 
             {classDetails && (

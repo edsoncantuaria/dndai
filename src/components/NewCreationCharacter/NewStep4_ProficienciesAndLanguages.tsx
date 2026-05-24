@@ -10,6 +10,7 @@ interface Props {
     prevStep: () => void;
     nextStep: () => void;
     allLanguages: ApiListItem[];
+    hideNav?: boolean;
 }
 
 const SectionShell: React.FC<{ title: string; subtitle?: string; icon?: React.ReactNode; actions?: React.ReactNode; children: React.ReactNode }> = ({
@@ -66,7 +67,7 @@ const SelectableTile: React.FC<{
     </button>
 );
 
-const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, nextStep, allLanguages }) => {
+const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, nextStep, allLanguages, hideNav }) => {
     const {
         allProficiencyChoices,
         allFixedProficiencies,
@@ -243,6 +244,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                 </SectionShell>
             )}
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -262,6 +264,7 @@ const NewStep4_ProficienciesAndLanguages: React.FC<Props> = ({ hook, prevStep, n
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

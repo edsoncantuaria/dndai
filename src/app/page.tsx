@@ -2,15 +2,25 @@
 import { GameStateProvider } from '@/contexts/GameStateContext';
 import GameContainer from '@/components/GameContainer';
 import AuthGate from '@/components/Auth/AuthGate';
+import AuthGateV2 from '@/components/Auth/AuthGateV2';
+import { isUiV2Enabled } from '@/lib/uiV2';
 
 export default function HomePage() {
+  const Gate = isUiV2Enabled() ? AuthGateV2 : AuthGate;
+
   return (
-    <main className="h-full w-full p-2 md:p-4 flex flex-col items-center justify-start md:justify-center">
-      <AuthGate>
+    <main
+      className={
+        isUiV2Enabled()
+          ? 'flex h-[100dvh] max-h-[100dvh] w-full flex-col overflow-hidden'
+          : 'h-full w-full p-2 md:p-4 flex flex-col items-center justify-start md:justify-center'
+      }
+    >
+      <Gate>
         <GameStateProvider>
           <GameContainer />
         </GameStateProvider>
-      </AuthGate>
+      </Gate>
     </main>
   );
 }

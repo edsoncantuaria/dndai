@@ -7,9 +7,14 @@ import { translateAttribute } from '@/utils/translator';
 import NewSpellCard from '../components/Spells/NewSpellCard';
 import { rollDice } from '../utils/dice';
 import { fetchDetailsInChunks } from '../utils/apiUtils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
+import { isUiV2Enabled } from '@/lib/uiV2';
+import { DndButton, DndCard } from '@/components/primitives';
+import { DndGameModalShell } from '@/features/gameplay/modals/DndGameModalShell';
+import { cn } from '@/lib/utils';
 
 const LevelUpModal: React.FC = () => {
+    const isV2 = isUiV2Enabled();
     const { levelUpState, applyLevelUp, isLoading, character } = useGameStateContext();
     const [selections, setSelections] = useState<LevelUpSelections>({});
     const [asiPoints, setAsiPoints] = useState(levelUpState?.choices?.asi?.count || 0);
@@ -132,28 +137,49 @@ const LevelUpModal: React.FC = () => {
         applyLevelUp(finalSelections);
     };
 
+    const sectionTitle = (text: string) => (
+        <h4 className={cn('mb-2 font-semibold', isV2 ? 'font-ui text-sm uppercase tracking-wider text-dnd-gold' : 'text-stone-300')}>
+            {text}
+        </h4>
+    );
+
     const renderHpChoice = () => {
         const modifier = character.modifiers.constitution;
         const average = Math.floor(character.hitDie / 2) + 1;
 
-        return (
-             <div>
-                <h4 className="font-semibold text-stone-300 mb-2">Aumento de Pontos de Vida</h4>
-                <div className="flex gap-4 items-center">
-                    <button onClick={() => handleHpChoice('average')} disabled={!!hpChoice} className="flex-1 bg-stone-700 hover:bg-stone-600 text-stone-200 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50">
-                        Pegar a Média ({average} + {modifier} Mod)
-                    </button>
-                    <button onClick={() => handleHpChoice('roll')} disabled={!!hpChoice} className="flex-1 bg-amber-700 hover:bg-amber-600 text-stone-100 font-semibold py-2 px-4 rounded-md transition-colors disabled:opacity-50">
-                        Rolar 1d{character.hitDie} + {modifier} Mod
-                    </button>
+        const inner = (
+            <>
+                {sectionTitle('Aumento de pontos de vida')}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    {isV2 ? (
+                        <>
+                            <DndButton type="button" variant="goldOutline" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('average')}>
+                                Média ({average} + {modifier})
+                            </DndButton>
+                            <DndButton type="button" variant="ember" className="flex-1" disabled={!!hpChoice} onClick={() => handleHpChoice('roll')}>
+                                Rolar 1d{character.hitDie} + {modifier}
+                            </DndButton>
+                        </>
+                    ) : (
+                        <>
+                            <button type="button" onClick={() => handleHpChoice('average')} disabled={!!hpChoice} className="flex-1 rounded-md bg-stone-700 px-4 py-2 font-semibold text-stone-200 disabled:opacity-50">
+                                Pegar a Média ({average} + {modifier} Mod)
+                            </button>
+                            <button type="button" onClick={() => handleHpChoice('roll')} disabled={!!hpChoice} className="flex-1 rounded-md bg-amber-700 px-4 py-2 font-semibold text-stone-100 disabled:opacity-50">
+                                Rolar 1d{character.hitDie} + {modifier} Mod
+                            </button>
+                        </>
+                    )}
                 </div>
                 {hpChoice && hpRollResult !== null && (
-                     <p className="text-center mt-3 text-amber-300 font-semibold">
-                        {hpChoice === 'roll' ? `Você rolou ${hpRollResult}!` : 'Você pegou a média.'} +{modifier} de Constituição. Total: +{hpRollResult + modifier} PV.
+                    <p className={cn('mt-3 text-center font-semibold', isV2 ? 'font-ui text-dnd-gold' : 'text-amber-300')}>
+                        {hpChoice === 'roll' ? `Você rolou ${hpRollResult}!` : 'Você pegou a média.'} +{modifier} Const. Total: +{hpRollResult + modifier} PV.
                     </p>
                 )}
-            </div>
-        )
+            </>
+        );
+
+        return isV2 ? <DndCard padding="md" hover={false} className="border-dnd-gold/12">{inner}</DndCard> : <div>{inner}</div>;
     }
 
     const renderAsiChoices = () => {
@@ -284,29 +310,62 @@ const LevelUpModal: React.FC = () => {
         )
     };
 
+    const mainContent = (
+        <div className={cn('space-y-6', isV2 ? 'p-4 md:p-5' : 'p-4')}>
+            {renderHpChoice()}
+            {renderSubclassChoice()}
+            {renderAsiChoices()}
+            {choices.featureChoices?.map(renderFeatureChoices)}
+            {renderSpellChoices()}
+        </div>
+    );
+
+    const confirmFooter = isV2 ? (
+        <DndButton variant="ember" size="lg" className="w-full" disabled={!isReadyToConfirm} loading={isLoading} onClick={handleSubmit}>
+            {isLoading ? null : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                Confirmar nível {newLevel}
+              </>
+            )}
+        </DndButton>
+    ) : (
+        <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!isReadyToConfirm}
+            className="w-full rounded-md bg-amber-600 py-3 text-lg font-bold text-stone-900 disabled:opacity-50"
+        >
+            {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Confirmar Nível ${newLevel}`}
+        </button>
+    );
+
+    if (isV2) {
+        return (
+            <DndGameModalShell
+                maxWidth="max-w-2xl"
+                eyebrow="Progressão"
+                title={`Nível ${newLevel}`}
+                subtitle={`Parabéns, ${character.name}! Faça suas escolhas.`}
+                footer={confirmFooter}
+                closeOnBackdrop={false}
+            >
+                {mainContent}
+            </DndGameModalShell>
+        );
+    }
+
     return (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-stone-900 border border-amber-500 rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
-                <header className="p-4 border-b border-stone-700">
-                    <h2 className="text-2xl font-bold font-garamond text-amber-300">🎉 Subiu de Nível! 🎉</h2>
-                    <p className="text-stone-400">Parabéns, {character.name}! Você alcançou o nível {newLevel}. Faça suas escolhas.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg border border-amber-500 bg-stone-900 shadow-2xl">
+                <header className="border-b border-stone-700 p-4">
+                    <h2 className="font-garamond text-2xl font-bold text-amber-300">Subiu de nível!</h2>
+                    <p className="text-stone-400">
+                        Parabéns, {character.name}! Você alcançou o nível {newLevel}. Faça suas escolhas.
+                    </p>
                 </header>
-                <main className="p-4 space-y-6 overflow-y-auto">
-                    {renderHpChoice()}
-                    {renderSubclassChoice()}
-                    {renderAsiChoices()}
-                    {choices.featureChoices?.map(renderFeatureChoices)}
-                    {renderSpellChoices()}
-                </main>
-                <footer className="p-4 border-t border-stone-700 mt-auto">
-                    <button 
-                        onClick={handleSubmit} 
-                        disabled={!isReadyToConfirm}
-                        className="w-full bg-amber-600 hover:bg-amber-700 text-stone-900 font-bold py-3 px-6 rounded-md transition-colors text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isLoading ? <Loader2 className="mx-auto animate-spin" /> : `Confirmar Nível ${newLevel}`}
-                    </button>
-                </footer>
+                <main className="overflow-y-auto">{mainContent}</main>
+                <footer className="mt-auto border-t border-stone-700 p-4">{confirmFooter}</footer>
             </div>
         </div>
     );

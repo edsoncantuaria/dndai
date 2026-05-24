@@ -20,6 +20,17 @@ import {
     type DropItemPayload,
     type EquipItemPayload,
 } from './inventoryMotor.js';
+import {
+    validateOpenShopIntent,
+    validateBuyItemIntent,
+    validateCloseShopIntent,
+    type OpenShopPayload,
+    type BuyItemPayload,
+    type CloseShopPayload,
+    type SellItemPayload,
+} from './shopMotor.js';
+import { validateQuestCompleteIntent, type QuestCompletePayload } from './questMotor.js';
+import { validateStartEncounterIntent, type StartEncounterPayload } from './combatEncounterMotor.js';
 import type {
     WeaponAttackIntent,
     RuleCheckResult,
@@ -79,6 +90,30 @@ export type ActionIntent =
     | {
           type: 'claim-loot';
           payload?: Record<string, never>;
+      }
+    | {
+          type: 'open-shop';
+          payload: OpenShopPayload;
+      }
+    | {
+          type: 'buy-item';
+          payload: BuyItemPayload;
+      }
+    | {
+          type: 'close-shop';
+          payload?: CloseShopPayload;
+      }
+    | {
+          type: 'sell-item';
+          payload: SellItemPayload;
+      }
+    | {
+          type: 'quest-complete';
+          payload?: QuestCompletePayload;
+      }
+    | {
+          type: 'start-encounter';
+          payload: StartEncounterPayload;
       };
 
 export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>([
@@ -93,6 +128,12 @@ export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>([
     'equip-item',
     'drop-item',
     'claim-loot',
+    'open-shop',
+    'buy-item',
+    'close-shop',
+    'sell-item',
+    'quest-complete',
+    'start-encounter',
 ]);
 
 export async function validateActionIntent(
@@ -148,6 +189,24 @@ export async function validateActionIntent(
             break;
         case 'claim-loot':
             result = validateClaimLootIntent();
+            break;
+        case 'open-shop':
+            result = validateOpenShopIntent(context?.combatState, intent.payload);
+            break;
+        case 'buy-item':
+            result = validateBuyItemIntent(intent.payload);
+            break;
+        case 'close-shop':
+            result = validateCloseShopIntent();
+            break;
+        case 'sell-item':
+            result = validateSellItemIntent(intent.payload);
+            break;
+        case 'quest-complete':
+            result = validateQuestCompleteIntent(context?.combatState, intent.payload ?? {});
+            break;
+        case 'start-encounter':
+            result = validateStartEncounterIntent(context?.combatState, intent.payload);
             break;
         default:
             throw createError(400, `Tipo de intenção ${intent.type} não é suportado.`);

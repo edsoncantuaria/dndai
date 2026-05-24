@@ -288,6 +288,22 @@ export function useGameSession(options: UseGameSessionOptions) {
                     clientStateVersionRef.current = sessionDetails.stateVersion ?? clientStateVersionRef.current;
                     lastLogVersionRef.current = sessionDetails.stateVersion ?? previousStateVersion;
 
+                    if (sessionDetails.combatState) {
+                        interactionState.setCombatState(sessionDetails.combatState);
+                    }
+                    if (sessionDetails.pendingLootOffer) {
+                        interactionState.setRequest({
+                            type: 'loot',
+                            request: sessionDetails.pendingLootOffer,
+                        });
+                    }
+                    if (sessionDetails.shopState) {
+                        interactionState.setRequest({
+                            type: 'shop',
+                            request: sessionDetails.shopState,
+                        });
+                    }
+
                     const lastStateLog = [...(sessionDetails.logs || [])]
                         .reverse()
                         .find(l => l.type === 'state');

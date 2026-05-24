@@ -29,7 +29,6 @@ export class User {
     @Column({ type: 'boolean', default: false })
     acknowledgedHomebrewDisclaimer: boolean;
 
-    @Index()
     @Column({ type: 'simple-json', nullable: true })
     installedHomebrewIds: string[];
 

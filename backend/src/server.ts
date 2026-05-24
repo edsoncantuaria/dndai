@@ -13,6 +13,7 @@ import { env } from './config/env.js';
 import { ensureQdrantCollections } from './database/qdrant-client.js';
 import { refreshEnemyTemplatesFromDatabase } from './services/enemyTemplateRegistry.js';
 import { describeTtsStatus } from './services/ttsService.js';
+import { getMediaHealth } from './services/mediaHealthService.js';
 import { checkSrdApiHealth } from './services/srdApiAdapter.js';
 
 // Importa as rotas
@@ -101,11 +102,13 @@ app.get('/api/translations', async (req, res, next) => {
 
 // Rota de saúde do servidor e dependências
 app.get('/api/health', async (_req, res) => {
-    const srd = await checkSrdApiHealth();
+    const [srd, media] = await Promise.all([checkSrdApiHealth(), getMediaHealth()]);
     res.status(200).json({
         status: 'UP',
         message: 'Crônicas de Aventuras backend',
         srd,
+        media,
+        tts: media.tts.enabled ? describeTtsStatus() : 'TTS desativado',
     });
 });
 
@@ -118,6 +121,14 @@ const startServer = async () => {
         console.log('Conexão com o banco de dados estabelecida com sucesso.');
         await refreshEnemyTemplatesFromDatabase();
         console.log('[Startup] Templates de inimigos sincronizados.');
+
+        const { ensureDefaultSpawnRegions } = await import('./services/regionService.js');
+        const spawnReady = await ensureDefaultSpawnRegions();
+        console.log(
+          spawnReady
+            ? '[Startup] Spawn pool de cidades pronto.'
+            : '[Startup] Aviso: spawn pool de cidades vazio — novas sessões podem falhar até `npm run seed:regions`.'
+        );
 
         const storageHealth = await checkObjectStorageHealth();
         const storageMessagePrefix = '[Startup][ObjectStorage]';

@@ -1,13 +1,27 @@
-# Stack unificado — Crônicas de Aventuras (Fase 7.2)
+# Crônicas de Aventuras — Docker Compose
 #
-# Uso rápido:
-#   cp .env.example .env.local   # ajuste segredos
-#   docker compose up -d mysql redis srd-db srd-cache srd-api
-#   cd backend && npm run migration:run && npm run dev
-#   npm run dev                  # frontend :9002
+# Desenvolvimento (sem rebuild a cada save):
+#   npm run dev:infra          # MySQL, Redis, SRD, MinIO, Piper
+#   npm run dev:backend        # terminal 2 — hot reload
+#   npm run dev                # terminal 3 — hot reload Next.js
 #
-# Stack completa (backend em container):
-#   docker compose --profile app up -d --build
+# Stack completa em container (teste de produção):
+#   docker compose --profile full up -d --build
+#
+# URLs (dev local): http://localhost:9002 · http://localhost:8071/api/health
+
+name: dndai
+
+x-media-env: &media-env
+  MINIO_ENABLED: 'true'
+  MINIO_ENDPOINT: minio
+  MINIO_PORT: '9000'
+  MINIO_USE_SSL: 'false'
+  MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-dndai_minio}
+  MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-dndai_minio_secret}
+  MINIO_BUCKET_NAME: ${MINIO_BUCKET_NAME:-chronicles}
+  PIPER_HTTP_URL: http://piper:5500
+  API_PUBLIC_URL: ${API_PUBLIC_URL:-http://localhost:8071/api}
 
 services:
   mysql:
@@ -26,7 +40,8 @@ services:
       test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
       interval: 5s
       timeout: 5s
-      retries: 12
+      retries: 15
+      start_period: 30s
 
   redis:
     image: redis:7-alpine
@@ -54,7 +69,9 @@ services:
       - '6380:6379'
 
   srd-api:
-    build: ./5e-srd-api
+    build:
+      context: ./5e-srd-api
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       MONGODB_URI: mongodb://srd-db/5e-database
@@ -64,9 +81,62 @@ services:
     depends_on:
       - srd-db
       - srd-cache
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000/api/2014').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 90s
+
+  # Rede interna — em produção não publique portas (só backend consome).
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-dndai_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-dndai_minio_secret}
+    ports:
+      - '${MINIO_PORT:-9000}:9000'
+      - '${MINIO_CONSOLE_PORT:-9001}:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://127.0.0.1:9000/minio/health/live']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  piper:
+    build:
+      context: ./docker/piper
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Porta host só para debug local; backend usa http://piper:5500 na rede Docker.
+    ports:
+      - '${PIPER_HTTP_PORT:-5500}:5500'
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:5500/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 12
+      start_period: 120s
 
   backend:
-    profiles: ['app']
+    profiles: ['full']
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -79,11 +149,16 @@ services:
       DB_USER: ${DB_USER:-dndai}
       DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
       DB_NAME: ${DB_NAME:-dndai}
-      DB_SYNC: 'false'
-      DB_MIGRATIONS_ONLY: 'true'
+      DB_SYNC: ${DB_SYNC:-true}
+      DB_MIGRATIONS_ONLY: 'false'
       REDIS_URL: redis://redis:6379
       SRD_API_BASE: http://srd-api:3000/api/2014
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      AI_PIPELINE_MODE: ${AI_PIPELINE_MODE:-narration_only}
+      QDRANT_ENABLED: ${QDRANT_ENABLED:-false}
+      <<: *media-env
     ports:
       - '8071:8071'
     depends_on:
@@ -93,21 +168,45 @@ services:
         condition: service_healthy
       srd-api:
         condition: service_started
+      minio:
+        condition: service_healthy
+      piper:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:8071/api/health']
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s
 
   frontend:
-    profiles: ['app']
+    profiles: ['full']
     build:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:8071/api
-        NEXT_PUBLIC_WS_URL: ws://localhost:8071/
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8071/api}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8071/}
     restart: unless-stopped
     ports:
       - '9002:9002'
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:9002').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
 
 volumes:
   mysql_data:
   redis_data:
+  minio_data:

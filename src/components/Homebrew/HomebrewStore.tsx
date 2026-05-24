@@ -1,7 +1,12 @@
+/**
+ * Grimório homebrew — UI fullscreen legada.
+ * @deprecated Em UI v2 use `HomebrewStorePage` (`@/features/homebrew`) com `embedded`.
+ * O motor e serviços permanecem aqui até migração completa para `features/homebrew`.
+ */
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     ArrowLeft,
     Loader2,
@@ -9,7 +14,6 @@ import {
     Trash2,
     CheckCircle,
     Download,
-    Upload,
     Bot,
     Info,
     Swords,
@@ -31,6 +35,9 @@ import {
     Star,
     TrendingUp,
 } from 'lucide-react';
+import { DndButton } from '@/components/primitives';
+import { cn } from '@/lib/utils';
+import { hb, hbChipClass } from '@/features/homebrew/forms/formUi';
 import * as HomebrewService from '@/services/homebrewService';
 import HomebrewCreator from './HomebrewCreator';
 import { useToast } from '@/hooks/use-toast';
@@ -43,7 +50,7 @@ import TranslationStudio from './TranslationStudio';
 type View = 'list' | 'create' | 'edit';
 type Tab = 'bundles' | 'community' | 'mine' | 'installed' | 'ai';
 
-const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
+const MARKETPLACE_CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'race',
     'subrace',
     'class',
@@ -54,7 +61,6 @@ const CONTENT_TYPES: HomebrewService.HomebrewContentType[] = [
     'background',
     'feat',
     'skill',
-    'translation',
 ];
 
 const CONTENT_TYPE_ICONS: Record<HomebrewService.HomebrewContentType, React.ReactNode> = {
@@ -188,8 +194,46 @@ const BundleCard: React.FC<{
     );
 };
 
-const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu }) => {
-    const [view, setView] = useState<View>('list');
+export interface HomebrewStoreProps {
+    returnToMenu: () => void;
+    /** Esconde chrome de página inteira (header/footer) — uso com HomebrewLayout v2 */
+    embedded?: boolean;
+    /** Remove botão e fluxo do Estúdio de Tradução (rota separada) */
+    hideTranslationEntry?: boolean;
+    /** Exibe badge Original / Fork / Tradução SRD nos cards */
+    showSourceBadges?: boolean;
+    /** Notifica mudança entre lista e criador (título do layout v2) */
+    onViewChange?: (view: View) => void;
+    /** Controle externo da view (layout v2 — botão voltar do cabeçalho) */
+    controlledView?: View;
+}
+
+const HomebrewStore: React.FC<HomebrewStoreProps> = ({
+    returnToMenu,
+    embedded = false,
+    hideTranslationEntry = false,
+    showSourceBadges = false,
+    onViewChange,
+    controlledView,
+}) => {
+    const [internalView, setInternalView] = useState<View>('list');
+    const view = controlledView ?? internalView;
+
+    const setStoreView = useCallback(
+        (next: View) => {
+            if (controlledView === undefined) {
+                setInternalView(next);
+            }
+            onViewChange?.(next);
+        },
+        [controlledView, onViewChange],
+    );
+
+    useEffect(() => {
+        if (controlledView !== undefined && controlledView !== internalView) {
+            setInternalView(controlledView);
+        }
+    }, [controlledView, internalView]);
     const [contentToEdit, setContentToEdit] = useState<HomebrewService.HomebrewContent | null>(null);
     const [bundleToEdit, setBundleToEdit] = useState<HomebrewService.HomebrewBundle | null>(null);
     const [activeTab, setActiveTab] = useState<Tab>('bundles');
@@ -208,7 +252,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
     const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false);
     const [showTranslationStudio, setShowTranslationStudio] = useState(false);
-    const importFileRef = useRef<HTMLInputElement>(null);
+    const contentTypeFilters = hideTranslationEntry ? MARKETPLACE_CONTENT_TYPES : [...MARKETPLACE_CONTENT_TYPES, 'translation'];
 
     const installedIds = useMemo(() => new Set(user?.installedHomebrewIds || []), [user]);
 
@@ -308,7 +352,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             return;
         }
         setContentToEdit(item);
-        setView('edit');
+        setStoreView('edit');
     };
 
     const handleEditBundle = (bundle: HomebrewService.HomebrewBundle) => {
@@ -351,31 +395,6 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         }
     };
 
-    const handleImportBundleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        event.target.value = '';
-        if (!file) return;
-        if (!user) {
-            toast({ variant: 'destructive', title: 'Login necessário', description: 'Entre na conta para importar pacotes.' });
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const text = await file.text();
-            const manifest = JSON.parse(text) as HomebrewService.BundleExportManifest;
-            if (manifest.formatVersion !== 1 || !manifest.contents?.length) {
-                throw new Error('Arquivo inválido. Use um manifesto exportado pela Oficina Homebrew.');
-            }
-            const bundle = await HomebrewService.importBundle({ manifest, makePublic: false });
-            toast({ title: 'Pacote importado', description: `"${bundle.name}" adicionado à sua oficina.` });
-            fetchContentAndBundles();
-        } catch (error: any) {
-            toast({ variant: 'destructive', title: 'Falha na importação', description: error.message });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const handleAiContentCreated = (payload: AiGeneratedHomebrew) => {
         setContentToEdit({
             id: '',
@@ -392,7 +411,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
             sourceIndex: payload.sourceIndex,
             locale: payload.locale,
         });
-        setView('create');
+        setStoreView('create');
     };
 
     const marketplaceStats = useMemo(() => {
@@ -442,6 +461,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const filteredContent = useCallback(
         (contentList: HomebrewService.HomebrewContent[]) =>
             contentList.filter((item) => {
+                if (hideTranslationEntry && item.type === 'translation') return false;
                 const matchesType = typeFilter === 'all' || item.type === typeFilter;
                 const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
                 return matchesType && matchesSearch;
@@ -484,6 +504,19 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         </p>
                                     </div>
                                     <div className="flex flex-col gap-2 items-end">
+                                        {showSourceBadges && item.sourceKind ? (
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                                                    item.sourceKind === 'fork'
+                                                        ? 'bg-purple-500/20 text-purple-200 border border-purple-400/30'
+                                                        : item.sourceKind === 'translation'
+                                                        ? 'bg-emerald-500/15 text-emerald-200 border border-emerald-400/30'
+                                                        : 'bg-amber-500/15 text-amber-200 border border-amber-400/30'
+                                                }`}
+                                            >
+                                                {item.sourceKind === 'fork' ? 'Fork SRD' : item.sourceKind === 'translation' ? 'Tradução SRD' : 'Original'}
+                                            </span>
+                                        ) : null}
                                         <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold capitalize text-stone-200">
                                             {CONTENT_TYPE_ICONS[item.type] || <Bot className="h-3.5 w-3.5" />} {item.type}
                                         </span>
@@ -680,7 +713,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                     },
                 ]}
             >
-                <p className="text-stone-300">
+                <p className="text-xs text-stone-400">
                     {isInstall
                         ? `Instalar "${candidate.item.name}" adicionará o conteúdo à sua conta.`
                         : `Remover "${candidate.item.name}" faz com que ele deixe de aparecer nas suas sessões.`}
@@ -704,17 +737,30 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         );
     };
 
-    if (showTranslationStudio) {
+    if (showTranslationStudio && !hideTranslationEntry) {
         return <TranslationStudio onCancel={() => setShowTranslationStudio(false)} />;
     }
 
     if (view === 'create' || view === 'edit') {
+        const creatorProps = {
+            onContentCreated: () => {
+                setStoreView('list');
+                fetchContentAndBundles();
+            },
+            onCancel: () => setStoreView('list'),
+            contentToEdit,
+        };
+
+        if (embedded) {
+            return <HomebrewCreator {...creatorProps} variant="v2" />;
+        }
+
         return (
             <div className="min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 px-4 py-8">
                 <div className="mx-auto w-full max-w-6xl rounded-3xl border border-white/10 bg-black/30 p-6 shadow-2xl shadow-black/60 backdrop-blur">
                     <div className="mb-6 flex items-center justify-between gap-4 flex-wrap">
                         <button
-                            onClick={() => setView('list')}
+                            onClick={() => setStoreView('list')}
                             className="inline-flex items-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-200 hover:text-amber-200"
                         >
                             <ArrowLeft className="h-4 w-4" /> Voltar para o marketplace
@@ -724,14 +770,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             <h2 className="text-2xl font-semibold text-white">Oficina de Criação</h2>
                         </div>
                     </div>
-                    <HomebrewCreator
-                        onContentCreated={() => {
-                            setView('list');
-                            fetchContentAndBundles();
-                        }}
-                        onCancel={() => setView('list')}
-                        contentToEdit={contentToEdit}
-                    />
+                    <HomebrewCreator {...creatorProps} />
                 </div>
             </div>
         );
@@ -746,9 +785,10 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
 
     return (
         <>
-            <div className="relative min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 py-6">
-                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-30" aria-hidden />
-                <div className="relative z-10 mx-auto w-full max-w-6xl px-4 space-y-6">
+            <div className={embedded ? 'relative space-y-4' : 'relative min-h-screen bg-gradient-to-b from-stone-950 via-stone-950/95 to-stone-900 py-6'}>
+                {!embedded ? <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-30" aria-hidden /> : null}
+                <div className={embedded ? 'relative space-y-4' : 'relative z-10 mx-auto w-full max-w-6xl px-4 space-y-6'}>
+                    {!embedded ? (
                     <header className="rounded-3xl border border-white/10 bg-gradient-to-r from-stone-950/90 via-stone-900/70 to-stone-900/50 p-6 shadow-2xl shadow-black/60 backdrop-blur">
                         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
                             <div className="flex-1 min-w-0 text-left">
@@ -761,7 +801,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     <button
                                         onClick={() => {
                                             setContentToEdit(null);
-                                            setView('create');
+                                            setStoreView('create');
                                         }}
                                         className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 via-amber-500 to-rose-500 px-5 py-2 text-sm font-semibold text-stone-950 shadow-lg shadow-amber-500/30 hover:brightness-110"
                                     >
@@ -777,30 +817,20 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                         <PackagePlus className="h-4 w-4" /> Criar pacote
                                     </button>
                                     <button
-                                        onClick={() => importFileRef.current?.click()}
-                                        className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-5 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
-                                    >
-                                        <Upload className="h-4 w-4" /> Importar pacote
-                                    </button>
-                                    <input
-                                        ref={importFileRef}
-                                        type="file"
-                                        accept="application/json,.json"
-                                        className="hidden"
-                                        onChange={handleImportBundleFile}
-                                    />
-                                    <button
                                         onClick={() => setIsAiCreatorOpen(true)}
                                         className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"
                                     >
                                         <Bot className="h-4 w-4" /> Gerar com IA
                                     </button>
+                                    {!hideTranslationEntry ? (
                                     <button
+                                        type="button"
                                         onClick={() => setShowTranslationStudio(true)}
                                         className="inline-flex items-center gap-2 rounded-full border border-white/15 px-5 py-2 text-sm font-semibold text-stone-200 transition hover:border-amber-200 hover:text-amber-200"
                                     >
                                         <Languages className="h-4 w-4" /> Estúdio de tradução
                                     </button>
+                                    ) : null}
                                 </div>
                             </div>
                             <div className="grid w-full flex-1 min-w-0 grid-cols-2 gap-3 sm:grid-cols-4">
@@ -814,7 +844,97 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </div>
                         </div>
                     </header>
+                    ) : (
+                    <div className="space-y-4 border-b border-dnd-gold/12 pb-5">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <DndButton
+                                size="sm"
+                                onClick={() => {
+                                    setContentToEdit(null);
+                                    setStoreView('create');
+                                }}
+                            >
+                                <Plus className="h-4 w-4" />
+                                Nova criação
+                            </DndButton>
+                            <DndButton
+                                size="sm"
+                                variant="goldOutline"
+                                onClick={() => {
+                                    setBundleToEdit(null);
+                                    setIsBundleCreatorOpen(true);
+                                }}
+                            >
+                                <PackagePlus className="h-4 w-4" />
+                                Pacote
+                            </DndButton>
+                            <DndButton size="sm" variant="ghost" onClick={() => setIsAiCreatorOpen(true)}>
+                                <Sparkles className="h-4 w-4" />
+                                Assistente
+                            </DndButton>
+                        </div>
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div
+                                className="flex flex-wrap gap-0.5 rounded-lg border border-dnd-gold/15 bg-dnd-obsidian-raised/50 p-1"
+                                role="tablist"
+                                aria-label="Seções do grimório"
+                            >
+                                {TABS.map((tab) => (
+                                    <button
+                                        key={tab.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={activeTab === tab.id}
+                                        onClick={() => setActiveTab(tab.id)}
+                                        className={cn(
+                                            'inline-flex items-center gap-2 rounded-md px-3 py-2 font-ui text-sm transition',
+                                            activeTab === tab.id
+                                                ? 'bg-dnd-gold/18 text-dnd-gold'
+                                                : 'text-dnd-parchment-muted hover:bg-dnd-mist/40 hover:text-dnd-parchment'
+                                        )}
+                                    >
+                                        {tab.icon}
+                                        <span>{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="relative w-full lg:max-w-xs">
+                                <Search
+                                    className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dnd-parchment-muted"
+                                    aria-hidden
+                                />
+                                <input
+                                    type="search"
+                                    placeholder="Buscar por nome…"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className={cn(hb.controlSm, 'pl-9')}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                            <button type="button" onClick={() => setTypeFilter('all')} className={hbChipClass(typeFilter === 'all')}>
+                                Todos
+                            </button>
+                            {contentTypeFilters.map((type) => (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setTypeFilter(type)}
+                                    className={cn(
+                                        hbChipClass(typeFilter === type),
+                                        'inline-flex items-center gap-1 capitalize'
+                                    )}
+                                >
+                                    {CONTENT_TYPE_ICONS[type]}
+                                    {type}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    )}
 
+                    {!embedded ? (
                     <section className="grid grid-cols-1 gap-3 rounded-3xl border border-white/5 bg-black/20 p-5 shadow-inner shadow-black/40 md:grid-cols-2 lg:grid-cols-3">
                         <div className="rounded-2xl border border-white/5 bg-gradient-to-br from-stone-900/70 to-stone-900/30 p-4">
                             <div className="flex items-center gap-2 text-xs uppercase tracking-[0.3em] text-amber-400/70">
@@ -868,7 +988,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 >
                                     Todos
                                 </button>
-                                {CONTENT_TYPES.map((type) => (
+                                {contentTypeFilters.map((type) => (
                                     <button
                                         key={type}
                                         onClick={() => setTypeFilter(type)}
@@ -882,8 +1002,16 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                             </div>
                         </div>
                     </section>
+                    ) : null}
 
-                    <section className="rounded-3xl border border-white/10 bg-black/30 p-5 shadow-2xl shadow-black/40">
+                    <section
+                        className={
+                            embedded
+                                ? 'mt-2'
+                                : 'rounded-3xl border border-white/10 bg-black/30 p-5 shadow-2xl shadow-black/40'
+                        }
+                    >
+                        {!embedded ? (
                         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                             <div className="flex flex-wrap gap-2">
                                 {TABS.map((tab) => (
@@ -912,9 +1040,19 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                 />
                             </div>
                         </div>
-                        <div className="mt-6 rounded-2xl border border-white/5 bg-black/30 p-4 min-h-[50vh]">{renderActiveTab()}</div>
+                        ) : null}
+                        <div
+                            className={
+                                embedded
+                                    ? 'min-h-[45vh] pt-2'
+                                    : 'mt-6 min-h-[50vh] rounded-2xl border border-white/5 bg-black/30 p-4'
+                            }
+                        >
+                            {renderActiveTab()}
+                        </div>
                     </section>
 
+                    {!embedded ? (
                     <footer className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-white/10 bg-black/30 p-4 text-sm text-stone-300">
                         <button
                             onClick={returnToMenu}
@@ -924,6 +1062,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         </button>
                         <p className="text-xs text-stone-500">Marketplace compartilhado pela comunidade. Curadoria automática da IA mantém o conteúdo consistente.</p>
                     </footer>
+                    ) : null}
                 </div>
             </div>
 
@@ -956,7 +1095,12 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                 bundleToEdit={bundleToEdit}
             />
 
-            <AiCreator isOpen={isAiCreatorOpen} onClose={() => setIsAiCreatorOpen(false)} onContentGenerated={handleAiContentCreated} />
+            <AiCreator
+                variant={embedded ? 'v2' : 'legacy'}
+                isOpen={isAiCreatorOpen}
+                onClose={() => setIsAiCreatorOpen(false)}
+                onContentGenerated={handleAiContentCreated}
+            />
         </>
     );
 };

@@ -71,32 +71,25 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 
 > **Nota:** O gameplay usa **WebSocket**, não REST. Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_WS_URL` no `.env.local` para desenvolvimento local (padrão: `http://localhost:8071`).
 
-## Setup com Docker (recomendado)
+## Setup com Docker
+
+**Desenvolvimento (sem rebuild a cada alteração):**
 
 ```bash
-# Infra: MySQL + Redis + 5e-srd-api
-docker compose up -d mysql redis srd-db srd-cache srd-api
-
-# Snapshot SRD offline (opcional se já existir em data/srd/)
-npm run srd:up          # alias para docker-compose.srd.yml
-node scripts/sync-srd-api.js
-
-# Backend
-cp .env.example backend/.env   # ajuste DB_* e JWT_SECRET
-cd backend && npm install
-npm run migration:run          # produção / primeiro boot com DB_SYNC=false
-DB_SYNC=true npm run dev       # dev: schema automático
-
-# Frontend (outro terminal)
-cp .env.example .env.local
-npm install && npm run dev     # http://localhost:9002
+npm run dev:infra              # MySQL + Redis + SRD no Docker
+npm run dev:backend            # terminal 2 — hot reload
+npm run dev                    # terminal 3 — hot reload
 ```
 
-Stack completa em containers (`--profile app`):
+Configure `backend/.env` (`DB_HOST=localhost`) e `.env.local` (veja `.env.local.example`).
+
+**Stack completa em container** (só para testar deploy; precisa `--build` ao mudar código):
 
 ```bash
-docker compose --profile app up -d --build
+npm run docker:up              # docker compose --profile full up -d --build
 ```
+
+Detalhes: [`docs/DOCKER.md`](docs/DOCKER.md).
 
 Documentação detalhada: [`docs/architecture.md`](docs/architecture.md).
 

@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import ActionModal from '../../ui/ActionModal';
 import ActionForm from './ActionForm';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     isOpen: boolean;
@@ -51,7 +52,7 @@ const ActionCreator: React.FC<Props> = ({ isOpen, onClose, onActionCreated, init
                 { text: initialData ? "Atualizar Ação" : "Salvar Ação", onClick: handleSubmit, variant: 'primary', disabled: isLoading, icon: isLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Save className="h-4 w-4"/> }
             ]}
         >
-            <div className="space-y-4">
+            <div className={hb.root}>
                 <ActionForm onDataChange={setActionData} initialData={initialData} />
             </div>
         </ActionModal>

@@ -18,7 +18,7 @@ type EnvShape = {
     SRD_API_BASE: string;
     SRD_API_VERSION: '2014' | '2024';
     SRD_OFFLINE_ONLY: boolean;
-    AI_PIPELINE_MODE: 'full' | 'dual' | 'narration_only';
+    AI_PIPELINE_MODE: 'narration_only';
 };
 
 export const env: EnvShape = {
@@ -33,12 +33,7 @@ export const env: EnvShape = {
     SRD_API_BASE: process.env.SRD_API_BASE?.replace(/\/$/, '') || 'http://localhost:3000/api/2014',
     SRD_API_VERSION: process.env.SRD_API_VERSION === '2024' ? '2024' : '2014',
     SRD_OFFLINE_ONLY: toBoolean(process.env.SRD_OFFLINE_ONLY, false),
-    AI_PIPELINE_MODE: (() => {
-        const raw = (process.env.AI_PIPELINE_MODE ?? 'narration_only').trim().toLowerCase();
-        if (raw === 'full') return 'full';
-        if (raw === 'narration_only' || raw === 'narration-only') return 'narration_only';
-        return 'dual';
-    })(),
+    AI_PIPELINE_MODE: 'narration_only' as const,
 };
 
 export const assertEnv = <K extends keyof EnvShape>(key: K): EnvShape[K] => {

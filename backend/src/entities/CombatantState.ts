@@ -46,7 +46,7 @@ export class CombatantState {
     @Column({ type: 'varchar', length: 16, default: 'neutral' })
     attitude: CombatAttitude;
 
-    @Column({ type: 'simple-json', default: '[]' })
+    @Column({ type: 'simple-json', nullable: true })
     conditions: string[];
 
     @Column({ type: 'boolean', default: false })

@@ -5,30 +5,52 @@ import { tmpdir } from 'os';
 import path from 'path';
 import { promises as fs } from 'fs';
 import { spawn } from 'child_process';
-import { uploadBinaryObject, isObjectStorageEnabled, getSignedObjectUrl } from './objectStorageService.js';
+import { uploadBinaryObject, isObjectStorageEnabled } from './objectStorageService.js';
 
+const API_PUBLIC_URL = (process.env.API_PUBLIC_URL ?? '').replace(/\/$/, '');
+const TTS_KEY_PATTERN = /^tts\/[\w\-./]+$/i;
+
+const PIPER_HTTP_URL = (process.env.PIPER_HTTP_URL ?? '').replace(/\/$/, '');
 const PIPER_BIN_PATH = process.env.PIPER_BIN_PATH ?? '';
 const PIPER_MODEL_PATH = process.env.PIPER_MODEL_PATH ?? '';
 const MAX_TTS_LENGTH = Number(process.env.PIPER_MAX_CHARACTERS ?? 600);
 const LENGTH_SCALE = Number(process.env.PIPER_LENGTH_SCALE ?? 1.15);
 
-const isTtsEnabled = Boolean(PIPER_BIN_PATH && PIPER_MODEL_PATH && isObjectStorageEnabled);
+const hasLocalPiper = Boolean(PIPER_BIN_PATH && PIPER_MODEL_PATH);
+const hasHttpPiper = Boolean(PIPER_HTTP_URL);
+const isTtsEnabled = Boolean((hasHttpPiper || hasLocalPiper) && isObjectStorageEnabled);
 
 export const getTtsStatus = () => ({
   enabled: isTtsEnabled,
-  bin: PIPER_BIN_PATH,
-  model: PIPER_MODEL_PATH,
+  mode: hasHttpPiper ? 'http' : hasLocalPiper ? 'local' : 'off',
+  httpUrl: PIPER_HTTP_URL || undefined,
+  bin: PIPER_BIN_PATH || undefined,
+  model: PIPER_MODEL_PATH || undefined,
   storageReady: isObjectStorageEnabled,
 });
 
 export const describeTtsStatus = () => {
   if (!isTtsEnabled) {
-    return 'Desativado (verifique PIPER_BIN_PATH, PIPER_MODEL_PATH e armazenamento de objetos).';
+    return 'Desativado (configure PIPER_HTTP_URL ou PIPER_BIN_PATH+PIPER_MODEL_PATH e MinIO).';
+  }
+  if (hasHttpPiper) {
+    return `Ativo · Piper HTTP="${PIPER_HTTP_URL}"`;
   }
   return `Ativo · binário="${PIPER_BIN_PATH}" | modelo="${PIPER_MODEL_PATH}"`;
 };
 
 export const isTtsAvailable = () => isTtsEnabled;
+
+export const isValidTtsObjectKey = (key: string): boolean => TTS_KEY_PATTERN.test(key);
+
+/** URL pública do backend para streaming (MinIO fica só na rede interna). */
+export const buildTtsPlaybackUrl = (key: string): string => {
+  const path = `/tts/audio?key=${encodeURIComponent(key)}`;
+  if (API_PUBLIC_URL) {
+    return `${API_PUBLIC_URL}${path}`;
+  }
+  return path;
+};
 
 const sanitizeNarrationText = (text: string) => {
   if (!text) return '';
@@ -39,7 +61,19 @@ const sanitizeNarrationText = (text: string) => {
   return trimmed;
 };
 
-const runPiper = async (text: string): Promise<Buffer> => {
+const runPiperHttp = async (text: string): Promise<Buffer> => {
+  const response = await fetch(`${PIPER_HTTP_URL}/synthesize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text }),
+  });
+  if (!response.ok) {
+    throw new Error(`Piper HTTP ${response.status}`);
+  }
+  return Buffer.from(await response.arrayBuffer());
+};
+
+const runPiperLocal = async (text: string): Promise<Buffer> => {
   return new Promise((resolve, reject) => {
     const tempFile = path.join(tmpdir(), `piper-${randomUUID()}.wav`);
     const args = ['--model', PIPER_MODEL_PATH, '--output_file', tempFile];
@@ -69,6 +103,16 @@ const runPiper = async (text: string): Promise<Buffer> => {
   });
 };
 
+const runPiper = async (text: string): Promise<Buffer> => {
+  if (hasHttpPiper) {
+    return runPiperHttp(text);
+  }
+  if (hasLocalPiper) {
+    return runPiperLocal(text);
+  }
+  throw new Error('Piper não configurado.');
+};
+
 export type SynthesizedNarration = {
   key: string;
   url: string | null;
@@ -88,14 +132,13 @@ export const synthesizeNarrationAudio = async (text: string): Promise<Synthesize
       extension: 'wav',
     });
     console.log(`[ttsService] Áudio sintetizado (${buffer.length} bytes, ${safeText.length} chars).`);
-    return upload;
+    return {
+      key: upload.key,
+      url: buildTtsPlaybackUrl(upload.key),
+      contentType: upload.contentType,
+    };
   } catch (error) {
     console.warn('[ttsService] Falha ao sintetizar narração:', error);
     return null;
   }
-};
-
-export const getSignedNarrationUrl = async (key: string) => {
-  if (!key) return null;
-  return getSignedObjectUrl(key);
 };

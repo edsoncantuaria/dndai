@@ -10,12 +10,14 @@ interface Props {
     hook: ReturnType<typeof useCharacterCreator>;
     prevStep: () => void;
     nextStep: () => void;
+    hideNav?: boolean;
 }
 
-const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
+const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep, hideNav }) => {
     const {
+        characterClass,
         loadingStates,
-        details: { classSpellOptions, subclassSpells },
+        details: { classDetails, classSpellOptions, subclassSpells },
         racialSpellTraits,
         handleClassSpellChange,
         handleRacialSpellChange,
@@ -45,7 +47,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
 
     const allChosenSpellIndices = new Set([...chosenClassSpells, ...Object.values(chosenRacialSpells).flat()]);
 
-    if (loadingStates.isLoading) {
+    if (characterClass && !classDetails && loadingStates.isFetching) {
         return (
             <PremiumLoader
                 title="Carregando grimórios iniciais"
@@ -64,6 +66,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                 <div className="rounded-[32px] border border-white/5 bg-stone-950/70 p-8 text-center text-stone-400 shadow-2xl shadow-black/40">
                     <p className="text-sm">Sua classe e raça não concedem magias no nível 1.</p>
                 </div>
+                {!hideNav ? (
                 <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                     <button
                         type="button"
@@ -82,6 +85,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                         <ArrowRight className="h-5 w-5" />
                     </button>
                 </div>
+                ) : null}
             </div>
         );
     }
@@ -177,6 +181,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
             )}
             </section>
 
+            {!hideNav ? (
             <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                 <button
                     type="button"
@@ -196,6 +201,7 @@ const NewStep6_Spells: React.FC<Props> = ({ hook, prevStep, nextStep }) => {
                     <ArrowRight className="h-5 w-5" />
                 </button>
             </div>
+            ) : null}
         </div>
     );
 };

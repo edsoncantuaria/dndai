@@ -2,8 +2,10 @@
 
 import { useMemo, useState, useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
-import ActionModal from '@/components/ui/ActionModal';
-import { Button } from '@/components/ui/button';
+import { DndButton } from '@/components/primitives';
+import { DndGameModalShell } from '@/features/gameplay/modals/DndGameModalShell';
+import { cn } from '@/lib/utils';
+import { WorldMapPanZoom } from './WorldMapPanZoom';
 import type { WorldMapSnapshot } from '@/services/gameService';
 import type { RegionDTO } from '@/services/regionClient';
 import {
@@ -51,46 +53,63 @@ const WorldMapModal = ({ isOpen, onClose, snapshot, isLoading = false }: WorldMa
     []
   );
 
+  if (!isOpen) return null;
+
   return (
-    <ActionModal
-      isOpen={isOpen}
+    <DndGameModalShell
+      title="Mapa mundi"
+      eyebrow="Exploração"
+      subtitle="Arraste e dê zoom para navegar. Toque nos filtros para destacar marcadores."
       onClose={onClose}
-      title="Mapa Mundi"
-      actions={[
-        {
-          text: 'Fechar',
-          onClick: onClose,
-          variant: 'secondary',
-        },
-      ]}
-    >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64 text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-          Carregando mapa mundi...
+      maxWidth="max-w-4xl"
+      edgeToEdge
+      className="md:max-w-4xl"
+      footer={
+        <div className="flex justify-end">
+          <DndButton variant="goldOutline" className="min-h-[44px] w-full sm:w-auto" onClick={onClose}>
+            Fechar
+          </DndButton>
         </div>
-      ) : snapshot && hierarchy.length ? (
-        <>
-          <div className="flex flex-wrap gap-2 text-xs mb-3">
-            {markerFilterOptions.map(option => (
-              <Button
-                key={option.key}
-                variant={markerFilters[option.key] ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => toggleMarkerFilter(option.key)}
-              >
-                {markerFilters[option.key] ? '●' : '○'} {option.label}
-              </Button>
-            ))}
+      }
+    >
+      <div className="flex flex-col gap-4 p-4 md:p-5">
+        {isLoading ? (
+          <div className="flex h-[min(40vh,320px)] items-center justify-center gap-2 font-ui text-dnd-parchment-muted">
+            <Loader2 className="h-5 w-5 animate-spin text-dnd-gold" />
+            Carregando mapa mundi…
           </div>
-          <WorldMapCanvas snapshot={snapshot} hierarchy={hierarchy} markerFilters={markerFilters} />
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          Selecione uma sessão para visualizar o mapa mundi.
-        </p>
-      )}
-    </ActionModal>
+        ) : snapshot && hierarchy.length ? (
+          <>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Filtros de marcadores">
+              {markerFilterOptions.map((option) => {
+                const active = markerFilters[option.key];
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => toggleMarkerFilter(option.key)}
+                    className={cn(
+                      'min-h-[44px] rounded-full border px-4 font-ui text-sm transition',
+                      active
+                        ? 'border-dnd-gold/50 bg-dnd-gold/15 text-dnd-gold'
+                        : 'border-dnd-gold/20 bg-dnd-obsidian-raised/60 text-dnd-parchment-muted hover:border-dnd-gold/35'
+                    )}
+                    aria-pressed={active}
+                  >
+                    {active ? '●' : '○'} {option.label}
+                  </button>
+                );
+              })}
+            </div>
+            <WorldMapCanvas snapshot={snapshot} hierarchy={hierarchy} markerFilters={markerFilters} />
+          </>
+        ) : (
+          <p className="py-8 text-center font-narrative text-sm text-dnd-parchment-muted">
+            Selecione uma sessão para visualizar o mapa mundi.
+          </p>
+        )}
+      </div>
+    </DndGameModalShell>
   );
 };
 
@@ -234,9 +253,9 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
   );
 
   return (
-    <div className="space-y-4">
-      <div className="overflow-x-auto rounded-xl border border-white/10 bg-slate-950/80">
-        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+    <div className="space-y-3">
+      <WorldMapPanZoom width={width} height={height}>
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="select-none">
           <defs>
             <linearGradient id="worldGrid" x1="0" x2="0" y1="0" y2="1">
               <stop offset="0%" stopColor="rgba(148,163,184,0.08)" />
@@ -439,15 +458,16 @@ const WorldMapCanvas = ({ hierarchy, snapshot, markerFilters }: WorldMapCanvasPr
               </g>
             );
           })}
-          <text x={24} y={height - 28} fontSize={12} fill="#94a3b8">
-            Rotas só aparecem após exploradas; use os filtros acima para destacar NPCs e missões.
-          </text>
         </svg>
-      </div>
+      </WorldMapPanZoom>
 
-      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+      <p className="font-ui text-[11px] leading-relaxed text-dnd-parchment-muted">
+        Rotas só aparecem após serem exploradas. Use os filtros acima para NPCs e missões.
+      </p>
+
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-dnd-gold/12 bg-dnd-obsidian-raised/40 p-3 font-ui text-[11px] text-dnd-parchment-muted sm:grid-cols-3">
         <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full bg-[#22d3ee]" />
+          <span className="inline-block h-3 w-3 shrink-0 rounded-full bg-[#22d3ee]" />
           Cidade explorada
         </div>
         <div className="flex items-center gap-2">

@@ -5,7 +5,9 @@ import { useGameStateContext } from '../contexts/GameStateContext';
 import type { JournalEntry } from '../types';
 import { ChevronDown, Map, Compass, MapPin } from 'lucide-react';
 
-const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]';
+const PANEL_LEGACY =
+  'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.35)]';
+const PANEL_V2 = 'dnd-border-gold dnd-surface-glass rounded-lg shadow-[var(--dnd-shadow-card)]';
 
 interface LocationProps {
     location: JournalEntry;
@@ -55,7 +57,8 @@ const LocationItem: React.FC<LocationProps> = ({ location, level }) => {
 };
 
 
-const NewJournal: React.FC = () => {
+const NewJournal: React.FC<{ variant?: 'legacy' | 'v2' }> = ({ variant = 'legacy' }) => {
+    const PANEL = variant === 'v2' ? PANEL_V2 : PANEL_LEGACY;
     const { character } = useGameStateContext();
     const currentRegion = character?.worldState?.currentRegion || character?.currentRegion || 'Desconhecida';
     const currentPoi =

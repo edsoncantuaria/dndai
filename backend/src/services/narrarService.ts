@@ -29,10 +29,9 @@ import {
 import { applyXpEvents, clampCharacterLevel } from './xpService.js';
 import { recordTimelineEventAndSummarize, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
-import { synthesizeNarrationAudio } from './ttsService.js';
+import { synthesizeNarrationAudio, buildTtsPlaybackUrl } from './ttsService.js';
 import { isImageGenerationAvailable } from './imageGenerationService.js';
 import type { AiInteractionMode } from '../types/ai.js';
-import { runGmValidator } from './gmValidator.js';
 import { savePendingRollRequest, clearPendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
 import { recordUnexpectedAiRoll } from './rollMetricsService.js';
 import { runNarrationAiPhases } from '../narration/turnProcessor.js';
@@ -142,16 +141,17 @@ const attachNarrationAudio = async (response: GameMasterResponse) => {
         const text = getPlainTextFromLogEntry(entry as any);
         if (!text) continue;
         const audio = await synthesizeNarrationAudio(text);
-        if (!audio?.url || !audio.key) continue;
-        (entry as any).audioUrl = audio.url;
+        if (!audio?.key) continue;
+        const playbackUrl = audio.url ?? buildTtsPlaybackUrl(audio.key);
+        (entry as any).audioUrl = playbackUrl;
         (entry as any).audioKey = audio.key;
         if (typeof entry.content === 'string') {
-            entry.content = { content: entry.content, audioUrl: audio.url, audioKey: audio.key };
+            entry.content = { content: entry.content, audioUrl: playbackUrl, audioKey: audio.key };
         } else if (entry.content && typeof entry.content === 'object') {
-            entry.content.audioUrl = audio.url;
+            entry.content.audioUrl = playbackUrl;
             (entry.content as any).audioKey = audio.key;
         } else {
-            entry.content = { content: text, audioUrl: audio.url, audioKey: audio.key };
+            entry.content = { content: text, audioUrl: playbackUrl, audioKey: audio.key };
         }
     }
 };
@@ -878,7 +878,10 @@ export const processPlayerTurn = async (
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = user?.settings?.model || "gemini-1.5-flash-latest";
+    const modelToUse =
+        user?.settings?.model ||
+        process.env.AI_DEFAULT_MODEL?.trim() ||
+        'meta-llama/llama-3.3-70b-instruct:free';
     const generationConfig = user?.settings?.generationConfig || {};
     
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
@@ -916,6 +919,9 @@ export const processPlayerTurn = async (
         || playerAction.includes("Gere uma resposta de Mestre de Jogo que demonstre todas as suas capacidades");
 
     let loadedCombat: LoadedCombatEncounter = { encounterId: null, state: null };
+    let motorCombatRewards: Awaited<
+        ReturnType<typeof import('./combatMotorService.js').runMotorCombatPipeline>
+    >['rewards'];
     if (!isTestRun && sessao) {
         loadedCombat = await loadCombatEncounterState(sessao.id);
     }
@@ -944,7 +950,32 @@ export const processPlayerTurn = async (
     if (promptCombatState?.isActive) {
         stateHintsFromContext.push('[Combat] Conflito ativo, mantenha foco em combate.');
     }
-    const normalizedStateHints = [...(stateHints ?? []), ...stateHintsFromContext]
+    let castAndWorldHints: string[] = [];
+    if (!isTestRun && sessao?.id) {
+        try {
+            const { getCastSummaryForSession, getWorldPresenceHints, syncSessionCastFromWorld } = await import(
+                './sessionCastService.js'
+            );
+            await syncSessionCastFromWorld(sessao.id, userId, {
+                combatState: promptCombatState as { isActive?: boolean; combatants?: unknown[] } | null,
+            });
+            const castBlock = await getCastSummaryForSession(sessao.id);
+            if (castBlock) castAndWorldHints.push(castBlock);
+            const regionSlug =
+                (characterForAI?.worldState as { regionSlug?: string })?.regionSlug ??
+                narrationContext.regionSlug ??
+                null;
+            castAndWorldHints.push(...(await getWorldPresenceHints(sessao.id, userId, regionSlug)));
+        } catch (castErr) {
+            console.warn('[narrarService] Falha ao montar elenco/mundo:', castErr);
+        }
+    }
+
+    const normalizedStateHints = [
+        ...(stateHints ?? []),
+        ...stateHintsFromContext,
+        ...castAndWorldHints,
+    ]
         .map(hint => hint?.trim())
         .filter(Boolean);
     const latestStateHint = normalizedStateHints.length
@@ -1071,6 +1102,22 @@ export const processPlayerTurn = async (
 
     let aiResponse = motorOwnsState ? stripMotorOwnedFields(finalFromModel) : finalFromModel;
 
+    if (motorOwnsState) {
+        const {
+            enforceNarrativeOnlyResponse,
+            sanitizeActionOptionsForPlayerAgency,
+        } = await import('../ai/narrativeContract.js');
+        const { cleaned, stripped } = enforceNarrativeOnlyResponse(aiResponse);
+        aiResponse = cleaned;
+        aiResponse.actionOptions = sanitizeActionOptionsForPlayerAgency(aiResponse.actionOptions);
+        if (stripped.length) {
+            appendSystemNote(
+                aiResponse,
+                `[Contrato narrativo] Campos ignorados (motor autoritativo): ${stripped.join(', ')}`,
+            );
+        }
+    }
+
     if (!finalUsedFallback && !isTestRun && sessao) {
         const rawFacts = (narrativePhase.response as any).newFacts;
         if (Array.isArray(rawFacts) && rawFacts.length) {
@@ -1127,6 +1174,42 @@ export const processPlayerTurn = async (
                 ];
             }
         }
+    } else if (!finalUsedFallback && motorOwnsState && !isTestRun && sessao) {
+        const { runMotorCombatPipeline } = await import('./combatMotorService.js');
+        const motorCombat = await runMotorCombatPipeline({
+            sessaoId: sessao.id,
+            encounterId: loadedCombat.encounterId,
+            stored: loadedCombat.state,
+            clientCombat: currentCombatState ?? null,
+            characterId: sessao.character?.id,
+        });
+        loadedCombat.state = motorCombat.canonicalState;
+        loadedCombat.encounterId = motorCombat.encounterId;
+        combatReconciliation = {
+            canonicalState: motorCombat.canonicalState,
+            publicState: motorCombat.publicState,
+            changed: motorCombat.changed,
+            telemetry: motorCombat.telemetry,
+        };
+        aiResponse.combatState = motorCombat.publicState as any;
+        for (const note of motorCombat.telemetry) {
+            appendSystemNote(aiResponse, note);
+        }
+        if (motorCombat.rewards) {
+            motorCombatRewards = motorCombat.rewards;
+            aiResponse.lootOffer = motorCombat.rewards.lootOffer as any;
+        }
+        if (motorCombat.combatEnded && sessao.character?.id) {
+            const charRepo = AppDataSource.getRepository(Character);
+            const fresh = await charRepo.findOne({
+                where: { id: sessao.character.id },
+                select: ['id', 'xp', 'level'],
+            });
+            if (fresh) {
+                characterForAI.xp = fresh.xp ?? characterForAI.xp;
+                characterForAI.level = fresh.level ?? characterForAI.level;
+            }
+        }
     } else if (!finalUsedFallback && motorOwnsState) {
         combatReconciliation = {
             canonicalState: loadedCombat.state,
@@ -1147,6 +1230,15 @@ export const processPlayerTurn = async (
         source?: string;
         detail?: string;
     }> = [];
+
+    if (motorCombatRewards?.xpAwarded) {
+        progressionFeed.push({
+            type: 'xp_gain',
+            xp: motorCombatRewards.xpAwarded,
+            summary: `+${motorCombatRewards.xpAwarded} XP — vitória em combate`,
+            source: 'motor-combat',
+        });
+    }
 
     let xpResult = {
         totalXpAwarded: 0,
@@ -1298,6 +1390,17 @@ export const processPlayerTurn = async (
         delete (aiResponse as any).progressionFeed;
     }
 
+    if (motorOwnsState && !isTestRun && sessao?.character) {
+        const { attachMotorProgressionToResponse } = await import('./progressionMotorService.js');
+        const { leveledUp, newLevel } = attachMotorProgressionToResponse(aiResponse, {
+            level: characterForAI.level,
+            xp: characterForAI.xp,
+        });
+        if (leveledUp && newLevel) {
+            appendSystemNote(aiResponse, `[Motor] Nível ${newLevel} detectado por XP — confirme na ficha.`);
+        }
+    }
+
     const allowHomebrewContent = useAiHomebrew ?? true;
 
     if (aiResponse.updatedCharacter?.inventory && Array.isArray(aiResponse.updatedCharacter.inventory)) {
@@ -1316,7 +1419,7 @@ export const processPlayerTurn = async (
         (aiResponse.updatedCharacter as any).currentWeight = metrics.totalWeight;
     }
 
-    if (aiResponse.shopState?.inventory && Array.isArray(aiResponse.shopState.inventory)) {
+    if (!motorOwnsState && aiResponse.shopState?.inventory && Array.isArray(aiResponse.shopState.inventory)) {
         const { items: sanitizedShopItems } = await hydrateInventoryItems(
             aiResponse.shopState.inventory as any[],
             userId,
@@ -1338,7 +1441,17 @@ export const processPlayerTurn = async (
         }
     }
 
-    if (aiResponse.lootOffer?.items && Array.isArray(aiResponse.lootOffer.items)) {
+    if (motorOwnsState && !isTestRun && sessao?.character?.id) {
+        const { attachMotorShopToResponse } = await import('./shopMotorService.js');
+        const { getMotorLootOfferForClient } = await import('./lootMotorService.js');
+        await attachMotorShopToResponse(aiResponse, sessao.character.id);
+        const pendingLoot = await getMotorLootOfferForClient(sessao.id);
+        if (pendingLoot && !aiResponse.combatState?.isActive) {
+            aiResponse.lootOffer = pendingLoot as any;
+        }
+    }
+
+    if (!motorOwnsState && aiResponse.lootOffer?.items && Array.isArray(aiResponse.lootOffer.items)) {
         const { items: sanitizedLootItems } = await hydrateInventoryItems(
             aiResponse.lootOffer.items as any[],
             userId,
@@ -1376,32 +1489,15 @@ export const processPlayerTurn = async (
             }));
             await recordArtifactsForSession(sessao.character.id, sessao.id, artifactInputs);
         }
-        if (!isTestRun && sessao && aiResponse.lootOffer) {
+        if (!motorOwnsState && !isTestRun && sessao && aiResponse.lootOffer) {
             await persistPendingLootOffer(sessao.id, aiResponse.lootOffer as Record<string, unknown>);
         }
     }
     
-    const validatorResult = runGmValidator(aiResponse, {
+    const { runNarrativeGmValidator } = await import('./narrativeGmValidator.js');
+    aiResponse = runNarrativeGmValidator(aiResponse, {
         memorySummary: storySummaryForPrompt ?? newStorySummaryForLog ?? undefined,
-        memoryReferences: narrationContext.layeredMemorySummary ? ['session_memories'] : undefined,
-        gameClock: {
-            day: aiResponse.gameClock?.day,
-            hour: aiResponse.gameClock?.hour,
-            weather: aiResponse.gameClock?.weather ?? aiResponse.worldState?.weather,
-        },
-        lastWorldState: characterForAI.worldState,
-        mode: aiMode,
-        useAiHomebrew: useAiHomebrew ?? true,
     });
-    if (validatorResult.issues.length) {
-        const note = validatorResult.issues
-            .map(issue => `- ${issue.path || 'geral'}: ${issue.problem}${issue.fixed ? ' (corrigido)' : ''}`)
-            .join('\n');
-        aiResponse.systemLog = aiResponse.systemLog
-            ? `${aiResponse.systemLog}\n[GM Validator]\n${note}`
-            : `[GM Validator]\n${note}`;
-    }
-    aiResponse = validatorResult.validatedResponse;
     await attachNarrationAudio(aiResponse);
     
     if (aiResponse.imagePrompt && isImageGenerationAvailable(apiKey)) {

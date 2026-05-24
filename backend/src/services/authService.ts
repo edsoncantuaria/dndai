@@ -9,7 +9,8 @@ import type { z } from 'zod';
 
 // Configurações padrão para novos usuários
 const defaultSettings = {
-    model: "gemini-2.5-flash",
+    model: "meta-llama/llama-3.3-70b-instruct:free",
+    aiProvider: "openrouter",
     ttsModel: "gemini-2.5-flash-preview-tts",
     ttsVoice: "Charon",
     generationConfig: {

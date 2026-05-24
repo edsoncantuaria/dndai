@@ -27,6 +27,7 @@ export interface GameStateContextType {
     isLoading: boolean;
     apiError: string | null;
     ambientSound: string;
+    setAmbientSound: React.Dispatch<React.SetStateAction<string>>;
     progressionFeed: ProgressionFeedItem[];
     reinstallModal: { open: boolean, deps: HomebrewContent[], onConfirm: () => void };
     setReinstallModal: React.Dispatch<React.SetStateAction<{ open: boolean, deps: HomebrewContent[], onConfirm: () => void }>>;
@@ -45,6 +46,12 @@ export interface GameStateContextType {
     takeLoot: (takeAll: boolean) => void;
     buyItem: (item: ShopItem, price: number) => void;
     sellItem: (item: InventoryItem, price: number) => void;
+    openShop: (catalog: { name: string; inventory: ShopItem[]; merchantName?: string }) => void;
+    closeShop: () => void;
+    startEncounter: (
+        character: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
+        hostiles: Array<{ id: string; name: string; hp: number; maxHp: number; ac?: number; initiative?: number }>,
+    ) => void;
     clearGameState: () => void;
     nextTurn: () => void;
     loadGameSession: (id: number) => Promise<{ character: Character; logs: any[] } | null>;
@@ -59,8 +66,12 @@ export interface GameStateContextType {
     actionPhaseLabel: string | null;
     isRollPending: boolean;
     // Debug Triggers
-    triggerTestShop: () => void;
-    triggerTestCombat: () => void;
+    triggerTestShop: (processPlayerAction?: (action: string) => void) => void;
+    triggerTestCombat: (
+        processPlayerAction?: (action: string) => void,
+        character?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
+    ) => void;
+    getTestShopCatalog?: () => { name: string; inventory: ShopItem[]; merchantName?: string };
     triggerTestSkillCheck: (skillName: string) => void;
     setPendingStructuredIntent: React.Dispatch<React.SetStateAction<any | null>>;
 }

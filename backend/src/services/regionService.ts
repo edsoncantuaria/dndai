@@ -11,6 +11,7 @@ import {
   deleteObject,
   isObjectStorageEnabled,
 } from './objectStorageService.js';
+import regionGraph from '../data/regionsSeed.json' with { type: 'json' };
 
 const regionRepo = AppDataSource.getRepository(Region);
 const linkRepo = AppDataSource.getRepository(RegionLink);
@@ -825,9 +826,61 @@ export const getRegionBreadcrumbs = async (
   return chain;
 };
 
+let spawnBootstrapPromise: Promise<void> | null = null;
+
+/**
+ * Garante cidades no spawn pool: importa o seed embutido ou promove cidades existentes.
+ * Retorna true se há pelo menos uma cidade spawnável.
+ */
+export const ensureDefaultSpawnRegions = async (): Promise<boolean> => {
+  let candidates = await regionRepo.find({ where: { type: 'city', isSpawnPool: true } });
+  if (candidates.length > 0) return true;
+
+  const existingCities = await regionRepo.find({ where: { type: 'city' } });
+  if (existingCities.length > 0) {
+    for (const city of existingCities) {
+      city.isSpawnPool = true;
+    }
+    await regionRepo.save(existingCities);
+    console.warn(
+      '[regionService] Nenhuma cidade no spawn pool; %d cidade(s) promovida(s) automaticamente.',
+      existingCities.length
+    );
+    return true;
+  }
+
+  console.log('[regionService] Mapa vazio — importando regiões padrão (regionsSeed.json)...');
+  await importRegionGraph(regionGraph as RegionGraphPayload, { clearExisting: false });
+
+  candidates = await regionRepo.find({ where: { type: 'city', isSpawnPool: true } });
+  return candidates.length > 0;
+};
+
+const ensureSpawnPoolReady = async () => {
+  if (!spawnBootstrapPromise) {
+    spawnBootstrapPromise = (async () => {
+      const ok = await ensureDefaultSpawnRegions();
+      if (!ok) {
+        throw createError(
+          503,
+          'Mapa do mundo indisponível. Execute `npm run seed:regions` no backend e tente novamente.'
+        );
+      }
+    })().catch((err) => {
+      spawnBootstrapPromise = null;
+      throw err;
+    });
+  }
+  await spawnBootstrapPromise;
+};
+
 export const pickRandomSpawnRegion = async () => {
+  await ensureSpawnPoolReady();
+
   const candidates = await regionRepo.find({ where: { type: 'city', isSpawnPool: true } });
   if (!candidates.length) {
+    const fallback = await regionRepo.findOne({ where: { type: 'city' } });
+    if (fallback) return fallback;
     throw createError(400, 'Nenhuma cidade está marcada como spawn pool.');
   }
   const index = Math.floor(Math.random() * candidates.length);

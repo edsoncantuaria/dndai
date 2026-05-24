@@ -182,6 +182,7 @@ export const useNewGameState = () => {
             isLoading,
             apiError,
             ambientSound,
+            setAmbientSound,
             progressionFeed,
             clearApiError,
             getApiKey,
@@ -203,7 +204,26 @@ export const useNewGameState = () => {
             takeLoot: interactionState.handleTakeLoot(actionsApi.processPlayerAction),
             buyItem: interactionState.handleBuyItem(actionsApi.processPlayerAction),
             sellItem: interactionState.handleSellItem(actionsApi.processPlayerAction),
+            openShop: interactionState.handleOpenShop(actionsApi.processPlayerAction),
+            closeShop: interactionState.handleCloseShop(actionsApi.processPlayerAction),
+            startEncounter: interactionState.handleStartEncounter(actionsApi.processPlayerAction),
             nextTurn: interactionState.nextTurn(actionsApi.processPlayerAction),
+            triggerTestShop: (processPlayerAction?: (action: string) => void) =>
+                interactionState.triggerTestShop(
+                    processPlayerAction ?? actionsApi.processPlayerAction,
+                ),
+            triggerTestCombat: (
+                processPlayerAction?: (action: string) => void,
+                charOverride?: { id: number; name: string; attributes?: { hp?: number; maxHp?: number; ac?: number } },
+            ) => {
+                const c = charOverride ?? (character
+                    ? { id: character.id, name: character.name, attributes: character.attributes }
+                    : undefined);
+                interactionState.triggerTestCombat(
+                    processPlayerAction ?? actionsApi.processPlayerAction,
+                    c,
+                );
+            },
             setCharacter,
             setLog: logState.setLog,
             setSessionId,
@@ -219,6 +239,7 @@ export const useNewGameState = () => {
             isLoading,
             apiError,
             ambientSound,
+            setAmbientSound,
             progressionFeed,
             clearApiError,
             getApiKey,

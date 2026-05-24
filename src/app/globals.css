@@ -1,3 +1,4 @@
+@import '../design-system/tokens.css';
 
 @tailwind base;
 @tailwind components;
@@ -60,9 +61,11 @@
     padding: 0;
   }
   body {
-    @apply bg-background text-foreground;
-    background-image: linear-gradient(to bottom right, black, #141312, #2c1a1a);
-    font-family: var(--font-im-fell), serif;
+    @apply text-foreground;
+    background-color: var(--dnd-obsidian);
+    background-image: var(--dnd-bg-cinematic);
+    font-family: var(--font-narrative);
+    color: var(--dnd-parchment);
   }
   body[data-theme='aurora'] {
     background-image: radial-gradient(circle at top, rgba(255, 183, 107, 0.25), transparent 45%),
@@ -89,6 +92,20 @@
   body.overscroll-contain {
     overscroll-behavior: contain;
   }
+  body.gameplay-active {
+    overscroll-behavior-y: none;
+    overflow: hidden;
+    height: 100dvh;
+    height: 100svh;
+  }
+
+  /* Fase F — scroll do log sem pull-to-refresh (iOS/Android) */
+  .gameplay-narrative-scroll,
+  .gameplay-panel-scroll {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-cinzel), serif;
   }
@@ -96,6 +113,19 @@
 
 /* Custom Scrollbar Styles */
 @layer utilities {
+  /** Ocupa a viewport inteira no mobile (evita “tela cortada pela metade”). */
+  .dnd-gameplay-root {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    height: 100dvh;
+    height: 100svh;
+    max-height: 100dvh;
+    max-height: 100svh;
+    overflow: hidden;
+  }
+
     ::-webkit-scrollbar {
         width: 10px;
         height: 10px;
@@ -189,29 +219,38 @@
         box-shadow: inset 0 0 10vw 3vw rgba(200, 0, 0, 0.6);
         animation: pulse-danger 1.5s infinite;
     }
+
+    .dnd-ember-ripple {
+        animation: dnd-ember-ripple 0.55s ease-out forwards;
+    }
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+    .vignette-warning,
+    .vignette-danger {
+        animation: none;
+    }
 }
 
-@keyframes fadeInSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes dnd-ember-ripple {
+    from {
+        transform: scale(1);
+        opacity: 0.45;
+    }
+    to {
+        transform: scale(28);
+        opacity: 0;
+    }
 }
 
-@keyframes staggerIn {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.animate-fadeInSlideUp {
-    animation: fadeInSlideUp 400ms ease-out forwards;
-}
+/* fadeIn / fadeInSlideUp / staggerIn → tailwind.config.ts (animate-fadeInSlideUp, etc.) */
 
 .text-shadow-amber {
   text-shadow: 0 0 10px hsl(var(--primary) / 0.5), 0 0 3px hsl(var(--primary) / 0.7);
+}
+
+.text-shadow-dnd-gold {
+  text-shadow: 0 0 14px var(--dnd-gold-glow), 0 0 4px var(--dnd-gold);
 }
 
 @keyframes pulse-warning {
@@ -222,6 +261,30 @@
 @keyframes pulse-danger {
   0%, 100% { box-shadow: inset 0 0 10vw 3vw rgba(200, 0, 0, 0.5); }
   50% { box-shadow: inset 0 0 13vw 3.5vw rgba(200, 0, 0, 0.7); }
+}
+
+@keyframes dnd-ambient-drift {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(3%, 2%) scale(1.05);
+  }
+}
+
+@keyframes dnd-ken-burns {
+  from {
+    transform: scale(1.05) translate(0, 0);
+  }
+  to {
+    transform: scale(1.12) translate(-1.5%, -1%);
+  }
+}
+
+@layer utilities {
+  .animate-dnd-ken-burns {
+    animation: dnd-ken-burns 22s var(--dnd-ease-out-expo, ease-out) infinite alternate;
+  }
 }
 
 .action-ripple {
@@ -254,4 +317,142 @@
   0% { box-shadow: 0 0 4px rgba(251, 191, 36, 0.2); transform: scale(1); }
   50% { box-shadow: 0 0 22px rgba(251, 191, 36, 0.55); transform: scale(1.01); }
   100% { box-shadow: 0 0 4px rgba(251, 191, 36, 0.15); transform: scale(1); }
+}
+
+/* Modal de dados 3D — flashes de resultado (UI v2) */
+@keyframes dice-roll-ember-flash {
+  0% {
+    box-shadow: inset 0 0 0 rgba(196, 30, 58, 0);
+  }
+  35% {
+    box-shadow: inset 0 0 18vw 4vw rgba(196, 30, 58, 0.55);
+  }
+  100% {
+    box-shadow: inset 0 0 8vw 2vw rgba(201, 162, 39, 0.15);
+  }
+}
+
+@keyframes dice-roll-mist-failure {
+  0% {
+    box-shadow: inset 0 0 0 rgba(45, 138, 78, 0);
+  }
+  40% {
+    box-shadow: inset 0 0 16vw 3vw rgba(45, 138, 78, 0.42);
+  }
+  100% {
+    box-shadow: inset 0 0 6vw 1.5vw rgba(185, 28, 28, 0.2);
+  }
+}
+
+.dice-roll-flash-critical {
+  animation: dice-roll-ember-flash 1.1s var(--dnd-ease-out-expo, ease-out) forwards;
+}
+
+.dice-roll-flash-failure {
+  animation: dice-roll-mist-failure 1.1s var(--dnd-ease-out-expo, ease-out) forwards;
+}
+
+/* Homebrew creator forms — tokens em design-system/tokens.css */
+@layer components {
+  .hb-form :is(input:not([type='checkbox']):not([type='radio']), select, textarea):not([class*='w-16']):not([class*='w-20']):not([class*='w-24']) {
+    @apply min-h-[44px] w-full rounded-md px-4 py-2 font-ui text-base focus:outline-none focus:ring-2;
+    background-color: var(--dnd-obsidian-raised) !important;
+    color: var(--dnd-parchment) !important;
+    -webkit-text-fill-color: var(--dnd-parchment);
+    border: 1px solid color-mix(in srgb, var(--dnd-gold) 40%, transparent) !important;
+  }
+  .hb-form :is(input, select, textarea)::placeholder {
+    color: color-mix(in srgb, var(--dnd-parchment-muted) 85%, transparent);
+    opacity: 1;
+  }
+  .hb-form :is(input:not([type='checkbox']):not([type='radio']), select, textarea):focus {
+    border-color: color-mix(in srgb, var(--dnd-gold) 60%, transparent) !important;
+    --tw-ring-color: color-mix(in srgb, var(--dnd-gold) 35%, transparent);
+  }
+  .hb-form select {
+    color-scheme: dark;
+  }
+  .hb-form select option {
+    background-color: var(--dnd-obsidian-raised);
+    color: var(--dnd-parchment);
+  }
+
+  /* Pré-visualização homebrew (ExampleViewer dentro do tema v2) */
+  .homebrew-preview {
+    color: var(--dnd-parchment);
+  }
+  .homebrew-preview h3,
+  .homebrew-preview h4,
+  .homebrew-preview h5 {
+    color: var(--dnd-parchment);
+  }
+  .homebrew-preview .text-amber-300,
+  .homebrew-preview .text-amber-200 {
+    color: var(--dnd-gold);
+  }
+  .homebrew-preview .text-stone-200,
+  .homebrew-preview .text-stone-300 {
+    color: var(--dnd-parchment-muted);
+  }
+  .homebrew-preview .text-stone-400 {
+    color: color-mix(in srgb, var(--dnd-parchment-muted) 85%, transparent);
+  }
+  .homebrew-preview .border-stone-700\/60,
+  .homebrew-preview .border-stone-700 {
+    border-color: color-mix(in srgb, var(--dnd-gold) 15%, transparent);
+  }
+  .homebrew-preview .bg-stone-800 {
+    background-color: var(--dnd-obsidian-raised);
+  }
+  .homebrew-preview ul {
+    margin-top: 0.25rem;
+  }
+  .homebrew-preview li {
+    color: var(--dnd-parchment-muted);
+  }
+  .hb-form input[type='checkbox'] {
+    @apply h-4 w-4 rounded bg-dnd-obsidian-raised text-dnd-gold;
+    border: 1px solid color-mix(in srgb, var(--dnd-gold) 40%, transparent);
+  }
+  .hb-form input[type='checkbox']:focus {
+    --tw-ring-color: color-mix(in srgb, var(--dnd-gold) 30%, transparent);
+  }
+
+  /* Auth / homebrew / primitivos — vence @tailwindcss/forms (fundo branco + texto claro) */
+  .dnd-input-field,
+  .dnd-field {
+    background-color: var(--dnd-obsidian-raised) !important;
+    color: var(--dnd-parchment) !important;
+    -webkit-text-fill-color: var(--dnd-parchment);
+    caret-color: var(--dnd-parchment);
+    border-color: color-mix(in srgb, var(--dnd-gold) 40%, transparent) !important;
+  }
+
+  select.dnd-field {
+    color-scheme: dark;
+  }
+
+  select.dnd-field option {
+    background-color: var(--dnd-obsidian-raised);
+    color: var(--dnd-parchment);
+  }
+
+  .dnd-input-field::placeholder,
+  .dnd-field::placeholder {
+    color: color-mix(in srgb, var(--dnd-parchment-muted) 85%, transparent);
+    opacity: 1;
+  }
+
+  .dnd-input-field:-webkit-autofill,
+  .dnd-input-field:-webkit-autofill:hover,
+  .dnd-input-field:-webkit-autofill:focus,
+  .dnd-field:-webkit-autofill,
+  .dnd-field:-webkit-autofill:hover,
+  .dnd-field:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--dnd-parchment) !important;
+    -webkit-box-shadow: 0 0 0 1000px var(--dnd-obsidian-raised) inset !important;
+    box-shadow: 0 0 0 1000px var(--dnd-obsidian-raised) inset !important;
+    border-color: color-mix(in srgb, var(--dnd-gold) 55%, transparent) !important;
+  }
+
 }

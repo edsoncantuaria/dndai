@@ -17,6 +17,8 @@ import type { StateDeltaContext } from '../services/characterStateService.js';
 import { applyEntityDeltaWithLog } from '../services/combatEntityService.js';
 import { resolveStructuredRoll } from '../services/ruleResolutionService.js';
 import { applyResultingStateDelta } from '../services/stateDeltaService.js';
+import { AppDataSource } from '../database/data-source.js';
+import { SessaoIA } from '../entities/SessaoIA.js';
 import { sanitizeRollValues, computeRawRollFromValues, buildRollResolutionPrompt } from './utils.js';
 import { logAppliedDelta } from '../services/deltaLogger.js';
 import { recordDamage, recordHealing, recordSpellSlotUse, recordRestMetric } from '../services/deltaMetricsService.js';
@@ -94,6 +96,14 @@ const clearActionTimer = (actionId: string) => {
         actionTimers.delete(actionId);
     }
 };
+
+/** Garante que o cliente saia do estado "narrando" mesmo em erro ou cancelamento. */
+const emitActionRelease = (ws: WebSocket, actionId: string | undefined) => {
+    if (!actionId) return;
+    clearActionTimer(actionId);
+    ws.send(JSON.stringify({ type: 'narrationComplete', payload: { actionId } }));
+    ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId } }));
+};
 const sessionStateVersions = new Map<number, number>();
 const getSessionStateVersion = (sessionId: number) => sessionStateVersions.get(sessionId) ?? 0;
 const bumpSessionStateVersion = async (sessionId: number) => {
@@ -117,6 +127,9 @@ const handleStructuredIntent = async ({
     ws,
     actionId,
     combatState,
+    apiKey,
+    prompt,
+    useAiHomebrew,
 }: {
     sessionId: number;
     userId: number;
@@ -124,6 +137,9 @@ const handleStructuredIntent = async ({
     ws: AuthenticatedWebSocket;
     actionId: string;
     combatState?: any;
+    apiKey?: string;
+    prompt?: string;
+    useAiHomebrew?: boolean;
 }): Promise<IntentHandlingResult> => {
     const { result } = await validateActionIntent(sessionId, userId, intent, { combatState });
 
@@ -132,48 +148,102 @@ const handleStructuredIntent = async ({
     }
 
     if (result.status === 'needs_roll' && result.rollRequest) {
-        const rollType = ACTION_INTENT_ROLL_TYPE_MAP[intent.type] ?? 'check';
         const mergedMetadata = {
             ...(result.rollRequest.metadata ?? {}),
             ...(result.data ?? {}),
             ...(result.stateDelta?.pendingAttack ? { pendingAttack: result.stateDelta.pendingAttack } : {}),
+            playerAction: prompt?.slice(0, 300) ?? '',
         };
-        const playerRollRequest = convertRollRequestToPlayerRoll(result.rollRequest, {
-            rollType,
-            reasonPrefix: 'Motor de Regras',
-            metadata: mergedMetadata,
-        });
+        const { ruleResultToPlayerRoll, completeRollAndNarrate, isDmAutoRollEnabled, issuePendingRollToPlayer } =
+            await import('../services/dm/dmTurnOrchestrator.js');
+        const playerRollRequest = ruleResultToPlayerRoll(intent, result);
+        if (!playerRollRequest) {
+            throw createError(500, 'Falha ao montar rolagem.');
+        }
         const requestId = uuidv4();
         playerRollRequest.requestId = requestId;
-        playerRollRequest.metadata = {
-            ...(playerRollRequest.metadata ?? {}),
+
+        if (isDmAutoRollEnabled() && apiKey?.trim()) {
+            ws.send(
+                JSON.stringify({
+                    type: 'narrationLoading',
+                    payload: { actionId, receivedAt: new Date().toISOString() },
+                })
+            );
+            startActionTimer(ws, actionId);
+            const response = await completeRollAndNarrate({
+                sessionId,
+                userId,
+                apiKey,
+                playerAction: prompt?.trim() || playerRollRequest.reason,
+                rollRequest: playerRollRequest,
+                combatState: combatState ?? null,
+                useAiHomebrew,
+                actionId,
+                intentType: intent.type,
+                intentPayload: intent.payload,
+                metadata: mergedMetadata,
+            });
+            const newVersion = await bumpSessionStateVersion(sessionId);
+            ws.send(
+                JSON.stringify({
+                    type: 'actionResolution',
+                    payload: {
+                        actionId,
+                        stateVersion: newVersion,
+                        status: 'accepted',
+                        rule: intent.type,
+                        autoRoll: true,
+                        result: response,
+                    },
+                })
+            );
+            ws.send(
+                JSON.stringify({
+                    type: 'gameStateUpdate',
+                    payload: { ...response, stateVersion: newVersion },
+                })
+            );
+            emitActionRelease(ws, actionId);
+            return 'handled';
+        }
+
+        const rollResponse = await issuePendingRollToPlayer({
+            sessionId,
+            userId,
+            rollRequest: playerRollRequest,
+            actionId,
+            intentType: intent.type,
+            intentPayload: intent.payload,
+            metadata: mergedMetadata,
+            playerAction: prompt?.trim(),
+        });
+        const issuedRoll = rollResponse.playerRollRequest ?? playerRollRequest;
+        issuedRoll.metadata = {
+            ...(issuedRoll.metadata ?? {}),
             actionId,
             intentType: intent.type,
             issuedAt: new Date().toISOString(),
         };
-        await savePendingRollRequest(sessionId, userId, {
-            ...playerRollRequest,
-            requestId,
-        }, {
-            actionId,
-            intentType: intent.type,
-            intentPayload: intent.payload,
-            metadata: result.data ?? undefined,
-        });
+
         const currentVersion = await getSessionStateVersion(sessionId);
         ws.send(
             JSON.stringify({
                 type: 'gameStateUpdate',
-                payload: { playerRollRequest, stateVersion: currentVersion },
+                payload: {
+                    ...rollResponse,
+                    playerRollRequest: issuedRoll,
+                    stateVersion: currentVersion,
+                },
             })
         );
         ws.send(
             JSON.stringify({
                 type: 'startLoading',
-                payload: { actionId: requestId, receivedAt: new Date().toISOString() },
+                payload: { actionId: issuedRoll.requestId ?? requestId, receivedAt: new Date().toISOString() },
             })
         );
-        startActionTimer(ws, requestId);
+        startActionTimer(ws, issuedRoll.requestId ?? requestId);
         ws.send(
             JSON.stringify({
                 type: 'actionResolution',
@@ -182,7 +252,7 @@ const handleStructuredIntent = async ({
                     stateVersion: getSessionStateVersion(sessionId),
                     status: 'needs_roll',
                     rule: intent.type,
-                    rollRequest: playerRollRequest,
+                    rollRequest: issuedRoll,
                 },
             })
         );
@@ -442,6 +512,9 @@ export function configureWebSocket(httpServer: Server) {
                                 ws,
                                 actionId: resolvedActionId,
                                 combatState,
+                                apiKey,
+                                prompt,
+                                useAiHomebrew,
                             });
                             logActionFlow('processAction:handleStructuredIntent:result', {
                                 sessionId,
@@ -461,16 +534,18 @@ export function configureWebSocket(httpServer: Server) {
                         await recordPhase('AI_SYNTHESIS');
                         ws.send(JSON.stringify({ type: 'narrationLoading', payload: { actionId: resolvedActionId } }));
                         activeActions.add(resolvedActionId);
-                        const response = await NarrarService.processPlayerTurn(
+                        const { processFreeActionWithDmFlow } = await import(
+                            '../services/dm/dmTurnOrchestrator.js'
+                        );
+                        const response = await processFreeActionWithDmFlow({
                             sessionId,
-                            ws.userId,
-                            prompt,
+                            userId: ws.userId,
+                            playerAction: prompt,
                             apiKey,
                             combatState,
                             useAiHomebrew,
-                            undefined,
-                            resolvedActionId
-                        );
+                            actionId: resolvedActionId,
+                        });
                         logActionFlow('processAction:aiResponse', {
                             sessionId,
                             actionId: resolvedActionId,
@@ -490,6 +565,7 @@ export function configureWebSocket(httpServer: Server) {
                                 sessionId,
                                 actionId: resolvedActionId,
                             });
+                            emitActionRelease(ws, resolvedActionId);
                         } else {
                             ws.send(JSON.stringify({
                                 type: 'actionResolution',
@@ -506,6 +582,7 @@ export function configureWebSocket(httpServer: Server) {
                         await recordPhase('DELTA_APPLIED');
                     } catch (error: any) {
                         console.error('[WSS] Erro ao processar ação:', error);
+                        emitActionRelease(ws, resolvedActionId);
                         ws.send(JSON.stringify({
                             type: 'error',
                             payload: {
@@ -516,6 +593,7 @@ export function configureWebSocket(httpServer: Server) {
                         }));
                     } finally {
                         if (resolvedActionId) {
+                            emitActionRelease(ws, resolvedActionId);
                             activeActions.delete(resolvedActionId);
                             logActionFlow('processAction:finalized', {
                                 actionId: resolvedActionId,
@@ -714,17 +792,22 @@ export function configureWebSocket(httpServer: Server) {
 
                         let response;
                         try {
-                            response = await NarrarService.processPlayerTurn(
+                            const { completeManualRollAndNarrate } = await import(
+                                '../services/dm/dmTurnOrchestrator.js'
+                            );
+                            response = await completeManualRollAndNarrate({
                                 sessionId,
-                                ws.userId,
-                                actionText,
+                                userId: ws.userId,
                                 apiKey,
+                                pending,
+                                diceValues,
                                 combatState,
                                 useAiHomebrew,
-                                resolutionResult?.hints,
-                                requestId
-                            );
-                            await clearPendingRollRequest(sessionId);
+                                resolutionResult,
+                            });
+                            if (!resolutionResult?.nextRollRequest) {
+                                await clearPendingRollRequest(sessionId);
+                            }
                             const newStateVersion = stateVersionAfterResolution === serverStateVersion
                                 ? await bumpSessionStateVersion(sessionId)
                                 : stateVersionAfterResolution;
@@ -734,6 +817,60 @@ export function configureWebSocket(httpServer: Server) {
                                 updatedCharacter: resolutionResult?.updatedCharacter ?? undefined,
                                 updatedEntities: resolutionResult?.updatedEntity ? [resolutionResult.updatedEntity] : undefined,
                             };
+                            try {
+                                const sessaoRepo = AppDataSource.getRepository(SessaoIA);
+                                const sessaoRow = await sessaoRepo.findOne({
+                                    where: { id: sessionId },
+                                    select: ['id', 'characterId'],
+                                });
+                                const { applyMotorPostRollEffects } = await import(
+                                    '../services/motorPostRollService.js'
+                                );
+                                const postRoll = await applyMotorPostRollEffects({
+                                    sessionId,
+                                    pending,
+                                    total,
+                                    resolutionResult,
+                                    combatState,
+                                });
+                                const motorSync = postRoll.motorCombat;
+                                if (motorSync?.publicState !== undefined) {
+                                    enrichedResponse.combatState = motorSync.publicState as typeof enrichedResponse.combatState;
+                                }
+                                if (motorSync?.rewards?.lootOffer) {
+                                    enrichedResponse.lootOffer = motorSync.rewards.lootOffer;
+                                }
+                                if (postRoll.skillXp?.xpAwarded) {
+                                    enrichedResponse.progressionFeed = [
+                                        ...(Array.isArray(enrichedResponse.progressionFeed)
+                                            ? enrichedResponse.progressionFeed
+                                            : []),
+                                        {
+                                            type: 'xp_gain',
+                                            xp: postRoll.skillXp.xpAwarded,
+                                            summary: `+${postRoll.skillXp.xpAwarded} XP — teste bem-sucedido`,
+                                            source: 'motor-skill',
+                                        },
+                                    ];
+                                }
+                                if (!motorSync) {
+                                    const { postMotorCombatSync } = await import(
+                                        '../services/combatMotorService.js'
+                                    );
+                                    const fallbackSync = await postMotorCombatSync(sessionId, {
+                                        clientCombat: combatState ?? undefined,
+                                        characterId: sessaoRow?.characterId ?? undefined,
+                                    });
+                                    if (fallbackSync?.publicState !== undefined) {
+                                        enrichedResponse.combatState = fallbackSync.publicState;
+                                    }
+                                    if (fallbackSync?.rewards?.lootOffer) {
+                                        enrichedResponse.lootOffer = fallbackSync.rewards.lootOffer;
+                                    }
+                                }
+                            } catch (motorSyncError) {
+                                console.warn('[WSS] motor pós-rolagem falhou:', motorSyncError);
+                            }
                             ws.send(JSON.stringify({
                                 type: 'actionResolution',
                                 payload: {
@@ -750,8 +887,7 @@ export function configureWebSocket(httpServer: Server) {
                             }));
                             ws.send(JSON.stringify({ type: 'gameStateUpdate', payload: enrichedResponse }));
                         } finally {
-                            clearActionTimer(requestId);
-                            ws.send(JSON.stringify({ type: 'stopLoading', payload: { actionId: requestId } }));
+                            emitActionRelease(ws, requestId);
                             logActionFlow('roll:submit:completed', {
                                 sessionId,
                                 requestId,
@@ -761,7 +897,8 @@ export function configureWebSocket(httpServer: Server) {
                         }
                     } catch (error: any) {
                         console.error('[WSS] Erro ao enviar resultado de rolagem:', error);
-                        ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Falha ao registrar resultado da rolagem.' } }));
+                        emitActionRelease(ws, requestId);
+                        ws.send(JSON.stringify({ type: 'error', payload: { message: error.message || 'Falha ao registrar resultado da rolagem.', actionId: requestId } }));
                     }
                     break;
 

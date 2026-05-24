@@ -299,6 +299,7 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
             apiKey: true,
             stateVersion: true,
             homebrewContentIds: true,
+            pendingLootOffer: true,
             createdAt: true,
             updatedAt: true,
         },
@@ -329,11 +330,23 @@ export const getSessaoDetails = async (sessionId: number, userId?: number) => {
     });
     await hydrateLogResponses(logs);
 
+    const { loadCombatEncounterState, projectPublicCombatState } = await import('./combatStateService.js');
+    const { getMotorShopSnapshot } = await import('./shopMotorService.js');
+    const loadedCombat = await loadCombatEncounterState(sessao.id);
+    const combatState = projectPublicCombatState(loadedCombat.state);
+    const shopState =
+        characterPayload?.id && !combatState?.isActive
+            ? await getMotorShopSnapshot(characterPayload.id)
+            : null;
+
     const safePayload = {
         ...sessao,
         stateVersion: sessao.stateVersion ?? 0,
         character: characterPayload,
         logs,
+        combatState,
+        shopState,
+        pendingLootOffer: sessao.pendingLootOffer ?? null,
     } as any;
     delete safePayload.apiKey;
     return safePayload;

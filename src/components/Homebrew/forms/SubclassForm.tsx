@@ -7,6 +7,7 @@ import { Loader2, Plus, Trash2, Edit } from 'lucide-react';
 import type { ApiListItem } from '@/types';
 import FeatureCreator from './FeatureCreator';
 import { useAuth } from '@/contexts/AuthContext';
+import { hb, hbChipClass, hbTileClass } from '@/features/homebrew/forms/formUi';
 
 interface Props {
     onDataChange: (data: any) => void;
@@ -147,58 +148,58 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
     }
 
     return (
-        <div className="space-y-6">
+        <div className={hb.root}>
              <div>
-                <label htmlFor="subclass-name" className="block text-sm font-medium text-stone-300 mb-1">Nome da Subclasse</label>
-                <input id="subclass-name" type="text" value={subclassData.name} onChange={e => handleFieldChange('name', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Mestre de Batalha, Ladrão Arcano"/>
+                <label htmlFor="subclass-name" className={hb.label}>Nome da Subclasse</label>
+                <input id="subclass-name" type="text" value={subclassData.name} onChange={e => handleFieldChange('name', e.target.value)} required className={hb.control} placeholder="Ex: Mestre de Batalha, Ladrão Arcano"/>
             </div>
             {user?.id === 1 && (
                 <div>
-                    <label htmlFor="official_index" className="block text-sm font-medium text-stone-300 mb-1">Índice Oficial (para Sobrescrever/Traduzir)</label>
-                    <input id="official_index" type="text" value={subclassData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: champion (opcional)"/>
+                    <label htmlFor="official_index" className={hb.label}>Índice Oficial (para Sobrescrever/Traduzir)</label>
+                    <input id="official_index" type="text" value={subclassData.official_index} onChange={e => handleFieldChange('official_index', e.target.value)} className={hb.control} placeholder="Ex: champion (opcional)"/>
                 </div>
             )}
              <div>
-                <label htmlFor="subclass-flavor" className="block text-sm font-medium text-stone-300 mb-1">Nome do "Sabor" da Subclasse</label>
-                <input id="subclass-flavor" type="text" value={subclassData.subclass_flavor} onChange={e => handleFieldChange('subclass_flavor', e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Ex: Arquétipo Marcial, Tradição Arcana"/>
+                <label htmlFor="subclass-flavor" className={hb.label}>Nome do "Sabor" da Subclasse</label>
+                <input id="subclass-flavor" type="text" value={subclassData.subclass_flavor} onChange={e => handleFieldChange('subclass_flavor', e.target.value)} required className={hb.control} placeholder="Ex: Arquétipo Marcial, Tradição Arcana"/>
             </div>
             <div>
-                <label htmlFor="subclass-parent-class" className="block text-sm font-medium text-stone-300 mb-1">Classe Principal</label>
-                <select id="subclass-parent-class" value={subclassData.class.index} onChange={e => handleClassChange(e.target.value)} required className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200">
+                <label htmlFor="subclass-parent-class" className={hb.label}>Classe Principal</label>
+                <select id="subclass-parent-class" value={subclassData.class.index} onChange={e => handleClassChange(e.target.value)} required className={hb.control}>
                     <option value="" disabled>Selecione a classe principal...</option>
                     {classes.map(c => <option key={c.index} value={c.index}>{c.name}</option>)}
                 </select>
             </div>
             <div>
-                <label htmlFor="subclass-desc" className="block text-sm font-medium text-stone-300 mb-1">Descrição</label>
-                <textarea id="subclass-desc" value={subclassData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={3} className="w-full bg-stone-800 border-stone-700 rounded-md p-2 text-stone-200" placeholder="Descreva o conceito e o tema da subclasse."/>
+                <label htmlFor="subclass-desc" className={hb.label}>Descrição</label>
+                <textarea id="subclass-desc" value={subclassData.desc[0]} onChange={e => handleFieldChange('desc', [e.target.value])} required rows={3} className={hb.control} placeholder="Descreva o conceito e o tema da subclasse."/>
             </div>
             
             {/* Features Section */}
-             <div className="pt-4 border-t border-stone-700">
+             <div className={hb.dividerSection}>
                 <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-lg font-bold text-amber-300">Características de Subclasse</h4>
-                    <button type="button" onClick={openCreateModal} className="flex items-center gap-1.5 text-sm bg-amber-600/20 hover:bg-amber-600/40 text-amber-200 font-semibold py-1 px-2 rounded-md transition-colors">
+                    <h4 className={hb.heading}>Características de Subclasse</h4>
+                    <button type="button" onClick={openCreateModal} className={hb.btnAdd}>
                         <Plus className="h-4 w-4" /> Adicionar
                     </button>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {Object.keys(groupedFeatures).length > 0 ? (
                         Object.keys(groupedFeatures).map(level => (
                             <div key={level}>
-                                <h5 className="font-semibold text-stone-300 text-md border-b border-stone-600 pb-1 mb-2">{level}</h5>
+                                <h5 className={`${hb.sectionTitle} border-b border-dnd-gold/20 pb-1 mb-2`}>{level}</h5>
                                 <div className="space-y-2">
                                 {groupedFeatures[level].map((feature: any, index: number) => (
-                                    <div key={feature.index || index} className="bg-stone-800/60 p-3 rounded-md flex justify-between items-start">
+                                    <div key={feature.index || index} className={hb.rowBetween}>
                                         <div>
-                                            <p className="font-semibold text-stone-200">{feature.name}</p>
-                                            <p className="text-xs text-stone-400 mt-1">{feature.desc[0].substring(0, 100)}...</p>
+                                            <p className="font-ui text-sm font-semibold text-dnd-parchment">{feature.name}</p>
+                                            <p className="mt-1 font-ui text-xs text-dnd-parchment-muted">{feature.desc[0].substring(0, 100)}...</p>
                                         </div>
                                         <div className="flex flex-shrink-0 ml-2 gap-2">
                                             <button type="button" onClick={() => openEditModal(feature, subclassData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-blue-400 hover:text-blue-300">
                                                 <Edit className="h-4 w-4"/>
                                             </button>
-                                            <button type="button" onClick={() => handleRemoveFeature(subclassData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className="text-red-500 hover:text-red-400">
+                                            <button type="button" onClick={() => handleRemoveFeature(subclassData.features.findIndex(f => f.name === feature.name && f.level === feature.level))} className={hb.btnDanger}>
                                                 <Trash2 className="h-4 w-4"/>
                                             </button>
                                         </div>
@@ -208,7 +209,7 @@ const SubclassForm: React.FC<Props> = ({ onDataChange, initialData }) => {
                             </div>
                         ))
                     ) : (
-                        <p className="text-sm text-center italic text-stone-500 py-4">Nenhuma característica adicionada ainda.</p>
+                        <p className={hb.empty}>Nenhuma característica adicionada ainda.</p>
                     )}
                 </div>
              </div>

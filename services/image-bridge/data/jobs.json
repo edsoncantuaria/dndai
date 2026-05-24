@@ -1,0 +1,26 @@
+{
+  "jobs": {
+    "5b5f8283-7de5-4903-9890-d97430ebcd48": {
+      "id": "5b5f8283-7de5-4903-9890-d97430ebcd48",
+      "prompt": "taverna medieval dnd",
+      "filename": null,
+      "aspectRatio": "16:9",
+      "status": "pending",
+      "createdAt": "2026-05-24T22:28:45.127Z",
+      "completedAt": null,
+      "url": null,
+      "absolutePath": null
+    },
+    "750f6e3c-c1c5-4af2-a64d-02ec7797bc37": {
+      "id": "750f6e3c-c1c5-4af2-a64d-02ec7797bc37",
+      "prompt": "Teste Cursor Bridge: taverna medieval D&D, luz de velas, estilo pintura cinematográfica, sem texto",
+      "filename": "test-cursor-bridge.png",
+      "aspectRatio": "16:9",
+      "status": "pending",
+      "createdAt": "2026-05-24T22:43:30.860Z",
+      "completedAt": null,
+      "url": null,
+      "absolutePath": null
+    }
+  }
+}

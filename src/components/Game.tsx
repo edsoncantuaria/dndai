@@ -50,8 +50,9 @@ export default function Game({ onCharacterCreated, returnToMenu, gameStage }: Ga
     // Se o estágio é criando personagem, mostre o criador.
     if(gameStage === 'creating_character') {
       return (
-          <CharacterCreation 
-              onCharacterCreated={onCharacterCreated} 
+          <CharacterCreation
+              onCharacterCreated={onCharacterCreated}
+              onCancel={returnToMenu}
           />
       );
     }

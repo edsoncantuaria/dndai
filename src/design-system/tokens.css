@@ -1,0 +1,175 @@
+/**
+ * Crônicas de Aventuras — Design tokens (UI v2)
+ * Paleta inspirada no site oficial D&D (WotC): preto profundo, vermelho marca, ouro.
+ * @see https://www.dungeonsanddragons.com/
+ */
+
+:root {
+  /* Marca WotC-adjacent (sem assets protegidos) */
+  --dnd-ember: #e40712;
+  --dnd-ember-hover: #ff2430;
+  --dnd-ember-deep: #9b0610;
+  --dnd-ember-muted: rgba(228, 7, 18, 0.38);
+  --dnd-ember-glow: rgba(228, 7, 18, 0.55);
+  --dnd-gold: #d4af37;
+  --dnd-gold-bright: #f0d878;
+  --dnd-gold-dim: #7a6520;
+  --dnd-gold-glow: rgba(212, 175, 55, 0.5);
+  --dnd-obsidian: #050506;
+  --dnd-obsidian-raised: #121216;
+  --dnd-obsidian-glass: rgba(8, 8, 10, 0.88);
+  --dnd-parchment: #f7f0e3;
+  --dnd-parchment-muted: #b8a88c;
+  --dnd-mist: rgba(255, 255, 255, 0.07);
+  --dnd-mist-strong: rgba(255, 255, 255, 0.12);
+  --dnd-success: #2d8a4e;
+  --dnd-danger: #e40712;
+
+  /* Fundo cinematográfico (hero / body) */
+  --dnd-bg-cinematic:
+    radial-gradient(ellipse 130% 70% at 50% -25%, rgba(228, 7, 18, 0.28), transparent 58%),
+    radial-gradient(ellipse 55% 45% at 95% 85%, rgba(212, 175, 55, 0.1), transparent 50%),
+    radial-gradient(ellipse 40% 35% at 5% 60%, rgba(228, 7, 18, 0.08), transparent 45%),
+    linear-gradient(185deg, #030304 0%, #0a0a0c 42%, #0f0809 100%);
+
+  /* Tipografia */
+  --font-display: var(--font-cinzel), 'Cinzel Decorative', serif;
+  --font-narrative: var(--font-im-fell), 'IM Fell English', serif;
+  --font-ui: var(--font-inter), 'Inter', system-ui, sans-serif;
+
+  /* Espaçamento (escala 4px) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Raio */
+  --dnd-radius-sm: 0.375rem;
+  --dnd-radius-md: 0.5rem;
+  --dnd-radius-lg: 0.75rem;
+  --dnd-radius-xl: 1rem;
+
+  /* Sombras */
+  --dnd-shadow-card:
+    0 8px 32px rgba(0, 0, 0, 0.65),
+    0 0 0 1px rgba(212, 175, 55, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --dnd-shadow-elevated:
+    0 20px 50px rgba(0, 0, 0, 0.75),
+    0 0 40px -12px var(--dnd-ember-glow),
+    0 0 0 1px rgba(212, 175, 55, 0.22);
+  --dnd-shadow-hero:
+    0 32px 80px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px rgba(212, 175, 55, 0.18);
+
+  /* Motion */
+  --dnd-duration-ui: 200ms;
+  --dnd-duration-scene: 700ms;
+  --dnd-duration-scene-slow: 900ms;
+  --dnd-ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Layout */
+  --dnd-container-max: 1280px;
+  --dnd-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --dnd-safe-top: env(safe-area-inset-top, 0px);
+  --dnd-safe-left: env(safe-area-inset-left, 0px);
+  --dnd-safe-right: env(safe-area-inset-right, 0px);
+}
+
+/* Superfícies */
+.dnd-surface-glass {
+  background: var(--dnd-obsidian-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.dnd-border-gold {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--dnd-obsidian-raised), var(--dnd-obsidian-raised)) padding-box,
+    linear-gradient(135deg, var(--dnd-gold-dim), var(--dnd-gold-bright), var(--dnd-gold-dim)) border-box;
+}
+
+.dnd-text-gradient-gold {
+  background: linear-gradient(180deg, var(--dnd-gold-bright) 0%, var(--dnd-gold) 45%, var(--dnd-gold-dim) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Barra vermelha estilo WotC (seções / hero) */
+.dnd-brand-accent {
+  height: 3px;
+  width: 4.5rem;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--dnd-ember), var(--dnd-ember-hover));
+  box-shadow: 0 0 20px var(--dnd-ember-glow);
+}
+
+.dnd-brand-accent-wide {
+  height: 2px;
+  width: 100%;
+  max-width: 12rem;
+  background: linear-gradient(90deg, var(--dnd-ember), transparent);
+  opacity: 0.9;
+}
+
+/* Palco hero (landing / hub) */
+.dnd-hero-stage {
+  position: relative;
+  padding-bottom: 2rem;
+}
+
+.dnd-hero-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1px;
+  height: 2.5rem;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, var(--dnd-gold-dim), transparent);
+  opacity: 0.5;
+}
+
+/* Ruído sutil (film grain) */
+.dnd-film-grain {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Card hero cinematográfico */
+.dnd-hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid rgba(212, 175, 55, 0.18);
+  background:
+    linear-gradient(145deg, rgba(18, 18, 22, 0.95) 0%, rgba(8, 8, 10, 0.98) 100%);
+  box-shadow: var(--dnd-shadow-hero);
+}
+
+.dnd-hero-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 0%, rgba(228, 7, 18, 0.2), transparent 55%);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dnd-duration-ui: 0ms;
+    --dnd-duration-scene: 0ms;
+    --dnd-duration-scene-slow: 0ms;
+  }
+}

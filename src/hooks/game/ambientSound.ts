@@ -1,3 +1,4 @@
+/** Derivação de trilha por contexto de mundo/combate. Crossfade de playback: `@/lib/ambientSoundCrossfade`. IDs do hub: `@/lib/stageAmbientSound`. */
 import { ambientSounds } from '@/data/ambient-sounds';
 
 const normalizeText = (value: string) =>
