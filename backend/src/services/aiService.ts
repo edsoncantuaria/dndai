@@ -30,6 +30,10 @@ import { evaluateSemanticConsistency } from './semanticValidator.js';
 import { fetchScenarioExampleSnippet, recordScenarioExample } from './scenarioExampleService.js';
 import { recordFeedbackWarning } from './aiFeedbackService.js';
 import { trackWarningMetric } from './warningMetricsService.js';
+import { extractResponseText, parseGameMasterJson } from '../ai/responseParser.js';
+import { buildCompactPromptSections } from '../ai/promptSections.js';
+import { recordAiPipelineMetric } from '../ai/metrics.js';
+import { JSON_PARSE } from '../ai/constants.js';
 
 type GeminiMessage = Content;
 
@@ -121,7 +125,7 @@ const MAX_PROMPT_INVENTORY_ITEMS = 12;
 const MAX_PROMPT_PROFICIENCIES = 8;
 const MAX_PROMPT_RELATIONSHIPS = 6;
 const STORY_SO_FAR_CHAR_LIMIT = 800;
-const INCOMPLETE_END_FLAG = '[INCOMPLETE_END_FLAG]';
+const INCOMPLETE_END_FLAG = JSON_PARSE.incompleteFlag;
 const RESPONSE_SCHEMA_GLOBAL_ENABLED = true;
 const RESPONSE_SCHEMA_MODEL_BLOCKLIST: string[] = [];
 const RESPONSE_SCHEMA_MODEL_ALLOWLIST: string[] = [];
@@ -159,84 +163,6 @@ const parsePositiveIntEnv = (name: string, fallback: number): number => {
     return Math.floor(parsed);
 };
 const GAMEPLAY_DEFAULT_MAX_OUTPUT = parsePositiveIntEnv('AI_GAMEPLAY_MAX_OUTPUT', 4096);
-
-const extractResponseText = (response: any): string => {
-    if (!response) return '';
-
-    try {
-        const primary = typeof response.text === 'function' ? response.text() : response.text;
-        if (typeof primary === 'string' && primary.trim()) {
-            return primary.trim();
-        }
-    } catch (err) {
-        console.warn('[aiService] Falha ao ler response.text():', err);
-    }
-
-    const collectFromParts = (parts: any[] | undefined): string[] => {
-        if (!Array.isArray(parts) || !parts.length) return [];
-        const chunks: string[] = [];
-        for (const part of parts) {
-            if (typeof part === 'string') {
-                const trimmed = part.trim();
-                if (trimmed) chunks.push(trimmed);
-                continue;
-            }
-            if (!part || typeof part !== 'object') continue;
-            if (typeof part.text === 'string' && part.text.trim()) {
-                chunks.push(part.text.trim());
-                continue;
-            }
-            if (part.functionCall) {
-                const args = part.functionCall.args;
-                if (typeof args === 'string' && args.trim()) {
-                    chunks.push(args.trim());
-                    continue;
-                }
-                if (args && typeof args === 'object') {
-                    chunks.push(JSON.stringify(args));
-                    continue;
-                }
-            }
-            if (part.inlineData?.data) {
-                try {
-                    const decoded = Buffer.from(part.inlineData.data, 'base64').toString('utf8').trim();
-                    if (decoded) {
-                        chunks.push(decoded);
-                    }
-                } catch (decodeErr) {
-                    console.warn('[aiService] Falha ao decodificar inlineData:', decodeErr);
-                }
-            }
-        }
-        return chunks;
-    };
-
-    if (Array.isArray(response?.candidates)) {
-        const buffer: string[] = [];
-        for (const candidate of response.candidates) {
-            const parts = candidate?.content?.parts;
-            buffer.push(...collectFromParts(parts));
-            if (candidate?.finishReason === 'STOP' && buffer.length) break;
-        }
-        const fallback = buffer.join('').trim();
-        if (fallback) {
-            return fallback;
-        }
-    }
-
-    const promptFeedbackText = response?.promptFeedback?.blockReason
-        ? `{"error":"${response.promptFeedback.blockReason}","details":${JSON.stringify(response.promptFeedback)}}`
-        : '';
-    if (promptFeedbackText) {
-        return promptFeedbackText;
-    }
-
-    if (response?.cachedContent) {
-        return extractResponseText(response.cachedContent);
-    }
-
-    return '';
-};
 
 const cloneInput = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 
@@ -1622,11 +1548,12 @@ ${stateExampleSnippet}
         ? `HINTS_APLICADOS=\n${input.stateHints.map(hint => `- ${hint}`).join('\n')}\n`
         : '';
     const metadataSection = `${phaseLabel}\n${stateDiffHint}${gameClockNote}${currencyNote}${climateKeyword}${timeKeyword}${inventoryCondensedNote}${proficiencyCondensedNote}${relationshipCondensedNote}${storyCondensedNote}${summarySection}${timelineSection}${regionSection}${homebrewSection}${feedbackSection}${hintsSection}`;
+    const compactSections = buildCompactPromptSections(input);
     const safeGameLog = typeof gameLog === 'string' && gameLog.trim().length ? gameLog : 'SEM_EVENTOS';
 
     const mainPrompt = `Responda estritamente com JSON válido. Nenhuma explicação fora do objeto.
 
-${metadataSection ? `${metadataSection}\n` : ''}### CONTEXTO
+${metadataSection ? `${metadataSection}\n` : ''}${compactSections}\n\n### CONTEXTO
 ${safeGameLog}
 
 ### ESTADO DO MUNDO
@@ -2241,6 +2168,8 @@ const enforcePhaseCompliance = (
             logEntries: response.logEntries ?? [],
             actionOptions: response.actionOptions ?? [],
             systemLog: response.systemLog,
+            memoryContext: response.memoryContext,
+            newFacts: (response as any).newFacts,
         };
         const phaseCheck = NarrativePhaseResponseSchema.safeParse(candidate);
         if (!phaseCheck.success) {
@@ -2259,7 +2188,6 @@ const enforcePhaseCompliance = (
             'lootOffer',
             'useHitDiceRequest',
             'gameClock',
-            'memoryContext',
         ].filter(key => response[key as keyof GameMasterResponse] !== undefined);
         if (extraneousKeys.length) {
             notes.push(`Fase narrativa não deve enviar campos de estado (removidos: ${extraneousKeys.join(', ')}).`);
@@ -2267,6 +2195,12 @@ const enforcePhaseCompliance = (
         response.logEntries = phaseCheck.data.logEntries;
         response.actionOptions = phaseCheck.data.actionOptions;
         response.systemLog = phaseCheck.data.systemLog;
+        if (phaseCheck.data.memoryContext) {
+            response.memoryContext = phaseCheck.data.memoryContext;
+        }
+        if (phaseCheck.data.newFacts?.length) {
+            (response as any).newFacts = phaseCheck.data.newFacts;
+        }
         delete response.updatedCharacter;
         delete response.worldState;
         delete response.combatState;
@@ -2279,7 +2213,6 @@ const enforcePhaseCompliance = (
         delete response.lootOffer;
         delete response.useHitDiceRequest;
         delete response.gameClock;
-        delete response.memoryContext;
         delete (response as any)._meta;
     } else if (focus === 'state') {
         if (Array.isArray(response.logEntries) && response.logEntries.length) {
@@ -2785,113 +2718,59 @@ TRECHO_INCOMPLETO=${retryOptions.continuationRaw}`;
             let responseData: any;
             let recoveryStrategyUsed: string | null = null;
             let shouldRetryAfterRepair = false;
-            try {
-                let textToParse = stripCodeFences(jsonText.trim());
-                if (!textToParse.startsWith('{') && !textToParse.startsWith('[')) {
-                    const jsonMatch = textToParse.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        textToParse = jsonMatch[0];
-                    }
-                }
-                responseData = JSON.parse(textToParse);
-            } catch(e: any) {
-                console.error(`[aiService] Falha ao analisar o JSON na tentativa ${isRetry ? 2 : 1}:`, e);
-                let repairedData: any = null;
-                const softTail = softTailRepair(jsonText);
-                if (softTail && softTail.length && softTail !== jsonText.trim()) {
-                    try {
-                        repairedData = JSON.parse(softTail);
-                        console.warn('[aiService] softTailRepair conseguiu reconstruir a resposta inválida.');
-                        recoveryStrategyUsed = 'soft-tail';
-                        registerRecoveryStrategy('soft-tail');
-                        shouldRetryAfterRepair = true;
-                    } catch (softError: any) {
-                        console.error('[aiService] softTailRepair falhou ao gerar JSON válido:', softError);
-                    }
-                }
 
-                const structurallyRepairedText = attemptJsonRepair(jsonText);
-                if (!repairedData && structurallyRepairedText) {
-                    try {
-                        repairedData = JSON.parse(structurallyRepairedText);
-                        console.warn('[aiService] attemptJsonRepair conseguiu reconstruir a resposta inválida.');
-                        recoveryStrategyUsed = 'structure-repair';
-                        registerRecoveryStrategy('structure-repair');
-                        shouldRetryAfterRepair = true;
-                    } catch (repairParseError: any) {
-                        console.error('[aiService] attemptJsonRepair falhou ao gerar JSON válido:', repairParseError);
-                    }
+            const parsedJson = parseGameMasterJson(jsonText);
+            if (parsedJson.ok && parsedJson.data && typeof parsedJson.data === 'object') {
+                responseData = parsedJson.data;
+                if (parsedJson.strategy && parsedJson.strategy !== 'direct') {
+                    recoveryStrategyUsed = parsedJson.strategy;
+                    registerRecoveryStrategy(parsedJson.strategy);
+                    shouldRetryAfterRepair = true;
+                    void recordAiPipelineMetric({
+                        sessionId,
+                        phase: (input.responseFocus ?? 'full') as 'narrative' | 'state' | 'full',
+                        model: activeModelName,
+                        latencyMs: 0,
+                        repairStrategy: parsedJson.strategy,
+                        success: true,
+                    });
                 }
-
-                if (!repairedData) {
-                    const trimmed = trimAfterLastClosingBracket(jsonText);
-                    if (trimmed && trimmed.length < jsonText.length) {
-                        try {
-                            repairedData = JSON.parse(trimmed);
-                            console.warn('[aiService] truncou fragmento final incompleto e conseguiu analisar o JSON.');
-                            recoveryStrategyUsed = 'trim-after-last-bracket';
-                            registerRecoveryStrategy('trim-after-last-bracket');
-                            shouldRetryAfterRepair = true;
-                        } catch (trimError: any) {
-                            console.error('[aiService] Falha ao analisar JSON mesmo após truncar fragmento:', trimError);
-                        }
-                    }
-                }
-
-                if (!repairedData) {
-                    try {
-                        repairedData = JSON5.parse(jsonText);
-                        console.warn('[aiService] JSON5 reparou a resposta parcialmente inválida.');
-                        recoveryStrategyUsed = 'json5';
-                        registerRecoveryStrategy('json5');
+            } else {
+                console.error(`[aiService] Falha ao analisar JSON na tentativa ${attemptIndex + 1}:`, parsedJson.error);
+                let repairedData: unknown = null;
+                try {
+                    repairedData = JSON5.parse(jsonText);
+                    responseData = repairedData;
+                    recoveryStrategyUsed = 'json5';
+                    registerRecoveryStrategy('json5');
+                    shouldRetryAfterRepair = true;
+                } catch {
+                    const mirrored = await attemptSemanticMirrorRecovery(jsonText, modelAdapter, systemInstructionContent);
+                    if (mirrored) {
+                        responseData = mirrored;
+                        recoveryStrategyUsed = 'semantic-mirror';
+                        registerRecoveryStrategy('semantic-mirror');
                         shouldRetryAfterRepair = true;
-                    } catch (json5Error: any) {
-                        console.error('[aiService] JSON5 também falhou ao interpretar a resposta:', json5Error);
-                        console.warn('[aiService] Aplicando recuperação reflexiva antes do fallback.');
-                        const mirrored = await attemptSemanticMirrorRecovery(jsonText, modelAdapter, systemInstructionContent);
-                        if (mirrored) {
-                            responseData = mirrored;
-                            recoveryStrategyUsed = 'semantic-mirror';
-                            registerRecoveryStrategy('semantic-mirror');
-                            shouldRetryAfterRepair = true;
+                    } else {
+                        const semantic = reconstructSemanticIntent(jsonText, input);
+                        if (semantic) {
+                            responseData = semantic;
+                            recoveryStrategyUsed = 'semantic-recovery';
+                            registerRecoveryStrategy('semantic-recovery');
                         } else {
                             responseData = gmValidatorFallbackFromRawResponse(
                                 jsonText,
-                                e?.message ?? 'Resposta em formato inválido',
+                                parsedJson.error ?? 'Resposta em formato inválido',
                                 input,
-                                { attempt: attemptIndex + 1 }
+                                { attempt: attemptIndex + 1 },
                             );
                             registerRecoveryStrategy('gm-validator-fallback');
                         }
                     }
                 }
-                if (!responseData) {
-                    responseData = repairedData;
-                }
-                if ((!responseData || typeof responseData !== 'object') && jsonText) {
-                    const semantic = reconstructSemanticIntent(jsonText, input);
-                    if (semantic) {
-                        responseData = semantic;
-                        recoveryStrategyUsed = 'semantic-recovery';
-                        registerRecoveryStrategy('semantic-recovery');
-                        shouldRetryAfterRepair = false;
-                        console.warn('[aiService] semantic recovery reconstruiu uma resposta coerente a partir do texto bruto.');
-                    }
-                }
-                if (!responseData) {
-                    if (attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
-                        console.warn('[aiService] Resposta sem JSON válido; solicitando nova tentativa antes do fallback.');
-                        registerRecoveryStrategy('non-json-retry');
-                        return attemptGeneration(attemptIndex + 1, retryOptions);
-                    }
-                    console.warn('[aiService] GM Validator fallback acionado após falha generalizada de parsing.');
-                    responseData = gmValidatorFallbackFromRawResponse(
-                        jsonText,
-                        e?.message ?? 'Resposta em formato inválido',
-                        input,
-                        { attempt: attemptIndex + 1 }
-                    );
-                    registerRecoveryStrategy('gm-validator-fallback');
+                if (!responseData && attemptIndex + 1 < MAX_MODEL_ATTEMPTS) {
+                    registerRecoveryStrategy('non-json-retry');
+                    return attemptGeneration(attemptIndex + 1, retryOptions);
                 }
             }
 

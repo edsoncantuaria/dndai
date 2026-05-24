@@ -2,9 +2,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/authMiddleware.js';
 import * as HomebrewService from '../services/homebrewService.js';
-import { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
+import { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema, CreateFromSrdSchema, ImportBundleSchema } from '../schemas/validationSchemas.js';
 import { HomebrewContentType } from '../entities/HomebrewContent.js';
 import createError from 'http-errors';
+import * as SrdApi from '../services/srdApiAdapter.js';
+import { HOMEBREW_TYPE_TO_SRD_RESOURCE } from '../types/homebrewSource.js';
 
 // Criar um novo conteúdo homebrew
 export const createContent = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -213,6 +215,91 @@ export const getBundleContents = async (req: Request, res: Response, next: NextF
         const contents = await HomebrewService.getContentsOfBundle(id);
         res.status(200).json(contents);
     } catch (error) {
+        next(error);
+    }
+};
+
+export const exportBundleManifest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+    try {
+        const manifest = await HomebrewService.exportBundle(id, req.user?.userId);
+        res.status(200).json(manifest);
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const importBundleManifest = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+    try {
+        const validated = ImportBundleSchema.parse(req.body);
+        const result = await HomebrewService.importBundle(userId, validated);
+        res.status(201).json({
+            message: 'Pacote importado com sucesso!',
+            bundle: result.bundle,
+            contentCount: result.contents.length,
+        });
+    } catch (error: any) {
+        if (error.name === 'ZodError') {
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
+        next(error);
+    }
+};
+
+/** Mapa tipo homebrew → recurso SRD (5e-srd-api). */
+export const getSrdTypeMap = async (_req: Request, res: Response) => {
+    res.status(200).json({
+        map: HOMEBREW_TYPE_TO_SRD_RESOURCE,
+        apiVersion: '2014',
+    });
+};
+
+/** Lista recursos oficiais para picker (traduzir / fork). */
+export const listSrdResource = async (req: Request, res: Response, next: NextFunction) => {
+    const { resource } = req.params;
+    try {
+        const data = await SrdApi.list(resource);
+        if (!data?.results?.length) {
+            return next(createError(404, `Coleção SRD "${resource}" não encontrada ou vazia.`));
+        }
+        res.status(200).json(data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** Detalhe oficial para base de tradução/fork. */
+export const getSrdResourceDetail = async (req: Request, res: Response, next: NextFunction) => {
+    const { resource, index } = req.params;
+    try {
+        const data = await SrdApi.get(resource, index);
+        if (!data || (typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0)) {
+            return next(createError(404, `${resource}/${index} não encontrado no SRD.`));
+        }
+        res.status(200).json(data);
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** Cria homebrew derivado do SRD (tradução ou fork). */
+export const createFromSrd = async (req: AuthRequest, res: Response, next: NextFunction) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+        return next(createError(401, 'Usuário não autenticado.'));
+    }
+    try {
+        const validated = CreateFromSrdSchema.parse(req.body);
+        const content = await HomebrewService.createHomebrewFromSrd(userId, validated);
+        res.status(201).json({ message: 'Conteúdo derivado do SRD criado!', content });
+    } catch (error: any) {
+        if (error.name === 'ZodError') {
+            return next(createError(400, { errors: error.flatten().fieldErrors }));
+        }
         next(error);
     }
 };

@@ -1,0 +1,30 @@
+# Stack local do fork 5e-srd-api (./5e-srd-api)
+# Uso: docker compose -f docker-compose.srd.yml up -d --build
+#
+# API: http://localhost:3000/api/2014
+# Configure no backend: SRD_API_BASE=http://localhost:3000/api/2014
+
+services:
+  srd-db:
+    image: ghcr.io/5e-bits/5e-database:latest
+    ports:
+      - '27018:27017'
+    restart: unless-stopped
+
+  srd-cache:
+    image: redis:6.2.5
+    ports:
+      - '6380:6379'
+    restart: unless-stopped
+
+  srd-api:
+    build: ./5e-srd-api
+    environment:
+      MONGODB_URI: mongodb://srd-db/5e-database
+      REDIS_URL: redis://srd-cache:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      - srd-db
+      - srd-cache
+    restart: unless-stopped

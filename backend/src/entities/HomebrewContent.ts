@@ -5,6 +5,8 @@ import { HomebrewBundle } from './HomebrewBundle.js'; // Importar Bundle
 
 export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat' | 'skill' | 'translation';
 
+export type HomebrewSourceKind = 'original' | 'translation' | 'fork';
+
 @Entity('homebrew_content')
 export class HomebrewContent {
     @PrimaryGeneratedColumn('uuid')
@@ -50,6 +52,25 @@ export class HomebrewContent {
     
     @Column({ type: 'varchar', length: 36, nullable: true })
     bundleId: string | null;
+
+    /** original = conteúdo novo; translation = overlay PT sobre SRD; fork = variante derivada. */
+    @Column({
+        type: 'enum',
+        enum: ['original', 'translation', 'fork'],
+        default: 'original',
+    })
+    sourceKind: HomebrewSourceKind;
+
+    /** Coleção SRD (spells, races, equipment…). */
+    @Column({ type: 'varchar', length: 64, nullable: true })
+    sourceResource: string | null;
+
+    /** Índice oficial no SRD (ex: fireball). */
+    @Column({ type: 'varchar', length: 128, nullable: true })
+    sourceIndex: string | null;
+
+    @Column({ type: 'varchar', length: 16, default: 'pt-BR' })
+    locale: string;
 
     @CreateDateColumn()
     createdAt: Date;

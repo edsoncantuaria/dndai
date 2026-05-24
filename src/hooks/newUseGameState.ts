@@ -16,6 +16,9 @@ import { initializeWebSocket, sendMessage, addEventListener, removeEventListener
 import { translateAttribute } from '@/utils/translator';
 import { ambientSounds } from '@/data/ambient-sounds';
 
+const CLIENT_ACTION_TIMEOUT_MS =
+    Number(process.env.NEXT_PUBLIC_ACTION_TIMEOUT_MS) || 120_000;
+
 const buildItemKey = (item?: InventoryItem) => {
     if (!item) return null;
     const raw = item.id ?? item.index ?? item.name;
@@ -839,6 +842,25 @@ export const useNewGameState = () => {
         addEventListener('error', handleError);
         addEventListener('startLoading', handleStartLoading);
         addEventListener('stopLoading', handleStopLoading);
+        const handleNarrationLoading = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                pendingActionsRef.current.add(payload.actionId);
+                actionPhaseActionIdRef.current = payload.actionId;
+            }
+            setActionPhaseLabel('O Mestre está narrando...');
+            setIsLoading(true);
+        };
+
+        const handleNarrationComplete = (payload?: { actionId?: string }) => {
+            if (payload?.actionId) {
+                clearPendingAction(payload.actionId);
+            }
+            if (pendingActionsRef.current.size === 0 && !interactionState.playerRollRequest) {
+                setActionPhaseLabel(null);
+                setIsLoading(false);
+            }
+        };
+
         const handleActionTimeout = (payload?: { actionId?: string }) => {
             if (!payload?.actionId) return;
             pendingActionsRef.current.delete(payload.actionId);
@@ -849,6 +871,8 @@ export const useNewGameState = () => {
             }
         };
         addEventListener('timeout', handleActionTimeout);
+        addEventListener('narrationLoading', handleNarrationLoading);
+        addEventListener('narrationComplete', handleNarrationComplete);
         addEventListener('actionAck', handleActionAck);
         addEventListener('actionResolution', handleActionResolution);
         addEventListener('connectionClosed', handleSocketClosed);
@@ -859,6 +883,8 @@ export const useNewGameState = () => {
             removeEventListener('startLoading', handleStartLoading);
             removeEventListener('stopLoading', handleStopLoading);
             removeEventListener('timeout', handleActionTimeout);
+            removeEventListener('narrationLoading', handleNarrationLoading);
+            removeEventListener('narrationComplete', handleNarrationComplete);
             removeEventListener('actionAck', handleActionAck);
             removeEventListener('actionResolution', handleActionResolution);
             removeEventListener('connectionClosed', handleSocketClosed);
@@ -924,7 +950,9 @@ export const useNewGameState = () => {
             actionCursor: actionCursorRef.current,
         });
         interactionState.setPendingStructuredIntent(null);
-        const timeout = setTimeout(() => {
+        pendingActionsRef.current.add(actionId);
+        setIsLoading(true);
+        const safetyTimeout = setTimeout(() => {
             actionTimeoutsRef.current.delete(actionId);
             if (pendingActionsRef.current.delete(actionId)) {
                 setIsLoading(pendingActionsRef.current.size > 0);
@@ -932,12 +960,12 @@ export const useNewGameState = () => {
                 toast({
                     variant: 'destructive',
                     title: 'Ação não confirmada',
-                    description: 'O motor não respondeu a tempo. Recarregando a sessão.',
+                    description: 'O Mestre demorou mais que o esperado. Recarregando a sessão para sincronizar.',
                 });
                 void loadGameSession(finalSessionId);
             }
-        }, 15000);
-        actionTimeoutsRef.current.set(actionId, timeout);
+        }, CLIENT_ACTION_TIMEOUT_MS);
+        actionTimeoutsRef.current.set(actionId, safetyTimeout);
         
     }, [sessionId, interactionState.combatState, getApiKey, logState, interactionState, model, character, useAiHomebrew, toast, loadGameSession]);
 

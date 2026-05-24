@@ -17,7 +17,6 @@ import { recordArtifactsForSession } from './artifactService.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
-import { getGameUpdate, type GameUpdateWarning } from './aiService.js';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
 import { getInventorySnapshotFromDb, hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
@@ -30,25 +29,30 @@ import {
     type LoadedCombatEncounter,
 } from './combatStateService.js';
 import { applyXpEvents, clampCharacterLevel } from './xpService.js';
-import { getStorySummary, recordTimelineEventAndSummarize, buildTimelineFacts, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
+import { recordTimelineEventAndSummarize, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
 import { offloadLargePayload } from './objectStorageService.js';
 import { synthesizeNarrationAudio } from './ttsService.js';
 import { generateSceneImage, isImageGenerationAvailable } from './imageGenerationService.js';
-import { recallSimilarMemories, storeMemory } from './vectorMemoryService.js';
-import type { MemoryPayload } from '../schemas/vectorSchemas.js';
+import { storeMemory } from './vectorMemoryService.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { runGmValidator } from './gmValidator.js';
 import { buildFeedbackHint } from './aiFeedbackService.js';
 import { savePendingRollRequest, clearPendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
 import { recordUnexpectedAiRoll } from './rollMetricsService.js';
 import * as RegionService from './regionService.js';
+import { incrementStateVersion } from './stateVersionService.js';
+import { runAiPhases } from '../narration/phaseOrchestrator.js';
+import { resolvePipelineMode } from '../ai/constants.js';
+import { isMotorOwnedPipeline, stripMotorOwnedFields } from '../narration/motorStateBridge.js';
+import { validateByPhaseFocus } from '../ai/responseValidator.js';
+import { buildNarrationContext } from '../narration/contextBuilder.js';
+import { persistValidatedFacts } from './sessionFactService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
 const MAX_PROMPT_LOG_ENTRIES = 12;
 const MAX_PROMPT_ENTRY_CHARS = 320;
 const LOG_STORAGE_THRESHOLD = 1800;
-const MAX_MEMORY_LINES = 6;
 
 const truncateText = (value: string, limit = MAX_PROMPT_ENTRY_CHARS) => {
     if (!value) return '';
@@ -107,17 +111,6 @@ const prepareLogPayload = async (sessaoId: number, type: string, payload: unknow
     if (serialized.length < LOG_STORAGE_THRESHOLD) return serialized;
     const offloaded = await offloadLargePayload(serialized, { prefix: `sessions/${sessaoId}/${type}` });
     return offloaded ?? serialized;
-};
-
-const formatMemoriesForPrompt = (memories: MemoryPayload[]) => {
-    if (!memories.length) return '';
-    const lines = memories.slice(0, MAX_MEMORY_LINES).map(memory => {
-        const when = memory.timestamp ? new Date(memory.timestamp).toISOString() : 'recente';
-        const label = memory.name || memory.type || 'memória';
-        const summary = memory.summary || memory.text || '';
-        return `${when} | ${label}: ${summary}`;
-    });
-    return lines.join('\n');
 };
 
 const canonicalSlug = (value?: string | null) => {
@@ -473,188 +466,6 @@ const recalculatePlayerRollModifier = (
     }
 
     return modifier;
-};
-
-type RegionPromptContext = {
-    slug: string;
-    name: string;
-    type: string;
-    summary?: string | null;
-    breadcrumbs?: Array<{ slug: string; name: string }>;
-    neighbors?: Array<{
-        slug?: string;
-        name?: string;
-        travelMode: string;
-        travelTimeMinutes: number;
-        difficulty?: string | null;
-        isLocked: boolean;
-        isDiscovered?: boolean;
-    }>;
-    pointsOfInterest?: Array<{
-        slug: string;
-        name: string;
-        type: string;
-        summary?: string | null;
-        isLocked: boolean;
-    }>;
-    activePoi?: {
-        slug: string;
-        name: string;
-        type: string;
-        summary?: string | null;
-    } | null;
-    discoveredRoutes?: RegionPromptContext['neighbors'];
-    visitedRegions?: string[];
-};
-
-const resolveRegionContextForPrompt = async (
-    character: Character | null,
-    optimizedCharacter: any
-): Promise<RegionPromptContext | null> => {
-    const visitedRegionSet = new Set<string>();
-    const collectVisited = (source?: any) => {
-        if (!Array.isArray(source)) return;
-        for (const value of source) {
-            if (typeof value === 'string' && value.trim()) {
-                visitedRegionSet.add(canonicalSlug(value));
-            }
-        }
-    };
-    collectVisited(optimizedCharacter?.worldState?.visitedRegions);
-    collectVisited((character?.worldState as any)?.visitedRegions);
-
-    const labels: Array<string | null | undefined> = [
-        optimizedCharacter?.worldState?.regionSlug,
-        optimizedCharacter?.worldState?.currentRegion,
-        (character?.worldState as any)?.regionSlug,
-        character?.worldState?.currentRegion,
-    ];
-    const tried = new Set<string>();
-    for (const label of labels) {
-        if (!label) continue;
-        const normalized = label.toString().trim();
-        if (!normalized) continue;
-        const key = normalized.toLowerCase();
-        if (tried.has(key)) continue;
-        tried.add(key);
-        const resolved = await RegionService.resolveRegionByLabelOrSlug(normalized).catch(() => null);
-        if (!resolved) continue;
-        const payload = await RegionService.getRegionBySlug(resolved.slug).catch(() => null);
-        if (!payload) continue;
-        const breadcrumbs = await RegionService.getRegionBreadcrumbs(payload.slug).catch(() => []);
-        visitedRegionSet.add(canonicalSlug(payload.slug));
-        const poiCandidates: Array<string | null | undefined> = [
-            optimizedCharacter?.worldState?.poiSlug,
-            (character?.worldState as any)?.poiSlug,
-        ];
-        let activePoi: RegionPromptContext['activePoi'] = null;
-        for (const candidate of poiCandidates) {
-            const normalizedPoi = canonicalSlug(candidate);
-            if (!normalizedPoi) continue;
-            const match = payload.pointsOfInterest?.find(
-                poi => canonicalSlug(poi.slug) === normalizedPoi
-            );
-            if (match) {
-                activePoi = {
-                    slug: match.slug,
-                    name: match.name,
-                    type: match.type,
-                    summary: match.summary ?? null,
-                };
-                break;
-            }
-        }
-        const neighbors =
-            payload.neighbors?.map(neighbor => {
-                const slug = canonicalSlug(neighbor.targetRegionSlug);
-                return {
-                    slug: neighbor.targetRegionSlug,
-                    name: neighbor.targetRegionName,
-                    travelMode: neighbor.travelMode,
-                    travelTimeMinutes: neighbor.travelTimeMinutes,
-                    difficulty: neighbor.difficulty ?? null,
-                    isLocked: neighbor.isLocked,
-                    isDiscovered: slug ? visitedRegionSet.has(slug) : false,
-                };
-            }) ?? [];
-        const discoveredRoutes = neighbors.filter(neighbor => neighbor.isDiscovered);
-
-        return {
-            slug: payload.slug,
-            name: payload.name,
-            type: payload.type,
-            summary: payload.summary ?? payload.description ?? null,
-            breadcrumbs,
-            neighbors,
-            pointsOfInterest: payload.pointsOfInterest?.map(poi => ({
-                slug: poi.slug,
-                name: poi.name,
-                type: poi.type,
-                summary: poi.summary ?? null,
-                isLocked: poi.isLocked,
-            })),
-            activePoi,
-            discoveredRoutes,
-            visitedRegions: Array.from(visitedRegionSet),
-        };
-    }
-    return null;
-};
-
-const formatRegionGraphSummary = (context: RegionPromptContext): string => {
-    const lines: string[] = [];
-    const baseSummary = context.summary?.trim() || 'Sem resumo disponível.';
-    const breadcrumbLabel = context.breadcrumbs?.length
-        ? context.breadcrumbs.map(entry => entry.name).join(' > ')
-        : context.name;
-    lines.push(`Localização: ${breadcrumbLabel} [${context.slug}] (${context.type}) - ${baseSummary}`);
-
-    if (context.activePoi) {
-        const poiSummary = context.activePoi.summary ? ` - ${context.activePoi.summary}` : '';
-        lines.push(`Sublocal atual: ${context.activePoi.name} [${context.activePoi.slug}] (${context.activePoi.type})${poiSummary}`);
-    }
-
-    const discoveredRoutes = context.discoveredRoutes && context.discoveredRoutes.length
-        ? context.discoveredRoutes
-        : context.neighbors?.filter(neighbor => neighbor.isDiscovered);
-    if (discoveredRoutes && discoveredRoutes.length) {
-        const routes = discoveredRoutes.map(neighbor => {
-            const label = neighbor.name || neighbor.slug || 'Destino desconhecido';
-            const travelMode = neighbor.travelMode || 'deslocamento';
-            const travelTime = Number.isFinite(neighbor.travelTimeMinutes)
-                ? `${neighbor.travelTimeMinutes}min`
-                : 'tempo desconhecido';
-            const difficulty = neighbor.difficulty ? `, dificuldade ${neighbor.difficulty}` : '';
-            const locked = neighbor.isLocked ? ' [BLOQUEADA]' : '';
-            return `${label} (${travelMode}, ${travelTime}${difficulty})${locked}`;
-        });
-        lines.push(`Rotas descobertas: ${routes.join('; ')}`);
-    } else {
-        lines.push('Rotas descobertas: nenhuma. Desbrave novos caminhos para liberar deslocamentos seguros.');
-    }
-
-    const hiddenRoutes = context.neighbors?.filter(neighbor => !neighbor.isDiscovered);
-    if (hiddenRoutes && hiddenRoutes.length) {
-        const hidden = hiddenRoutes.map(neighbor => {
-            const label = neighbor.name || neighbor.slug || 'Destino desconhecido';
-            const locked = neighbor.isLocked ? ' (bloqueada)' : '';
-            return `${label}${locked}`;
-        });
-        lines.push(`Rotas ainda não exploradas: ${hidden.join('; ')}.`);
-    }
-
-    if (context.pointsOfInterest && context.pointsOfInterest.length) {
-        const pois = context.pointsOfInterest.map(poi => {
-            const locked = poi.isLocked ? ' (bloqueado)' : '';
-            return `${poi.name} [${poi.slug}]${locked}`;
-        });
-        lines.push(`Pontos de interesse: ${pois.join('; ')}`);
-    } else {
-        lines.push('Pontos de interesse: nenhum registrado.');
-    }
-
-    const uniqueLines = lines.filter((line, index) => lines.indexOf(line) === index);
-    return uniqueLines.slice(0, 12).join('\n');
 };
 
 const detectAiMode = (playerAction: string, combatState: SchemaCombatState | null | undefined, isInternalAction: boolean): AiInteractionMode => {
@@ -1182,27 +993,26 @@ export const processPlayerTurn = async (
     const chronologicalLogs = recentLogs.reverse();
     const compactGameLog = buildPromptLogString(chronologicalLogs) || 'SEM_EVENTOS';
 
-    let semanticMemoryDigest = '';
-    if (!isTestRun && sessao) {
-        try {
-            const memories = await recallSimilarMemories(
-                'session_memories',
-                `${playerAction}\n${compactGameLog}`,
-                {
-                    apiKey,
-                    limit: 5,
-                    filter: { sessionId: String(sessao.id) },
-                },
-            );
-            semanticMemoryDigest = formatMemoriesForPrompt(memories);
-        } catch (error) {
-            console.error('[narrarService] Falha ao recuperar memórias semânticas:', error);
-        }
-    }
+    const narrationContext = !isTestRun && sessao
+        ? await buildNarrationContext({
+            sessionId: sessao.id,
+            character: sessao.character,
+            characterForAI,
+            playerAction,
+            compactGameLog,
+            apiKey,
+            isTestRun,
+        })
+        : {
+            enrichedGameLog: compactGameLog,
+            regionContext: null,
+        };
 
-    const enrichedGameLog = semanticMemoryDigest
-        ? `${compactGameLog}\nMEMORIAS=${semanticMemoryDigest}`
-        : compactGameLog;
+    const enrichedGameLog = narrationContext.enrichedGameLog;
+    storySummaryForPrompt = narrationContext.storySummary ?? null;
+    const timelineFactsForPrompt = narrationContext.timelineFacts ?? null;
+    const regionPromptContext = narrationContext.regionContext;
+    const regionGraphSummary = narrationContext.regionGraphSummary;
 
     const isInternalAction = playerAction.startsWith("Recarregar estado atual")
         || playerAction.startsWith("A aventura começa.")
@@ -1222,21 +1032,7 @@ export const processPlayerTurn = async (
     const promptCombatState = projectPublicCombatState(loadedCombat.state) ??
         (currentCombatState && currentCombatState.isActive ? currentCombatState : null);
 
-    if (!isTestRun && sessao) {
-        storySummaryForPrompt = await getStorySummary(sessao.id);
-    }
-
-    let timelineFactsForPrompt: string | null = null;
     let latestNarrationSummary = '';
-
-    if (!isTestRun && sessao) {
-        timelineFactsForPrompt = await buildTimelineFacts(sessao.id);
-    }
-
-    const regionPromptContext = !isTestRun
-        ? await resolveRegionContextForPrompt(sessao?.character ?? null, characterForAI)
-        : null;
-    const regionGraphSummary = regionPromptContext ? formatRegionGraphSummary(regionPromptContext) : undefined;
 
     const aiMode = detectAiMode(playerAction, promptCombatState ?? currentCombatState, isInternalAction);
     const stateHintsFromContext: string[] = [];
@@ -1270,10 +1066,11 @@ export const processPlayerTurn = async (
         homebrewSummary: homebrewSummaryForAI || undefined,
         storySummary: storySummaryForPrompt || undefined,
         timelineFacts: timelineFactsForPrompt || undefined,
-        regionSlug: regionPromptContext?.slug ?? undefined,
+        layeredMemorySummary: narrationContext.layeredMemorySummary,
+        regionSlug: regionPromptContext?.slug ?? narrationContext.regionSlug ?? undefined,
         regionGraphSummary: regionGraphSummary ?? undefined,
-        discoveredRoutes: regionPromptContext?.discoveredRoutes,
-        visitedRegions: regionPromptContext?.visitedRegions,
+        discoveredRoutes: regionPromptContext?.discoveredRoutes ?? narrationContext.discoveredRoutes,
+        visitedRegions: regionPromptContext?.visitedRegions ?? narrationContext.visitedRegions,
         mode: aiMode,
         sessionId: sessionKey,
         stateHints: latestStateHint ? [latestStateHint] : undefined,
@@ -1285,97 +1082,45 @@ export const processPlayerTurn = async (
         response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
     };
 
-    type ResponseFocusMode = 'full' | 'narrative' | 'state';
-    interface PhaseResult {
-        response: GameMasterResponse;
-        rawText: string | null;
-        validationIssues: string[];
-        attempts: number;
-        retryCount: number;
-        usedFallback: boolean;
-        focus: ResponseFocusMode;
-        warnings: GameUpdateWarning[];
-        suppressRollRequest: boolean;
-    }
+    const narrativeHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'narrative');
+    const stateHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'state');
 
-    const requestPhaseResponse = async (
-        focus: ResponseFocusMode,
-        extraInput: Partial<GameMasterFlowInput> = {}
-    ): Promise<PhaseResult> => {
-        const MAX_VALIDATION_ATTEMPTS = 3;
-        let retryCount = 0;
-        let calls = 0;
-        let validationFeedback: string | undefined = extraInput.validationFeedback;
-        let latestIssues: string[] = [];
-        let rawText: string | null = null;
-        let finalFromModel: GameMasterResponse | null = null;
-        let usedFallback = false;
+    const orchestrated = await runAiPhases({
+        baseInput: gameMasterFlowInput,
+        playerAction,
+        characterForAI,
+        modelToUse,
+        generationConfig,
+        apiKey,
+        sessionId: sessionKey,
+        narrativeHint: narrativeHint ?? undefined,
+        stateHint: stateHint ?? undefined,
+        pipelineMode: resolvePipelineMode(),
+    });
 
-        let lastWarnings: GameUpdateWarning[] = [];
-        const suppressRollRequest =
-            extraInput.suppressRollRequest ?? gameMasterFlowInput.suppressRollRequest ?? false;
-        while (retryCount < MAX_VALIDATION_ATTEMPTS) {
-            calls += 1;
-            const { response: candidate, rawText: currentRaw, warnings: callWarnings = [] } = await getGameUpdate(
-                { ...gameMasterFlowInput, ...extraInput, suppressRollRequest, responseFocus: focus, validationFeedback },
-                modelToUse,
-                generationConfig,
-                apiKey
-            );
-            lastWarnings = callWarnings;
-            if (!validationFeedback) {
-                const sanitizationWarning = callWarnings.find(w => w.type === 'phase_sanitization');
-                if (sanitizationWarning) {
-                    const details = sanitizationWarning.details as any;
-                    const notes = Array.isArray(details?.notes)
-                        ? details.notes.join(' ')
-                        : typeof details === 'string'
-                            ? details
-                            : '';
-                    validationFeedback = focus === 'narrative'
-                        ? `Sua fase narrativa anterior foi ajustada automaticamente (${notes || 'remova campos de estado'}). Gere apenas logEntries/actionOptions.`
-                        : `Sua fase de estado anterior incluiu blocos inalterados (${notes || 'evite repetir dados sem delta'}). Informe somente mudanças reais e deixe logEntries/actionOptions vazios.`;
-                }
-            }
-            if (!validationFeedback && callWarnings.some(w => w.type === 'schema_migration')) {
-                validationFeedback = focus === 'narrative'
-                    ? 'Sua fase narrativa anterior incluiu campos de estado. Gere apenas logEntries/actionOptions e mantenha outros campos vazios.'
-                    : 'Sua fase de estado anterior precisou ser migrada. Inclua apenas os campos que mudaram (updatedCharacter/worldState/etc.) e mantenha logEntries/actionOptions vazios.';
-            }
-            rawText = currentRaw;
-            const validation = validateGameMasterResponse(candidate, { character: characterForAI });
-            if (validation.valid) {
-                finalFromModel = candidate;
-                latestIssues = [];
-                break;
-            }
-            latestIssues = validation.issues;
-            validationFeedback = `Foram detectadas inconsistências: ${validation.issues.join('; ')}. Corrija-as e responda novamente seguindo estritamente o schema JSON.`;
-            retryCount += 1;
-        }
-
-        if (!finalFromModel) {
-            finalFromModel = generateFallbackResponse({ character: characterForAI }, playerAction, latestIssues);
-            usedFallback = true;
-        }
-
-        return {
-            response: finalFromModel,
-            rawText,
-            validationIssues: latestIssues,
-            attempts: calls,
-            retryCount,
-            usedFallback,
-            focus,
-            warnings: lastWarnings,
-            suppressRollRequest,
-        };
+    const narrativePhase = orchestrated.narrativePhase;
+    const statePhase = orchestrated.statePhase ?? {
+        response: {} as GameMasterResponse,
+        rawText: null,
+        validationIssues: [],
+        attempts: 0,
+        retryCount: 0,
+        usedFallback: false,
+        focus: 'state' as const,
+        warnings: [],
+        suppressRollRequest: gameMasterFlowInput.suppressRollRequest ?? false,
+        latencyMs: 0,
     };
 
-    const narrativeHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'narrative');
-    const narrativePhase = await requestPhaseResponse('narrative', narrativeHint ? { validationFeedback: narrativeHint } : {});
-    const stateHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'state');
-    const statePhase = await requestPhaseResponse('state', stateHint ? { validationFeedback: stateHint } : {});
+    const pipelineMode = orchestrated.pipelineMode;
+    const motorOwnsState = isMotorOwnedPipeline(pipelineMode);
+
+    if (motorOwnsState) {
+        appendSystemNote(
+            orchestrated.mergedResponse,
+            '[Pipeline] Modo narration_only: estado no motor; IA só narrativa e opções.',
+        );
+    }
 
     const narrativeIssues = narrativePhase.usedFallback || narrativePhase.validationIssues.length || narrativePhase.warnings.length;
     if (narrativeIssues) {
@@ -1398,13 +1143,11 @@ export const processPlayerTurn = async (
         });
     }
 
-    const mergedResponse: GameMasterResponse = {
-        ...statePhase.response,
-        logEntries: narrativePhase.response.logEntries ?? [],
-        actionOptions: narrativePhase.response.actionOptions ?? [],
-    };
+    const mergedResponse: GameMasterResponse = orchestrated.mergedResponse;
 
-    const combinedValidation = validateGameMasterResponse(mergedResponse, { character: characterForAI });
+    const combinedValidation = motorOwnsState
+        ? validateByPhaseFocus(mergedResponse, 'narrative')
+        : validateGameMasterResponse(mergedResponse, { character: characterForAI });
     const combinedFallbackNeeded = !combinedValidation.valid;
 
     let finalIssues = combinedValidation.valid
@@ -1434,13 +1177,39 @@ export const processPlayerTurn = async (
         appendSystemNote(finalFromModel, `[Validador] Fallback acionado. Problemas detectados: ${finalIssues.join('; ')}`);
     }
 
-    let aiResponse = finalFromModel;
+    let aiResponse = motorOwnsState ? stripMotorOwnedFields(finalFromModel) : finalFromModel;
+
+    if (!finalUsedFallback && !isTestRun && sessao) {
+        const rawFacts = (narrativePhase.response as any).newFacts;
+        if (Array.isArray(rawFacts) && rawFacts.length) {
+            const factResult = await persistValidatedFacts({
+                sessaoId: sessao.id,
+                characterId: sessao.character?.id,
+                facts: rawFacts,
+                source: 'ai',
+                currentRegionSlug: regionPromptContext?.slug ?? narrationContext.regionSlug ?? null,
+            });
+            if (factResult.rejected.length) {
+                appendSystemNote(
+                    aiResponse,
+                    `[Memória] ${factResult.rejected.length} fato(s) descartado(s) na validação.`,
+                );
+            }
+            if (factResult.accepted.length) {
+                appendSystemNote(
+                    aiResponse,
+                    `[Memória] ${factResult.accepted.length} novo(s) fato(s) registrado(s).`,
+                );
+            }
+        }
+        delete (aiResponse as any).newFacts;
+    }
     const rawText = finalRawText;
     const validationIssues = finalIssues;
     const usedFallback = finalUsedFallback;
     const attempts = totalAttempts;
 
-    if (!finalUsedFallback) {
+    if (!finalUsedFallback && !motorOwnsState) {
         combatReconciliation = reconcileCombatStateUpdate(
             loadedCombat.state,
             aiResponse.combatState as any
@@ -1466,6 +1235,14 @@ export const processPlayerTurn = async (
                 ];
             }
         }
+    } else if (!finalUsedFallback && motorOwnsState) {
+        combatReconciliation = {
+            canonicalState: loadedCombat.state,
+            publicState: loadedCombat.state ? projectPublicCombatState(loadedCombat.state) : null,
+            changed: false,
+            telemetry: [],
+        };
+        aiResponse.combatState = combatReconciliation.publicState as any;
     } else {
         combatReconciliation = { canonicalState: loadedCombat.state, publicState: loadedCombat.state ? projectPublicCombatState(loadedCombat.state) : null, changed: false, telemetry: [] };
     }
@@ -1485,7 +1262,7 @@ export const processPlayerTurn = async (
         details: [] as Array<{ type: string; xp: number; source: string; label: string; description?: string }>,
     };
 
-    if (!finalUsedFallback) {
+    if (!finalUsedFallback && !motorOwnsState) {
         xpResult = applyXpEvents(
             { xp: characterForAI.xp ?? 0, level: characterForAI.level ?? 1 } as any,
             (aiResponse as any).xpEvents
@@ -1533,7 +1310,7 @@ export const processPlayerTurn = async (
         (aiResponse as any).xpEvents = undefined;
     }
 
-    if (aiResponse.updatedCharacter?.level !== undefined) {
+    if (!motorOwnsState && aiResponse.updatedCharacter?.level !== undefined) {
         const rawLevel = Number(aiResponse.updatedCharacter.level);
         const cappedLevel = clampCharacterLevel(rawLevel);
         if (Number.isFinite(rawLevel) && cappedLevel !== rawLevel) {
@@ -1756,7 +1533,8 @@ export const processPlayerTurn = async (
     }
 
     const pendingRollForSession = sessao ? await getPendingRollRequest(sessao.id) : null;
-    const allowAiRollRequest = !statePhase.suppressRollRequest && !pendingRollForSession;
+    // Fase 0: apenas o motor de regras emite rolagens; a IA nunca cria playerRollRequest.
+    const allowAiRollRequest = false;
 
     if (aiResponse.playerRollRequest && !allowAiRollRequest) {
         const reason = statePhase.suppressRollRequest ? 'suppress-roll-request' : 'pending-roll-exists';
@@ -1818,6 +1596,8 @@ export const processPlayerTurn = async (
 
     try {
         const logRepository = queryRunner.manager.getRepository(SessionLog);
+        let persistedStateVersion: number | null = null;
+
         const persistSessionLog = async (
             logType: SessionLog['type'],
             promptLabel: string,
@@ -1834,6 +1614,7 @@ export const processPlayerTurn = async (
                 response,
                 type: logType,
                 rollResult,
+                stateVersion: persistedStateVersion,
             });
             await logRepository.save(log);
         };
@@ -1931,7 +1712,7 @@ export const processPlayerTurn = async (
 
         await enforceWorldStateLocation(sessao, aiResponse);
 
-        if (aiResponse.newHomebrewContent && Array.isArray(aiResponse.newHomebrewContent)) {
+        if (aiResponse.newHomebrewContent && Array.isArray(aiResponse.newHomebrewContent) && !motorOwnsState) {
             for (const newContent of aiResponse.newHomebrewContent) {
                 try {
                     const existing = await HomebrewService.checkIfNameExists(newContent.name, newContent.type);
@@ -1949,34 +1730,39 @@ export const processPlayerTurn = async (
         }
 
         if (!usedFallback) {
-            const updatesFromAi = { ...(aiResponse.updatedCharacter || {}) };
-            if (aiResponse.worldState) {
-                updatesFromAi.worldState = aiResponse.worldState;
-            }
-            if (aiResponse.gameClock) {
-                updatesFromAi.gameClock = {
-                    ...(updatesFromAi.gameClock || {}),
-                    ...aiResponse.gameClock,
-                };
-            }
+            const updatesFromAi = motorOwnsState
+                ? ({} as Record<string, unknown>)
+                : { ...(aiResponse.updatedCharacter || {}) };
 
-            const hasWorldStateUpdates = Boolean(
-                updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
-            );
-            const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
+            if (!motorOwnsState) {
+                if (aiResponse.worldState) {
+                    updatesFromAi.worldState = aiResponse.worldState;
+                }
+                if (aiResponse.gameClock) {
+                    updatesFromAi.gameClock = {
+                        ...(updatesFromAi.gameClock || {}),
+                        ...aiResponse.gameClock,
+                    };
+                }
 
-            if (hasWorldStateUpdates || hasCharacterUpdates) {
-                console.log('[narrarService] mergeCharacterUpdates payload', {
-                    characterId: sessao.character!.id,
-                    updates: updatesFromAi,
-                });
-                await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
-                if (redisClient && redisClient.isOpen) {
-                    await redisClient.del(
-                        `character:${sessao.character!.id}`,
-                        `character:${sessao.character!.id}:optimized`,
-                        sessionCacheKey
-                    );
+                const hasWorldStateUpdates = Boolean(
+                    updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
+                );
+                const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
+
+                if (hasWorldStateUpdates || hasCharacterUpdates) {
+                    console.log('[narrarService] mergeCharacterUpdates payload', {
+                        characterId: sessao.character!.id,
+                        updates: updatesFromAi,
+                    });
+                    await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
+                    if (redisClient && redisClient.isOpen) {
+                        await redisClient.del(
+                            `character:${sessao.character!.id}`,
+                            `character:${sessao.character!.id}:optimized`,
+                            sessionCacheKey
+                        );
+                    }
                 }
             }
 
@@ -2000,27 +1786,38 @@ export const processPlayerTurn = async (
             const canonicalPatch = {
                 inventory: hydratedSnapshot.items as any,
                 currency: reconcileCurrency(
-                    aiResponse.updatedCharacter?.currency,
+                    motorOwnsState ? undefined : aiResponse.updatedCharacter?.currency,
                     hydratedSnapshot.metrics.currency
                 ),
                 currentWeight: hydratedSnapshot.metrics.totalWeight,
                 totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
-                xp: persistedProgress?.xp ?? aiResponse.updatedCharacter?.xp,
-                level: persistedProgress?.level ?? aiResponse.updatedCharacter?.level,
-                gameClock: updatesFromAi.gameClock,
+                xp: persistedProgress?.xp ?? (motorOwnsState ? undefined : aiResponse.updatedCharacter?.xp),
+                level: persistedProgress?.level ?? (motorOwnsState ? undefined : aiResponse.updatedCharacter?.level),
+                gameClock: motorOwnsState ? undefined : updatesFromAi.gameClock,
             };
             console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
 
             aiResponse.updatedCharacter = {
-                ...(aiResponse.updatedCharacter || {}),
+                ...(motorOwnsState ? {} : aiResponse.updatedCharacter || {}),
                 ...canonicalPatch,
             };
+
+            if (motorOwnsState && sessao.character) {
+                const reloadedCharacter = await queryRunner.manager.getRepository(Character).findOne({
+                    where: { id: sessao.character.id },
+                });
+                if (reloadedCharacter) {
+                    aiResponse.worldState = buildWorldStateSnapshot(reloadedCharacter) as any;
+                }
+            }
         } else {
             aiResponse.updatedCharacter = undefined;
             aiResponse.worldState = undefined;
         }
         
         await queryRunner.commitTransaction();
+        persistedStateVersion = await incrementStateVersion(sessao.id);
+        aiResponse.stateVersion = persistedStateVersion;
 
         if (!isTestRun && sessao) {
             const memoryLines = [

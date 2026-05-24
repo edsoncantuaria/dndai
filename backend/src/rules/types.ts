@@ -211,6 +211,11 @@ export interface HealingIntentPayload {
     target: DamageIntentTarget;
 }
 
+export interface TravelIntentPayload {
+    targetRegionSlug: string;
+    targetPoiSlug?: string;
+}
+
 export interface ConsumeItemIntentPayload {
     itemId?: number;
     itemIndex?: string;

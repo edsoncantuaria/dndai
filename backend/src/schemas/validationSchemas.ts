@@ -118,13 +118,31 @@ export const NewCharacterInfoSchema = z.object({
 });
 
 // --- Homebrew ---
+export const HomebrewSourceKindSchema = z.enum(['original', 'translation', 'fork']);
+
 export const CreateHomebrewSchema = z.object({
     type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill', 'translation']),
     name: z.string().min(1, "O nome do conteúdo é obrigatório."),
     content: z.record(z.any(), z.any()).refine(val => Object.keys(val).length > 0, { message: "O conteúdo não pode estar vazio." }),
     isPublic: z.boolean().optional().default(false),
     createdBy: z.enum(['user', 'ai']).optional().default('user'),
-    dependencies: z.array(z.string()).optional(), // Novo campo de dependências
+    dependencies: z.array(z.string()).optional(),
+    sourceKind: HomebrewSourceKindSchema.optional().default('original'),
+    sourceResource: z.string().trim().min(1).max(64).optional().nullable(),
+    sourceIndex: z.string().trim().min(1).max(128).optional().nullable(),
+    locale: z.string().trim().min(2).max(16).optional().default('pt-BR'),
+});
+
+export const CreateFromSrdSchema = z.object({
+    type: z.enum(['race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill']),
+    name: z.string().min(1),
+    sourceKind: z.enum(['translation', 'fork']),
+    sourceResource: z.string().trim().min(1).max(64),
+    sourceIndex: z.string().trim().min(1).max(128),
+    overrides: z.record(z.any(), z.any()).default({}),
+    isPublic: z.boolean().optional().default(false),
+    locale: z.string().trim().min(2).max(16).optional().default('pt-BR'),
+    dependencies: z.array(z.string()).optional(),
 });
 
 // --- Bundle ---
@@ -135,3 +153,35 @@ export const CreateBundleSchema = z.object({
 });
 
 export const UpdateBundleSchema = CreateBundleSchema.partial();
+
+const HomebrewContentTypeEnum = z.enum([
+    'race', 'subrace', 'class', 'subclass', 'spell', 'item', 'monster', 'background', 'feat', 'skill',
+]);
+
+export const BundleExportContentSchema = z.object({
+    exportKey: z.string().min(1),
+    type: HomebrewContentTypeEnum,
+    name: z.string().min(1),
+    content: z.record(z.any(), z.any()),
+    sourceKind: HomebrewSourceKindSchema.optional().default('original'),
+    sourceResource: z.string().nullable().optional(),
+    sourceIndex: z.string().nullable().optional(),
+    locale: z.string().optional(),
+    dependencyKeys: z.array(z.string()).optional(),
+});
+
+export const BundleExportManifestSchema = z.object({
+    formatVersion: z.literal(1),
+    exportedAt: z.string(),
+    bundle: z.object({
+        name: z.string().min(1),
+        description: z.string().min(1),
+        isPublic: z.boolean().optional(),
+    }),
+    contents: z.array(BundleExportContentSchema).min(1),
+});
+
+export const ImportBundleSchema = z.object({
+    manifest: BundleExportManifestSchema,
+    makePublic: z.boolean().optional(),
+});

@@ -6,11 +6,11 @@ import { User } from '../entities/User.js';
 import crypto from 'crypto';
 import { Brackets, Raw } from 'typeorm';
 
-// --- Importação compatível com qualquer modo ESM/TS ---
 import * as DndApiModule from './dndApiService.js';
+import { mergeOfficialWithHomebrew, resolveOfficialIndex } from './homebrewMergeService.js';
+import { inferSourceKind } from './srdHomebrewValidator.js';
 const DndApi = DndApiModule.default || DndApiModule.DndApi || DndApiModule;
 
-// Log de debug
 console.log('[UnifiedDataService] Using DndApi mode:', Object.keys(DndApi || {}));
 
 
@@ -25,6 +25,7 @@ const userKey = (uid: number, hex: string, r: string, i?: string) =>
 
 const TYPE_MAP: Record<string, string> = {
   equipment: 'item',
+  'equipment-categories': 'equipment-category',
   races: 'race',
   classes: 'class',
   backgrounds: 'background',
@@ -42,6 +43,30 @@ const TYPE_MAP: Record<string, string> = {
   'damage-types': 'damage-type',
   'magic-schools': 'magic-school',
 };
+
+function mergeHomebrewEntry(
+  officialItem: Record<string, unknown> | undefined,
+  hb: HomebrewContent,
+  content: Record<string, unknown>,
+  srdResource: string,
+) {
+  const sourceKind = hb.sourceKind ?? inferSourceKind(content);
+  const resource = hb.sourceResource ?? srdResource;
+  if (officialItem && sourceKind !== 'original') {
+    return mergeOfficialWithHomebrew(officialItem, content, sourceKind, resource);
+  }
+  return { ...content };
+}
+
+function homebrewMatchKey(hb: HomebrewContent, content: Record<string, unknown>, srdResource: string): string {
+  const fromMeta = resolveOfficialIndex(content, {
+    sourceIndex: hb.sourceIndex,
+    sourceKind: hb.sourceKind,
+  });
+  if (fromMeta) return fromMeta;
+  if (typeof content.index === 'string') return norm(content.index);
+  return norm(hb.name);
+}
 
 /**
  * Obtém ou gera o HEX de cache do usuário.
@@ -253,14 +278,27 @@ export async function getUnifiedList(resource: string, userId?: number): Promise
 
       for (const hb of homebrews) {
         const content = typeof hb.content === 'string' ? JSON.parse(hb.content) : hb.content;
-        const key = norm(content.official_index || content.index || hb.name);
-        
+        const key = homebrewMatchKey(hb, content, normalizedResource);
+
         if (map.has(key)) {
           const officialItem = map.get(key);
-          const mergedContent = { ...officialItem, ...content, name: content.name || officialItem.name, desc: content.desc || officialItem.desc };
-          map.set(key, { ...mergedContent, source: 'homebrew', isHomebrew: true }); // Garante a source
-        } else {
-          map.set(key, { ...content, isHomebrew: true, source: 'homebrew', id: hb.id });
+          const mergedContent = mergeHomebrewEntry(officialItem, hb, content, normalizedResource);
+          map.set(key, {
+            ...mergedContent,
+            source: 'homebrew',
+            isHomebrew: true,
+            id: hb.id,
+            sourceKind: hb.sourceKind,
+            locale: hb.locale,
+          });
+        } else if (hb.sourceKind === 'original' || !content.official_index) {
+          map.set(key, {
+            ...content,
+            isHomebrew: true,
+            source: 'homebrew',
+            id: hb.id,
+            sourceKind: hb.sourceKind ?? 'original',
+          });
         }
       }
   }
@@ -329,8 +367,37 @@ export async function getUnifiedDetails(resource: string, index: string, userId?
 
   if (homebrew) {
     const content = typeof homebrew.content === 'string' ? JSON.parse(homebrew.content) : homebrew.content;
-    const finalData = officialData ? { ...officialData, ...content, name: content.name || officialData.name, desc: content.desc || officialData.desc } : content;
-    return { ...finalData, isHomebrew: true, source: 'homebrew', id: homebrew.id };
+    const sourceKind = homebrew.sourceKind ?? inferSourceKind(content);
+    const srdResource = homebrew.sourceResource ?? normalizedResource;
+
+    if (officialData && sourceKind !== 'original') {
+      const merged = mergeOfficialWithHomebrew(
+        officialData as Record<string, unknown>,
+        content,
+        sourceKind,
+        srdResource,
+      );
+      return {
+        ...merged,
+        isHomebrew: true,
+        source: 'homebrew',
+        id: homebrew.id,
+        sourceKind,
+        locale: homebrew.locale,
+      };
+    }
+
+    const finalData = officialData
+      ? { ...officialData, ...content, name: content.name || officialData.name, desc: content.desc || officialData.desc }
+      : content;
+    return {
+      ...finalData,
+      isHomebrew: true,
+      source: 'homebrew',
+      id: homebrew.id,
+      sourceKind,
+      locale: homebrew.locale,
+    };
   }
 
   return officialData ? { ...officialData, isHomebrew: false, source: 'official' } : null;

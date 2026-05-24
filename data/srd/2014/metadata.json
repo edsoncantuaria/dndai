@@ -1,0 +1,30 @@
+{
+  "syncedAt": "2026-05-24T01:19:56.709Z",
+  "apiBase": "http://localhost:3000/api/2014",
+  "version": "2014",
+  "resources": [
+    "ability-scores",
+    "alignments",
+    "backgrounds",
+    "classes",
+    "conditions",
+    "damage-types",
+    "equipment",
+    "equipment-categories",
+    "feats",
+    "features",
+    "languages",
+    "magic-schools",
+    "monsters",
+    "proficiencies",
+    "races",
+    "rule-sections",
+    "rules",
+    "skills",
+    "spells",
+    "subclasses",
+    "subraces",
+    "traits",
+    "weapon-properties"
+  ]
+}

@@ -13,6 +13,7 @@ import { env } from './config/env.js';
 import { ensureQdrantCollections } from './database/qdrant-client.js';
 import { refreshEnemyTemplatesFromDatabase } from './services/enemyTemplateRegistry.js';
 import { describeTtsStatus } from './services/ttsService.js';
+import { checkSrdApiHealth } from './services/srdApiAdapter.js';
 
 // Importa as rotas
 import authRoutes from './routes/authRoutes.js';
@@ -98,9 +99,14 @@ app.get('/api/translations', async (req, res, next) => {
 });
 
 
-// Rota simples para verificar a saúde do servidor
-app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'UP', message: 'O servidor está funcionando!' });
+// Rota de saúde do servidor e dependências
+app.get('/api/health', async (_req, res) => {
+    const srd = await checkSrdApiHealth();
+    res.status(200).json({
+        status: 'UP',
+        message: 'Crônicas de Aventuras backend',
+        srd,
+    });
 });
 
 // O middleware de erro deve ser o último a ser adicionado

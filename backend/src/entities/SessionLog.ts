@@ -30,6 +30,9 @@ export class SessionLog {
     @Column({ type: 'json', nullable: true })
     rollResult: any;
 
+    @Column({ type: 'int', nullable: true })
+    stateVersion: number | null;
+
     @CreateDateColumn()
     timestamp: Date;
 

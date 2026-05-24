@@ -3,7 +3,9 @@
  * Conexão segura com o backend via Cloudflare Tunnel.
  */
 
-const WEBSOCKET_URL = 'wss://backend-5e.edsin-server.space/';
+const WEBSOCKET_URL =
+    process.env.NEXT_PUBLIC_WS_URL ||
+    'ws://localhost:8071/';
 
 let socket: WebSocket | null = null;
 let messageQueue: any[] = [];

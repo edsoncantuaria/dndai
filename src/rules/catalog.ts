@@ -22,7 +22,19 @@ export interface CatalogMetadata {
   resources: Resource[];
 }
 
-const BASE_DIR = path.join(process.cwd(), 'data', 'dnd5eapi', 'normalized');
+const SNAPSHOT_DIRS = [
+  path.join(process.cwd(), 'data', 'srd', '2014', 'normalized'),
+  path.join(process.cwd(), 'data', 'dnd5eapi', 'normalized'),
+];
+
+function resolveBaseDir(): string {
+  for (const dir of SNAPSHOT_DIRS) {
+    if (fs.existsSync(dir)) return dir;
+  }
+  return SNAPSHOT_DIRS[SNAPSHOT_DIRS.length - 1];
+}
+
+const BASE_DIR = resolveBaseDir();
 
 const cache = new Map<Resource, any[]>();
 
@@ -36,7 +48,7 @@ function loadResource(resource: Resource) {
   }
   const filePath = path.join(BASE_DIR, `${resource}.json`);
   if (!fs.existsSync(filePath)) {
-    console.warn(`[catalog] Missing snapshot for ${resource}. Did you run sync-dnd5eapi?`);
+    console.warn(`[catalog] Missing snapshot for ${resource}. Did you run sync-srd-api?`);
     cache.set(resource, []);
     return [];
   }

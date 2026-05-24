@@ -161,6 +161,10 @@ export class Character {
     @Column({ type: 'boolean', default: true })
     isTemplate: boolean;
 
+    /** ID do personagem-template no cofre (quando este registro é um clone de sessão). */
+    @Column({ type: 'int', nullable: true })
+    templateCharacterId: number | null;
+
     @Column({ type: 'int', nullable: true })
     sessionId: number | null;
 

@@ -62,13 +62,11 @@ O projeto é construído sobre uma stack moderna, priorizando a componentizaçã
 
 ## Como Funciona o Loop do Jogo
 
-1.  **Ação do Jogador**: O jogador seleciona uma `actionOption` ou digita uma ação personalizada na UI.
-2.  **Chamada de Serviço (Frontend)**: A UI envia a ação para o `gameService`, que faz uma requisição `POST /api/narrar/:sessionId` para o backend.
-3.  **Processamento (Backend)**:
-    *   O `narrarController` recebe a requisição.
-    *   O `narrarService` carrega os dados completos do personagem e o histórico da sessão do banco de dados.
-    *   Os dados são formatados em um prompt detalhado e enviados para o `aiService`.
-4.  **Resposta da IA**: A IA (Genkit/Gemini) processa o prompt e retorna um objeto JSON estruturado com o resultado da ação (`logEntries`, `updatedCharacter`, `combatState`, etc.).
-5.  **Persistência (Backend)**: O `narrarService` recebe a resposta da IA, atualiza o estado do personagem e salva as novas entradas de log no banco de dados.
-6.  **Retorno ao Frontend**: O backend envia a resposta completa da IA de volta para o frontend.
-7.  **Atualização de Estado (Frontend)**: O `useGameState` recebe a resposta, atualiza o estado local do jogo, e a UI é re-renderizada para refletir a continuação da aventura.
+1.  **Ação do Jogador**: O jogador seleciona uma opção de ação ou digita uma ação personalizada na UI.
+2.  **WebSocket (`processAction`)**: O frontend envia a ação via WebSocket autenticado para o backend.
+3.  **Motor de Regras**: Intents estruturados (ataque, magia, perícia, etc.) são validados e deltas aplicados *antes* da IA.
+4.  **Narração (IA)**: O `narrarService` monta o contexto e chama o Gemini; a IA só narra o que o motor já decidiu.
+5.  **Persistência**: Estado do personagem, logs e `stateVersion` são salvos no MySQL.
+6.  **Atualização da UI**: Eventos `actionResolution` e `gameStateUpdate` sincronizam o cliente.
+
+> **Nota:** O gameplay usa **WebSocket**, não REST. Configure `NEXT_PUBLIC_API_URL` e `NEXT_PUBLIC_WS_URL` no `.env.local` para desenvolvimento local (padrão: `http://localhost:8071`).

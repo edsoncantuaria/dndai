@@ -54,6 +54,16 @@ test('sanitizeGameMasterResponse does not create fallback roll when suppressed',
     assert.equal(sanitized.useHitDiceRequest, undefined);
 });
 
+test('sanitizeGameMasterResponse does not create combat fallback roll when suppressed', async () => {
+    const sanitizeGameMasterResponse = await loadSanitizer();
+    const response = {
+        combatState: { isActive: true },
+        actionOptions: [{ text: 'Atacar', action: 'attack', skill: 'athletics' }],
+    };
+    const sanitized = sanitizeGameMasterResponse(response, undefined, { suppressRollRequest: true });
+    assert.equal(sanitized.playerRollRequest, undefined);
+});
+
 test('sanitizeGameMasterResponse forces roll gating when playerRollRequest is present', async () => {
     const sanitizeGameMasterResponse = await loadSanitizer();
     const response = {

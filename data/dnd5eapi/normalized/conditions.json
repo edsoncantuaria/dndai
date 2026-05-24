@@ -7,8 +7,10 @@
       "- Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage."
     ],
     "url": "/api/2014/conditions/blinded",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "charmed",
@@ -18,8 +20,10 @@
       "- The charmer has advantage on any ability check to interact socially with the creature."
     ],
     "url": "/api/2014/conditions/charmed",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "deafened",
@@ -28,8 +32,10 @@
       "- A deafened creature can't hear and automatically fails any ability check that requires hearing."
     ],
     "url": "/api/2014/conditions/deafened",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "exhaustion",
@@ -48,8 +54,10 @@
       "Finishing a long rest reduces a creature's exhaustion level by 1, provided that the creature has also ingested some food and drink."
     ],
     "url": "/api/2014/conditions/exhaustion",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "frightened",
@@ -59,8 +67,10 @@
       "- The creature can't willingly move closer to the source of its fear."
     ],
     "url": "/api/2014/conditions/frightened",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "grappled",
@@ -71,8 +81,10 @@
       "- The condition also ends if an effect removes the grappled creature from the reach of the grappler or grappling effect, such as when a creature is hurled away by the thunderwave spell."
     ],
     "url": "/api/2014/conditions/grappled",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "incapacitated",
@@ -81,8 +93,10 @@
       "- An incapacitated creature can't take actions or reactions."
     ],
     "url": "/api/2014/conditions/incapacitated",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "invisible",
@@ -92,8 +106,10 @@
       "- Attack rolls against the creature have disadvantage, and the creature's attack rolls have advantage."
     ],
     "url": "/api/2014/conditions/invisible",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "paralyzed",
@@ -105,8 +121,10 @@
       "- Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
     ],
     "url": "/api/2014/conditions/paralyzed",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "petrified",
@@ -120,8 +138,10 @@
       "- The creature is immune to poison and disease, although a poison or disease already in its system is suspended, not neutralized."
     ],
     "url": "/api/2014/conditions/petrified",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "poisoned",
@@ -130,8 +150,10 @@
       "- A poisoned creature has disadvantage on attack rolls and ability checks."
     ],
     "url": "/api/2014/conditions/poisoned",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "prone",
@@ -142,8 +164,10 @@
       "- An attack roll against the creature has advantage if the attacker is within 5 feet of the creature. Otherwise, the attack roll has disadvantage."
     ],
     "url": "/api/2014/conditions/prone",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "restrained",
@@ -154,8 +178,10 @@
       "- The creature has disadvantage on Dexterity saving throws."
     ],
     "url": "/api/2014/conditions/restrained",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "stunned",
@@ -166,8 +192,10 @@
       "- Attack rolls against the creature have advantage."
     ],
     "url": "/api/2014/conditions/stunned",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "unconscious",
@@ -180,7 +208,9 @@
       "- Any attack that hits the creature is a critical hit if the attacker is within 5 feet of the creature."
     ],
     "url": "/api/2014/conditions/unconscious",
-    "updated_at": "2025-10-24T20:42:12.637Z",
-    "_resource": "conditions"
+    "updated_at": "2026-05-18T17:12:49.343Z",
+    "_resource": "conditions",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

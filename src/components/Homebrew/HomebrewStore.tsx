@@ -1,7 +1,7 @@
 // src/components/Homebrew/HomebrewStore.tsx
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
     ArrowLeft,
     Loader2,
@@ -9,6 +9,7 @@ import {
     Trash2,
     CheckCircle,
     Download,
+    Upload,
     Bot,
     Info,
     Swords,
@@ -36,7 +37,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import ActionModal from '../ui/ActionModal';
 import BundleCreator from './BundleCreator';
-import AiCreator from './AiCreator';
+import AiCreator, { AiGeneratedHomebrew } from './AiCreator';
 import TranslationStudio from './TranslationStudio';
 
 type View = 'list' | 'create' | 'edit';
@@ -96,7 +97,8 @@ const BundleCard: React.FC<{
     onUninstall: (bundle: HomebrewService.HomebrewBundle) => void;
     onEdit: (bundle: HomebrewService.HomebrewBundle) => void;
     onDelete: (bundle: HomebrewService.HomebrewBundle) => void;
-}> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete }) => {
+    onExport: (bundle: HomebrewService.HomebrewBundle) => void;
+}> = ({ bundle, isOwner, installedIds, onInstall, onUninstall, onEdit, onDelete, onExport }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const isBundleInstalled = useMemo(() => installedIds.has(bundle.id), [bundle.id, installedIds]);
 
@@ -164,6 +166,12 @@ const BundleCard: React.FC<{
                         </div>
                     )}
                     <button
+                        onClick={() => onExport(bundle)}
+                        className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/20"
+                    >
+                        <Download className="h-4 w-4" /> Exportar JSON
+                    </button>
+                    <button
                         onClick={() => (isBundleInstalled ? onUninstall(bundle) : onInstall(bundle))}
                         className={`flex-1 inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${
                             isBundleInstalled
@@ -200,6 +208,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
     const [isBundleCreatorOpen, setIsBundleCreatorOpen] = useState(false);
     const [isAiCreatorOpen, setIsAiCreatorOpen] = useState(false);
     const [showTranslationStudio, setShowTranslationStudio] = useState(false);
+    const importFileRef = useRef<HTMLInputElement>(null);
 
     const installedIds = useMemo(() => new Set(user?.installedHomebrewIds || []), [user]);
 
@@ -326,17 +335,62 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
         }
     };
 
-    const handleAiContentCreated = (generatedContent: any, type: HomebrewService.HomebrewContentType) => {
+    const handleExportBundle = async (bundle: HomebrewService.HomebrewBundle) => {
+        try {
+            const manifest = await HomebrewService.exportBundle(bundle.id);
+            const blob = new Blob([JSON.stringify(manifest, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `${bundle.name.toLowerCase().replace(/\s+/g, '-')}-bundle.json`;
+            anchor.click();
+            URL.revokeObjectURL(url);
+            toast({ title: 'Pacote exportado', description: `"${bundle.name}" salvo como JSON.` });
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha na exportação', description: error.message });
+        }
+    };
+
+    const handleImportBundleFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file) return;
+        if (!user) {
+            toast({ variant: 'destructive', title: 'Login necessário', description: 'Entre na conta para importar pacotes.' });
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const text = await file.text();
+            const manifest = JSON.parse(text) as HomebrewService.BundleExportManifest;
+            if (manifest.formatVersion !== 1 || !manifest.contents?.length) {
+                throw new Error('Arquivo inválido. Use um manifesto exportado pela Oficina Homebrew.');
+            }
+            const bundle = await HomebrewService.importBundle({ manifest, makePublic: false });
+            toast({ title: 'Pacote importado', description: `"${bundle.name}" adicionado à sua oficina.` });
+            fetchContentAndBundles();
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Falha na importação', description: error.message });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleAiContentCreated = (payload: AiGeneratedHomebrew) => {
         setContentToEdit({
             id: '',
             authorId: user?.id || 0,
-            type,
-            name: generatedContent.name,
-            content: generatedContent,
+            type: payload.type,
+            name: String(payload.content.name ?? 'Conteúdo IA'),
+            content: payload.content,
             isPublic: false,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             createdBy: 'user',
+            sourceKind: payload.sourceKind,
+            sourceResource: payload.sourceResource,
+            sourceIndex: payload.sourceIndex,
+            locale: payload.locale,
         });
         setView('create');
     };
@@ -512,6 +566,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                         onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                         onEdit={handleEditBundle}
                         onDelete={handleDeleteClick}
+                        onExport={handleExportBundle}
                     />
                 ))}
             </div>
@@ -554,6 +609,7 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     onUninstall={(b) => handleUninstallClick(b, 'bundle')}
                                     onEdit={handleEditBundle}
                                     onDelete={handleDeleteClick}
+                                    onExport={handleExportBundle}
                                 />
                             ))}
                         </div>
@@ -720,6 +776,19 @@ const HomebrewStore: React.FC<{ returnToMenu: () => void }> = ({ returnToMenu })
                                     >
                                         <PackagePlus className="h-4 w-4" /> Criar pacote
                                     </button>
+                                    <button
+                                        onClick={() => importFileRef.current?.click()}
+                                        className="inline-flex items-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/10 px-5 py-2 text-sm font-semibold text-emerald-100 transition hover:bg-emerald-500/20"
+                                    >
+                                        <Upload className="h-4 w-4" /> Importar pacote
+                                    </button>
+                                    <input
+                                        ref={importFileRef}
+                                        type="file"
+                                        accept="application/json,.json"
+                                        className="hidden"
+                                        onChange={handleImportBundleFile}
+                                    />
                                     <button
                                         onClick={() => setIsAiCreatorOpen(true)}
                                         className="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-500/10 px-5 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20"

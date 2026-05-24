@@ -9,10 +9,16 @@ import {
     getDependencies,
     listBundles,
     getBundleContents,
+    exportBundleManifest,
+    importBundleManifest,
     createBundle,
     updateBundle,
     deleteBundle,
-    checkName
+    checkName,
+    getSrdTypeMap,
+    listSrdResource,
+    getSrdResourceDetail,
+    createFromSrd,
 } from '../controllers/homebrewController.js';
 import { authMiddleware } from '../middlewares/authMiddleware.js';
 
@@ -27,9 +33,17 @@ router.get('/bundles', (req, res, next) => {
     next();
 }, listBundles);
 router.get('/bundles/:id/contents', getBundleContents);
+router.get('/bundles/:id/export', exportBundleManifest);
+router.post('/bundles/import', authMiddleware, importBundleManifest);
 router.put('/bundles/:id', authMiddleware, updateBundle);
 router.delete('/bundles/:id', authMiddleware, deleteBundle);
 
+
+// --- SRD (5e-srd-api) para homebrew ---
+router.get('/srd/types', getSrdTypeMap);
+router.get('/srd/:resource/:index', getSrdResourceDetail);
+router.get('/srd/:resource', listSrdResource);
+router.post('/from-srd', authMiddleware, createFromSrd);
 
 // --- Content ---
 router.post('/check-name', authMiddleware, checkName);

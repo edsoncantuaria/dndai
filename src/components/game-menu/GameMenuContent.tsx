@@ -12,6 +12,7 @@ import TranslationStudio from '@/components/Homebrew/TranslationStudio';
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Character, SessaoIA } from '@/types';
+import { findSessionForCharacter } from '@/utils/sessionMatching';
 import type { SessionFactsResponse } from '@/services/gameService';
 import type { GameStage } from '@/types/gameStage';
 import ActionModal from '../ui/ActionModal';
@@ -346,7 +347,7 @@ const GameMenuContent: React.FC<GameMenuContentProps> = ({
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-3">
                                     <button
-                                        onClick={() => onStartFromVault(char, sessions.find(s => s.characterId === char.id))}
+                                        onClick={() => onStartFromVault(char, findSessionForCharacter(char, sessions))}
                                         className="inline-flex items-center gap-2 rounded-full bg-emerald-400/90 px-4 py-2 text-sm font-semibold text-stone-900 hover:bg-emerald-300 transition"
                                     >
                                         <Play className="h-4 w-4" /> Iniciar jornada

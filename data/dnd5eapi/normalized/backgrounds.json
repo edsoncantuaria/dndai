@@ -334,7 +334,9 @@
       }
     },
     "url": "/api/2014/backgrounds/acolyte",
-    "updated_at": "2025-10-24T20:42:12.352Z",
-    "_resource": "backgrounds"
+    "updated_at": "2026-05-18T17:12:49.324Z",
+    "_resource": "backgrounds",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

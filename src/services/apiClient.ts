@@ -1,7 +1,8 @@
 // src/services/apiClient.ts
 
-// A URL da API agora usa a URL de produção como padrão.
-const API_URL = 'https://backend-5e.edsin-server.space/api';
+const API_URL =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ||
+    'http://localhost:8071/api';
 
 export type ApiFieldErrors = Record<string, string[] | string>;
 

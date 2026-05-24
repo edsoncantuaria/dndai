@@ -36,8 +36,10 @@
       }
     ],
     "url": "/api/2014/subraces/high-elf",
-    "updated_at": "2025-10-24T20:42:14.841Z",
-    "_resource": "subraces"
+    "updated_at": "2026-05-18T17:12:49.565Z",
+    "_resource": "subraces",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "hill-dwarf",
@@ -66,8 +68,10 @@
       }
     ],
     "url": "/api/2014/subraces/hill-dwarf",
-    "updated_at": "2025-10-24T20:42:14.841Z",
-    "_resource": "subraces"
+    "updated_at": "2026-05-18T17:12:49.565Z",
+    "_resource": "subraces",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "lightfoot-halfling",
@@ -96,8 +100,10 @@
       }
     ],
     "url": "/api/2014/subraces/lightfoot-halfling",
-    "updated_at": "2025-10-24T20:42:14.841Z",
-    "_resource": "subraces"
+    "updated_at": "2026-05-18T17:12:49.565Z",
+    "_resource": "subraces",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "rock-gnome",
@@ -131,7 +137,9 @@
       }
     ],
     "url": "/api/2014/subraces/rock-gnome",
-    "updated_at": "2025-10-24T20:42:14.841Z",
-    "_resource": "subraces"
+    "updated_at": "2026-05-18T17:12:49.565Z",
+    "_resource": "subraces",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

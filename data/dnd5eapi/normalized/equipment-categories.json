@@ -585,8 +585,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/adventuring-gear",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "ammunition",
@@ -639,8 +641,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/ammunition",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "arcane-foci",
@@ -673,8 +677,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/arcane-foci",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "armor",
@@ -892,8 +898,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/armor",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "artisans-tools",
@@ -986,8 +994,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/artisans-tools",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "druidic-foci",
@@ -1015,8 +1025,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/druidic-foci",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "equipment-packs",
@@ -1059,8 +1071,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/equipment-packs",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "gaming-sets",
@@ -1078,8 +1092,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/gaming-sets",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "heavy-armor",
@@ -1107,8 +1123,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/heavy-armor",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "holy-symbols",
@@ -1131,8 +1149,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/holy-symbols",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "kits",
@@ -1175,8 +1195,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/kits",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "land-vehicles",
@@ -1209,8 +1231,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/land-vehicles",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "light-armor",
@@ -1233,8 +1257,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/light-armor",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "martial-melee-weapons",
@@ -1332,8 +1358,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/martial-melee-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "martial-ranged-weapons",
@@ -1366,8 +1394,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/martial-ranged-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "martial-weapons",
@@ -1490,8 +1520,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/martial-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "medium-armor",
@@ -1524,8 +1556,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/medium-armor",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "melee-weapons",
@@ -1673,8 +1707,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/melee-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "mounts-and-other-animals",
@@ -1717,8 +1753,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/mounts-and-other-animals",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "mounts-and-vehicles",
@@ -2041,8 +2079,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/mounts-and-vehicles",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "musical-instruments",
@@ -2100,8 +2140,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/musical-instruments",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "other-tools",
@@ -2119,8 +2161,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/other-tools",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "potion",
@@ -2328,8 +2372,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/potion",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "ranged-weapons",
@@ -2382,8 +2428,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/ranged-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "ring",
@@ -2571,8 +2619,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/ring",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "rod",
@@ -2610,8 +2660,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/rod",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "scroll",
@@ -2674,8 +2726,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/scroll",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "shields",
@@ -2688,8 +2742,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/shields",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "simple-melee-weapons",
@@ -2747,8 +2803,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/simple-melee-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "simple-ranged-weapons",
@@ -2776,8 +2834,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/simple-ranged-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "simple-weapons",
@@ -2855,8 +2915,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/simple-weapons",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "staff",
@@ -2924,8 +2986,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/staff",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "standard-gear",
@@ -3403,8 +3467,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/standard-gear",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "tack-harness-and-drawn-vehicles",
@@ -3537,8 +3603,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/tack-harness-and-drawn-vehicles",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "tools",
@@ -3701,8 +3769,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/tools",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "wand",
@@ -3790,8 +3860,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/wand",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "waterborne-vehicles",
@@ -3829,8 +3901,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/waterborne-vehicles",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "weapon",
@@ -4173,8 +4247,10 @@
       }
     ],
     "url": "/api/2014/equipment-categories/weapon",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "wondrous-items",
@@ -5067,7 +5143,9 @@
       }
     ],
     "url": "/api/2014/equipment-categories/wondrous-items",
-    "updated_at": "2025-10-24T20:42:12.821Z",
-    "_resource": "equipment-categories"
+    "updated_at": "2026-05-18T17:12:49.368Z",
+    "_resource": "equipment-categories",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

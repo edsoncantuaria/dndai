@@ -340,6 +340,9 @@ export const cloneCharacter = async (
       userId,
       name: original.name,
       isTemplate: false,
+      templateCharacterId: original.isTemplate
+        ? original.id
+        : (original.templateCharacterId ?? original.id),
     });
 
     const savedClone = await characterRepo.save(clonedCharacter);

@@ -29,6 +29,7 @@ import GameHud from './GameHud';
 import { useToast } from '@/hooks/use-toast';
 import { useEventFeedback } from '@/hooks/useEventFeedback';
 import DailyRecapPanel from './DailyRecapPanel';
+import LocationHud from './LocationHud';
 import GuidedTipsOverlay from './GuidedTipsOverlay';
 import { useSettingsContext } from '@/contexts/SettingsContext';
 import PremiumLoader from '@/components/ui/PremiumLoader';
@@ -725,6 +726,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                         </div>
                     </aside>
                     <div className="hidden xl:flex xl:flex-col col-span-3 gap-4">
+                        <LocationHud
+                            sessionId={sessionId}
+                            regionLabel={character.worldState?.currentRegion || character.currentRegion || 'Região desconhecida'}
+                            poiLabel={(character.worldState as any)?.poiName ?? null}
+                            timeLabel={character.worldState?.timeOfDay}
+                            weatherLabel={character.worldState?.weather}
+                            onOpenMap={handleOpenWorldMap}
+                        />
                         <DailyRecapPanel />
                     </div>
                 </div>

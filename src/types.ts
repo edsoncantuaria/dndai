@@ -707,6 +707,7 @@ export interface SessaoIA {
   nome: string;
   userId: number;
   characterId: number | null;
+  stateVersion?: number;
   character?: {
     id: number;
     name: string;
@@ -714,6 +715,7 @@ export interface SessaoIA {
     characterClass: string;
     subclassFlavor: string;
     race: string;
+    templateCharacterId?: number | null;
   };
   logs?: LogEntry[];
   createdAt: string;

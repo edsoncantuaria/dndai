@@ -47,7 +47,7 @@ const ACTION_INTENT_ROLL_TYPE_MAP: Record<ActionIntent['type'], PlayerRollReques
     healing: 'healing',
 };
 
-const ACTION_TIMEOUT_MS = 15000;
+const ACTION_TIMEOUT_MS = Number(process.env.ACTION_TIMEOUT_MS) || 120_000;
 const cancelledActions = new Set<string>();
 const ACTION_FLOW_DEBUG = process.env.ACTION_FLOW_DEBUG !== 'false';
 const logActionFlow = (stage: string, details: Record<string, unknown>) => {
@@ -478,7 +478,11 @@ export function configureWebSocket(httpServer: Server) {
                             hasRollRequest: Boolean(response?.playerRollRequest),
                         });
 
-                        const newStateVersion = await bumpSessionStateVersion(sessionId);
+                        const newStateVersion =
+                            typeof response?.stateVersion === 'number'
+                                ? response.stateVersion
+                                : await bumpSessionStateVersion(sessionId);
+                        sessionStateVersions.set(sessionId, newStateVersion);
                         const enrichedResponse = { ...response, stateVersion: newStateVersion };
                         if (cancelledActions.has(resolvedActionId)) {
                             cancelledActions.delete(resolvedActionId);

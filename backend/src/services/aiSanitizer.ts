@@ -1591,16 +1591,15 @@ const normalizeUseHitDice = (value: any): { maxDice: number; hitDieValue: number
     flowInput?.combatState?.isActive
   );
   const allowRestFallback = restKeywordsDetected && !combatActive;
-  const rollMissing = !sanitized.playerRollRequest && (
-    allowRestFallback ||
-    Boolean(sanitized.combatState?.isActive) ||
-    sanitized.actionOptions?.some(option => typeof option === 'object' && option?.skill)
-  );
+  const rollMissing =
+    !suppressRollFallback &&
+    !sanitized.playerRollRequest &&
+    (allowRestFallback ||
+      Boolean(sanitized.combatState?.isActive) ||
+      sanitized.actionOptions?.some(option => typeof option === 'object' && option?.skill));
 
   if (rollMissing) {
-      if (suppressRollFallback) {
-          sanitationLogs.push('playerRollRequest ausente, mas suppressRollRequest=true; mantido vazio.');
-      } else if (allowRestFallback) {
+      if (allowRestFallback) {
           const hitDiceEntries = currentCharacter?.hitDice ? Object.entries(currentCharacter.hitDice) : [];
           const [dieKey, dieCount] = hitDiceEntries.length ? hitDiceEntries[0] : ['d8', 1];
           sanitized.playerRollRequest = {

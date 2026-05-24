@@ -57,8 +57,10 @@
     ],
     "subraces": [],
     "url": "/api/2014/races/dragonborn",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "dwarf",
@@ -126,8 +128,10 @@
       }
     ],
     "url": "/api/2014/races/dwarf",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "elf",
@@ -190,8 +194,10 @@
       }
     ],
     "url": "/api/2014/races/elf",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "gnome",
@@ -244,8 +250,10 @@
       }
     ],
     "url": "/api/2014/races/gnome",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "half-elf",
@@ -472,8 +480,10 @@
     ],
     "subraces": [],
     "url": "/api/2014/races/half-elf",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "half-orc",
@@ -538,8 +548,10 @@
     ],
     "subraces": [],
     "url": "/api/2014/races/half-orc",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "halfling",
@@ -597,8 +609,10 @@
       }
     ],
     "url": "/api/2014/races/halfling",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "human",
@@ -798,8 +812,10 @@
     "traits": [],
     "subraces": [],
     "url": "/api/2014/races/human",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "tiefling",
@@ -859,7 +875,9 @@
     ],
     "subraces": [],
     "url": "/api/2014/races/tiefling",
-    "updated_at": "2025-10-24T20:42:14.212Z",
-    "_resource": "races"
+    "updated_at": "2026-05-18T17:12:49.516Z",
+    "_resource": "races",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

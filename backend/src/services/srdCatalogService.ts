@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { AppDataSource } from '../database/data-source.js';
 import { SrdResource } from '../entities/SrdResource.js';
+import { resolveSnapshotDir } from '../utils/srdSnapshotPaths.js';
 
 type ResourceName =
     | 'races'
@@ -21,7 +22,7 @@ type ResourceName =
     | 'skills';
 
 const repoRoot = path.resolve(process.cwd(), '..');
-const normalizedDir = path.join(repoRoot, 'data', 'dnd5eapi', 'normalized');
+const normalizedDir = resolveSnapshotDir() ?? path.join(repoRoot, 'data', 'dnd5eapi', 'normalized');
 const fileCache = new Map<ResourceName, any[]>();
 
 function loadFromFile(resource: ResourceName) {

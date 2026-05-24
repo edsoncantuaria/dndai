@@ -15,8 +15,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/artificers-lore",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "brave",
@@ -34,8 +36,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/brave",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "breath-weapon",
@@ -55,8 +59,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/breath-weapon",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "damage-resistance",
@@ -74,8 +80,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/damage-resistance",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "darkvision",
@@ -118,8 +126,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/darkvision",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry",
@@ -228,8 +238,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-black",
@@ -294,8 +306,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-black",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-blue",
@@ -360,8 +374,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-blue",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-brass",
@@ -426,8 +442,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-brass",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-bronze",
@@ -492,8 +510,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-bronze",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-copper",
@@ -558,8 +578,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-copper",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-gold",
@@ -624,8 +646,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-gold",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-green",
@@ -690,8 +714,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-green",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-red",
@@ -756,8 +782,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-red",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-silver",
@@ -822,8 +850,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-silver",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "draconic-ancestry-white",
@@ -888,8 +918,10 @@
       }
     },
     "url": "/api/2014/traits/draconic-ancestry-white",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "dwarven-combat-training",
@@ -928,8 +960,10 @@
       }
     ],
     "url": "/api/2014/traits/dwarven-combat-training",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "dwarven-resilience",
@@ -947,8 +981,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/dwarven-resilience",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "dwarven-toughness",
@@ -966,8 +1002,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/dwarven-toughness",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "elf-weapon-training",
@@ -1006,8 +1044,10 @@
       }
     ],
     "url": "/api/2014/traits/elf-weapon-training",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "extra-language",
@@ -1146,8 +1186,10 @@
       }
     },
     "url": "/api/2014/traits/extra-language",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "fey-ancestry",
@@ -1170,8 +1212,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/fey-ancestry",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "gnome-cunning",
@@ -1189,8 +1233,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/gnome-cunning",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "halfling-nimbleness",
@@ -1208,8 +1254,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/halfling-nimbleness",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "hellish-resistance",
@@ -1227,8 +1275,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/hellish-resistance",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "high-elf-cantrip",
@@ -1369,8 +1419,10 @@
       }
     },
     "url": "/api/2014/traits/high-elf-cantrip",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "infernal-legacy",
@@ -1388,8 +1440,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/infernal-legacy",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "keen-senses",
@@ -1413,8 +1467,10 @@
       }
     ],
     "url": "/api/2014/traits/keen-senses",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "lucky",
@@ -1432,8 +1488,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/lucky",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "menacing",
@@ -1457,8 +1515,10 @@
       }
     ],
     "url": "/api/2014/traits/menacing",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "naturally-stealthy",
@@ -1476,8 +1536,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/naturally-stealthy",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "relentless-endurance",
@@ -1495,8 +1557,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/relentless-endurance",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "savage-attacks",
@@ -1514,8 +1578,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/savage-attacks",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "skill-versatility",
@@ -1686,8 +1752,10 @@
       }
     },
     "url": "/api/2014/traits/skill-versatility",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "stonecunning",
@@ -1705,8 +1773,10 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/stonecunning",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "tinker",
@@ -1734,8 +1804,10 @@
       }
     ],
     "url": "/api/2014/traits/tinker",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "tool-proficiency",
@@ -1786,8 +1858,10 @@
       }
     },
     "url": "/api/2014/traits/tool-proficiency",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   },
   {
     "index": "trance",
@@ -1805,7 +1879,9 @@
     ],
     "proficiencies": [],
     "url": "/api/2014/traits/trance",
-    "updated_at": "2025-10-24T20:42:14.945Z",
-    "_resource": "traits"
+    "updated_at": "2026-05-18T17:12:49.571Z",
+    "_resource": "traits",
+    "_source": "5e-srd-api",
+    "_version": "2014"
   }
 ]

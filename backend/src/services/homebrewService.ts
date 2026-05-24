@@ -5,8 +5,16 @@ import { HomebrewBundle } from '../entities/HomebrewBundle.js';
 import { User } from '../entities/User.js';
 import createError from 'http-errors';
 import type { z } from 'zod';
-import type { CreateHomebrewSchema, CreateBundleSchema, UpdateBundleSchema } from '../schemas/validationSchemas.js';
+import type { CreateHomebrewSchema, CreateFromSrdSchema, CreateBundleSchema, UpdateBundleSchema, ImportBundleSchema } from '../schemas/validationSchemas.js';
 import { FindManyOptions, In, Like, IsNull, Not } from 'typeorm';
+import type { HomebrewSourceKind } from '../entities/HomebrewContent.js';
+import {
+    assertOfficialResourceExists,
+    buildContentFromSrd,
+    inferSourceKind,
+    resolveSrdResource,
+    validateHomebrewPayload,
+} from './srdHomebrewValidator.js';
 
 interface PaginationOptions {
     page: number;
@@ -16,30 +24,50 @@ interface PaginationOptions {
 export const createHomebrewContent = async (authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
     const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
 
-    // Se for uma tradução, a 'name' é a categoria, que deve ser única por autor.
     if (data.type === 'translation') {
         const existing = await homebrewRepo.findOne({ where: { type: 'translation', name: data.name, authorId } });
         if (existing) {
-            // Se já existe, atualizamos o conteúdo em vez de criar um novo.
             existing.content = data.content;
             return await homebrewRepo.save(existing);
         }
+    }
+
+    const sourceKind = (data.sourceKind ?? inferSourceKind(data.content)) as HomebrewSourceKind;
+    const sourceResource = resolveSrdResource(data.type, data.sourceResource);
+    const sourceIndex = data.sourceIndex ?? (data.content?.official_index as string | undefined) ?? null;
+
+    validateHomebrewPayload(data.type, data.content, {
+        sourceKind,
+        sourceResource,
+        sourceIndex,
+        locale: data.locale ?? 'pt-BR',
+    });
+
+  if (sourceKind !== 'original' && sourceResource && sourceIndex) {
+        await assertOfficialResourceExists(sourceResource, sourceIndex);
     }
 
     const newContent = new HomebrewContent();
     newContent.authorId = authorId;
     newContent.type = data.type;
     newContent.name = data.name;
-    
+
     const contentPayload = { ...data.content };
     if (!contentPayload.index && data.type !== 'translation') {
         contentPayload.index = data.name.toLowerCase().replace(/\s+/g, '-') || `custom-${data.type}-${Date.now()}`;
     }
-    
+    if (sourceIndex && !contentPayload.official_index) {
+        contentPayload.official_index = sourceIndex;
+    }
+
     newContent.content = contentPayload;
     newContent.isPublic = data.isPublic || false;
     newContent.createdBy = data.createdBy || 'user';
     newContent.dependencies = data.dependencies || [];
+    newContent.sourceKind = sourceKind;
+    newContent.sourceResource = sourceResource;
+    newContent.sourceIndex = sourceIndex ? sourceIndex.toLowerCase().trim() : null;
+    newContent.locale = data.locale ?? 'pt-BR';
     
     try {
         const savedContent = await homebrewRepo.save(newContent);
@@ -51,6 +79,28 @@ export const createHomebrewContent = async (authorId: number, data: z.infer<type
         console.error("Erro ao salvar conteúdo homebrew:", error);
         throw createError(500, 'Falha ao salvar o conteúdo no banco de dados.');
     }
+};
+
+export const createHomebrewFromSrd = async (authorId: number, data: z.infer<typeof CreateFromSrdSchema>) => {
+    const official = await assertOfficialResourceExists(data.sourceResource, data.sourceIndex);
+    const content = buildContentFromSrd(
+        official,
+        data.sourceKind,
+        data.overrides ?? {},
+        data.sourceResource,
+    );
+
+    return createHomebrewContent(authorId, {
+        type: data.type,
+        name: data.name,
+        content,
+        isPublic: data.isPublic,
+        sourceKind: data.sourceKind,
+        sourceResource: data.sourceResource,
+        sourceIndex: data.sourceIndex,
+        locale: data.locale,
+        dependencies: data.dependencies,
+    });
 };
 
 export const updateHomebrewContent = async (contentId: string, authorId: number, data: z.infer<typeof CreateHomebrewSchema>) => {
@@ -74,6 +124,17 @@ export const updateHomebrewContent = async (contentId: string, authorId: number,
     contentToUpdate.content = data.content;
     contentToUpdate.isPublic = data.isPublic || false;
     contentToUpdate.dependencies = data.dependencies || [];
+    if (data.sourceKind) contentToUpdate.sourceKind = data.sourceKind;
+    if (data.sourceResource !== undefined) contentToUpdate.sourceResource = data.sourceResource;
+    if (data.sourceIndex !== undefined) contentToUpdate.sourceIndex = data.sourceIndex ? data.sourceIndex.toLowerCase().trim() : null;
+    if (data.locale) contentToUpdate.locale = data.locale;
+
+    validateHomebrewPayload(contentToUpdate.type, data.content, {
+        sourceKind: contentToUpdate.sourceKind,
+        sourceResource: contentToUpdate.sourceResource,
+        sourceIndex: contentToUpdate.sourceIndex,
+        locale: contentToUpdate.locale,
+    });
 
     try {
         return await homebrewRepo.save(contentToUpdate);
@@ -283,4 +344,101 @@ export const deleteBundle = async (bundleId: string, authorId: number) => {
     if (!bundle) throw createError(404, 'Pacote não encontrado ou você não tem permissão.');
     await contentRepo.update({ bundleId }, { bundle: null, bundleId: null });
     await bundleRepo.remove(bundle);
+};
+
+function contentExportKey(content: HomebrewContent): string {
+    const payload = typeof content.content === 'string' ? JSON.parse(content.content) : content.content;
+    const fromIndex = payload?.index;
+    if (typeof fromIndex === 'string' && fromIndex.trim()) {
+        return fromIndex.toLowerCase().trim();
+    }
+    return content.name.toLowerCase().replace(/\s+/g, '-').slice(0, 80);
 }
+
+export const exportBundle = async (bundleId: string, userId?: number) => {
+    const bundleRepo = AppDataSource.getRepository(HomebrewBundle);
+    const bundle = await bundleRepo.findOne({
+        where: { id: bundleId },
+        relations: ['contents', 'author'],
+    });
+    if (!bundle) throw createError(404, 'Pacote não encontrado.');
+    if (!bundle.isPublic && bundle.authorId !== userId) {
+        throw createError(403, 'Você não tem permissão para exportar este pacote.');
+    }
+
+    const keyById = new Map(bundle.contents.map(item => [item.id, contentExportKey(item)]));
+
+    return {
+        formatVersion: 1 as const,
+        exportedAt: new Date().toISOString(),
+        bundle: {
+            name: bundle.name,
+            description: bundle.description,
+            isPublic: bundle.isPublic,
+        },
+        contents: bundle.contents.map(item => {
+            const payload = typeof item.content === 'string' ? JSON.parse(item.content) : item.content;
+            return {
+                exportKey: keyById.get(item.id)!,
+                type: item.type,
+                name: item.name,
+                content: payload,
+                sourceKind: item.sourceKind ?? 'original',
+                sourceResource: item.sourceResource ?? null,
+                sourceIndex: item.sourceIndex ?? null,
+                locale: item.locale ?? 'pt-BR',
+                dependencyKeys: (item.dependencies || [])
+                    .map(depId => keyById.get(depId))
+                    .filter((key): key is string => Boolean(key)),
+            };
+        }),
+    };
+};
+
+export const importBundle = async (
+    authorId: number,
+    data: z.infer<typeof ImportBundleSchema>,
+) => {
+    const { manifest, makePublic } = data;
+    const homebrewRepo = AppDataSource.getRepository(HomebrewContent);
+    const created: HomebrewContent[] = [];
+    const idByKey = new Map<string, string>();
+
+    for (const item of manifest.contents) {
+        const saved = await createHomebrewContent(authorId, {
+            type: item.type as HomebrewContentType,
+            name: item.name,
+            content: item.content,
+            isPublic: false,
+            sourceKind: item.sourceKind,
+            sourceResource: item.sourceResource,
+            sourceIndex: item.sourceIndex,
+            locale: item.locale ?? 'pt-BR',
+            dependencies: [],
+        });
+        created.push(saved);
+        idByKey.set(item.exportKey, saved.id);
+    }
+
+    for (let i = 0; i < manifest.contents.length; i++) {
+        const item = manifest.contents[i];
+        const record = created[i];
+        if (!item.dependencyKeys?.length) continue;
+        const deps = item.dependencyKeys
+            .map(key => idByKey.get(key))
+            .filter((id): id is string => Boolean(id));
+        if (deps.length) {
+            record.dependencies = deps;
+            await homebrewRepo.save(record);
+        }
+    }
+
+    const bundle = await createBundle(authorId, {
+        name: manifest.bundle.name,
+        description: manifest.bundle.description,
+        isPublic: makePublic ?? manifest.bundle.isPublic ?? false,
+        contentIds: created.map(c => c.id),
+    });
+
+    return { bundle, contents: created };
+};

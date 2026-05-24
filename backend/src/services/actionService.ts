@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { incrementStateVersion, loadStateVersion } from './stateVersionService.js';
 import { savePendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
 import * as NarrarService from './narrarService.js';
+import { applyRegionTransition } from './regionTransitionService.js';
 import createError from 'http-errors';
 import type { PlayerRollRequest } from '../types.js';
 import type { CombatState } from '../schemas/gameSchemas.js';
@@ -126,6 +127,45 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 combatState: body.combatState,
             });
 
+            if (body.intent.type === 'travel') {
+                if (result.status === 'rejected') {
+                    throw createError(400, result.reason ?? 'Viagem rejeitada pelo motor.');
+                }
+                const transition = await applyRegionTransition(sessionId, userId, body.intent.payload);
+                await deps.incrementStateVersion(sessionId);
+                if (!body.apiKey) {
+                    throw createError(400, 'apiKey é obrigatória para narrar a chegada.');
+                }
+                await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+                const travelPrompt = body.prompt?.trim()
+                    || `[Motor] Chegada em ${transition.regionName}${transition.poiName ? ` (${transition.poiName})` : ''}.`;
+                const response = await NarrarService.processPlayerTurn(
+                    sessionId,
+                    userId,
+                    travelPrompt,
+                    body.apiKey,
+                    body.combatState ?? undefined,
+                    body.useAiHomebrew,
+                    transition.stateHints,
+                    actionId,
+                );
+                const newVersion = await deps.incrementStateVersion(sessionId);
+                await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                return {
+                    actionResolution: {
+                        actionId,
+                        stateVersion: newVersion,
+                        status: 'accepted',
+                        rule: 'travel',
+                        result: response,
+                    },
+                    gameStateUpdate: {
+                        ...response,
+                        stateVersion: newVersion,
+                    },
+                };
+            }
+
             if (result.status === 'rejected') {
                 throw createError(400, result.reason ?? 'Intent inválida segundo o motor.');
             }
@@ -139,6 +179,7 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 damage: 'damage',
                 healing: 'healing',
                 'consume-item': 'check',
+                travel: 'check',
             };
             const mergedMetadata = {
                 ...(result.rollRequest.metadata ?? {}),

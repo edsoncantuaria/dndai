@@ -13,7 +13,11 @@
     "dev:backend": "cd backend && npm run dev",
     "install:backend": "cd backend && npm install",
     "seedRegion": "npm run seed:regions --prefix backend",
-    "seed:regions": "npm run seed:regions --prefix backend"
+    "seed:regions": "npm run seed:regions --prefix backend",
+    "srd:up": "docker compose -f docker-compose.srd.yml up -d --build",
+    "srd:down": "docker compose -f docker-compose.srd.yml down",
+    "sync:srd": "node scripts/sync-srd-api.js",
+    "sync:dnd5eapi": "node scripts/sync-dnd5eapi.js"
   },
   "dependencies": {
     "@3d-dice/dice-box": "^1.1.4",

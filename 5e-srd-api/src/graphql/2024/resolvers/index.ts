@@ -1,0 +1,79 @@
+import { DifficultyClassResolver } from '../common/resolver'
+import { AbilityScoreResolver } from './abilityScore/resolver'
+import { AlignmentResolver } from './alignment/resolver'
+import { BackgroundResolver } from './background/resolver'
+import {
+  ClassResolver,
+  MultiClassing2024Resolver,
+  MultiClassingPrereq2024Resolver,
+  PrimaryAbility2024Resolver,
+  Spellcasting2024Resolver
+} from './class/resolver'
+import { ConditionResolver } from './condition/resolver'
+import { DamageTypeResolver } from './damageType/resolver'
+import { ContentFieldResolver, EquipmentResolver, ToolResolver } from './equipment/resolver'
+import { EquipmentCategoryResolver } from './equipmentCategory/resolver'
+import { FeatResolver } from './feat/resolver'
+import { LanguageResolver } from './language/resolver'
+import { LocaleResolver } from './locale/resolver'
+import { MagicItemResolver } from './magicItem/resolver'
+import { MagicSchoolResolver } from './magicSchool/resolver'
+import {
+  Monster2024Resolver,
+  MonsterAction2024Resolver,
+  MonsterArmorClass2024Resolver,
+  MonsterProficiency2024Resolver,
+  MonsterSpellcasting2024Resolver
+} from './monster/resolver'
+import { ProficiencyResolver } from './proficiency/resolver'
+import { SkillResolver } from './skill/resolver'
+import { SpeciesResolver } from './species/resolver'
+import { SubclassResolver } from './subclass/resolver'
+import { SubspeciesResolver } from './subspecies/resolver'
+import { TraitResolver } from './trait/resolver'
+import { WeaponMasteryPropertyResolver } from './weaponMasteryProperty/resolver'
+import { WeaponPropertyResolver } from './weaponProperty/resolver'
+
+const collectionResolvers = [
+  AbilityScoreResolver,
+  AlignmentResolver,
+  LocaleResolver,
+  BackgroundResolver,
+  ClassResolver,
+  ConditionResolver,
+  DamageTypeResolver,
+  EquipmentResolver,
+  EquipmentCategoryResolver,
+  FeatResolver,
+  LanguageResolver,
+  MagicItemResolver,
+  MagicSchoolResolver,
+  Monster2024Resolver,
+  ProficiencyResolver,
+  SkillResolver,
+  SpeciesResolver,
+  SubclassResolver,
+  SubspeciesResolver,
+  TraitResolver,
+  WeaponMasteryPropertyResolver,
+  WeaponPropertyResolver
+] as const
+
+const fieldResolvers = [
+  // Equipment
+  ContentFieldResolver,
+  ToolResolver,
+  DifficultyClassResolver,
+  // Class
+  MultiClassing2024Resolver,
+  MultiClassingPrereq2024Resolver,
+  PrimaryAbility2024Resolver,
+  Spellcasting2024Resolver,
+  // Monster
+  MonsterArmorClass2024Resolver,
+  MonsterProficiency2024Resolver,
+  MonsterSpellcasting2024Resolver,
+  MonsterAction2024Resolver
+] as const
+
+export const resolvers = [...collectionResolvers, ...fieldResolvers] as const

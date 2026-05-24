@@ -1,5 +1,6 @@
 // backend/src/schemas/gameSchemas.ts
 import { z } from 'zod';
+import { NewFactsArraySchema } from './memorySchemas.js';
 import { CreateHomebrewSchema } from './validationSchemas.js';
 
 /* -------------------------------- PLAYER ROLL -------------------------------- */
@@ -349,6 +350,8 @@ export const NarrativePhaseResponseSchema = z.object({
   logEntries: LogEntriesSchema,
   actionOptions: ActionOptionsSchema,
   systemLog: z.string().optional().nullable(),
+  memoryContext: MemoryContextSchema.optional(),
+  newFacts: NewFactsArraySchema.optional(),
 }).describe("Subconjunto obrigatório para a fase narrativa.").strict();
 
 export const StatePhaseResponseSchema = z.object({
@@ -391,5 +394,7 @@ export const GameMasterFlowInputSchema = z.object({
   suppressRollRequest: z.boolean().optional().describe("Se true, quaisquer playerRollRequest retornadas serão descartadas."),
   exampleSnippet: z.string().optional().describe("Exemplo concreto extraído de execuções anteriores para orientar o modelo."),
   stateHints: z.array(z.string()).optional().describe("Lista de deltas já aplicados (ex.: '-7 HP', 'Slot de magia gasto') para a IA narrar com precisão."),
+  layeredMemorySummary: z.string().optional().describe("Memória em camadas (fatos, quests, recall vetorial) para o prompt."),
+  storySummary: z.string().optional().describe("Resumo rolling da história da sessão."),
 });
 export type GameMasterFlowInput = z.infer<typeof GameMasterFlowInputSchema>;

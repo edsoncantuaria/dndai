@@ -1,10 +1,11 @@
 // src/components/DailyRecapPanel.tsx
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { useGameStateContext } from '@/contexts/GameStateContext';
-import { Compass, Clock, CloudSun, Flame, Sparkles, MapPin, Trophy, Activity } from 'lucide-react';
+import { Compass, Clock, CloudSun, Flame, Sparkles, MapPin, Trophy, Activity, Brain } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSessionFacts, type SessionFactsResponse } from '@/services/gameService';
 
 const PANEL = 'rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.55)]';
 const iconClasses = 'h-4 w-4 text-amber-300';
@@ -22,7 +23,19 @@ const parseLogSummary = (entry: any): string => {
 };
 
 const DailyRecapPanel: React.FC = () => {
-    const { character, log, combatState } = useGameStateContext();
+    const { character, log, combatState, sessionId } = useGameStateContext();
+    const [facts, setFacts] = useState<SessionFactsResponse | null>(null);
+
+    useEffect(() => {
+        if (!sessionId) {
+            setFacts(null);
+            return;
+        }
+        getSessionFacts(sessionId)
+            .then(setFacts)
+            .catch(() => setFacts(null));
+    }, [sessionId]);
+
     if (!character) return null;
 
     const worldState = character.worldState || {};
@@ -132,6 +145,33 @@ const DailyRecapPanel: React.FC = () => {
                     </div>
                 </section>
             )}
+
+            {facts?.storySummary ? (
+                <section className="rounded-2xl border border-white/10 bg-black/30 p-4 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-stone-500">
+                        <span>Memória da campanha</span>
+                        <Brain className="h-4 w-4 text-indigo-300" />
+                    </div>
+                    <p className="text-sm text-stone-300 line-clamp-4">{facts.storySummary}</p>
+                </section>
+            ) : null}
+
+            {facts?.atomicFacts && facts.atomicFacts.length > 0 ? (
+                <section>
+                    <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.35em] text-stone-500 mb-2">
+                        <span>Fatos registrados</span>
+                        <Sparkles className="h-4 w-4 text-amber-300" />
+                    </div>
+                    <ul className="space-y-1.5 text-sm text-stone-200">
+                        {facts.atomicFacts.slice(0, 5).map(fact => (
+                            <li key={fact.id} className="rounded-2xl border border-white/10 bg-black/30 p-3">
+                                <p className="text-[10px] uppercase tracking-[0.35em] text-amber-300">{fact.category}{fact.subject ? ` · ${fact.subject}` : ''}</p>
+                                <p className="text-stone-100 text-sm leading-snug">{fact.fact}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            ) : null}
 
             {recentMoments.length > 0 && (
                 <section>

@@ -28,6 +28,7 @@ import SubraceForm from './forms/SubraceForm';
 import SkillForm from './forms/SkillForm';
 import HomebrewHelpModal from './HomebrewHelpModal';
 import ExampleModal from './ExampleModal';
+import SrdSourcePanel from './SrdSourcePanel';
 import { EXAMPLES } from '@/data/examples';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -61,11 +62,46 @@ const slugify = (value: string) =>
         .replace(/^-+|-+$/g, '')
         .slice(0, 60);
 
+const TRANSLATABLE_KEYS = [
+    'name', 'desc', 'material', 'higher_level', 'casting_time', 'range', 'duration',
+    'age', 'alignment', 'language_desc', 'size_description', 'special', 'contents',
+    'actions', 'legendary_actions', 'special_abilities',
+];
+
+function extractSrdOverrides(
+    current: Record<string, unknown>,
+    baseline: Record<string, unknown> | null,
+    sourceKind: HomebrewService.HomebrewSourceKind,
+): Record<string, unknown> {
+    if (sourceKind === 'original' || !baseline) {
+        return current;
+    }
+    if (sourceKind === 'fork') {
+        const { url, ...rest } = current;
+        return rest;
+    }
+    const overrides: Record<string, unknown> = {};
+    for (const key of TRANSLATABLE_KEYS) {
+        if (current[key] !== undefined && JSON.stringify(current[key]) !== JSON.stringify(baseline[key])) {
+            overrides[key] = current[key];
+        }
+    }
+    if (typeof current.name === 'string') overrides.name = current.name;
+    return overrides;
+}
+
 const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentToEdit }) => {
     const { user } = useAuth();
     const { toast } = useToast();
 
     const [type, setType] = useState<HomebrewService.HomebrewContentType>(contentToEdit?.type || 'race');
+    const [sourceKind, setSourceKind] = useState<HomebrewService.HomebrewSourceKind>(
+        contentToEdit?.sourceKind ?? 'original',
+    );
+    const [sourceResource, setSourceResource] = useState<string | null>(contentToEdit?.sourceResource ?? null);
+    const [sourceIndex, setSourceIndex] = useState<string | null>(contentToEdit?.sourceIndex ?? null);
+    const [locale, setLocale] = useState(contentToEdit?.locale ?? 'pt-BR');
+    const [officialBaseline, setOfficialBaseline] = useState<Record<string, unknown> | null>(null);
     const [contentData, setContentData] = useState<any>(contentToEdit?.content || {});
     const [isPublic, setIsPublic] = useState(contentToEdit?.isPublic ?? false);
     const [isLoading, setIsLoading] = useState(false);
@@ -82,10 +118,44 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
     useEffect(() => {
         if (contentToEdit) {
             setType(contentToEdit.type);
+            setSourceKind(contentToEdit.sourceKind ?? 'original');
+            setSourceResource(contentToEdit.sourceResource ?? null);
+            setSourceIndex(contentToEdit.sourceIndex ?? null);
+            setLocale(contentToEdit.locale ?? 'pt-BR');
             setContentData(contentToEdit.content);
             setIsPublic(contentToEdit.isPublic);
         }
     }, [contentToEdit]);
+
+    const handleOfficialLoaded = ({
+        sourceResource: resource,
+        sourceIndex: index,
+        official,
+    }: {
+        sourceResource: string;
+        sourceIndex: string;
+        official: Record<string, unknown>;
+    }) => {
+        setSourceResource(resource);
+        setSourceIndex(index);
+        setOfficialBaseline(official);
+
+        if (sourceKind === 'translation') {
+            setContentData({
+                ...official,
+                official_index: index,
+                index,
+            });
+        } else {
+            const forkIndex = slugify(`${String(official.name)}-fork`);
+            setContentData({
+                ...official,
+                official_index: index,
+                index: forkIndex,
+                name: `${official.name} (Fork)`,
+            });
+        }
+    };
 
     const handleLoadExample = (sample?: any) => {
         const data = sample || EXAMPLES[type as keyof typeof EXAMPLES];
@@ -106,18 +176,44 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
         setIsLoading(true);
         try {
-            const payload: HomebrewService.CreateHomebrewData = {
-                name: contentData.name,
-                type,
-                content: contentData,
-                isPublic,
-                dependencies: contentData.dependencies || [],
-            };
-
             if (contentToEdit) {
+                const payload: HomebrewService.CreateHomebrewData = {
+                    name: contentData.name,
+                    type,
+                    content: contentData,
+                    isPublic,
+                    dependencies: contentData.dependencies || [],
+                    sourceKind,
+                    sourceResource,
+                    sourceIndex,
+                    locale,
+                };
                 await HomebrewService.updateHomebrewContent(contentToEdit.id, payload);
                 toast({ title: 'Conteúdo atualizado', description: `"${contentData.name}" salvo com sucesso.` });
+            } else if (sourceKind !== 'original' && sourceResource && sourceIndex) {
+                const overrides = extractSrdOverrides(contentData, officialBaseline, sourceKind);
+                await HomebrewService.createHomebrewFromSrd({
+                    type: type as HomebrewService.CreateFromSrdData['type'],
+                    name: contentData.name,
+                    sourceKind,
+                    sourceResource,
+                    sourceIndex,
+                    overrides,
+                    isPublic,
+                    locale,
+                    dependencies: contentData.dependencies || [],
+                });
+                toast({ title: 'Conteúdo criado', description: `"${contentData.name}" derivado do SRD com sucesso.` });
             } else {
+                const payload: HomebrewService.CreateHomebrewData = {
+                    name: contentData.name,
+                    type,
+                    content: contentData,
+                    isPublic,
+                    dependencies: contentData.dependencies || [],
+                    sourceKind: 'original',
+                    locale,
+                };
                 await HomebrewService.createHomebrewContent(payload);
                 toast({ title: 'Conteúdo criado', description: `"${contentData.name}" foi adicionado à sua oficina.` });
             }
@@ -131,9 +227,10 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
 
     const initialDataForForm = useMemo(() => {
         if (exampleToLoad) return exampleToLoad;
+        if (Object.keys(contentData || {}).length > 0) return contentData;
         if (contentToEdit?.type === type) return contentToEdit.content;
         return {};
-    }, [contentToEdit, exampleToLoad, type]);
+    }, [contentToEdit, exampleToLoad, type, contentData]);
 
     const renderForm = () => {
         const commonProps = { data: initialDataForForm, onChange: setContentData };
@@ -163,7 +260,11 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         }
     };
 
-    const canAdvanceToStructure = Boolean(contentData?.name && type);
+    const canAdvanceToStructure = Boolean(
+        contentData?.name &&
+        type &&
+        (sourceKind === 'original' || (sourceIndex && sourceResource)),
+    );
     const canAdvanceToReview = canAdvanceToStructure && Boolean(contentData && Object.keys(contentData).length > 0);
 
     const stepper = [
@@ -172,11 +273,38 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         { id: 'review', label: 'Revisão', description: 'JSON final e dependências' },
     ] satisfies { id: Step; label: string; description: string }[];
 
-    const jsonPreview = useMemo(() => JSON.stringify({ type, isPublic, content: contentData }, null, 2), [type, isPublic, contentData]);
+    const jsonPreview = useMemo(
+        () => JSON.stringify({ type, sourceKind, sourceResource, sourceIndex, locale, isPublic, content: contentData }, null, 2),
+        [type, sourceKind, sourceResource, sourceIndex, locale, isPublic, contentData],
+    );
 
     const renderMetaStep = () => (
         <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1">
+                    <label className="text-sm font-semibold text-stone-200">Origem do conteúdo</label>
+                    <select
+                        value={sourceKind}
+                        onChange={(e) => {
+                            const next = e.target.value as HomebrewService.HomebrewSourceKind;
+                            setSourceKind(next);
+                            setSourceIndex(null);
+                            setSourceResource(null);
+                            setOfficialBaseline(null);
+                            if (next === 'original') {
+                                setContentData((prev: any) => ({
+                                    name: prev?.name ?? '',
+                                    index: prev?.index ?? '',
+                                }));
+                            }
+                        }}
+                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 outline-none focus:border-amber-500"
+                    >
+                        <option value="original">Original (novo, padrão SRD)</option>
+                        <option value="translation">Tradução (base SRD)</option>
+                        <option value="fork">Fork (variante do SRD)</option>
+                    </select>
+                </div>
                 <div className="space-y-1">
                     <label className="text-sm font-semibold text-stone-200">Tipo de conteúdo</label>
                     <select
@@ -184,6 +312,9 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                         onChange={(e) => {
                             setType(e.target.value as HomebrewService.HomebrewContentType);
                             setExampleToLoad(null);
+                            setSourceIndex(null);
+                            setSourceResource(null);
+                            setOfficialBaseline(null);
                         }}
                         className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 outline-none focus:border-amber-500"
                     >
@@ -206,6 +337,15 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                 </div>
             </div>
 
+            {sourceKind !== 'original' && (
+                <SrdSourcePanel
+                    homebrewType={type}
+                    sourceKind={sourceKind}
+                    selectedIndex={sourceIndex}
+                    onOfficialLoaded={handleOfficialLoaded}
+                />
+            )}
+
             <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-1">
                     <label className="text-sm font-semibold text-stone-200">Slug / Index</label>
@@ -214,9 +354,11 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                             type="text"
                             value={contentData.index || ''}
                             onChange={(e) => setContentData((prev: any) => ({ ...prev, index: slugify(e.target.value) }))}
-                            placeholder="espada-solar"
-                            className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
+                            placeholder={sourceKind === 'translation' ? 'fireball' : 'espada-solar'}
+                            disabled={sourceKind === 'translation'}
+                            className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500 disabled:opacity-60"
                         />
+                        {sourceKind !== 'translation' && (
                         <button
                             type="button"
                             className="rounded-xl border border-white/10 bg-white/5 px-3 text-sm text-stone-200 transition hover:border-amber-300 hover:text-amber-200"
@@ -229,31 +371,50 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
                         >
                             Gerar
                         </button>
+                        )}
                     </div>
                 </div>
                 <div className="space-y-1">
-                    <label className="text-sm font-semibold text-stone-200">Index oficial (opcional)</label>
+                    <label className="text-sm font-semibold text-stone-200">
+                        {sourceKind === 'original' ? 'Index oficial (opcional)' : 'Index oficial SRD'}
+                    </label>
                     <input
                         type="text"
-                        value={contentData.official_index || ''}
-                        onChange={(e) => setContentData((prev: any) => ({ ...prev, official_index: e.target.value }))}
-                        placeholder="longsword"
-                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
+                        value={sourceIndex || contentData.official_index || ''}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setSourceIndex(val || null);
+                            setContentData((prev: any) => ({ ...prev, official_index: val }));
+                        }}
+                        placeholder="fireball"
+                        disabled={sourceKind !== 'original' && Boolean(sourceIndex)}
+                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500 disabled:opacity-60"
                     />
                 </div>
                 <div className="space-y-1">
-                    <label className="text-sm font-semibold text-stone-200">Compartilhamento</label>
-                    <button
-                        type="button"
-                        onClick={() => setIsPublic((prev) => !prev)}
-                        className={`flex w-full items-center justify-between rounded-xl border p-2 font-semibold transition ${
-                            isPublic ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-stone-700 bg-stone-950/70 text-stone-300'
-                        }`}
-                    >
-                        <span className="inline-flex items-center gap-2">{isPublic ? <Share2 className="h-4 w-4" /> : <ShieldPlus className="h-4 w-4" />}{isPublic ? 'Visível para todos' : 'Somente você'}</span>
-                        <span className={`h-5 w-10 rounded-full transition ${isPublic ? 'bg-emerald-400/60' : 'bg-stone-600'}`} />
-                    </button>
+                    <label className="text-sm font-semibold text-stone-200">Locale</label>
+                    <input
+                        type="text"
+                        value={locale}
+                        onChange={(e) => setLocale(e.target.value)}
+                        placeholder="pt-BR"
+                        className="w-full rounded-xl border border-stone-700 bg-stone-950/70 p-2 text-stone-100 placeholder:text-stone-600 focus:border-amber-500"
+                    />
                 </div>
+            </div>
+
+            <div className="space-y-1">
+                <label className="text-sm font-semibold text-stone-200">Compartilhamento</label>
+                <button
+                    type="button"
+                    onClick={() => setIsPublic((prev) => !prev)}
+                    className={`flex w-full items-center justify-between rounded-xl border p-2 font-semibold transition ${
+                        isPublic ? 'border-emerald-400/60 bg-emerald-500/10 text-emerald-200' : 'border-stone-700 bg-stone-950/70 text-stone-300'
+                    }`}
+                >
+                    <span className="inline-flex items-center gap-2">{isPublic ? <Share2 className="h-4 w-4" /> : <ShieldPlus className="h-4 w-4" />}{isPublic ? 'Visível para todos' : 'Somente você'}</span>
+                    <span className={`h-5 w-10 rounded-full transition ${isPublic ? 'bg-emerald-400/60' : 'bg-stone-600'}`} />
+                </button>
             </div>
 
             <div className="rounded-2xl border border-stone-800 bg-black/30 p-4 shadow-inner shadow-black/60">
@@ -276,7 +437,7 @@ const HomebrewCreator: React.FC<Props> = ({ onContentCreated, onCancel, contentT
         <div className="rounded-2xl border border-stone-700 bg-black/30 p-4 shadow-inner shadow-black/60">
             <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div>
-                    <p a className="text-xs uppercase tracking-[0.3em] text-amber-400/70">
+                    <p className="text-xs uppercase tracking-[0.3em] text-amber-400/70">
                         Editor estruturado
                     </p>
                     <h2 className="text-xl font-semibold text-white">Campos para {type}</h2>

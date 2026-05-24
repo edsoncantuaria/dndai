@@ -1,6 +1,8 @@
 // src/services/homebrewService.ts
 import { apiClient } from './apiClient';
 
+export type HomebrewSourceKind = 'original' | 'translation' | 'fork';
+
 // Tipos baseados em backend/src/entities/HomebrewContent.ts
 export type HomebrewContentType = 'race' | 'subrace' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat' | 'skill' | 'translation';
 
@@ -10,7 +12,7 @@ export interface HomebrewContent {
     author?: { id: number, username: string };
     type: HomebrewContentType;
     name: string;
-    content: any; // O objeto JSON completo
+    content: any;
     isPublic: boolean;
     createdAt: string;
     updatedAt: string;
@@ -18,6 +20,20 @@ export interface HomebrewContent {
     dependencies?: string[];
     bundleId?: string | null;
     bundle?: { name: string, id: string };
+    sourceKind?: HomebrewSourceKind;
+    sourceResource?: string | null;
+    sourceIndex?: string | null;
+    locale?: string;
+}
+
+export interface SrdListResponse {
+    count: number;
+    results: { index: string; name: string; url?: string }[];
+}
+
+export interface SrdTypeMapResponse {
+    map: Record<string, string>;
+    apiVersion: string;
 }
 
 export interface HomebrewBundle {
@@ -39,6 +55,43 @@ export interface CreateHomebrewData {
     isPublic?: boolean;
     createdBy?: 'user' | 'ai';
     dependencies?: string[];
+    sourceKind?: HomebrewSourceKind;
+    sourceResource?: string | null;
+    sourceIndex?: string | null;
+    locale?: string;
+}
+
+export interface CreateFromSrdData {
+    type: Exclude<HomebrewContentType, 'translation'>;
+    name: string;
+    sourceKind: 'translation' | 'fork';
+    sourceResource: string;
+    sourceIndex: string;
+    overrides?: Record<string, unknown>;
+    isPublic?: boolean;
+    locale?: string;
+    dependencies?: string[];
+}
+
+export interface BundleExportManifest {
+    formatVersion: 1;
+    exportedAt: string;
+    bundle: {
+        name: string;
+        description: string;
+        isPublic?: boolean;
+    };
+    contents: {
+        exportKey: string;
+        type: HomebrewContentType;
+        name: string;
+        content: Record<string, unknown>;
+        sourceKind?: HomebrewSourceKind;
+        sourceResource?: string | null;
+        sourceIndex?: string | null;
+        locale?: string;
+        dependencyKeys?: string[];
+    }[];
 }
 
 export interface BundleData {
@@ -126,3 +179,50 @@ export const updateUserHomebrew = async (homebrewId: string, action: 'install' |
         body: JSON.stringify({ homebrewId, action }),
     });
 };
+
+export const getSrdTypeMap = async (): Promise<SrdTypeMapResponse> => {
+    return apiClient<SrdTypeMapResponse>('/homebrew/srd/types', { method: 'GET' });
+};
+
+export const listSrdResource = async (resource: string): Promise<SrdListResponse> => {
+    return apiClient<SrdListResponse>(`/homebrew/srd/${encodeURIComponent(resource)}`, { method: 'GET' });
+};
+
+export const getSrdResourceDetail = async (resource: string, index: string): Promise<Record<string, unknown>> => {
+    return apiClient<Record<string, unknown>>(
+        `/homebrew/srd/${encodeURIComponent(resource)}/${encodeURIComponent(index)}`,
+        { method: 'GET' },
+    );
+};
+
+export const createHomebrewFromSrd = async (data: CreateFromSrdData): Promise<HomebrewContent> => {
+    const response = await apiClient<{ content: HomebrewContent }>('/homebrew/from-srd', {
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+    return response.content;
+};
+
+export interface ImportBundlePayload {
+    manifest: BundleExportManifest;
+    makePublic?: boolean;
+}
+
+export const exportBundle = async (bundleId: string): Promise<BundleExportManifest> => {
+    return apiClient<BundleExportManifest>(`/homebrew/bundles/${encodeURIComponent(bundleId)}/export`, {
+        method: 'GET',
+    });
+};
+
+export const importBundle = async (payload: ImportBundlePayload): Promise<HomebrewBundle> => {
+    const response = await apiClient<{ bundle: HomebrewBundle; contentCount: number }>('/homebrew/bundles/import', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+    });
+    return response.bundle;
+};
+
+/** @deprecated use createBundle */
+export const createHomebrewBundle = createBundle;
+/** @deprecated use updateBundle */
+export const updateHomebrewBundle = updateBundle;

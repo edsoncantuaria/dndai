@@ -24,6 +24,7 @@ import { extractQuestKeywordStrings } from './questKeywordService.js';
 import type { RegionLink } from '../entities/RegionLink.js';
 import { fetchObjectAsText } from './objectStorageService.js';
 import { acquireSessionLeaseOrThrow } from './sessionRuntimeService.js';
+import { queryRelevantFacts } from './sessionFactService.js';
 
 interface SessionFactsPayload {
     storySummary: string | null;
@@ -49,6 +50,13 @@ interface SessionFactsPayload {
         status: string;
         source: string;
         summary?: string;
+    }>;
+    atomicFacts: Array<{
+        id: string;
+        category: string;
+        subject?: string | null;
+        fact: string;
+        regionSlug?: string | null;
     }>;
 }
 
@@ -116,6 +124,25 @@ export interface WorldMapSnapshot {
 
 const SESSION_LEASE_TTL_MS = 60_000;
 
+/**
+ * Localiza a sessão mais recente vinculada a um herói do cofre (template) ou ao clone em jogo.
+ */
+export const findLatestSessionForTemplate = async (userId: number, templateOrCloneCharacterId: number) => {
+    const sessaoRepository = AppDataSource.getRepository(SessaoIA);
+    return sessaoRepository
+        .createQueryBuilder('sessao')
+        .innerJoinAndSelect('sessao.character', 'character')
+        .where('sessao.userId = :userId', { userId })
+        .andWhere('sessao.deletedAt IS NULL')
+        .andWhere('character.deletedAt IS NULL')
+        .andWhere(
+            '(character.templateCharacterId = :characterId OR character.id = :characterId)',
+            { characterId: templateOrCloneCharacterId },
+        )
+        .orderBy('sessao.updatedAt', 'DESC')
+        .getOne();
+};
+
 export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>, userId: number) => {
     const { nome, characterId, clientInstanceId, forceNew } = data;
     
@@ -123,38 +150,28 @@ export const getOrCreateSessao = async (data: z.infer<typeof CreateSessaoSchema>
     const sessaoRepository = AppDataSource.getRepository(SessaoIA);
     const userRepository = AppDataSource.getRepository(User);
 
-    const existingSessao = await sessaoRepository.findOne({
-        where: { userId, deletedAt: IsNull() },
-        order: { updatedAt: 'DESC' },
-        relations: ['character'],
-    });
-    const canReuseExisting =
-        existingSessao &&
-        existingSessao.character &&
-        existingSessao.character.isTemplate === false;
-
-    if (canReuseExisting && !forceNew) {
-        await acquireSessionLeaseOrThrow({
-            sessionId: existingSessao!.id,
+    if (!forceNew) {
+        const existingForTemplate = await findLatestSessionForTemplate(userId, characterId);
+        if (existingForTemplate?.character && existingForTemplate.character.isTemplate === false) {
+            await acquireSessionLeaseOrThrow({
+                sessionId: existingForTemplate.id,
+                userId,
+                clientInstanceId,
+                ttlMs: SESSION_LEASE_TTL_MS,
+            });
+            console.log('[getOrCreateSessao] Sessão existente reutilizada para o herói.', {
+                sessionId: existingForTemplate.id,
+                templateCharacterId: existingForTemplate.character.templateCharacterId,
+                cloneCharacterId: existingForTemplate.characterId,
+                requestedCharacterId: characterId,
+            });
+            const { apiKey: _apiKey, ...safe } = existingForTemplate;
+            return { sessao: safe, isNew: false };
+        }
+    } else {
+        console.log('[getOrCreateSessao] forceNew=true — criando nova sessão com clone.', {
             userId,
-            clientInstanceId,
-            ttlMs: SESSION_LEASE_TTL_MS,
-        });
-        console.log('[getOrCreateSessao] Sessão ativa encontrada, reutilizando.', {
-            sessionId: existingSessao!.id,
-            characterId: existingSessao!.characterId,
-            clientInstanceId: clientInstanceId ?? `legacy-user-${userId}`,
-        });
-        const { apiKey: _apiKey, ...safe } = existingSessao!;
-        return { sessao: safe, isNew: false };
-    }
-
-    if (canReuseExisting && forceNew) {
-        console.warn('[getOrCreateSessao] Forçando criação de nova sessão apesar de sessão reaproveitável.', {
-            userId,
-            existingSessionId: existingSessao!.id,
-            characterId: existingSessao!.characterId,
-            clientInstanceId: clientInstanceId ?? `legacy-user-${userId}`,
+            characterId,
         });
     }
 
@@ -257,6 +274,7 @@ export const getSessoesForUser = async (userId: number) => {
                 characterClass: true,
                 subclassFlavor: true,
                 race: true,
+                templateCharacterId: true,
             }
         }
     });
@@ -505,6 +523,18 @@ export const getSessaoFacts = async (sessionId: number, userId: number): Promise
         recentEvents,
         activeNPCs,
         activeQuests: questEntries.slice(0, 8),
+        atomicFacts: (await queryRelevantFacts(sessionId, {
+            regionSlug: (characterSnapshot as any)?.worldState?.regionSlug ?? null,
+            npcIds: activeNPCs.map(npc => npc.npcId).filter(Boolean) as string[],
+            questIds: questEntries.map(q => q.id),
+            limit: 12,
+        })).map(fact => ({
+            id: fact.id,
+            category: fact.category,
+            subject: fact.subject,
+            fact: fact.fact,
+            regionSlug: fact.regionSlug,
+        })),
     };
 };
 

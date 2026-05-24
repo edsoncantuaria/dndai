@@ -1,6 +1,6 @@
 // src/services/gameService.ts
 import { apiClient } from './apiClient';
-import type { NewCharacterInfo, SessaoIA, Character, CombatState, GameMasterResponse } from '@/types';
+import type { NewCharacterInfo, SessaoIA, Character } from '@/types';
 import type { RegionDTO, RegionPoiDTO, RegionTravelMode } from './regionClient';
 
 export interface SessionFactsResponse {
@@ -27,6 +27,13 @@ export interface SessionFactsResponse {
         status: string;
         source: string;
         summary?: string;
+    }>;
+    atomicFacts?: Array<{
+        id: string;
+        category: string;
+        subject?: string | null;
+        fact: string;
+        regionSlug?: string | null;
     }>;
 }
 
@@ -102,10 +109,19 @@ export const deleteCharacterById = async (characterId: number) => {
 
 // --- Session Management ---
 
-export const createGameSession = async (nome: string, characterId: number) => {
+export const createGameSession = async (
+    nome: string,
+    characterId: number,
+    options?: { forceNew?: boolean; clientInstanceId?: string },
+) => {
     return apiClient<{ sessao: SessaoIA, isNew: boolean }>('/sessoes', {
         method: 'POST',
-        body: JSON.stringify({ nome, characterId }),
+        body: JSON.stringify({
+            nome,
+            characterId,
+            forceNew: options?.forceNew ?? false,
+            clientInstanceId: options?.clientInstanceId,
+        }),
     });
 };
 
@@ -156,24 +172,5 @@ export const cloneGameSession = async (sessionId: number) => {
 };
 
 
-// --- Gameplay Actions ---
-
-export const processPlayerAction = async (
-    sessionId: number, 
-    prompt: string, 
-    apiKey: string, 
-    combatState?: CombatState, 
-    model?: string,
-    useAiHomebrew?: boolean,
-): Promise<GameMasterResponse> => {
-    return apiClient<GameMasterResponse>(`/narrar/${sessionId}`, {
-        method: 'POST',
-        body: JSON.stringify({
-            prompt,
-            apiKey,
-            combatState,
-            model,
-            useAiHomebrew,
-        }),
-    });
-};
+// Gameplay em tempo real usa WebSocket (`processAction`) via `useNewGameState`.
+// A rota REST `/narrar` foi descontinuada.

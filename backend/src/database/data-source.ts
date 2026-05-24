@@ -39,6 +39,7 @@ import { AiFeedbackNote } from '../entities/AiFeedbackNote.js';
 import { ScenarioExample } from '../entities/ScenarioExample.js';
 import { SrdResource } from '../entities/SrdResource.js';
 import { CharacterResource } from '../entities/CharacterResource.js';
+import { SessionFact } from '../entities/SessionFact.js';
 
 
 /**
@@ -99,6 +100,7 @@ export const AppDataSource = new DataSource({
         ScenarioExample,
         SrdResource,
         CharacterResource,
+        SessionFact,
     ], 
     
     migrations: [],
