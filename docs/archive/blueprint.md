@@ -1,3 +1,5 @@
+> **Arquivado (Fase 7):** documento legado. Consulte [`../architecture.md`](../architecture.md) e o [`README.md`](../../README.md) na raiz.
+
 # Crônicas de Aventuras: Um RPG de Texto Gerado por IA
 
 Bem-vindo ao "Crônicas de Aventuras", uma experiência de RPG de mesa solo, onde suas escolhas moldam uma história épica, guiada por um Mestre de Jogo de Inteligência Artificial. Construído com Next.js e Genkit, este projeto combina a nostalgia do Dungeons & Dragons 5ª Edição com o poder da IA generativa.

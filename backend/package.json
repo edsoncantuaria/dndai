@@ -12,6 +12,7 @@
     "seed:data": "tsx src/scripts/migrate-data.ts",
     "seed:all": "npm run seed:data && npm run seed:regions && npm run seed:enemy-templates && npm run ai:seed-normalizations",
     "test": "REDIS_URL=mock node --test --import tsx \"src/__tests__/**/*.spec.ts\"",
+    "migration:run": "tsx src/database/run-migrations.ts",
     "ai:integrity-check": "tsx src/scripts/aiIntegrityCheck.ts",
     "ai:test-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructuredOutput.ts",
     "ai:compare-structured": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/compareStructuredScenario.ts",

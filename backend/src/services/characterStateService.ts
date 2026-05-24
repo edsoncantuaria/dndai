@@ -4,7 +4,7 @@ import { CharacterAttributes } from '../entities/CharacterAttributes.js';
 import type { CharacterStateDelta } from '../rules/types.js';
 import { recordActionLog } from './actionLogService.js';
 import { applyResourceChanges } from './characterResourceService.js';
-import { consumeCharacterItem } from './inventoryService.js';
+import { consumeCharacterItem, addOrIncrementCharacterItem, applyCurrencyDelta } from './inventoryService.js';
 
 export interface AppliedCharacterDelta {
     characterId: number;
@@ -98,6 +98,8 @@ export const applyCharacterStateDelta = async (
               quantityDelta: number;
           }[]
         | undefined;
+    let currencyChanges: Partial<Record<'pp' | 'gp' | 'ep' | 'sp' | 'cp', number>> | undefined;
+
     if (delta.hp) {
         const maxHp = attributes.maxHp ?? attributes.hp ?? 0;
         if (delta.hp.setToMax) {
@@ -152,8 +154,16 @@ export const applyCharacterStateDelta = async (
                 inventoryChanges.push(entry);
                 debugLog('Inventory consumed', { sessionId, entry });
             } else {
-                // Placeholder: positive deltas (gains) not handled yet.
-                warnLog('Positive inventory delta not implemented', { sessionId, entry });
+                await addOrIncrementCharacterItem({
+                    characterId: session.character.id,
+                    itemId: entry.itemId,
+                    itemIndex: entry.itemIndex,
+                    quantity: entry.quantityDelta,
+                    name: entry.name,
+                    itemData: entry.itemData as Record<string, unknown> | undefined,
+                });
+                inventoryChanges.push(entry);
+                debugLog('Inventory gained', { sessionId, entry });
             }
         }
         if (!inventoryChanges.length) {
@@ -161,7 +171,23 @@ export const applyCharacterStateDelta = async (
         }
     }
 
-    if (hpChanged || resourceSnapshots || resourceLogEntries || inventoryChanges) {
+    if (delta.currency && typeof delta.currency === 'object') {
+        currencyChanges = {};
+        for (const [coin, value] of Object.entries(delta.currency)) {
+            const numeric = Number(value);
+            if (Number.isFinite(numeric) && numeric !== 0) {
+                (currencyChanges as Record<string, number>)[coin] = numeric;
+            }
+        }
+        if (Object.keys(currencyChanges).length) {
+            await applyCurrencyDelta(session.character.id, currencyChanges);
+            debugLog('Currency updated', { sessionId, currencyChanges });
+        } else {
+            currencyChanges = undefined;
+        }
+    }
+
+    if (hpChanged || resourceSnapshots || resourceLogEntries || inventoryChanges || currencyChanges) {
         await recordActionLog({
             sessionId,
             characterId: session.character.id,
@@ -175,6 +201,7 @@ export const applyCharacterStateDelta = async (
                     ...(hpChanged ? { hp: delta.hp } : {}),
                     resources: resourceLogEntries,
                     inventory: inventoryChanges,
+                    currency: currencyChanges,
                 },
             },
             metadata: context?.metadata,

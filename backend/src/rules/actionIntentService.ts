@@ -13,6 +13,13 @@ import {
     validateConsumeItemIntent,
 } from './damage.js';
 import { validateTravelIntent } from './travel.js';
+import {
+    validateClaimLootIntent,
+    validateDropItemIntent,
+    validateEquipItemIntent,
+    type DropItemPayload,
+    type EquipItemPayload,
+} from './inventoryMotor.js';
 import type {
     WeaponAttackIntent,
     RuleCheckResult,
@@ -23,6 +30,8 @@ import type {
     HealingIntentPayload,
     ConsumeItemIntentPayload,
     TravelIntentPayload,
+    EquipItemPayload,
+    DropItemPayload,
 } from './types.js';
 import type { CombatState } from '../types.js';
 
@@ -58,6 +67,18 @@ export type ActionIntent =
     | {
           type: 'travel';
           payload: TravelIntentPayload;
+      }
+    | {
+          type: 'equip-item';
+          payload: EquipItemPayload;
+      }
+    | {
+          type: 'drop-item';
+          payload: DropItemPayload;
+      }
+    | {
+          type: 'claim-loot';
+          payload?: Record<string, never>;
       };
 
 export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>([
@@ -69,6 +90,9 @@ export const SUPPORTED_INTENTS = new Set<ActionIntent['type']>([
     'healing',
     'consume-item',
     'travel',
+    'equip-item',
+    'drop-item',
+    'claim-loot',
 ]);
 
 export async function validateActionIntent(
@@ -116,6 +140,15 @@ export async function validateActionIntent(
             result = await validateTravelIntent(worldState, intent.payload);
             break;
         }
+        case 'equip-item':
+            result = validateEquipItemIntent(intent.payload);
+            break;
+        case 'drop-item':
+            result = validateDropItemIntent(intent.payload);
+            break;
+        case 'claim-loot':
+            result = validateClaimLootIntent();
+            break;
         default:
             throw createError(400, `Tipo de intenção ${intent.type} não é suportado.`);
     }

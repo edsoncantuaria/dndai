@@ -277,6 +277,17 @@ export const mergeCharacterUpdates = async (
     }
   }
 
+  // --- Moedas autoritativas (Fase 5.3) ---
+  if (updates.currency && typeof updates.currency === 'object') {
+    const { reconcileCurrency } = await import('./inventoryService.js');
+    const repo = queryRunner.manager.getRepository(Character);
+    character.coins = reconcileCurrency(
+      updates.currency as Record<string, unknown>,
+      character.coins as Record<string, unknown>,
+    );
+    await repo.save(character);
+  }
+
   // --- Relationships + Quests (Upsert/Delete recursivo) ---
     if (updates.relationships && Array.isArray(updates.relationships)) {
         const relationshipRepo = queryRunner.manager.getRepository(Relationship);

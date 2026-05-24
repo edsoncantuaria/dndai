@@ -110,7 +110,10 @@ export interface CharacterStateDelta {
         itemIndex?: string;
         itemId?: number;
         quantityDelta: number;
+        itemData?: Record<string, unknown>;
+        name?: string;
     }[];
+    currency?: Partial<Record<'pp' | 'gp' | 'ep' | 'sp' | 'cp', number>>;
 }
 
 export interface CharacterResourceSnapshot {
@@ -214,6 +217,16 @@ export interface HealingIntentPayload {
 export interface TravelIntentPayload {
     targetRegionSlug: string;
     targetPoiSlug?: string;
+}
+
+export interface DropItemPayload {
+    itemId: number;
+    quantity?: number;
+}
+
+export interface EquipItemPayload {
+    itemId: number;
+    equipped: boolean;
 }
 
 export interface ConsumeItemIntentPayload {

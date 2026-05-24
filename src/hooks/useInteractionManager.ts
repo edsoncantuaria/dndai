@@ -131,9 +131,10 @@ export const useInteractionManager = () => {
         if (!pendingLootOffer) return;
         setPlayerRollRequest(null);
         if (takeAll) {
+            setPendingStructuredIntent({ type: 'claim-loot', payload: {} });
             processPlayerAction('Eu pego todo o tesouro.');
         }
-    }, [pendingLootOffer]);
+    }, [pendingLootOffer, setPendingStructuredIntent]);
 
     const handleBuyItem = useCallback((processPlayerAction: (action: string, sessionIdOverride?: number, modelOverride?: string) => void) => (item: ShopItem, price: number) => {
         setPlayerRollRequest(null);

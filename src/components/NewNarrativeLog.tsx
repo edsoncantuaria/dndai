@@ -2,6 +2,8 @@
 'use client';
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useGameStateContext } from '../contexts/GameStateContext';
+import { Dice5 } from 'lucide-react';
+import { Button } from './ui/button';
 import type { LogEntry as LogEntryType, ImageLogEntryContent } from '../types';
 import { Swords, Wand, HeartPulse, Hand, Dice5, ChevronsRight, Sparkles, BrainCircuit, Volume2, Loader2, Image as ImageIcon, RefreshCcw } from 'lucide-react';
 import { useNarrationSpeech } from '@/hooks/useNarrationSpeech';
@@ -479,6 +481,39 @@ const NpcRollDisplay: React.FC = () => {
     );
 };
 
+const PendingRollBanner: React.FC = () => {
+    const { isRollPending, playerRollRequest, actionPhaseLabel } = useGameStateContext();
+    if (!isRollPending || !playerRollRequest) return null;
+
+    const reason = playerRollRequest.reason || playerRollRequest.skillName || 'Teste pendente';
+
+    return (
+        <div className="sticky top-0 z-10 mb-4 rounded-lg border border-amber-500/50 bg-amber-950/80 px-4 py-3 shadow-lg backdrop-blur-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-2 text-amber-100">
+                    <Dice5 className="h-5 w-5 shrink-0 mt-0.5 text-amber-300" />
+                    <div>
+                        <p className="font-semibold text-sm">Rolagem pendente</p>
+                        <p className="text-xs text-amber-200/90 mt-0.5">{reason}</p>
+                        {actionPhaseLabel && (
+                            <p className="text-xs text-amber-300/70 mt-1">{actionPhaseLabel}</p>
+                        )}
+                    </div>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    className="shrink-0 border-amber-400/40 bg-amber-900/60 text-amber-50 hover:bg-amber-800"
+                    onClick={() => window.dispatchEvent(new CustomEvent('game-focus-roll-modal'))}
+                >
+                    Abrir dados
+                </Button>
+            </div>
+        </div>
+    );
+};
+
 const NewNarrativeLog: React.FC = () => {
     const { log, setLog } = useGameStateContext();
     const { apiKey } = useSettingsContext();
@@ -934,6 +969,7 @@ const NewNarrativeLog: React.FC = () => {
 
     return (
         <div className="space-y-4">
+            <PendingRollBanner />
             <NpcRollDisplay />
 
             {log.map((entry) => {

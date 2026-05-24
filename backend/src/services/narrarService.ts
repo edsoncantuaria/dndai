@@ -12,18 +12,16 @@ import type { GameMasterResponse, CombatState, ApiSpell, GameMasterFlowInput } f
 import { In } from 'typeorm';
 import { HomebrewContent } from '../entities/HomebrewContent.js';
 import * as HomebrewService from './homebrewService.js';
-import { mergeCharacterUpdates } from './safeMerge.js';
 import { recordArtifactsForSession } from './artifactService.js';
 import * as SessaoService from './sessaoService.js';
 import redisClient from '../database/redis-client.js';
 import { v4 as uuidv4 } from 'uuid';
 import { validateGameMasterResponse } from './gameResponseValidator.js';
 import { orchestrateGameMasterResponse, generateFallbackResponse } from './gameOrchestrator.js';
-import { getInventorySnapshotFromDb, hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
+import { hydrateInventoryItems, reconcileCurrency } from './inventoryService.js';
 import {
     loadCombatEncounterState,
     reconcileCombatStateUpdate,
-    saveCombatEncounterState,
     projectPublicCombatState,
     type CombatReconciliationResult,
     type LoadedCombatEncounter,
@@ -31,29 +29,25 @@ import {
 import { applyXpEvents, clampCharacterLevel } from './xpService.js';
 import { recordTimelineEventAndSummarize, recordTimelineEvent, generateLevelUpRecap } from './storyService.js';
 import type { CombatState as SchemaCombatState } from '../schemas/gameSchemas.js';
-import { offloadLargePayload } from './objectStorageService.js';
 import { synthesizeNarrationAudio } from './ttsService.js';
-import { generateSceneImage, isImageGenerationAvailable } from './imageGenerationService.js';
-import { storeMemory } from './vectorMemoryService.js';
+import { isImageGenerationAvailable } from './imageGenerationService.js';
 import type { AiInteractionMode } from '../types/ai.js';
 import { runGmValidator } from './gmValidator.js';
-import { buildFeedbackHint } from './aiFeedbackService.js';
 import { savePendingRollRequest, clearPendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
 import { recordUnexpectedAiRoll } from './rollMetricsService.js';
-import * as RegionService from './regionService.js';
-import { incrementStateVersion } from './stateVersionService.js';
-import { runAiPhases } from '../narration/phaseOrchestrator.js';
-import { resolvePipelineMode } from '../ai/constants.js';
+import { runNarrationAiPhases } from '../narration/turnProcessor.js';
 import { isMotorOwnedPipeline, stripMotorOwnedFields } from '../narration/motorStateBridge.js';
 import { validateByPhaseFocus } from '../ai/responseValidator.js';
 import { buildNarrationContext } from '../narration/contextBuilder.js';
+import { persistNarrationTurn } from '../narration/persistence.js';
+import { buildWorldStateSnapshot } from '../narration/worldStateSnapshot.js';
+import { appendSystemLogEntry } from '../narration/systemLog.js';
 import { persistValidatedFacts } from './sessionFactService.js';
+import { persistPendingLootOffer } from './inventoryMotorService.js';
 
 const PROMPT_LOG_TYPES = new Set(['action', 'narration', 'system', 'combat', 'insight']);
 const MAX_PROMPT_LOG_ENTRIES = 12;
 const MAX_PROMPT_ENTRY_CHARS = 320;
-const LOG_STORAGE_THRESHOLD = 1800;
-
 const truncateText = (value: string, limit = MAX_PROMPT_ENTRY_CHARS) => {
     if (!value) return '';
     return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
@@ -104,98 +98,6 @@ const buildPromptLogString = (logs: SessionLog[]) => {
     return relevant.slice(-MAX_PROMPT_LOG_ENTRIES).map(entry => `${entry.role}:${entry.summary}`).join('\n');
 };
 
-const prepareLogPayload = async (sessaoId: number, type: string, payload: unknown): Promise<string> => {
-    if (payload === undefined || payload === null) return '';
-    const serialized = typeof payload === 'string' ? payload : JSON.stringify(payload);
-    if (!serialized) return '';
-    if (serialized.length < LOG_STORAGE_THRESHOLD) return serialized;
-    const offloaded = await offloadLargePayload(serialized, { prefix: `sessions/${sessaoId}/${type}` });
-    return offloaded ?? serialized;
-};
-
-const canonicalSlug = (value?: string | null) => {
-    if (!value) return '';
-    return value
-        .toString()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-};
-
-type VisitedPoiEntry = { regionSlug: string; poiSlug: string; name?: string };
-
-const mergeVisitedRegions = (
-    existing?: any,
-    incoming?: any,
-    mandatorySlug?: string | null
-) => {
-    const normalized = new Set<string>();
-    const collect = (source?: any) => {
-        if (!Array.isArray(source)) return;
-        for (const value of source) {
-            if (typeof value === 'string' && value.trim().length) {
-                normalized.add(canonicalSlug(value));
-            }
-        }
-    };
-    collect(existing);
-    collect(incoming);
-    if (mandatorySlug) normalized.add(canonicalSlug(mandatorySlug));
-    return Array.from(normalized).filter(Boolean);
-};
-
-const mergeVisitedPois = (
-    existing?: any,
-    incoming?: any,
-    current?: VisitedPoiEntry | null
-): VisitedPoiEntry[] => {
-    const map = new Map<string, VisitedPoiEntry>();
-    const collect = (source?: any) => {
-        if (!Array.isArray(source)) return;
-        for (const entry of source) {
-            if (!entry || typeof entry !== 'object') continue;
-            const regionSlug = canonicalSlug(entry.regionSlug);
-            const poiSlug = canonicalSlug(entry.poiSlug);
-            if (!regionSlug || !poiSlug) continue;
-            const key = `${regionSlug}:${poiSlug}`;
-            map.set(key, {
-                regionSlug,
-                poiSlug,
-                name: entry.name,
-            });
-        }
-    };
-    collect(existing);
-    collect(incoming);
-    if (current?.regionSlug && current?.poiSlug) {
-        const key = `${canonicalSlug(current.regionSlug)}:${canonicalSlug(current.poiSlug)}`;
-        map.set(key, {
-            regionSlug: canonicalSlug(current.regionSlug),
-            poiSlug: canonicalSlug(current.poiSlug),
-            name: current.name,
-        });
-    }
-    return Array.from(map.values());
-};
-
-const mergeNpcLocations = (
-    current?: any,
-    updates?: Array<{ npcId?: string; name?: string; regionSlug?: string; poiSlug?: string }>
-) => {
-    const map = new Map<string, any>();
-    const collect = (source?: any) => {
-        if (!Array.isArray(source)) return;
-        for (const entry of source) {
-            if (!entry || typeof entry !== 'object' || !entry.npcId) continue;
-            map.set(entry.npcId, { ...entry });
-        }
-    };
-    collect(current);
-    collect(updates);
-    return Array.from(map.values());
-};
 
 const getPlainTextFromLogEntry = (entry: GameMasterResponse['logEntries'][number]): string | null => {
     if (!entry) return null;
@@ -498,23 +400,6 @@ const calculateModifier = (score: number) => Math.floor((score - 10) / 2);
 
 const ensureArray = <T>(value: T[] | undefined | null): T[] => Array.isArray(value) ? value : [];
 
-const buildWorldStateSnapshot = (character: Character) => {
-    const base = { ...(character.worldState || {}) };
-    const relationships = ensureArray(character.relationships);
-    const npcLocations = relationships
-        .filter(rel => rel?.npcId && (rel.regionSlug || rel.poiSlug))
-        .map(rel => ({
-            npcId: rel.npcId,
-            name: rel.name,
-            regionSlug: rel.regionSlug ?? undefined,
-            poiSlug: rel.poiSlug ?? undefined,
-        }));
-    if (npcLocations.length) {
-        base.npcLocations = mergeNpcLocations(base.npcLocations, npcLocations);
-    }
-    return base;
-};
-
 const buildDefaultAttributes = (): Pick<CharacterAttributes, 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma' | 'hp' | 'maxHp' | 'ac' | 'conditions'> => ({
     strength: 10,
     dexterity: 10,
@@ -606,6 +491,15 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
         equipped: item?.equipped ?? false,
     }));
 
+    const currency = reconcileCurrency(null, fullCharacter.coins as Record<string, unknown>);
+    let currentWeight = 0;
+    for (const item of inventory) {
+        const weight = Number((item as any).weight ?? (item as any).itemData?.weight ?? 0) || 0;
+        const qty = Number((item as any).quantity ?? 1) || 1;
+        currentWeight += weight * qty;
+    }
+    const carryingCapacity = Math.max(0, (attributes.strength ?? 10) * 15);
+
     const spells = ensureArray(fullCharacter.spells)
         .map(s => (s as any)?.spellName ?? (s as any)?.name ?? null)
         .filter(Boolean) as string[];
@@ -644,6 +538,9 @@ const mapCharacterToOptimizedPayload = (fullCharacter: Character) => {
         proficiencies: proficiencies.map(p => p?.name).filter(Boolean),
         feats: fullCharacter.feats ?? [],
         inventory,
+        currency,
+        currentWeight,
+        carryingCapacity,
         spells: spells as unknown as ApiSpell[],
         storySoFar: fullCharacter.storySoFar ?? '',
         worldState: worldStateSnapshot,
@@ -1082,10 +979,7 @@ export const processPlayerTurn = async (
         response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
     };
 
-    const narrativeHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'narrative');
-    const stateHint = await buildFeedbackHint(sessionKey, gameMasterFlowInput.scenarioLabel ?? undefined, 'state');
-
-    const orchestrated = await runAiPhases({
+    const orchestrated = await runNarrationAiPhases({
         baseInput: gameMasterFlowInput,
         playerAction,
         characterForAI,
@@ -1093,9 +987,7 @@ export const processPlayerTurn = async (
         generationConfig,
         apiKey,
         sessionId: sessionKey,
-        narrativeHint: narrativeHint ?? undefined,
-        stateHint: stateHint ?? undefined,
-        pipelineMode: resolvePipelineMode(),
+        scenarioLabel: gameMasterFlowInput.scenarioLabel,
     });
 
     const narrativePhase = orchestrated.narrativePhase;
@@ -1484,11 +1376,14 @@ export const processPlayerTurn = async (
             }));
             await recordArtifactsForSession(sessao.character.id, sessao.id, artifactInputs);
         }
+        if (!isTestRun && sessao && aiResponse.lootOffer) {
+            await persistPendingLootOffer(sessao.id, aiResponse.lootOffer as Record<string, unknown>);
+        }
     }
     
     const validatorResult = runGmValidator(aiResponse, {
         memorySummary: storySummaryForPrompt ?? newStorySummaryForLog ?? undefined,
-        memoryReferences: semanticMemoryDigest ? ['session_memories'] : undefined,
+        memoryReferences: narrationContext.layeredMemorySummary ? ['session_memories'] : undefined,
         gameClock: {
             day: aiResponse.gameClock?.day,
             hour: aiResponse.gameClock?.hour,
@@ -1583,409 +1478,31 @@ export const processPlayerTurn = async (
                     scenarioLabel: gameMasterFlowInput.scenarioLabel,
                     playerAction: playerAction.slice(0, 200),
                 },
-            }
+            },
         );
         return aiResponse;
-    } else {
-        await clearPendingRollRequest(sessao.id);
     }
 
-    const queryRunner = AppDataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    await clearPendingRollRequest(sessao.id);
 
-    try {
-        const logRepository = queryRunner.manager.getRepository(SessionLog);
-        let persistedStateVersion: number | null = null;
-
-        const persistSessionLog = async (
-            logType: SessionLog['type'],
-            promptLabel: string,
-            payload: unknown,
-            rollResult?: any
-        ) => {
-            if (!sessao) return;
-            const response = await prepareLogPayload(sessao.id, logType, payload);
-            if (!response) return;
-            const log = new SessionLog();
-            Object.assign(log, {
-                sessaoId: sessao.id,
-                prompt: promptLabel,
-                response,
-                type: logType,
-                rollResult,
-                stateVersion: persistedStateVersion,
-            });
-            await logRepository.save(log);
-        };
-
-            const trimmedRawText = typeof rawText === 'string' ? rawText.slice(0, 4000) : null;
-            if (trimmedRawText) {
-                await persistSessionLog('gm_raw', 'GM Raw Response', trimmedRawText);
-            }
-        await persistSessionLog('gm_validation', 'GM Validation', { attempts, issues: validationIssues, fallback: usedFallback });
-        if (trimmedRawText && (latestStateHint || validationIssues.length)) {
-            await persistSessionLog(
-                'gm_discarded',
-                'GM Discarded Response',
-                {
-                    rawText: trimmedRawText.slice(0, 4000),
-                    validationIssues,
-                    hints: normalizedStateHints,
-                }
-            );
-        }
-        
-        if(!isInternalAction) {
-            await persistSessionLog('action', 'Player Action', playerAction);
-        }
-        
-        const stateForLog: Partial<GameMasterResponse> = { ...aiResponse };
-        delete stateForLog.logEntries;
-        await persistSessionLog('state', 'GM Full State', stateForLog);
-
-        if (newStorySummaryForLog) {
-            await persistSessionLog('summary', 'Story Summary', newStorySummaryForLog);
-        }
-
-        const canonicalStateToPersist =
-            combatReconciliation?.canonicalState ?? null;
-        if (sessao && (canonicalStateToPersist || loadedCombat.encounterId !== null)) {
-            await saveCombatEncounterState(
-                queryRunner,
-                sessao.id,
-                loadedCombat.encounterId,
-                canonicalStateToPersist
-            );
-        }
-
-        if (aiResponse.logEntries) {
-            for (const entry of aiResponse.logEntries) {
-                let contentToSave = entry.content;
-                
-                if (entry.type === 'image' && entry.content && typeof entry.content === 'object') {
-                    const imageContent = entry.content as Record<string, any>;
-                    if (imageContent.status === 'generating' && imageContent.prompt) {
-                        if (!isImageGenerationAvailable(apiKey)) {
-                            contentToSave = {
-                                ...imageContent,
-                                status: 'failed',
-                                error: 'Serviço de geração de imagens indisponível no momento.',
-                            };
-                        } else {
-                            try {
-                                const generated = await generateSceneImage(imageContent.prompt, apiKey);
-                                if (generated) {
-                                    contentToSave = {
-                                        ...imageContent,
-                                        status: 'done',
-                                        imageUrl: generated.url ?? imageContent.imageUrl,
-                                        url: generated.url ?? imageContent.url,
-                                        imageKey: generated.key,
-                                        size: generated.size,
-                                        contentType: generated.contentType,
-                                        completedAt: new Date().toISOString(),
-                                    };
-                                } else {
-                                    contentToSave = {
-                                        ...imageContent,
-                                        status: 'failed',
-                                        error: 'Não foi possível gerar a imagem solicitada.',
-                                    };
-                                }
-                            } catch (imageError: any) {
-                                console.error(`[narrarService] Falha ao gerar imagem via Gemini:`, imageError);
-                                contentToSave = {
-                                    ...imageContent,
-                                    status: 'failed',
-                                    error: imageError?.message ?? 'Falha desconhecida ao gerar imagem.',
-                                };
-                            }
-                        }
-                        entry.content = contentToSave;
-                    }
-                }
-
-                await persistSessionLog(entry.type || 'narration', 'GM Narration', contentToSave, entry.rollResult);
-            }
-        }
-
-        await enforceWorldStateLocation(sessao, aiResponse);
-
-        if (aiResponse.newHomebrewContent && Array.isArray(aiResponse.newHomebrewContent) && !motorOwnsState) {
-            for (const newContent of aiResponse.newHomebrewContent) {
-                try {
-                    const existing = await HomebrewService.checkIfNameExists(newContent.name, newContent.type);
-                    if (!existing) {
-                       const saved = await HomebrewService.createHomebrewContent(userId, { ...newContent, isPublic: true, createdBy: 'ai' });
-                       await SessaoService.updateHomebrewInstallation(sessao.id, userId, saved.id, 'install');
-                        if (redisClient && redisClient.isOpen) {
-                            await redisClient.del(sessionCacheKey);
-                        }
-                    }
-                } catch (error) {
-                    console.error(`[narrarService] Falha ao salvar conteúdo Homebrew da IA:`, error);
-                }
-            }
-        }
-
-        if (!usedFallback) {
-            const updatesFromAi = motorOwnsState
-                ? ({} as Record<string, unknown>)
-                : { ...(aiResponse.updatedCharacter || {}) };
-
-            if (!motorOwnsState) {
-                if (aiResponse.worldState) {
-                    updatesFromAi.worldState = aiResponse.worldState;
-                }
-                if (aiResponse.gameClock) {
-                    updatesFromAi.gameClock = {
-                        ...(updatesFromAi.gameClock || {}),
-                        ...aiResponse.gameClock,
-                    };
-                }
-
-                const hasWorldStateUpdates = Boolean(
-                    updatesFromAi.worldState && Object.keys(updatesFromAi.worldState).length > 0
-                );
-                const hasCharacterUpdates = Object.keys(updatesFromAi).some(key => key !== 'worldState');
-
-                if (hasWorldStateUpdates || hasCharacterUpdates) {
-                    console.log('[narrarService] mergeCharacterUpdates payload', {
-                        characterId: sessao.character!.id,
-                        updates: updatesFromAi,
-                    });
-                    await mergeCharacterUpdates(sessao.character!.id, updatesFromAi, queryRunner);
-                    if (redisClient && redisClient.isOpen) {
-                        await redisClient.del(
-                            `character:${sessao.character!.id}`,
-                            `character:${sessao.character!.id}:optimized`,
-                            sessionCacheKey
-                        );
-                    }
-                }
-            }
-
-            const canonicalInventory = await getInventorySnapshotFromDb(sessao.character!.id, queryRunner.manager);
-            console.log('[narrarService] canonicalInventory snapshot', {
-                characterId: sessao.character!.id,
-                count: canonicalInventory.length,
-            });
-            const hydratedSnapshot = await hydrateInventoryItems(
-                canonicalInventory,
-                userId,
-                canonicalInventory
-            );
-
-            const persistedProgress = await queryRunner.manager.getRepository(Character).findOne({
-                where: { id: sessao.character!.id },
-                select: ['xp', 'level'],
-                loadEagerRelations: false,
-            });
-
-            const canonicalPatch = {
-                inventory: hydratedSnapshot.items as any,
-                currency: reconcileCurrency(
-                    motorOwnsState ? undefined : aiResponse.updatedCharacter?.currency,
-                    hydratedSnapshot.metrics.currency
-                ),
-                currentWeight: hydratedSnapshot.metrics.totalWeight,
-                totalCoinCount: hydratedSnapshot.metrics.totalCoinCount,
-                xp: persistedProgress?.xp ?? (motorOwnsState ? undefined : aiResponse.updatedCharacter?.xp),
-                level: persistedProgress?.level ?? (motorOwnsState ? undefined : aiResponse.updatedCharacter?.level),
-                gameClock: motorOwnsState ? undefined : updatesFromAi.gameClock,
-            };
-            console.log('[narrarService] canonicalPatch aplicado', canonicalPatch);
-
-            aiResponse.updatedCharacter = {
-                ...(motorOwnsState ? {} : aiResponse.updatedCharacter || {}),
-                ...canonicalPatch,
-            };
-
-            if (motorOwnsState && sessao.character) {
-                const reloadedCharacter = await queryRunner.manager.getRepository(Character).findOne({
-                    where: { id: sessao.character.id },
-                });
-                if (reloadedCharacter) {
-                    aiResponse.worldState = buildWorldStateSnapshot(reloadedCharacter) as any;
-                }
-            }
-        } else {
-            aiResponse.updatedCharacter = undefined;
-            aiResponse.worldState = undefined;
-        }
-        
-        await queryRunner.commitTransaction();
-        persistedStateVersion = await incrementStateVersion(sessao.id);
-        aiResponse.stateVersion = persistedStateVersion;
-
-        if (!isTestRun && sessao) {
-            const memoryLines = [
-                `Jogador: ${playerAction}`,
-                latestNarrationSummary ? `Mestre: ${latestNarrationSummary}` : null,
-            ].filter(Boolean) as string[];
-
-            try {
-                await storeMemory(
-                    'session_memories',
-                    memoryLines.join('\n'),
-                    {
-                        id: uuidv4(),
-                        sessionId: String(sessao.id),
-                        type: 'narration',
-                        timestamp: Date.now(),
-                        turn: aiResponse.combatState?.turn ?? combatReconciliation?.canonicalState?.turn ?? 0,
-                        summary: latestNarrationSummary || playerAction.slice(0, 160),
-                    },
-                    apiKey,
-                );
-            } catch (error) {
-                console.error('[narrarService] Falha ao armazenar memória vetorial:', error);
-            }
-        }
-
-        return aiResponse;
-    } catch (error) {
-        await queryRunner.rollbackTransaction();
-        console.error("Erro na transação de narração:", error);
-        throw createError(500, 'Falha ao salvar o progresso da aventura.');
-    } finally {
-        await queryRunner.release();
-    }
-};
-
-const appendSystemLogEntry = (existing: string | null | undefined, message: string) =>
-    existing && existing.length ? `${existing}\n${message}` : message;
-
-const enforceWorldStateLocation = async (sessao: SessaoIA, response: GameMasterResponse) => {
-    if (!response.worldState || !sessao?.character) return;
-    const worldState = response.worldState as Record<string, any>;
-    const previousState = (sessao.character.worldState as any) ?? {};
-    const previousRegionSlug =
-        previousState.regionSlug ??
-        sessao.character.worldState?.currentRegion ??
-        null;
-    const previousRegionName = sessao.character.worldState?.currentRegion ?? null;
-    const previousPoiSlug = previousState.poiSlug ?? null;
-    const hasPoiField = Object.prototype.hasOwnProperty.call(worldState, 'poiSlug');
-    const requestedRegionName = worldState.currentRegion;
-
-    if (!worldState.regionSlug && previousRegionSlug) {
-        worldState.regionSlug = previousRegionSlug;
-    }
-
-    const revertToPreviousRegion = () => {
-        if (previousRegionSlug) {
-            worldState.currentRegion = previousRegionName ?? previousRegionSlug;
-            worldState.regionSlug = previousRegionSlug;
-        } else {
-            delete worldState.currentRegion;
-            delete worldState.regionSlug;
-        }
-    };
-
-    if (requestedRegionName) {
-        const isLeavingPoiWithoutExit =
-            previousPoiSlug &&
-            (!hasPoiField || canonicalSlug(worldState.poiSlug) === canonicalSlug(previousPoiSlug)) &&
-            canonicalSlug(requestedRegionName) !== canonicalSlug(previousRegionSlug);
-        if (isLeavingPoiWithoutExit) {
-            response.systemLog = appendSystemLogEntry(
-                response.systemLog,
-                '[Mapa] Saia do sublocal atual antes de viajar para outra região.'
-            );
-            revertToPreviousRegion();
-        } else {
-            try {
-                const resolved = await RegionService.validateRegionTransition(
-                    previousRegionSlug,
-                    requestedRegionName,
-                    { worldState: sessao.character.worldState }
-                );
-                worldState.currentRegion = resolved.name;
-                worldState.regionSlug = resolved.slug;
-                worldState.visitedRegions = mergeVisitedRegions(
-                    previousState.visitedRegions,
-                    worldState.visitedRegions,
-                    resolved.slug
-                );
-                if (!hasPoiField || !worldState.poiSlug) {
-                    delete worldState.poiSlug;
-                    delete worldState.poiName;
-                }
-            } catch (error: any) {
-                console.warn('[narrarService] Movimento de região rejeitado:', error?.message ?? error);
-                response.systemLog = appendSystemLogEntry(
-                    response.systemLog,
-                    `[Mapa] ${error?.message ?? 'Transição inválida de região.'}`
-                );
-                revertToPreviousRegion();
-            }
-        }
-    } else if (worldState.regionSlug) {
-        worldState.visitedRegions = mergeVisitedRegions(
-            previousState.visitedRegions,
-            worldState.visitedRegions,
-            worldState.regionSlug
-        );
-        if (!worldState.currentRegion && previousRegionName) {
-            worldState.currentRegion = previousRegionName;
-        }
-    }
-
-    const effectiveRegionSlug = worldState.regionSlug ?? previousRegionSlug ?? null;
-    if (hasPoiField) {
-        if (!worldState.poiSlug) {
-            delete worldState.poiSlug;
-            delete worldState.poiName;
-        } else if (effectiveRegionSlug) {
-            try {
-                const poi = await RegionService.validatePoiEntry(
-                    effectiveRegionSlug,
-                    worldState.poiSlug
-                );
-                worldState.poiSlug = poi.slug;
-                worldState.poiName = poi.name;
-                worldState.visitedPois = mergeVisitedPois(
-                    previousState.visitedPois,
-                    worldState.visitedPois,
-                    { regionSlug: poi.regionSlug ?? effectiveRegionSlug, poiSlug: poi.slug, name: poi.name }
-                );
-            } catch (error: any) {
-                console.warn('[narrarService] Entrada em POI rejeitada:', error?.message ?? error);
-                response.systemLog = appendSystemLogEntry(
-                    response.systemLog,
-                    `[Mapa] ${error?.message ?? 'Ponto de interesse inválido.'}`
-                );
-                if (previousPoiSlug) {
-                    worldState.poiSlug = previousPoiSlug;
-                    if (previousState.poiName) {
-                        worldState.poiName = previousState.poiName;
-                    }
-                } else {
-                    delete worldState.poiSlug;
-                    delete worldState.poiName;
-                }
-            }
-        } else {
-            response.systemLog = appendSystemLogEntry(
-                response.systemLog,
-                '[Mapa] Não é possível acessar um sublocal sem definir a região atual.'
-            );
-            delete worldState.poiSlug;
-            delete worldState.poiName;
-        }
-    } else if (previousPoiSlug && !worldState.poiSlug) {
-        worldState.poiSlug = previousPoiSlug;
-        if (previousState.poiName && !worldState.poiName) {
-            worldState.poiName = previousState.poiName;
-        }
-    }
-
-    if (!Array.isArray(worldState.visitedPois) && Array.isArray(previousState.visitedPois)) {
-        worldState.visitedPois = previousState.visitedPois;
-    }
-    if (!Array.isArray(worldState.visitedRegions) && Array.isArray(previousState.visitedRegions)) {
-        worldState.visitedRegions = previousState.visitedRegions;
-    }
+    return persistNarrationTurn({
+        sessao,
+        userId,
+        apiKey,
+        aiResponse,
+        playerAction,
+        rawText,
+        attempts,
+        validationIssues,
+        usedFallback,
+        latestStateHint,
+        normalizedStateHints,
+        isInternalAction,
+        newStorySummaryForLog,
+        combatReconciliation,
+        loadedCombat,
+        motorOwnsState,
+        latestNarrationSummary,
+        sessionCacheKey,
+    });
 };

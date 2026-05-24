@@ -66,7 +66,15 @@ Execute o comando abaixo. O servidor iniciará em modo de desenvolvimento com `t
 npm run dev
 ```
 
-Ao iniciar, o TypeORM irá se conectar ao banco de dados e, como a opção `synchronize: true` está ativa, ele **criará automaticamente todas as tabelas necessárias** (`sessoes_ia`, `session_logs`, etc.) com base nas suas entidades. **Não é necessário rodar migrações manualmente em ambiente de desenvolvimento.**
+Em **desenvolvimento** (`DB_SYNC=true`, padrão), o TypeORM cria/atualiza o schema a partir das entidades.
+
+Em **produção** (`NODE_ENV=production`, `DB_SYNC=false`), aplique migrações antes de subir o servidor:
+
+```bash
+npm run migration:run
+```
+
+Migrações ficam em `src/database/migrations/`. O container Docker executa `migration:run` automaticamente no entrypoint.
 
 O servidor estará rodando em `http://localhost:8071`.
 

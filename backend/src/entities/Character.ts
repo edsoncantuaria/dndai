@@ -154,6 +154,10 @@ export class Character {
               weather?: string;
           }
         | null;
+
+    /** Moedas autoritativas (pp/gp/ep/sp/cp) — Fase 5.3 */
+    @Column({ type: 'longtext', nullable: true, transformer: jsonColumnTransformer })
+    coins: Record<string, number> | null;
     
     @Column({ type: 'varchar', length: 100, nullable: true })
     currentRegion: string;

@@ -1,5 +1,5 @@
 import type { GameMasterFlowInput, GameMasterResponse } from '../schemas/gameSchemas.js';
-import { getGameUpdate, type GameUpdateWarning } from '../services/aiService.js';
+import { getGameUpdate, type GameUpdateWarning } from '../ai/gameUpdate.js';
 import { validateGameMasterResponse } from '../services/gameResponseValidator.js';
 import { validateByPhaseFocus } from '../ai/responseValidator.js';
 import { generateFallbackResponse } from '../services/gameOrchestrator.js';

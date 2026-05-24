@@ -5,7 +5,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { incrementStateVersion, loadStateVersion } from './stateVersionService.js';
 import { savePendingRollRequest, getPendingRollRequest } from './rollRequestService.js';
 import * as NarrarService from './narrarService.js';
-import { applyRegionTransition } from './regionTransitionService.js';
+import {
+    claimPendingLoot,
+    equipInventoryItem,
+    inventoryStateToCharacterPatch,
+} from './inventoryMotorService.js';
+import { enrichUpdatedCharacterInventory } from './inventoryService.js';
+import { AppDataSource } from '../database/data-source.js';
+import { SessaoIA } from '../entities/SessaoIA.js';
 import createError from 'http-errors';
 import type { PlayerRollRequest } from '../types.js';
 import type { CombatState } from '../schemas/gameSchemas.js';
@@ -127,6 +134,86 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 combatState: body.combatState,
             });
 
+            if (body.intent.type === 'equip-item') {
+                if (result.status === 'rejected') {
+                    throw createError(400, result.reason ?? 'Equipar item rejeitado pelo motor.');
+                }
+                const inventoryState = await equipInventoryItem(
+                    sessionId,
+                    userId,
+                    body.intent.payload.itemId,
+                    body.intent.payload.equipped,
+                );
+                const newVersion = await deps.incrementStateVersion(sessionId);
+                await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                const patch = inventoryStateToCharacterPatch(inventoryState);
+                return {
+                    actionResolution: {
+                        actionId,
+                        stateVersion: newVersion,
+                        status: 'accepted',
+                        rule: 'equip-item',
+                        result: { updatedCharacter: patch },
+                    },
+                    gameStateUpdate: {
+                        updatedCharacter: patch,
+                        stateVersion: newVersion,
+                    },
+                };
+            }
+
+            if (body.intent.type === 'claim-loot') {
+                if (result.status === 'rejected') {
+                    throw createError(400, result.reason ?? 'Coleta de loot rejeitada.');
+                }
+                const inventoryState = await claimPendingLoot(sessionId, userId);
+                const newVersion = await deps.incrementStateVersion(sessionId);
+                const patch = inventoryStateToCharacterPatch(inventoryState);
+                if (body.apiKey && body.prompt?.trim()) {
+                    await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'AI_SYNTHESIS' });
+                    const response = await NarrarService.processPlayerTurn(
+                        sessionId,
+                        userId,
+                        body.prompt,
+                        body.apiKey,
+                        body.combatState ?? undefined,
+                        body.useAiHomebrew,
+                        ['[Motor] Loot coletado e registrado no inventário.'],
+                        actionId,
+                    );
+                    const narratedVersion = await deps.incrementStateVersion(sessionId);
+                    await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                    return {
+                        actionResolution: {
+                            actionId,
+                            stateVersion: narratedVersion,
+                            status: 'accepted',
+                            rule: 'claim-loot',
+                            result: { ...response, updatedCharacter: { ...(response.updatedCharacter || {}), ...patch } },
+                        },
+                        gameStateUpdate: {
+                            ...response,
+                            updatedCharacter: { ...(response.updatedCharacter || {}), ...patch },
+                            stateVersion: narratedVersion,
+                        },
+                    };
+                }
+                await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
+                return {
+                    actionResolution: {
+                        actionId,
+                        stateVersion: newVersion,
+                        status: 'accepted',
+                        rule: 'claim-loot',
+                        result: { updatedCharacter: patch },
+                    },
+                    gameStateUpdate: {
+                        updatedCharacter: patch,
+                        stateVersion: newVersion,
+                    },
+                };
+            }
+
             if (body.intent.type === 'travel') {
                 if (result.status === 'rejected') {
                     throw createError(400, result.reason ?? 'Viagem rejeitada pelo motor.');
@@ -180,6 +267,9 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                 healing: 'healing',
                 'consume-item': 'check',
                 travel: 'check',
+                'equip-item': 'check',
+                'drop-item': 'check',
+                'claim-loot': 'check',
             };
             const mergedMetadata = {
                 ...(result.rollRequest.metadata ?? {}),
@@ -245,6 +335,22 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
 
                     await deps.advanceActionPhase({ sessionId, userId, actionId, phase: 'DELTA_APPLIED' });
 
+                let inventoryPatch = {};
+                if (AppDataSource.isInitialized) {
+                    const sessaoRepo = AppDataSource.getRepository(SessaoIA);
+                    const sessaoWithChar = await sessaoRepo.findOne({
+                        where: { id: sessionId },
+                        relations: ['character', 'character.attributes'],
+                    });
+                    if (sessaoWithChar?.character) {
+                        const authState = await enrichUpdatedCharacterInventory(
+                            sessaoWithChar.character.id,
+                            sessaoWithChar.character.attributes?.strength,
+                        );
+                        inventoryPatch = inventoryStateToCharacterPatch(authState);
+                    }
+                }
+
                 return {
                     actionResolution: {
                         actionId,
@@ -252,13 +358,19 @@ export const createProcessActionIntent = (overrides?: Partial<ActionServiceDeps>
                         status: 'accepted',
                         stateDelta: result.stateDelta,
                         result: {
-                            updatedCharacter: applied.updatedCharacter,
+                            updatedCharacter: {
+                                ...(applied.updatedCharacter as object || {}),
+                                ...inventoryPatch,
+                            },
                             updatedEntities: applied.updatedEntities,
                         },
                     },
                     gameStateUpdate: {
                         stateVersion: newVersion,
-                        updatedCharacter: applied.updatedCharacter,
+                        updatedCharacter: {
+                            ...(applied.updatedCharacter as object || {}),
+                            ...inventoryPatch,
+                        },
                         updatedEntities: applied.updatedEntities,
                         stateDelta: result.stateDelta,
                     },

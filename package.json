@@ -16,6 +16,12 @@
     "seed:regions": "npm run seed:regions --prefix backend",
     "srd:up": "docker compose -f docker-compose.srd.yml up -d --build",
     "srd:down": "docker compose -f docker-compose.srd.yml down",
+    "compose:infra": "docker compose up -d mysql redis srd-db srd-cache srd-api",
+    "compose:down": "docker compose down",
+    "compose:app": "docker compose --profile app up -d --build",
+    "test": "npm run test --prefix backend",
+    "test:backend": "npm run test --prefix backend",
+    "verify:srd": "node scripts/verify-srd-snapshot.js",
     "sync:srd": "node scripts/sync-srd-api.js",
     "sync:dnd5eapi": "node scripts/sync-dnd5eapi.js"
   },

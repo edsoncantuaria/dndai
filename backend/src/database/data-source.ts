@@ -40,7 +40,15 @@ import { ScenarioExample } from '../entities/ScenarioExample.js';
 import { SrdResource } from '../entities/SrdResource.js';
 import { CharacterResource } from '../entities/CharacterResource.js';
 import { SessionFact } from '../entities/SessionFact.js';
+import { Phase4And5Schema1735689600000 } from './migrations/1735689600000-Phase4And5Schema.js';
 
+const isProduction = process.env.NODE_ENV === 'production';
+const migrationsOnly = process.env.DB_MIGRATIONS_ONLY === 'true';
+/** Dev: DB_SYNC=true (padrão). Prod: false — use npm run migration:run */
+const synchronize =
+    !isProduction &&
+    !migrationsOnly &&
+    process.env.DB_SYNC !== 'false';
 
 /**
  * Configuração da fonte de dados para o TypeORM.
@@ -54,13 +62,8 @@ export const AppDataSource = new DataSource({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
     
-    /**
-     * `synchronize: true` cria o esquema do banco de dados automaticamente
-     * com base nas entidades. Ótimo para desenvolvimento, mas para produção
-     * é recomendado usar migrações (`synchronize: false`).
-     */
-    synchronize: true,
-    logging: false, // Mude para true para ver as queries SQL no console
+    synchronize,
+    logging: process.env.DB_LOGGING === 'true',
     
     // Lista de todas as entidades que o TypeORM deve gerenciar
     entities: [
@@ -103,6 +106,7 @@ export const AppDataSource = new DataSource({
         SessionFact,
     ], 
     
-    migrations: [],
+    migrations: [Phase4And5Schema1735689600000],
+    migrationsTableName: 'typeorm_migrations',
     subscribers: [],
 });

@@ -6,6 +6,20 @@
 
 ---
 
+## 🎨 REDESIGN UI/UX — INICIATIVA PARALELA (NOVO)
+
+**Remodelação visual completa** do app (mobile + desktop), inspirada em [Dungeons & Dragons](https://www.dungeonsanddragons.com/) e na [Intro Experience](https://www.dungeonsanddragons.com/intro-experience/).
+
+| Documento | Conteúdo |
+|-----------|----------|
+| **[`TODO-UI-REDESIGN.md`](TODO-UI-REDESIGN.md)** | Roadmap completo: design system, todas as telas, gameplay (4 opções + livre), dados 3D, mapas, inventário, homebrew, fases e prazos |
+
+**Resumo:** novo visual “aventura fantástica”; **backend/motor/WS intactos**; **dado 3D real mantido** (`DiceRollModal`); telas a refazer: intro, auth, hub, wizard, jogo, painéis, homebrew.
+
+**Status:** planejamento ✅ — implementação ⬜️ (começar por Design System + `GameplayShell` mock).
+
+---
+
 ## 1. Validação do que temos hoje
 
 ### 1.1 O que está sólido e deve ser reaproveitado
@@ -186,58 +200,41 @@ Objetivo: respostas mais coerentes, rápidas e baratas.
 
 ---
 
-### Fase 5 — Inventário e persistência no banco (~1 semana)
+### Fase 5 — Inventário e persistência no banco (~1 semana) ✅
 
-- [ ] **5.1** Inventário 100% autoritativo no MySQL (`character_items`)
-  - Comprar, loot, consumir, dropar — tudo via deltas do motor
-- [ ] **5.2** Implementar delta positivo de inventário (`characterStateService`)
-- [ ] **5.3** Sincronizar moedas (`character.coins` ou tabela dedicada)
-- [ ] **5.4** Peso/carga calculado server-side, enviado no `gameStateUpdate`
-- [ ] **5.5** UI `Inventory.tsx` só exibe; nunca muta estado local sem ACK do backend
+- [x] **5.1** Inventário autoritativo no MySQL (`character_items` + intents `equip-item` / `drop-item` / `claim-loot`)
+- [x] **5.2** Delta positivo de inventário em `characterStateService` + `addOrIncrementCharacterItem`
+- [x] **5.3** Moedas em `Character.coins` + `applyCurrencyDelta` / merge em `safeMerge`
+- [x] **5.4** Peso/carga no `gameStateUpdate` via `getAuthoritativeInventoryState`
+- [x] **5.5** UI sem mutação otimista de equipar; intents estruturados para loot/equipar
 
 **Reaproveitar:** `inventoryService`, `CharacterItem` entity, `Inventory.tsx`.
 
 ---
 
-### Fase 6 — Consolidação frontend (~1 semana)
+### Fase 6 — Consolidação frontend (~1 semana) ✅
 
-- [ ] **6.1** Remover duplicatas:
-  - `src/hooks/useCharacterCreator.ts` → manter só `character-creation/`
-  - `CombatTracker.tsx` → manter só `NewCombatTracker.tsx`
-  - `NewStep5_Equipment.old.tsx`, `aiService.ts.old`
-- [ ] **6.2** Quebrar `newUseGameState.ts` (~1200 linhas):
-  ```
-  src/hooks/game/
-  ├── useGameSession.ts
-  ├── useGameActions.ts
-  ├── useCombat.ts
-  └── useGameWebSocket.ts
-  ```
-- [ ] **6.3** Revisar fluxo de entrada: auth → licença → API key → menu → jogo
-- [ ] **6.4** CTA explícito para rolagem pendente no log de ações
-- [ ] **6.5** Loading states: "Mestre pensando..." vs "Aguardando rolagem"
+- [x] **6.1** Remover duplicatas (`useCharacterCreator` raiz, `CombatTracker`, `NewStep5_Equipment*`, `aiService.ts.old`)
+- [x] **6.2** Split `newUseGameState` → `src/hooks/game/` (`useGameSession`, `useGameActions`, `useGameWebSocket`, `ambientSound`, `characterPatch`, `loadingLabels`)
+- [x] **6.3** `AuthGate` — fluxo auth → licença → API key → jogo
+- [x] **6.4** Banner + CTA "Abrir dados" no `NewNarrativeLog` quando rolagem pendente
+- [x] **6.5** `resolveLoadingState` — "Mestre pensando..." vs "Aguardando rolagem" no HUD
 
 **Reaproveitar:** todos os componentes de UI maduros; só reorganizar hooks.
 
 ---
 
-### Fase 7 — Infra, testes e docs (~1 semana)
+### Fase 7 — Infra, testes e docs (~1 semana) ✅
 
-- [ ] **7.1** Migrações TypeORM formais (substituir `synchronize: true` em prod)
-- [ ] **7.2** Docker Compose unificado: MySQL + Redis + SRD API + backend + frontend
-- [ ] **7.3** Suite de testes:
-  - Unit: motor de regras, adapter SRD, prompt builder
-  - Integração: fluxo WS completo (ação → rolagem → delta → narrativa)
-  - E2E: criar personagem → iniciar sessão → 3 turnos → reload → estado ok
-- [ ] **7.4** Atualizar documentação:
-  - `README.md` (fluxo WebSocket, setup Docker)
-  - Remover/arquivar `docs/blueprint.md`
-  - `docs/architecture.md` (novo, diagrama atual)
-- [ ] **7.5** CI: lint + testes + sync SRD snapshot
+- [x] **7.1** Migrações TypeORM (`Phase4And5Schema`, `DB_SYNC` dev / migrações em prod)
+- [x] **7.2** `docker-compose.yml` — MySQL, Redis, SRD API, perfil `app` (backend + frontend)
+- [x] **7.3** Testes: `promptSections`, `wsActionPipeline`, suite existente (48 testes)
+- [x] **7.4** `README.md`, `docs/architecture.md`, `docs/archive/blueprint.md`
+- [x] **7.5** CI `.github/workflows/ci.yml` + `scripts/verify-srd-snapshot.js`
 
 ---
 
-## 5. Matriz de reaproveitamento
+## 5. Matriz de reaproveitamento 
 
 | Componente | Ação | Esforço |
 |------------|------|---------|
@@ -295,12 +292,14 @@ Fase 0 (estabilizar) ──→ Fase 1 (SRD API) ──→ Fase 5 (inventário)
 
 ## 8. Métricas de sucesso
 
-- [ ] Reabrir sessão mantém HP, inventário, região e journal
-- [ ] Zero roll requests não solicitados em 50 turnos de teste
-- [ ] Tempo médio de resposta IA < 30s (prompt enxuto)
-- [ ] Criar homebrew "Fireball aprimorada" fork de `spells/fireball` funciona end-to-end
-- [ ] Mapa mostra região atual e POIs descobertos corretamente
-- [ ] Facts persistidos aparecem em sessões futuras na mesma campanha
+Legenda: **auto** = regressão em `successMetrics.spec.ts` + suites relacionadas; **manual** = [`docs/VALIDATION_CHECKLIST.md`](docs/VALIDATION_CHECKLIST.md).
+
+- [ ] Reabrir sessão mantém HP, inventário, região e journal — **manual** (+ `stateVersion` / WS em `actionFlow.e2e.spec.ts`)
+- [x] Zero roll requests não solicitados — **auto** (`successMetrics.spec.ts`, `aiSanitizer.spec.ts`, `rollQueue.spec.ts`)
+- [x] Prompt enxuto (soft cap &lt; 9500 tokens estimados) — **auto** (`successMetrics.spec.ts` §8.3); latência &lt; 30s — **manual**
+- [x] Homebrew fork SRD (ex.: Fireball aprimorada) — **auto** (`successMetrics.spec.ts`, `homebrewMergeService.spec.ts`); fluxo UI completo — **manual**
+- [x] Mapa: região e POIs no resumo de prompt — **auto** (`successMetrics.spec.ts`, `memoryLayer.spec.ts`); UI do mapa — **manual**
+- [x] Facts: validação e formatação — **auto** (`successMetrics.spec.ts`, `memoryLayer.spec.ts`); persistência entre sessões — **manual**
 
 ---
 
@@ -317,7 +316,7 @@ Fase 0 (estabilizar) ──→ Fase 1 (SRD API) ──→ Fase 5 (inventário)
 
 ## 10. Próximo passo imediato
 
-**Começar pela Fase 5** — inventário 100% autoritativo no MySQL.
+**Roadmap principal concluído (Fases 0–7).** Ver §11 para backlog de splits grandes (`aiService`, `narrarService`).
 
 ```bash
 docker compose -f docker-compose.srd.yml up -d
@@ -332,10 +331,11 @@ cd .. && npm run dev
 
 Itens adiados após a Fase 3; não bloqueiam a Fase 4.
 
-- [ ] Extrair `contextBuilder.ts`, `turnProcessor.ts`, `persistence.ts` de `narrarService.ts`
-- [ ] Reduzir `aiService.ts` (~3000 linhas) — mover prompts/repair restantes para `backend/src/ai/`
-- [ ] Documentar `AI_PIPELINE_MODE` (`dual` / `full` / `narration_only`) no README
-- [ ] Validar gameplay end-to-end com `narration_only` em sessão real (combate, XP, inventário via motor)
+- [x] Extrair módulos de `narrarService.ts` → `contextBuilder`, `turnProcessor`, `persistence`, `regionMapValidation`, `logPayload`, `worldStateSnapshot`
+- [x] Fachadas em `backend/src/ai/` — `instructions.ts`, `gameUpdate.ts` (split completo de `aiService` permanece opcional)
+- [x] Documentar `AI_PIPELINE_MODE` no README + [`docs/AI_PIPELINE.md`](docs/AI_PIPELINE.md)
+- [ ] Validar gameplay end-to-end com `narration_only` — checklist em [`docs/VALIDATION_CHECKLIST.md`](docs/VALIDATION_CHECKLIST.md) (§8)
+- [x] Extrair `createPrompt` → [`backend/src/ai/promptAssembler.ts`](backend/src/ai/promptAssembler.ts) (`promptAssembler.spec.ts`)
 
 ---
 

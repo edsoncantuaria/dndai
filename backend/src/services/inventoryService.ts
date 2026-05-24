@@ -24,6 +24,26 @@ const COIN_KEYS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
 
 const clamp = (value: number, min: number) => (value < min ? min : value);
 
+export interface AddItemParams {
+    characterId: number;
+    itemId?: number;
+    itemIndex?: string;
+    quantity: number;
+    name?: string;
+    itemData?: Record<string, unknown>;
+    equipped?: boolean;
+}
+
+export type CoinKey = (typeof COIN_KEYS)[number];
+
+export interface AuthoritativeInventoryState {
+    inventory: Awaited<ReturnType<typeof hydrateInventoryItems>>['items'];
+    currency: Record<CoinKey, number>;
+    currentWeight: number;
+    carryingCapacity: number;
+    totalCoinCount: number;
+}
+
 async function findItem(params: { characterId: number; itemId?: number; itemIndex?: string }): Promise<CharacterItem | null> {
     const repo = AppDataSource.getRepository(CharacterItem);
     if (params.itemId) {
@@ -86,6 +106,124 @@ export async function consumeCharacterItem(params: ConsumeItemParams): Promise<C
     }
 
     return newQuantity === 0 ? null : item;
+}
+
+/** Adiciona ou incrementa quantidade de um item (delta positivo — Fase 5.2). */
+export async function addOrIncrementCharacterItem(params: AddItemParams): Promise<CharacterItem> {
+    if (params.quantity <= 0) {
+        throw new Error('Quantidade a adicionar deve ser positiva.');
+    }
+
+    const repo = AppDataSource.getRepository(CharacterItem);
+    const existing = await findItem({
+        characterId: params.characterId,
+        itemId: params.itemId,
+        itemIndex: params.itemIndex,
+    });
+
+    if (existing) {
+        existing.quantity = (existing.quantity ?? 0) + params.quantity;
+        if (params.itemData) {
+            existing.itemData = { ...(existing.itemData || {}), ...params.itemData };
+        }
+        if (params.name) existing.name = params.name;
+        return repo.save(existing);
+    }
+
+    const itemName = params.name ?? params.itemData?.name as string ?? params.itemIndex ?? 'Item';
+    const itemData = {
+        ...(params.itemData ?? {}),
+        index: params.itemIndex ?? params.itemData?.index,
+        name: itemName,
+        quantity: params.quantity,
+    };
+    const created = repo.create({
+        characterId: params.characterId,
+        name: itemName,
+        quantity: params.quantity,
+        equipped: params.equipped ?? false,
+        itemData,
+    });
+    return repo.save(created);
+}
+
+export async function setCharacterItemEquipped(params: {
+    characterId: number;
+    itemId: number;
+    equipped: boolean;
+}): Promise<CharacterItem> {
+    const repo = AppDataSource.getRepository(CharacterItem);
+    const item = await repo.findOne({ where: { id: params.itemId, characterId: params.characterId } });
+    if (!item) {
+        throw new Error('Item não encontrado para equipar/desequipar.');
+    }
+    item.equipped = params.equipped;
+    if (item.itemData && typeof item.itemData === 'object') {
+        item.itemData = { ...item.itemData, equipped: params.equipped };
+    }
+    return repo.save(item);
+}
+
+export async function applyCurrencyDelta(
+    characterId: number,
+    delta: Partial<Record<CoinKey, number>>,
+): Promise<Record<CoinKey, number>> {
+    const { Character } = await import('../entities/Character.js');
+    const repo = AppDataSource.getRepository(Character);
+    const character = await repo.findOne({ where: { id: characterId } });
+    if (!character) {
+        throw new Error('Personagem não encontrado para aplicar delta de moedas.');
+    }
+
+    const current = reconcileCurrency(null, character.coins as Record<string, unknown>);
+    for (const coin of COIN_KEYS) {
+        const change = Number(delta[coin]);
+        if (Number.isFinite(change) && change !== 0) {
+            current[coin] = Math.max(0, (current[coin] ?? 0) + change);
+        }
+    }
+
+    character.coins = current;
+    await repo.save(character);
+    return current;
+}
+
+export async function getCharacterCurrency(characterId: number): Promise<Record<CoinKey, number>> {
+    const { Character } = await import('../entities/Character.js');
+    const repo = AppDataSource.getRepository(Character);
+    const character = await repo.findOne({ where: { id: characterId }, select: ['id', 'coins'] });
+    return reconcileCurrency(null, character?.coins as Record<string, unknown>);
+}
+
+export function computeCarryingCapacity(strength: number | null | undefined): number {
+    const score = Number.isFinite(Number(strength)) ? Number(strength) : 10;
+    return score * 15;
+}
+
+/** Snapshot autoritativo de inventário + moedas + carga (Fase 5.4). */
+export async function getAuthoritativeInventoryState(
+    characterId: number,
+    strength?: number | null,
+): Promise<AuthoritativeInventoryState> {
+    const snapshot = await getInventorySnapshotFromDb(characterId);
+    const hydrated = await hydrateInventoryItems(snapshot);
+    const currency = await getCharacterCurrency(characterId);
+    const mergedCurrency = reconcileCurrency(currency, hydrated.metrics.currency);
+    const carryingCapacity = computeCarryingCapacity(strength);
+    return {
+        inventory: hydrated.items,
+        currency: mergedCurrency,
+        currentWeight: hydrated.metrics.totalWeight,
+        carryingCapacity,
+        totalCoinCount: Object.values(mergedCurrency).reduce((sum, v) => sum + v, 0),
+    };
+}
+
+export async function enrichUpdatedCharacterInventory(
+    characterId: number,
+    strength?: number | null,
+): Promise<AuthoritativeInventoryState> {
+    return getAuthoritativeInventoryState(characterId, strength);
 }
 
 export async function getInventorySnapshotFromDb(characterId: number, manager?: EntityManager) {

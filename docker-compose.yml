@@ -1,0 +1,113 @@
+# Stack unificado — Crônicas de Aventuras (Fase 7.2)
+#
+# Uso rápido:
+#   cp .env.example .env.local   # ajuste segredos
+#   docker compose up -d mysql redis srd-db srd-cache srd-api
+#   cd backend && npm run migration:run && npm run dev
+#   npm run dev                  # frontend :9002
+#
+# Stack completa (backend em container):
+#   docker compose --profile app up -d --build
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-dndai_root}
+      MYSQL_DATABASE: ${DB_NAME:-dndai}
+      MYSQL_USER: ${DB_USER:-dndai}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-dndai_secret}
+    ports:
+      - '${DB_PORT:-3306}:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  srd-db:
+    image: ghcr.io/5e-bits/5e-database:latest
+    restart: unless-stopped
+    ports:
+      - '27018:27017'
+
+  srd-cache:
+    image: redis:6.2.5
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+
+  srd-api:
+    build: ./5e-srd-api
+    restart: unless-stopped
+    environment:
+      MONGODB_URI: mongodb://srd-db/5e-database
+      REDIS_URL: redis://srd-cache:6379
+    ports:
+      - '3000:3000'
+    depends_on:
+      - srd-db
+      - srd-cache
+
+  backend:
+    profiles: ['app']
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 8071
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-dndai}
+      DB_PASSWORD: ${DB_PASSWORD:-dndai_secret}
+      DB_NAME: ${DB_NAME:-dndai}
+      DB_SYNC: 'false'
+      DB_MIGRATIONS_ONLY: 'true'
+      REDIS_URL: redis://redis:6379
+      SRD_API_BASE: http://srd-api:3000/api/2014
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    ports:
+      - '8071:8071'
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      srd-api:
+        condition: service_started
+
+  frontend:
+    profiles: ['app']
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8071/api
+        NEXT_PUBLIC_WS_URL: ws://localhost:8071/
+    restart: unless-stopped
+    ports:
+      - '9002:9002'
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:
+  redis_data:

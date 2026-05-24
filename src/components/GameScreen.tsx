@@ -21,7 +21,7 @@ import DiceRollModal from './DiceRollModal';
 import SkillCheckModal from './ui/SkillCheckModal';
 import SpellCastModal from './ui/SpellCastModal';
 import ActionModal from './ui/ActionModal'; // Importar o ActionModal
-import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap, Settings, Volume2, VolumeX } from 'lucide-react';
+import { User, Backpack, BookOpen, Map as MapIcon, Users, TrendingUp, Loader2, Download, MapPinned, Star, Heart, Sparkles, MapPin, Clock, CloudSun, Compass, Shield, Zap, Settings, Volume2, VolumeX, Dice5 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Vignette from './Vignette'; // Importar o novo componente
 import StoryHighlightsCard from './StoryHighlightsCard';
@@ -37,6 +37,7 @@ import { TooltipProvider } from './ui/tooltip';
 import WorldMapModal from '@/components/world-map/WorldMapModal';
 import { getWorldMapSnapshot, type WorldMapSnapshot } from '@/services/gameService';
 import type { PlayerRollRequest, Character } from '@/types';
+import { resolveLoadingState } from '@/hooks/game/loadingLabels';
 
 
 type Tab = 'character' | 'inventory' | 'spells' | 'progression' | 'relationships' | 'journal';
@@ -87,6 +88,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         log,
         sessionId,
         isLoading,
+        actionPhaseLabel,
+        isRollPending,
         levelUpState, 
         shopState, 
         playerRollRequest,
@@ -125,6 +128,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
     }>({});
     
     const showDiceModal = Boolean(playerRollRequest);
+
+    useEffect(() => {
+        const focusRoll = () => {
+            document.getElementById('dice-roll-modal-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        window.addEventListener('game-focus-roll-modal', focusRoll);
+        return () => window.removeEventListener('game-focus-roll-modal', focusRoll);
+    }, []);
     
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -467,6 +478,11 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         },
     ];
 
+    const loadingState = useMemo(
+        () => resolveLoadingState({ isLoading, isRollPending, actionPhaseLabel }),
+        [isLoading, isRollPending, actionPhaseLabel],
+    );
+
     const worldPills = [
         {
             icon: MapPin,
@@ -486,10 +502,21 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
         <TooltipProvider>
             <div className="flex flex-col h-full w-full max-w-7xl mx-auto animate-fadeIn relative">
                 <Vignette />
-                {isLoading && (
-                    <div className="absolute top-4 right-4 z-40 bg-stone-900/80 border border-amber-500/60 rounded-lg px-4 py-2 flex items-center gap-2 text-sm text-amber-200 shadow-lg">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>O Mestre está elaborando a próxima cena...</span>
+                {loadingState.banner && (
+                    <div
+                        className={cn(
+                            'absolute top-4 right-4 z-40 rounded-lg px-4 py-2 flex items-center gap-2 text-sm shadow-lg border',
+                            loadingState.kind === 'roll'
+                                ? 'bg-amber-950/90 border-amber-400/70 text-amber-100'
+                                : 'bg-stone-900/80 border-amber-500/60 text-amber-200',
+                        )}
+                    >
+                        {loadingState.kind === 'roll' ? (
+                            <Dice5 className="h-4 w-4 shrink-0 text-amber-200" />
+                        ) : (
+                            <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                        )}
+                        <span>{loadingState.banner}</span>
                     </div>
                 )}
                 <ReinstallDependenciesModal />
@@ -520,11 +547,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ returnToMenu }) => {
                 {levelUpState?.isPending && <LevelUpModal />}
                 {shopState?.isOpen && <ShopModal />}
                 {showDiceModal && playerRollRequest && (
-                    <DiceRollModal 
-                        request={playerRollRequest}
-                        onRoll={handleRollResult}
-                        show={showDiceModal}
-                    />
+                    <div id="dice-roll-modal-anchor">
+                        <DiceRollModal
+                            request={playerRollRequest}
+                            onRoll={handleRollResult}
+                            show={showDiceModal}
+                        />
+                    </div>
                 )}
                 {skillCheckRequest && (
                     <SkillCheckModal

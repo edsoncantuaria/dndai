@@ -46,7 +46,12 @@ const error = (...args: unknown[]) => console.error('[stateDelta]', ...args);
 
 const isMeaningfulDelta = (delta?: RuleCheckResult['stateDelta']) => {
     if (!delta) return false;
-    if (delta.character) return true;
+    if (delta.character) {
+        if (delta.character.inventory?.length) return true;
+        if (delta.character.currency && Object.keys(delta.character.currency).length) return true;
+        if (delta.character.hp) return true;
+        if (delta.character.resources?.length) return true;
+    }
     if (Array.isArray(delta.entities) && delta.entities.length) return true;
     return false;
 };

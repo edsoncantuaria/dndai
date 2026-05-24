@@ -72,6 +72,10 @@ export class SessaoIA {
     @Column({ type: 'datetime', nullable: true })
     actionPhaseUpdatedAt: Date | null;
 
+    /** Loot pendente de coleta (motor autoritativo — Fase 5.1) */
+    @Column({ type: 'simple-json', nullable: true })
+    pendingLootOffer: Record<string, unknown> | null;
+
     @CreateDateColumn()
     createdAt: Date;
 
