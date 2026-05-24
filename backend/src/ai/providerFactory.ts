@@ -33,12 +33,20 @@ export function resolveDefaultFailoverChain(): string[] {
         .filter(Boolean);
     if (fromEnv.length) return fromEnv;
 
-    const providerDefault =
-        (process.env.AI_PROVIDER ?? 'openrouter').toLowerCase() === 'gemini'
-            ? ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro']
-            : [...OPENROUTER_DEFAULT_FAILOVER_CHAIN, ...GEMINI_FAILOVER_TAIL];
+    const provider = (process.env.AI_PROVIDER ?? 'openrouter').toLowerCase();
+    const openRouterOnly =
+        provider === 'openrouter' ||
+        ['1', 'true', 'yes', 'on'].includes(
+            (process.env.AI_OPENROUTER_ONLY ?? '').trim().toLowerCase(),
+        );
 
-    return providerDefault;
+    if (provider === 'gemini' || provider === 'google') {
+        return ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'];
+    }
+    if (openRouterOnly) {
+        return [...OPENROUTER_DEFAULT_FAILOVER_CHAIN];
+    }
+    return [...OPENROUTER_DEFAULT_FAILOVER_CHAIN, ...GEMINI_FAILOVER_TAIL];
 }
 
 export function resolveGeminiFallbackApiKey(userApiKey: string): string {

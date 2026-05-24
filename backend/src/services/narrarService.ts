@@ -878,7 +878,10 @@ export const processPlayerTurn = async (
         throw createError(400, 'A chave de API não está configurada para este usuário. Por favor, adicione-a em "Configurações".');
     }
     
-    const modelToUse = user?.settings?.model || "gemini-1.5-flash-latest";
+    const modelToUse =
+        user?.settings?.model ||
+        process.env.AI_DEFAULT_MODEL?.trim() ||
+        'meta-llama/llama-3.3-70b-instruct:free';
     const generationConfig = user?.settings?.generationConfig || {};
     
     const recentLogs = isTestRun ? [] : await AppDataSource.getRepository(SessionLog).find({
