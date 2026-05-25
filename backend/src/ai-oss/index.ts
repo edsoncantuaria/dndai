@@ -29,5 +29,6 @@ export * from './prompts/promptComposer.js';
 export * from './validators/narrationValidator.js';
 export * from './orchestration/narrationPipeline.js';
 export * from './context/contextBuilder.js';
+export * from './context/narrativeCharacterCard.js';
 export * from './providers/openRouterClient.js';
 export { buildGlobalSnapshot, recordJsonRepairAttempt } from './telemetry/requestMetrics.js';

@@ -1,4 +1,11 @@
-// backend/src/services/vectorMemoryService.ts
+/**
+ * Memória semântica em duas camadas (ambas necessárias):
+ * 1. Embedding — OpenRouter `nvidia/llama-nemotron-embed-vl-1b-v2:free` (vetor 2048d)
+ * 2. Qdrant — armazena/busca vetores; MySQL backlog se Qdrant ou embed falhar
+ *
+ * storeMemory: backlog → embed → upsert Qdrant
+ * recallSimilarMemories: embed da query → search Qdrant (+ backlog pendente)
+ */
 import { createHash, randomUUID } from 'crypto';
 import { qdrant, isQdrantReady } from '../database/qdrant-client.js';
 import { embedText } from './embeddingService.js';
@@ -158,11 +165,18 @@ const processPendingBacklog = async (collection: string, apiKeyHash: string, api
     }
 };
 
+export type StoreMemoryOptions = {
+    /** false = só backlog MySQL (política de cota). */
+    embed?: boolean;
+    reason?: string;
+};
+
 export async function storeMemory(
     collection: string,
     text: string,
     metadata: Partial<MemoryPayload>,
     apiKey: string,
+    options?: StoreMemoryOptions,
 ): Promise<void> {
     if (!apiKey?.trim() || !text?.trim()) return;
 
@@ -175,6 +189,7 @@ export async function storeMemory(
     });
 
     const apiKeyHash = hashApiKey(trimmedKey);
+    const shouldEmbed = options?.embed !== false;
 
     await persistBacklogEntry({
         id: payload.id,
@@ -183,6 +198,10 @@ export async function storeMemory(
         metadata: payload,
         apiKeyHash,
     });
+
+    if (!shouldEmbed) {
+        return;
+    }
 
     if (!isQdrantReady()) {
         await flagBacklogError(payload.id, 'Qdrant indisponível no momento.');
@@ -219,6 +238,8 @@ interface RecallMemoryOptions {
     apiKey: string;
     limit?: number;
     filter?: QdrantFilter;
+    /** false = só backlog pendente (sem chamada de embedding). */
+    semanticSearch?: boolean;
 }
 
 export async function recallSimilarMemories(
@@ -226,12 +247,16 @@ export async function recallSimilarMemories(
     query: string,
     options: RecallMemoryOptions,
 ): Promise<MemoryPayload[]> {
-    const { apiKey, limit = 5, filter } = options;
+    const { apiKey, limit = 5, filter, semanticSearch = true } = options;
     const fallbackMemories = await fetchPendingBacklog(collection, filter, limit);
     if (!apiKey?.trim() || !query?.trim()) return fallbackMemories;
-    if (!isQdrantReady()) return fallbackMemories;
+    if (!semanticSearch || !isQdrantReady()) return fallbackMemories;
 
-    const vector = await embedText(query, apiKey);
+    const trimmedKey = apiKey.trim();
+    const apiKeyHash = hashApiKey(trimmedKey);
+    await processPendingBacklog(collection, apiKeyHash, trimmedKey);
+
+    const vector = await embedText(query, trimmedKey);
     if (!vector.length) return fallbackMemories;
 
     const response = await qdrant!.search(collection, {

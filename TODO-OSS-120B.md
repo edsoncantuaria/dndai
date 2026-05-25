@@ -247,6 +247,13 @@ OPENROUTER_KEY4=
 - [x] Repair mini-call JSON — `jsonOnlyRepair.ts` (`OSS_JSON_ONLY_REPAIR`)
 - [x] Embeddings OR — `nvidia/llama-nemotron-embed-vl-1b-v2:free` + Qdrant 2048 dims
 - [x] Multi-provider — `providerRegistry.ts` (OpenRouter + Gemini legado)
+- [x] Ficha narrativa compacta (`narrativeCharacterCard.ts` → `FICHA=` no prompt OSS)
+- [x] Doc padrões MOM → `docs/OSS_MEMORY_AND_MOM.md`
+- [x] Benchmark Qdrant — `npm run ai:qdrant-benchmark` + `docs/QDRANT_VIABILITY.md`
+- [x] `newFacts` no schema/prompt OSS + persistência SQL
+- [x] Política de embedding (recall/store a cada N turnos, skip recall se facts ≥ N)
+- [x] Indexação `journal` → Qdrant (`journalMemoryIndexer.ts`)
+- [x] Frontend sem passo de API key (chaves só no servidor)
 
 ---
 

@@ -71,7 +71,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const { apiKey, setApiKey, loadSettings, saveSettingsToDB, getSettingsObject, isLoaded: isSettingsLoaded } = useSettingsContext();
     const { toast } = useToast();
 
-    const hasApiKey = isSettingsLoaded && !!apiKey.trim();
+    /** Chaves OpenRouter ficam no servidor; jogador não precisa configurar API. */
+    const hasApiKey = isSettingsLoaded;
 
     const revalidateUserSession = useCallback(async () => {
         const token = localStorage.getItem('token');

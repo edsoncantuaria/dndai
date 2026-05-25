@@ -17,6 +17,7 @@ import { estimateTokensFromChars } from '../ai-oss/telemetry/ossRedisMetrics.js'
 import { applyCombatDeterminism, validateCombatOssNarration } from '../ai-oss/combat/deterministicCombat.js';
 import { normalizeActionOptionsFromRegistry } from '../ai-oss/actions/registry.js';
 import { validateOssNarration } from '../ai-oss/validators/narrationValidator.js';
+import { mapOssNewFactsToGameFacts } from '../ai-oss/schemas/narration.schema.js';
 
 test('composePrompt gera system de combate e user compacto', () => {
     const { systemInstruction, userPrompt, outputSchema } = composePrompt({
@@ -104,4 +105,15 @@ test('exploração: registry normaliza actionOptions', () => {
         actionOptions: normalized,
     });
     assert.equal(validated.valid, true);
+});
+
+test('narration schema aceita newFacts opcionais', () => {
+    const validated = validateOssNarration({
+        narration: 'O guarda acena para a taverna.',
+        actionOptions: ['Entrar', 'Recuar'],
+        newFacts: [{ fact: 'O guarda reconhece o brasão do grupo.', importance: 'medium' }],
+    });
+    assert.equal(validated.valid, true);
+    const mapped = mapOssNewFactsToGameFacts(validated.data?.newFacts);
+    assert.equal(mapped.length, 1);
 });

@@ -99,14 +99,10 @@ const AiCreator: React.FC<Props> = ({ isOpen, onClose, onContentGenerated, varia
 
     setIsLoading(true);
     try {
-      const apiKey = getApiKey();
-      if (!apiKey) {
-        throw new Error('Chave de API não encontrada.');
-      }
       const result = await createHomebrewContent({
         prompt,
         type: type as 'race' | 'class' | 'subclass' | 'spell' | 'item' | 'monster' | 'background' | 'feat',
-        apiKey,
+        apiKey: getApiKey() ?? '',
         sourceKind,
         sourceResource,
         sourceIndex,

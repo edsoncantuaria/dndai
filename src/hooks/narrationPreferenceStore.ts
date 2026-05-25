@@ -11,7 +11,7 @@ const ensureInitialized = () => {
   if (typeof window !== 'undefined') {
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
-      autoSpeak = stored === '1';
+      autoSpeak = stored === null ? true : stored === '1';
     } catch {
       autoSpeak = false;
     }

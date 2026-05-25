@@ -10,7 +10,7 @@ import {
 
 const generateImageSchema = z.object({
   prompt: z.string().min(1, 'O prompt da imagem é obrigatório.'),
-  apiKey: z.string().min(8, 'Chave de API inválida.'),
+  apiKey: z.string().optional(),
 });
 
 export const generateImageController = async (req: AuthRequest, res: Response, next: NextFunction) => {

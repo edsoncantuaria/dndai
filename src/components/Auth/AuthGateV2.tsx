@@ -10,16 +10,15 @@ import { IntroExperience } from '@/features/intro/IntroExperience';
 import { useIntroCompleted } from '@/features/intro/useIntroCompleted';
 import { AuthScreen } from '@/features/auth/AuthScreen';
 import { LicenseStep } from '@/features/auth/LicenseStep';
-import { ApiKeyStep } from '@/features/auth/ApiKeyStep';
 import { HubLanding } from '@/features/hub/landing/HubLanding';
 import { LoadingOracle } from '@/features/gameplay/components/LoadingOracle';
 import { AmbientBackground } from '@/components/primitives';
 
 /**
- * Fluxo UI v2: intro → auth → licença → API → landing → jogo
+ * Fluxo UI v2: intro → auth → licença → landing → jogo
  */
 export default function AuthGateV2({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLicenseActive, hasApiKey, isLoading } = useAuth();
+  const { isAuthenticated, isLicenseActive, isLoading } = useAuth();
   const { isComplete, markComplete } = useIntroCompleted();
   const [showIntro, setShowIntro] = useState<boolean | null>(null);
   const [hubEntered, setHubEntered] = useState(false);
@@ -60,10 +59,6 @@ export default function AuthGateV2({ children }: { children: React.ReactNode }) 
 
   if (!isLicenseActive) {
     return <LicenseStep />;
-  }
-
-  if (!hasApiKey) {
-    return <ApiKeyStep />;
   }
 
   if (!hubEntered) {

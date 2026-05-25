@@ -5,7 +5,6 @@ import { MOTOR_OWNED_RESPONSE_FIELDS } from '../narration/motorStateBridge.js';
 export const NARRATIVE_FORBIDDEN_OUTPUT_KEYS = [
     ...MOTOR_OWNED_RESPONSE_FIELDS,
     '_meta',
-    'newFacts',
     'imagePrompt',
     'progressionFeed',
     'xpEvents',
@@ -16,6 +15,7 @@ export const NARRATIVE_ALLOWED_OUTPUT_KEYS = new Set([
     'actionOptions',
     'systemLog',
     'memoryContext',
+    'newFacts',
 ]);
 
 export const NARRATIVE_JSON_EXAMPLE = {
@@ -27,6 +27,9 @@ export const NARRATIVE_JSON_EXAMPLE = {
         { text: 'Investigar o altar', action: 'investigate', skill: 'investigation' },
         { text: 'Falar com o guarda', action: 'talk' },
         { text: 'Preparar uma emboscada', action: 'ambush', skill: 'stealth' },
+    ],
+    newFacts: [
+        { fact: 'O taverneiro reconheceu o grupo pelo brasão na capa.', importance: 'medium' },
     ],
     memoryContext: {
         summary: 'Resumo opcional para continuidade.',
@@ -60,6 +63,10 @@ export function enforceNarrativeOnlyResponse(response: GameMasterResponse): {
 
     if (response.systemLog !== undefined) cleaned.systemLog = response.systemLog;
     if (response.memoryContext !== undefined) cleaned.memoryContext = response.memoryContext;
+    const rawFacts = (response as { newFacts?: unknown }).newFacts;
+    if (Array.isArray(rawFacts) && rawFacts.length) {
+        (cleaned as { newFacts?: unknown }).newFacts = rawFacts;
+    }
 
     for (const key of Object.keys(response) as (keyof GameMasterResponse)[]) {
         if (NARRATIVE_ALLOWED_OUTPUT_KEYS.has(key)) continue;

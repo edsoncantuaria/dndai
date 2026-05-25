@@ -21,6 +21,8 @@ import {
 } from '../services/combatStateService.js';
 import { generateSceneImage, isImageGenerationAvailable } from '../services/imageGenerationService.js';
 import { storeMemory } from '../services/vectorMemoryService.js';
+import { shouldEmbedForOperation } from '../services/embeddingPolicy.js';
+import { indexNewJournalEntries } from '../services/journalMemoryIndexer.js';
 import { incrementStateVersion } from '../services/stateVersionService.js';
 import { enforceWorldStateLocation } from './regionMapValidation.js';
 import { prepareLogPayload } from './logPayload.js';
@@ -336,6 +338,12 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
             latestNarrationSummary ? `Mestre: ${latestNarrationSummary}` : null,
         ].filter(Boolean) as string[];
 
+        const embedTurn = shouldEmbedForOperation(
+            'store_turn',
+            persistedStateVersion ?? 0,
+            0,
+        );
+
         try {
             await storeMemory(
                 'session_memories',
@@ -352,9 +360,28 @@ export async function persistNarrationTurn(params: PersistNarrationTurnParams): 
                     summary: latestNarrationSummary || playerAction.slice(0, 160),
                 },
                 apiKey,
+                { embed: embedTurn, reason: 'turn_summary' },
             );
         } catch (error) {
             console.error('[persistence] Falha ao armazenar memória vetorial:', error);
+        }
+
+        if (sessao.character?.id) {
+            try {
+                const regionSlug =
+                    (aiResponse.worldState as { regionSlug?: string } | undefined)?.regionSlug ??
+                    (sessao.character.worldState as { regionSlug?: string } | undefined)?.regionSlug ??
+                    null;
+                await indexNewJournalEntries({
+                    sessaoId: sessao.id,
+                    characterId: sessao.character.id,
+                    apiKey,
+                    stateVersion: persistedStateVersion ?? 0,
+                    regionSlug,
+                });
+            } catch (journalErr) {
+                console.warn('[persistence] Falha ao indexar journal:', journalErr);
+            }
         }
 
         return aiResponse;

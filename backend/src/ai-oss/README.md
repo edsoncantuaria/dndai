@@ -45,6 +45,10 @@ OSS_PROMPT_CACHE=true
 OSS_TRACE_LOG=false
 ```
 
+## Ficha narrativa (`FICHA=`)
+
+Recalculada a cada turno em `buildNarrativeCharacterCard` — nome, classe, PV/CA, região, gancho, 2 laços, equipado (3 itens). Sem lista completa de inventário/magias (motor).
+
 ## Fase 4
 
 - **Embeddings:** `OPENROUTER_KEY_EMBEDDING` + `nvidia/llama-nemotron-embed-vl-1b-v2:free` → Qdrant (`QDRANT_VECTOR_SIZE=2048`)

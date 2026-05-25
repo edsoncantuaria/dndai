@@ -163,7 +163,10 @@ function validateOssPayload(
         logEntries: mapped.logEntries as GameMasterResponse['logEntries'],
         actionOptions: mapped.actionOptions,
         systemLog: mapped.systemLog ?? null,
-    };
+        ...((mapped as { newFacts?: unknown }).newFacts?.length
+            ? { newFacts: (mapped as { newFacts: unknown }).newFacts }
+            : {}),
+    } as GameMasterResponse;
     const legacyCheck = validateByPhaseFocus(candidate, 'narrative');
     if (!legacyCheck.valid) {
         return { ok: false, issues: legacyCheck.issues, ossData: ossCheck.data };

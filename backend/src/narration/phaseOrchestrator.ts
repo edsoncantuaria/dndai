@@ -156,7 +156,10 @@ export async function runAiPhases(ctx: PhaseOrchestratorInput): Promise<Orchestr
         actionOptions: narrativePhase.response.actionOptions ?? [],
         systemLog: narrativePhase.response.systemLog,
         memoryContext: narrativePhase.response.memoryContext,
-    };
+        ...((narrativePhase.response as { newFacts?: unknown }).newFacts?.length
+            ? { newFacts: (narrativePhase.response as { newFacts: unknown }).newFacts }
+            : {}),
+    } as GameMasterResponse;
 
     return {
         pipelineMode,

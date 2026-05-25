@@ -22,6 +22,7 @@
     "ai:oss-benchmark": "tsx src/scripts/ossQualityBenchmark.ts",
     "ai:oss-embedding-smoke": "tsx src/scripts/ossEmbeddingSmoke.ts",
     "ai:oss-vector-smoke": "tsx src/scripts/ossVectorMemorySmoke.ts",
+    "ai:qdrant-benchmark": "tsx src/scripts/qdrantBenchmark.ts",
     "ai:oss-apply-temp-profile": "tsx src/scripts/ossApplyTemperatureProfile.ts",
     "ai:test-structured2": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured2.ts | tee logs/TESTE-STRUTRADO_$(date +'%Y-%m-%d_%H-%M-%S').log",
     "ai:test-structured3": "mkdir -p .tmp && TMPDIR=./.tmp tsx src/scripts/testStructured3.ts | tee logs/TESTE-STRUTRADO3_$(date +'%Y-%m-%d_%H-%M-%S').log",

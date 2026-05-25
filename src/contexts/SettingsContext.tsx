@@ -180,7 +180,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [eventCuesEnabled, setEventCuesEnabled] = useState(defaultSettings.eventCuesEnabled);
     const [hapticsEnabled, setHapticsEnabled] = useState(defaultSettings.hapticsEnabled);
 
-    const getApiKey = useCallback(() => apiKey, [apiKey]);
+    /** Servidor usa OPENROUTER_KEY*; cliente não envia chave do jogador. */
+    const getApiKey = useCallback(() => '', []);
     
     // Load from localStorage on initial mount
     useEffect(() => {

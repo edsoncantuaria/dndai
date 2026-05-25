@@ -69,12 +69,6 @@ export function useGameActions(options: UseGameActionsOptions) {
             }
             const finalSessionId = currentSessionId;
 
-            const key = getApiKey();
-            if (!key) {
-                setApiError('Chave de API não encontrada. Por favor, configure-a nas Configurações.');
-                return;
-            }
-
             const isInternalAction =
                 action.startsWith('Recarregar estado atual') ||
                 action.startsWith('A aventura começa.') ||
@@ -107,7 +101,7 @@ export function useGameActions(options: UseGameActionsOptions) {
                 contractVersion: 1,
                 sessionId: finalSessionId,
                 prompt: action,
-                apiKey: key,
+                apiKey: getApiKey() ?? '',
                 combatState: interactionState.combatState,
                 useAiHomebrew,
                 model: modelOverride || model,
@@ -168,17 +162,12 @@ export function useGameActions(options: UseGameActionsOptions) {
                 setApiError('Esta rolagem não possui um identificador válido.');
                 return;
             }
-            const key = getApiKey();
-            if (!key) {
-                setApiError('Chave de API não encontrada. Configure-a nas Configurações.');
-                return;
-            }
             sendMessage('submitRollResult', {
                 sessionId,
                 requestId: request.requestId,
                 rolls: result.rolls,
                 rawRoll: result.rawRoll,
-                apiKey: key,
+                apiKey: getApiKey() ?? '',
                 combatState: interactionState.combatState,
                 useAiHomebrew,
                 clientStateVersion: clientStateVersionRef.current,

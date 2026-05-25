@@ -13,7 +13,6 @@ import {
     withPlaybackAuthToken,
 } from '@/services/ttsService';
 import { generateSceneImage, getSignedImageUrl } from '@/services/imageService';
-import { useSettingsContext } from '@/contexts/SettingsContext';
 import clsx from 'clsx';
 import { DndButton, DndCard } from '@/components/primitives';
 import { NarrativeBeatCard } from '@/components/cinematic';
@@ -701,7 +700,6 @@ export type NewNarrativeLogProps = {
 
 const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' }) => {
     const { log, setLog } = useGameStateContext();
-    const { apiKey } = useSettingsContext();
     const logEndRef = useRef<HTMLDivElement>(null);
     const lastSpokenIdRef = useRef<string | null>(null);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
@@ -1051,15 +1049,6 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 });
                 return;
             }
-            const trimmedKey = apiKey?.trim();
-            if (!trimmedKey) {
-                toast({
-                    variant: 'destructive',
-                    title: 'Chave de API necessária',
-                    description: 'Configure sua Google AI Studio API Key em Configurações para gerar imagens.',
-                });
-                return;
-            }
             setImageEntryLoading(entry.id, true);
             updateImageEntry(entry.id, {
                 status: 'generating',
@@ -1067,7 +1056,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 requestedAt: new Date().toISOString(),
             });
             try {
-                const result = await generateSceneImage(prompt, trimmedKey);
+                const result = await generateSceneImage(prompt);
                 updateImageEntry(entry.id, {
                     status: 'done',
                     imageUrl: result.imageUrl,
@@ -1099,7 +1088,7 @@ const NewNarrativeLog: React.FC<NewNarrativeLogProps> = ({ variant = 'legacy' })
                 setImageEntryLoading(entry.id, false);
             }
         },
-        [apiKey, setImageEntryLoading, toast, updateImageEntry]
+        [setImageEntryLoading, toast, updateImageEntry]
     );
 
     const handleRefreshImageEntry = useCallback(

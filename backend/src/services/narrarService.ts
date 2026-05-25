@@ -879,7 +879,7 @@ export const processPlayerTurn = async (
     if (!hasResolvableOpenRouterKey(apiKey)) {
         throw createError(
             400,
-            'Chave OpenRouter ausente. Adicione OPENROUTER_KEY1..N no servidor ou configure nas Configurações.',
+            'Servidor de IA indisponível. Configure OPENROUTER_KEY1..N no ambiente do backend.',
         );
     }
 
@@ -897,6 +897,16 @@ export const processPlayerTurn = async (
     const chronologicalLogs = recentLogs.reverse();
     const compactGameLog = buildPromptLogString(chronologicalLogs) || 'SEM_EVENTOS';
 
+    let stateVersionForPrompt = 0;
+    if (!isTestRun && sessao?.id) {
+        try {
+            const { loadStateVersion } = await import('./stateVersionService.js');
+            stateVersionForPrompt = await loadStateVersion(sessao.id);
+        } catch (versionErr) {
+            console.warn('[narrarService] stateVersion indisponível:', versionErr);
+        }
+    }
+
     const narrationContext = !isTestRun && sessao
         ? await buildNarrationContext({
             sessionId: sessao.id,
@@ -906,6 +916,7 @@ export const processPlayerTurn = async (
             compactGameLog,
             apiKey,
             isTestRun,
+            stateVersion: stateVersionForPrompt,
         })
         : {
             enrichedGameLog: compactGameLog,
@@ -1013,16 +1024,6 @@ export const processPlayerTurn = async (
         if (!note) return;
         response.systemLog = response.systemLog ? `${response.systemLog}\n${note}` : note;
     };
-
-    let stateVersionForPrompt = 0;
-    if (!isTestRun && sessao?.id) {
-        try {
-            const { loadStateVersion } = await import('./stateVersionService.js');
-            stateVersionForPrompt = await loadStateVersion(sessao.id);
-        } catch (versionErr) {
-            console.warn('[narrarService] stateVersion indisponível para cache de prompt:', versionErr);
-        }
-    }
 
     const orchestrated = await runNarrationAiPhases({
         baseInput: gameMasterFlowInput,
@@ -1135,7 +1136,7 @@ export const processPlayerTurn = async (
     }
 
     if (!finalUsedFallback && !isTestRun && sessao) {
-        const rawFacts = (narrativePhase.response as any).newFacts;
+        const rawFacts = (aiResponse as { newFacts?: unknown }).newFacts ?? (narrativePhase.response as any).newFacts;
         if (Array.isArray(rawFacts) && rawFacts.length) {
             const factResult = await persistValidatedFacts({
                 sessaoId: sessao.id,

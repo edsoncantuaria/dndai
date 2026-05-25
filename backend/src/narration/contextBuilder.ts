@@ -1,6 +1,12 @@
 import type { Character } from '../entities/Character.js';
 import { getStorySummary, buildTimelineFacts } from '../services/storyService.js';
 import { recallSimilarMemories } from '../services/vectorMemoryService.js';
+import { isQdrantReady } from '../database/qdrant-client.js';
+import {
+    countActiveSessionFacts,
+    embeddingPolicyNote,
+    shouldEmbedForOperation,
+} from '../services/embeddingPolicy.js';
 import type { MemoryPayload } from '../schemas/vectorSchemas.js';
 import { env } from '../config/env.js';
 import {
@@ -34,6 +40,8 @@ export interface NarrationContextInput {
     compactGameLog: string;
     apiKey: string;
     isTestRun: boolean;
+    /** stateVersion antes do turno (política de embedding). */
+    stateVersion?: number;
 }
 
 export interface NarrationContext {
@@ -107,14 +115,28 @@ export async function buildNarrationContext(input: NarrationContextInput): Promi
 
     if (!isTestRun) {
         try {
+            const stateVersion = input.stateVersion ?? 0;
+            const activeFactCount = await countActiveSessionFacts(sessionId);
+            const semanticRecall = shouldEmbedForOperation('recall', stateVersion, activeFactCount);
+            const policyNote = embeddingPolicyNote('recall', stateVersion, activeFactCount);
+
             const memories = await recallSimilarMemories(
                 'session_memories',
                 `${playerAction}\n${compactGameLog}`,
-                { apiKey, limit: 5, filter: { sessionId: String(sessionId) } },
+                {
+                    apiKey,
+                    limit: 5,
+                    filter: { sessionId: String(sessionId) },
+                    semanticSearch: semanticRecall,
+                },
             );
             const recallBlock = formatMemoriesForPrompt(memories);
             if (recallBlock) {
-                memoryLayers.push(`${env.QDRANT_ENABLED ? 'Recall vetorial' : 'Memórias'}:\n${recallBlock}`);
+                memoryLayers.push(
+                    `${env.QDRANT_ENABLED && isQdrantReady() && semanticRecall ? 'Recall vetorial (Qdrant)' : 'Memórias (backlog/SQL)'}:\n${recallBlock}`,
+                );
+            } else if (policyNote) {
+                memoryLayers.push(policyNote);
             }
         } catch (error) {
             console.error('[contextBuilder] Falha no recall de memórias:', error);

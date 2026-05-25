@@ -452,7 +452,7 @@ export function configureWebSocket(httpServer: Server) {
                         if (!hasIntent && (!prompt || !hasResolvableOpenRouterKey(apiKey))) {
                             throw createError(
                                 400,
-                                'Prompt e chave OpenRouter são obrigatórios quando não há intent estruturado.',
+                                'Servidor de IA indisponível ou prompt vazio. Verifique OPENROUTER_KEY1..N no backend.',
                             );
                         }
                         const pendingRoll = await getPendingRollRequest(sessionId);
@@ -643,7 +643,7 @@ export function configureWebSocket(httpServer: Server) {
                 case 'submitRollResult':
                     try {
                         const { sessionId, requestId, rolls, apiKey, combatState, useAiHomebrew, clientStateVersion } = data.payload;
-                        if (!sessionId || !requestId || !apiKey) {
+                        if (!sessionId || !requestId || !hasResolvableOpenRouterKey(apiKey)) {
                             throw createError(400, 'Dados insuficientes para enviar o resultado da rolagem.');
                         }
                         logActionFlow('roll:submit:start', {

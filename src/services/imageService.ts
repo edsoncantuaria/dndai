@@ -12,10 +12,10 @@ type PresignImageResponse = {
     imageUrl: string;
 };
 
-export const generateSceneImage = async (prompt: string, apiKey: string) => {
+export const generateSceneImage = async (prompt: string, _apiKey?: string) => {
     return apiClient<GenerateImageResponse>('/images/generate', {
         method: 'POST',
-        body: JSON.stringify({ prompt, apiKey }),
+        body: JSON.stringify({ prompt }),
     });
 };
 

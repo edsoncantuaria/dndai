@@ -6,6 +6,7 @@ import {
     type PromptPhase,
 } from './phaseTemplates.js';
 import { OSS_FORMAT_SYSTEM } from './system/format.js';
+import { buildNarrativeCharacterCard } from '../context/narrativeCharacterCard.js';
 import { composeOssPrompt } from './promptComposer.js';
 
 export type PromptOutputSchema = 'narration' | 'combat';
@@ -42,11 +43,18 @@ export function composePrompt(input: ComposePromptInput): {
 
     const memoryBlock = [input.memory, input.scene].filter(Boolean).join(' | ');
 
+    const characterRecord = input.flowInput?.character as Record<string, unknown> | undefined;
+    const characterCard =
+        characterRecord && typeof characterRecord === 'object'
+            ? buildNarrativeCharacterCard(characterRecord)
+            : '';
+
     const composed = composeOssPrompt({
         playerAction: input.player,
         compactGameLog: input.log,
         combatActive: phase === 'combat',
-        characterName: input.characterName,
+        characterName: input.characterName ?? (typeof characterRecord?.name === 'string' ? characterRecord.name : undefined),
+        characterCard: characterCard || undefined,
         sceneSummary: memoryBlock || input.scene,
         antiLoopHint: input.antiLoopHint,
         flowInput: input.flowInput,

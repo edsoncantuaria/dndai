@@ -16,6 +16,10 @@ import {
 } from '../ai-oss/providers/openRouterEmbeddings.js';
 import { OSS_EMBEDDING_DIMENSION, OSS_EMBEDDING_MODEL } from '../ai-oss/constants.js';
 import { defaultInferenceProviderId } from '../ai-oss/providers/providerRegistry.js';
+import {
+    buildNarrativeCharacterCard,
+    estimateCharacterCardTokens,
+} from '../ai-oss/context/narrativeCharacterCard.js';
 
 test('detectPromptPhase identifica combate e social', () => {
     assert.equal(
@@ -77,6 +81,30 @@ test('defaultInferenceProviderId respeita AI_PROVIDER', () => {
     assert.equal(defaultInferenceProviderId(), 'openrouter');
     if (prev !== undefined) process.env.AI_PROVIDER = prev;
     else delete process.env.AI_PROVIDER;
+});
+
+test('buildNarrativeCharacterCard compacta ficha sem inventário completo', () => {
+    const card = buildNarrativeCharacterCard({
+        name: 'Kael',
+        race: 'Humano',
+        characterClass: 'Ladino',
+        level: 3,
+        storySoFar: 'Busca o artefato perdido na masmorra.',
+        attributes: { hp: 18, maxHp: 24, ac: 14, conditions: ['ferido'] },
+        worldState: { currentRegion: 'Taverna do Corvo' },
+        relationships: [{ name: 'Mira', disposition: 'aliada' }],
+        inventory: [
+            { name: 'Adaga', equipped: true },
+            { name: 'Poção', equipped: false, quantity: 2 },
+        ],
+    });
+    assert.match(card, /Kael/);
+    assert.match(card, /Ladino/);
+    assert.match(card, /PV 18\/24/);
+    assert.match(card, /Taverna/);
+    assert.match(card, /artefato/);
+    assert.ok(!card.includes('Poção') || card.length < 600);
+    assert.ok(estimateCharacterCardTokens(card) <= 160);
 });
 
 test('isOpenRouterEmbeddingEnabled com OPENROUTER_KEY_EMBEDDING', () => {

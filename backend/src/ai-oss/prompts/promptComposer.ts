@@ -8,6 +8,8 @@ export type ComposePromptInput = {
     combatActive?: boolean;
     compactGameLog?: string;
     characterName?: string;
+    /** Ficha narrativa compacta (~80–150 tokens), recalculada no servidor. */
+    characterCard?: string;
     antiLoopHint?: string;
     flowInput?: GameMasterFlowInput;
 };
@@ -20,7 +22,11 @@ export function composeOssPrompt(input: ComposePromptInput): {
     userPrompt: string;
 } {
     const lines: string[] = [];
-    if (input.characterName) lines.push(`PJ=${input.characterName}`);
+    if (input.characterCard?.trim()) {
+        lines.push(`FICHA=${input.characterCard.trim()}`);
+    } else if (input.characterName) {
+        lines.push(`PJ=${input.characterName}`);
+    }
     if (input.combatActive) {
         lines.push('MODO=combate (narre consequências; não resolva dados)');
         if (input.flowInput) {

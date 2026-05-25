@@ -406,7 +406,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         model, setModel, 
         ttsModel, setTtsModel, 
         ttsVoice, setTtsVoice, 
-        apiKey, setApiKey, 
         generationConfig, setGenerationConfig,
         useAiHomebrew, setUseAiHomebrew
     } = useSettingsContext();
@@ -432,19 +431,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     const handleTestImageGeneration = async () => {
         if (!IMAGE_FEATURE_ENABLED) return;
         const prompt = imageTestPrompt.trim();
-        const trimmedKey = (apiKey || '').trim();
         if (!prompt) {
             toast({ variant: 'destructive', description: 'Informe um prompt para gerar a imagem.' });
-            return;
-        }
-        if (!trimmedKey) {
-            toast({ variant: 'destructive', description: 'Configure sua chave do Google AI antes de testar imagens.' });
             return;
         }
         setImageTestLoading(true);
         setImageTestResult(null);
         try {
-            const response = await requestSceneImage(prompt, trimmedKey);
+            const response = await requestSceneImage(prompt, '');
             setImageTestResult({ url: response.imageUrl, imageKey: response.imageKey });
             toast({ title: 'Imagem gerada!', description: 'Abra o preview abaixo para validar a cena.' });
         } catch (error: any) {
@@ -474,27 +468,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </button>
                 </header>
                 <main className="p-6 space-y-6 overflow-y-auto min-h-0">
-                     <div>
-                        <div className="flex justify-between items-center mb-2">
-                           <label htmlFor="api-key-input" className="text-stone-300 font-semibold flex items-center gap-2">
-                              <KeyRound className="h-4 w-4"/> Chave OpenRouter (jogo)
-                           </label>
-                           <a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:text-amber-300 underline">
-                              Criar chave
-                           </a>
-                    </div>
-                     <input
-                        id="api-key-input"
-                        type="password"
-                        value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="sk-or-v1-..."
-                            className="w-full bg-black/40 border border-white/10 rounded-2xl p-3 text-stone-100 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                        />
-                         <p className="text-xs text-stone-500 mt-2">
-                            Salva só no seu navegador. Modelos free no OpenRouter; Gemini opcional para voz e imagens (chave Google separada).
-                        </p>
-                    </div>
+                    <p className="text-sm text-stone-400 rounded-2xl border border-white/10 bg-black/30 p-4">
+                        A IA e a voz do Mestre rodam no servidor — basta entrar e jogar. Ajuste áudio e aparência abaixo.
+                    </p>
                     {IMAGE_FEATURE_ENABLED && (
                         <div className="rounded-3xl border border-white/10 bg-black/30 p-4 space-y-3">
                             <div className="flex items-center justify-between">
